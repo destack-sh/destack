@@ -2206,7 +2206,6 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<Vec<StaticArgument>>> {
         let _timing = self.timing_scope(tags::ANALYZE_INFER_STATIC_RESOLVE);
-
         // canonicalize import targets while preserving alias identity
         let symbol = self.canonical_symbol_id(
             module,
@@ -4415,6 +4414,55 @@ impl Compiler {
         let mapped = materializer.rewrite_type_id(types, ty_id);
         *cache = materializer.into_cache();
         mapped
+    }
+
+    /// Instantiate one signature type by materializing, substituting, and rewriting projections.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn instantiate_signature_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        source_id: LocalNodeIdAny,
+        owner_symbol: Option<GlobalSymbolId>,
+        substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
+        ty_id: LocalTypeId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        materialize_cache: &mut TypeRewriteCache,
+        substitute_cache: &mut HashMap<LocalTypeId, LocalTypeId>,
+    ) -> LocalTypeId {
+        // materialize static arguments before substitution
+        let materialized = self.materialize_static_arguments_in_type(
+            module,
+            profile,
+            ty_id,
+            tree,
+            symbols,
+            types,
+            materialize_cache,
+        );
+
+        // substitute resolved static arguments
+        let substituted =
+            self.substitute_static_parameters(materialized, substitutions, types, substitute_cache);
+
+        // rewrite owner-scoped associated aliases after substitution
+        let Some(owner_symbol) = owner_symbol else {
+            return substituted;
+        };
+
+        self.rewrite_associated_aliases_for_owner(
+            module,
+            profile,
+            source_id,
+            owner_symbol,
+            substitutions,
+            substituted,
+            tree,
+            symbols,
+            types,
+        )
     }
 
     pub(crate) fn materialize_static_arguments_for_reference(

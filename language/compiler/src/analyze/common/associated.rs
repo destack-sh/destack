@@ -1,18 +1,221 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::analyze::common::{CanonicalSymbolMode, TypeRewriteCache};
+use crate::analyze::common::{
+    CanonicalSymbolMode, REWRITER_TAG_ASSOCIATED_ALIAS, TypeRewriteCache, TypeWalkContext,
+    TypeWalkKey, rewrite_type_with_cache,
+};
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Compiler};
 use destack_dir::{
     Declaration, Expression, GlobalNodeId, GlobalSymbolId, Heritage, LocalNodeId, LocalNodeIdAny,
     LocalTypeId, Member, NodeTree, NodeType, StaticArgument, SymbolTable, SymbolType, Type,
-    TypeTable,
+    TypeRewriter, TypeRewriterOptions, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
+/// Rewrite associated alias references inside projected member types.
+struct AssociatedAliasProjectionRewriter<'a> {
+    /// The compiler instance.
+    compiler: &'a Compiler,
+    /// The current module.
+    module: &'a Module,
+    /// The active profile.
+    profile: ProfileId,
+    /// The source node for diagnostics.
+    source_id: LocalNodeIdAny,
+    /// The owner symbol that defines the projected associated aliases.
+    owner_symbol: GlobalSymbolId,
+    /// The substitutions currently applied to the projection.
+    substitutions: &'a HashMap<GlobalSymbolId, LocalTypeId>,
+    /// The tree used for static argument substitution.
+    tree: &'a NodeTree,
+    /// The symbols used for static argument substitution.
+    symbols: &'a SymbolTable,
+    /// The cache key for rewrite memoization.
+    cache_key: u64,
+    /// The rewrite options.
+    options: TypeRewriterOptions,
+    /// The local rewrite cache.
+    cache: TypeRewriteCache,
+}
+
+#[allow(clippy::too_many_arguments)]
+impl<'a> AssociatedAliasProjectionRewriter<'a> {
+    /// Create a rewriter for a projected associated alias graph.
+    fn new(
+        compiler: &'a Compiler,
+        module: &'a Module,
+        profile: ProfileId,
+        source_id: LocalNodeIdAny,
+        owner_symbol: GlobalSymbolId,
+        substitutions: &'a HashMap<GlobalSymbolId, LocalTypeId>,
+        tree: &'a NodeTree,
+        symbols: &'a SymbolTable,
+    ) -> Self {
+        // derive a stable rewrite key from owner and source
+        let owner_key = owner_symbol.module_id.package_id.raw()
+            ^ ((owner_symbol.module_id.local_id as u64) << 32)
+            ^ ((owner_symbol.local_id.id as u64) << 1)
+            ^ ((owner_symbol.local_id.ty as u64) << 53);
+        let walk_context = TypeWalkContext::new(TypeWalkKey::BASE)
+            .with_rewriter_tag(REWRITER_TAG_ASSOCIATED_ALIAS)
+            .with_context_key(owner_key ^ source_id.cache_key());
+        let options = walk_context.rewriter_options();
+        let cache_key = options.cache_key();
+
+        Self {
+            compiler,
+            module,
+            profile,
+            source_id,
+            owner_symbol,
+            substitutions,
+            tree,
+            symbols,
+            cache_key,
+            options,
+            cache: TypeRewriteCache::new(),
+        }
+    }
+}
+
+impl TypeRewriter for AssociatedAliasProjectionRewriter<'_> {
+    fn options(&self) -> &TypeRewriterOptions {
+        &self.options
+    }
+
+    fn rewrite_any(
+        &mut self,
+        types: &mut TypeTable,
+        _type_id: LocalTypeId,
+        ty: &Type,
+    ) -> Option<LocalTypeId> {
+        // only rewrite nominal references
+        let Type::Reference {
+            symbol,
+            static_arguments,
+        } = ty
+        else {
+            return None;
+        };
+
+        // keep references outside the owner declaration unchanged
+        let owner_symbol = self.compiler.owner_symbol_for_member_symbol(
+            self.module,
+            self.profile,
+            *symbol,
+            self.symbols,
+        )?;
+        if owner_symbol != self.owner_symbol {
+            return None;
+        }
+
+        // keep non associated aliases unchanged
+        if symbol.ty() != SymbolType::TypeAlias {
+            return None;
+        }
+
+        // resolve the alias target for this member alias
+        let alias_target_id = self.compiler.alias_target_type_id_for_symbol(
+            self.module,
+            self.profile,
+            *symbol,
+            self.source_id,
+            self.symbols,
+            types,
+        )?;
+
+        // start from the caller substitutions
+        let mut substitutions = self.substitutions.clone();
+
+        // map explicit member arguments onto alias static parameters
+        if let Some(member_arguments) = static_arguments.as_deref() {
+            let member_substitutions = self.compiler.build_type_parameter_substitutions_for_symbol(
+                self.module,
+                self.profile,
+                *symbol,
+                self.source_id,
+                member_arguments,
+                self.tree,
+                self.symbols,
+                types,
+            );
+            substitutions.extend(member_substitutions);
+        }
+
+        // apply substitutions into the alias target
+        let mapped_alias_id = if substitutions.is_empty() {
+            alias_target_id
+        } else {
+            let mut substitution_cache = HashMap::new();
+            self.compiler.substitute_static_parameters(
+                alias_target_id,
+                &substitutions,
+                types,
+                &mut substitution_cache,
+            )
+        };
+
+        // materialize static arguments after substitution
+        let mut materialize_cache = TypeRewriteCache::new();
+        let mapped_alias_id = self.compiler.materialize_static_arguments_in_type(
+            self.module,
+            self.profile,
+            mapped_alias_id,
+            self.tree,
+            self.symbols,
+            types,
+            &mut materialize_cache,
+        );
+
+        // return one rewrite step and let the outer walker handle recursion and caching
+        Some(mapped_alias_id)
+    }
+
+    fn rewrite_type_id(&mut self, types: &mut TypeTable, type_id: LocalTypeId) -> LocalTypeId {
+        let mut cache = std::mem::take(&mut self.cache);
+        let mapped = rewrite_type_with_cache(self, types, &mut cache, self.cache_key, type_id);
+        self.cache = cache;
+        mapped
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Resolve receiver substitutions for the owner of an associated member.
-    fn receiver_substitutions_for_owner_symbol(
+    /// Rewrite owner-scoped associated aliases in one type id with known substitutions.
+    pub(crate) fn rewrite_associated_aliases_for_owner(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        source_id: LocalNodeIdAny,
+        owner_symbol: GlobalSymbolId,
+        substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
+        type_id: LocalTypeId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        // skip when no substitutions are available
+        if substitutions.is_empty() {
+            return type_id;
+        }
+
+        // rewrite associated aliases for the owner in one pass
+        let mut rewriter = AssociatedAliasProjectionRewriter::new(
+            self,
+            module,
+            profile,
+            source_id,
+            owner_symbol,
+            substitutions,
+            tree,
+            symbols,
+        );
+
+        rewriter.rewrite_type_id(types, type_id)
+    }
+
+    /// Resolve receiver substitutions for an associated projection owner.
+    fn associated_projection_receiver_substitutions_for_owner_symbol(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -43,7 +246,7 @@ impl Compiler {
         );
 
         let mut visited_symbols = HashSet::new();
-        self.receiver_substitutions_for_owner_symbol_inner(
+        self.associated_projection_receiver_substitutions_inner(
             module,
             profile,
             source_id,
@@ -57,8 +260,8 @@ impl Compiler {
         )
     }
 
-    /// Resolve receiver substitutions for an owner symbol along heritage edges.
-    fn receiver_substitutions_for_owner_symbol_inner(
+    /// Resolve receiver substitutions for associated projections along heritage edges.
+    fn associated_projection_receiver_substitutions_inner(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -82,8 +285,13 @@ impl Compiler {
         }
 
         // collect direct heritage expressions for this symbol
-        let heritage_expressions =
-            self.heritage_expressions_for_symbol(module, profile, current_symbol, tree, symbols);
+        let heritage_expressions = self.heritage_expressions_for_associated_projection(
+            module,
+            profile,
+            current_symbol,
+            tree,
+            symbols,
+        );
         for heritage_expression_id in heritage_expressions {
             // resolve the heritage target and applied arguments
             let resolved_heritage = self.with_module_tree_symbols_or_local(
@@ -174,7 +382,7 @@ impl Compiler {
                 symbols,
                 types,
             );
-            if let Some(substitutions) = self.receiver_substitutions_for_owner_symbol_inner(
+            if let Some(substitutions) = self.associated_projection_receiver_substitutions_inner(
                 module,
                 profile,
                 source_id,
@@ -193,8 +401,8 @@ impl Compiler {
         Ok(None)
     }
 
-    /// Collect direct heritage expressions for one declaration symbol.
-    fn heritage_expressions_for_symbol(
+    /// Collect direct heritage expressions for associated projection traversal.
+    fn heritage_expressions_for_associated_projection(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -592,22 +800,24 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> AnalyzeResult<Type> {
         let mut substitutions = HashMap::new();
+        let owner_symbol =
+            self.owner_symbol_for_member_symbol(module, profile, target_symbol, symbols);
 
         // map owner parameters from receiver substitutions
-        if let Some(owner_symbol) =
-            self.owner_symbol_for_member_symbol(module, profile, target_symbol, symbols)
+        if let Some(owner_symbol) = owner_symbol
             && let Some(receiver_symbol) = receiver_symbol
-            && let Some(owner_substitutions) = self.receiver_substitutions_for_owner_symbol(
-                module,
-                profile,
-                source_id,
-                receiver_symbol,
-                receiver_arguments,
-                owner_symbol,
-                tree,
-                symbols,
-                types,
-            )?
+            && let Some(owner_substitutions) = self
+                .associated_projection_receiver_substitutions_for_owner_symbol(
+                    module,
+                    profile,
+                    source_id,
+                    receiver_symbol,
+                    receiver_arguments,
+                    owner_symbol,
+                    tree,
+                    symbols,
+                    types,
+                )?
         {
             substitutions.extend(owner_substitutions);
         }
@@ -752,6 +962,21 @@ impl Compiler {
             types,
             &mut materialize_cache,
         );
+        let mapped_alias = if let Some(owner_symbol) = owner_symbol {
+            let mut rewriter = AssociatedAliasProjectionRewriter::new(
+                self,
+                module,
+                profile,
+                source_id,
+                owner_symbol,
+                &substitutions,
+                tree,
+                symbols,
+            );
+            rewriter.rewrite_type_id(types, mapped_alias)
+        } else {
+            mapped_alias
+        };
 
         Ok(types.get_type(mapped_alias).clone())
     }

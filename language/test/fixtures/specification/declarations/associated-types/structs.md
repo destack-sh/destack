@@ -188,6 +188,20 @@ declare const value: PairBox<boolean>.Pair<int32>;
 value satisfies [boolean, int32];
 ```
 
+### struct generic associated defaults can reference sibling generic aliases
+
+> Struct generic associated aliases can compose through sibling generic aliases.
+
+```ds
+struct PairBox<T> {
+    type Entry<V> = { left: T, right: V };
+    type Pair<U> = [Entry<U>, Entry<U>];
+}
+
+declare const value: PairBox<boolean>.Pair<int32>;
+value satisfies [{ left: boolean, right: int32 }, { left: boolean, right: int32 }];
+```
+
 ### struct associated projections reject extra static arguments
 
 > Struct associated type projections reject extra static arguments.
@@ -217,4 +231,72 @@ type Alias<T> = Wrapper<T>;
 
 declare const value: Alias<string>.Item;
 value satisfies string;
+```
+
+### struct associated projections resolve across module boundaries
+
+> Struct associated type projections are available through imported modules.
+
+```ds:box.ds
+export struct Box<T> {
+    type Item = T;
+    value: T;
+}
+```
+
+```ds:main.ds
+import { Box } from "./box";
+
+declare const value: Box<int32>.Item;
+value satisfies int32;
+```
+
+### struct generic associated projections resolve across module boundaries
+
+> Imported struct projections preserve outer and member substitutions.
+
+```ds:pair.ds
+export struct Pair<T> {
+    type Wrap<U> = [T, U];
+    value: T;
+}
+```
+
+```ds:main.ds
+import { Pair } from "./pair";
+
+declare const value: Pair<string>.Wrap<int32>;
+value satisfies [string, int32];
+```
+
+### struct associated defaults support multiple static value parameters
+
+> Struct associated defaults can combine multiple static value parameters.
+
+```ds
+struct Matrix<T> {
+    type Cell<comptime row: uint, comptime column: uint> = [T, row, column];
+}
+
+declare const cell: Matrix<float64>.Cell<1, 2>;
+cell satisfies [float64, 1, 2];
+```
+
+### struct associated projections use inherited interface generic defaults
+
+> Struct implementors inherit generic associated defaults from interfaces.
+
+```ds
+interface Projected<T> {
+    type View<U> = [T, U];
+}
+
+struct Buffer<T> {
+    value: T;
+}
+
+extension<T> for Buffer<T> implements Projected<T> {}
+
+declare const value: Buffer<int32>.View<boolean>;
+value satisfies [int32, boolean];
 ```

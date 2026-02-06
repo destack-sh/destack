@@ -2514,7 +2514,7 @@ impl Compiler {
             types.get_type_source(target_id),
             symbol,
             target_arguments,
-            source_has_arguments,
+            source_has_arguments && !target_has_arguments,
             symbols,
             types,
             options,
@@ -2525,7 +2525,7 @@ impl Compiler {
             types.get_type_source(source_id),
             symbol,
             source_arguments,
-            target_has_arguments,
+            target_has_arguments && !source_has_arguments,
             symbols,
             types,
             options,
@@ -2538,9 +2538,14 @@ impl Compiler {
             return false;
         }
 
-        let tree = module.dir(profile).tree.read();
-        let parameter_symbols =
-            self.collect_static_parameter_symbols(module, symbol, profile, &tree, symbols);
+        let local_tree = module.dir(profile).tree.try_read();
+        let parameter_symbols = if let Some(tree) = local_tree.as_ref() {
+            self.collect_static_parameter_symbols(module, symbol, profile, tree, symbols)
+        } else {
+            // avoid blocking when another phase holds a write lock
+            self.cached_static_parameter_symbols(profile, symbol)
+                .flatten()
+        };
 
         let target_source_id = types.get_type_source(target_id);
         let source_source_id = types.get_type_source(source_id);
@@ -2553,16 +2558,18 @@ impl Compiler {
                 .as_ref()
                 .and_then(|symbols| symbols.get(index))
                 .copied();
-            let parameter_kind = parameter_symbol.map(|symbol| {
-                self.static_parameter_kind_for_symbol(
-                    module, profile, symbol, &tree, symbols, types,
+            let (parameter_kind, parameter_variance) = if let Some(symbol) = parameter_symbol {
+                self.static_parameter_metadata_for_symbol(
+                    module,
+                    profile,
+                    symbol,
+                    local_tree.as_deref(),
+                    symbols,
+                    types,
                 )
-            });
-            let parameter_variance = parameter_symbol.and_then(|symbol| {
-                self.static_parameter_variance_for_symbol(
-                    module, profile, symbol, &tree, symbols, types,
-                )
-            });
+            } else {
+                (None, None)
+            };
 
             let target_ty_id =
                 self.convert_static_argument_type(target_argument, target_source_id, types);
@@ -2650,7 +2657,6 @@ impl Compiler {
                 }
             }
         }
-
         true
     }
 
@@ -2670,6 +2676,24 @@ impl Compiler {
         let has_arguments = static_arguments.is_some_and(|args| !args.is_empty());
         if !has_arguments && !resolve_defaults {
             return Vec::new();
+        }
+
+        // reuse explicit evaluated positional arguments without re-resolving defaults
+        let can_use_explicit_arguments = has_arguments
+            && !resolve_defaults
+            && static_arguments.is_some_and(|arguments| {
+                arguments.iter().all(|argument| {
+                    matches!(
+                        argument,
+                        StaticArgument::Evaluated {
+                            name: None,
+                            value: _,
+                        }
+                    )
+                })
+            });
+        if can_use_explicit_arguments {
+            return static_arguments.cloned().unwrap_or_default();
         }
 
         let tree = module.dir(profile).tree.read();
@@ -2717,20 +2741,7 @@ impl Compiler {
             return type_id;
         }
 
-        // prefer canonical normalization when it expands the alias
-        let normalized = self.normalize_type(
-            module,
-            profile,
-            type_id,
-            symbols,
-            types,
-            NormalizationMode::Assign,
-        );
-        if normalized != type_id {
-            return normalized;
-        }
-
-        // fall back to direct alias target substitution when normalization preserved the reference
+        // resolve the alias target directly for assignability
         let source_id = types.get_type_source(type_id);
         let Some(alias_target_id) = self
             .alias_target_type_id_for_symbol(module, profile, symbol, source_id, symbols, types)
@@ -3528,7 +3539,6 @@ impl Compiler {
         if !matches!(types.get_type(type_id), Type::Conditional { .. }) {
             return None;
         }
-
         // normalize in flow mode to resolve conditionals
         let normalized = self.normalize_type(
             module,
@@ -3541,7 +3551,6 @@ impl Compiler {
         if normalized == type_id {
             return None;
         }
-
         Some(normalized)
     }
 

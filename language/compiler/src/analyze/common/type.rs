@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use destack_dir::{
-    Block, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, NodeTree,
+    Block, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree,
     NodeType, PrimitiveType, RuntimeCheckKind, ScalarLiteral, StaticArgument, StaticExpression,
     StaticParameterKind, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable, TypeUnaryOperator,
     TypeVisitor, TypeVisitorOptions, walk_static_argument, walk_static_expression, walk_type,
@@ -1103,35 +1103,6 @@ impl Compiler {
                     if let Some(target) = types.get_alias_target_type_id(typed_symbol) {
                         return Some(target);
                     }
-
-                    // lazily hydrate member type aliases when the declare pass has not populated the map yet
-                    if let Some(primary_declaration) = symbol_entry.primary_declaration
-                        && primary_declaration.local_id.ty == NodeType::Member
-                    {
-                        let member_id = primary_declaration.local_id.into_typed::<Member>();
-                        let tree = module.dir(profile).tree.read();
-                        if let Member::Type {
-                            value: Some(value_id),
-                            ..
-                        } = tree.get(member_id)
-                        {
-                            let value_global = value_id.into_global_any(module.id);
-                            let lazy_target = types
-                                .get_declared_type_id(value_global)
-                                .or_else(|| types.get_inferred_type_id(value_global))
-                                .or_else(|| {
-                                    self.try_evaluate_expression_to_type(
-                                        module, profile, *value_id, &tree, symbols, types, true,
-                                        true,
-                                    )
-                                    .ok()
-                                });
-                            if let Some(target) = lazy_target {
-                                types.set_alias_target_type_id(typed_symbol, target);
-                                return Some(target);
-                            }
-                        }
-                    }
                 }
 
                 // follow import targets for local alias references
@@ -1164,30 +1135,39 @@ impl Compiler {
                     );
                     types.record_normalization_symbol_dependency(typed_symbol);
 
-                    // import remote alias targets from the export summary
-                    let mut owner_types = owner_module.dir(profile).types.write();
-                    let remote_target_id = match owner_types.get_alias_target_type_id(typed_symbol)
-                    {
-                        Some(id) => id,
-                        None => return (None, None),
+                    // resolve the remote alias target id without holding a write lock
+                    let remote_target_id = {
+                        let owner_types = owner_module.dir(profile).types.read();
+                        match owner_types.get_alias_target_type_id(typed_symbol) {
+                            Some(id) => id,
+                            None => return (None, None),
+                        }
                     };
 
-                    // evaluate remote alias targets before importing
-                    if matches!(owner_types.get_type(remote_target_id), Type::Unevaluated(_))
-                        && let Err(error) = self.evaluate_type(
-                            owner_module,
-                            profile,
-                            remote_target_id,
-                            owner_tree,
-                            owner_symbols,
-                            &mut owner_types,
-                        )
-                    {
-                        self.error(error);
-                        return (None, None);
+                    // evaluate the remote alias target when needed
+                    let needs_evaluation = {
+                        let owner_types = owner_module.dir(profile).types.read();
+                        matches!(owner_types.get_type(remote_target_id), Type::Unevaluated(_))
+                    };
+                    if needs_evaluation {
+                        let mut owner_types = owner_module.dir(profile).types.write();
+                        if matches!(owner_types.get_type(remote_target_id), Type::Unevaluated(_))
+                            && let Err(error) = self.evaluate_type(
+                                owner_module,
+                                profile,
+                                remote_target_id,
+                                owner_tree,
+                                owner_symbols,
+                                &mut owner_types,
+                            )
+                        {
+                            self.error(error);
+                            return (None, None);
+                        }
                     }
 
-                    // skip alias targets that still need value materialization
+                    // read the evaluated remote alias target and import it locally
+                    let owner_types = owner_module.dir(profile).types.read();
                     let needs_materialization = self
                         .type_contains_unevaluated_value_static_arguments(
                             owner_module,
@@ -1300,6 +1280,59 @@ impl Compiler {
         match types.get_type(type_id) {
             Type::Value { value } => *value,
             _ => type_id,
+        }
+    }
+
+    /// Check whether a type can be instantiated as a callable value target.
+    pub(crate) fn type_is_callable_instantiation_target(
+        &self,
+        type_id: LocalTypeId,
+        types: &TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> bool {
+        if !visited.insert(type_id) {
+            return false;
+        }
+
+        match types.get_type(type_id) {
+            Type::Function { .. } => true,
+            Type::Object {
+                call_signatures, ..
+            } => !call_signatures.is_empty(),
+            Type::Union {
+                elements: candidates,
+                ..
+            }
+            | Type::Intersection {
+                elements: candidates,
+                ..
+            } => candidates.iter().any(|candidate| {
+                self.type_is_callable_instantiation_target(*candidate, types, visited)
+            }),
+            Type::Reference { symbol, .. } => {
+                if symbol.ty() == SymbolType::Function {
+                    return true;
+                }
+
+                if let Some(alias_target_id) = types.get_alias_target_type_id(*symbol) {
+                    return self.type_is_callable_instantiation_target(
+                        alias_target_id,
+                        types,
+                        visited,
+                    );
+                }
+
+                if let Some(instance_type_id) = types.get_instance_type_id(*symbol) {
+                    return self.type_is_callable_instantiation_target(
+                        instance_type_id,
+                        types,
+                        visited,
+                    );
+                }
+
+                false
+            }
+            _ => false,
         }
     }
 
@@ -1742,58 +1775,5 @@ impl Compiler {
         let mut visitor = TypeContainmentVisitor::new_unevaluated_static(visited);
         visitor.visit_static_expression(types, expression);
         visitor.found
-    }
-
-    /// Check whether a type can be instantiated as a callable value target.
-    pub(crate) fn type_is_callable_instantiation_target(
-        &self,
-        type_id: LocalTypeId,
-        types: &TypeTable,
-        visited: &mut HashSet<LocalTypeId>,
-    ) -> bool {
-        if !visited.insert(type_id) {
-            return false;
-        }
-
-        match types.get_type(type_id) {
-            Type::Function { .. } => true,
-            Type::Object {
-                call_signatures, ..
-            } => !call_signatures.is_empty(),
-            Type::Union {
-                elements: candidates,
-                ..
-            }
-            | Type::Intersection {
-                elements: candidates,
-                ..
-            } => candidates.iter().any(|candidate| {
-                self.type_is_callable_instantiation_target(*candidate, types, visited)
-            }),
-            Type::Reference { symbol, .. } => {
-                if symbol.ty() == SymbolType::Function {
-                    return true;
-                }
-
-                // follow alias and instance wrappers around callable targets
-                if let Some(alias_target_id) = types.get_alias_target_type_id(*symbol) {
-                    return self.type_is_callable_instantiation_target(
-                        alias_target_id,
-                        types,
-                        visited,
-                    );
-                }
-                if let Some(instance_type_id) = types.get_instance_type_id(*symbol) {
-                    return self.type_is_callable_instantiation_target(
-                        instance_type_id,
-                        types,
-                        visited,
-                    );
-                }
-
-                false
-            }
-            _ => false,
-        }
     }
 }

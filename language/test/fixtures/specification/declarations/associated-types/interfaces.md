@@ -634,6 +634,22 @@ declare const value: StringBuilder.Pair<int32>;
 value satisfies [string, int32];
 ```
 
+### interface generic defaults can reference sibling generic associated aliases
+
+> Interface generic associated defaults can compose through sibling generic aliases.
+
+```ds
+interface Pairing<T> {
+    type Entry<V> = { left: T, right: V };
+    type Pair<U> = [Entry<U>, Entry<U>];
+}
+
+class StringPairing implements Pairing<string> {}
+
+declare const value: StringPairing.Pair<int32>;
+value satisfies [{ left: string, right: int32 }, { left: string, right: int32 }];
+```
+
 ### associated projections reject extra static arguments
 
 > Projections reject extra static arguments for non-generic associated types.
@@ -649,3 +665,236 @@ function project<C: Container<string>>(value: C.Item<int32>): C.Item<int32> {
 ```
 
 - contains: argument
+
+### associated type projections resolve through re export chains
+
+> Associated type projections remain available through type re exports.
+
+```ds:stream.ds
+export interface Stream<T> {
+    type Item = T;
+}
+```
+
+```ds:api.ds
+export type { Stream } from "./stream";
+```
+
+```ds:main.ds
+import type { Stream } from "./api";
+
+declare const value: Stream<int32>.Item;
+value satisfies int32;
+```
+
+### declaration module interfaces provide associated type defaults
+
+> Implementors can inherit associated defaults from declaration module interfaces.
+
+```ds:stream.d.ds
+export interface Stream<T> {
+    type Item = T;
+    next(): Item;
+}
+```
+
+```ds:counter.ds
+import type { Stream } from "./stream";
+
+export class Counter implements Stream<int32> {
+    value: int32;
+
+    constructor(value: int32) {
+        this.value = value;
+    }
+
+    next(): Item {
+        this.value
+    }
+}
+```
+
+```ds:main.ds
+import { Counter } from "./counter";
+
+declare const counter: Counter;
+counter.next() satisfies int32;
+```
+
+### class implementors resolve associated projections across module boundaries
+
+> Class implementors expose interface associated projections through imports.
+
+```ds:container.ds
+export interface Container<T> {
+    type Item = T;
+    get(): Item;
+}
+```
+
+```ds:box.ds
+import type { Container } from "./container";
+
+export class Box<T> implements Container<T> {
+    value: T;
+
+    constructor(value: T) {
+        this.value = value;
+    }
+
+    get(): Item {
+        this.value
+    }
+}
+```
+
+```ds:main.ds
+import { Box } from "./box";
+
+declare const value: Box<int32>.Item;
+value satisfies int32;
+```
+
+### cross module abstract associated types require explicit class implementations
+
+> Imported interfaces with abstract associated types still require explicit class implementations.
+
+```ds:container.ds
+export interface Container<T> {
+    type Item;
+    get(): Item;
+}
+```
+
+```ds:box.ds
+import type { Container } from "./container";
+
+export class Box<T> implements Container<T> {
+    value: T;
+
+    constructor(value: T) {
+        this.value = value;
+    }
+
+    get(): Item {
+        this.value
+    }
+}
+```
+
+```ds:main.ds
+import { Box } from "./box";
+
+declare const value: Box<int32>.Item;
+value satisfies int32;
+```
+
+### nominal interfaces support associated type defaults
+
+> Nominal interfaces can declare associated defaults used by explicit implementors.
+
+```ds
+newtype interface Container<T> {
+    type Item = T;
+    get(): Item;
+}
+
+class NumberContainer implements Container<int32> {
+    value: int32;
+
+    constructor(value: int32) {
+        this.value = value;
+    }
+
+    get(): Item {
+        this.value
+    }
+}
+
+declare const value: NumberContainer.Item;
+value satisfies int32;
+```
+
+### inherited associated projections compose type and value substitutions
+
+> Inherited associated defaults preserve both outer type and inner value substitutions.
+
+```ds
+interface MatrixLike<T> {
+    type Row<comptime n: uint> = [T, n];
+}
+
+interface Renderable<T> extends MatrixLike<T> {
+    render(): Row<4>;
+}
+
+class Matrix implements Renderable<float64> {
+    render(): Row<4> {
+        [0.0, 4]
+    }
+}
+
+declare const row: Matrix.Row<4>;
+row satisfies [float64, 4];
+```
+
+### interface abstract generic associated type must be implemented by classes
+
+> Class implementors must define abstract generic associated types.
+
+```ds
+interface Factory<T> {
+    type Item<U>;
+}
+
+class MissingFactory<T> implements Factory<T> {}
+```
+
+- contains: associated
+
+### interface abstract generic associated type must be implemented by extensions
+
+> Extension implementors must define abstract generic associated types.
+
+```ds
+interface Factory<T> {
+    type Item<U>;
+}
+
+struct MissingFactory<T> {
+    value: T;
+}
+
+extension<T> for MissingFactory<T> implements Factory<T> {}
+```
+
+- contains: associated
+
+### interface generic associated defaults resolve across module boundaries
+
+> Imported implementors preserve generic associated defaults and substitutions.
+
+```ds:factory.ds
+export interface Factory<T> {
+    type Item<U> = [T, U];
+}
+```
+
+```ds:box.ds
+import type { Factory } from "./factory";
+
+export class Box<T> implements Factory<T> {
+    value: T;
+
+    constructor(value: T) {
+        this.value = value;
+    }
+}
+```
+
+```ds:main.ds
+import { Box } from "./box";
+
+declare const value: Box<int32>.Item<string>;
+value satisfies [int32, string];
+```

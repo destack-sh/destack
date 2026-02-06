@@ -35,7 +35,8 @@ pub(crate) use scalar::{evaluate_binary_scalar, evaluate_unary_scalar};
 pub(crate) use shape::{ObjectShape, ObjectShapeSet};
 pub(crate) use r#static::StaticArgumentResolver;
 pub(crate) use walk::{
-    REWRITER_TAG_INFER_MATERIALIZER, REWRITER_TAG_INFER_SUBSTITUTION,
-    REWRITER_TAG_LITERAL_WIDENING, REWRITER_TAG_READONLY, REWRITER_TAG_STATIC_ARGUMENT,
-    TypeCollector, TypeRewriteCache, TypeWalkContext, TypeWalkKey, rewrite_type_with_cache,
+    REWRITER_TAG_ASSOCIATED_ALIAS, REWRITER_TAG_INFER_MATERIALIZER,
+    REWRITER_TAG_INFER_SUBSTITUTION, REWRITER_TAG_LITERAL_WIDENING, REWRITER_TAG_READONLY,
+    REWRITER_TAG_STATIC_ARGUMENT, TypeCollector, TypeRewriteCache, TypeWalkContext, TypeWalkKey,
+    rewrite_type_with_cache,
 };

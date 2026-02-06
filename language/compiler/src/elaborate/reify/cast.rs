@@ -1005,6 +1005,7 @@ impl Compiler {
         // check casts that change representation despite matching type ids
         let value_type = types.get_type(value_type_id).clone();
         let target_type = types.get_type(target_type_id).clone();
+
         let value_is_concrete = self.is_concrete_resolution(module_id, value_id, types)
             || self.is_concrete_new_expression(tree, value_id)
             || self.is_tagged_expression(tree, value_id);
@@ -1051,6 +1052,9 @@ impl Compiler {
             types,
             &options,
         );
+
+        // skip only semantic identity casts
+        // true upcasts still need explicit reify so lower can change representation
         if allow_assignable_skip
             && !requires_representation_cast
             && to_target.is_assignable()
@@ -1835,17 +1839,18 @@ impl Compiler {
                 index_signatures, ..
             } = &target_type
             {
-                let Some(signature) = index_signatures.first() else {
-                    return Ok(None);
-                };
-                let info = self.record_like_target_for_types(
-                    origin_id,
-                    map_symbol,
-                    signature.key_type,
-                    signature.value_type,
-                    types,
-                )?;
-                return Ok(Some(info));
+                if let Some(signature) = index_signatures.first() {
+                    let info = self.record_like_target_for_types(
+                        origin_id,
+                        map_symbol,
+                        signature.key_type,
+                        signature.value_type,
+                        types,
+                    )?;
+                    return Ok(Some(info));
+                }
+
+                return Ok(None);
             }
 
             // resolve record-like references to Map<K, V>

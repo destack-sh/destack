@@ -86,10 +86,25 @@ impl Compiler {
         let symbols = dir.symbols.read();
         let mut collector = TaskResultCollector::new();
         let module_checks = self.module_check_options_for_module(module.id);
+
+        {
+            let _timing = self.timing_scope(tags::ANALYZE_DECLARE_DECLARATIONS);
+            self.collect(
+                &mut collector,
+                self.declare_module_declarations(&module, profile, &tree, &symbols, &mut types),
+            );
+        }
+
+        // yield after declaration metadata writes
+        if let Some(dependency) = collector.try_into_yield_any() {
+            return Err(AnalyzeError::Yield { dependency });
+        }
+
+        let mut collector = TaskResultCollector::new();
         {
             let _timing = self.timing_scope(tags::ANALYZE_DECLARE_TYPES);
 
-            // run eager evaluation when required
+            // evaluate remaining unevaluated types after declaration metadata is available
             if self.should_eager_evaluate_declared_types(&module, module_checks) {
                 let has_dependency = self.evaluate_unevaluated_types_to_fixpoint(
                     &module,
@@ -107,19 +122,6 @@ impl Compiler {
                     return Ok(());
                 }
             }
-        }
-
-        // reset collector for declaration steps
-        let mut collector = TaskResultCollector::new();
-
-        {
-            let _timing = self.timing_scope(tags::ANALYZE_DECLARE_DECLARATIONS);
-
-            // declare type level declarations and shapes
-            self.collect(
-                &mut collector,
-                self.declare_module_declarations(&module, profile, &tree, &symbols, &mut types),
-            );
         }
 
         // drop the read guard before taking a mutable lock for decorators

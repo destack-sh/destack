@@ -2802,19 +2802,17 @@ impl Compiler {
             dynamic_parameters
                 .iter()
                 .map(|parameter| {
-                    let materialized = self.materialize_static_arguments_in_type(
+                    self.instantiate_signature_type(
                         module,
                         profile,
+                        node_id,
+                        owner_symbol,
+                        &substitutions,
                         *parameter,
                         tree,
                         symbols,
                         types,
                         &mut materialize_cache,
-                    );
-                    self.substitute_static_parameters(
-                        materialized,
-                        &substitutions,
-                        types,
                         &mut substitute_cache,
                     )
                 })
@@ -2824,19 +2822,17 @@ impl Compiler {
             Some(types.insert_type_from_any(Type::Error, node_id))
         } else {
             return_type.map(|return_type| {
-                let materialized = self.materialize_static_arguments_in_type(
+                self.instantiate_signature_type(
                     module,
                     profile,
+                    node_id,
+                    owner_symbol,
+                    &substitutions,
                     return_type,
                     tree,
                     symbols,
                     types,
                     &mut materialize_cache,
-                );
-                self.substitute_static_parameters(
-                    materialized,
-                    &substitutions,
-                    types,
                     &mut substitute_cache,
                 )
             })

@@ -102,6 +102,50 @@ declare const entry: Map<string, int32>.Item;
 entry satisfies MapEntry<string, int32>;
 ```
 
+### class associated interface implementations resolve across module boundaries
+
+> Class associated aliases satisfy interface contracts across imports.
+
+```ds:container.ds
+export interface Container<V> {
+    type Item;
+    get(): Item;
+}
+```
+
+```ds:entry.ds
+export struct MapEntry<K, V> {
+    key: K;
+    value: V;
+}
+```
+
+```ds:map.ds
+import { Container } from "./container";
+import { MapEntry } from "./entry";
+
+export class Map<K, V> implements Container<V> {
+    type Item = MapEntry<K, V>;
+    entry: Item;
+
+    constructor(entry: Item) {
+        this.entry = entry;
+    }
+
+    get(): Item {
+        this.entry
+    }
+}
+```
+
+```ds:main.ds
+import { Map } from "./map";
+import { MapEntry } from "./entry";
+
+declare const entry: Map<string, int32>.Item;
+entry satisfies MapEntry<string, int32>;
+```
+
 ### class inherits interface generic associated defaults
 
 > Classes inherit generic associated defaults when no override is provided.
@@ -220,6 +264,20 @@ declare const value: PairBox<string>.Pair<int32>;
 value satisfies [string, int32];
 ```
 
+### class generic associated defaults can reference sibling generic aliases
+
+> Class generic associated aliases can compose through sibling generic aliases.
+
+```ds
+class PairBox<T> {
+    type Entry<V> = { left: T, right: V };
+    type Pair<U> = [Entry<U>, Entry<U>];
+}
+
+declare const value: PairBox<string>.Pair<int32>;
+value satisfies [{ left: string, right: int32 }, { left: string, right: int32 }];
+```
+
 ### class associated projections reject extra static arguments
 
 > Class associated type projections reject extra static arguments.
@@ -281,4 +339,68 @@ type Alias<T> = Base<T>;
 
 declare const value: Alias<boolean>.Item;
 value satisfies boolean;
+```
+
+### class associated projections resolve across module boundaries
+
+> Class associated type projections are available through imported modules.
+
+```ds:box.ds
+export class Box<T> {
+    type Item = T;
+}
+```
+
+```ds:main.ds
+import { Box } from "./box";
+
+declare const value: Box<int32>.Item;
+value satisfies int32;
+```
+
+### class generic associated projections resolve across module boundaries
+
+> Imported class projections preserve outer and member substitutions.
+
+```ds:box.ds
+export class Box<T> {
+    type Wrap<U> = [T, U];
+}
+```
+
+```ds:main.ds
+import { Box } from "./box";
+
+declare const value: Box<string>.Wrap<int32>;
+value satisfies [string, int32];
+```
+
+### class inheritance preserves generic associated defaults
+
+> Subclasses inherit generic associated defaults from base classes.
+
+```ds
+class Base<T> {
+    type View<U> = [T, U];
+}
+
+class Derived<T> extends Base<T> {}
+
+declare const value: Derived<float64>.View<boolean>;
+value satisfies [float64, boolean];
+```
+
+### class inheritance preserves associated type defaults with value parameters
+
+> Subclasses inherit associated defaults with static value parameters.
+
+```ds
+class MatrixLike<T> {
+    type Row<comptime n: uint> = [T, n];
+}
+
+class Matrix<T> extends MatrixLike<T> {}
+
+declare const row: Matrix<int32>.Row<4>;
+row satisfies [int32, 4];
 ```

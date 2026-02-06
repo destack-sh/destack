@@ -4750,7 +4750,7 @@ impl Compiler {
                     &mut normalize_visited,
                 );
 
-                // avoid recursive loops when mapped normalization does not make progress
+                // stop when mapped normalization does not make structural progress
                 let normalized_type = types.get_type(normalized).clone();
                 let expected_type = types.get_type(expected_ty_id).clone();
                 if normalized == expected_ty_id || normalized_type == expected_type {

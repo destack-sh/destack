@@ -42,38 +42,6 @@ impl Compiler {
         kind
     }
 
-    /// Resolve the static parameter variance for a symbol.
-    pub(crate) fn static_parameter_variance_for_symbol(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        symbol: GlobalSymbolId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-    ) -> Option<VarianceModifier> {
-        // reuse cached variance when available
-        if let Some(variance) = types.get_static_parameter_variance(symbol) {
-            return variance;
-        }
-
-        // resolve from the owning module when needed
-        let variance = self.with_module_tree_symbols_or_local(
-            module,
-            profile,
-            symbol.module_id,
-            tree,
-            symbols,
-            |_, tree, symbols| {
-                self.static_parameter_variance_for_symbol_in_module(symbol, tree, symbols)
-            },
-        );
-
-        // cache resolved variance
-        types.set_static_parameter_variance(symbol, variance);
-        variance
-    }
-
     /// Resolve the static parameter kind inside a module tree.
     pub(crate) fn static_parameter_kind_for_symbol_in_module(
         &self,
@@ -108,6 +76,66 @@ impl Compiler {
         parameter
             .modifiers()
             .and_then(|modifiers| modifiers.variance)
+    }
+
+    /// Resolve the static parameter variance for a symbol.
+    pub(crate) fn static_parameter_variance_for_symbol(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> Option<VarianceModifier> {
+        // reuse cached variance when available
+        if let Some(variance) = types.get_static_parameter_variance(symbol) {
+            return variance;
+        }
+
+        // resolve from the owning module when needed
+        let variance = self.with_module_tree_symbols_or_local(
+            module,
+            profile,
+            symbol.module_id,
+            tree,
+            symbols,
+            |_, tree, symbols| {
+                self.static_parameter_variance_for_symbol_in_module(symbol, tree, symbols)
+            },
+        );
+
+        // cache resolved variance
+        types.set_static_parameter_variance(symbol, variance);
+        variance
+    }
+
+    /// Resolve static parameter kind and variance with optional tree access.
+    pub(crate) fn static_parameter_metadata_for_symbol(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+        tree: Option<&NodeTree>,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> (Option<StaticParameterKind>, Option<VarianceModifier>) {
+        // use local tree when available
+        if let Some(tree) = tree {
+            let kind = self
+                .static_parameter_kind_for_symbol(module, profile, symbol, tree, symbols, types);
+            let variance = self.static_parameter_variance_for_symbol(
+                module, profile, symbol, tree, symbols, types,
+            );
+
+            return (Some(kind), variance);
+        }
+
+        // fall back to cached metadata when tree is unavailable
+        let kind = types.get_static_parameter_kind(symbol);
+        let variance = types.get_static_parameter_variance(symbol).flatten();
+
+        (kind, variance)
     }
 
     /// Resolve the static parameter kind from a parameter node.

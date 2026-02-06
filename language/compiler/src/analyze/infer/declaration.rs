@@ -663,7 +663,7 @@ impl Compiler {
                 continue;
             };
 
-            if !self.validate_associated_type_parameter_arity(
+            if !self.enforce_associated_type_parameter_arity(
                 module,
                 profile,
                 requirement.parameter_symbols.len(),
@@ -673,7 +673,7 @@ impl Compiler {
                 continue;
             }
 
-            if !self.validate_associated_type_parameter_kinds(
+            if !self.enforce_associated_type_parameter_kinds(
                 module,
                 profile,
                 requirement.parameter_symbols.as_slice(),
@@ -686,7 +686,7 @@ impl Compiler {
                 continue;
             }
 
-            self.validate_associated_type_bound_assignability(
+            self.enforce_associated_type_bound_assignability(
                 module,
                 profile,
                 &requirement,
@@ -706,18 +706,63 @@ impl Compiler {
         type_id: LocalTypeId,
         types: &TypeTable,
     ) -> Option<(GlobalSymbolId, Vec<StaticArgument>)> {
-        if let Some((interface_symbol, static_arguments, _)) =
-            self.unwrap_type_symbol(types, type_id)
-        {
-            return Some((interface_symbol, static_arguments.unwrap_or_default()));
-        }
-
-        let interface_symbol = self.unwrap_type_value_symbol(types, type_id)?;
-        Some((interface_symbol, Vec::new()))
+        let mut visited = HashSet::new();
+        self.resolve_interface_reference_for_associated_type_inner(type_id, types, &mut visited)
     }
 
-    /// Validate associated type parameter arity.
-    fn validate_associated_type_parameter_arity(
+    /// Resolve interface references for associated type requirement checks.
+    fn resolve_interface_reference_for_associated_type_inner(
+        &self,
+        type_id: LocalTypeId,
+        types: &TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> Option<(GlobalSymbolId, Vec<StaticArgument>)> {
+        if !visited.insert(type_id) {
+            return None;
+        }
+
+        // unwrap direct type references first
+        if let Some((symbol, static_arguments, _)) = self.unwrap_type_symbol(types, type_id) {
+            if symbol.ty() == SymbolType::Interface {
+                return Some((symbol, static_arguments.unwrap_or_default()));
+            }
+
+            // follow alias targets when interface references are imported through aliases
+            if matches!(symbol.ty(), SymbolType::TypeAlias | SymbolType::Newtype)
+                && let Some(alias_target_id) = types.get_alias_target_type_id(symbol)
+            {
+                return self.resolve_interface_reference_for_associated_type_inner(
+                    alias_target_id,
+                    types,
+                    visited,
+                );
+            }
+        }
+
+        // unwrap type-as-value wrappers
+        if let Some(interface_symbol) = self.unwrap_type_value_symbol(types, type_id) {
+            if interface_symbol.ty() == SymbolType::Interface {
+                return Some((interface_symbol, Vec::new()));
+            }
+
+            if matches!(
+                interface_symbol.ty(),
+                SymbolType::TypeAlias | SymbolType::Newtype
+            ) && let Some(alias_target_id) = types.get_alias_target_type_id(interface_symbol)
+            {
+                return self.resolve_interface_reference_for_associated_type_inner(
+                    alias_target_id,
+                    types,
+                    visited,
+                );
+            }
+        }
+
+        None
+    }
+
+    /// Enforce associated type parameter arity.
+    fn enforce_associated_type_parameter_arity(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -743,9 +788,8 @@ impl Compiler {
         false
     }
 
-    /// Validate associated type parameter kinds.
-    #[allow(clippy::too_many_arguments)]
-    fn validate_associated_type_parameter_kinds(
+    /// Enforce associated type parameter kinds.
+    fn enforce_associated_type_parameter_kinds(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -808,8 +852,8 @@ impl Compiler {
         false
     }
 
-    /// Validate associated type bound assignability.
-    fn validate_associated_type_bound_assignability(
+    /// Enforce associated type bound assignability.
+    fn enforce_associated_type_bound_assignability(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1446,18 +1490,34 @@ impl Compiler {
                     return Ok(());
                 }
 
-                // evaluate the field type
+                // evaluate the declared field type once and reuse the declared result in infer
                 let value_ty_id = if let Some(value) = value {
-                    Some(self.try_evaluate_expression_to_type(
-                        module,
-                        ctx.profile,
-                        *value,
-                        tree,
-                        symbols,
-                        types,
-                        true,
-                        true,
-                    )?)
+                    let global_value_id = value.into_global_any(module.id);
+                    if let Some(declared_type_id) = types.get_declared_type_id(global_value_id) {
+                        if matches!(types.get_type(declared_type_id), Type::Unevaluated(_)) {
+                            self.evaluate_type(
+                                module,
+                                ctx.profile,
+                                declared_type_id,
+                                tree,
+                                symbols,
+                                types,
+                            )?;
+                        }
+
+                        Some(declared_type_id)
+                    } else {
+                        Some(self.try_evaluate_expression_to_type(
+                            module,
+                            ctx.profile,
+                            *value,
+                            tree,
+                            symbols,
+                            types,
+                            true,
+                            true,
+                        )?)
+                    }
                 } else {
                     None
                 };
