@@ -128,6 +128,8 @@ impl TokenStream {
         self.lexer.restore(mark.lexer);
         self.tokens.truncate(mark.tokens_len);
         self.side_tokens.truncate(mark.side_tokens_len);
+        self.lexer.tokens.truncate(mark.tokens_len);
+        self.lexer.side_tokens.truncate(mark.side_tokens_len);
 
         // rebuild caches and stacks to match the restored tokens
         self.rebuild_indexes();
@@ -191,6 +193,8 @@ impl TokenStream {
         // drain token buffers
         let tokens = std::mem::take(&mut self.tokens);
         let side_tokens = std::mem::take(&mut self.side_tokens);
+        self.lexer.tokens.clear();
+        self.lexer.side_tokens.clear();
 
         // reset caches and stacks for any follow-up access
         self.next_non_newline.clear();
@@ -271,6 +275,7 @@ impl TokenStream {
             self.push_semantic_token(token_span);
         } else {
             self.side_tokens.push(token_span);
+            self.lexer.side_tokens.push(token_span);
         }
 
         // track EOF state
@@ -285,6 +290,7 @@ impl TokenStream {
         // add token and cache slots
         let token_index = self.tokens.len();
         self.tokens.push(token_span);
+        self.lexer.tokens.push(token_span);
         self.next_non_newline.push(u32::MAX);
         self.matching_pairs.push(u32::MAX);
 

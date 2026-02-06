@@ -941,6 +941,7 @@ impl Expression {
                 | Expression::Match { .. }
                 | Expression::Break { .. }
                 | Expression::Continue { .. }
+                | Expression::Yield { .. }
                 | Expression::Return { .. }
                 | Expression::Throw { .. }
                 | Expression::Debugger
