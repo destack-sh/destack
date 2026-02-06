@@ -60,7 +60,7 @@ impl Compiler {
     }
 
     /// Check if a name is reserved as a binding identifier.
-    fn is_reserved_binding_name(&self, name: StringId) -> bool {
+    pub(super) fn is_reserved_binding_name(&self, name: StringId) -> bool {
         if self.is_reserved_strict_assignment_name(name) {
             return true;
         }
