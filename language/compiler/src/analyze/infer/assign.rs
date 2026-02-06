@@ -202,35 +202,6 @@ impl Compiler {
         types: &mut TypeTable,
         options: &AnalyzeOptions,
     ) -> Assignability {
-        // expand alias targets before further assignability checks
-        let target_type = types.get_type(target_id).clone();
-        if let Type::Reference {
-            symbol,
-            static_arguments,
-        } = target_type
-            && symbol.ty() == SymbolType::TypeAlias
-            && let Some(arguments) = static_arguments.as_deref()
-        {
-            let type_source_id = types.get_type_source(target_id);
-            let mut visited = Vec::new();
-            if let Some(expanded) = self.normalize_type_alias_reference_with_arguments(
-                module,
-                profile,
-                type_source_id,
-                symbol,
-                arguments,
-                symbols,
-                types,
-                NormalizationMode::Assign,
-                RelationMode::ASSIGN,
-                &mut visited,
-            ) {
-                return self.is_type_assignable(
-                    module, profile, symbols, expanded, source_id, types, options,
-                );
-            }
-        }
-
         // follow alias references and static constraints before assignability
         let target_id = self.prepare_assignability_type(module, profile, target_id, symbols, types);
         let source_id = self.prepare_assignability_type(module, profile, source_id, symbols, types);
@@ -2407,7 +2378,18 @@ impl Compiler {
             self.expand_assignability_alias_reference(module, profile, type_id, symbols, types);
 
         // substitute static parameter references with constraints
-        self.resolve_assignability_static_constraint(module, profile, type_id, symbols, types)
+        let type_id =
+            self.resolve_assignability_static_constraint(module, profile, type_id, symbols, types);
+
+        // normalize the prepared type once so downstream checks see a stable shape
+        self.normalize_type(
+            module,
+            profile,
+            type_id,
+            symbols,
+            types,
+            NormalizationMode::Assign,
+        )
     }
 
     /// Resolve static parameter references to their constraints for assignability.
@@ -2712,7 +2694,7 @@ impl Compiler {
             .unwrap_or_default()
     }
 
-    /// Expand type alias references that include static arguments.
+    /// Expand type alias references for assignability checks.
     fn expand_assignability_alias_reference(
         &self,
         module: &Module,
@@ -2732,14 +2714,6 @@ impl Compiler {
 
         // require an alias symbol
         if symbol.ty() != SymbolType::TypeAlias {
-            return type_id;
-        }
-
-        // require static arguments to expand the alias
-        let Some(arguments) = static_arguments.as_ref() else {
-            return type_id;
-        };
-        if arguments.is_empty() {
             return type_id;
         }
 
@@ -2780,6 +2754,28 @@ impl Compiler {
                         types,
                     );
                 },
+            );
+        }
+
+        // normalize directly for aliases without explicit static arguments
+        let Some(arguments) = static_arguments.as_ref() else {
+            return self.normalize_type(
+                module,
+                profile,
+                alias_target_id,
+                symbols,
+                types,
+                NormalizationMode::Assign,
+            );
+        };
+        if arguments.is_empty() {
+            return self.normalize_type(
+                module,
+                profile,
+                alias_target_id,
+                symbols,
+                types,
+                NormalizationMode::Assign,
             );
         }
 

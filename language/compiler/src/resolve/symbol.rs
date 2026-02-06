@@ -12,6 +12,111 @@ use crate::{Compiler, ResolveError, ResolveResult};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Resolve an inherited associated type name from an enclosing declaration heritage.
+    fn resolve_heritage_associated_type_symbol(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        _origin: GlobalNodeIdAny,
+        expression_id: LocalNodeId<Expression>,
+        scope: (LocalScopeId, &Scope, LocalScopeMark),
+        member_name: StringId,
+        symbols: &SymbolTable,
+        tree: &NodeTree,
+    ) -> ResolveResult<Option<GlobalSymbolId>> {
+        let mut current_scope = scope;
+        let member_key = StaticKey::Name(member_name);
+
+        // search enclosing declaration scopes from inner to outer
+        loop {
+            let Some(owner_id) = current_scope.1.owner_id else {
+                if let Some((parent_scope_id, parent_mark)) = current_scope.1.parent {
+                    current_scope = (
+                        parent_scope_id,
+                        symbols.get_scope_by_id(parent_scope_id),
+                        parent_mark,
+                    );
+                    continue;
+                }
+                return Ok(None);
+            };
+
+            let owner_symbol = symbols.get_symbol(owner_id);
+            let Some(primary_declaration) = owner_symbol.primary_declaration else {
+                if let Some((parent_scope_id, parent_mark)) = current_scope.1.parent {
+                    current_scope = (
+                        parent_scope_id,
+                        symbols.get_scope_by_id(parent_scope_id),
+                        parent_mark,
+                    );
+                    continue;
+                }
+                return Ok(None);
+            };
+            if primary_declaration.local_id.ty != NodeType::Declaration {
+                if let Some((parent_scope_id, parent_mark)) = current_scope.1.parent {
+                    current_scope = (
+                        parent_scope_id,
+                        symbols.get_scope_by_id(parent_scope_id),
+                        parent_mark,
+                    );
+                    continue;
+                }
+                return Ok(None);
+            }
+
+            let declaration_id = primary_declaration.local_id.into_typed::<Declaration>();
+            let declaration = tree.get(declaration_id);
+            let heritage = match declaration {
+                Declaration::Struct { heritage, .. }
+                | Declaration::Class { heritage, .. }
+                | Declaration::Enum { heritage, .. }
+                | Declaration::Interface { heritage, .. }
+                | Declaration::Extension { heritage, .. } => Some(heritage),
+                _ => None,
+            };
+            let Some(heritage) = heritage else {
+                if let Some((parent_scope_id, parent_mark)) = current_scope.1.parent {
+                    current_scope = (
+                        parent_scope_id,
+                        symbols.get_scope_by_id(parent_scope_id),
+                        parent_mark,
+                    );
+                    continue;
+                }
+                return Ok(None);
+            };
+
+            // try heritage targets in declaration order
+            let extends_types = heritage.extends_types.as_deref().unwrap_or_default();
+            let implements_types = heritage.implements_types.as_deref().unwrap_or_default();
+            for heritage_expression_id in extends_types.iter().chain(implements_types.iter()) {
+                let Some(heritage_symbol) = tree.get(*heritage_expression_id).target_symbol()
+                else {
+                    continue;
+                };
+
+                let resolved_member = self.resolve_static_member_symbol(
+                    module,
+                    profile,
+                    expression_id,
+                    heritage_symbol,
+                    member_key,
+                    tree,
+                    symbols,
+                );
+                match resolved_member {
+                    Ok(symbol) => return Ok(Some(symbol)),
+                    Err(ResolveError::UnsupportedConstruct { .. }) => continue,
+                    Err(ResolveError::MissingSymbol { .. }) => continue,
+                    Err(error) => return Err(error),
+                }
+            }
+
+            return Ok(None);
+        }
+    }
+
     /// Build a Member expression chain from a root expression with remaining path segments.
     pub(super) fn build_member_chain(
         &self,
@@ -1017,6 +1122,64 @@ impl Compiler {
                 tree,
                 Some(cache.scope_indices()),
             );
+        }
+
+        // resolve inherited associated type names from enclosing declaration heritage
+        if space_order.spaces().contains(&SymbolSpace::Type)
+            && let Some(associated_symbol) = self.resolve_heritage_associated_type_symbol(
+                module,
+                profile,
+                node,
+                expression_id,
+                scope,
+                first_segment,
+                symbols,
+                tree,
+            )?
+        {
+            if path.segments.len() == 1 {
+                if associated_symbol.module_id == module.id {
+                    return Ok(self.resolve_symbol_to_expression(
+                        module,
+                        associated_symbol.local_id,
+                        path,
+                        static_arguments,
+                        symbols,
+                    ));
+                }
+
+                return Ok(Expression::GlobalReference {
+                    path: path.clone(),
+                    static_arguments,
+                    target_symbol: associated_symbol,
+                });
+            }
+
+            let root_path = Path {
+                segments: vec![first_segment].into(),
+            };
+            let root_expr = if associated_symbol.module_id == module.id {
+                self.resolve_symbol_to_expression(
+                    module,
+                    associated_symbol.local_id,
+                    &root_path,
+                    None,
+                    symbols,
+                )
+            } else {
+                Expression::GlobalReference {
+                    path: root_path,
+                    static_arguments: None,
+                    target_symbol: associated_symbol,
+                }
+            };
+            return Ok(self.build_member_chain(
+                expression_id,
+                root_expr,
+                &path.slice(1..),
+                static_arguments,
+                tree,
+            ));
         }
 
         // check for builtin types (boolean, int, string, etc.)

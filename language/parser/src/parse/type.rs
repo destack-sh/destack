@@ -2502,6 +2502,38 @@ mod tests {
         });
     }
 
+    #[test]
+    fn test_parse_type_associated_projection_with_static_arguments() {
+        let mut test = TestParser::new("type A = Pair<int32, string>.Swap<boolean>");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Member { left, name, static_arguments } => {
+                    assert_string!(parser, *name, "Swap");
+                    let swap_arguments = static_arguments.as_ref().expect("expected Swap arguments");
+                    assert_eq!(swap_arguments.len(), 1);
+                    assert_node!(parser.tree, swap_arguments[0], Argument::Positional { value, .. } => {
+                        assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Boolean));
+                    });
+
+                    assert_node!(parser.tree, *left, Expression::Path { path, static_arguments } => {
+                        assert_path!(parser, *path, "Pair");
+                        let pair_arguments = static_arguments.as_ref().expect("expected Pair arguments");
+                        assert_eq!(pair_arguments.len(), 2);
+                        assert_node!(parser.tree, pair_arguments[0], Argument::Positional { value, .. } => {
+                            assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(_)));
+                        });
+                        assert_node!(parser.tree, pair_arguments[1], Argument::Positional { value, .. } => {
+                            assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::String));
+                        });
+                    });
+                });
+            });
+        });
+    }
+
     /// Generic type with indexed access in TypeScript declaration file.
     #[test]
     fn test_parse_generic_indexed_access_typescript_declaration() {

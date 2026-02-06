@@ -3,9 +3,10 @@ use destack_dir::{
     Declarator, DynamicKey, Export, Expression, Extension, ExtensionKind, FunctionCardinality,
     FunctionMode, Generics, GlobalNodeIdAny, GlobalSymbolId, Heritage, InferOrigin, InferScope,
     InferTable, Lineage, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, Member,
-    Mutability, NodeTree, NodeType, NodeVisitor, NodeVisitorOptions, Parameter, StaticKey,
-    SymbolSpace, SymbolTable, Timing, Type, TypeField, TypeIndexSignature, TypeKind, TypeLiteral,
-    TypeTable, walk_block, walk_declaration, walk_expression,
+    Mutability, NodeTree, NodeType, NodeVisitor, NodeVisitorOptions, Parameter, StaticArgument,
+    StaticExpression, StaticKey, SymbolSpace, SymbolTable, Timing, Type, TypeField,
+    TypeIndexSignature, TypeKind, TypeLiteral, TypeTable, walk_block, walk_declaration,
+    walk_expression,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
@@ -299,8 +300,8 @@ impl Compiler {
 
         // walk each root expression to visit all declarations
         for root_id in module.dir(profile).roots.iter() {
-            // visit the root expression
             let root = tree.get(*root_id);
+            // visit the root expression
             visitor.visit_expression(tree, *root_id, root);
 
             // stop early on errors
@@ -473,9 +474,15 @@ impl Compiler {
 
                 // nominal reference for constructors
                 let symbol = descriptor.symbol.into_global(module.id);
+                let static_arguments = self.static_argument_placeholders_for_declaration(
+                    module,
+                    generics.static_parameters.as_deref(),
+                    tree,
+                    types,
+                );
                 let nominal_reference = Type::Reference {
                     symbol,
-                    static_arguments: None,
+                    static_arguments,
                 };
                 let nominal_reference_id =
                     types.insert_type_from(nominal_reference, declaration_id);
@@ -485,6 +492,7 @@ impl Compiler {
                     module,
                     profile,
                     members,
+                    None,
                     Some(nominal_reference_id),
                     tree,
                     symbols,
@@ -582,9 +590,15 @@ impl Compiler {
 
                 // prepare nominal reference for constructors
                 let symbol = descriptor.symbol.into_global(module.id);
+                let static_arguments = self.static_argument_placeholders_for_declaration(
+                    module,
+                    generics.static_parameters.as_deref(),
+                    tree,
+                    types,
+                );
                 let nominal_reference = Type::Reference {
                     symbol,
-                    static_arguments: None,
+                    static_arguments,
                 };
                 let nominal_reference_id =
                     types.insert_type_from(nominal_reference, declaration_id);
@@ -594,6 +608,7 @@ impl Compiler {
                     module,
                     profile,
                     members,
+                    generics.static_parameters.as_deref(),
                     Some(nominal_reference_id),
                     tree,
                     symbols,
@@ -692,9 +707,15 @@ impl Compiler {
 
                 // prepare the nominal reference for enum values
                 let symbol = descriptor.symbol.into_global(module.id);
+                let static_arguments = self.static_argument_placeholders_for_declaration(
+                    module,
+                    generics.static_parameters.as_deref(),
+                    tree,
+                    types,
+                );
                 let nominal_reference = Type::Reference {
                     symbol,
-                    static_arguments: None,
+                    static_arguments,
                 };
                 let nominal_reference_id =
                     types.insert_type_from(nominal_reference, declaration_id);
@@ -704,6 +725,7 @@ impl Compiler {
                     module,
                     profile,
                     members,
+                    generics.static_parameters.as_deref(),
                     Some(nominal_reference_id),
                     tree,
                     symbols,
@@ -1293,17 +1315,48 @@ impl Compiler {
         placeholders
     }
 
-    /// Prepend extension static parameters to a function signature when needed.
+    /// Build static argument placeholders for a declaration reference.
+    fn static_argument_placeholders_for_declaration(
+        &self,
+        module: &Module,
+        static_parameters: Option<&[LocalNodeId<Parameter>]>,
+        tree: &NodeTree,
+        types: &mut TypeTable,
+    ) -> Option<Vec<StaticArgument>> {
+        // build placeholder type references for static parameters
+        let placeholders = self.static_parameter_placeholders_for_declaration(
+            module,
+            static_parameters,
+            tree,
+            types,
+        );
+        if placeholders.is_empty() {
+            return None;
+        }
+
+        // map placeholders into static argument expressions
+        let arguments = placeholders
+            .into_iter()
+            .map(|placeholder| StaticArgument::Evaluated {
+                name: None,
+                value: StaticExpression::Type { ty: placeholder },
+            })
+            .collect();
+
+        Some(arguments)
+    }
+
+    /// Prepend owner static parameters to a function signature when needed.
     fn extend_signature_static_parameters(
         &self,
         module: &Module,
-        extension_static_parameters: Option<&[LocalNodeId<Parameter>]>,
+        owner_static_parameters: Option<&[LocalNodeId<Parameter>]>,
         ty: Type,
         tree: &NodeTree,
         types: &mut TypeTable,
     ) -> Type {
-        // TODO #Cleanup: fold extension static parameters during type evaluation once instantiation boundaries are explicit
-        let Some(extension_static_parameters) = extension_static_parameters else {
+        // TODO #Cleanup: fold owner static parameters during type evaluation once instantiation boundaries are explicit
+        let Some(owner_static_parameters) = owner_static_parameters else {
             return ty;
         };
 
@@ -1319,13 +1372,13 @@ impl Compiler {
             return ty;
         };
 
-        let extension_placeholders = self.static_parameter_placeholders_for_declaration(
+        let owner_placeholders = self.static_parameter_placeholders_for_declaration(
             module,
-            Some(extension_static_parameters),
+            Some(owner_static_parameters),
             tree,
             types,
         );
-        if extension_placeholders.is_empty() {
+        if owner_placeholders.is_empty() {
             return Type::Function {
                 asynchrony,
                 cardinality,
@@ -1336,7 +1389,7 @@ impl Compiler {
             };
         }
 
-        let mut combined = extension_placeholders;
+        let mut combined = owner_placeholders;
         combined.extend(static_parameters);
 
         Type::Function {
@@ -1355,6 +1408,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         members: &[LocalNodeId<Member>],
+        owner_static_parameters: Option<&[LocalNodeId<Parameter>]>,
         constructor_return: Option<LocalTypeId>,
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -1426,7 +1480,27 @@ impl Compiler {
             let member = tree.get(*member_id);
 
             match member {
-                Member::Type { .. } => {}
+                Member::Type {
+                    static_parameters,
+                    where_clauses,
+                    ty,
+                    value,
+                    ..
+                } => {
+                    self.declare_associated_type_member(
+                        module,
+                        profile,
+                        *member_id,
+                        static_parameters.as_deref(),
+                        where_clauses.as_deref(),
+                        *ty,
+                        *value,
+                        tree,
+                        symbols,
+                        types,
+                        defer_type_evaluation,
+                    )?;
+                }
                 Member::Field {
                     modifiers,
                     key,
@@ -1558,6 +1632,13 @@ impl Compiler {
                             types,
                             defer_type_evaluation,
                         )?;
+                        let ty = self.extend_signature_static_parameters(
+                            module,
+                            owner_static_parameters,
+                            ty,
+                            tree,
+                            types,
+                        );
                         let signature_ty_id =
                             types.insert_type_from_any(ty, (*member_id).into_any());
 
@@ -1637,6 +1718,13 @@ impl Compiler {
                         types,
                         defer_type_evaluation,
                     )?;
+                    let ty = self.extend_signature_static_parameters(
+                        module,
+                        owner_static_parameters,
+                        ty,
+                        tree,
+                        types,
+                    );
                     let ty_id = types.insert_type_from_any(ty, (*member_id).into_any());
 
                     // record the declared signature for inference
@@ -1710,7 +1798,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         members: &[LocalNodeId<Member>],
-        extension_static_parameters: Option<&[LocalNodeId<Parameter>]>,
+        owner_static_parameters: Option<&[LocalNodeId<Parameter>]>,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -1725,7 +1813,7 @@ impl Compiler {
                 module,
                 profile,
                 *member_id,
-                extension_static_parameters,
+                owner_static_parameters,
                 tree,
                 symbols,
                 types,
@@ -1743,7 +1831,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         member_id: LocalNodeId<Member>,
-        extension_static_parameters: Option<&[LocalNodeId<Parameter>]>,
+        owner_static_parameters: Option<&[LocalNodeId<Parameter>]>,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -1753,7 +1841,29 @@ impl Compiler {
         let mut shape = ObjectShape::default();
 
         match member {
-            Member::Type { .. } => Ok(shape),
+            Member::Type {
+                static_parameters,
+                where_clauses,
+                ty,
+                value,
+                ..
+            } => {
+                self.declare_associated_type_member(
+                    module,
+                    profile,
+                    member_id,
+                    static_parameters.as_deref(),
+                    where_clauses.as_deref(),
+                    *ty,
+                    *value,
+                    tree,
+                    symbols,
+                    types,
+                    defer_type_evaluation,
+                )?;
+
+                Ok(shape)
+            }
             Member::Field {
                 modifiers,
                 key,
@@ -1879,7 +1989,7 @@ impl Compiler {
                     )?;
                     let ty = self.extend_signature_static_parameters(
                         module,
-                        extension_static_parameters,
+                        owner_static_parameters,
                         ty,
                         tree,
                         types,
@@ -1921,7 +2031,7 @@ impl Compiler {
                 )?;
                 let ty = self.extend_signature_static_parameters(
                     module,
-                    extension_static_parameters,
+                    owner_static_parameters,
                     ty,
                     tree,
                     types,
@@ -2548,5 +2658,66 @@ impl Compiler {
             }
             _ => None,
         }
+    }
+
+    /// Declare a type member alias and its generics.
+    fn declare_associated_type_member(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        member_id: LocalNodeId<Member>,
+        static_parameters: Option<&[LocalNodeId<Parameter>]>,
+        where_clauses: Option<&[LocalNodeId<destack_dir::WhereClause>]>,
+        ty: Option<LocalNodeId<Expression>>,
+        value: Option<LocalNodeId<Expression>>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        defer_type_evaluation: bool,
+    ) -> AnalyzeResult<()> {
+        // declare associated type generics
+        let member_generics = Generics {
+            static_parameters: static_parameters
+                .map(|static_parameters| static_parameters.to_vec()),
+            where_clauses: where_clauses.map(|where_clauses| where_clauses.to_vec()),
+        };
+        self.declare_generics(module, profile, &member_generics, tree, symbols, types)?;
+
+        // resolve associated type bound
+        if let Some(ty) = ty {
+            let bound_ty_id = self.resolve_or_defer_type_expression(
+                module,
+                profile,
+                ty,
+                tree,
+                symbols,
+                types,
+                defer_type_evaluation,
+            )?;
+            types.set_declared_type(ty.into_global_any(module.id), bound_ty_id);
+        }
+
+        // resolve and register associated type default
+        if let Some(value) = value {
+            let value_ty_id = self.resolve_or_defer_type_expression(
+                module,
+                profile,
+                value,
+                tree,
+                symbols,
+                types,
+                defer_type_evaluation,
+            )?;
+            types.set_declared_type(value.into_global_any(module.id), value_ty_id);
+
+            let member_symbol = tree.get(member_id).symbol();
+            let member_symbol_entry = symbols.get_symbol(member_symbol);
+            let member_symbol =
+                GlobalSymbolId::new(module.id, member_symbol.with_type(member_symbol_entry.ty));
+            types.set_alias_target_type_id(member_symbol, value_ty_id);
+            types.set_instance_type(member_symbol, value_ty_id);
+        }
+
+        Ok(())
     }
 }

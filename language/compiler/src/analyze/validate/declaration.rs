@@ -6,7 +6,8 @@ use destack_base::StringId;
 use destack_dir::{
     Asynchrony, BindingOperator, Declaration, DeclarationAbstraction, DeclarationKind,
     DependencyKind, DependencyMode, Expression, FunctionCardinality, FunctionKind,
-    ImportAliasTarget, LocalNodeId, LocalNodeIdAny, Name, NodeTree, NodeType, Path, TypeTable,
+    ImportAliasTarget, LocalNodeId, LocalNodeIdAny, Name, NodeTree, NodeType, Path, SymbolTable,
+    TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -43,6 +44,7 @@ enum DeclareNamespaceContext {
     Module,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Validate a declaration.
     pub(super) fn validate_declaration(
@@ -50,7 +52,8 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         tree: &NodeTree,
-        types: &TypeTable,
+        _symbols: &SymbolTable,
+        types: &mut TypeTable,
         id: LocalNodeId<Declaration>,
         declaration: &Declaration,
     ) {
@@ -187,7 +190,11 @@ impl Compiler {
                 }
             }
 
-            Declaration::Struct { heritage, .. } => {
+            Declaration::Struct {
+                heritage,
+                members: _,
+                ..
+            } => {
                 // resolve the struct node for diagnostics
                 let node = id.into_global_any(module.id).into_anchored(Some(profile));
 
@@ -222,7 +229,11 @@ impl Compiler {
                 self.validate_import_alias_target(module, profile, tree, target);
             }
 
-            Declaration::Class { heritage, .. } => {
+            Declaration::Class {
+                heritage,
+                members: _,
+                ..
+            } => {
                 // resolve the class node for diagnostics
                 let node = id.into_global_any(module.id).into_anchored(Some(profile));
 
@@ -283,6 +294,12 @@ impl Compiler {
                     });
                 }
             }
+
+            Declaration::Extension {
+                heritage: _,
+                members: _,
+                ..
+            } => {}
 
             _ => {}
         }

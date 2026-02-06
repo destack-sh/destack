@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     DeclarationKind, DynamicKey, Expression, FunctionSignature, LocalNodeId, LocalSymbolId,
-    Mutability, Node, NodeType, StaticExpression, Visibility,
+    Mutability, Node, NodeType, Parameter, StaticExpression, StringId, Visibility, WhereClause,
 };
 
 /// Static property in some static context.
@@ -184,7 +184,9 @@ pub enum Member {
     /// Associated type alias (like `type Item = T`).
     Type {
         modifiers: Option<BindingModifier>,
-        name: LocalNodeId<Expression>,
+        name: StringId,
+        static_parameters: Option<Vec<LocalNodeId<Parameter>>>,
+        where_clauses: Option<Vec<LocalNodeId<WhereClause>>>,
         ty: Option<LocalNodeId<Expression>>,
         value: Option<LocalNodeId<Expression>>,
         symbol: LocalSymbolId,

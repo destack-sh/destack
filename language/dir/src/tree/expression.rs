@@ -583,6 +583,43 @@ impl Expression {
             _ => None,
         }
     }
+
+    /// Get the static arguments attached to the expression, when present.
+    pub fn static_arguments(&self) -> Option<&[LocalNodeId<Argument>]> {
+        match self {
+            Expression::TypeImport {
+                static_arguments, ..
+            }
+            | Expression::UnresolvedPath {
+                static_arguments, ..
+            }
+            | Expression::LocalReference {
+                static_arguments, ..
+            }
+            | Expression::ModuleReference {
+                static_arguments, ..
+            }
+            | Expression::GlobalReference {
+                static_arguments, ..
+            }
+            | Expression::Member {
+                static_arguments, ..
+            }
+            | Expression::PrivateMember {
+                static_arguments, ..
+            }
+            | Expression::Call {
+                static_arguments, ..
+            }
+            | Expression::New {
+                static_arguments, ..
+            } => static_arguments.as_deref(),
+            Expression::Instantiation {
+                static_arguments, ..
+            } => Some(static_arguments.as_slice()),
+            _ => None,
+        }
+    }
 }
 
 /// Static value form of an expression in some static context.

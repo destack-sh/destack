@@ -2,14 +2,15 @@ use std::collections::{HashMap, HashSet};
 
 use super::expression::has_implicit_return;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
+use destack_base::StringId;
 use destack_dir::{
     Asynchrony, BindingAnchor, BindingKind, Constraint, Declaration, DeclarationAbstraction,
     DeclarationDescriptor, DeclarationKind, Declarator, DependencyItem, DependencyMode, DynamicKey,
     Expression, FunctionCardinality, FunctionKind, FunctionSignature, GlobalNodeIdAny,
     GlobalSymbolId, InferOrigin, InferScope, InferTable, IntType, LocalNodeId, LocalNodeIdAny,
     LocalTypeId, Member, ModuleTarget, Mutability, NodeTree, NodeType, NormalizationMode,
-    Parameter, Pattern, PrimitiveType, StaticKey, SymbolSpace, SymbolTable, Type, TypeField,
-    TypeLiteral, TypeTable, WhereClause,
+    Parameter, Pattern, PrimitiveType, StaticArgument, StaticKey, SymbolSpace, SymbolTable,
+    SymbolType, Type, TypeField, TypeLiteral, TypeTable, WhereClause,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -19,6 +20,32 @@ pub(super) enum DeclaratorConstraint {
     Assignable,
     /// Require satisfies semantics between value and declared types.
     Satisfies,
+}
+
+/// Requirements for one interface associated type member.
+struct InterfaceAssociatedTypeRequirement {
+    /// The associated type name.
+    name: StringId,
+    /// The interface member symbol.
+    symbol: GlobalSymbolId,
+    /// The interface member parameter symbols.
+    parameter_symbols: Vec<GlobalSymbolId>,
+    /// The optional bound expression node.
+    bound_node: Option<GlobalNodeIdAny>,
+    /// Whether the interface member requires an explicit implementation.
+    requires_implementation: bool,
+}
+
+/// Declaration associated type member metadata.
+struct DeclarationAssociatedTypeMember<'a> {
+    /// The declaration member node id.
+    member_id: LocalNodeId<Member>,
+    /// The declaration member symbol.
+    member_symbol: GlobalSymbolId,
+    /// The declaration associated type parameter nodes.
+    member_parameters: Option<&'a [LocalNodeId<Parameter>]>,
+    /// The declaration associated type default expression.
+    member_value: Option<LocalNodeId<Expression>>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -173,7 +200,7 @@ impl Compiler {
                 generics,
                 scope: _,
                 members,
-                heritage: _,
+                heritage,
             } => {
                 // infer where clauses for member bodies
                 self.infer_where_clauses_maybe(
@@ -205,6 +232,16 @@ impl Compiler {
                         module, *member_id, tree, symbols, types, infer, &mut ctx, this_ty_id,
                     )?;
                 }
+
+                self.infer_declaration_associated_types(
+                    module,
+                    ctx.profile,
+                    heritage.implements_types.as_deref(),
+                    members,
+                    tree,
+                    symbols,
+                    types,
+                )?;
             }
 
             // class
@@ -213,7 +250,7 @@ impl Compiler {
                 generics,
                 scope: _,
                 members,
-                heritage: _,
+                heritage,
             } => {
                 // infer where clauses for member bodies
                 self.infer_where_clauses_maybe(
@@ -249,6 +286,16 @@ impl Compiler {
                         module, *member_id, tree, symbols, types, infer, &mut ctx, this_ty_id,
                     )?;
                 }
+
+                self.infer_declaration_associated_types(
+                    module,
+                    ctx.profile,
+                    heritage.implements_types.as_deref(),
+                    members,
+                    tree,
+                    symbols,
+                    types,
+                )?;
             }
 
             // enum
@@ -313,7 +360,7 @@ impl Compiler {
                 target_symbol,
                 scope: _,
                 members,
-                heritage: _,
+                heritage,
             } => {
                 // infer where clauses for member bodies
                 self.infer_where_clauses_maybe(
@@ -366,6 +413,16 @@ impl Compiler {
                         module, *member_id, tree, symbols, types, infer, ctx, this_ty_id,
                     )?;
                 }
+
+                self.infer_declaration_associated_types(
+                    module,
+                    ctx.profile,
+                    heritage.implements_types.as_deref(),
+                    members,
+                    tree,
+                    symbols,
+                    types,
+                )?;
             }
 
             // interface
@@ -429,6 +486,528 @@ impl Compiler {
         }
 
         Ok(())
+    }
+
+    /// Load a declared type for a node, importing from remote modules when needed.
+    pub(crate) fn declared_type_for_node(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        node_id: GlobalNodeIdAny,
+        owner_symbol: GlobalSymbolId,
+        types: &mut TypeTable,
+    ) -> Option<LocalTypeId> {
+        // resolve local declared types directly
+        if node_id.module_id == module.id {
+            return types.get_declared_type_id(node_id);
+        }
+
+        // import declared types from remote modules
+        self.with_module_types(module, profile, node_id.module_id, |_, remote_types| {
+            let remote_ty_id = remote_types.get_declared_type_id(node_id)?;
+            let remote_ty = remote_types.get_type(remote_ty_id);
+            Some(self.import_type_from_remote_for_node(
+                node_id.local_id,
+                remote_ty,
+                remote_types,
+                owner_symbol,
+                types,
+            ))
+        })
+    }
+
+    /// Infer associated type contracts for declarations implementing interfaces.
+    #[allow(clippy::too_many_arguments)]
+    fn infer_declaration_associated_types(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        implements_types: Option<&[LocalNodeId<Expression>]>,
+        members: &[LocalNodeId<Member>],
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<()> {
+        if !matches!(module.source, ModuleSource::User) {
+            return Ok(());
+        }
+
+        let Some(implements_types) = implements_types else {
+            return Ok(());
+        };
+        if implements_types.is_empty() {
+            return Ok(());
+        }
+
+        let declaration_members =
+            self.collect_declaration_associated_type_members(module.id, members, tree);
+
+        for interface_expression_id in implements_types {
+            self.infer_associated_type_requirements_for_interface(
+                module,
+                profile,
+                *interface_expression_id,
+                &declaration_members,
+                tree,
+                symbols,
+                types,
+            )?;
+        }
+
+        Ok(())
+    }
+
+    /// Collect associated type members for one declaration.
+    fn collect_declaration_associated_type_members<'a>(
+        &self,
+        module_id: destack_source::ModuleId,
+        members: &'a [LocalNodeId<Member>],
+        tree: &'a NodeTree,
+    ) -> HashMap<StringId, DeclarationAssociatedTypeMember<'a>> {
+        let mut declaration_members = HashMap::new();
+        for member_id in members {
+            let Member::Type {
+                name,
+                static_parameters,
+                value,
+                symbol,
+                ..
+            } = tree.get(*member_id)
+            else {
+                continue;
+            };
+
+            declaration_members.insert(
+                *name,
+                DeclarationAssociatedTypeMember {
+                    member_id: *member_id,
+                    member_symbol: symbol.into_global(module_id),
+                    member_parameters: static_parameters.as_deref(),
+                    member_value: *value,
+                },
+            );
+        }
+
+        declaration_members
+    }
+
+    /// Enforce associated type requirements for one implemented interface.
+    #[allow(clippy::too_many_arguments)]
+    fn infer_associated_type_requirements_for_interface(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        interface_expression_id: LocalNodeId<Expression>,
+        declaration_members: &HashMap<StringId, DeclarationAssociatedTypeMember<'_>>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<()> {
+        let interface_type_id = if let Some(type_id) = types
+            .get_inferred_type_id(interface_expression_id.into_global_any(module.id))
+            .or_else(|| {
+                types.get_declared_type_id(interface_expression_id.into_global_any(module.id))
+            }) {
+            type_id
+        } else {
+            self.try_evaluate_expression_to_type(
+                module,
+                profile,
+                interface_expression_id,
+                tree,
+                symbols,
+                types,
+                true,
+                true,
+            )?
+        };
+
+        let Some((interface_symbol, interface_arguments)) =
+            self.resolve_interface_reference_for_associated_type(interface_type_id, types)
+        else {
+            return Ok(());
+        };
+        if interface_symbol.ty() != SymbolType::Interface {
+            return Ok(());
+        }
+
+        let interface_substitutions = self.build_type_parameter_substitutions_for_symbol(
+            module,
+            profile,
+            interface_symbol,
+            interface_expression_id.into_any(),
+            &interface_arguments,
+            tree,
+            symbols,
+            types,
+        );
+        let requirements = self.collect_interface_associated_type_requirements(
+            module,
+            profile,
+            interface_symbol,
+            tree,
+            symbols,
+        );
+
+        for requirement in requirements {
+            let Some(declaration_member) = declaration_members.get(&requirement.name) else {
+                if requirement.requires_implementation {
+                    let node = interface_expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(profile));
+                    self.error(AnalyzeError::InvalidStaticArgument {
+                        node,
+                        message: "missing associated type implementation".to_string(),
+                    });
+                }
+                continue;
+            };
+
+            if !self.validate_associated_type_parameter_arity(
+                module,
+                profile,
+                requirement.parameter_symbols.len(),
+                declaration_member.member_parameters,
+                declaration_member.member_id,
+            ) {
+                continue;
+            }
+
+            if !self.validate_associated_type_parameter_kinds(
+                module,
+                profile,
+                requirement.parameter_symbols.as_slice(),
+                declaration_member.member_parameters,
+                declaration_member.member_id,
+                tree,
+                symbols,
+                types,
+            ) {
+                continue;
+            }
+
+            self.validate_associated_type_bound_assignability(
+                module,
+                profile,
+                &requirement,
+                declaration_member,
+                &interface_substitutions,
+                symbols,
+                types,
+            );
+        }
+
+        Ok(())
+    }
+
+    /// Resolve interface references for associated type requirement checks.
+    fn resolve_interface_reference_for_associated_type(
+        &self,
+        type_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> Option<(GlobalSymbolId, Vec<StaticArgument>)> {
+        if let Some((interface_symbol, static_arguments, _)) =
+            self.unwrap_type_symbol(types, type_id)
+        {
+            return Some((interface_symbol, static_arguments.unwrap_or_default()));
+        }
+
+        let interface_symbol = self.unwrap_type_value_symbol(types, type_id)?;
+        Some((interface_symbol, Vec::new()))
+    }
+
+    /// Validate associated type parameter arity.
+    fn validate_associated_type_parameter_arity(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        required_arity: usize,
+        member_parameters: Option<&[LocalNodeId<Parameter>]>,
+        member_id: LocalNodeId<Member>,
+    ) -> bool {
+        let member_arity = member_parameters
+            .map(|parameters| parameters.len())
+            .unwrap_or(0);
+        if member_arity == required_arity {
+            return true;
+        }
+
+        let node = member_id
+            .into_global_any(module.id)
+            .into_anchored(Some(profile));
+        self.error(AnalyzeError::InvalidStaticArgument {
+            node,
+            message: "associated type parameter arity mismatch".to_string(),
+        });
+
+        false
+    }
+
+    /// Validate associated type parameter kinds.
+    #[allow(clippy::too_many_arguments)]
+    fn validate_associated_type_parameter_kinds(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        requirement_parameter_symbols: &[GlobalSymbolId],
+        member_parameters: Option<&[LocalNodeId<Parameter>]>,
+        member_id: LocalNodeId<Member>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> bool {
+        let required_kinds = requirement_parameter_symbols
+            .iter()
+            .map(|parameter_symbol| {
+                self.static_parameter_kind_for_symbol(
+                    module,
+                    profile,
+                    *parameter_symbol,
+                    tree,
+                    symbols,
+                    types,
+                )
+            })
+            .collect::<Vec<_>>();
+        let member_kinds = member_parameters
+            .map(|parameters| {
+                parameters
+                    .iter()
+                    .map(|parameter_id| {
+                        let parameter_symbol =
+                            tree.get(*parameter_id).symbol().into_global(module.id);
+                        self.static_parameter_kind_for_symbol(
+                            module,
+                            profile,
+                            parameter_symbol,
+                            tree,
+                            symbols,
+                            types,
+                        )
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+
+        let mismatch = required_kinds
+            .iter()
+            .zip(member_kinds.iter())
+            .any(|(required_kind, member_kind)| *required_kind != *member_kind);
+        if !mismatch {
+            return true;
+        }
+
+        let node = member_id
+            .into_global_any(module.id)
+            .into_anchored(Some(profile));
+        self.error(AnalyzeError::InvalidStaticArgument {
+            node,
+            message: "associated type parameter kind mismatch".to_string(),
+        });
+
+        false
+    }
+
+    /// Validate associated type bound assignability.
+    fn validate_associated_type_bound_assignability(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        requirement: &InterfaceAssociatedTypeRequirement,
+        declaration_member: &DeclarationAssociatedTypeMember<'_>,
+        interface_substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) {
+        let Some(bound_node) = requirement.bound_node else {
+            return;
+        };
+
+        let Some(mut bound_ty_id) =
+            self.declared_type_for_node(module, profile, bound_node, requirement.symbol, types)
+        else {
+            return;
+        };
+        if !interface_substitutions.is_empty() {
+            let mut cache = HashMap::new();
+            bound_ty_id = self.substitute_static_parameters(
+                bound_ty_id,
+                interface_substitutions,
+                types,
+                &mut cache,
+            );
+        }
+
+        let Some(actual_ty_id) = declaration_member
+            .member_value
+            .and_then(|value_id| types.get_declared_type_id(value_id.into_global_any(module.id)))
+            .or_else(|| types.get_alias_target_type_id(declaration_member.member_symbol))
+        else {
+            return;
+        };
+
+        let options = self.analyze_context_options_for_module(module.id);
+        let assignability = self.is_type_assignable(
+            module,
+            profile,
+            symbols,
+            bound_ty_id,
+            actual_ty_id,
+            types,
+            &options,
+        );
+        if assignability != Assignability::NotAssignable {
+            return;
+        }
+
+        let node = declaration_member
+            .member_id
+            .into_global_any(module.id)
+            .into_anchored(Some(profile));
+        self.error(AnalyzeError::UnassignableType {
+            node,
+            expected_ty: bound_ty_id.into_global(module.id),
+            actual_ty: actual_ty_id.into_global(module.id),
+        });
+    }
+
+    /// Collect interface associated type requirements for one interface symbol.
+    fn collect_interface_associated_type_requirements(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        interface_symbol: GlobalSymbolId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> Vec<InterfaceAssociatedTypeRequirement> {
+        let mut visited_interfaces = HashSet::new();
+        self.collect_interface_associated_type_requirements_inner(
+            module,
+            profile,
+            interface_symbol,
+            tree,
+            symbols,
+            &mut visited_interfaces,
+        )
+    }
+
+    /// Collect interface associated type requirements through interface heritage.
+    fn collect_interface_associated_type_requirements_inner(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        interface_symbol: GlobalSymbolId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        visited_interfaces: &mut HashSet<GlobalSymbolId>,
+    ) -> Vec<InterfaceAssociatedTypeRequirement> {
+        if !visited_interfaces.insert(interface_symbol) {
+            return Vec::new();
+        }
+
+        let (local_requirements, parent_interfaces) = self.with_module_tree_symbols_or_local(
+            module,
+            profile,
+            interface_symbol.module_id,
+            tree,
+            symbols,
+            |owner_module, owner_tree, owner_symbols| {
+                let mut requirements = Vec::new();
+                let mut parents = Vec::new();
+                let symbol_entry = owner_symbols.get_symbol(interface_symbol.local_id);
+                let Some(primary_declaration) = symbol_entry.primary_declaration else {
+                    return (requirements, parents);
+                };
+                if primary_declaration.local_id.ty != NodeType::Declaration {
+                    return (requirements, parents);
+                }
+
+                let declaration_id = primary_declaration.local_id.into_typed::<Declaration>();
+                let Declaration::Interface {
+                    members, heritage, ..
+                } = owner_tree.get(declaration_id)
+                else {
+                    return (requirements, parents);
+                };
+
+                for member_id in members {
+                    let Member::Type {
+                        name,
+                        static_parameters,
+                        ty,
+                        value,
+                        symbol,
+                        ..
+                    } = owner_tree.get(*member_id)
+                    else {
+                        continue;
+                    };
+
+                    let parameter_symbols = static_parameters
+                        .as_ref()
+                        .map(|parameters| {
+                            parameters
+                                .iter()
+                                .map(|parameter_id| {
+                                    owner_tree
+                                        .get(*parameter_id)
+                                        .symbol()
+                                        .into_global(owner_module.id)
+                                })
+                                .collect::<Vec<_>>()
+                        })
+                        .unwrap_or_default();
+
+                    requirements.push(InterfaceAssociatedTypeRequirement {
+                        name: *name,
+                        symbol: symbol.into_global(owner_module.id),
+                        parameter_symbols,
+                        bound_node: ty.map(|ty| ty.into_global_any(owner_module.id)),
+                        requires_implementation: value.is_none(),
+                    });
+                }
+
+                if let Some(extends_types) = heritage.extends_types.as_ref() {
+                    for extends_type_id in extends_types {
+                        let extends_expression = owner_tree.get(*extends_type_id);
+                        let Some(parent_symbol) = extends_expression.target_symbol() else {
+                            continue;
+                        };
+
+                        let canonical_parent = self.canonical_symbol_id(
+                            owner_module,
+                            owner_symbols,
+                            profile,
+                            parent_symbol,
+                            crate::analyze::common::CanonicalSymbolMode::FollowAliases,
+                        );
+                        parents.push(canonical_parent);
+                    }
+                }
+
+                (requirements, parents)
+            },
+        );
+
+        let mut requirements = Vec::new();
+        for parent_interface in parent_interfaces {
+            let inherited = self.collect_interface_associated_type_requirements_inner(
+                module,
+                profile,
+                parent_interface,
+                tree,
+                symbols,
+                visited_interfaces,
+            );
+            requirements.extend(inherited);
+        }
+
+        for local_requirement in local_requirements {
+            requirements.retain(|requirement| requirement.name != local_requirement.name);
+            requirements.push(local_requirement);
+        }
+
+        requirements
     }
 
     /// Infer a function declaration.
@@ -696,25 +1275,104 @@ impl Compiler {
     ) -> AnalyzeResult<()> {
         // capture the member node
         let member = tree.get(member_id);
-
         // dispatch by member kind
         match member {
             Member::Type {
                 name,
+                static_parameters,
+                where_clauses,
                 ty,
                 value,
-                symbol: _,
+                symbol,
                 modifiers: _,
             } => {
-                // infer type member metadata expressions
-                self.infer_expression(module, *name, tree, symbols, types, infer, ctx)?;
+                let _name = *name;
+                let member_symbol = symbol.into_global(module.id);
 
-                if let Some(ty) = ty {
-                    self.infer_expression(module, *ty, tree, symbols, types, infer, ctx)?;
+                // infer associated type static parameters
+                if let Some(static_parameters) = static_parameters.as_ref() {
+                    for parameter_id in static_parameters {
+                        let declared_type =
+                            types.get_declared_type_id(parameter_id.into_global_any(module.id));
+                        self.infer_parameter(
+                            module,
+                            *parameter_id,
+                            declared_type,
+                            tree,
+                            symbols,
+                            types,
+                            infer,
+                            ctx,
+                        )?;
+                    }
                 }
 
-                if let Some(value) = value {
-                    self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
+                // infer associated type where clauses
+                self.infer_where_clauses_maybe(
+                    module,
+                    where_clauses.as_deref(),
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    ctx,
+                )?;
+
+                // evaluate associated type constraint
+                let constraint_type = if let Some(ty) = ty {
+                    Some(self.try_evaluate_expression_to_type(
+                        module,
+                        ctx.profile,
+                        *ty,
+                        tree,
+                        symbols,
+                        types,
+                        true,
+                        true,
+                    )?)
+                } else {
+                    None
+                };
+
+                // evaluate and register associated type default
+                let value_type = if let Some(value) = value {
+                    let value_type = self.try_evaluate_expression_to_type(
+                        module,
+                        ctx.profile,
+                        *value,
+                        tree,
+                        symbols,
+                        types,
+                        true,
+                        true,
+                    )?;
+
+                    types.set_alias_target_type_id(member_symbol, value_type);
+                    types.set_instance_type(member_symbol, value_type);
+                    Some(value_type)
+                } else {
+                    None
+                };
+
+                // check associated type default against its bound
+                if let (Some(constraint_type), Some(value_type)) = (constraint_type, value_type) {
+                    let options = self.analyze_context_options_for_module(module.id);
+                    let is_assignable = self.is_type_assignable(
+                        module,
+                        ctx.profile,
+                        symbols,
+                        constraint_type,
+                        value_type,
+                        types,
+                        &options,
+                    );
+                    if is_assignable == Assignability::NotAssignable {
+                        self.error(AnalyzeError::UnassignableType {
+                            node: member_id.into_global(module.id).into(),
+                            expected_ty: constraint_type.into_global(module.id),
+                            actual_ty: value_type.into_global(module.id),
+                        });
+                    }
                 }
 
                 Ok(())
@@ -2177,7 +2835,6 @@ impl Compiler {
             } else {
                 inferred
             };
-
             // apply inference constraints when required
             if !skip_assignability && matches!(constraint, DeclaratorConstraint::Assignable) {
                 infer.push_constraint(Constraint::Subtype {

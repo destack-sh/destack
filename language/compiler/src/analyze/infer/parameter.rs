@@ -1,7 +1,7 @@
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
-    Declaration, FunctionSignature, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NodeTree,
-    Parameter, StaticArgument, StaticExpression, StaticParameter, StaticParameterKind,
+    Declaration, FunctionSignature, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, Member, NodeTree,
+    NodeType, Parameter, StaticArgument, StaticExpression, StaticParameter, StaticParameterKind,
     StaticProperty, SymbolTable, Timing, Type, TypeLiteral, TypeTable, VarianceModifier,
 };
 use destack_source::ModuleId;
@@ -120,7 +120,7 @@ impl Compiler {
         }
     }
 
-    /// Build static parameter placeholders for a function signature.
+    /// Build static parameter placeholders fo r a function signature.
     pub(crate) fn static_parameter_placeholders_for_signature(
         &self,
         module: &Module,
@@ -239,24 +239,38 @@ impl Compiler {
         // extract the declaration for the symbol
         let symbol_entry = symbols.get_symbol(symbol.local_id);
         let primary_declaration = symbol_entry.primary_declaration?;
-        let declaration_id = match primary_declaration.try_into_local_typed::<Declaration>() {
-            Ok(declaration_id) => declaration_id,
-            Err(_) => return None,
-        };
-        let declaration = tree.get(declaration_id);
-
-        // locate static parameters on the declaration shape
-        let parameters = match declaration {
-            Declaration::Type {
-                static_parameters, ..
-            } => static_parameters.as_ref(),
-            Declaration::Struct { generics, .. }
-            | Declaration::Class { generics, .. }
-            | Declaration::Enum { generics, .. }
-            | Declaration::Interface { generics, .. }
-            | Declaration::Extension { generics, .. }
-            | Declaration::Namespace { generics, .. } => generics.static_parameters.as_ref(),
-            _ => None,
+        let parameters = match primary_declaration.local_id.ty {
+            // declaration static parameters
+            NodeType::Declaration => {
+                let declaration_id = primary_declaration.local_id.into_typed::<Declaration>();
+                let declaration = tree.get(declaration_id);
+                match declaration {
+                    Declaration::Type {
+                        static_parameters, ..
+                    } => static_parameters.as_ref(),
+                    Declaration::Struct { generics, .. }
+                    | Declaration::Class { generics, .. }
+                    | Declaration::Enum { generics, .. }
+                    | Declaration::Interface { generics, .. }
+                    | Declaration::Extension { generics, .. }
+                    | Declaration::Namespace { generics, .. } => {
+                        generics.static_parameters.as_ref()
+                    }
+                    _ => None,
+                }
+            }
+            // associated type static parameters
+            NodeType::Member => {
+                let member_id = primary_declaration.local_id.into_typed::<Member>();
+                let member = tree.get(member_id);
+                match member {
+                    Member::Type {
+                        static_parameters, ..
+                    } => static_parameters.as_ref(),
+                    _ => None,
+                }
+            }
+            _ => return None,
         };
 
         let Some(parameters) = parameters else {

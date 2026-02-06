@@ -4749,6 +4749,14 @@ impl Compiler {
                     RelationMode::TYPE_OPS,
                     &mut normalize_visited,
                 );
+
+                // avoid recursive loops when mapped normalization does not make progress
+                let normalized_type = types.get_type(normalized).clone();
+                let expected_type = types.get_type(expected_ty_id).clone();
+                if normalized == expected_ty_id || normalized_type == expected_type {
+                    return Ok(());
+                }
+
                 self.collect_object_literal_candidates(
                     module, profile, node_id, normalized, options, tree, symbols, types,
                     candidates, visited,

@@ -626,8 +626,8 @@ Classes reach RTTI via vtable slot 0 when present, while thin pointers without t
 
 ## Dispatch
 
-TypeScript has parametric polymorphism ("generics") but does not support type-based dispatch (by design).
-Destack adds type extensions and real overloading for type-based dispatch and operator overloading.
+TypeScript has parametric polymorphism ("generics") but does not support type-based dispatch as it deliberately avoids type-dependent emit.
+Destack adds type extensions and real overloading for type-based dispatch and operator overloading (they go hand in hand).
 
 ### Extensions
 
@@ -734,11 +734,11 @@ Destack adds an opt-in explicit "ownership" mechanism which determines who can u
 
 In addition to the default `T`, there are four other ownership options:
 ```
-T            // type default (value or managed reference)
-&T           // borrow (mutable, exclusive reference)
-&readonly T  // borrow (read only reference)
-^T           // owning handle (move-only, mutable)
-^readonly T  // owning handle (move-only, readonly)
+T            // managed (value or managed reference)
+&T           // borrowed (mutable, exclusive reference)
+&readonly T  // borrowed (read only reference)
+^T           // owned (move-only, mutable)
+^readonly T  // owned (move-only, readonly)
 ```
 
 Raw pointers "opt out" of ownership modifiers:

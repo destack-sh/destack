@@ -1348,6 +1348,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Member::Type {
                 modifiers,
                 name: _,
+                static_parameters: _,
+                where_clauses: _,
                 ty: _,
                 value: _,
             } => {

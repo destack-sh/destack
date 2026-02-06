@@ -1432,11 +1432,8 @@ fn is_type_context(context: &DestackFormatContext<'_>, node_id: LocalNodeId<Expr
             NodeType::Member => {
                 let member = context.tree.get(LocalNodeId::<Member>::new(parent_id));
                 let is_type_slot = match member {
-                    Member::Type {
-                        name, ty, value, ..
-                    } => {
-                        name.id == current_id
-                            || ty.is_some_and(|ty| ty.id == current_id)
+                    Member::Type { ty, value, .. } => {
+                        ty.is_some_and(|ty| ty.id == current_id)
                             || value.is_some_and(|value| value.id == current_id)
                     }
                     Member::Field { value, .. } => {
