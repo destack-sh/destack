@@ -24,7 +24,6 @@ js/module/decorators/expression.js
 js/module/export/class_clause.js
 js/module/export/function_clause.js
 js/module/expression/binary_range_expression.js
-js/module/expression/literal_expression.js
 js/module/expression/logical_expression.js
 js/module/expression/member-chain/multi_line.js
 js/module/expression/member-chain/static_member_regex.js

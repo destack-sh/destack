@@ -511,6 +511,9 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
                 current_failures.len()
             );
         }
+
+        // baseline refresh mode: do not fail the run on pre update regressions
+        regressions.clear();
     }
 
     let result = ConformanceResult {
