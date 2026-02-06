@@ -1070,11 +1070,25 @@ pub enum ForEachKind {
     In,
 }
 
+/// The declaration keyword used by a for each pattern binding.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum ForEachDeclarationKind {
+    /// `var` declaration keyword.
+    Var,
+    /// `let` declaration keyword.
+    Let,
+    /// `const` declaration keyword.
+    Const,
+}
+
 /// The binding in a for each expression.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ForEachBinding {
     /// Regular pattern binding.
-    Pattern { pattern: LocalNodeId<Pattern> },
+    Pattern {
+        pattern: LocalNodeId<Pattern>,
+        declaration_kind: Option<ForEachDeclarationKind>,
+    },
     /// Using binding with optional async disposal.
     Using {
         asynchrony: Asynchrony,

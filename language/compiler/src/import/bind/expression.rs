@@ -1,10 +1,11 @@
 use destack_ast::{self as ast};
 use destack_dir::{
-    Argument, DeclarationKind, Declarator, DependencyMode, DependencySource, Expression,
-    ForEachBinding, ForEachKind, IfCondition, IfKind, LocalNodeId, LocalNodeIdAny, LocalScopeId,
-    LocalScopeMark, LoopKind, MatchKind, MatchSource, Mutability, NodeTree, NodeType, ScopeKind,
-    StaticKey, SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType,
-    Type, TypeMappedParameterExpression, TypePredicateSubject, TypeTable, YieldCardinality,
+    Argument, BindingCategory, DeclarationKind, Declarator, DependencyMode, DependencySource,
+    Expression, ForEachBinding, ForEachKind, IfCondition, IfKind, LocalNodeId, LocalNodeIdAny,
+    LocalScopeId, LocalScopeMark, LoopKind, MatchKind, MatchSource, Mutability, NodeTree, NodeType,
+    ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
+    SymbolType, Type, TypeMappedParameterExpression, TypePredicateSubject, TypeTable,
+    YieldCardinality,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -18,6 +19,38 @@ impl Compiler {
         match kind {
             ast::IfKind::If => IfKind::If,
             ast::IfKind::Ternary => IfKind::Ternary,
+        }
+    }
+
+    /// Map let kind into the binding category used for duplicate-binding checks.
+    fn binding_category_for_let_kind(&self, kind: ast::LetKind) -> BindingCategory {
+        match kind {
+            ast::LetKind::Var => BindingCategory::FunctionScoped,
+            ast::LetKind::Let | ast::LetKind::Const => BindingCategory::BlockScoped,
+        }
+    }
+
+    /// Bind for each declaration kind into a DIR for each declaration kind.
+    fn bind_for_each_declaration_kind(
+        &self,
+        kind: ast::ForEachDeclarationKind,
+    ) -> destack_dir::ForEachDeclarationKind {
+        match kind {
+            ast::ForEachDeclarationKind::Var => destack_dir::ForEachDeclarationKind::Var,
+            ast::ForEachDeclarationKind::Let => destack_dir::ForEachDeclarationKind::Let,
+            ast::ForEachDeclarationKind::Const => destack_dir::ForEachDeclarationKind::Const,
+        }
+    }
+
+    /// Map for each declaration kind into duplicate-binding category.
+    fn binding_category_for_for_each_declaration_kind(
+        &self,
+        kind: destack_dir::ForEachDeclarationKind,
+    ) -> BindingCategory {
+        match kind {
+            destack_dir::ForEachDeclarationKind::Var => BindingCategory::FunctionScoped,
+            destack_dir::ForEachDeclarationKind::Let
+            | destack_dir::ForEachDeclarationKind::Const => BindingCategory::BlockScoped,
         }
     }
 
@@ -259,11 +292,13 @@ impl Compiler {
                 Expression::ExportNamespace { name }
             }
             ast::Expression::Let {
+                kind,
                 descriptor,
                 mutability,
                 declarators: ast_declarators,
                 ..
             } => {
+                let binding_category = self.binding_category_for_let_kind(*kind);
                 let symbol_kind = if descriptor.export.is_some() {
                     SymbolKind::Item
                 } else {
@@ -294,6 +329,7 @@ impl Compiler {
                             descriptor.export,
                             binding,
                             Some(mutability),
+                            Some(binding_category),
                             *ast_decl_id,
                             Some(expression_id),
                             tree,
@@ -340,6 +376,7 @@ impl Compiler {
                 };
                 let asynchrony = self.bind_asynchrony(*asynchrony);
                 let mutability = Mutability::Immutable;
+                let binding_category = BindingCategory::BlockScoped;
                 let declarators: Vec<LocalNodeId<Declarator>> = ast_declarators
                     .iter()
                     .map(|ast_decl_id| {
@@ -350,6 +387,7 @@ impl Compiler {
                             descriptor.export,
                             binding,
                             Some(mutability),
+                            Some(binding_category),
                             *ast_decl_id,
                             Some(expression_id),
                             tree,
@@ -1555,11 +1593,12 @@ impl Compiler {
                         )
                     }
                     ast::IfCondition::Let {
-                        kind: _,
+                        kind,
                         mutability,
                         declarator,
                     } => {
                         let mutability = self.bind_mutability(*mutability);
+                        let binding_category = self.binding_category_for_let_kind(*kind);
                         let outer_scope = scope;
                         let if_scope_id =
                             symbols.insert_scope(ScopeKind::Block, Some(outer_scope), None);
@@ -1571,6 +1610,7 @@ impl Compiler {
                             None,
                             SymbolBinding::Runtime,
                             Some(mutability),
+                            Some(binding_category),
                             *declarator,
                             Some(expression_id),
                             tree,
@@ -1700,7 +1740,14 @@ impl Compiler {
                     symbols,
                 );
                 let binding = match binding {
-                    ast::ForEachBinding::Pattern { pattern } => {
+                    ast::ForEachBinding::Pattern {
+                        pattern,
+                        declaration_kind,
+                    } => {
+                        let declaration_kind =
+                            declaration_kind.map(|kind| self.bind_for_each_declaration_kind(kind));
+                        let binding_category = declaration_kind
+                            .map(|kind| self.binding_category_for_for_each_declaration_kind(kind));
                         let pattern = self.bind_pattern(
                             module,
                             ast,
@@ -1708,13 +1755,17 @@ impl Compiler {
                             None,
                             SymbolBinding::Runtime,
                             None,
+                            binding_category,
                             *pattern,
                             Some(expression_id),
                             tree,
                             symbols,
                             types,
                         );
-                        ForEachBinding::Pattern { pattern }
+                        ForEachBinding::Pattern {
+                            pattern,
+                            declaration_kind,
+                        }
                     }
                     ast::ForEachBinding::Using { asynchrony, pattern } => {
                         let pattern = self.bind_pattern(
@@ -1724,6 +1775,7 @@ impl Compiler {
                             None,
                             SymbolBinding::Runtime,
                             Some(Mutability::Immutable),
+                            Some(BindingCategory::BlockScoped),
                             *pattern,
                             Some(expression_id),
                             tree,
@@ -1888,6 +1940,7 @@ impl Compiler {
                         None,
                         SymbolBinding::Runtime,
                         None,
+                        Some(BindingCategory::Parameter),
                         catch_pattern,
                         Some(expression_id),
                         tree,
@@ -2143,6 +2196,7 @@ impl Compiler {
         export: Option<DependencyMode>,
         binding: SymbolBinding,
         binding_mutability: Option<Mutability>,
+        binding_category: Option<BindingCategory>,
         ast_declarator_id: ast::LocalNodeId<ast::Declarator>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut NodeTree,
@@ -2161,6 +2215,7 @@ impl Compiler {
             export,
             binding,
             binding_mutability,
+            binding_category,
             *pattern,
             Some(declarator_id),
             tree,

@@ -2,9 +2,9 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Arena, DependencyMode, LocalMergeGroupId, LocalNodeId, LocalScopeId, LocalScopeMark,
-    LocalSymbolId, Node, NodeTree, Scope, ScopeKind, StaticKey, Symbol, SymbolBinding,
-    SymbolDecorators, SymbolKind, SymbolOrigin, SymbolSpace, SymbolType,
+    Arena, BindingCategory, DependencyMode, LocalMergeGroupId, LocalNodeId, LocalScopeId,
+    LocalScopeMark, LocalSymbolId, Node, NodeTree, Scope, ScopeKind, StaticKey, Symbol,
+    SymbolBinding, SymbolDecorators, SymbolKind, SymbolOrigin, SymbolSpace, SymbolType,
 };
 use std::fmt::Debug;
 
@@ -148,6 +148,7 @@ impl SymbolTable {
             space,
             binding,
             binding_mutability: None,
+            binding_category: BindingCategory::Unclassified,
             origin: SymbolOrigin::Primary,
             key,
             scope,

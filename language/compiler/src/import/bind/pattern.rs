@@ -1,9 +1,9 @@
 use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
-    DependencyMode, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, LocalSymbolId,
-    Mutability, NodeTree, NodeType, Pattern, PatternField, StaticKey, SymbolBinding, SymbolSpace,
-    SymbolSpaceOrder, SymbolTable, TypeTable,
+    BindingCategory, DependencyMode, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
+    LocalSymbolId, Mutability, NodeTree, NodeType, Pattern, PatternField, StaticKey, SymbolBinding,
+    SymbolSpace, SymbolSpaceOrder, SymbolTable, TypeTable,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -39,6 +39,19 @@ impl Compiler {
         }
     }
 
+    /// Record binding category for a symbol when not already set.
+    pub(super) fn apply_binding_category(
+        &self,
+        symbols: &mut SymbolTable,
+        symbol_id: LocalSymbolId,
+        category: BindingCategory,
+    ) {
+        let symbol = symbols.get_symbol_mut(symbol_id);
+        if symbol.binding_category == BindingCategory::Unclassified {
+            symbol.binding_category = category;
+        }
+    }
+
     /// Bind a pattern to a DIR pattern.
     pub(super) fn bind_pattern(
         &self,
@@ -48,6 +61,7 @@ impl Compiler {
         export: Option<DependencyMode>,
         binding: SymbolBinding,
         binding_mutability: Option<Mutability>,
+        binding_category: Option<BindingCategory>,
         ast_pattern_id: ast::LocalNodeId<ast::Pattern>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut NodeTree,
@@ -66,6 +80,7 @@ impl Compiler {
                 export,
                 binding,
                 binding_mutability,
+                binding_category,
                 *ast_pattern_id,
                 Some(pattern_id),
                 tree,
@@ -84,6 +99,7 @@ impl Compiler {
                     export,
                     binding,
                     binding_mutability,
+                    binding_category,
                     *right_id,
                     Some(pattern_id),
                     tree,
@@ -104,6 +120,7 @@ impl Compiler {
                     export,
                     binding,
                     binding_mutability,
+                    binding_category,
                     *right_id,
                     Some(pattern_id),
                     tree,
@@ -127,6 +144,7 @@ impl Compiler {
                         export,
                         binding,
                         binding_mutability,
+                        binding_category,
                         pattern,
                         Some(pattern_id),
                         tree,
@@ -147,6 +165,9 @@ impl Compiler {
                 let symbol_mutability =
                     self.resolve_binding_mutability(module, mutability, binding_mutability);
                 self.apply_binding_mutability(symbols, symbol, symbol_mutability);
+                if let Some(binding_category) = binding_category {
+                    self.apply_binding_category(symbols, symbol, binding_category);
+                }
                 Pattern::Binding {
                     mutability,
                     name,
@@ -181,6 +202,7 @@ impl Compiler {
                         export,
                         binding,
                         binding_mutability,
+                        binding_category,
                         start,
                         Some(pattern_id),
                         tree,
@@ -196,6 +218,7 @@ impl Compiler {
                         export,
                         binding,
                         binding_mutability,
+                        binding_category,
                         end,
                         Some(pattern_id),
                         tree,
@@ -220,6 +243,7 @@ impl Compiler {
                             export,
                             binding,
                             binding_mutability,
+                            binding_category,
                             *field,
                             Some(pattern_id),
                             tree,
@@ -252,6 +276,7 @@ impl Compiler {
                             export,
                             binding,
                             binding_mutability,
+                            binding_category,
                             *field,
                             Some(pattern_id),
                             tree,
@@ -273,6 +298,7 @@ impl Compiler {
                             export,
                             binding,
                             binding_mutability,
+                            binding_category,
                             *field,
                             Some(pattern_id),
                             tree,
@@ -294,6 +320,7 @@ impl Compiler {
                             export,
                             binding,
                             binding_mutability,
+                            binding_category,
                             *field,
                             Some(pattern_id),
                             tree,
@@ -326,6 +353,7 @@ impl Compiler {
                             export,
                             binding,
                             binding_mutability,
+                            binding_category,
                             *field,
                             Some(pattern_id),
                             tree,
@@ -347,6 +375,7 @@ impl Compiler {
                             export,
                             binding,
                             binding_mutability,
+                            binding_category,
                             *field,
                             Some(pattern_id),
                             tree,
@@ -380,6 +409,7 @@ impl Compiler {
         export: Option<DependencyMode>,
         binding: SymbolBinding,
         binding_mutability: Option<Mutability>,
+        binding_category: Option<BindingCategory>,
         ast_pattern_field_id: ast::LocalNodeId<ast::PatternField>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut NodeTree,
@@ -413,6 +443,7 @@ impl Compiler {
                         export,
                         binding,
                         binding_mutability,
+                        binding_category,
                         pattern,
                         Some(pattern_field_id),
                         tree,
@@ -446,6 +477,9 @@ impl Compiler {
                 let symbol_mutability =
                     self.resolve_binding_mutability(module, mutability, binding_mutability);
                 self.apply_binding_mutability(symbols, symbol, symbol_mutability);
+                if let Some(binding_category) = binding_category {
+                    self.apply_binding_category(symbols, symbol, binding_category);
+                }
                 PatternField::Named {
                     mutability,
                     name,
@@ -480,6 +514,7 @@ impl Compiler {
                         export,
                         binding,
                         binding_mutability,
+                        binding_category,
                         pattern,
                         Some(pattern_field_id),
                         tree,
@@ -545,6 +580,9 @@ impl Compiler {
                 let symbol_mutability =
                     self.resolve_binding_mutability(module, mutability, binding_mutability);
                 self.apply_binding_mutability(symbols, symbol, symbol_mutability);
+                if let Some(binding_category) = binding_category {
+                    self.apply_binding_category(symbols, symbol, binding_category);
+                }
                 PatternField::Alias {
                     mutability,
                     name,
@@ -563,6 +601,7 @@ impl Compiler {
                     export,
                     binding,
                     binding_mutability,
+                    binding_category,
                     *pattern_id,
                     Some(pattern_field_id),
                     tree,
@@ -584,6 +623,7 @@ impl Compiler {
                         export,
                         binding,
                         binding_mutability,
+                        binding_category,
                         pattern_id,
                         Some(pattern_field_id),
                         tree,

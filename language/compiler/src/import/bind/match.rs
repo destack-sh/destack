@@ -34,6 +34,7 @@ impl Compiler {
                     None,
                     SymbolBinding::Runtime,
                     None,
+                    None,
                     *ast_pattern,
                     Some(parent_id),
                     tree,

@@ -159,7 +159,7 @@ impl<'a, 'b> NoRegexInLoopVisitor<'a, 'b> {
         // visit binding inside loop context
         self.is_in_loop = true;
         match binding {
-            dir::ForEachBinding::Pattern { pattern } => {
+            dir::ForEachBinding::Pattern { pattern, .. } => {
                 let pattern_node = tree.get(*pattern);
                 self.visit_pattern(tree, *pattern, pattern_node);
             }

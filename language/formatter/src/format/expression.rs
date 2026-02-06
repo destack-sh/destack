@@ -4,12 +4,12 @@ use std::cmp::Ordering;
 use destack_ast::{
     Annotation, AnnotationPosition, Argument, AssignOperator, Asynchrony, BinaryOperator,
     Declaration, DeclarationDescriptor, DeclarationKind, Declarator, DependencyItem,
-    DependencyKind, DependencyMode, Expression, ForEachBinding, ForEachKind, FunctionKind,
-    IfCondition, IfKind, ImportAliasTarget, ImportSource, Keyword, LetKind, LocalNodeId, MatchCase,
-    MatchKind, MatchSelector, Member, Mutability, NodeTree, NodeType, OperatorPrecedence,
-    Parameter, Pattern, PostfixPosition, Property, ScalarLiteral, TokenType, TypeBinaryOperator,
-    TypeLiteral, TypeModifier, TypePredicateSubject, TypeUnaryOperator, UnaryOperator, WhereClause,
-    WhileKind, YieldCardinality,
+    DependencyKind, DependencyMode, Expression, ForEachBinding, ForEachDeclarationKind,
+    ForEachKind, FunctionKind, IfCondition, IfKind, ImportAliasTarget, ImportSource, Keyword,
+    LetKind, LocalNodeId, MatchCase, MatchKind, MatchSelector, Member, Mutability, NodeTree,
+    NodeType, OperatorPrecedence, Parameter, Pattern, PostfixPosition, Property, ScalarLiteral,
+    TokenType, TypeBinaryOperator, TypeLiteral, TypeModifier, TypePredicateSubject,
+    TypeUnaryOperator, UnaryOperator, WhereClause, WhileKind, YieldCardinality,
 };
 use destack_base::StringId;
 use destack_fir::format::{BestFittingMode, FormatError, GroupId, text};
@@ -6095,19 +6095,31 @@ pub(crate) fn format_expression<'ast>(
             };
             write!(f, [token("(")])?;
             match binding {
-                ForEachBinding::Pattern { pattern } => {
-                    let pattern_node = tree.get(*pattern);
-                    let should_prefix_const = matches!(
-                        pattern_node,
-                        Pattern::Binding {
-                            mutability: Some(Mutability::Immutable),
-                            ..
-                        }
-                    );
+                ForEachBinding::Pattern {
+                    pattern,
+                    declaration_kind,
+                } => {
+                    if let Some(declaration_kind) = declaration_kind {
+                        let keyword = match declaration_kind {
+                            ForEachDeclarationKind::Var => Keyword::Var,
+                            ForEachDeclarationKind::Let => Keyword::Let,
+                            ForEachDeclarationKind::Const => Keyword::Const,
+                        };
+                        write!(f, [keyword, space()])?;
+                    } else {
+                        let pattern_node = tree.get(*pattern);
+                        let should_prefix_const = matches!(
+                            pattern_node,
+                            Pattern::Binding {
+                                mutability: Some(Mutability::Immutable),
+                                ..
+                            }
+                        );
 
-                    // keep explicit const for simple bindings
-                    if should_prefix_const {
-                        write!(f, [Keyword::Const, space()])?;
+                        // preserve const formatting for synthesized legacy nodes
+                        if should_prefix_const {
+                            write!(f, [Keyword::Const, space()])?;
+                        }
                     }
 
                     write!(f, [pattern])?;

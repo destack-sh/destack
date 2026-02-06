@@ -805,7 +805,10 @@ impl Compiler {
                     let asynchrony = self.unbind_asynchrony(context, *asynchrony);
                     let kind = self.unbind_for_each_kind(context, *kind);
                     let binding = match binding {
-                        dir::ForEachBinding::Pattern { pattern } => {
+                        dir::ForEachBinding::Pattern {
+                            pattern,
+                            declaration_kind,
+                        } => {
                             let pattern = self.unbind_pattern(
                                 module,
                                 *pattern,
@@ -815,7 +818,12 @@ impl Compiler {
                                 ast_strings,
                                 context,
                             );
-                            ast::ForEachBinding::Pattern { pattern }
+                            let declaration_kind = declaration_kind
+                                .map(|kind| self.unbind_for_each_declaration_kind(context, kind));
+                            ast::ForEachBinding::Pattern {
+                                pattern,
+                                declaration_kind,
+                            }
                         }
                         dir::ForEachBinding::Using { asynchrony, pattern } => {
                             let pattern = self.unbind_pattern(
@@ -1018,6 +1026,20 @@ impl Compiler {
         match kind {
             dir::ForEachKind::In => ast::ForEachKind::In,
             dir::ForEachKind::Of => ast::ForEachKind::Of,
+        }
+    }
+
+    /// Unbind for each declaration kind to AST for each declaration kind.
+    #[inline]
+    fn unbind_for_each_declaration_kind(
+        &self,
+        _context: &mut UnbindContext,
+        kind: dir::ForEachDeclarationKind,
+    ) -> ast::ForEachDeclarationKind {
+        match kind {
+            dir::ForEachDeclarationKind::Var => ast::ForEachDeclarationKind::Var,
+            dir::ForEachDeclarationKind::Let => ast::ForEachDeclarationKind::Let,
+            dir::ForEachDeclarationKind::Const => ast::ForEachDeclarationKind::Const,
         }
     }
 

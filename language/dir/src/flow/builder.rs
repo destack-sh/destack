@@ -1006,7 +1006,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
         // evaluate the binding pattern before the loop body
         let mut body_entry_block_id = body_block_id;
         match binding {
-            ForEachBinding::Pattern { pattern } | ForEachBinding::Using { pattern, .. } => {
+            ForEachBinding::Pattern { pattern, .. } | ForEachBinding::Using { pattern, .. } => {
                 if let Some(pattern_exit_block_id) =
                     self.build_pattern(*pattern, body_entry_block_id)
                 {

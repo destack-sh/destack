@@ -2452,7 +2452,7 @@ impl Compiler {
                 let iterator_ty_id =
                     self.infer_expression(module, *iterator, tree, symbols, types, infer, ctx)?;
                 match binding {
-                    ForEachBinding::Pattern { pattern } => {
+                    ForEachBinding::Pattern { pattern, .. } => {
                         self.infer_pattern(
                             module,
                             *pattern,

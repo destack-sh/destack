@@ -1,8 +1,8 @@
 //! Parse loops, for, while, etc.
 
 use destack_ast::{
-    Asynchrony, Expression, ForEachBinding, ForEachKind, Keyword, LocalNodeId, Pattern, TokenType,
-    WhileKind,
+    Asynchrony, Expression, ForEachBinding, ForEachDeclarationKind, ForEachKind, Keyword,
+    LocalNodeId, Pattern, TokenType, WhileKind,
 };
 
 use crate::{ParseError, ParseResult, Parser};
@@ -210,6 +210,7 @@ impl Parser {
                 pattern,
             })
         } else {
+            let declaration_kind = self.peek_for_each_declaration_kind();
             let start = self.mark();
             let start_idx = self.tree.next_id();
             let pattern = self.with_options(
@@ -235,10 +236,27 @@ impl Parser {
                     Pattern::Expression { value: expression },
                     self.get_span_from(&start),
                 );
-                Ok(ForEachBinding::Pattern { pattern })
+                Ok(ForEachBinding::Pattern {
+                    pattern,
+                    declaration_kind: None,
+                })
             } else {
-                Ok(ForEachBinding::Pattern { pattern })
+                Ok(ForEachBinding::Pattern {
+                    pattern,
+                    declaration_kind,
+                })
             }
+        }
+    }
+
+    /// Return the declaration keyword for a for each pattern binding.
+    fn peek_for_each_declaration_kind(&mut self) -> Option<ForEachDeclarationKind> {
+        let keyword = self.peek_any_keyword().ok()?;
+        match keyword {
+            Keyword::Var => Some(ForEachDeclarationKind::Var),
+            Keyword::Let => Some(ForEachDeclarationKind::Let),
+            Keyword::Const | Keyword::Readonly => Some(ForEachDeclarationKind::Const),
+            _ => None,
         }
     }
 
@@ -324,8 +342,9 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Asynchrony, BinaryOperator, Block, Declarator, Expression, ForEachBinding, ForEachKind,
-        Mutability, Pattern, ScalarLiteral, UnaryOperator, WhileKind,
+        Asynchrony, BinaryOperator, Block, Declarator, Expression, ForEachBinding,
+        ForEachDeclarationKind, ForEachKind, Mutability, Pattern, ScalarLiteral, UnaryOperator,
+        WhileKind,
     };
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
@@ -361,7 +380,8 @@ for (const item in items) {
         parser.eat_newline().unwrap();
 
         let for_id = parser.eat_for().unwrap();
-        assert_node!(parser.tree, for_id, Expression::ForEach { binding: ForEachBinding::Pattern { pattern }, iterator, body: _, .. } => {
+        assert_node!(parser.tree, for_id, Expression::ForEach { binding: ForEachBinding::Pattern { pattern, declaration_kind }, iterator, body: _, .. } => {
+            assert_eq!(*declaration_kind, Some(ForEachDeclarationKind::Const));
             // item
             assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: Some(mutability), name, pattern: None } => {
                 assert_eq!(*mutability, Mutability::Immutable);
@@ -385,8 +405,9 @@ for (const item in items) {
         parser.eat_newline().unwrap();
 
         let for_id = parser.eat_for().unwrap();
-        assert_node!(parser.tree, for_id, Expression::ForEach { asynchrony, binding: ForEachBinding::Pattern { pattern }, iterator, body: _, .. } => {
+        assert_node!(parser.tree, for_id, Expression::ForEach { asynchrony, binding: ForEachBinding::Pattern { pattern, declaration_kind }, iterator, body: _, .. } => {
             assert_eq!(*asynchrony, Asynchrony::Sync);
+            assert_eq!(*declaration_kind, Some(ForEachDeclarationKind::Const));
             // item
             assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: Some(mutability), name, pattern: None } => {
                 assert_eq!(*mutability, Mutability::Immutable);
@@ -410,9 +431,10 @@ for await (const item of items) {
         parser.eat_newline().unwrap();
 
         let for_id = parser.eat_for().unwrap();
-        assert_node!(parser.tree, for_id, Expression::ForEach { asynchrony, kind, binding: ForEachBinding::Pattern { pattern }, iterator, body: _, .. } => {
+        assert_node!(parser.tree, for_id, Expression::ForEach { asynchrony, kind, binding: ForEachBinding::Pattern { pattern, declaration_kind }, iterator, body: _, .. } => {
             assert_eq!(*asynchrony, Asynchrony::Async);
             assert_eq!(*kind, ForEachKind::Of);
+            assert_eq!(*declaration_kind, Some(ForEachDeclarationKind::Const));
             // item
             assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: Some(mutability), name, pattern: None } => {
                 assert_eq!(*mutability, Mutability::Immutable);
@@ -435,7 +457,8 @@ for (var r in t)
         parser.eat_newline().unwrap();
 
         let for_id = parser.eat_for().unwrap();
-        assert_node!(parser.tree, for_id, Expression::ForEach { binding: ForEachBinding::Pattern { pattern }, iterator, body, .. } => {
+        assert_node!(parser.tree, for_id, Expression::ForEach { binding: ForEachBinding::Pattern { pattern, declaration_kind }, iterator, body, .. } => {
+            assert_eq!(*declaration_kind, Some(ForEachDeclarationKind::Var));
             // r
             assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: Some(mutability), name, pattern: None } => {
                 assert_eq!(*mutability, Mutability::Mutable);
@@ -464,7 +487,8 @@ for (const item in items) outer: {
         parser.eat_newline().unwrap();
 
         let for_id = parser.eat_for().unwrap();
-        assert_node!(parser.tree, for_id, Expression::ForEach { binding: ForEachBinding::Pattern { pattern }, iterator, body: _, .. } => {
+        assert_node!(parser.tree, for_id, Expression::ForEach { binding: ForEachBinding::Pattern { pattern, declaration_kind }, iterator, body: _, .. } => {
+            assert_eq!(*declaration_kind, Some(ForEachDeclarationKind::Const));
             // item
             assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: Some(mutability), name, pattern: None } => {
                 assert_eq!(*mutability, Mutability::Immutable);

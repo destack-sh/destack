@@ -84,6 +84,24 @@ impl SymbolOrigin {
     }
 }
 
+/// The binding category used for early duplicate-binding validation.
+#[derive(
+    Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize,
+)]
+pub enum BindingCategory {
+    /// Category has not been assigned yet.
+    #[default]
+    Unclassified,
+    /// Symbol does not participate in duplicate-binding early errors.
+    NonBinding,
+    /// Function-scoped declaration category (`var`-style).
+    FunctionScoped,
+    /// Block-scoped declaration category (`let` and `const`-style).
+    BlockScoped,
+    /// Formal parameter declaration category (including catch parameters).
+    Parameter,
+}
+
 /// The type of a symbol (declaration type).
 #[derive(
     Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize,
@@ -219,6 +237,8 @@ pub struct Symbol {
     pub binding: SymbolBinding,
     /// The mutability for value bindings when known.
     pub binding_mutability: Option<Mutability>,
+    /// The binding category used for early duplicate-binding checks.
+    pub binding_category: BindingCategory,
     /// Where this symbol was introduced.
     pub origin: SymbolOrigin,
     /// The key of the symbol.
