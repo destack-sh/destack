@@ -476,9 +476,8 @@ impl Parser {
         // keyword
         self.eat_keyword(Keyword::Yield)?;
 
-        // check for restricted production: newline after yield triggers ASI
-        // if there's a newline, don't look for `*` or value
-        if self.is_statement_stop() {
+        // stop when yield has no explicit operand in this position
+        if self.yield_operand_is_omitted() {
             let yield_id = self.tree.insert(
                 Expression::Yield {
                     cardinality: YieldCardinality::Scalar,
@@ -498,8 +497,8 @@ impl Parser {
         };
 
         // value (optional, like return/throw)
-        // yield without value is valid JS: `function* a() { yield }`
-        let value_id = if self.peek().is_ok() && !self.is_statement_stop() {
+        // yield without value is valid: `function* a() { yield }`
+        let value_id = if self.peek().is_ok() && !self.yield_operand_is_omitted() {
             let value_id = self.with_options(self.options.not_in_position(), |parser| {
                 parser.eat_expression()
             })?;
@@ -507,6 +506,14 @@ impl Parser {
         } else {
             None
         };
+
+        // `yield*` always requires an operand
+        if cardinality == YieldCardinality::Generator && value_id.is_none() {
+            return Err(ParseError::unexpected_for(
+                self.get_span_from(&start),
+                NodeType::Expression,
+            ));
+        }
 
         // yield
         let yield_id = self.tree.insert(
@@ -517,6 +524,54 @@ impl Parser {
             self.get_span_from(&start),
         );
         Ok(yield_id)
+    }
+
+    /// Return true when yield has no explicit operand in this context.
+    #[inline]
+    fn yield_operand_is_omitted(&mut self) -> bool {
+        if self.is_statement_stop() || self.has_line_terminator_before_current_token() {
+            return true;
+        }
+
+        // punctuation that closes the surrounding expression also terminates bare yield
+        matches!(
+            self.peek_token_type(),
+            TokenType::CloseParenthesis
+                | TokenType::CloseBracket
+                | TokenType::CloseBrace
+                | TokenType::Comma
+                | TokenType::Colon
+        )
+    }
+
+    /// Return true when trivia before the current token contains a line terminator.
+    fn has_line_terminator_before_current_token(&mut self) -> bool {
+        // find neighboring semantic tokens around the current parse position
+        let current_index = self.pos_index();
+        if current_index == 0 {
+            return false;
+        }
+
+        // stop when either side is missing
+        let Some(previous) = self.token_at(current_index.saturating_sub(1)) else {
+            return false;
+        };
+        let Some(current) = self.token_at(current_index) else {
+            return false;
+        };
+
+        // trivia only exists when there is a real gap between token spans
+        if current.span.start <= previous.span.end {
+            return false;
+        }
+
+        // scan the trivia slice for line terminator code points
+        let trivia_span =
+            destack_source::Span::new(self.file_id, previous.span.end, current.span.start);
+        let trivia = self.get_span_str(trivia_span);
+        trivia
+            .chars()
+            .any(|character| matches!(character, '\n' | '\r' | '\u{2028}' | '\u{2029}'))
     }
 
     /// Eat a throw expression.
@@ -534,7 +589,10 @@ impl Parser {
         self.eat_keyword(Keyword::Throw)?;
 
         // value
-        if self.is_statement_stop() || self.peek().is_err() {
+        if self.has_line_terminator_before_current_token()
+            || self.is_statement_stop()
+            || self.peek().is_err()
+        {
             return Err(ParseError::unexpected_for(
                 self.get_span_from(&start),
                 NodeType::Expression,
@@ -584,7 +642,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{Expression, ScalarLiteral, YieldCardinality};
+    use destack_ast::{Expression, ScalarLiteral, TokenType, YieldCardinality};
     use destack_source::LanguageType;
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
@@ -813,6 +871,32 @@ mod tests {
     }
 
     #[test]
+    fn test_yield_expression_no_value_before_close_parenthesis() {
+        // source: yield)
+        let mut test = TestParser::new("yield)");
+        let mut parser = test.prepare();
+        let yield_id = parser.eat_yield().unwrap();
+        assert_node!(parser.tree, yield_id, Expression::Yield { cardinality, value } => {
+            assert_eq!(*cardinality, YieldCardinality::Scalar);
+            assert!(value.is_none());
+        });
+        assert!(parser.peek_is(TokenType::CloseParenthesis));
+    }
+
+    #[test]
+    fn test_yield_expression_no_value_before_close_bracket() {
+        // source: yield]
+        let mut test = TestParser::new("yield]");
+        let mut parser = test.prepare();
+        let yield_id = parser.eat_yield().unwrap();
+        assert_node!(parser.tree, yield_id, Expression::Yield { cardinality, value } => {
+            assert_eq!(*cardinality, YieldCardinality::Scalar);
+            assert!(value.is_none());
+        });
+        assert!(parser.peek_is(TokenType::CloseBracket));
+    }
+
+    #[test]
     fn test_yield_expression_generator() {
         let mut test = TestParser::new("yield* someFunction()");
         let mut parser = test.prepare();
@@ -836,6 +920,18 @@ mod tests {
             assert_eq!(*cardinality, YieldCardinality::Generator);
             assert!(value.is_some());
         });
+    }
+
+    #[test]
+    fn test_reject_yield_star_without_operand() {
+        // source: yield*
+        let mut test = TestParser::new("yield*");
+        let mut parser = test.prepare();
+
+        let error = parser.eat_yield().unwrap_err();
+
+        // yield*
+        assert_eq!(parser.get_span_str(error.leaf_span()), "yield*");
     }
 
     /// `yield\n*a` should NOT be parsed as `yield* a` due to ASI restricted production.
@@ -866,8 +962,36 @@ mod tests {
 
         // try to parse *a as next statement - should fail in JS mode
         // (because * is not valid as unary prefix in JS)
-        let result = parser.eat_expression();
-        assert!(result.is_err(), "*a should fail in JavaScript mode");
+        let error = parser.eat_expression().unwrap_err();
+
+        // \n
+        assert_eq!(parser.get_span_str(error.leaf_span()), "\n");
+
+        // consume newline and reject following *
+        parser.eat_newline().unwrap();
+        let error = parser.eat_expression().unwrap_err();
+
+        // *
+        assert_eq!(parser.get_span_str(error.leaf_span()), "*");
+    }
+
+    /// `yield/*\n*/*a` should not be parsed as `yield* a`.
+    #[test]
+    fn test_yield_asi_with_block_comment_newline_js_mode() {
+        // source: yield/*\n*/*a
+        let mut test = TestParser::new_with_options("yield/*\n*/*a", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+
+        let yield_id = parser.eat_yield().unwrap();
+        assert_node!(parser.tree, yield_id, Expression::Yield { cardinality, value } => {
+            assert_eq!(*cardinality, YieldCardinality::Scalar);
+            assert!(value.is_none());
+        });
+
+        let error = parser.eat_expression().unwrap_err();
+
+        // *
+        assert_eq!(parser.get_span_str(error.leaf_span()), "*");
     }
 
     #[test]
@@ -878,6 +1002,37 @@ mod tests {
         assert_node!(parser.tree, throw_id, Expression::Throw { value } => {
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(17)));
         });
+    }
+
+    /// Reject throw expressions split by a block comment newline.
+    #[test]
+    fn test_reject_throw_expression_with_block_comment_newline() {
+        // source: throw /*\n*/ e
+        let mut test = TestParser::new_with_options("throw /*\n*/ e", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let error = parser.eat_throw().unwrap_err();
+
+        // throw ... (restricted production failure span starts at throw)
+        assert_eq!(error.leaf_span().start, 0);
+
+        // e
+        assert!(parser.peek_is(TokenType::Identifier));
+    }
+
+    /// Reject throw expressions split by unicode line separator comments.
+    #[test]
+    fn test_reject_throw_expression_with_line_separator_comment() {
+        // source: throw /* \u{2028} */ e
+        let mut test =
+            TestParser::new_with_options("throw /* \u{2028} */ e", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let error = parser.eat_throw().unwrap_err();
+
+        // throw ... (restricted production failure span starts at throw)
+        assert_eq!(error.leaf_span().start, 0);
+
+        // e
+        assert!(parser.peek_is(TokenType::Identifier));
     }
 
     #[test]

@@ -211,20 +211,10 @@ impl Parser {
             })
         } else {
             let declaration_kind = self.peek_for_each_declaration_kind();
-            let start = self.mark();
-            let start_idx = self.tree.next_id();
-            let pattern = self.with_options(
-                self.options
-                    .not_in_position()
-                    .in_for_each()
-                    .in_before_block(),
-                |parser| parser.eat_pattern(),
-            )?;
-            if (self.language.is_typescript() || self.language.is_destack())
-                && (self.peek_keyword(Keyword::As).is_ok()
-                    || self.peek_keyword(Keyword::Satisfies).is_ok())
-            {
-                self.restore(start.clone(), start_idx);
+
+            if declaration_kind.is_none() {
+                // for each without declarations keeps expression heads as expression patterns
+                let start = self.mark();
                 let expression = self.with_options(
                     self.options
                         .not_in_position()
@@ -232,6 +222,7 @@ impl Parser {
                         .in_before_block(),
                     |parser| parser.eat_expression(),
                 )?;
+
                 let pattern = self.tree.insert(
                     Pattern::Expression { value: expression },
                     self.get_span_from(&start),
@@ -241,6 +232,14 @@ impl Parser {
                     declaration_kind: None,
                 })
             } else {
+                // declaration forms keep binding-pattern parsing
+                let pattern = self.with_options(
+                    self.options
+                        .not_in_position()
+                        .in_for_each()
+                        .in_before_block(),
+                    |parser| parser.eat_pattern(),
+                )?;
                 Ok(ForEachBinding::Pattern {
                     pattern,
                     declaration_kind,
@@ -346,6 +345,7 @@ mod tests {
         ForEachDeclarationKind, ForEachKind, Mutability, Pattern, ScalarLiteral, UnaryOperator,
         WhileKind,
     };
+    use destack_source::LanguageType;
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 
@@ -518,6 +518,122 @@ for (using item of items) {
                 assert_string!(parser, *name, "item");
             });
             assert_expression_path!(parser, parser.tree.get(*iterator), "items");
+        });
+    }
+
+    #[test]
+    fn test_parse_for_in_with_member_expression_binding() {
+        // for (a[b in c] in d);
+        let mut test =
+            TestParser::new_with_options("for (a[b in c] in d);", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+
+        let for_id = parser.eat_for().unwrap();
+        assert_node!(parser.tree, for_id, Expression::ForEach { kind, binding: ForEachBinding::Pattern { pattern, declaration_kind }, iterator, .. } => {
+            assert_eq!(*kind, ForEachKind::In);
+            assert_eq!(*declaration_kind, None);
+            assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
+                assert_node!(parser.tree, *value, Expression::Index { .. });
+            });
+            assert_expression_path!(parser, parser.tree.get(*iterator), "d");
+        });
+    }
+
+    #[test]
+    fn test_parse_for_in_with_call_expression_binding() {
+        // for (a(b in c)[1] in d);
+        let mut test =
+            TestParser::new_with_options("for (a(b in c)[1] in d);", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+
+        let for_id = parser.eat_for().unwrap();
+        assert_node!(parser.tree, for_id, Expression::ForEach { kind, binding: ForEachBinding::Pattern { pattern, declaration_kind }, iterator, .. } => {
+            assert_eq!(*kind, ForEachKind::In);
+            assert_eq!(*declaration_kind, None);
+            assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
+                assert_node!(parser.tree, *value, Expression::Index { .. });
+            });
+            assert_expression_path!(parser, parser.tree.get(*iterator), "d");
+        });
+    }
+
+    #[test]
+    fn test_parse_for_in_with_array_expression_binding() {
+        // for ([a, b[a], {c, d = e, [f]: [g, h().a, (1).i, ...j[2]]}] in 3);
+        let mut test = TestParser::new_with_options(
+            "for ([a, b[a], {c, d = e, [f]: [g, h().a, (1).i, ...j[2]]}] in 3);",
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+
+        let for_id = parser.eat_for().unwrap();
+        assert_node!(parser.tree, for_id, Expression::ForEach { kind, binding: ForEachBinding::Pattern { pattern, declaration_kind }, iterator, .. } => {
+            assert_eq!(*kind, ForEachKind::In);
+            assert_eq!(*declaration_kind, None);
+            assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
+                assert_node!(parser.tree, *value, Expression::ArrayExpression { .. });
+            });
+            assert_node!(parser.tree, *iterator, Expression::ScalarLiteral(ScalarLiteral::Integer(3)));
+        });
+    }
+
+    #[test]
+    fn test_parse_for_in_with_unary_binding_expression() {
+        // source: for (+i in {});
+        let mut test = TestParser::new_with_options("for (+i in {});", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+
+        let for_id = parser.eat_for().unwrap();
+        assert_node!(parser.tree, for_id, Expression::ForEach { kind, binding: ForEachBinding::Pattern { pattern, declaration_kind }, iterator, .. } => {
+            assert_eq!(*kind, ForEachKind::In);
+            assert_eq!(*declaration_kind, None);
+            assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
+                assert_node!(parser.tree, *value, Expression::Unary { .. });
+            });
+            assert_node!(parser.tree, *iterator, Expression::ObjectExpression { .. });
+        });
+    }
+
+    #[test]
+    fn test_parse_for_in_with_binary_binding_expression() {
+        // source: for (i + 1 in {});
+        let mut test = TestParser::new_with_options("for (i + 1 in {});", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+
+        let for_id = parser.eat_for().unwrap();
+        assert_node!(parser.tree, for_id, Expression::ForEach { kind, binding: ForEachBinding::Pattern { pattern, declaration_kind }, iterator, .. } => {
+            assert_eq!(*kind, ForEachKind::In);
+            assert_eq!(*declaration_kind, None);
+            assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
+                assert_node!(parser.tree, *value, Expression::Binary { .. });
+            });
+            assert_node!(parser.tree, *iterator, Expression::ObjectExpression { .. });
+        });
+    }
+
+    #[test]
+    fn test_parse_for_in_with_parenthesized_binary_binding_expression() {
+        // source: for((1 + 1) in list) process(x);
+        let mut test = TestParser::new_with_options(
+            "for((1 + 1) in list) process(x);",
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+
+        let for_id = parser.eat_for().unwrap();
+        assert_node!(parser.tree, for_id, Expression::ForEach { kind, binding: ForEachBinding::Pattern { pattern, declaration_kind }, iterator, body, .. } => {
+            assert_eq!(*kind, ForEachKind::In);
+            assert_eq!(*declaration_kind, None);
+            assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
+                assert_node!(parser.tree, *value, Expression::Parenthesized { expression } => {
+                    assert_node!(parser.tree, *expression, Expression::Binary { .. });
+                });
+            });
+            assert_expression_path!(parser, parser.tree.get(*iterator), "list");
+            assert_node!(parser.tree, *body, Block { expressions, .. } => {
+                assert_eq!(expressions.len(), 1);
+                assert_node!(parser.tree, expressions[0], Expression::Call { .. });
+            });
         });
     }
 

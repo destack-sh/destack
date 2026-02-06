@@ -118,6 +118,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{Block, Expression, Pattern};
+    use destack_source::LanguageType;
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 
@@ -254,6 +255,41 @@ try {
                     }
                 }
             });
+        });
+    }
+
+    /// Parse js catch expression parameters as expression patterns.
+    #[test]
+    fn test_parse_js_catch_expression_parameter() {
+        // source: try {} catch (answer()) {}
+        let mut test =
+            TestParser::new_with_options("try {} catch (answer()) {}", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+
+        let try_id = parser.eat_try().unwrap();
+        assert_node!(parser.tree, try_id, Expression::Try { catch_pattern: Some(catch_pattern), catch_expression: Some(catch_expression), .. } => {
+            assert_node!(parser.tree, *catch_pattern, Pattern::TaggedTuple { ty, fields } => {
+                assert_expression_path!(parser, parser.tree.get(*ty), "answer");
+                assert!(fields.is_empty());
+            });
+            assert_node!(parser.tree, *catch_expression, Expression::Block(..));
+        });
+    }
+
+    /// Parse js catch literal parameters as expression patterns.
+    #[test]
+    fn test_parse_js_catch_literal_parameter() {
+        // source: try {} catch (42) {}
+        let mut test =
+            TestParser::new_with_options("try {} catch (42) {}", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+
+        let try_id = parser.eat_try().unwrap();
+        assert_node!(parser.tree, try_id, Expression::Try { catch_pattern: Some(catch_pattern), catch_expression: Some(catch_expression), .. } => {
+            assert_node!(parser.tree, *catch_pattern, Pattern::Expression { value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(..));
+            });
+            assert_node!(parser.tree, *catch_expression, Expression::Block(..));
         });
     }
 }
