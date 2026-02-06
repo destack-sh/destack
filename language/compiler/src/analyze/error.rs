@@ -356,7 +356,7 @@ pub enum AnalyzeError {
     /// TypeScript syntax is not allowed in JavaScript modules.
     #[error(
         code = "EA228",
-        message = "typescript syntax is not allowed in javascript modules"
+        message = "typescript syntax is not allowed in modules"
     )]
     TypeScriptSyntaxInJavaScript { node: AnchoredGlobalNodeId },
 
@@ -670,6 +670,13 @@ pub enum AnalyzeError {
     )]
     InvalidForOfBinding { node: AnchoredGlobalNodeId },
 
+    /// Catch parameters in must be binding identifiers or binding patterns.
+    #[error(
+        code = "EA323",
+        message = "invalid catch binding: expected identifier or binding pattern"
+    )]
+    InvalidCatchBinding { node: AnchoredGlobalNodeId },
+
     // -------------------------------------------------------------------------
     // 4xx: Pattern matching
     // -------------------------------------------------------------------------
@@ -798,11 +805,8 @@ pub enum AnalyzeError {
         message: StringId,
     },
 
-    /// Decorators cannot use static arguments in JS/TS.
-    #[error(
-        code = "EA701",
-        message = "decorator static arguments are not allowed in js/ts"
-    )]
+    /// Decorators cannot use static arguments.
+    #[error(code = "EA701", message = "decorator static arguments are not allowed")]
     InvalidDecoratorStaticArguments { node: AnchoredGlobalNodeId },
 
     // -------------------------------------------------------------------------

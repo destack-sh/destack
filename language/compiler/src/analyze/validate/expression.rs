@@ -66,8 +66,28 @@ impl Compiler {
                     false,
                 );
             }
-            Expression::Try { catch_pattern, .. } => {
+            Expression::Try {
+                catch_pattern,
+                catch_expression,
+                finally_expression,
+                ..
+            } => {
+                self.validate_try_requires_catch_or_finally(
+                    module,
+                    profile,
+                    expression_id,
+                    *catch_expression,
+                    *finally_expression,
+                );
+
                 if let Some(catch_pattern_id) = catch_pattern {
+                    self.validate_catch_binding_pattern(
+                        module,
+                        profile,
+                        tree,
+                        expression_id,
+                        *catch_pattern_id,
+                    );
                     self.validate_catch_annotation_type(
                         module,
                         profile,
@@ -83,8 +103,14 @@ impl Compiler {
             Expression::AssignBinary { left, .. } => {
                 self.validate_assignment_target(module, profile, tree, *left, is_strict);
             }
+            Expression::Super => {
+                self.validate_super_reference_expression(module, profile, tree, expression_id);
+            }
             Expression::Call { left, .. } => {
                 self.validate_super_call_expression(module, profile, tree, expression_id, *left);
+                self.validate_super_property_expression(module, profile, tree, expression_id);
+            }
+            Expression::New { .. } => {
                 self.validate_super_property_expression(module, profile, tree, expression_id);
             }
             Expression::Member { left, .. }
@@ -1030,6 +1056,34 @@ impl Compiler {
         }
     }
 
+    /// Validate catch parameter shape rules for js and ts.
+    fn validate_catch_binding_pattern(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+        catch_pattern_id: LocalNodeId<Pattern>,
+    ) {
+        // this restriction only applies to js and ts source forms
+        if !(module.language_type.is_javascript() || module.language_type.is_typescript()) {
+            return;
+        }
+
+        // js and ts allow identifier bindings and destructuring binding patterns
+        if matches!(
+            tree.get(catch_pattern_id),
+            Pattern::Binding { .. } | Pattern::Array { .. } | Pattern::Object { .. }
+        ) {
+            return;
+        }
+
+        let node = expression_id
+            .into_global_any(module.id)
+            .into_anchored(Some(profile));
+        self.error(AnalyzeError::InvalidCatchBinding { node });
+    }
+
     /// Validate catch type annotations for js and ts compatibility.
     fn validate_catch_annotation_type(
         &self,
@@ -1060,6 +1114,25 @@ impl Compiler {
                 .into_anchored(Some(profile));
             self.error(AnalyzeError::InvalidCatchAnnotationType { node });
         }
+    }
+
+    /// Validate try expressions include a catch or finally clause.
+    fn validate_try_requires_catch_or_finally(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        catch_expression: Option<LocalNodeId<Expression>>,
+        finally_expression: Option<LocalNodeId<Expression>>,
+    ) {
+        if catch_expression.is_some() || finally_expression.is_some() {
+            return;
+        }
+
+        let node = expression_id
+            .into_global_any(module.id)
+            .into_anchored(Some(profile));
+        self.error(AnalyzeError::IncompleteTry { node });
     }
 
     /// Return true when a catch annotation pattern is `any` or `unknown`.
@@ -1327,6 +1400,15 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         left: LocalNodeId<Expression>,
     ) {
+        // parenthesized super calls are always invalid
+        if self.expression_contains_parenthesized_super_reference(tree, left) {
+            let node = expression_id
+                .into_global_any(module.id)
+                .into_anchored(Some(profile));
+            self.error(AnalyzeError::InvalidSuperCall { node });
+            return;
+        }
+
         // skip non super calls
         let left = self.unwrap_parenthesized_expression(left, tree);
         if !matches!(tree.get(left), Expression::Super) {
@@ -1378,6 +1460,26 @@ impl Compiler {
             return;
         }
 
+        // parenthesized super access is always invalid
+        if self.expression_contains_parenthesized_super_reference(tree, expression_id) {
+            let node = expression_id
+                .into_global_any(module.id)
+                .into_anchored(Some(profile));
+            self.error(AnalyzeError::InvalidSuperCall { node });
+            return;
+        }
+
+        // reject `new super` and `new super(...)` forms in all contexts
+        if let Expression::New { left, .. } = tree.get(expression_id)
+            && self.expression_roots_in_super(tree, *left)
+        {
+            let node = expression_id
+                .into_global_any(module.id)
+                .into_anchored(Some(profile));
+            self.error(AnalyzeError::InvalidSuperCall { node });
+            return;
+        }
+
         // skip expressions that are not rooted in super
         if !self.expression_roots_in_super(tree, expression_id) {
             return;
@@ -1392,6 +1494,86 @@ impl Compiler {
             .into_global_any(module.id)
             .into_anchored(Some(profile));
         self.error(AnalyzeError::InvalidSuperCall { node });
+    }
+
+    /// Validate bare super references.
+    fn validate_super_reference_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) {
+        if self.super_reference_is_part_of_expression_chain(tree, expression_id) {
+            return;
+        }
+
+        let node = expression_id
+            .into_global_any(module.id)
+            .into_anchored(Some(profile));
+        self.error(AnalyzeError::InvalidSuperCall { node });
+    }
+
+    /// Return true when `super` is consumed by a larger expression chain.
+    fn super_reference_is_part_of_expression_chain(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        let Some(parent) = tree.get_parent(expression_id.id) else {
+            return false;
+        };
+        if parent.ty != NodeType::Expression {
+            return false;
+        }
+
+        let parent_expression_id = parent.into_typed::<Expression>();
+        match tree.get(parent_expression_id) {
+            Expression::Member { left, .. }
+            | Expression::PrivateMember { left, .. }
+            | Expression::Call { left, .. }
+            | Expression::New { left, .. }
+            | Expression::Index { left, .. }
+            | Expression::Maybe { left }
+            | Expression::Must { left } => *left == expression_id,
+            Expression::Parenthesized { expression } => {
+                if *expression != expression_id {
+                    return false;
+                }
+
+                self.parenthesized_super_reference_is_part_of_expression_chain(
+                    tree,
+                    parent_expression_id,
+                )
+            }
+            _ => false,
+        }
+    }
+
+    /// Return true when `(super)` is consumed by a larger expression chain.
+    fn parenthesized_super_reference_is_part_of_expression_chain(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        let Some(parent) = tree.get_parent(expression_id.id) else {
+            return false;
+        };
+        if parent.ty != NodeType::Expression {
+            return false;
+        }
+
+        let parent_expression_id = parent.into_typed::<Expression>();
+        match tree.get(parent_expression_id) {
+            Expression::Member { left, .. }
+            | Expression::PrivateMember { left, .. }
+            | Expression::Call { left, .. }
+            | Expression::New { left, .. }
+            | Expression::Index { left, .. }
+            | Expression::Maybe { left }
+            | Expression::Must { left } => *left == expression_id,
+            _ => false,
+        }
     }
 
     /// Return true when an expression is exactly a `super` reference.
@@ -1419,9 +1601,34 @@ impl Compiler {
             Expression::Member { left, .. }
             | Expression::PrivateMember { left, .. }
             | Expression::Call { left, .. }
+            | Expression::New { left, .. }
             | Expression::Index { left, .. }
             | Expression::Maybe { left }
             | Expression::Must { left } => self.expression_roots_in_super(tree, *left),
+            _ => false,
+        }
+    }
+
+    /// Return true when an expression chain contains `(super)` directly.
+    fn expression_contains_parenthesized_super_reference(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        match tree.get(expression_id) {
+            Expression::Parenthesized { expression } => {
+                self.expression_is_super_reference(tree, *expression)
+                    || self.expression_contains_parenthesized_super_reference(tree, *expression)
+            }
+            Expression::Member { left, .. }
+            | Expression::PrivateMember { left, .. }
+            | Expression::Call { left, .. }
+            | Expression::New { left, .. }
+            | Expression::Index { left, .. }
+            | Expression::Maybe { left }
+            | Expression::Must { left } => {
+                self.expression_contains_parenthesized_super_reference(tree, *left)
+            }
             _ => false,
         }
     }
@@ -2913,6 +3120,198 @@ class A extends B {
         test.check_no_diagnostic_code("EA244");
     }
 
+    /// Reject parenthesized super member access in methods.
+    #[test]
+    fn test_reject_parenthesized_super_member_access_in_method() {
+        let test = TestProgram::memory_sequential();
+
+        // source: class A extends B { m() { (super).x; } }
+        let module_id = test.add_module(
+            "test.js",
+            r#"
+class A extends B {
+    m() {
+        (super).x;
+    }
+}
+"#,
+        );
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA244");
+    }
+
+    /// Reject parenthesized super calls in constructors.
+    #[test]
+    fn test_reject_parenthesized_super_call_in_constructor() {
+        let test = TestProgram::memory_sequential();
+
+        // source: class A extends B { constructor() { (super)(); } }
+        let module_id = test.add_module(
+            "test.js",
+            r#"
+class A extends B {
+    constructor() {
+        (super)();
+    }
+}
+"#,
+        );
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA244");
+    }
+
+    /// Reject new super expressions in constructors.
+    #[test]
+    fn test_reject_new_super_in_constructor() {
+        let test = TestProgram::memory_sequential();
+
+        // source: class A extends B { constructor() { new super(); } }
+        let module_id = test.add_module(
+            "test.js",
+            r#"
+class A extends B {
+    constructor() {
+        new super();
+    }
+}
+"#,
+        );
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA244");
+    }
+
+    /// Reject bare super expressions.
+    #[test]
+    fn test_reject_bare_super_expression() {
+        let test = TestProgram::memory_sequential();
+
+        // source: class A extends B { constructor() { super; } }
+        let module_id = test.add_module(
+            "test.js",
+            r#"
+class A extends B {
+    constructor() {
+        super;
+    }
+}
+"#,
+        );
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA244");
+    }
+
+    /// Reject null as a function binding identifier.
+    #[test]
+    fn test_reject_null_as_function_binding_identifier() {
+        let test = TestProgram::memory_sequential();
+
+        // source: function null() {}
+        let module_id = test.add_module("test.js", "function null() {}");
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA214");
+    }
+
+    /// Reject try expressions without catch or finally clauses.
+    #[test]
+    fn test_reject_try_without_catch_or_finally_in_validate() {
+        let test = TestProgram::memory_sequential();
+
+        // source: try { 1; }
+        let module_id = test.add_module("test.js", "try { 1; }");
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA307");
+    }
+
+    /// Allow try expressions with catch clauses.
+    #[test]
+    fn test_allow_try_with_catch_in_validate() {
+        let test = TestProgram::memory_sequential();
+
+        // source: try { 1; } catch { 2; }
+        let module_id = test.add_module("test.js", "try { 1; } catch { 2; }");
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("EA307");
+    }
+
+    /// Allow try expressions with finally clauses.
+    #[test]
+    fn test_allow_try_with_finally_in_validate() {
+        let test = TestProgram::memory_sequential();
+
+        // source: try { 1; } finally { 2; }
+        let module_id = test.add_module("test.js", "try { 1; } finally { 2; }");
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("EA307");
+    }
+
+    /// Reject non-binding js catch parameters in Analyze.
+    #[test]
+    fn test_reject_js_catch_expression_parameter_in_validate() {
+        let test = TestProgram::memory_sequential();
+
+        // source: try {} catch (answer()) {}
+        let module_id = test.add_module("test.js", "try {} catch (answer()) {}");
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA323");
+    }
+
+    /// Allow non-binding catch patterns in Destack.
+    #[test]
+    fn test_allow_destack_catch_expression_parameter_in_validate() {
+        let test = TestProgram::memory_sequential();
+
+        // source: try {} catch (answer()) {}
+        let module_id = test.add_module("test.ds", "try {} catch (answer()) {}");
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("EA323");
+    }
+
     /// Reject strict mode updates of arguments.
     #[test]
     fn test_reject_strict_mode_update_arguments() {
@@ -3247,6 +3646,38 @@ const __proto__ = 1;
 
         // source: function* a(){ function* b(c = yield* d){} }
         let module_id = test.add_module("test.js", "function* a(){ function* b(c = yield* d){} }");
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA303");
+    }
+
+    /// Reject bare yield expressions in generator object parameter defaults.
+    #[test]
+    fn test_reject_bare_yield_in_generator_object_parameter_default() {
+        let test = TestProgram::memory_sequential();
+
+        // source: function* a(){ function* b({c = yield}){} }
+        let module_id = test.add_module("test.js", "function* a(){ function* b({c = yield}){} }");
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA303");
+    }
+
+    /// Reject bare yield expressions in generator method object parameter defaults.
+    #[test]
+    fn test_reject_bare_yield_in_generator_method_object_parameter_default() {
+        let test = TestProgram::memory_sequential();
+
+        // source: function* a(){ ({ *b({c = yield}){} }); }
+        let module_id = test.add_module("test.js", "function* a(){ ({ *b({c = yield}){} }); }");
         test.apply_dsconfig(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,

@@ -1474,7 +1474,7 @@ impl Compiler {
             PatternField::Named {
                 mutability: _,
                 name,
-                default: _,
+                default,
                 symbol,
                 pattern,
             } => {
@@ -1489,6 +1489,11 @@ impl Compiler {
                 )?;
                 if let Some(ty_id) = field_ty_id {
                     types.set_value_type(symbol.into_global(module.id), ty_id);
+                }
+
+                // infer default expressions for named fields
+                if let Some(default) = default {
+                    self.infer_expression(module, *default, tree, symbols, types, infer, ctx)?;
                 }
 
                 // propagate the field type into nested patterns
