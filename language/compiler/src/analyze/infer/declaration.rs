@@ -1990,6 +1990,9 @@ impl Compiler {
             function_id: Some(node_id.into_global(module.id)),
         };
 
+        // parameter initializers run before entering async or generator execution context
+        let mut parameter_ctx = ctx.fork().is_async_maybe(false).is_generator_maybe(false);
+
         // this parameter
         let expected_this_ty_id = expected_signature
             .as_ref()
@@ -2032,7 +2035,7 @@ impl Compiler {
                 symbols,
                 types,
                 infer,
-                ctx,
+                &mut parameter_ctx,
             )?;
             types.set_value_type(param_symbol, param_ty_id);
             Some(param_ty_id)
@@ -2118,7 +2121,7 @@ impl Compiler {
                 symbols,
                 types,
                 infer,
-                ctx,
+                &mut parameter_ctx,
             )?;
 
             let resolved_param_ty_id = types.get_value_type_id(param_symbol).unwrap_or(param_ty_id);

@@ -472,6 +472,13 @@ pub enum AnalyzeError {
     )]
     InvalidTypeImportTarget { node: AnchoredGlobalNodeId },
 
+    /// `new.target` is only valid in function or static block contexts.
+    #[error(
+        code = "EA248",
+        message = "new.target is only valid in function or static block contexts"
+    )]
+    InvalidNewTarget { node: AnchoredGlobalNodeId },
+
     /// Object literal `__proto__` setters are not supported.
     #[error(
         code = "EA249",

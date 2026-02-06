@@ -634,6 +634,52 @@ impl Parser {
             || matches!(token.token.literal, Some(LiteralType::Boolean { .. }))
     }
 
+    /// Return true when js or ts sees decimal integer member access without a separator.
+    #[inline]
+    fn invalid_decimal_integer_member_access(
+        &mut self,
+        left_expression_id: LocalNodeId<Expression>,
+        distance: u8,
+    ) -> bool {
+        if !(self.language.is_javascript() || self.language.is_typescript()) {
+            return false;
+        }
+        if distance != 2 {
+            return false;
+        }
+
+        if !matches!(
+            self.tree.get(left_expression_id),
+            Expression::ScalarLiteral(destack_ast::ScalarLiteral::Integer(_))
+        ) {
+            return false;
+        }
+
+        let left_span = self.tree.get_span(left_expression_id);
+        let Some(dot_token) = self.prev().copied() else {
+            return false;
+        };
+        if dot_token.token.ty != TokenType::Dot {
+            return false;
+        }
+        if left_span.end != dot_token.span.start {
+            return false;
+        }
+
+        let literal = self.file.span_str(left_span);
+        let is_non_decimal_prefix = literal.starts_with("0x")
+            || literal.starts_with("0X")
+            || literal.starts_with("0o")
+            || literal.starts_with("0O")
+            || literal.starts_with("0b")
+            || literal.starts_with("0B");
+        if is_non_decimal_prefix {
+            return false;
+        }
+
+        true
+    }
+
     /// Eat a static member name and return both the name and its span.
     #[inline]
     fn eat_member_name_with_span(&mut self) -> ParseResult<(StringId, destack_source::Span)> {
@@ -2941,6 +2987,12 @@ impl Parser {
                 // member (also works across newline)
                 else if let Ok(distance) = self.peek_member_name() {
                     self.bump_by(distance - 1); // keep the identifier
+
+                    // in js and ts: decimal integer literals need a separator before member access
+                    if self.invalid_decimal_integer_member_access(left_expression_id, distance) {
+                        return Err(ParseError::unexpected(self.prev().expect("peeked").span));
+                    }
+
                     let (name, name_span) = self.eat_member_name_with_span()?;
                     // speculatively unwrap postfix static parameterisation with `<`
                     //  (might also be just a comparison operator)
@@ -5646,6 +5698,36 @@ self
         });
     }
 
+    /// Reject regex unicode escapes beyond the valid unicode scalar range.
+    #[test]
+    fn test_reject_regex_unicode_escape_out_of_range() {
+        // source: /\u{110000}/u
+        let mut test = TestParser::new_with_options("/\\u{110000}/u", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let error = parser.eat_expression().unwrap_err();
+
+        assert_eq!(error.leaf_span().start, 0);
+    }
+
+    /// Parse regex unicode escapes with long leading-zero code point forms.
+    #[test]
+    fn test_parse_regex_unicode_escape_with_long_leading_zeros() {
+        // source: /[\u{0000000000000061}-\u{7A}]/u
+        let mut test = TestParser::new_with_options(
+            "/[\\u{0000000000000061}-\\u{7A}]/u",
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // /[\u{0000000000000061}-\u{7A}]/u
+        assert_node!(
+            parser.tree,
+            expr_id,
+            Expression::ScalarLiteral(ScalarLiteral::RegexString { .. })
+        );
+    }
+
     /// Parse string literal with long leading-zero code point escapes.
     #[test]
     fn test_parse_string_unicode_escape_with_long_leading_zeros() {
@@ -5659,6 +5741,137 @@ self
         assert_node!(parser.tree, expr_id, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
             assert_string!(parser, *string_id, "\\u{00000000034}");
         });
+    }
+
+    /// Reject identifier escapes that decode to null code points.
+    #[test]
+    fn test_reject_identifier_unicode_escape_null_code_point_fixed_width() {
+        // source: a\u0000
+        let mut test = TestParser::new_with_options("a\\u0000", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let error = parser.eat_expression().unwrap_err();
+
+        assert_eq!(error.leaf_span().start, 0);
+    }
+
+    /// Reject braced identifier escapes that decode to null code points.
+    #[test]
+    fn test_reject_identifier_unicode_escape_null_code_point_braced() {
+        // source: a\u{0}
+        let mut test = TestParser::new_with_options("a\\u{0}", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let error = parser.eat_expression().unwrap_err();
+
+        assert_eq!(error.leaf_span().start, 0);
+    }
+
+    /// Reject arrow functions with a trailing comma after a rest parameter.
+    #[test]
+    fn test_reject_arrow_rest_parameter_with_trailing_comma() {
+        // source: (...a,) => 0
+        let mut test = TestParser::new_with_options("(...a,) => 0", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let error = parser.eat_expression().unwrap_err();
+
+        assert_eq!(error.leaf_span().start, 5);
+    }
+
+    /// Reject arrow functions with parameters after a rest parameter.
+    #[test]
+    fn test_reject_arrow_rest_parameter_followed_by_parameter() {
+        // source: (a, ...b, c) => c
+        let mut test = TestParser::new_with_options("(a, ...b, c) => c", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let error = parser.eat_expression().unwrap_err();
+
+        assert_eq!(error.leaf_span().start, 8);
+    }
+
+    /// Reject array binding patterns with a trailing comma after a rest element.
+    #[test]
+    fn test_reject_array_binding_rest_with_trailing_comma() {
+        // source: let [...a,] = b
+        let mut test = TestParser::new_with_options("let [...a,] = b", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let error = parser.eat_expression().unwrap_err();
+
+        assert_eq!(error.leaf_span().start, 9);
+    }
+
+    /// Reject array binding patterns with fields after a rest element.
+    #[test]
+    fn test_reject_array_binding_rest_followed_by_field() {
+        // source: let [...a, b] = c
+        let mut test = TestParser::new_with_options("let [...a, b] = c", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let error = parser.eat_expression().unwrap_err();
+
+        assert_eq!(error.leaf_span().start, 9);
+    }
+
+    /// Reject binary literals with invalid digits in js and ts.
+    #[test]
+    fn test_reject_invalid_binary_literal_digits_in_javascript() {
+        // source: 0b12
+        let mut test = TestParser::new_with_options("0b12", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let error = parser.eat_expression().unwrap_err();
+
+        assert_eq!(error.leaf_span().start, 0);
+    }
+
+    /// Reject octal literals with invalid digits in js and ts.
+    #[test]
+    fn test_reject_invalid_octal_literal_digits_in_javascript() {
+        // source: 0o9
+        let mut test = TestParser::new_with_options("0o9", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let error = parser.eat_expression().unwrap_err();
+
+        assert_eq!(error.leaf_span().start, 0);
+    }
+
+    /// Reject numeric literals immediately followed by identifiers in js and ts.
+    #[test]
+    fn test_reject_numeric_literal_identifier_suffix_in_javascript() {
+        // source: 3in[]
+        let mut test = TestParser::new_with_options("3in[]", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let error = parser.eat_expression().unwrap_err();
+
+        assert_eq!(error.leaf_span().start, 0);
+    }
+
+    /// Reject numeric literals that look like member access without a separator in js and ts.
+    #[test]
+    fn test_reject_numeric_literal_member_without_separator_in_javascript() {
+        // source: 0.toString
+        let mut test = TestParser::new_with_options("0.toString", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let error = parser.eat_expression().unwrap_err();
+
+        assert_eq!(error.leaf_span().start, 1);
+    }
+
+    /// Reject legacy octal escapes in js and ts quoted literals.
+    #[test]
+    fn test_reject_octal_escape_in_javascript_string_literal() {
+        // source: '\1'
+        let mut test = TestParser::new_with_options("'\\1'", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let error = parser.eat_expression().unwrap_err();
+
+        assert_eq!(error.leaf_span().start, 0);
+    }
+
+    /// Allow \0 escapes when no decimal digit follows in js and ts quoted literals.
+    #[test]
+    fn test_allow_zero_escape_in_javascript_string_literal() {
+        // source: '\0'
+        let mut test = TestParser::new_with_options("'\\0'", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+
+        parser.eat_expression().unwrap();
     }
 
     /// Parse a less-than comparison.

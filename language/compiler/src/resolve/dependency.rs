@@ -2194,7 +2194,8 @@ impl Compiler {
 
                 // resolve the local symbol in scope
                 let (scope_id, scope, mark) = symbols.get_scope(item_id, tree);
-                let mark = if self.export_item_parent(tree, item_id).is_some() {
+                let is_export_item = self.export_item_parent(tree, item_id).is_some();
+                let mark = if is_export_item {
                     // export specifiers can reference later declarations
                     LocalScopeMark::end()
                 } else {
@@ -2204,21 +2205,23 @@ impl Compiler {
                 let key = StaticKey::Name(name_id.string());
                 let node = item_id.into_global_any(module.id);
 
-                // try resolving in the local scope first
-                let target_symbol_id = self
-                    .resolve_absolute_symbol(
-                        module,
-                        profile,
-                        node,
-                        (scope_id, scope, mark),
-                        key,
-                        space_order,
-                        symbols,
-                        cache.as_deref_mut().map(|cache| cache.scope_indices()),
-                    )
-                    // fallback to global augmentation scope for types like AllowSharedBuffer
-                    // that are defined in `global { }` blocks within module declarations
-                    .or_else(|_| {
+                // resolve in local scope first
+                let local_symbol_id = self.resolve_absolute_symbol(
+                    module,
+                    profile,
+                    node,
+                    (scope_id, scope, mark),
+                    key,
+                    space_order,
+                    symbols,
+                    cache.as_mut().map(|cache| cache.scope_indices()),
+                );
+
+                // fallback to global augmentation scope for types like AllowSharedBuffer
+                // that are defined in `global { }` blocks within module declarations
+                let target_symbol_id = match local_symbol_id {
+                    Ok(symbol_id) => Ok(symbol_id),
+                    Err(ResolveError::MissingSymbol { .. }) => {
                         let global_scope_id = dir.global_augmentation_scope;
                         let global_scope = symbols.get_scope_by_id(global_scope_id);
                         self.resolve_absolute_symbol(
@@ -2229,9 +2232,23 @@ impl Compiler {
                             key,
                             space_order,
                             symbols,
-                            cache.map(|cache| cache.scope_indices()),
+                            cache.as_mut().map(|cache| cache.scope_indices()),
                         )
-                    })?;
+                    }
+                    Err(error) => Err(error),
+                };
+
+                // map unresolved local exports to an export-specific resolve error
+                let target_symbol_id = match target_symbol_id {
+                    Ok(target_symbol_id) => target_symbol_id,
+                    Err(ResolveError::MissingSymbol { .. }) if is_export_item => {
+                        return Err(ResolveError::MissingExportBinding {
+                            node: node.into_anchored(Some(profile)),
+                            name: name_id.string(),
+                        });
+                    }
+                    Err(error) => return Err(error),
+                };
 
                 DependencyItem::Local {
                     mode: *mode,

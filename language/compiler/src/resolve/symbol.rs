@@ -1047,6 +1047,19 @@ impl Compiler {
             }
         }
 
+        // keep `new.target` unresolved so validate can enforce lexical context rules
+        if first_segment_str.as_str() == "new" && path.segments.len() >= 2 {
+            let second_segment = path.segments[1];
+            let second_segment_str = self.program.strings.get(second_segment);
+            if second_segment_str.as_str() == "target" {
+                return Ok(Expression::UnresolvedPath {
+                    path: path.clone(),
+                    static_arguments,
+                    space_order,
+                });
+            }
+        }
+
         // resolve this intrinsic
         if first_segment_str.as_str() == "this" {
             let root_expr = Expression::This;
@@ -1469,6 +1482,15 @@ impl Compiler {
                     }
                 }
             }
+
+            // labels cannot cross function boundaries
+            if let Some(owner_id) = scope.1.owner_id {
+                let owner_symbol = symbols.get_symbol(owner_id);
+                if owner_symbol.ty == SymbolType::Function {
+                    break;
+                }
+            }
+
             // go to parent scope
             if let Some((parent_scope_id, parent_mark)) = scope.1.parent {
                 scope = (

@@ -90,6 +90,8 @@ impl Parser {
         let Some(body) = literal_span.token.literal else {
             return Err(ParseError::unexpected(literal_span.span));
         };
+        let has_invalid_numeric_suffix =
+            self.numeric_literal_has_invalid_js_ts_suffix(literal_span);
         let literal_str = self.file.span_str(literal_span.span);
 
         match body {
@@ -114,6 +116,26 @@ impl Parser {
                 if (self.language.is_javascript() || self.language.is_typescript())
                     && self.int_literal_is_invalid_js_ts(literal_str, base, is_bigint)
                 {
+                    return Err(ParseError::expected_for(
+                        literal_span.span,
+                        TokenType::Literal,
+                        NodeType::Expression,
+                    ));
+                }
+
+                // js and ts reject invalid digits for binary, octal, and hexadecimal literals
+                if (self.language.is_javascript() || self.language.is_typescript())
+                    && self.int_literal_has_invalid_digits(literal_str, base, is_bigint)
+                {
+                    return Err(ParseError::expected_for(
+                        literal_span.span,
+                        TokenType::Literal,
+                        NodeType::Expression,
+                    ));
+                }
+
+                // js and ts require a separator after numeric literals before identifier starts
+                if has_invalid_numeric_suffix {
                     return Err(ParseError::expected_for(
                         literal_span.span,
                         TokenType::Literal,
@@ -177,6 +199,15 @@ impl Parser {
                 if (self.language.is_javascript() || self.language.is_typescript())
                     && self.float_literal_is_invalid_js_ts(literal_str)
                 {
+                    return Err(ParseError::expected_for(
+                        literal_span.span,
+                        TokenType::Literal,
+                        NodeType::Expression,
+                    ));
+                }
+
+                // js and ts require a separator after numeric literals before identifier starts
+                if has_invalid_numeric_suffix {
                     return Err(ParseError::expected_for(
                         literal_span.span,
                         TokenType::Literal,
@@ -266,6 +297,7 @@ impl Parser {
                         literal_str
                     }
                 };
+
                 let string_id = self.strings.intern(content);
                 Ok(ScalarLiteral::String(string_id))
             }
@@ -287,6 +319,13 @@ impl Parser {
                     let content = &literal_str[1..last_slash_index];
                     let flags = &literal_str[last_slash_index + 1..];
                     if !self.regex_flags_are_valid(flags) {
+                        return Err(ParseError::expected_for(
+                            literal_span.span,
+                            TokenType::Literal,
+                            NodeType::Expression,
+                        ));
+                    }
+                    if !self.regex_unicode_escapes_are_valid(content, flags) {
                         return Err(ParseError::expected_for(
                             literal_span.span,
                             TokenType::Literal,
@@ -389,6 +428,43 @@ impl Parser {
         second.is_ascii_digit() || second == '_'
     }
 
+    /// Return true when an int literal contains digits that are invalid for its base.
+    fn int_literal_has_invalid_digits(
+        &self,
+        literal: &str,
+        base: NumberBase,
+        is_bigint: bool,
+    ) -> bool {
+        let body = if is_bigint {
+            literal.trim_end_matches('n')
+        } else {
+            literal
+        };
+
+        let digits = self.strip_radix_prefix(body, base);
+        if digits.is_empty() {
+            return true;
+        }
+
+        let radix = match base {
+            NumberBase::Decimal => 10,
+            NumberBase::Binary => 2,
+            NumberBase::Octal => 8,
+            NumberBase::Hexadecimal => 16,
+        };
+
+        for character in digits.chars() {
+            if character == '_' {
+                continue;
+            }
+            if character.to_digit(radix).is_none() {
+                return true;
+            }
+        }
+
+        false
+    }
+
     /// Return true when a float literal uses legacy js and ts leading-zero syntax.
     fn float_literal_is_invalid_js_ts(&self, literal: &str) -> bool {
         let bytes = literal.as_bytes();
@@ -398,6 +474,22 @@ impl Parser {
 
         let second = bytes[1] as char;
         second.is_ascii_digit() || second == '_'
+    }
+
+    /// Return true when a js or ts numeric literal is immediately followed by an identifier.
+    fn numeric_literal_has_invalid_js_ts_suffix(&mut self, literal: TokenSpan) -> bool {
+        if !(self.language.is_javascript() || self.language.is_typescript()) {
+            return false;
+        }
+
+        let Ok(next) = self.peek() else {
+            return false;
+        };
+        if next.token.ty != TokenType::Identifier {
+            return false;
+        }
+
+        next.span.start == literal.span.end
     }
 
     /// Return true when regex flags are valid for modern js and ts.
@@ -468,6 +560,77 @@ impl Parser {
         // unicode and unicode-sets are mutually exclusive
         if seen_u && seen_v {
             return false;
+        }
+
+        true
+    }
+
+    /// Return true when regex unicode escapes are valid for the provided flags.
+    fn regex_unicode_escapes_are_valid(&self, pattern: &str, flags: &str) -> bool {
+        // unicode escape validation only applies in unicode regex modes
+        let has_unicode_mode = flags.chars().any(|flag| flag == 'u' || flag == 'v');
+        if !has_unicode_mode {
+            return true;
+        }
+
+        // scan escaped unicode code point forms like \u{1F600}
+        let mut characters = pattern.chars().peekable();
+        while let Some(character) = characters.next() {
+            if character != '\\' {
+                continue;
+            }
+
+            let Some(next) = characters.next() else {
+                break;
+            };
+            if next != 'u' {
+                continue;
+            }
+
+            if !matches!(characters.peek(), Some('{')) {
+                continue;
+            }
+            characters.next();
+
+            let mut digits = 0_usize;
+            let mut significant_digits = 0_usize;
+            let mut value: u32 = 0;
+            while let Some(next_character) = characters.peek().copied() {
+                if next_character == '}' {
+                    break;
+                }
+
+                let Some(digit) = next_character.to_digit(16) else {
+                    return false;
+                };
+                digits += 1;
+
+                if digit != 0 || significant_digits > 0 {
+                    significant_digits += 1;
+                    if significant_digits > 6 {
+                        return false;
+                    }
+
+                    value = match value
+                        .checked_mul(16)
+                        .and_then(|value| value.checked_add(digit))
+                    {
+                        Some(value) => value,
+                        None => return false,
+                    };
+                }
+                characters.next();
+            }
+
+            if digits == 0 {
+                return false;
+            }
+            if characters.next() != Some('}') {
+                return false;
+            }
+            if value > 0x10FFFF {
+                return false;
+            }
         }
 
         true

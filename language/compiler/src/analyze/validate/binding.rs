@@ -11,7 +11,7 @@ use destack_workspace::{Module, ProfileId};
 
 impl Compiler {
     /// Check if a keyword is reserved as a binding identifier.
-    fn is_reserved_binding_keyword(keyword: Keyword) -> bool {
+    pub(super) fn is_reserved_binding_keyword(keyword: Keyword) -> bool {
         matches!(
             keyword,
             Keyword::Break
