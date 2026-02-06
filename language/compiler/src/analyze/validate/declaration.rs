@@ -323,8 +323,8 @@ impl Compiler {
         tree: &NodeTree,
         members: &[LocalNodeId<Member>],
     ) {
-        // track whether a constructor has already been declared
-        let mut has_constructor_member = false;
+        // track whether a concrete constructor implementation has been declared
+        let mut has_constructor_implementation = false;
 
         // scan class members in source order
         for member_id in members {
@@ -332,6 +332,7 @@ impl Compiler {
                 modifiers,
                 key,
                 signature,
+                body,
                 ..
             } = tree.get(*member_id)
             else {
@@ -347,8 +348,13 @@ impl Compiler {
                 continue;
             }
 
-            // report duplicate constructor definitions
-            if has_constructor_member {
+            // overload signatures without bodies are allowed
+            if body.is_none() {
+                continue;
+            }
+
+            // report duplicate constructor implementations
+            if has_constructor_implementation {
                 let node = (*member_id)
                     .into_global_any(module.id)
                     .into_anchored(Some(profile));
@@ -356,7 +362,7 @@ impl Compiler {
                 continue;
             }
 
-            has_constructor_member = true;
+            has_constructor_implementation = true;
         }
     }
 

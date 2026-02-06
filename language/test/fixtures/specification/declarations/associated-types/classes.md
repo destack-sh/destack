@@ -375,6 +375,27 @@ declare const value: Box<string>.Wrap<int32>;
 value satisfies [string, int32];
 ```
 
+### class associated projections work on constrained generic parameters
+
+> Generic constraints can project class associated types in signatures.
+
+```ds
+class Box<T> {
+    type Item = T;
+    value: Item;
+
+    constructor(value: Item) {
+        this.value = value;
+    }
+}
+
+function cloneValue<B: Box<int32>>(value: B.Item): B.Item {
+    value
+}
+
+cloneValue(1) satisfies int32;
+```
+
 ### class mixed generic associated projections resolve across module boundaries
 
 > Imported class projections preserve mixed type and value substitutions.
@@ -421,3 +442,17 @@ class Matrix<T> extends MatrixLike<T> {}
 declare const row: Matrix<int32>.Row<4>;
 row satisfies [int32, 4];
 ```
+
+### class associated types are not runtime members
+
+> Associated type aliases are type only and cannot be accessed as runtime values.
+
+```ds
+class Box<T> {
+    type Item = T;
+}
+
+const value = Box.Item;
+```
+
+- contains: does not exist

@@ -582,10 +582,11 @@ impl Compiler {
                 continue;
             }
 
-            // skip optional fields
-            let is_optional =
-                modifiers.is_some_and(|modifiers| modifiers.kind == Some(BindingKind::Maybe));
-            if is_optional {
+            // skip optional and definite assignment fields
+            let is_exempt = modifiers.is_some_and(|modifiers| {
+                matches!(modifiers.kind, Some(BindingKind::Maybe | BindingKind::Must))
+            });
+            if is_exempt {
                 continue;
             }
 

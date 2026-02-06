@@ -1287,6 +1287,58 @@ impl Compiler {
         (is_optional, is_readonly)
     }
 
+    /// Add constructor parameter property fields to an instance shape.
+    fn add_constructor_parameter_property_fields(
+        &self,
+        signature: &destack_dir::FunctionSignature,
+        signature_ty_id: LocalTypeId,
+        shape: &mut ObjectShape,
+        tree: &NodeTree,
+        types: &TypeTable,
+    ) {
+        let Type::Function {
+            dynamic_parameters, ..
+        } = types.get_type(signature_ty_id)
+        else {
+            return;
+        };
+
+        // map parameter property declarations into instance fields
+        for (index, parameter_id) in signature.dynamic_parameters.iter().enumerate() {
+            let parameter = tree.get(*parameter_id);
+            let Some(modifiers) = parameter.modifiers() else {
+                continue;
+            };
+            let is_parameter_property =
+                modifiers.visibility.is_some() || modifiers.mutability.is_some();
+            if !is_parameter_property {
+                continue;
+            }
+
+            let Parameter::Named { name, .. } = parameter else {
+                continue;
+            };
+            let Some(parameter_ty_id) = dynamic_parameters.get(index).copied() else {
+                continue;
+            };
+
+            // skip duplicates from explicit field declarations
+            let key = StaticKey::Name(*name);
+            if shape.fields.iter().any(|field| field.key == key) {
+                continue;
+            }
+
+            let is_optional = modifiers.kind == Some(BindingKind::Maybe);
+            let is_readonly = modifiers.mutability == Some(Mutability::Immutable);
+            shape.fields.push(TypeField {
+                key,
+                ty: parameter_ty_id,
+                is_optional,
+                is_readonly,
+            });
+        }
+    }
+
     /// Build static parameter placeholders for a type declaration.
     fn static_parameter_placeholders_for_declaration(
         &self,
@@ -1674,6 +1726,13 @@ impl Compiler {
                                     .value
                                     .construct_signatures
                                     .push(construct_signature_id);
+                                self.add_constructor_parameter_property_fields(
+                                    signature,
+                                    signature_ty_id,
+                                    &mut shapes.instance,
+                                    tree,
+                                    types,
+                                );
                             }
                             Some(FunctionMode::New) => {
                                 target_shape.construct_signatures.push(signature_ty_id);
@@ -1725,7 +1784,7 @@ impl Compiler {
 
                     // collect field modifiers
                     let is_optional = false;
-                    let is_readonly = true;
+                    let is_readonly = signature.mode != Some(FunctionMode::Setter);
 
                     target_shape.fields.push(TypeField {
                         key,
@@ -1981,6 +2040,11 @@ impl Compiler {
                     match signature.mode {
                         Some(FunctionMode::New) | Some(FunctionMode::Constructor) => {
                             shape.construct_signatures.push(ty_id);
+                            if signature.mode == Some(FunctionMode::Constructor) {
+                                self.add_constructor_parameter_property_fields(
+                                    signature, ty_id, &mut shape, tree, types,
+                                );
+                            }
                         }
                         _ => {
                             shape.call_signatures.push(ty_id);
@@ -2022,7 +2086,7 @@ impl Compiler {
 
                 // collect field modifiers
                 let is_optional = false;
-                let is_readonly = true;
+                let is_readonly = signature.mode != Some(FunctionMode::Setter);
 
                 shape.fields.push(TypeField {
                     key,
