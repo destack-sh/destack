@@ -141,7 +141,7 @@ fn infer_test_type(queries: &[QueryExpectation], expected: &[MdTestFile]) -> Que
             | "code_lens"
             | "resolve_code_lens" => QueryTestType::Assist,
             "rename" | "prepare_rename" | "file_rename" | "rename_files" | "extract_function"
-            | "inline" | "change_signature" => QueryTestType::Refactor,
+            | "extract_variable" | "inline" | "change_signature" => QueryTestType::Refactor,
             _ => QueryTestType::Navigation,
         };
     }
@@ -392,6 +392,9 @@ fn run_expected_files(test: &QueryTestCase, session: &QueryTestSession) -> TestR
         }
         "extract_function" => {
             run_extract_function_expected_files(session, expectation, &test.expected_files)
+        }
+        "extract_variable" => {
+            run_extract_variable_expected_files(session, expectation, &test.expected_files)
         }
         "inline" => run_inline_expected_files(session, expectation, &test.expected_files),
         "change_signature" => {
@@ -645,6 +648,89 @@ fn run_extract_function_expected_files(
 
             return TestResult::Failed {
                 message: format!("extract_function output mismatch for '{}'", expected.path),
+            };
+        }
+    }
+
+    TestResult::Passed
+}
+
+/// Run an extract variable expectation and validate edited file contents.
+fn run_extract_variable_expected_files(
+    session: &QueryTestSession,
+    expectation: &QueryExpectation,
+    expected_files: &[MdTestFile],
+) -> TestResult {
+    // resolve the selection span
+    let selection = match runner::position::resolve_query_span(session, &expectation.target) {
+        Ok(span) => span,
+        Err(error) => {
+            return TestResult::Failed { message: error };
+        }
+    };
+
+    let new_name = expectation
+        .args
+        .first()
+        .map(|name| name.as_str())
+        .unwrap_or("extracted");
+
+    // run extract variable edits
+    let result = query::extract_variable(&session.session, session.file_id, selection, new_name);
+    let Some(result) = result else {
+        return TestResult::Failed {
+            message: "extract_variable returned no edits".to_string(),
+        };
+    };
+
+    // apply edits to sources
+    let applied = match apply_batch_edit(session, &result.edits) {
+        Ok(applied) => applied,
+        Err(error) => {
+            return TestResult::Failed { message: error };
+        }
+    };
+
+    // build expected file lookup
+    let mut expected_paths = HashSet::new();
+    for file in expected_files {
+        expected_paths.insert(file.path.as_str());
+    }
+
+    // ensure all edited files have expectations
+    for path in applied.keys() {
+        if !expected_paths.contains(path.as_str()) {
+            return TestResult::Failed {
+                message: format!("missing expected output for '{path}'"),
+            };
+        }
+    }
+
+    // compare each expected file with actual output
+    for expected in expected_files {
+        let actual = match applied.get(&expected.path) {
+            Some(content) => content.clone(),
+            None => {
+                let Some(file) = session.file(&expected.path) else {
+                    return TestResult::Failed {
+                        message: format!("missing source for '{}'", expected.path),
+                    };
+                };
+                file.source.clone()
+            }
+        };
+
+        let actual = actual.trim_end();
+        let expected_content = expected.content.trim_end();
+        if actual != expected_content {
+            if std::env::var("DESTACK_QUERY_DEBUG_DIFF").is_ok() {
+                eprintln!("extract_variable debug: path={}", expected.path);
+                eprintln!("--- expected ---\n{expected_content}");
+                eprintln!("--- actual ---\n{actual}");
+            }
+
+            return TestResult::Failed {
+                message: format!("extract_variable output mismatch for '{}'", expected.path),
             };
         }
     }
@@ -1009,6 +1095,7 @@ fn dispatch_query(
         "prepare_rename" => runner::refactor::prepare_rename::run(session, expectation),
         "file_rename" | "rename_files" => runner::refactor::file_rename::run(session, expectation),
         "extract_function" => runner::refactor::extract_function::run(session, expectation),
+        "extract_variable" => runner::refactor::extract_variable::run(session, expectation),
         "inline" => runner::refactor::inline::run(session, expectation),
         "change_signature" => runner::refactor::change_signature::run(session, expectation),
 

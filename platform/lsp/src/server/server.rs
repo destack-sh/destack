@@ -84,11 +84,32 @@ impl Default for CompletionSettings {
     }
 }
 
+/// Configuration for inlay hint behavior.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct InlayHintSettings {
+    /// Whether parameter name hints are enabled.
+    parameter_hints: Option<bool>,
+    /// Whether inferred type hints are enabled.
+    type_hints: Option<bool>,
+}
+
+impl Default for InlayHintSettings {
+    fn default() -> Self {
+        Self {
+            parameter_hints: Some(true),
+            type_hints: Some(true),
+        }
+    }
+}
+
 /// LSP configuration settings.
 #[derive(Debug, Clone, Default)]
 struct LspSettings {
     /// Completion-related settings.
     completion: CompletionSettings,
+    /// Inlay hint related settings.
+    inlay_hints: InlayHintSettings,
 }
 
 /// Cached semantic tokens for a document.
@@ -221,12 +242,67 @@ impl DestackLanguageServer {
             .unwrap_or(true)
     }
 
+    /// Check whether parameter name inlay hints are enabled.
+    fn parameter_inlay_hints_enabled(&self) -> bool {
+        self.settings
+            .read()
+            .map(|settings| settings.inlay_hints.parameter_hints.unwrap_or(true))
+            .unwrap_or(true)
+    }
+
+    /// Check whether inferred type inlay hints are enabled.
+    fn type_inlay_hints_enabled(&self) -> bool {
+        self.settings
+            .read()
+            .map(|settings| settings.inlay_hints.type_hints.unwrap_or(true))
+            .unwrap_or(true)
+    }
+
+    /// Build commit characters for completion items.
+    fn completion_commit_characters(kind: query::CompletionKind) -> Option<Vec<String>> {
+        let commit_characters: &[&str] = match kind {
+            query::CompletionKind::Method
+            | query::CompletionKind::Function
+            | query::CompletionKind::Constructor
+            | query::CompletionKind::Field
+            | query::CompletionKind::Variable
+            | query::CompletionKind::Class
+            | query::CompletionKind::Interface
+            | query::CompletionKind::Module
+            | query::CompletionKind::Property
+            | query::CompletionKind::Enum
+            | query::CompletionKind::EnumMember
+            | query::CompletionKind::Struct
+            | query::CompletionKind::Constant
+            | query::CompletionKind::TypeParameter => &[".", ",", ";", "("],
+            query::CompletionKind::Keyword => &[" ", ";"],
+            _ => &[],
+        };
+
+        if commit_characters.is_empty() {
+            return None;
+        }
+
+        Some(
+            commit_characters
+                .iter()
+                .map(|character| (*character).to_string())
+                .collect(),
+        )
+    }
+
     /// Refresh configuration from the client.
     async fn refresh_configuration(&self) {
-        let items = vec![lsp::ConfigurationItem {
-            scope_uri: None,
-            section: Some("destack.completion".to_string()),
-        }];
+        let items = vec![
+            lsp::ConfigurationItem {
+                scope_uri: None,
+                section: Some("destack.completion".to_string()),
+            },
+            lsp::ConfigurationItem {
+                scope_uri: None,
+                section: Some("destack.inlayHints".to_string()),
+            },
+        ];
         let values = match self.client.configuration(items).await {
             Ok(values) => values,
             Err(error) => {
@@ -234,22 +310,43 @@ impl DestackLanguageServer {
                 return;
             }
         };
-        let Some(value) = values.into_iter().next() else {
+        if values.is_empty() {
             return;
-        };
-        let parsed = match from_value::<CompletionSettings>(value) {
-            Ok(parsed) => parsed,
-            Err(error) => {
-                tracing::debug!(?error, "lsp.config.parse_failed");
-                return;
-            }
-        };
+        }
 
         let Ok(mut settings) = self.settings.write() else {
             return;
         };
-        if let Some(auto_imports) = parsed.auto_imports {
-            settings.completion.auto_imports = Some(auto_imports);
+
+        // update completion settings when parsing succeeds
+        if let Some(value) = values.first().cloned() {
+            match from_value::<CompletionSettings>(value) {
+                Ok(parsed) => {
+                    if let Some(auto_imports) = parsed.auto_imports {
+                        settings.completion.auto_imports = Some(auto_imports);
+                    }
+                }
+                Err(error) => {
+                    tracing::debug!(?error, "lsp.config.parse_completion_failed");
+                }
+            }
+        }
+
+        // update inlay hint settings when parsing succeeds
+        if let Some(value) = values.get(1).cloned() {
+            match from_value::<InlayHintSettings>(value) {
+                Ok(parsed) => {
+                    if let Some(parameter_hints) = parsed.parameter_hints {
+                        settings.inlay_hints.parameter_hints = Some(parameter_hints);
+                    }
+                    if let Some(type_hints) = parsed.type_hints {
+                        settings.inlay_hints.type_hints = Some(type_hints);
+                    }
+                }
+                Err(error) => {
+                    tracing::debug!(?error, "lsp.config.parse_inlay_failed");
+                }
+            }
         }
     }
 
@@ -1936,6 +2033,12 @@ impl LanguageServer for DestackLanguageServer {
                 } else {
                     None
                 };
+                let insert_text_mode = if c.is_snippet {
+                    Some(lsp::InsertTextMode::ADJUST_INDENTATION)
+                } else {
+                    None
+                };
+                let commit_characters = Self::completion_commit_characters(c.kind);
 
                 // convert additional text edits
                 let additional_text_edits = if c.additional_text_edits.is_empty() {
@@ -2001,10 +2104,12 @@ impl LanguageServer for DestackLanguageServer {
                     documentation: None,
                     insert_text: c.insert_text,
                     insert_text_format,
+                    insert_text_mode,
                     sort_text,
                     preselect: if c.preselect { Some(true) } else { None },
                     deprecated,
                     tags,
+                    commit_characters,
                     additional_text_edits,
                     data,
                     ..Default::default()
@@ -2889,10 +2994,16 @@ impl LanguageServer for DestackLanguageServer {
 
         // query inlay hints
         let hints = query::inlay_hints(session, doc.file_id, span);
+        let parameter_hints_enabled = self.parameter_inlay_hints_enabled();
+        let type_hints_enabled = self.type_inlay_hints_enabled();
 
         // convert to LSP
         let lsp_hints: Vec<lsp::InlayHint> = hints
             .iter()
+            .filter(|hint| match hint.kind {
+                query::InlayHintKind::Parameter => parameter_hints_enabled,
+                query::InlayHintKind::Type => type_hints_enabled,
+            })
             .filter_map(|h| inlay_hint_to_lsp(&file, h))
             .collect();
 
@@ -3206,5 +3317,31 @@ mod tests {
 
         assert!(mapped.only.is_empty());
         assert!(!mapped.include_disabled);
+    }
+
+    /// Offer identifier-style commit characters for callable items.
+    #[test]
+    fn test_completion_commit_characters_for_function() {
+        let commit_characters =
+            DestackLanguageServer::completion_commit_characters(query::CompletionKind::Function);
+
+        assert_eq!(
+            commit_characters,
+            Some(vec![
+                ".".to_string(),
+                ",".to_string(),
+                ";".to_string(),
+                "(".to_string(),
+            ])
+        );
+    }
+
+    /// Skip commit characters for snippet-only pseudo items.
+    #[test]
+    fn test_completion_commit_characters_for_snippet() {
+        let commit_characters =
+            DestackLanguageServer::completion_commit_characters(query::CompletionKind::Snippet);
+
+        assert!(commit_characters.is_none());
     }
 }

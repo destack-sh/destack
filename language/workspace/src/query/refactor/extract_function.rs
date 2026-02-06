@@ -7,9 +7,10 @@ use serde::{Deserialize, Serialize};
 use crate::Session;
 use crate::format::{format_local_type, format_type_for_inlay_hint};
 use crate::query::common::{
-    QueryContext, get_canonical_symbol, get_module_by_file_id, get_symbol_definition_span,
-    is_simple_identifier, line_start_for_offset, resolve_symbol_name, span_contains_span,
-    span_for_dir_node,
+    QueryContext, clean_expression_text, get_canonical_symbol, get_module_by_file_id,
+    get_symbol_definition_span, is_simple_identifier, line_start_and_indent,
+    resolve_extract_expression, resolve_symbol_name, span_contains_span, span_for_dir_node,
+    statement_span_for_expression,
 };
 
 /// Request payload for extract function queries.
@@ -728,105 +729,6 @@ fn symbol_type_text(
     } else {
         Some(type_text)
     }
-}
-
-/// Resolve the extractable expression at a selection.
-fn resolve_extract_expression(
-    ctx: &QueryContext<'_>,
-    selection: Span,
-) -> Option<(dir::LocalNodeId<dir::Expression>, Span)> {
-    // scan expressions for the smallest span that contains the selection
-    let dir_tree = ctx.tree();
-    let mut best: Option<(dir::LocalNodeId<dir::Expression>, Span)> = None;
-    let mut best_len = u32::MAX;
-
-    for (expr_id, expr) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
-        let span = span_for_dir_node(ctx, &dir_tree, expr_id.into());
-        if !span_contains_span(span, selection) {
-            continue;
-        }
-
-        let is_statement = matches!(
-            expr,
-            dir::Expression::Statement { .. }
-                | dir::Expression::Let { .. }
-                | dir::Expression::Using { .. }
-                | dir::Expression::Declaration { .. }
-                | dir::Expression::Block { .. }
-        );
-        if is_statement {
-            continue;
-        }
-
-        let length = span.end.saturating_sub(span.start);
-        if length < best_len {
-            best = Some((expr_id, span));
-            best_len = length;
-        }
-    }
-
-    best
-}
-
-/// Resolve the statement span that owns an expression.
-fn statement_span_for_expression(
-    ctx: &QueryContext<'_>,
-    expr_id: dir::LocalNodeId<dir::Expression>,
-    fallback: Span,
-) -> Span {
-    // walk up parent expressions to find the statement boundary
-    let dir_tree = ctx.tree();
-    let mut current = dir::LocalNodeIdAny::from(expr_id);
-
-    while let Some(parent) = dir_tree.get_parent(current.id) {
-        if parent.ty == dir::NodeType::Expression {
-            let Ok(parent_id) = parent.try_into() else {
-                current = parent;
-                continue;
-            };
-            let expr = dir_tree.get::<dir::Expression>(parent_id);
-            let is_statement = matches!(
-                expr,
-                dir::Expression::Statement { .. }
-                    | dir::Expression::Let { .. }
-                    | dir::Expression::Using { .. }
-                    | dir::Expression::Declaration { .. }
-            );
-            if is_statement {
-                return span_for_dir_node(ctx, &dir_tree, parent);
-            }
-        }
-
-        current = parent;
-    }
-
-    fallback
-}
-
-/// Resolve the line start offset and indentation for a position.
-fn line_start_and_indent(source: &str, offset: u32) -> (u32, String) {
-    // locate the start of the line
-    let line_start = line_start_for_offset(source, offset as usize);
-
-    // collect indentation for the line
-    let mut indent = String::new();
-    for ch in source[line_start..offset as usize].chars() {
-        if ch.is_whitespace() && ch != '\n' && ch != '\r' {
-            indent.push(ch);
-        } else {
-            break;
-        }
-    }
-
-    (line_start as u32, indent)
-}
-
-/// Clean expression text for insertion.
-fn clean_expression_text(text: &str) -> String {
-    // trim whitespace and trailing semicolons
-    let trimmed = text.trim();
-    let trimmed = trimmed.strip_suffix(';').unwrap_or(trimmed).trim_end();
-    trimmed.to_string()
 }
 
 /// Reindent a block of text by removing and adding indentation.

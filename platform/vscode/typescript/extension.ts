@@ -27,6 +27,11 @@ const SERVER_SETTING_KEYS = [
     "destack.server.args",
     "destack.server.cwd",
 ];
+const LIVE_SETTING_KEYS = [
+    "destack.completion.autoImports",
+    "destack.inlayHints.parameterHints",
+    "destack.inlayHints.typeHints",
+];
 
 type ResolvedServerCommand = {
     command: string;
@@ -48,6 +53,10 @@ function activeWorkspaceFolder(): vscode.WorkspaceFolder | undefined {
 
 function shouldRestartForConfigurationChange(event: vscode.ConfigurationChangeEvent): boolean {
     return SERVER_SETTING_KEYS.some((settingKey) => event.affectsConfiguration(settingKey));
+}
+
+function shouldNotifyForConfigurationChange(event: vscode.ConfigurationChangeEvent): boolean {
+    return LIVE_SETTING_KEYS.some((settingKey) => event.affectsConfiguration(settingKey));
 }
 
 function expandPath(value: string, workspaceFolder?: vscode.WorkspaceFolder): string {
@@ -467,6 +476,20 @@ export async function activate(ctx: vscode.ExtensionContext) {
 
     ctx.subscriptions.push(
         vscode.workspace.onDidChangeConfiguration(async (event) => {
+            // notify the server about live setting updates
+            if (shouldNotifyForConfigurationChange(event)) {
+                try {
+                    await client?.sendNotification("workspace/didChangeConfiguration", {
+                        settings: {},
+                    });
+                } catch (error: any) {
+                    vscode.window.showErrorMessage(
+                        `Destack configuration update failed: ${error?.message || error}`,
+                    );
+                }
+            }
+
+            // restart only when process launch settings changed
             if (!shouldRestartForConfigurationChange(event) || isConfigRestartInFlight) {
                 return;
             }
