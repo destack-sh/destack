@@ -5,7 +5,7 @@ use destack_ast as ast;
 use destack_source::{Applicability, BatchEdit, Diagnostic, Edit, FileEdit, FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
-use super::{extract_function, inline_symbol};
+use super::{extract_function, extract_variable, inline_symbol};
 use crate::Session;
 use crate::query::assist::{CompletionContext, detect_completion_context};
 use crate::query::common::{
@@ -199,6 +199,18 @@ fn collect_refactor_actions(
     {
         actions.push(CodeAction::refactor(
             "Extract function",
+            CodeActionKind::RefactorExtract,
+            result.edits,
+        ));
+    }
+
+    // extract constant for non empty selections
+    if range.start < range.end
+        && let Some(result) = extract_variable(session, file, range, "extracted")
+        && !result.is_empty()
+    {
+        actions.push(CodeAction::refactor(
+            "Extract constant",
             CodeActionKind::RefactorExtract,
             result.edits,
         ));

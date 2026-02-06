@@ -27,6 +27,7 @@
         "onLanguage:destack",
         "onLanguage:dst",
         "onLanguage:dsb",
+        "onLanguage:destack-mir",
         "workspaceContains:dsconfig.json"
     ],
     "main": "./out/extension.js",
@@ -67,6 +68,16 @@
                     "type": "boolean",
                     "default": true,
                     "markdownDescription": "Include auto import completions in the completion list."
+                },
+                "destack.inlayHints.parameterHints": {
+                    "type": "boolean",
+                    "default": true,
+                    "markdownDescription": "Show parameter name inlay hints for call arguments."
+                },
+                "destack.inlayHints.typeHints": {
+                    "type": "boolean",
+                    "default": true,
+                    "markdownDescription": "Show inferred type inlay hints for local bindings."
                 }
             }
         },

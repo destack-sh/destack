@@ -174,3 +174,20 @@ only: quick_fix, source_organize_imports
 [0] title=Import greet from "./lib" kind=quick_fix preferred=true diag=<none> edits=main.ds:1:1-1:1=>"import { greet } from "./lib";\n"
 [1] title=Organize Imports kind=source_organize_imports preferred=false diag=<none> edits=main.ds:1:1-2:36=>"import { alpha } from "./alpha.ds";\nimport { zed } from "./zeta.ds";"
 ```
+
+### Extract constant refactor for selected expressions
+
+Selected expression ranges should offer extract constant refactors.
+
+```ds
+function main(a: int32, b: int32): int32 {
+    return a + b;
+    //     ^^^^^ selection
+}
+```
+
+```query code_actions selection
+only: refactor_extract
+top: 1
+[0] title=Extract constant kind=refactor_extract preferred=false diag=<none> edits=main.ds:2:1-2:1=>"    const extracted = a + b;\n", main.ds:2:12-2:17=>"extracted"
+```

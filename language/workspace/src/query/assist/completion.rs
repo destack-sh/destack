@@ -1765,8 +1765,14 @@ fn keyword_completions() -> Vec<Completion> {
         if !seen.insert(label) {
             continue;
         }
-        completions
-            .push(Completion::new(label, CompletionKind::Keyword).with_sort_order(SORT_KEYWORD));
+
+        let mut completion =
+            Completion::new(label, CompletionKind::Keyword).with_sort_order(SORT_KEYWORD);
+        if let Some(snippet) = keyword_snippet(keyword) {
+            completion = completion.with_insert_text(snippet).as_snippet();
+        }
+
+        completions.push(completion);
     }
 
     // add literal keywords that are not in the enum
@@ -1779,6 +1785,20 @@ fn keyword_completions() -> Vec<Completion> {
     }
 
     completions
+}
+
+/// Resolve a snippet template for control-flow keywords.
+fn keyword_snippet(keyword: Keyword) -> Option<&'static str> {
+    match keyword {
+        Keyword::If => Some("if (${1:condition}) {\n    $0\n}"),
+        Keyword::For => Some("for (${1:item} in ${2:items}) {\n    $0\n}"),
+        Keyword::While => Some("while (${1:condition}) {\n    $0\n}"),
+        Keyword::Switch => {
+            Some("switch (${1:value}) {\n    case ${2:pattern}:\n        $0\n    default:\n}")
+        }
+        Keyword::Try => Some("try {\n    $1\n} catch (${2:error}) {\n    $0\n}"),
+        _ => None,
+    }
 }
 
 /// Complete import paths (relative paths or package names).
@@ -1910,4 +1930,37 @@ fn complete_package_names(session: &Session, prefix: &str) -> Vec<Completion> {
 
     // return package completions
     results
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{generate_call_snippet, keyword_snippet};
+    use destack_ast::Keyword;
+
+    /// Build plain call text for functions without parameters.
+    #[test]
+    fn test_generate_call_snippet_without_parameters() {
+        let (snippet, is_snippet) = generate_call_snippet("run", &[]);
+
+        assert_eq!(snippet, "run()");
+        assert!(!is_snippet);
+    }
+
+    /// Build placeholder snippets for parameterized function calls.
+    #[test]
+    fn test_generate_call_snippet_with_parameters() {
+        let parameters = vec!["value".to_string(), "count".to_string()];
+        let (snippet, is_snippet) = generate_call_snippet("run", &parameters);
+
+        assert_eq!(snippet, "run(${1:value}, ${2:count})$0");
+        assert!(is_snippet);
+    }
+
+    /// Provide structured snippets for control flow keywords.
+    #[test]
+    fn test_keyword_snippet_for_control_flow() {
+        let snippet = keyword_snippet(Keyword::If);
+
+        assert_eq!(snippet, Some("if (${1:condition}) {\n    $0\n}"));
+    }
 }

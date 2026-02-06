@@ -639,6 +639,28 @@ impl ProtocolServer {
 
                     query::QueryResponse::ExtractFunction(query::ExtractFunctionResponse { result })
                 }
+                query::QueryRequest::ExtractVariable(params) => {
+                    // resolve the file id
+                    let file_id = self.resolve_file_id(program, &params.uri);
+
+                    // compute extract variable when available
+                    let result = match file_id {
+                        Some(file_id) => {
+                            let file_id = self.ensure_query_context(
+                                program,
+                                file_id,
+                                &params.uri,
+                                allow_stale,
+                            )?;
+                            let selection =
+                                self.span_for_offsets(file_id, params.start, params.end);
+                            query::extract_variable(session, file_id, selection, &params.new_name)
+                        }
+                        None => None,
+                    };
+
+                    query::QueryResponse::ExtractVariable(query::ExtractVariableResponse { result })
+                }
                 query::QueryRequest::Inline(params) => {
                     // resolve the file id
                     let file_id = self.resolve_file_id(program, &params.uri);
