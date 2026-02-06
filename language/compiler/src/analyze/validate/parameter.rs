@@ -132,29 +132,32 @@ impl Compiler {
         // parameter properties cannot use binding patterns
         let is_binding_pattern = matches!(
             parameter,
-            Parameter::Pattern { .. } | Parameter::Variadic { .. }
+            Parameter::Pattern { .. } | Parameter::VariadicPattern { .. }
         );
         if is_parameter_property && is_binding_pattern {
             let node = id.into_global_any(module.id).into_anchored(Some(profile));
             self.error(AnalyzeError::InvalidParameterProperty { node });
         }
 
-        // optional pattern or rest parameters are not valid in TS/JS
-        if !module.language_type.is_destack() {
-            let is_optional =
-                modifiers.is_some_and(|modifiers| modifiers.kind == Some(BindingKind::Maybe));
-            if is_optional {
-                let node = id.into_global_any(module.id).into_anchored(Some(profile));
-                match parameter {
-                    Parameter::Pattern { .. } => {
-                        self.error(AnalyzeError::InvalidOptionalPatternParameter { node });
-                    }
-                    Parameter::Variadic { .. } => {
-                        self.error(AnalyzeError::InvalidOptionalRestParameter { node });
-                    }
-                    Parameter::Named { .. } => {}
+        // optional pattern or rest parameters are not valid
+        let is_optional =
+            modifiers.is_some_and(|modifiers| modifiers.kind == Some(BindingKind::Maybe));
+        if is_optional {
+            let node = id.into_global_any(module.id).into_anchored(Some(profile));
+            match parameter {
+                Parameter::Pattern { .. } => {
+                    self.error(AnalyzeError::InvalidOptionalPatternParameter { node });
                 }
+                Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } => {
+                    self.error(AnalyzeError::InvalidOptionalRestParameter { node });
+                }
+                Parameter::Named { .. } => {}
             }
+        }
+
+        // variadic destructuring bindings must contain assignment targets
+        if let Parameter::VariadicPattern { pattern, .. } = parameter {
+            self.validate_for_each_assignment_pattern(module, profile, tree, *pattern, true);
         }
 
         // variance modifiers are restricted

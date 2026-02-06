@@ -841,8 +841,10 @@ impl Compiler {
             }
 
             // expand tuple rest parameters into positional call parameters
-            if matches!(tree.get(*parameter_id), Parameter::Variadic { .. })
-                && let Type::Tuple { elements, .. } = types.get_type(declared_type_id)
+            if matches!(
+                tree.get(*parameter_id),
+                Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. }
+            ) && let Type::Tuple { elements, .. } = types.get_type(declared_type_id)
             {
                 for element in elements {
                     dynamic_parameters.push(element.ty);

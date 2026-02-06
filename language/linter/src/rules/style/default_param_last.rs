@@ -96,7 +96,7 @@ fn check_parameters(
         let has_default = match param {
             Parameter::Named { default, .. } => default.is_some(),
             Parameter::Pattern { default, .. } => default.is_some(),
-            Parameter::Variadic { .. } => false, // variadic params don't have defaults
+            Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } => false, // variadic params don't have defaults
         };
 
         if has_default {
@@ -104,7 +104,10 @@ fn check_parameters(
         } else if seen_default {
             // found a param without default after one with default
             // variadic parameters are allowed after defaults
-            if !matches!(param, Parameter::Variadic { .. }) {
+            if !matches!(
+                param,
+                Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. }
+            ) {
                 let severity = ctx.get_effective_severity(meta, *param_id);
                 if !severity.is_enabled() {
                     continue;

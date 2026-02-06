@@ -1403,7 +1403,8 @@ fn is_type_context(context: &DestackFormatContext<'_>, node_id: LocalNodeId<Expr
                 let parameter_ty = match parameter {
                     Parameter::Named { ty, .. }
                     | Parameter::Pattern { ty, .. }
-                    | Parameter::Variadic { ty, .. } => *ty,
+                    | Parameter::VariadicNamed { ty, .. }
+                    | Parameter::VariadicPattern { ty, .. } => *ty,
                 };
                 if parameter_ty.is_some_and(|ty| ty.id == current_id) {
                     return true;

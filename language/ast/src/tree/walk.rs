@@ -1223,11 +1223,23 @@ pub fn walk_parameter<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *default, default_expr);
             }
         }
-        Parameter::Variadic {
+        Parameter::VariadicNamed {
             modifiers: _,
             name: _,
             ty,
         } => {
+            if let Some(ty) = ty {
+                let type_node = tree.get(*ty);
+                visitor.visit_expression(tree, *ty, type_node);
+            }
+        }
+        Parameter::VariadicPattern {
+            modifiers: _,
+            pattern,
+            ty,
+        } => {
+            let pattern_node = tree.get(*pattern);
+            visitor.visit_pattern(tree, *pattern, pattern_node);
             if let Some(ty) = ty {
                 let type_node = tree.get(*ty);
                 visitor.visit_expression(tree, *ty, type_node);
