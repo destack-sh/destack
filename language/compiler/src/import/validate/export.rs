@@ -9,6 +9,15 @@ use destack_workspace::Module;
 
 use crate::{Compiler, ImportError};
 
+/// The export category used for duplicate export checks.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ExportConflictKind {
+    /// A function declaration export.
+    FunctionDeclaration,
+    /// Any non-function export.
+    Other,
+}
+
 impl Compiler {
     /// Validate duplicate value exports in a module.
     pub(super) fn validate_export_conflicts(&self, module: &Module) {
@@ -31,10 +40,13 @@ impl Compiler {
                     let export_name =
                         self.value_export_name_for_declaration(declaration, default_name);
                     if let Some(export_name) = export_name {
+                        let conflict_kind =
+                            self.export_conflict_kind_for_declaration(module, declaration);
                         self.report_conflicting_export_name(
                             module,
                             export_name,
                             declaration_id.into_any(),
+                            conflict_kind,
                             &mut exported_names,
                             default_name,
                         );
@@ -64,6 +76,7 @@ impl Compiler {
                                 module,
                                 name,
                                 (*declarator_id).into_any(),
+                                ExportConflictKind::Other,
                                 &mut exported_names,
                                 default_name,
                             );
@@ -94,6 +107,7 @@ impl Compiler {
                                 module,
                                 name,
                                 (*declarator_id).into_any(),
+                                ExportConflictKind::Other,
                                 &mut exported_names,
                                 default_name,
                             );
@@ -114,6 +128,7 @@ impl Compiler {
                                 module,
                                 export_name,
                                 (*item_id).into_any(),
+                                ExportConflictKind::Other,
                                 &mut exported_names,
                                 default_name,
                             );
@@ -239,14 +254,22 @@ impl Compiler {
         module: &Module,
         export_name: StringId,
         local_node: LocalNodeIdAny,
-        exported_names: &mut HashMap<StringId, LocalNodeIdAny>,
+        conflict_kind: ExportConflictKind,
+        exported_names: &mut HashMap<StringId, (LocalNodeIdAny, ExportConflictKind)>,
         default_name: StringId,
     ) {
         // keep the first site as the primary declaration
-        let Some(first_node) = exported_names.get(&export_name).copied() else {
-            exported_names.insert(export_name, local_node);
+        let Some((first_node, first_kind)) = exported_names.get(&export_name).copied() else {
+            exported_names.insert(export_name, (local_node, conflict_kind));
             return;
         };
+
+        // allow overload style function declarations to share an export name
+        if first_kind == ExportConflictKind::FunctionDeclaration
+            && conflict_kind == ExportConflictKind::FunctionDeclaration
+        {
+            return;
+        }
 
         // convert local ids to anchored diagnostics
         let node = local_node.into_global(module.id).into_anchored(None);
@@ -269,6 +292,23 @@ impl Compiler {
             module: module.id,
             name: Some(StaticKey::Name(export_name)),
         });
+    }
+
+    /// Resolve the conflict category for a declaration export.
+    fn export_conflict_kind_for_declaration(
+        &self,
+        module: &Module,
+        declaration: &Declaration,
+    ) -> ExportConflictKind {
+        // overload declarations intentionally share one export symbol
+        if matches!(declaration, Declaration::Function { .. })
+            && (module.language_type.supports_declaration_merging()
+                || module.language_type.is_destack())
+        {
+            ExportConflictKind::FunctionDeclaration
+        } else {
+            ExportConflictKind::Other
+        }
     }
 
     /// Collect all binding names declared by a pattern.
