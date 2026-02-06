@@ -56,6 +56,7 @@ impl Parser {
             {
                 true
             }
+            Some(LiteralType::Boolean { .. }) => true,
             Some(LiteralType::Int { .. }) | Some(LiteralType::Float { .. }) => true,
             _ => false,
         }

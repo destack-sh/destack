@@ -101,10 +101,10 @@ impl<'a> Parser<'a> {
 
         // mutability annotation
         let mut mutability = Mutability::Mutable;
-        if self.eat_token_maybe(TokenType::Semicolon) {
-            if self.eat_token_maybe(TokenType::Readonly) || self.eat_token_maybe(TokenType::Const) {
-                mutability = Mutability::Immutable;
-            }
+        if self.eat_token_maybe(TokenType::Semicolon)
+            && (self.eat_token_maybe(TokenType::Readonly) || self.eat_token_maybe(TokenType::Const))
+        {
+            mutability = Mutability::Immutable;
         }
 
         // record global

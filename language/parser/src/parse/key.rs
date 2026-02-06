@@ -402,7 +402,7 @@ impl Parser {
     #[inline]
     pub fn peek_key(&mut self) -> ParseResult<()> {
         if self.peek_private_hash_key().is_ok()
-            || self.peek_name().is_ok()
+            || self.peek_key_name().is_ok()
             || self.peek_is(TokenType::OpenBracket)
             || self.peek_numeric_literal().is_ok()
         {
@@ -410,6 +410,49 @@ impl Parser {
         } else {
             Err(ParseError::unexpected(self.peek()?.span))
         }
+    }
+
+    /// Peek a key name token (`name`, `"name"`, `true`, or `false`).
+    #[inline]
+    fn peek_key_name(&mut self) -> ParseResult<()> {
+        if self.peek_name().is_ok() || self.peek_boolean_name_literal().is_ok() {
+            Ok(())
+        } else {
+            Err(ParseError::unexpected(self.peek()?.span))
+        }
+    }
+
+    /// Peek a boolean literal key name (`true` or `false`).
+    #[inline]
+    fn peek_boolean_name_literal(&mut self) -> ParseResult<&TokenSpan> {
+        let token = self.peek()?;
+        if token.token.ty == TokenType::Literal
+            && matches!(token.token.literal, Some(LiteralType::Boolean { .. }))
+        {
+            Ok(token)
+        } else {
+            Err(ParseError::expected(token.span, TokenType::Literal))
+        }
+    }
+
+    /// Eat a key name and return both the parsed name and its span.
+    #[inline]
+    fn eat_key_name_with_span(&mut self) -> ParseResult<(Name, destack_source::Span)> {
+        // identifier or string key name
+        if self.peek_name().is_ok() {
+            return self.eat_name_with_span();
+        }
+
+        // boolean identifier name key
+        if self.peek_boolean_name_literal().is_ok() {
+            let token = *self.eat()?;
+            let raw = self.get_token_str(token).to_owned();
+            let string_id = self.strings.intern(&raw);
+            return Ok((Name::Identifier(string_id), token.span));
+        }
+
+        // invalid key name
+        Err(ParseError::unexpected(self.peek()?.span))
     }
 
     /// Peek a private hash key like `#x` in JS/TS.
@@ -435,19 +478,27 @@ impl Parser {
     /// Eat a name or a dynamic key.
     #[inline]
     pub fn eat_key(&mut self) -> ParseResult<Key> {
+        // private hash key
         if self.peek_private_hash_key().is_ok() {
             self.bump(); // eat #
             let name = self.eat_identifier()?;
             Ok(Key::Private(name))
-        } else if self.peek_name().is_ok() {
-            Ok(Key::Name(self.eat_name()?))
-        } else if self.peek_numeric_literal().is_ok() {
+        }
+        // key name
+        else if self.peek_key_name().is_ok() {
+            let (name, _span) = self.eat_key_name_with_span()?;
+            Ok(Key::Name(name))
+        }
+        // numeric key
+        else if self.peek_numeric_literal().is_ok() {
             // numeric key (like `{123: value}` or `{2e308: value}`)
             let token = *self.eat()?;
             let key_str = self.file.span_str(token.span);
             let string_id = self.strings.intern(key_str);
             Ok(Key::Name(Name::Number(string_id)))
-        } else if self.peek_is(TokenType::OpenBracket) {
+        }
+        // dynamic key
+        else if self.peek_is(TokenType::OpenBracket) {
             self.bump(); // eat open bracket
             // name: type
             if self.peek_is(TokenType::Identifier) && self.peek_next_is(TokenType::Colon) {
@@ -468,7 +519,9 @@ impl Parser {
                 self.eat_token(TokenType::CloseBracket)?;
                 Ok(Key::Expression(key))
             }
-        } else {
+        }
+        // error
+        else {
             Err(ParseError::unexpected(self.peek()?.span))
         }
     }
@@ -485,21 +538,28 @@ impl Parser {
     /// Eat a name or a dynamic key, returning both the key and its span.
     pub fn eat_key_with_span(&mut self) -> ParseResult<(Key, destack_source::Span)> {
         let start = self.mark();
+        // private hash key
         if self.peek_private_hash_key().is_ok() {
             self.bump(); // eat #
             let name = self.eat_identifier()?;
             let span = self.get_span_from(&start);
             Ok((Key::Private(name), span))
-        } else if self.peek_name().is_ok() {
-            let (name, span) = self.eat_name_with_span()?;
+        }
+        // key name
+        else if self.peek_key_name().is_ok() {
+            let (name, span) = self.eat_key_name_with_span()?;
             Ok((Key::Name(name), span))
-        } else if self.peek_numeric_literal().is_ok() {
+        }
+        // numeric key
+        else if self.peek_numeric_literal().is_ok() {
             // numeric key (like `{123: value}` or `{2e308: value}`)
             let token = *self.eat()?;
             let key_str = self.file.span_str(token.span);
             let string_id = self.strings.intern(key_str);
             Ok((Key::Name(Name::Number(string_id)), token.span))
-        } else if self.peek_is(TokenType::OpenBracket) {
+        }
+        // dynamic key
+        else if self.peek_is(TokenType::OpenBracket) {
             self.bump(); // eat open bracket
             // name: type
             if self.peek_is(TokenType::Identifier) && self.peek_next_is(TokenType::Colon) {
@@ -523,7 +583,9 @@ impl Parser {
                 self.eat_token(TokenType::CloseBracket)?;
                 Ok((Key::Expression(key), self.get_span_from(&start)))
             }
-        } else {
+        }
+        // error
+        else {
             Err(ParseError::unexpected(self.peek()?.span))
         }
     }

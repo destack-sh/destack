@@ -10,6 +10,7 @@ use destack_ast::{
     LocalNodeId, NodeType, PostfixPosition, Token, TokenSpan, TokenType, TypeBinaryOperator,
     TypeKind, TypeUnaryOperator, UnaryOperator,
 };
+use destack_base::StringId;
 use destack_source::LanguageType;
 
 pub static DECLARATION_KEYWORDS: [Keyword; 23] = [
@@ -626,12 +627,43 @@ impl Parser {
         }
     }
 
-    /// Peek a member access of the given token type.
+    /// Return true when a token can appear as a static member name after `.`.
+    #[inline]
+    fn token_is_member_name(token: &TokenSpan) -> bool {
+        token.token.ty == TokenType::Identifier
+            || matches!(token.token.literal, Some(LiteralType::Boolean { .. }))
+    }
+
+    /// Eat a static member name and return both the name and its span.
+    #[inline]
+    fn eat_member_name_with_span(&mut self) -> ParseResult<(StringId, destack_source::Span)> {
+        // identifier member name
+        if self.peek_is(TokenType::Identifier) {
+            self.eat_identifier_with_span()
+        }
+        // boolean literal member name
+        else if self.peek_is(TokenType::Literal)
+            && self
+                .peek()
+                .is_ok_and(|token| matches!(token.token.literal, Some(LiteralType::Boolean { .. })))
+        {
+            let token = *self.eat()?;
+            let text = self.get_token_str(token).to_owned();
+            let name = self.strings.intern(&text);
+            Ok((name, token.span))
+        }
+        // invalid member name
+        else {
+            Err(ParseError::unexpected(self.peek()?.span))
+        }
+    }
+
+    /// Peek a member access with an IdentifierName compatible token.
     /// Returns the total distance to eat (including the newlines, dot, and token).
     #[inline]
-    fn peek_member(&mut self, token_type: TokenType) -> ParseResult<u8> {
+    fn peek_member_name(&mut self) -> ParseResult<u8> {
         // immediate member access
-        if self.peek_is(TokenType::Dot) && self.peek_next_is(token_type) {
+        if self.peek_is(TokenType::Dot) && self.peek_next().is_ok_and(Self::token_is_member_name) {
             Ok(2)
         }
         // member access across newline
@@ -656,10 +688,10 @@ impl Parser {
                     self.tokens().get(base + offset),
                     Some(token) if token.token.ty == TokenType::Dot
                 )
-                && matches!(
-                    self.tokens().get(base + offset + 1),
-                    Some(token) if token.token.ty == token_type
-                );
+                && self
+                    .tokens()
+                    .get(base + offset + 1)
+                    .is_some_and(Self::token_is_member_name);
             if is_member {
                 let distance = newline_count + 2;
                 let distance = u8::try_from(distance).unwrap_or(u8::MAX);
@@ -2054,23 +2086,6 @@ impl Parser {
             let _timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY);
             let token_type = self.peek_token_type();
 
-            #[cfg(debug_assertions)]
-            let token = *self.peek()?;
-            #[cfg(debug_assertions)]
-            let _token_str = self.get_span_str(token.span);
-            #[cfg(debug_assertions)]
-            let _next_token_str = self
-                .peek_next()
-                .ok()
-                .copied()
-                .map(|token| self.get_span_str(token.span));
-            #[cfg(debug_assertions)]
-            let _next_next_token_str = self
-                .peek_next_next()
-                .ok()
-                .copied()
-                .map(|token| self.get_span_str(token.span));
-
             //
             // ------------------------------------------------------------
             // Grouping
@@ -2924,9 +2939,9 @@ impl Parser {
                     self.tree.set_main_span(left_expression_id, name_span);
                 }
                 // member (also works across newline)
-                else if let Ok(distance) = self.peek_member(TokenType::Identifier) {
+                else if let Ok(distance) = self.peek_member_name() {
                     self.bump_by(distance - 1); // keep the identifier
-                    let (name, name_span) = self.eat_identifier_with_span()?;
+                    let (name, name_span) = self.eat_member_name_with_span()?;
                     // speculatively unwrap postfix static parameterisation with `<`
                     //  (might also be just a comparison operator)
                     let static_arguments = self.eat_static_arguments_in_expression(false);
@@ -5198,13 +5213,7 @@ geom.Mesh<2, 4> {
         );
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
-        parser.lex_to_end();
-        for (index, token) in parser.tokens().iter().enumerate() {
-            let text = parser.file.span_str(token.span);
-            eprintln!("member token[{index}] {:?} {:?}", token.token.ty, text);
-        }
         let expr_id = parser.eat_expression().unwrap();
-        eprintln!("member pos after expr {}", parser.pos_index());
         assert_node!(
             parser.tree,
             expr_id,
@@ -5540,6 +5549,116 @@ self
                 );
             }
         );
+    }
+
+    /// Parse boolean IdentifierName member access in JavaScript.
+    #[test]
+    fn test_parse_member_boolean_identifier_name() {
+        // source: a.true
+        let mut test = TestParser::new_with_options("a.true", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // a.true
+        assert_node!(parser.tree, expr_id, Expression::Member { name, .. } => {
+            assert_string!(parser, *name, "true");
+        });
+    }
+
+    /// Parse boolean IdentifierName property keys and accessors in JavaScript.
+    #[test]
+    fn test_parse_object_boolean_identifier_name_keys() {
+        // source: { true: 1, false: 2, get true() {}, set false(value) {} }
+        let mut test = TestParser::new_with_options(
+            "{ true: 1, false: 2, get true() {}, set false(value) {} }",
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // { true: 1, false: 2, get true() {}, set false(value) {} }
+        assert_node!(parser.tree, expr_id, Expression::ObjectExpression { properties, .. } => {
+            assert_eq!(properties.len(), 4);
+
+            assert_node!(parser.tree, properties[0], Property::Field { key, value, .. } => {
+                assert_node!(key, Some(Key::Name(Name::Identifier(name))) => {
+                    assert_string!(parser, *name, "true");
+                });
+                assert_node!(parser.tree, value.expect("expected field value"), Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            });
+
+            assert_node!(parser.tree, properties[1], Property::Field { key, value, .. } => {
+                assert_node!(key, Some(Key::Name(Name::Identifier(name))) => {
+                    assert_string!(parser, *name, "false");
+                });
+                assert_node!(parser.tree, value.expect("expected field value"), Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+            });
+
+            assert_node!(parser.tree, properties[2], Property::Method { key, signature, .. } => {
+                assert_node!(key, Some(Key::Name(Name::Identifier(name))) => {
+                    assert_string!(parser, *name, "true");
+                });
+                assert_eq!(signature.mode, Some(destack_ast::FunctionMode::Getter));
+            });
+
+            assert_node!(parser.tree, properties[3], Property::Method { key, signature, .. } => {
+                assert_node!(key, Some(Key::Name(Name::Identifier(name))) => {
+                    assert_string!(parser, *name, "false");
+                });
+                assert_eq!(signature.mode, Some(destack_ast::FunctionMode::Setter));
+            });
+        });
+    }
+
+    /// Parse regex literal in export default.
+    #[test]
+    fn test_parse_export_default_regex_literal() {
+        // source: export default /foo/
+        let mut test =
+            TestParser::new_with_options("export default /foo/", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // export default /foo/
+        assert_node!(parser.tree, expr_id, Expression::Export { target, items, .. } => {
+            assert!(target.is_none());
+            assert_eq!(items.len(), 1);
+            assert_node!(parser.tree, items[0], DependencyItem { value: Some(value), .. } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
+            });
+        });
+    }
+
+    /// Parse regex literal with slash inside a character class.
+    #[test]
+    fn test_parse_regex_literal_with_character_class_slash() {
+        // source: var a = /[\]/]/
+        let mut test = TestParser::new_with_options("var a = /[\\]/]/", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // var a = /[\]/]/
+        assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
+            assert_eq!(declarators.len(), 1);
+            assert_node!(parser.tree, declarators[0], Declarator { value, .. } => {
+                assert_node!(parser.tree, value.expect("expected initializer"), Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
+            });
+        });
+    }
+
+    /// Parse string literal with long leading-zero code point escapes.
+    #[test]
+    fn test_parse_string_unicode_escape_with_long_leading_zeros() {
+        // source: "\u{00000000034}"
+        let mut test =
+            TestParser::new_with_options("\"\\u{00000000034}\"", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // "\u{00000000034}"
+        assert_node!(parser.tree, expr_id, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+            assert_string!(parser, *string_id, "\\u{00000000034}");
+        });
     }
 
     /// Parse a less-than comparison.

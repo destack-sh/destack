@@ -575,6 +575,208 @@ fn test_lex_regex_literal_after_colon() {
 }
 
 #[test]
+fn test_lex_regex_literal_after_if_header() {
+    assert_tokenize_eq_roundtrip!(
+        "if (1) /foo/;",
+        Token::new(TokenType::Identifier, 2, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::OpenParenthesis, 1, None),
+        Token::new(
+            TokenType::Literal,
+            1,
+            Some(LiteralType::Int {
+                base: NumberBase::Decimal,
+                is_empty: false,
+                is_bigint: false,
+            })
+        ),
+        Token::new(TokenType::CloseParenthesis, 1, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(
+            TokenType::Literal,
+            5,
+            Some(LiteralType::RegexString { has_flags: false })
+        ),
+        Token::new(TokenType::Semicolon, 1, None),
+    );
+}
+
+#[test]
+fn test_lex_regex_literal_after_if_header_without_semicolon() {
+    assert_tokenize_eq_roundtrip!(
+        "if (1) /foo/",
+        Token::new(TokenType::Identifier, 2, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::OpenParenthesis, 1, None),
+        Token::new(
+            TokenType::Literal,
+            1,
+            Some(LiteralType::Int {
+                base: NumberBase::Decimal,
+                is_empty: false,
+                is_bigint: false,
+            })
+        ),
+        Token::new(TokenType::CloseParenthesis, 1, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(
+            TokenType::Literal,
+            5,
+            Some(LiteralType::RegexString { has_flags: false })
+        ),
+    );
+}
+
+#[test]
+fn test_lex_regex_literal_after_if_header_without_semicolon_javascript() {
+    let (semantic, side, _eof) = lex_source("if (1) /foo/", LanguageType::JavaScript);
+    let mut tokens = semantic.into_iter().chain(side).collect::<Vec<_>>();
+    tokens.sort_by_key(|token| token.span.start);
+    let tokens = tokens
+        .into_iter()
+        .map(|token| token.token)
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        tokens,
+        vec![
+            Token::new(TokenType::Identifier, 2, None),
+            Token::new(TokenType::Whitespace, 1, None),
+            Token::new(TokenType::OpenParenthesis, 1, None),
+            Token::new(
+                TokenType::Literal,
+                1,
+                Some(LiteralType::Int {
+                    base: NumberBase::Decimal,
+                    is_empty: false,
+                    is_bigint: false,
+                })
+            ),
+            Token::new(TokenType::CloseParenthesis, 1, None),
+            Token::new(TokenType::Whitespace, 1, None),
+            Token::new(
+                TokenType::Literal,
+                5,
+                Some(LiteralType::RegexString { has_flags: false })
+            ),
+            Token::end(),
+        ]
+    );
+}
+
+#[test]
+fn test_lex_regex_literal_after_while_header() {
+    assert_tokenize_eq_roundtrip!(
+        "while (1) /foo/;",
+        Token::new(TokenType::Identifier, 5, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::OpenParenthesis, 1, None),
+        Token::new(
+            TokenType::Literal,
+            1,
+            Some(LiteralType::Int {
+                base: NumberBase::Decimal,
+                is_empty: false,
+                is_bigint: false,
+            })
+        ),
+        Token::new(TokenType::CloseParenthesis, 1, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(
+            TokenType::Literal,
+            5,
+            Some(LiteralType::RegexString { has_flags: false })
+        ),
+        Token::new(TokenType::Semicolon, 1, None),
+    );
+}
+
+#[test]
+fn test_lex_regex_literal_after_export_default() {
+    assert_tokenize_eq_roundtrip!(
+        "export default /foo/",
+        Token::new(TokenType::Identifier, 6, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Identifier, 7, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(
+            TokenType::Literal,
+            5,
+            Some(LiteralType::RegexString { has_flags: false })
+        ),
+    );
+}
+
+#[test]
+fn test_lex_divide_after_switch_header() {
+    // source: switch (x) /foo/
+    let (semantic, side, _eof) = lex_source("switch (x) /foo/", LanguageType::JavaScript);
+    let tokens = semantic.iter().chain(side.iter()).collect::<Vec<_>>();
+
+    // assert: not a regex literal after switch header
+    let regex_count = tokens
+        .iter()
+        .filter(|token| matches!(token.token.literal, Some(LiteralType::RegexString { .. })))
+        .count();
+    assert_eq!(regex_count, 0);
+
+    // assert: /foo/ is tokenized as divide, identifier, divide
+    let divide_count = tokens
+        .iter()
+        .filter(|token| token.token.ty == TokenType::Divide)
+        .count();
+    assert_eq!(divide_count, 2);
+}
+
+#[test]
+fn test_lex_divide_after_catch_header() {
+    // source: catch (e) /foo/
+    let (semantic, side, _eof) = lex_source("catch (e) /foo/", LanguageType::JavaScript);
+    let tokens = semantic.iter().chain(side.iter()).collect::<Vec<_>>();
+
+    // assert: not a regex literal after catch header
+    let regex_count = tokens
+        .iter()
+        .filter(|token| matches!(token.token.literal, Some(LiteralType::RegexString { .. })))
+        .count();
+    assert_eq!(regex_count, 0);
+
+    // assert: /foo/ is tokenized as divide, identifier, divide
+    let divide_count = tokens
+        .iter()
+        .filter(|token| token.token.ty == TokenType::Divide)
+        .count();
+    assert_eq!(divide_count, 2);
+}
+
+#[test]
+fn test_lex_regex_literal_with_character_class_slash() {
+    assert_tokenize_eq_roundtrip!(
+        r"/[\]/]/",
+        Token::new(
+            TokenType::Literal,
+            7,
+            Some(LiteralType::RegexString { has_flags: false })
+        ),
+    );
+}
+
+#[test]
+fn test_lex_string_unicode_escape_with_long_leading_zeros() {
+    assert_tokenize_eq_roundtrip!(
+        "\"\\u{00000000034}\"",
+        Token::new(
+            TokenType::Literal,
+            17,
+            Some(LiteralType::String {
+                is_terminated: true,
+                has_invalid_escape: false,
+            })
+        ),
+    );
+}
+
+#[test]
 fn test_lex_regex_literal_in_tree() {
     assert_tokenize_eq_roundtrip!(
         r"
