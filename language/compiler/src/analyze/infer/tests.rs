@@ -2833,6 +2833,7 @@ type Alias = Pick<Person, "name">;
             es5_profile,
             &es5_tree,
             &es5_symbols,
+            &types,
         )
         .expect("expected Pick static parameters");
 

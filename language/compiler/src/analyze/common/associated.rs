@@ -6,9 +6,10 @@ use crate::analyze::common::{
 };
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Compiler};
 use destack_dir::{
-    Declaration, Expression, GlobalNodeId, GlobalSymbolId, Heritage, LocalNodeId, LocalNodeIdAny,
-    LocalTypeId, Member, NodeTree, NodeType, StaticArgument, SymbolTable, SymbolType, Type,
-    TypeRewriter, TypeRewriterOptions, TypeTable,
+    Declaration, DependencyItem, DependencyMode, Expression, GlobalNodeId, GlobalSymbolId,
+    Heritage, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, NodeTree, NodeType, StaticArgument,
+    StaticKey, SymbolSpaceOrder, SymbolTable, SymbolType, Type, TypeRewriter, TypeRewriterOptions,
+    TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -179,8 +180,288 @@ impl TypeRewriter for AssociatedAliasProjectionRewriter<'_> {
     }
 }
 
+/// A resolved type-member target and projection context.
+#[derive(Clone, Debug)]
+pub(crate) struct TypeMemberResolution {
+    /// The resolved member symbol.
+    pub(crate) target_symbol: GlobalSymbolId,
+    /// The resolved receiver symbol for associated projections.
+    pub(crate) receiver_symbol: Option<GlobalSymbolId>,
+    /// The receiver static arguments used for associated projections.
+    pub(crate) receiver_arguments: Vec<StaticArgument>,
+}
+
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Select a member symbol used in a type expression.
+    pub(crate) fn select_type_member_symbol(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        left: LocalNodeId<Expression>,
+        member_key: StaticKey,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        validate_static_argument_bounds: bool,
+        enforce_implicit_managed: bool,
+    ) -> AnalyzeResult<Option<TypeMemberResolution>> {
+        // select namespace import members first
+        if let Some(namespace_symbol) = self.select_namespace_member_symbol(
+            module,
+            profile,
+            expression_id,
+            left,
+            member_key,
+            tree,
+            symbols,
+        ) {
+            return Ok(Some(TypeMemberResolution {
+                target_symbol: namespace_symbol,
+                receiver_symbol: None,
+                receiver_arguments: Vec::new(),
+            }));
+        }
+
+        // then select projected members through nominal receiver types
+        if let Some((projected_symbol, projected_receiver_symbol, projected_args)) = self
+            .select_associated_projection_member_symbol(
+                module,
+                profile,
+                expression_id,
+                left,
+                member_key,
+                tree,
+                symbols,
+                types,
+                validate_static_argument_bounds,
+                enforce_implicit_managed,
+            )?
+        {
+            return Ok(Some(TypeMemberResolution {
+                target_symbol: projected_symbol,
+                receiver_symbol: Some(projected_receiver_symbol),
+                receiver_arguments: projected_args,
+            }));
+        }
+
+        Ok(None)
+    }
+
+    /// Select a namespace-import member symbol used in a type expression.
+    fn select_namespace_member_symbol(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        left: LocalNodeId<Expression>,
+        member_key: StaticKey,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> Option<GlobalSymbolId> {
+        // require a reference expression on the left side
+        let (Expression::LocalReference { target_symbol, .. }
+        | Expression::ModuleReference { target_symbol, .. }
+        | Expression::GlobalReference { target_symbol, .. }) = tree.get(left)
+        else {
+            return None;
+        };
+
+        // namespace imports are local dependency items
+        if target_symbol.module_id != module.id {
+            return None;
+        }
+
+        // require a dependency declaration
+        let symbol_entry = symbols.get_symbol(target_symbol.local_id);
+        let primary_declaration = symbol_entry.primary_declaration?;
+        if primary_declaration.local_id.ty != NodeType::DependencyItem {
+            return None;
+        }
+
+        // select dependency mode and target module
+        let dependency_id = primary_declaration.local_id.into_typed::<DependencyItem>();
+        let dependency = tree.get(dependency_id);
+        let (mode, target_module) = match dependency {
+            DependencyItem::Remote {
+                mode,
+                target_module,
+                ..
+            } => (*mode, Some(*target_module)),
+            DependencyItem::UnresolvedRemote {
+                mode,
+                target_module,
+                ..
+            } => (*mode, *target_module),
+            _ => (DependencyMode::Item, None),
+        };
+
+        // only namespace imports can project members
+        if mode != DependencyMode::Namespace {
+            return None;
+        }
+
+        // select type space first, then value space
+        let target_module = target_module?;
+        let target_module = target_module.ty.or(target_module.value)?;
+        self.resolve_export_symbol_for_target(
+            module.id,
+            expression_id.into_global_any(module.id),
+            target_module,
+            profile,
+            SymbolSpaceOrder::TypeThenValue,
+            member_key,
+        )
+        .ok()
+        .flatten()
+    }
+
+    /// Select a projected static member symbol from a nominal receiver.
+    pub(crate) fn select_associated_projection_member_symbol(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        left: LocalNodeId<Expression>,
+        member_key: StaticKey,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        validate_static_argument_bounds: bool,
+        enforce_implicit_managed: bool,
+    ) -> AnalyzeResult<Option<(GlobalSymbolId, GlobalSymbolId, Vec<StaticArgument>)>> {
+        // evaluate the receiver to a reference-like type
+        let left_ty_id = self.try_evaluate_expression_to_type(
+            module,
+            profile,
+            left,
+            tree,
+            symbols,
+            types,
+            validate_static_argument_bounds,
+            enforce_implicit_managed,
+        )?;
+        let left_ty = types.get_type(left_ty_id).clone();
+        let receiver_reference = match left_ty {
+            Type::Reference {
+                symbol,
+                static_arguments,
+            } => Some((symbol, static_arguments.unwrap_or_default())),
+            Type::Value { value } => {
+                if let Type::Reference {
+                    symbol,
+                    static_arguments,
+                } = types.get_type(value)
+                {
+                    Some((*symbol, static_arguments.clone().unwrap_or_default()))
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        };
+        let Some((mut lookup_symbol, mut lookup_arguments)) = receiver_reference else {
+            return Ok(None);
+        };
+
+        // follow static parameter constraints for projected members
+        if self.symbol_is_static_parameter(module, profile, lookup_symbol, symbols, types)
+            && let Some(constraint_ty_id) = self.static_parameter_constraint_type(
+                module,
+                profile,
+                lookup_symbol,
+                expression_id.into_any(),
+                symbols,
+                types,
+            )
+            && let Type::Reference {
+                symbol,
+                static_arguments,
+            } = types.get_type(constraint_ty_id)
+        {
+            lookup_symbol = *symbol;
+            lookup_arguments = static_arguments.clone().unwrap_or_default();
+        }
+
+        // project through alias references before static member lookup
+        if let Some(alias_target_id) = self.alias_target_type_id_for_symbol(
+            module,
+            profile,
+            lookup_symbol,
+            expression_id.into_any(),
+            symbols,
+            types,
+        ) {
+            let mapped_alias_target = if lookup_arguments.is_empty() {
+                alias_target_id
+            } else {
+                let substitutions = self.build_type_parameter_substitutions_for_symbol(
+                    module,
+                    profile,
+                    lookup_symbol,
+                    expression_id.into_any(),
+                    &lookup_arguments,
+                    tree,
+                    symbols,
+                    types,
+                );
+                if substitutions.is_empty() {
+                    alias_target_id
+                } else {
+                    let mut substitution_cache = HashMap::new();
+                    self.substitute_static_parameters(
+                        alias_target_id,
+                        &substitutions,
+                        types,
+                        &mut substitution_cache,
+                    )
+                }
+            };
+
+            let mut materialize_cache = TypeRewriteCache::new();
+            let mapped_alias_target = self.materialize_static_arguments_in_type(
+                module,
+                profile,
+                mapped_alias_target,
+                tree,
+                symbols,
+                types,
+                &mut materialize_cache,
+            );
+            if let Some((alias_symbol, alias_arguments, _)) =
+                self.unwrap_type_symbol(types, mapped_alias_target)
+            {
+                lookup_symbol = alias_symbol;
+                lookup_arguments = alias_arguments.unwrap_or_default();
+            }
+        }
+
+        // resolve the projected member symbol on the normalized receiver symbol
+        let projected_symbol = self.with_module_tree_symbols_or_local(
+            module,
+            profile,
+            lookup_symbol.module_id,
+            tree,
+            symbols,
+            |owner_module, owner_tree, owner_symbols| {
+                self.resolve_static_member_symbol_in_tables(
+                    owner_module,
+                    profile,
+                    lookup_symbol,
+                    member_key,
+                    owner_tree,
+                    owner_symbols,
+                )
+            },
+        );
+        let Some(projected_symbol) = projected_symbol else {
+            return Ok(None);
+        };
+
+        Ok(Some((projected_symbol, lookup_symbol, lookup_arguments)))
+    }
+
     /// Rewrite owner-scoped associated aliases in one type id with known substitutions.
     pub(crate) fn rewrite_associated_aliases_for_owner(
         &self,
@@ -874,6 +1155,7 @@ impl Compiler {
                         profile,
                         owner_tree,
                         owner_symbols,
+                        types,
                     )
                     .map(|parameters| parameters.len())
                 },

@@ -15,15 +15,6 @@ pub(crate) enum CanonicalSymbolMode {
     PreserveAliases,
 }
 
-impl CanonicalSymbolMode {
-    fn cache_key(self) -> u8 {
-        match self {
-            CanonicalSymbolMode::FollowAliases => 0,
-            CanonicalSymbolMode::PreserveAliases => 1,
-        }
-    }
-}
-
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Resolve the canonical symbol for a reference with explicit alias handling.
@@ -35,16 +26,11 @@ impl Compiler {
         symbol: GlobalSymbolId,
         mode: CanonicalSymbolMode,
     ) -> GlobalSymbolId {
-        let mode_key = mode.cache_key();
-        if let Some(cached) = self.cached_canonical_symbol(profile, symbol, mode_key) {
-            return cached;
-        }
-
         let mut current_symbol = symbol;
         let mut visited = Vec::new();
 
         // walk target and canonical chains until we stabilize
-        let result = loop {
+        loop {
             if visited.contains(&current_symbol) {
                 break current_symbol;
             }
@@ -84,10 +70,7 @@ impl Compiler {
             } else {
                 break current_symbol;
             }
-        };
-
-        self.set_cached_canonical_symbol(profile, symbol, mode_key, result);
-        result
+        }
     }
 
     /// Return the array well-known kind for a symbol when applicable.

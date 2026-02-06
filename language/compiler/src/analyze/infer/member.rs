@@ -1030,7 +1030,14 @@ impl Compiler {
 
         // resolve extension static parameter symbols
         let extension_parameters = self
-            .collect_static_parameter_symbols(module, extension_symbol, profile, tree, symbols)
+            .collect_static_parameter_symbols(
+                module,
+                extension_symbol,
+                profile,
+                tree,
+                symbols,
+                types,
+            )
             .unwrap_or_default();
 
         // skip argument resolution when the extension has no parameters

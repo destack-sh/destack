@@ -1,17 +1,17 @@
-use crate::analyze::common::{CanonicalSymbolMode, TypeRewriteCache};
+use crate::analyze::common::CanonicalSymbolMode;
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
-    Argument, BinaryOperator, BindingKind, Declaration, DependencyItem, DependencyMode, DynamicKey,
-    EnumFieldValue, Expression, FunctionMode, FunctionSignature, GlobalSymbolId, IntrinsicType,
-    LocalNodeId, LocalNodeIdAny, LocalTypeId, Mutability, NodeTree, NodeType, NodeVisitor,
-    NodeVisitorOptions, Path, PrimitiveType, Property, Resolution, ScalarLiteral, StaticArgument,
-    StaticExpression, StaticKey, StaticParameterKind, StaticProperty, SymbolKind, SymbolSpace,
-    SymbolSpaceOrder, SymbolTable, Type, TypeElement, TypeField, TypeIndexSignature, TypeLiteral,
+    Argument, BinaryOperator, BindingKind, Declaration, DependencyItem, DynamicKey, EnumFieldValue,
+    Expression, FunctionMode, FunctionSignature, GlobalSymbolId, IntrinsicType, LocalNodeId,
+    LocalNodeIdAny, LocalTypeId, Mutability, NodeTree, NodeType, NodeVisitor, NodeVisitorOptions,
+    Path, PrimitiveType, Property, Resolution, ScalarLiteral, StaticArgument, StaticExpression,
+    StaticKey, StaticParameterKind, StaticProperty, SymbolKind, SymbolSpace, SymbolSpaceOrder,
+    SymbolTable, Type, TypeElement, TypeField, TypeIndexSignature, TypeLiteral,
     TypeMappedParameter, TypeTable, TypeUnaryOperator, UnaryOperator, walk_expression,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use super::cache::EvaluateExpressionContext;
 
@@ -1962,39 +1962,22 @@ impl Compiler {
                 let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_REFERENCE);
                 let member_key = StaticKey::Name(*name);
 
-                let mut receiver_symbol = None;
-                let mut receiver_arguments = Vec::new();
-                let target_symbol = if let Some(namespace_symbol) = self
-                    .resolve_namespace_member_symbol_for_type_evaluation(
-                        module,
-                        profile,
-                        expression_id,
-                        *left,
-                        member_key,
-                        tree,
-                        symbols,
-                    ) {
-                    namespace_symbol
-                } else if let Some((projected_symbol, projected_receiver_symbol, projected_args)) =
-                    self.resolve_projected_member_symbol_for_type_evaluation(
-                        module,
-                        profile,
-                        expression_id,
-                        *left,
-                        member_key,
-                        tree,
-                        symbols,
-                        types,
-                        validate_static_argument_bounds,
-                        enforce_implicit_managed,
-                    )?
-                {
-                    receiver_symbol = Some(projected_receiver_symbol);
-                    receiver_arguments = projected_args;
-                    projected_symbol
-                } else {
+                let Some(member_resolution) = self.select_type_member_symbol(
+                    module,
+                    profile,
+                    expression_id,
+                    *left,
+                    member_key,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
+                    enforce_implicit_managed,
+                )?
+                else {
                     return Ok(None);
                 };
+                let target_symbol = member_resolution.target_symbol;
 
                 // require explicit arguments for generic associated type projections
                 let has_explicit_static_arguments = static_arguments
@@ -2046,8 +2029,8 @@ impl Compiler {
                     profile,
                     expression_id.into_any(),
                     target_symbol,
-                    receiver_symbol,
-                    &receiver_arguments,
+                    member_resolution.receiver_symbol,
+                    &member_resolution.receiver_arguments,
                     static_arguments.as_deref(),
                     member_ty,
                     tree,
@@ -2888,6 +2871,7 @@ impl Compiler {
                             profile,
                             tree,
                             symbols,
+                            types,
                         );
                         let parameters_known = parameter_symbols.is_some();
                         let has_parameters =
@@ -3413,210 +3397,6 @@ impl Compiler {
         self.merged_type_symbol_id(module, symbols, profile, canonical)
     }
 
-    /// Resolve namespace import member symbols used in type expressions.
-    fn resolve_namespace_member_symbol_for_type_evaluation(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        expression_id: LocalNodeId<Expression>,
-        left: LocalNodeId<Expression>,
-        member_key: StaticKey,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-    ) -> Option<GlobalSymbolId> {
-        let (Expression::LocalReference { target_symbol, .. }
-        | Expression::ModuleReference { target_symbol, .. }
-        | Expression::GlobalReference { target_symbol, .. }) = tree.get(left)
-        else {
-            return None;
-        };
-        if target_symbol.module_id != module.id {
-            return None;
-        }
-
-        let symbol_entry = symbols.get_symbol(target_symbol.local_id);
-        let primary_declaration = symbol_entry.primary_declaration?;
-        if primary_declaration.local_id.ty != NodeType::DependencyItem {
-            return None;
-        }
-
-        let dependency_id = primary_declaration.local_id.into_typed::<DependencyItem>();
-        let dependency = tree.get(dependency_id);
-        let (mode, target_module) = match dependency {
-            DependencyItem::Remote {
-                mode,
-                target_module,
-                ..
-            } => (*mode, Some(*target_module)),
-            DependencyItem::UnresolvedRemote {
-                mode,
-                target_module,
-                ..
-            } => (*mode, *target_module),
-            _ => (DependencyMode::Item, None),
-        };
-        if mode != DependencyMode::Namespace {
-            return None;
-        }
-
-        let target_module = target_module?;
-        let target_module = target_module.ty.or(target_module.value)?;
-        self.resolve_export_symbol_for_target(
-            module.id,
-            expression_id.into_global_any(module.id),
-            target_module,
-            profile,
-            SymbolSpaceOrder::TypeThenValue,
-            member_key,
-        )
-        .ok()
-        .flatten()
-    }
-
-    /// Resolve projected member symbols from nominal receiver types in type expressions.
-    fn resolve_projected_member_symbol_for_type_evaluation(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        expression_id: LocalNodeId<Expression>,
-        left: LocalNodeId<Expression>,
-        member_key: StaticKey,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        validate_static_argument_bounds: bool,
-        enforce_implicit_managed: bool,
-    ) -> AnalyzeResult<Option<(GlobalSymbolId, GlobalSymbolId, Vec<StaticArgument>)>> {
-        // evaluate the receiver to a reference-like type
-        let left_ty_id = self.try_evaluate_expression_to_type(
-            module,
-            profile,
-            left,
-            tree,
-            symbols,
-            types,
-            validate_static_argument_bounds,
-            enforce_implicit_managed,
-        )?;
-        let left_ty = types.get_type(left_ty_id).clone();
-        let receiver_reference = match left_ty {
-            Type::Reference {
-                symbol,
-                static_arguments,
-            } => Some((symbol, static_arguments.unwrap_or_default())),
-            Type::Value { value } => {
-                if let Type::Reference {
-                    symbol,
-                    static_arguments,
-                } = types.get_type(value)
-                {
-                    Some((*symbol, static_arguments.clone().unwrap_or_default()))
-                } else {
-                    None
-                }
-            }
-            _ => None,
-        };
-        let Some((mut lookup_symbol, mut lookup_arguments)) = receiver_reference else {
-            return Ok(None);
-        };
-
-        // follow static parameter constraints for projected members
-        if self.symbol_is_static_parameter(module, profile, lookup_symbol, symbols, types)
-            && let Some(constraint_ty_id) = self.static_parameter_constraint_type(
-                module,
-                profile,
-                lookup_symbol,
-                expression_id.into_any(),
-                symbols,
-                types,
-            )
-            && let Type::Reference {
-                symbol,
-                static_arguments,
-            } = types.get_type(constraint_ty_id)
-        {
-            lookup_symbol = *symbol;
-            lookup_arguments = static_arguments.clone().unwrap_or_default();
-        }
-
-        // project through alias references before static member lookup
-        if let Some(alias_target_id) = self.alias_target_type_id_for_symbol(
-            module,
-            profile,
-            lookup_symbol,
-            expression_id.into_any(),
-            symbols,
-            types,
-        ) {
-            let mapped_alias_target = if lookup_arguments.is_empty() {
-                alias_target_id
-            } else {
-                let substitutions = self.build_type_parameter_substitutions_for_symbol(
-                    module,
-                    profile,
-                    lookup_symbol,
-                    expression_id.into_any(),
-                    &lookup_arguments,
-                    tree,
-                    symbols,
-                    types,
-                );
-                if substitutions.is_empty() {
-                    alias_target_id
-                } else {
-                    let mut substitution_cache = HashMap::new();
-                    self.substitute_static_parameters(
-                        alias_target_id,
-                        &substitutions,
-                        types,
-                        &mut substitution_cache,
-                    )
-                }
-            };
-
-            let mut materialize_cache = TypeRewriteCache::new();
-            let mapped_alias_target = self.materialize_static_arguments_in_type(
-                module,
-                profile,
-                mapped_alias_target,
-                tree,
-                symbols,
-                types,
-                &mut materialize_cache,
-            );
-            if let Some((alias_symbol, alias_arguments, _)) =
-                self.unwrap_type_symbol(types, mapped_alias_target)
-            {
-                lookup_symbol = alias_symbol;
-                lookup_arguments = alias_arguments.unwrap_or_default();
-            }
-        }
-
-        let projected_symbol = self.with_module_tree_symbols_or_local(
-            module,
-            profile,
-            lookup_symbol.module_id,
-            tree,
-            symbols,
-            |owner_module, owner_tree, owner_symbols| {
-                self.resolve_static_member_symbol_in_tables(
-                    owner_module,
-                    profile,
-                    lookup_symbol,
-                    member_key,
-                    owner_tree,
-                    owner_symbols,
-                )
-            },
-        );
-        let Some(projected_symbol) = projected_symbol else {
-            return Ok(None);
-        };
-
-        Ok(Some((projected_symbol, lookup_symbol, lookup_arguments)))
-    }
-
     /// Evaluate a reference to a nominal symbol into a Type.
     fn evaluate_type_reference_for_symbol(
         &self,
@@ -3661,8 +3441,14 @@ impl Compiler {
         let has_explicit_arguments = static_arguments
             .as_ref()
             .is_some_and(|arguments| !arguments.is_empty());
-        let parameter_symbols =
-            self.collect_static_parameter_symbols(module, target_symbol, profile, tree, symbols);
+        let parameter_symbols = self.collect_static_parameter_symbols(
+            module,
+            target_symbol,
+            profile,
+            tree,
+            symbols,
+            types,
+        );
         let parameters_known = parameter_symbols.is_some();
         let has_parameters = parameter_symbols.is_some_and(|parameters| !parameters.is_empty());
         let resolved_arguments = if !has_explicit_arguments && parameters_known && !has_parameters {

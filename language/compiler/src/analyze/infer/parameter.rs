@@ -152,7 +152,6 @@ impl Compiler {
     pub(crate) fn index_static_parameter_metadata_for_module_declarations(
         &self,
         module: &Module,
-        profile: ProfileId,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -165,7 +164,7 @@ impl Compiler {
                 continue;
             };
 
-            self.set_cached_static_parameter_symbols(profile, symbol, Some(parameters.clone()));
+            types.set_static_parameter_symbols(symbol, parameters.clone());
             for parameter_symbol in parameters {
                 let kind = self.static_parameter_kind_for_symbol_in_module(
                     parameter_symbol,
@@ -235,21 +234,31 @@ impl Compiler {
         profile: ProfileId,
         tree: &NodeTree,
         symbols: &SymbolTable,
+        types: &TypeTable,
     ) -> Option<Vec<GlobalSymbolId>> {
-        let cache_key = (profile, symbol);
-        if let Some(entry) = self.cached_static_parameter_symbols(cache_key.0, cache_key.1) {
-            return entry;
+        if let Some(cached) = self.with_module_types_or_local(
+            module,
+            profile,
+            symbol.module_id,
+            types,
+            |_, owner_types| owner_types.get_static_parameter_symbols(symbol),
+        ) {
+            return Some(cached);
         }
 
         // follow imports until a declaration provides static parameters
         let mut current = symbol;
         let mut visited = HashSet::new();
-        let result = loop {
+        loop {
             if !visited.insert(current) {
                 break None;
             }
 
             if current.module_id == module.id {
+                if let Some(cached) = types.get_static_parameter_symbols(current) {
+                    break Some(cached);
+                }
+
                 if let Some(parameters) = self
                     .collect_static_parameter_symbols_in_module(module.id, current, tree, symbols)
                 {
@@ -271,6 +280,11 @@ impl Compiler {
                 profile,
                 current.module_id,
                 |owner_module, owner_tree, owner_symbols| {
+                    let owner_types = owner_module.dir(profile).types.read();
+                    if let Some(cached) = owner_types.get_static_parameter_symbols(current) {
+                        return (Some(cached), None);
+                    }
+
                     if let Some(parameters) = self.collect_static_parameter_symbols_in_module(
                         owner_module.id,
                         current,
@@ -296,10 +310,7 @@ impl Compiler {
                 None => break None,
             };
             current = next;
-        };
-
-        self.set_cached_static_parameter_symbols(cache_key.0, cache_key.1, result.clone());
-        result
+        }
     }
 
     /// Collect static parameter symbols for a declaration in a module.

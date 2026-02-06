@@ -821,6 +821,7 @@ impl Compiler {
                 profile,
                 &tree,
                 symbols,
+                types,
             )?;
             if parameter_symbols.len() != expected_arguments.len() {
                 return None;
@@ -2391,6 +2392,7 @@ impl Compiler {
                 profile,
                 argument_tree,
                 argument_symbols,
+                types,
             );
             let parameter_symbols = match parameter_symbols {
                 Some(parameter_symbols) => parameter_symbols,
@@ -2740,7 +2742,7 @@ impl Compiler {
     ) -> HashMap<GlobalSymbolId, LocalTypeId> {
         // collect static parameter symbols for the declaration
         let parameter_symbols =
-            self.collect_static_parameter_symbols(module, symbol, profile, tree, symbols);
+            self.collect_static_parameter_symbols(module, symbol, profile, tree, symbols, types);
         let Some(parameter_symbols) = parameter_symbols else {
             return HashMap::new();
         };
@@ -2801,6 +2803,7 @@ impl Compiler {
                         profile,
                         tree,
                         symbols,
+                        types,
                     ) else {
                         continue;
                     };
@@ -4483,6 +4486,7 @@ impl Compiler {
             profile,
             argument_tree,
             argument_symbols,
+            types,
         ) else {
             return static_arguments.to_vec();
         };

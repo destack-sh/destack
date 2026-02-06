@@ -142,6 +142,8 @@ pub struct TypeTable {
     /// Cached static parameter variances by symbol.
     pub(crate) static_parameter_variance_by_symbol_id:
         IndexMap<GlobalSymbolId, Option<VarianceModifier>>,
+    /// Cached static parameter symbols by declaration symbol.
+    pub(crate) static_parameter_symbols_by_symbol_id: IndexMap<GlobalSymbolId, Vec<GlobalSymbolId>>,
     /// Static parameter kind inference in progress.
     pub(crate) static_parameter_kind_in_progress: HashSet<GlobalSymbolId>,
     /// Expression type evaluation in progress.
@@ -262,6 +264,7 @@ impl TypeTable {
             static_parameter_constraint_in_progress: HashSet::new(),
             static_parameter_kind_by_symbol_id: IndexMap::new(),
             static_parameter_variance_by_symbol_id: IndexMap::new(),
+            static_parameter_symbols_by_symbol_id: IndexMap::new(),
             static_parameter_kind_in_progress: HashSet::new(),
             static_argument_resolution_in_progress: Vec::new(),
             expression_type_in_progress: HashSet::new(),
@@ -1164,6 +1167,28 @@ impl TypeTable {
         self.static_parameter_variance_by_symbol_id
             .get(&symbol_id)
             .copied()
+    }
+
+    /// Cache static parameter symbols for a declaration symbol.
+    pub fn set_static_parameter_symbols(
+        &mut self,
+        symbol_id: GlobalSymbolId,
+        symbols: Vec<GlobalSymbolId>,
+    ) {
+        // cache static parameter symbols
+        self.static_parameter_symbols_by_symbol_id
+            .insert(symbol_id, symbols);
+    }
+
+    /// Get cached static parameter symbols for a declaration symbol.
+    pub fn get_static_parameter_symbols(
+        &self,
+        symbol_id: GlobalSymbolId,
+    ) -> Option<Vec<GlobalSymbolId>> {
+        // fetch cached static parameter symbols
+        self.static_parameter_symbols_by_symbol_id
+            .get(&symbol_id)
+            .cloned()
     }
 
     /// Mark a static parameter kind as in progress.

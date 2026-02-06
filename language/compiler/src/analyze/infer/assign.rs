@@ -2540,11 +2540,15 @@ impl Compiler {
 
         let local_tree = module.dir(profile).tree.try_read();
         let parameter_symbols = if let Some(tree) = local_tree.as_ref() {
-            self.collect_static_parameter_symbols(module, symbol, profile, tree, symbols)
+            self.collect_static_parameter_symbols(module, symbol, profile, tree, symbols, types)
         } else {
-            // avoid blocking when another phase holds a write lock
-            self.cached_static_parameter_symbols(profile, symbol)
-                .flatten()
+            self.with_module_types_or_local(
+                module,
+                profile,
+                symbol.module_id,
+                types,
+                |_, owner_types| owner_types.get_static_parameter_symbols(symbol),
+            )
         };
 
         let target_source_id = types.get_type_source(target_id);
