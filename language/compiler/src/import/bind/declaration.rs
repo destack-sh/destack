@@ -1,11 +1,11 @@
 use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
-    BindingAnchor, Declaration, DeclarationAbstraction, DeclarationDescriptor, DeclarationKind,
-    DependencyItem, DependencyKind, DependencyMode, DependencySource, EnumField, EnumKind,
-    Expression, ImportAliasTarget, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
-    ModuleBinding, Name, NodeTree, NodeType, ScopeKind, StaticKey, SymbolBinding, SymbolKind,
-    SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType, TypeTable,
+    BindingAnchor, BindingCategory, Declaration, DeclarationAbstraction, DeclarationDescriptor,
+    DeclarationKind, DependencyItem, DependencyKind, DependencyMode, DependencySource, EnumField,
+    EnumKind, Expression, ImportAliasTarget, LocalNodeId, LocalNodeIdAny, LocalScopeId,
+    LocalScopeMark, ModuleBinding, Name, NodeTree, NodeType, ScopeKind, StaticKey, SymbolBinding,
+    SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType, TypeTable,
 };
 use destack_workspace::{Module, ModuleAst, ModuleBindingReference};
 
@@ -933,6 +933,14 @@ impl Compiler {
                 }
             }
         };
+        // classify declaration symbols for duplicate-binding checks
+        let binding_category = match &declaration {
+            Declaration::Function { .. } | Declaration::Class { .. } => {
+                Some(BindingCategory::BlockScoped)
+            }
+            _ => None,
+        };
+
         let symbol_id = declaration.symbol();
         let declaration_id = tree.insert(declaration_id, declaration);
 
@@ -963,6 +971,12 @@ impl Compiler {
         } else {
             symbol_entry.declare_primary(declaration_id);
         }
+
+        // apply declaration category once the symbol is known
+        if let Some(binding_category) = binding_category {
+            self.apply_binding_category(symbols, symbol_id, binding_category);
+        }
+
         declaration_id
     }
 

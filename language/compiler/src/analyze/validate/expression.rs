@@ -414,7 +414,7 @@ impl Compiler {
     ) -> bool {
         match binding {
             // pattern and using bindings share the same pattern shape
-            ForEachBinding::Pattern { pattern } | ForEachBinding::Using { pattern, .. } => {
+            ForEachBinding::Pattern { pattern, .. } | ForEachBinding::Using { pattern, .. } => {
                 self.pattern_is_async_identifier(tree, *pattern)
             }
         }

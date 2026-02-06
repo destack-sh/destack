@@ -1,10 +1,10 @@
 use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
-    AbstractionModifier, AccessorKind, Argument, BindingAnchor, BindingKind, BindingModifier,
-    BindingOperator, DeclarationKind, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
-    Mutability, NodeTree, NodeType, Parameter, StaticKey, SymbolBinding, SymbolSpace,
-    SymbolSpaceOrder, SymbolTable, Timing, TypeTable, VarianceModifier, Visibility,
+    AbstractionModifier, AccessorKind, Argument, BindingAnchor, BindingCategory, BindingKind,
+    BindingModifier, BindingOperator, DeclarationKind, LocalNodeId, LocalNodeIdAny, LocalScopeId,
+    LocalScopeMark, Mutability, NodeTree, NodeType, Parameter, StaticKey, SymbolBinding,
+    SymbolSpace, SymbolSpaceOrder, SymbolTable, Timing, TypeTable, VarianceModifier, Visibility,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -143,6 +143,7 @@ impl Compiler {
                 let symbol = symbols.get_symbol_mut(symbol_id);
                 symbol.primary_declaration = Some(parameter_id.into_global_any(module.id));
                 self.apply_binding_mutability(symbols, symbol_id, binding_mutability);
+                self.apply_binding_category(symbols, symbol_id, BindingCategory::Parameter);
                 if let Some(ty) = ty {
                     let ty = self.bind_expression_to_type(
                         module,
@@ -176,6 +177,7 @@ impl Compiler {
                     None,
                     SymbolBinding::Runtime,
                     Some(binding_mutability),
+                    Some(BindingCategory::Parameter),
                     *pattern,
                     Some(parameter_id),
                     tree,
@@ -207,6 +209,7 @@ impl Compiler {
                 let symbol = symbols.get_symbol_mut(symbol_id);
                 symbol.primary_declaration = Some(parameter_id.into_global_any(module.id));
                 self.apply_binding_mutability(symbols, symbol_id, binding_mutability);
+                self.apply_binding_category(symbols, symbol_id, BindingCategory::Parameter);
                 if let Some(ty) = ty {
                     let ty = self.bind_expression_to_type(
                         module,
@@ -251,6 +254,7 @@ impl Compiler {
                 let symbol = symbols.get_symbol_mut(symbol_id);
                 symbol.primary_declaration = Some(parameter_id.into_global_any(module.id));
                 self.apply_binding_mutability(symbols, symbol_id, binding_mutability);
+                self.apply_binding_category(symbols, symbol_id, BindingCategory::Parameter);
                 if let Some(ty) = ty {
                     let ty = self.bind_expression_to_type(
                         module,

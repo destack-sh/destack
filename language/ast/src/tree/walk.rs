@@ -251,7 +251,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             body,
         } => {
             match binding {
-                ForEachBinding::Pattern { pattern } => {
+                ForEachBinding::Pattern { pattern, .. } => {
                     let pattern_node = tree.get(*pattern);
                     visitor.visit_pattern(tree, *pattern, pattern_node);
                 }
