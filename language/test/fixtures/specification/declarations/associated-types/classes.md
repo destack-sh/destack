@@ -40,6 +40,19 @@ declare const value: Box<string>.Wrap<int32>;
 value satisfies [string, int32];
 ```
 
+### class associated type can declare static value parameters
+
+> Class associated type aliases can declare comptime static value parameters.
+
+```ds
+class Matrix<T> {
+    type Row<comptime n: uint> = [T, n];
+}
+
+declare const row: Matrix<float64>.Row<4>;
+row satisfies [float64, 4];
+```
+
 ### class generic associated type projection requires static arguments
 
 > Class associated type projections must provide required generic arguments.
@@ -428,6 +441,31 @@ declare const value: Derived<float64>.View<boolean>;
 value satisfies [float64, boolean];
 ```
 
+### class inheritance override projections resolve across module boundaries
+
+> Imported subclasses preserve associated type overrides through base class inheritance.
+
+```ds:base.ds
+export class Base<T> {
+    type Item = T;
+}
+```
+
+```ds:derived.ds
+import { Base } from "./base";
+
+export class Derived<T> extends Base<T> {
+    type Item = [T, T];
+}
+```
+
+```ds:main.ds
+import { Derived } from "./derived";
+
+declare const item: Derived<int32>.Item;
+item satisfies [int32, int32];
+```
+
 ### class inheritance preserves associated type defaults with value parameters
 
 > Subclasses inherit associated defaults with static value parameters.
@@ -441,6 +479,176 @@ class Matrix<T> extends MatrixLike<T> {}
 
 declare const row: Matrix<int32>.Row<4>;
 row satisfies [int32, 4];
+```
+
+### abstract classes can declare abstract associated types
+
+> Concrete subclasses can satisfy abstract associated type requirements.
+
+```ds
+abstract class Base<T> {
+    type Item;
+    abstract get(): Item;
+}
+
+class Derived extends Base<int32> {
+    type Item = int32;
+
+    override
+    get(): Item {
+        1
+    }
+}
+
+const value = new Derived().get();
+value satisfies int32;
+```
+
+### abstract classes can declare abstract generic associated types
+
+> Concrete subclasses can satisfy abstract generic associated requirements.
+
+```ds
+abstract class Base {
+    type Wrap<U>;
+}
+
+class Derived extends Base {
+    type Wrap<U> = [int32, U];
+}
+
+declare const value: Derived.Wrap<string>;
+value satisfies [int32, string];
+```
+
+### concrete subclasses must implement inherited abstract associated types
+
+> Concrete subclasses must implement abstract associated aliases from base classes.
+
+```ds
+abstract class Base<T> {
+    type Item;
+}
+
+class Derived extends Base<int32> {}
+```
+
+- contains: missing associated type implementation
+
+### concrete subclasses must implement inherited abstract generic associated types
+
+> Concrete subclasses must implement abstract generic associated aliases from base classes.
+
+```ds
+abstract class Base {
+    type Wrap<U>;
+}
+
+class Derived extends Base {}
+```
+
+- contains: missing associated type implementation
+
+### abstract subclasses can defer inherited abstract associated types
+
+> Abstract subclasses can defer abstract associated aliases to concrete subclasses.
+
+```ds
+abstract class Base<T> {
+    type Item;
+}
+
+abstract class Mid<T> extends Base<T> {}
+
+class Leaf extends Mid<int32> {
+    type Item = int32;
+}
+
+declare const value: Leaf.Item;
+value satisfies int32;
+```
+
+### abstract classes can defer interface associated requirements
+
+> Abstract classes can defer interface associated aliases to concrete subclasses.
+
+```ds
+interface Container {
+    type Item;
+    get(): Item;
+}
+
+abstract class Base implements Container {
+    abstract get(): Item;
+}
+
+class Box extends Base {
+    type Item = int32;
+
+    override
+    get(): Item {
+        1
+    }
+}
+
+const value = new Box().get();
+value satisfies int32;
+```
+
+### abstract associated requirements flow across module boundaries
+
+> Imported concrete subclasses must satisfy inherited abstract associated aliases.
+
+```ds:base.ds
+export abstract class Base<T> {
+    type Item;
+}
+```
+
+```ds:derived.ds
+import { Base } from "./base";
+
+export class Derived extends Base<int32> {}
+```
+
+```ds:main.ds
+import { Derived } from "./derived";
+
+const value = new Derived();
+value satisfies Derived;
+```
+
+- contains: missing associated type implementation
+
+### abstract associated requirements can be deferred across module boundaries
+
+> Imported abstract subclasses can defer abstract associated aliases to concrete leaves.
+
+```ds:base.ds
+export abstract class Base<T> {
+    type Item;
+}
+```
+
+```ds:mid.ds
+import { Base } from "./base";
+
+export abstract class Mid<T> extends Base<T> {}
+```
+
+```ds:leaf.ds
+import { Mid } from "./mid";
+
+export class Leaf extends Mid<int32> {
+    type Item = int32;
+}
+```
+
+```ds:main.ds
+import { Leaf } from "./leaf";
+
+declare const value: Leaf.Item;
+value satisfies int32;
 ```
 
 ### class associated types are not runtime members

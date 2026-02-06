@@ -1,6 +1,9 @@
+use std::collections::HashSet;
+
 use destack_dir::{
-    GlobalSymbolId, LocalNodeIdAny, LocalTypeId, StaticArgument, StaticExpression, SymbolKind,
-    SymbolSpace, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable, WellKnownSymbol,
+    GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NodeType, StaticArgument, StaticExpression,
+    SymbolKind, SymbolSpace, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
+    WellKnownSymbol,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -70,6 +73,69 @@ impl Compiler {
             } else {
                 break current_symbol;
             }
+        }
+    }
+
+    /// Resolve a symbol to the declaration owner symbol when one exists.
+    pub(crate) fn declaration_symbol_id(
+        &self,
+        module: &Module,
+        symbols: &SymbolTable,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+    ) -> Option<GlobalSymbolId> {
+        let mut current_symbol = self.canonical_symbol_id(
+            module,
+            symbols,
+            profile,
+            symbol,
+            CanonicalSymbolMode::FollowAliases,
+        );
+        let mut visited_symbols = HashSet::new();
+
+        loop {
+            if !visited_symbols.insert(current_symbol) {
+                return None;
+            }
+
+            let (normalized_symbol, is_declaration, target_symbol, canonical_symbol) = self
+                .with_module_symbols_or_local(
+                    module,
+                    profile,
+                    current_symbol.module_id,
+                    symbols,
+                    |owner_module, owner_symbols| {
+                        let symbol_entry = owner_symbols.get_symbol(current_symbol.local_id);
+                        let normalized_symbol = GlobalSymbolId::new(
+                            owner_module.id,
+                            current_symbol.local_id.with_type(symbol_entry.ty),
+                        );
+                        let is_declaration =
+                            symbol_entry.primary_declaration.is_some_and(|declaration| {
+                                declaration.local_id.ty == NodeType::Declaration
+                                    && symbol_entry.ty != SymbolType::Void
+                            });
+                        (
+                            normalized_symbol,
+                            is_declaration,
+                            symbol_entry.target_symbol,
+                            symbol_entry.canonical_symbol,
+                        )
+                    },
+                );
+
+            if is_declaration {
+                return Some(normalized_symbol);
+            }
+
+            let next_symbol = target_symbol.or(canonical_symbol)?;
+            current_symbol = self.canonical_symbol_id(
+                module,
+                symbols,
+                profile,
+                next_symbol,
+                CanonicalSymbolMode::FollowAliases,
+            );
         }
     }
 

@@ -612,15 +612,30 @@ impl Compiler {
                     types,
                 );
                 if let Some(member_key) = member_key
-                    && let Some((_, is_readonly)) = self.field_modifiers_for_key(
-                        module,
-                        ctx.profile,
-                        receiver_ty_id,
-                        &member_key,
-                        symbols,
-                        types,
-                    )
-                    && is_readonly
+                    && (self
+                        .field_modifiers_for_key(
+                            module,
+                            ctx.profile,
+                            receiver_ty_id,
+                            &member_key,
+                            symbols,
+                            types,
+                        )
+                        .is_some_and(|(_, is_readonly)| is_readonly)
+                        || self
+                            .receiver_symbol_for_visibility(receiver_ty_id, types)
+                            .and_then(|receiver_symbol| {
+                                self.parameter_property_member_context_for_key(
+                                    module,
+                                    ctx.profile,
+                                    receiver_symbol,
+                                    &member_key,
+                                    tree,
+                                    symbols,
+                                    types,
+                                )
+                            })
+                            .is_some_and(|context| context.is_readonly))
                 {
                     self.error(AnalyzeError::ReadonlyProperty {
                         node: left_id
@@ -804,15 +819,30 @@ impl Compiler {
                     types,
                 );
                 if let Some(member_key) = member_key
-                    && let Some((_, is_readonly)) = self.field_modifiers_for_key(
-                        module,
-                        ctx.profile,
-                        receiver_ty_id,
-                        &member_key,
-                        symbols,
-                        types,
-                    )
-                    && is_readonly
+                    && (self
+                        .field_modifiers_for_key(
+                            module,
+                            ctx.profile,
+                            receiver_ty_id,
+                            &member_key,
+                            symbols,
+                            types,
+                        )
+                        .is_some_and(|(_, is_readonly)| is_readonly)
+                        || self
+                            .receiver_symbol_for_visibility(receiver_ty_id, types)
+                            .and_then(|receiver_symbol| {
+                                self.parameter_property_member_context_for_key(
+                                    module,
+                                    ctx.profile,
+                                    receiver_symbol,
+                                    &member_key,
+                                    tree,
+                                    symbols,
+                                    types,
+                                )
+                            })
+                            .is_some_and(|context| context.is_readonly))
                 {
                     self.error(AnalyzeError::ReadonlyProperty {
                         node: left_id
