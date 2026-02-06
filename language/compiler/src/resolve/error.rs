@@ -63,6 +63,13 @@ pub enum ResolveError {
         symbol: GlobalSymbolId,
     },
 
+    /// Export clause references a local binding that is not declared.
+    #[error(code = "ER104", message = "missing exported local binding '{name}'")]
+    MissingExportBinding {
+        node: AnchoredGlobalNodeId,
+        name: StringId,
+    },
+
     // -------------------------------------------------------------------------
     // 2xx: Module / target resolution
     // -------------------------------------------------------------------------

@@ -27,7 +27,8 @@ impl Parser {
             let raw = self.file.span_str(token.span);
             if (self.language.is_javascript() || self.language.is_typescript())
                 && raw.contains('\\')
-                && self.identifier_is_escaped_keyword(raw)
+                && (self.identifier_is_escaped_keyword(raw)
+                    || self.identifier_has_disallowed_escape_code_point(raw))
             {
                 return Err(ParseError::unexpected(token.span));
             }
@@ -113,6 +114,15 @@ impl Parser {
         <Keyword as std::str::FromStr>::from_str(&decoded).is_ok()
     }
 
+    // reject escaped identifiers that decode to disallowed code points
+    fn identifier_has_disallowed_escape_code_point(&self, raw: &str) -> bool {
+        let Some(decoded) = self.decode_identifier_unicode_escapes(raw) else {
+            return true;
+        };
+
+        decoded.chars().any(|character| character == '\0')
+    }
+
     // decode unicode escapes in an identifier into a string
     fn decode_identifier_unicode_escapes(&self, raw: &str) -> Option<String> {
         if !raw.contains('\\') {
@@ -135,16 +145,20 @@ impl Parser {
             let value = if matches!(chars.peek(), Some('{')) {
                 chars.next();
                 let mut value: u32 = 0;
-                let mut digits = 0;
+                let mut digits = 0_usize;
+                let mut significant_digits = 0_usize;
                 while let Some(&next) = chars.peek() {
                     if next == '}' {
                         break;
                     }
                     let digit = next.to_digit(16)?;
-                    value = value.checked_mul(16)?.checked_add(digit)?;
                     digits += 1;
-                    if digits > 6 {
-                        return None;
+                    if digit != 0 || significant_digits > 0 {
+                        significant_digits += 1;
+                        if significant_digits > 6 {
+                            return None;
+                        }
+                        value = value.checked_mul(16)?.checked_add(digit)?;
                     }
                     chars.next();
                 }

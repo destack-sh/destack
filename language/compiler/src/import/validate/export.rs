@@ -392,4 +392,24 @@ mod tests {
         test.compile();
         test.check_no_diagnostic_code("EI201");
     }
+
+    /// Reject export clauses that reference missing local names.
+    #[test]
+    fn test_reject_export_missing_local_binding() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module("test.mjs", "export {a};");
+        test.resolve_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("ER104");
+    }
+
+    /// Reject aliased export clauses when the source local is missing.
+    #[test]
+    fn test_reject_export_missing_local_binding_alias() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module("test.mjs", "let a; export {b as a};");
+        test.resolve_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("ER104");
+    }
 }

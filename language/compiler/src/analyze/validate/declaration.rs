@@ -7,7 +7,7 @@ use destack_dir::{
     Asynchrony, BindingAnchor, BindingOperator, Declaration, DeclarationAbstraction,
     DeclarationKind, DependencyKind, DependencyMode, DynamicKey, Expression, FunctionCardinality,
     FunctionKind, FunctionMode, ImportAliasTarget, LocalNodeId, LocalNodeIdAny, Member, Name,
-    NodeTree, NodeType, Path, SymbolTable, TypeTable,
+    NodeTree, NodeType, Parameter, Path, ScalarLiteral, SymbolTable, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -148,6 +148,15 @@ impl Compiler {
                 if !is_destack
                     && is_declare
                     && signature.cardinality == FunctionCardinality::Generator
+                {
+                    self.error(AnalyzeError::InvalidFunction { node });
+                }
+
+                // strict directive prologues require simple parameter lists in js and ts modes
+                if !is_destack
+                    && let Some(body) = body
+                    && self.has_non_simple_dynamic_parameters(tree, &signature.dynamic_parameters)
+                    && self.body_declares_use_strict_directive(tree, *body)
                 {
                     self.error(AnalyzeError::InvalidFunction { node });
                 }
@@ -469,6 +478,74 @@ impl Compiler {
     fn is_valid_import_alias_segment(&self, segment: StringId) -> bool {
         let name = self.program.strings.get(segment);
         Keyword::from_str(name.as_ref()).is_err()
+    }
+
+    /// Return true when a parameter list is non-simple.
+    pub(super) fn has_non_simple_dynamic_parameters(
+        &self,
+        tree: &NodeTree,
+        dynamic_parameters: &[LocalNodeId<Parameter>],
+    ) -> bool {
+        // detect defaults, patterns, and variadics in the parameter list
+        dynamic_parameters.iter().any(|parameter_id| {
+            let parameter = tree.get(*parameter_id);
+            match parameter {
+                Parameter::Named { default, .. } => default.is_some(),
+                Parameter::Pattern { .. } | Parameter::Variadic { .. } => true,
+            }
+        })
+    }
+
+    /// Return true when a function body declares a `use strict` directive.
+    pub(super) fn body_declares_use_strict_directive(
+        &self,
+        tree: &NodeTree,
+        body_id: LocalNodeId<Expression>,
+    ) -> bool {
+        // intern the strict directive once for stable comparisons
+        let use_strict = self.program.strings.intern("use strict");
+
+        // only block bodies can contain directive prologues
+        let Expression::Block { block } = tree.get(body_id) else {
+            return false;
+        };
+        let block = tree.get(*block);
+
+        // scan the directive prologue
+        for expression_id in &block.expressions {
+            let expression = tree.get(*expression_id);
+            let Some(directive) = self.expression_directive_literal(tree, expression) else {
+                break;
+            };
+
+            if directive == use_strict {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Return the directive literal id for a statement expression when present.
+    fn expression_directive_literal(
+        &self,
+        tree: &NodeTree,
+        expression: &Expression,
+    ) -> Option<StringId> {
+        // directives are parsed either as statement wrappers or bare literals
+        let statement = match expression {
+            Expression::Statement { statement } => tree.get(*statement),
+            _ => expression,
+        };
+
+        let Expression::ScalarLiteral {
+            value: ScalarLiteral::String(string_id),
+        } = statement
+        else {
+            return None;
+        };
+
+        Some(*string_id)
     }
 
     /// Check whether a node is nested inside a declare namespace.

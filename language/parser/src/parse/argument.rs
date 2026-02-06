@@ -563,6 +563,8 @@ impl Parser {
     /// ```
     pub fn eat_parameters_body(&mut self) -> ParseResult<Vec<LocalNodeId<Parameter>>> {
         let mut parameters: Vec<LocalNodeId<Parameter>> = Vec::new();
+        let in_js_or_ts = self.language.is_javascript() || self.language.is_typescript();
+        let mut has_variadic_parameter = false;
         self.eat_newlines_maybe()?;
         while self.peek_is(TokenType::Identifier)
             || (self.options.in_static && self.peek_keyword(Keyword::In).is_ok())
@@ -576,8 +578,26 @@ impl Parser {
             || (!self.options.in_type && self.peek_is(TokenType::At))
         {
             let parameter = self.eat_parameter().for_node_type(NodeType::Parameter)?;
+
+            // in js and ts: rest parameters must be terminal
+            if in_js_or_ts {
+                if has_variadic_parameter {
+                    return Err(ParseError::unexpected(self.peek()?.span));
+                }
+
+                if matches!(self.tree.get(parameter), Parameter::Variadic { .. }) {
+                    has_variadic_parameter = true;
+                }
+            }
+
             parameters.push(parameter);
             self.eat_newlines_maybe()?;
+
+            // in js and ts: trailing separators after rest parameters are invalid
+            if in_js_or_ts && has_variadic_parameter && self.is_item_stop() {
+                return Err(ParseError::unexpected(self.peek()?.span));
+            }
+
             if self.is_item_stop() {
                 self.eat_item_stop_with_newlines()?;
             } else {

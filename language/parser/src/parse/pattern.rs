@@ -294,9 +294,16 @@ impl Parser {
         terminator: TokenType,
     ) -> ParseResult<Vec<LocalNodeId<PatternField>>> {
         let mut fields: Vec<LocalNodeId<PatternField>> = Vec::new();
+        let in_js_or_ts = self.language.is_javascript() || self.language.is_typescript();
+        let mut has_spread_field = false;
         while self.has_more_tokens() {
             if self.peek_token_type() == terminator {
                 break;
+            }
+
+            // in js and ts: spread fields must be terminal
+            if in_js_or_ts && has_spread_field {
+                return Err(ParseError::unexpected(self.peek()?.span));
             }
 
             // field
@@ -465,6 +472,15 @@ impl Parser {
                 self.tree.set_main_span(pattern_field_id, name_span);
             }
             fields.push(pattern_field_id);
+
+            // in js and ts: no separator after spread fields
+            if in_js_or_ts && matches!(self.tree.get(pattern_field_id), PatternField::Spread { .. })
+            {
+                has_spread_field = true;
+                if self.peek_token_type() == seperator || self.peek_is(TokenType::Newline) {
+                    return Err(ParseError::unexpected(self.peek()?.span));
+                }
+            }
 
             // separator or newline
             if self.peek_token_type() == seperator || self.peek_is(TokenType::Newline) {

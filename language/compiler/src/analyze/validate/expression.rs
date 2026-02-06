@@ -1,15 +1,17 @@
 use crate::analyze::common::{NormalizationMode, RelationMode};
 use crate::{AnalyzeError, AnalyzeOptions, Compiler};
+use destack_ast::Keyword;
 use destack_dir::{
     Argument, Asynchrony, BinaryOperator, BindingKind, Declaration, DeclarationKind, Declarator,
     DependencyItem, DependencyKind, DependencyMode, DependencySource, DynamicKey, Expression,
     ForEachBinding, ForEachKind, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, MatchCase, MatchKind,
-    MatchSelector, Member, Mutability, NodeTree, NodeType, Path, Pattern, Property,
+    MatchSelector, Member, Mutability, NodeTree, NodeType, Path, Pattern, PatternField, Property,
     RuntimeCheckKind, ScalarLiteral, StaticKey, StringId, SymbolTable, SymbolType, TemplateLiteral,
     Type, TypeBinaryOperator, TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator,
 };
 use destack_workspace::{Module, ProfileId};
 use std::collections::HashSet;
+use std::str::FromStr;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -31,6 +33,38 @@ impl Compiler {
         match expression {
             Expression::Labelled { label, .. } => {
                 self.validate_duplicate_label(module, profile, tree, expression_id, *label);
+            }
+            Expression::Break {
+                target,
+                target_symbol,
+                ..
+            } => {
+                self.validate_label_target_function_boundary(
+                    module,
+                    profile,
+                    tree,
+                    symbols,
+                    expression_id,
+                    *target,
+                    *target_symbol,
+                    true,
+                );
+            }
+            Expression::Continue {
+                target,
+                target_symbol,
+                ..
+            } => {
+                self.validate_label_target_function_boundary(
+                    module,
+                    profile,
+                    tree,
+                    symbols,
+                    expression_id,
+                    *target,
+                    *target_symbol,
+                    false,
+                );
             }
             Expression::Try { catch_pattern, .. } => {
                 if let Some(catch_pattern_id) = catch_pattern {
@@ -56,6 +90,7 @@ impl Compiler {
             Expression::Member { left, .. }
             | Expression::PrivateMember { left, .. }
             | Expression::Index { left, .. } => {
+                self.validate_new_target_expression(module, profile, tree, expression_id);
                 self.validate_super_property_expression(module, profile, tree, expression_id);
                 self.validate_instantiation_access(
                     module,
@@ -71,6 +106,19 @@ impl Compiler {
             }
             Expression::PrivateIdentifier { .. } => {
                 self.validate_private_identifier_expression(module, profile, tree, expression_id);
+            }
+            Expression::UnresolvedPath { path, .. }
+            | Expression::LocalReference { path, .. }
+            | Expression::ModuleReference { path, .. }
+            | Expression::GlobalReference { path, .. } => {
+                self.validate_new_target_expression(module, profile, tree, expression_id);
+                self.validate_strict_reserved_identifier_reference(
+                    module,
+                    profile,
+                    expression_id,
+                    path,
+                    is_strict,
+                );
             }
             Expression::Match {
                 kind, value, cases, ..
@@ -365,6 +413,291 @@ impl Compiler {
         }
     }
 
+    /// Validate that labelled jump targets stay in the same function lexical owner.
+    fn validate_label_target_function_boundary(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        expression_id: LocalNodeId<Expression>,
+        target: Option<StringId>,
+        target_symbol: Option<GlobalSymbolId>,
+        is_break: bool,
+    ) {
+        // unlabeled jumps do not cross label scopes
+        let Some(target) = target else {
+            return;
+        };
+
+        // unresolved targets are reported by resolve
+        let Some(target_symbol) = target_symbol else {
+            return;
+        };
+
+        // label targets are always local to the current module
+        if target_symbol.module_id != module.id {
+            return;
+        }
+
+        // skip malformed symbols without declaration anchors
+        let symbol = symbols.get_symbol(target_symbol.local_id);
+        let Some(label_declaration) = symbol.primary_declaration else {
+            return;
+        };
+        if label_declaration.local_id.ty != NodeType::Expression {
+            return;
+        }
+
+        // compare lexical function owners for jump and target label
+        let jump_owner = self.nearest_function_like_owner(tree, expression_id.into_any());
+        let label_expression_id = LocalNodeId::<Expression>::new(label_declaration.local_id.id);
+        let label_owner = self.nearest_function_like_owner(tree, label_expression_id.into_any());
+        if jump_owner == label_owner {
+            return;
+        }
+
+        let node = expression_id
+            .into_global_any(module.id)
+            .into_anchored(Some(profile));
+
+        // report cross-function jumps with the appropriate control-flow diagnostic
+        if is_break {
+            self.error(AnalyzeError::InvalidBreak {
+                node,
+                label: Some(target),
+            });
+        } else {
+            self.error(AnalyzeError::InvalidContinue {
+                node,
+                label: Some(target),
+            });
+        }
+    }
+
+    /// Return the nearest function-like owner for a node.
+    fn nearest_function_like_owner(
+        &self,
+        tree: &NodeTree,
+        node_id: LocalNodeIdAny,
+    ) -> Option<LocalNodeIdAny> {
+        // walk up parent nodes until a function-like owner is found
+        let mut current = tree.get_parent(node_id.id);
+        while let Some(parent) = current {
+            if self.node_starts_function_scope(tree, parent) {
+                return Some(parent);
+            }
+            current = tree.get_parent(parent.id);
+        }
+
+        None
+    }
+
+    /// Validate strict-mode identifier references for reserved names.
+    fn validate_strict_reserved_identifier_reference(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        path: &Path,
+        is_strict: bool,
+    ) {
+        // this check only applies in strict mode for js and ts modules
+        if !module.is_user()
+            || !is_strict
+            || !(module.language_type.is_javascript() || module.language_type.is_typescript())
+        {
+            return;
+        }
+
+        // reserved identifier references are always single segment names
+        let Some(name) = self.path_is_reserved_identifier_reference(path) else {
+            return;
+        };
+
+        let node = expression_id
+            .into_global_any(module.id)
+            .into_anchored(Some(profile));
+        self.error(AnalyzeError::ReservedIdentifier { node, name });
+    }
+
+    /// Return the reserved identifier for a strict reference path when present.
+    fn path_is_reserved_identifier_reference(&self, path: &Path) -> Option<StringId> {
+        // only single segment references participate in strict reserved checks
+        if path.segments.len() != 1 {
+            return None;
+        }
+
+        let name = path.segments[0];
+        if !self.strict_reserved_reference_name(name) {
+            return None;
+        }
+
+        Some(name)
+    }
+
+    /// Return true when a name is reserved in strict identifier reference positions.
+    fn strict_reserved_reference_name(&self, name: StringId) -> bool {
+        let name_str = self.program.strings.get(name);
+        let Ok(keyword) = Keyword::from_str(name_str.as_ref()) else {
+            return false;
+        };
+
+        Self::is_reserved_binding_keyword(keyword)
+    }
+
+    /// Validate `new.target` usage context.
+    fn validate_new_target_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) {
+        // skip expressions that are not exactly `new.target`
+        if !self.expression_is_new_target(tree, expression_id) {
+            return;
+        }
+
+        // allow valid lexical owners for `new.target`
+        if self.can_access_new_target_in_context(tree, expression_id) {
+            return;
+        }
+
+        let node = expression_id
+            .into_global_any(module.id)
+            .into_anchored(Some(profile));
+        self.error(AnalyzeError::InvalidNewTarget { node });
+    }
+
+    /// Return true when an expression is exactly `new.target`.
+    fn expression_is_new_target(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        // unresolved and resolved path forms can represent `new.target` directly
+        if let Expression::UnresolvedPath {
+            path,
+            static_arguments: None,
+            ..
+        }
+        | Expression::LocalReference {
+            path,
+            static_arguments: None,
+            ..
+        }
+        | Expression::ModuleReference {
+            path,
+            static_arguments: None,
+            ..
+        }
+        | Expression::GlobalReference {
+            path,
+            static_arguments: None,
+            ..
+        } = tree.get(expression_id)
+        {
+            let starts_with_new_target = path.segments.len() >= 2
+                && self.program.strings.get(path.segments[0]).as_str() == "new"
+                && self.program.strings.get(path.segments[1]).as_str() == "target";
+            if starts_with_new_target {
+                return true;
+            }
+        }
+
+        // member form covers partially-resolved `new.target` chains
+        let Expression::Member {
+            left,
+            name,
+            static_arguments: None,
+        } = tree.get(expression_id)
+        else {
+            return false;
+        };
+
+        let target_name = self.program.strings.intern("target");
+        if *name != target_name {
+            return false;
+        }
+
+        let left = self.unwrap_parenthesized_expression(*left, tree);
+        match tree.get(left) {
+            Expression::UnresolvedPath {
+                path,
+                static_arguments: None,
+                ..
+            }
+            | Expression::LocalReference {
+                path,
+                static_arguments: None,
+                ..
+            }
+            | Expression::ModuleReference {
+                path,
+                static_arguments: None,
+                ..
+            }
+            | Expression::GlobalReference {
+                path,
+                static_arguments: None,
+                ..
+            } => {
+                path.segments.len() == 1
+                    && self.program.strings.get(path.segments[0]).as_str() == "new"
+            }
+            _ => false,
+        }
+    }
+
+    /// Return true when `new.target` is valid in the current lexical context.
+    fn can_access_new_target_in_context(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        // walk up to the first function-like owner
+        let mut current = Some(expression_id.into_any());
+        while let Some(current_id) = current {
+            let Some(parent) = tree.get_parent(current_id.id) else {
+                return false;
+            };
+
+            if self.new_target_is_valid_lexical_owner(tree, parent) {
+                return true;
+            }
+
+            current = Some(parent);
+        }
+
+        false
+    }
+
+    /// Return true when a node introduces a valid lexical owner for `new.target`.
+    fn new_target_is_valid_lexical_owner(&self, tree: &NodeTree, node_id: LocalNodeIdAny) -> bool {
+        match node_id.ty {
+            NodeType::Declaration => {
+                matches!(
+                    tree.get(node_id.into_typed::<Declaration>()),
+                    Declaration::Function { .. }
+                )
+            }
+            NodeType::Member => {
+                matches!(
+                    tree.get(node_id.into_typed::<Member>()),
+                    Member::Method { .. } | Member::StaticBlock { .. }
+                )
+            }
+            NodeType::Property => {
+                matches!(
+                    tree.get(node_id.into_typed::<Property>()),
+                    Property::Method { .. }
+                )
+            }
+            _ => false,
+        }
+    }
+
     /// Validate update expression targets.
     fn validate_update_target(
         &self,
@@ -437,12 +770,160 @@ impl Compiler {
             return;
         };
 
-        // expression patterns in this position must be assignment targets
-        let Pattern::Expression { value } = tree.get(*pattern) else {
-            return;
-        };
+        // recurse through the binding pattern and validate assignment leaves
+        self.validate_for_each_assignment_pattern(module, profile, tree, *pattern, is_strict);
+    }
 
-        self.validate_assignment_target(module, profile, tree, *value, is_strict);
+    /// Validate assignment target rules for for each binding patterns.
+    fn validate_for_each_assignment_pattern(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        pattern_id: LocalNodeId<Pattern>,
+        is_strict: bool,
+    ) {
+        match tree.get(pattern_id) {
+            // expression patterns must be valid assignment targets
+            Pattern::Expression { value } => {
+                self.validate_assignment_target(module, profile, tree, *value, is_strict);
+            }
+
+            // binding names in strict mode cannot use reserved identifiers
+            Pattern::Binding { name, pattern, .. } => {
+                if let Some(pattern) = pattern {
+                    self.validate_for_each_assignment_pattern(
+                        module, profile, tree, *pattern, is_strict,
+                    );
+                    return;
+                }
+
+                if module.is_user() && is_strict && self.is_reserved_binding_name(*name) {
+                    let node = pattern_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(profile));
+                    self.error(AnalyzeError::ReservedIdentifier { node, name: *name });
+                }
+            }
+
+            // unwrap wrapper patterns and validate inner leaves
+            Pattern::Must(right)
+            | Pattern::ReferenceOf { right, .. }
+            | Pattern::ValueOf { right, .. } => {
+                self.validate_for_each_assignment_pattern(module, profile, tree, *right, is_strict);
+            }
+
+            // validate both range endpoints when present
+            Pattern::Range { start, end, .. } => {
+                if let Some(start) = start {
+                    self.validate_for_each_assignment_pattern(
+                        module, profile, tree, *start, is_strict,
+                    );
+                }
+
+                if let Some(end) = end {
+                    self.validate_for_each_assignment_pattern(
+                        module, profile, tree, *end, is_strict,
+                    );
+                }
+            }
+
+            // recurse into tuple, array and object fields
+            Pattern::Tuple { fields }
+            | Pattern::TaggedTuple { fields, .. }
+            | Pattern::Array { fields }
+            | Pattern::Object { fields }
+            | Pattern::TaggedObject { fields, .. } => {
+                for field_id in fields {
+                    self.validate_for_each_assignment_field(
+                        module, profile, tree, *field_id, is_strict,
+                    );
+                }
+            }
+
+            // recurse through union branches
+            Pattern::Union { patterns } => {
+                for pattern_id in patterns {
+                    self.validate_for_each_assignment_pattern(
+                        module,
+                        profile,
+                        tree,
+                        *pattern_id,
+                        is_strict,
+                    );
+                }
+            }
+
+            // wildcard is allowed as-is for non-javascript dialects
+            Pattern::Wildcard => {}
+        }
+    }
+
+    /// Validate assignment target rules for pattern fields in for each bindings.
+    fn validate_for_each_assignment_field(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        field_id: LocalNodeId<PatternField>,
+        is_strict: bool,
+    ) {
+        match tree.get(field_id) {
+            // shorthand named fields bind directly by field name
+            PatternField::Named { name, pattern, .. } => {
+                if let Some(pattern) = pattern {
+                    self.validate_for_each_assignment_pattern(
+                        module, profile, tree, *pattern, is_strict,
+                    );
+                    return;
+                }
+
+                if module.is_user() && is_strict && self.is_reserved_binding_name(*name) {
+                    let node = field_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(profile));
+                    self.error(AnalyzeError::ReservedIdentifier { node, name: *name });
+                }
+            }
+
+            // computed fields delegate validation to the value pattern
+            PatternField::Computed { pattern, .. } => {
+                if let Some(pattern) = pattern {
+                    self.validate_for_each_assignment_pattern(
+                        module, profile, tree, *pattern, is_strict,
+                    );
+                }
+            }
+
+            // aliases bind by alias name
+            PatternField::Alias { alias, .. } => {
+                if module.is_user() && is_strict && self.is_reserved_binding_name(*alias) {
+                    let node = field_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(profile));
+                    self.error(AnalyzeError::ReservedIdentifier { node, name: *alias });
+                }
+            }
+
+            // positional fields forward to their pattern
+            PatternField::Positional { pattern } => {
+                self.validate_for_each_assignment_pattern(
+                    module, profile, tree, *pattern, is_strict,
+                );
+            }
+
+            // spread fields validate the spread pattern when present
+            PatternField::Spread { pattern, .. } => {
+                if let Some(pattern) = pattern {
+                    self.validate_for_each_assignment_pattern(
+                        module, profile, tree, *pattern, is_strict,
+                    );
+                }
+            }
+
+            // elisions introduce no assignment targets
+            PatternField::Elision => {}
+        }
     }
 
     /// Return true when a for of binding is exactly `async`.
@@ -1559,7 +2040,24 @@ impl Compiler {
             }
 
             // validate accessor signatures on object literals
-            if let Property::Method { signature, .. } = property {
+            if let Property::Method {
+                signature, body, ..
+            } = property
+            {
+                // strict directive prologues require simple parameter lists in js and ts modes
+                if !module.language_type.is_destack()
+                    && let Some(body) = body
+                    && self.has_non_simple_dynamic_parameters(tree, &signature.dynamic_parameters)
+                    && self.body_declares_use_strict_directive(tree, *body)
+                {
+                    self.error(AnalyzeError::InvalidFunction {
+                        node: property_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(profile)),
+                    });
+                }
+
+                // object literal accessors still use accessor signature validation
                 self.validate_accessor_signature(
                     module,
                     profile,
@@ -2501,6 +2999,38 @@ function a() {
         test.check_has_diagnostic("EA226");
     }
 
+    /// Reject non-assignable array pattern targets in for in bindings.
+    #[test]
+    fn test_reject_for_in_array_pattern_literal_target() {
+        let test = TestProgram::memory_sequential();
+
+        // source: for(([0]) in 0);
+        let module_id = test.add_module("test.js", "for(([0]) in 0);");
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA226");
+    }
+
+    /// Reject non-assignable object pattern targets in for of bindings.
+    #[test]
+    fn test_reject_for_of_object_pattern_literal_target() {
+        let test = TestProgram::memory_sequential();
+
+        // source: for({a: 0} of 0);
+        let module_id = test.add_module("test.js", "for({a: 0} of 0);");
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA226");
+    }
+
     /// Reject object literals that mix shorthand and proto setter fields.
     #[test]
     fn test_reject_shorthand_proto_with_setter() {
@@ -2539,5 +3069,190 @@ const __proto__ = 1;
         test.analyze_module(module_id);
         test.compile();
         test.check_no_diagnostic_code("EA249");
+    }
+
+    /// Reject strict reserved identifier references in expression position.
+    #[test]
+    fn test_reject_strict_reserved_identifier_reference_expression() {
+        let test = TestProgram::memory_sequential();
+
+        // source: "use strict"; +protected;
+        let module_id = test.add_module("test.js", r#""use strict"; +protected;"#);
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA214");
+    }
+
+    /// Reject strict reserved `with` references in statement position.
+    #[test]
+    fn test_reject_strict_with_identifier_reference() {
+        let test = TestProgram::memory_sequential();
+
+        // source: "use strict"; with(1);
+        let module_id = test.add_module("test.js", r#""use strict"; with(1);"#);
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA214");
+    }
+
+    /// Reject `new.target` outside function-like contexts.
+    #[test]
+    fn test_reject_new_target_at_top_level() {
+        let test = TestProgram::memory_sequential();
+
+        // source: var a = new.target;
+        let module_id = test.add_module("test.js", "var a = new.target;");
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA248");
+    }
+
+    /// Allow `new.target` inside function-like contexts.
+    #[test]
+    fn test_allow_new_target_inside_function() {
+        let test = TestProgram::memory_sequential();
+
+        // source: function f() { return new.target; }
+        let module_id = test.add_module("test.js", "function f() { return new.target; }");
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("EA248");
+    }
+
+    /// Reject labelled breaks that cross function boundaries.
+    #[test]
+    fn test_reject_break_label_across_function_boundary() {
+        let test = TestProgram::memory_sequential();
+
+        // source: a: while (true) { (function () { break a; }); }
+        let module_id =
+            test.add_module("test.js", "a: while (true) { (function () { break a; }); }");
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("ER201");
+    }
+
+    /// Reject non-simple function parameters with strict directive prologues in JS and TS.
+    #[test]
+    fn test_reject_function_non_simple_parameters_with_use_strict() {
+        let test = TestProgram::memory_sequential();
+
+        // source: function a([]){ "use strict"; }
+        let module_id = test.add_module("test.js", r#"function a([]){ "use strict"; }"#);
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA503");
+    }
+
+    /// Allow non-simple function parameters with strict directive prologues in Destack.
+    #[test]
+    fn test_allow_function_non_simple_parameters_with_use_strict_in_destack() {
+        let test = TestProgram::memory_sequential();
+
+        // source: function a([]){ "use strict"; }
+        let module_id = test.add_module("test.ds", r#"function a([]){ "use strict"; }"#);
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("EA503");
+    }
+
+    /// Reject non-simple object method parameters with strict directive prologues in JS and TS.
+    #[test]
+    fn test_reject_object_method_non_simple_parameters_with_use_strict() {
+        let test = TestProgram::memory_sequential();
+
+        // source: ({ a([]){ "use strict"; } });
+        let module_id = test.add_module("test.js", r#"({ a([]){ "use strict"; } });"#);
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA503");
+    }
+
+    /// Reject non-simple object method parameters with strict directives without semicolons.
+    #[test]
+    fn test_reject_object_method_non_simple_parameters_with_use_strict_no_semicolon() {
+        let test = TestProgram::memory_sequential();
+
+        // source: ({a([]){'use strict'}})
+        let module_id = test.add_module("test.js", r#"({a([]){'use strict'}})"#);
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA503");
+    }
+
+    /// Allow non-simple object method parameters with strict directive prologues in Destack.
+    #[test]
+    fn test_allow_object_method_non_simple_parameters_with_use_strict_in_destack() {
+        let test = TestProgram::memory_sequential();
+
+        // source: ({ a([]){ "use strict"; } });
+        let module_id = test.add_module("test.ds", r#"({ a([]){ "use strict"; } });"#);
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("EA503");
+    }
+
+    /// Reject yield expressions in generator parameter initializers.
+    #[test]
+    fn test_reject_yield_in_generator_parameter_initializer() {
+        let test = TestProgram::memory_sequential();
+
+        // source: function* a(){ function* b(c = yield d){} }
+        let module_id = test.add_module("test.js", "function* a(){ function* b(c = yield d){} }");
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA303");
+    }
+
+    /// Reject delegated yield expressions in generator parameter initializers.
+    #[test]
+    fn test_reject_yield_star_in_generator_parameter_initializer() {
+        let test = TestProgram::memory_sequential();
+
+        // source: function* a(){ function* b(c = yield* d){} }
+        let module_id = test.add_module("test.js", "function* a(){ function* b(c = yield* d){} }");
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA303");
     }
 }

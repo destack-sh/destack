@@ -3,7 +3,7 @@ use destack_dir::{
     AbstractionModifier, Asynchrony, BindingAnchor, BindingKind, Declaration,
     DeclarationAbstraction, DeclarationKind, DynamicKey, FunctionAbstraction, FunctionCardinality,
     FunctionMode, FunctionSignature, LocalNodeId, LocalNodeIdAny, Member, Mutability, NodeTree,
-    NodeType, Parameter,
+    NodeType, Parameter, StringId,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -157,6 +157,16 @@ impl Compiler {
                     );
                 }
 
+                // strict directive prologues require simple parameter lists in js and ts modes
+                if !module.language_type.is_destack()
+                    && let Some(body) = body
+                    && self.has_non_simple_dynamic_parameters(tree, &signature.dynamic_parameters)
+                    && self.body_declares_use_strict_directive(tree, *body)
+                {
+                    let node = id.into_global_any(module.id).into_anchored(Some(profile));
+                    self.error(AnalyzeError::InvalidFunction { node });
+                }
+
                 // class method constraints
                 if is_class {
                     // collect class modifier flags
@@ -167,6 +177,26 @@ impl Compiler {
                         || is_declare_namespace;
                     let is_declare_member =
                         modifiers.is_some_and(|modifiers| modifiers.declaration.is_some());
+                    let key_name = self.member_key_name(key.as_ref());
+                    let is_constructor_name = key_name
+                        .is_some_and(|name| self.program.strings.get(name) == "constructor");
+                    let is_prototype_name =
+                        key_name.is_some_and(|name| self.program.strings.get(name) == "prototype");
+
+                    // reject invalid constructor named instance members
+                    if !is_static
+                        && is_constructor_name
+                        && signature.mode != Some(FunctionMode::Constructor)
+                    {
+                        let node = id.into_global_any(module.id).into_anchored(Some(profile));
+                        self.error(AnalyzeError::InvalidConstructor { node });
+                    }
+
+                    // reject static members named prototype
+                    if is_static && is_prototype_name {
+                        let node = id.into_global_any(module.id).into_anchored(Some(profile));
+                        self.error(AnalyzeError::InvalidConstructor { node });
+                    }
 
                     // static abstract methods are invalid
                     if is_static && is_abstract {
@@ -491,6 +521,14 @@ impl Compiler {
         matches!(key, Some(DynamicKey::NamedExpression { .. }))
     }
 
+    /// Return the static key name when a member key is non-computed.
+    fn member_key_name(&self, key: Option<&DynamicKey>) -> Option<StringId> {
+        match key {
+            Some(DynamicKey::Name(name)) | Some(DynamicKey::Number(name)) => Some(*name),
+            _ => None,
+        }
+    }
+
     /// Validate interface specific method rules.
     fn validate_interface_method(
         &self,
@@ -581,5 +619,118 @@ impl Compiler {
                 self.error(AnalyzeError::InvalidMemberModifier { node });
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::tests::TestProgram;
+
+    /// Reject constructor named getters in classes.
+    #[test]
+    fn test_reject_constructor_named_getter() {
+        let test = TestProgram::memory_sequential();
+
+        // source: class A { get constructor() {} }
+        let module_id = test.add_module("test.js", "class A { get constructor() {} }");
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA501");
+    }
+
+    /// Reject constructor named setters in classes.
+    #[test]
+    fn test_reject_constructor_named_setter() {
+        let test = TestProgram::memory_sequential();
+
+        // source: class A { set constructor(v) {} }
+        let module_id = test.add_module("test.js", "class A { set constructor(v) {} }");
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA501");
+    }
+
+    /// Reject constructor named generators in classes.
+    #[test]
+    fn test_reject_constructor_named_generator() {
+        let test = TestProgram::memory_sequential();
+
+        // source: class A { *constructor() {} }
+        let module_id = test.add_module("test.js", "class A { *constructor() {} }");
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA501");
+    }
+
+    /// Reject static members named prototype.
+    #[test]
+    fn test_reject_static_prototype_member() {
+        let test = TestProgram::memory_sequential();
+
+        // source: class A { static "prototype"() {} }
+        let module_id = test.add_module("test.js", r#"class A { static "prototype"() {} }"#);
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA501");
+    }
+
+    /// Allow static methods named constructor.
+    #[test]
+    fn test_allow_static_constructor_named_method() {
+        let test = TestProgram::memory_sequential();
+
+        // source: class A { static constructor() {} }
+        let module_id = test.add_module("test.js", "class A { static constructor() {} }");
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("EA501");
+    }
+
+    /// Reject non-simple class method parameters with strict directive prologues in JS and TS.
+    #[test]
+    fn test_reject_class_method_non_simple_parameters_with_use_strict() {
+        let test = TestProgram::memory_sequential();
+
+        // source: class A { m([]){ "use strict"; } }
+        let module_id = test.add_module("test.js", r#"class A { m([]){ "use strict"; } }"#);
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA503");
+    }
+
+    /// Allow non-simple class method parameters with strict directive prologues in Destack.
+    #[test]
+    fn test_allow_class_method_non_simple_parameters_with_use_strict_in_destack() {
+        let test = TestProgram::memory_sequential();
+
+        // source: class A { m([]){ "use strict"; } }
+        let module_id = test.add_module("test.ds", r#"class A { m([]){ "use strict"; } }"#);
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("EA503");
     }
 }
