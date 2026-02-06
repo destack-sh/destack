@@ -113,7 +113,7 @@ counter satisfies Counter;
 
 ### static methods are not available on instances
 
-> Static methods are not accessible from instances.-æ
+> Static methods are not accessible from instances.
 
 ```ds
 class Counter {
@@ -230,6 +230,171 @@ class Counter {
 ```
 
 - contains: parameter property
+
+### readonly parameter properties reject assignment
+
+> Readonly parameter properties cannot be reassigned.
+
+```ds
+class Counter {
+    constructor(readonly label: string) {}
+
+    update() {
+        this.label = "next";
+    }
+}
+```
+
+- contains: readonly
+
+### private parameter properties are inaccessible outside the class
+
+> Private parameter properties follow class visibility rules.
+
+```ds
+class Counter {
+    constructor(private value: int32) {}
+}
+
+const counter = new Counter(1);
+counter.value;
+```
+
+- contains: is private
+
+### protected parameter properties are accessible in subclasses
+
+> Protected parameter properties can be used in derived classes.
+
+```ds
+class Base {
+    constructor(protected value: int32) {}
+}
+
+class Derived extends Base {
+    read(): int32 {
+        this.value
+    }
+}
+
+const derived = new Derived(1);
+derived.read() satisfies int32;
+```
+
+### protected parameter properties are inaccessible outside subclasses
+
+> Protected parameter properties are not visible from outside the hierarchy.
+
+```ds
+class Base {
+    constructor(protected value: int32) {}
+}
+
+const base = new Base(1);
+base.value;
+```
+
+- contains: is protected
+
+### parameter properties support default values
+
+> Constructor parameter property defaults initialize fields when omitted.
+
+```ds
+class Counter {
+    constructor(public value: int32 = 4) {}
+}
+
+const counter = new Counter();
+counter.value satisfies int32;
+```
+
+### parameter property modifiers are only valid on constructors
+
+> Non-constructor methods cannot use parameter property modifiers.
+
+```ds
+class Counter {
+    method(public value: int32) {}
+}
+```
+
+- contains: parameter property
+
+### private parameter properties keep classes nominally distinct
+
+> Classes with different private parameter properties are not mutually assignable.
+
+```ds
+class Left {
+    constructor(private value: int32) {}
+}
+
+class Right {
+    constructor(private value: int32) {}
+}
+
+declare const right: Right;
+const left: Left = right;
+```
+
+- contains: not assignable
+
+### protected parameter properties keep classes nominally distinct
+
+> Classes with different protected parameter properties are not mutually assignable.
+
+```ds
+class Left {
+    constructor(protected value: int32) {}
+}
+
+class Right {
+    constructor(protected value: int32) {}
+}
+
+declare const right: Right;
+const left: Left = right;
+```
+
+- contains: not assignable
+
+### parameter property fields are inherited by subclasses
+
+> Subclasses inherit parameter-property fields from base constructors.
+
+```ds
+class Base {
+    constructor(public value: int32) {}
+}
+
+class Derived extends Base {
+    constructor(value: int32) {
+        super(value);
+    }
+}
+
+const derived = new Derived(1);
+derived.value satisfies int32;
+```
+
+### readonly parameter properties cannot be reassigned in subclasses
+
+> Readonly parameter-property fields remain readonly in derived methods.
+
+```ds
+class Base {
+    constructor(readonly label: string) {}
+}
+
+class Derived extends Base {
+    update() {
+        this.label = "next";
+    }
+}
+```
+
+- contains: readonly
 
 ## invalid members
 

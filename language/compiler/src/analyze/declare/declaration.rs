@@ -9,8 +9,8 @@ use destack_dir::{
     walk_expression,
 };
 use destack_source::ModuleId;
-use destack_workspace::{Module, ProfileId};
-use std::collections::HashMap;
+use destack_workspace::{Module, ModuleSource, ProfileId};
+use std::collections::{HashMap, HashSet};
 
 use crate::{AnalyzeError, AnalyzeResult, AnalyzeWarning, Compiler, InferContext};
 
@@ -471,6 +471,9 @@ impl Compiler {
                     symbols,
                     types,
                 )?;
+                self.validate_associated_type_contract_presence(
+                    module, profile, heritage, members, false, tree, symbols,
+                );
 
                 // nominal reference for constructors
                 let symbol = descriptor.symbol.into_global(module.id);
@@ -587,6 +590,15 @@ impl Compiler {
                     symbols,
                     types,
                 )?;
+                self.validate_associated_type_contract_presence(
+                    module,
+                    profile,
+                    heritage,
+                    members,
+                    descriptor.abstraction == destack_dir::DeclarationAbstraction::Abstract,
+                    tree,
+                    symbols,
+                );
 
                 // prepare nominal reference for constructors
                 let symbol = descriptor.symbol.into_global(module.id);
@@ -704,6 +716,9 @@ impl Compiler {
                     symbols,
                     types,
                 )?;
+                self.validate_associated_type_contract_presence(
+                    module, profile, heritage, members, false, tree, symbols,
+                );
 
                 // prepare the nominal reference for enum values
                 let symbol = descriptor.symbol.into_global(module.id);
@@ -1309,8 +1324,8 @@ impl Compiler {
             let Some(modifiers) = parameter.modifiers() else {
                 continue;
             };
-            let is_parameter_property =
-                modifiers.visibility.is_some() || modifiers.mutability.is_some();
+            let is_parameter_property = modifiers.visibility.is_some()
+                || modifiers.mutability == Some(Mutability::Immutable);
             if !is_parameter_property {
                 continue;
             }
@@ -2700,6 +2715,76 @@ impl Compiler {
                 }
             }
             _ => None,
+        }
+    }
+
+    /// Validate associated type contract presence for one declaration.
+    fn validate_associated_type_contract_presence(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        heritage: &Heritage,
+        members: &[LocalNodeId<Member>],
+        allows_deferred_associated_types: bool,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) {
+        // skip non-user modules
+        if !matches!(module.source, ModuleSource::User) {
+            return;
+        }
+
+        // collect declaration associated type names
+        let mut declared_associated_names = HashSet::new();
+        for member_id in members {
+            if let Member::Type { name, .. } = tree.get(*member_id) {
+                declared_associated_names.insert(*name);
+            }
+        }
+
+        // collect inherited contract expressions
+        let mut contract_expressions = Vec::new();
+        if let Some(extends_types) = heritage.extends_types.as_ref() {
+            contract_expressions.extend(extends_types.iter().copied());
+        }
+        if let Some(implements_types) = heritage.implements_types.as_ref() {
+            contract_expressions.extend(implements_types.iter().copied());
+        }
+        if contract_expressions.is_empty() {
+            return;
+        }
+
+        // report missing requirements once per associated name
+        let mut reported_missing_names = HashSet::new();
+        for expression_id in contract_expressions {
+            let Some(target_symbol) = tree.get(expression_id).target_symbol() else {
+                continue;
+            };
+            let requirements = self.collect_contract_associated_type_requirements(
+                module,
+                profile,
+                target_symbol,
+                tree,
+                symbols,
+            );
+
+            for requirement in requirements {
+                if !requirement.requires_implementation
+                    || declared_associated_names.contains(&requirement.name)
+                    || allows_deferred_associated_types
+                    || !reported_missing_names.insert(requirement.name)
+                {
+                    continue;
+                }
+
+                let node = expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(profile));
+                self.error(AnalyzeError::InvalidStaticArgument {
+                    node,
+                    message: "missing associated type implementation".to_string(),
+                });
+            }
         }
     }
 

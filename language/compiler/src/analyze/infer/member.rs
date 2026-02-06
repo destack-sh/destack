@@ -7,9 +7,9 @@ use destack_base::StringId;
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
     Argument, BindingAnchor, BindingModifier, Declaration, Expression, GlobalSymbolId, InferTable,
-    LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, NodeTree, NodeType, NormalizationMode,
-    StaticArgument, StaticKey, SymbolSpace, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
-    Visibility,
+    LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, Mutability, NodeTree, NodeType,
+    NormalizationMode, Parameter, StaticArgument, StaticKey, SymbolSpace, SymbolTable, SymbolType,
+    Type, TypeLiteral, TypeTable, Visibility,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ModuleSource, ProfileId};
@@ -66,6 +66,17 @@ struct MemberVisibilityContext {
     visibility: Visibility,
     /// The owner symbol of the member symbol.
     owner_symbol: GlobalSymbolId,
+}
+
+/// Metadata for a constructor parameter-property projected as a member.
+#[derive(Debug, Clone)]
+pub(super) struct ParameterPropertyMemberContext {
+    /// The visibility of the projected property.
+    pub(super) visibility: Visibility,
+    /// Whether the projected property is readonly.
+    pub(super) is_readonly: bool,
+    /// The class symbol that declares the property.
+    pub(super) owner_symbol: GlobalSymbolId,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -247,6 +258,32 @@ impl Compiler {
                         symbols,
                         types,
                         ctx,
+                    );
+                } else if let Some(receiver_symbol) =
+                    self.receiver_symbol_for_visibility(left_ty_id, types)
+                    && let Some(context) = self.parameter_property_member_context_for_key(
+                        module,
+                        ctx.profile,
+                        receiver_symbol,
+                        &member_key,
+                        tree,
+                        symbols,
+                        types,
+                    )
+                {
+                    self.check_visibility_context(
+                        module,
+                        expression_id,
+                        receiver_symbol,
+                        left_ty_id,
+                        ctx.profile,
+                        symbols,
+                        types,
+                        ctx,
+                        MemberVisibilityContext {
+                            visibility: context.visibility,
+                            owner_symbol: context.owner_symbol,
+                        },
                     );
                 }
             }
@@ -1282,6 +1319,32 @@ impl Compiler {
             return;
         };
 
+        self.check_visibility_context(
+            module,
+            expression_id,
+            member_symbol,
+            receiver_ty_id,
+            profile,
+            symbols,
+            types,
+            ctx,
+            context,
+        );
+    }
+
+    /// Enforce member visibility for a resolved visibility context.
+    fn check_visibility_context(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        member_symbol: GlobalSymbolId,
+        receiver_ty_id: LocalTypeId,
+        profile: ProfileId,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+        ctx: &InferContext,
+        context: MemberVisibilityContext,
+    ) {
         // public members are always accessible
         if context.visibility == Visibility::Public {
             return;
@@ -1358,8 +1421,113 @@ impl Compiler {
         }
     }
 
+    /// Resolve visibility metadata for constructor parameter properties by key.
+    pub(super) fn parameter_property_member_context_for_key(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        receiver_symbol: GlobalSymbolId,
+        member_key: &StaticKey,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> Option<ParameterPropertyMemberContext> {
+        let StaticKey::Name(member_name) = member_key else {
+            return None;
+        };
+
+        // walk the receiver lineage and find the first parameter property with this key
+        let mut current_symbol = Some(receiver_symbol);
+        while let Some(owner_symbol) = current_symbol {
+            let context = self.with_module_tree_symbols_or_local(
+                module,
+                profile,
+                owner_symbol.module_id,
+                tree,
+                symbols,
+                |_, owner_tree, owner_symbols| {
+                    let owner_entry = owner_symbols.get_symbol(owner_symbol.local_id);
+                    let declaration_id = owner_entry.primary_declaration?.local_id;
+                    if declaration_id.ty != NodeType::Declaration {
+                        return None;
+                    }
+
+                    let declaration = owner_tree.get(declaration_id.into_typed::<Declaration>());
+                    let members = declaration.member_ids()?;
+                    for member_id in members {
+                        let Member::Method {
+                            signature,
+                            modifiers,
+                            ..
+                        } = owner_tree.get(*member_id)
+                        else {
+                            continue;
+                        };
+                        if signature.mode != Some(destack_dir::FunctionMode::Constructor) {
+                            continue;
+                        }
+                        if modifiers
+                            .as_ref()
+                            .is_some_and(|modifier| modifier.anchor == Some(BindingAnchor::Static))
+                        {
+                            continue;
+                        }
+
+                        for parameter_id in &signature.dynamic_parameters {
+                            let parameter = owner_tree.get(*parameter_id);
+                            let Parameter::Named {
+                                name, modifiers, ..
+                            } = parameter
+                            else {
+                                continue;
+                            };
+                            if name != member_name {
+                                continue;
+                            }
+
+                            let Some(modifiers) = modifiers.as_ref() else {
+                                continue;
+                            };
+                            let is_parameter_property = modifiers.visibility.is_some()
+                                || modifiers.mutability == Some(Mutability::Immutable);
+                            if !is_parameter_property {
+                                continue;
+                            }
+
+                            return Some(ParameterPropertyMemberContext {
+                                visibility: modifiers.visibility.unwrap_or(Visibility::Public),
+                                is_readonly: modifiers.mutability == Some(Mutability::Immutable),
+                                owner_symbol,
+                            });
+                        }
+                    }
+
+                    None
+                },
+            );
+
+            if let Some(context) = context {
+                return Some(context);
+            }
+
+            current_symbol = self.with_module_types_or_local(
+                module,
+                profile,
+                owner_symbol.module_id,
+                types,
+                |_, owner_types| {
+                    owner_types
+                        .get_lineage_for_symbol(owner_symbol)
+                        .and_then(|lineage| lineage.extends)
+                },
+            );
+        }
+
+        None
+    }
+
     /// Resolve a nominal symbol for visibility checks from a receiver type.
-    fn receiver_symbol_for_visibility(
+    pub(super) fn receiver_symbol_for_visibility(
         &self,
         receiver_ty_id: LocalTypeId,
         types: &TypeTable,

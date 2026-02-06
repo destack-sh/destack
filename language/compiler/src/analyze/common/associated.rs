@@ -5,11 +5,12 @@ use crate::analyze::common::{
     TypeWalkKey, rewrite_type_with_cache,
 };
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Compiler};
+use destack_base::StringId;
 use destack_dir::{
-    Declaration, DependencyItem, DependencyMode, Expression, GlobalNodeId, GlobalSymbolId,
-    Heritage, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, NodeTree, NodeType, StaticArgument,
-    StaticKey, SymbolSpaceOrder, SymbolTable, SymbolType, Type, TypeRewriter, TypeRewriterOptions,
-    TypeTable,
+    Declaration, DependencyItem, DependencyMode, Expression, GlobalNodeId, GlobalNodeIdAny,
+    GlobalSymbolId, Heritage, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, NodeTree, NodeType,
+    StaticArgument, StaticKey, SymbolSpaceOrder, SymbolTable, SymbolType, Type, TypeRewriter,
+    TypeRewriterOptions, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -191,8 +192,201 @@ pub(crate) struct TypeMemberResolution {
     pub(crate) receiver_arguments: Vec<StaticArgument>,
 }
 
+/// Requirements for one associated type member from an inherited contract.
+#[derive(Clone, Debug)]
+pub(crate) struct AssociatedTypeRequirement {
+    /// The associated type name.
+    pub(crate) name: StringId,
+    /// The contract member symbol.
+    pub(crate) symbol: GlobalSymbolId,
+    /// The contract member parameter symbols.
+    pub(crate) parameter_symbols: Vec<GlobalSymbolId>,
+    /// The optional bound expression node on the contract member.
+    pub(crate) bound_node: Option<GlobalNodeIdAny>,
+    /// Whether the contract member requires an explicit implementation.
+    pub(crate) requires_implementation: bool,
+}
+
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Collect contract associated type requirements for one contract symbol.
+    pub(crate) fn collect_contract_associated_type_requirements(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        contract_symbol: GlobalSymbolId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> Vec<AssociatedTypeRequirement> {
+        // normalize contract references to declaration owners
+        let Some(contract_symbol) =
+            self.declaration_symbol_id(module, symbols, profile, contract_symbol)
+        else {
+            return Vec::new();
+        };
+
+        // collect requirements with cycle protection
+        let mut visited_contracts = HashSet::new();
+        self.collect_contract_associated_type_requirements_inner(
+            module,
+            profile,
+            contract_symbol,
+            tree,
+            symbols,
+            &mut visited_contracts,
+        )
+    }
+
+    /// Collect contract associated type requirements through declaration heritage.
+    fn collect_contract_associated_type_requirements_inner(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        contract_symbol: GlobalSymbolId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        visited_contracts: &mut HashSet<GlobalSymbolId>,
+    ) -> Vec<AssociatedTypeRequirement> {
+        // normalize contract declarations and break recursive cycles
+        let Some(contract_symbol) =
+            self.declaration_symbol_id(module, symbols, profile, contract_symbol)
+        else {
+            return Vec::new();
+        };
+        if !visited_contracts.insert(contract_symbol) {
+            return Vec::new();
+        }
+
+        // collect local requirements and direct parent contracts
+        let (local_requirements, parent_contracts) = self.with_module_tree_symbols_or_local(
+            module,
+            profile,
+            contract_symbol.module_id,
+            tree,
+            symbols,
+            |owner_module, owner_tree, owner_symbols| {
+                let mut requirements = Vec::new();
+                let mut parents = Vec::new();
+
+                // resolve the contract declaration node
+                let symbol_entry = owner_symbols.get_symbol(contract_symbol.local_id);
+                let Some(primary_declaration) = symbol_entry.primary_declaration else {
+                    return (requirements, parents);
+                };
+                if primary_declaration.local_id.ty != NodeType::Declaration {
+                    return (requirements, parents);
+                }
+
+                let declaration_id = primary_declaration.local_id.into_typed::<Declaration>();
+                let (members, heritage) = match owner_tree.get(declaration_id) {
+                    Declaration::Interface {
+                        members, heritage, ..
+                    }
+                    | Declaration::Class {
+                        members, heritage, ..
+                    }
+                    | Declaration::Struct {
+                        members, heritage, ..
+                    } => (members, heritage),
+                    _ => return (requirements, parents),
+                };
+
+                // collect local associated requirements
+                for member_id in members {
+                    let Member::Type {
+                        name,
+                        static_parameters,
+                        ty,
+                        value,
+                        symbol,
+                        ..
+                    } = owner_tree.get(*member_id)
+                    else {
+                        continue;
+                    };
+
+                    let parameter_symbols = static_parameters
+                        .as_ref()
+                        .map(|parameters| {
+                            parameters
+                                .iter()
+                                .map(|parameter_id| {
+                                    owner_tree
+                                        .get(*parameter_id)
+                                        .symbol()
+                                        .into_global(owner_module.id)
+                                })
+                                .collect::<Vec<_>>()
+                        })
+                        .unwrap_or_default();
+
+                    requirements.push(AssociatedTypeRequirement {
+                        name: *name,
+                        symbol: symbol.into_global(owner_module.id),
+                        parameter_symbols,
+                        bound_node: ty.map(|ty| ty.into_global_any(owner_module.id)),
+                        requires_implementation: value.is_none(),
+                    });
+                }
+
+                // collect parent contracts from extends and implements
+                let mut parent_types = Vec::new();
+                if let Some(extends_types) = heritage.extends_types.as_ref() {
+                    parent_types.extend(extends_types.iter().copied());
+                }
+                if let Some(implements_types) = heritage.implements_types.as_ref() {
+                    parent_types.extend(implements_types.iter().copied());
+                }
+                for parent_type_id in parent_types {
+                    let Some(parent_symbol) = owner_tree.get(parent_type_id).target_symbol() else {
+                        continue;
+                    };
+
+                    let canonical_parent = self.canonical_symbol_id(
+                        owner_module,
+                        owner_symbols,
+                        profile,
+                        parent_symbol,
+                        CanonicalSymbolMode::FollowAliases,
+                    );
+                    let Some(parent_symbol) = self.declaration_symbol_id(
+                        owner_module,
+                        owner_symbols,
+                        profile,
+                        canonical_parent,
+                    ) else {
+                        continue;
+                    };
+                    parents.push(parent_symbol);
+                }
+
+                (requirements, parents)
+            },
+        );
+
+        // collect inherited requirements before local overrides
+        let mut requirements = Vec::new();
+        for parent_contract in parent_contracts {
+            let inherited = self.collect_contract_associated_type_requirements_inner(
+                module,
+                profile,
+                parent_contract,
+                tree,
+                symbols,
+                visited_contracts,
+            );
+            requirements.extend(inherited);
+        }
+
+        // apply local overrides by associated type name
+        for local_requirement in local_requirements {
+            requirements.retain(|requirement| requirement.name != local_requirement.name);
+            requirements.push(local_requirement);
+        }
+
+        requirements
+    }
+
     /// Select a member symbol used in a type expression.
     pub(crate) fn select_type_member_symbol(
         &self,
