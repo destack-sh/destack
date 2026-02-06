@@ -131,11 +131,57 @@ impl Compiler {
             return (Some(kind), variance);
         }
 
-        // fall back to cached metadata when tree is unavailable
-        let kind = types.get_static_parameter_kind(symbol);
-        let variance = types.get_static_parameter_variance(symbol).flatten();
+        // fall back to owner type metadata when tree is unavailable
+        let (kind, variance) = self.with_module_types_or_local(
+            module,
+            profile,
+            symbol.module_id,
+            types,
+            |_, owner_types| {
+                (
+                    owner_types.get_static_parameter_kind(symbol),
+                    owner_types.get_static_parameter_variance(symbol).flatten(),
+                )
+            },
+        );
 
         (kind, variance)
+    }
+
+    /// Index static parameter symbols and metadata declared in one module.
+    pub(crate) fn index_static_parameter_metadata_for_module_declarations(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) {
+        for symbol_id in symbols.active_symbol_ids() {
+            let symbol = symbol_id.into_global(module.id);
+            let Some(parameters) =
+                self.collect_static_parameter_symbols_in_module(module.id, symbol, tree, symbols)
+            else {
+                continue;
+            };
+
+            self.set_cached_static_parameter_symbols(profile, symbol, Some(parameters.clone()));
+            for parameter_symbol in parameters {
+                let kind = self.static_parameter_kind_for_symbol_in_module(
+                    parameter_symbol,
+                    tree,
+                    symbols,
+                );
+                let variance = self.static_parameter_variance_for_symbol_in_module(
+                    parameter_symbol,
+                    tree,
+                    symbols,
+                );
+
+                types.set_static_parameter_kind(parameter_symbol, kind);
+                types.set_static_parameter_variance(parameter_symbol, variance);
+            }
+        }
     }
 
     /// Resolve the static parameter kind from a parameter node.
