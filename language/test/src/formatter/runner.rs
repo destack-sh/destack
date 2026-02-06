@@ -10,12 +10,13 @@ use crate::mdtest::{
     MdTestCase, discover_md_files, load_mdtest_expected_failures, parse_mdtest_file, slug,
 };
 
-use super::{roundtrip, transform};
+use super::{roundtrip, smoke, transform};
 
 /// Test suite combining roundtrip and transform formatter tests.
 #[derive(Debug, Default)]
 pub struct FormatterSuite {
     mdtests: HashMap<String, MdTestCase>,
+    smoke: HashMap<String, smoke::FormatterSmokeCase>,
     cases: Vec<TestCase>,
     expected_failures: HashSet<String>,
     expected_failures_path: PathBuf,
@@ -30,6 +31,7 @@ impl FormatterSuite {
 
         suite.discover_roundtrip_tests(&formatter_dir);
         suite.discover_mdtest_tests(&formatter_dir);
+        suite.discover_smoke_tests(&formatter_dir);
         suite.expected_failures = load_mdtest_expected_failures(&formatter_dir);
         suite.expected_failures_path = formatter_dir.join("known-failures.txt");
 
@@ -53,6 +55,14 @@ impl FormatterSuite {
     fn discover_mdtest_tests(&mut self, base_dir: &Path) {
         for md_path in discover_md_files(base_dir).unwrap_or_default() {
             self.add_mdtest_file(base_dir, &md_path);
+        }
+    }
+
+    fn discover_smoke_tests(&mut self, base_dir: &Path) {
+        let smoke_dir = base_dir.join("smoke");
+        for (test, smoke_case) in smoke::discover_cases(&smoke_dir) {
+            self.smoke.insert(test.full_name(), smoke_case);
+            self.cases.push(test);
         }
     }
 
@@ -98,6 +108,8 @@ impl Suite for FormatterSuite {
     fn run(&self, case: &TestCase, _context: &RunContext<'_>) -> TestResult {
         if let Some(md_test) = self.mdtests.get(&case.full_name()) {
             transform::run(md_test)
+        } else if let Some(smoke_case) = self.smoke.get(&case.full_name()) {
+            smoke::run(case, smoke_case)
         } else {
             roundtrip::run(case)
         }
