@@ -631,7 +631,9 @@ impl Compiler {
                 invalid_setter = invalid_setter
                     || matches!(
                         param,
-                        Parameter::Pattern { .. } | Parameter::Variadic { .. }
+                        Parameter::Pattern { .. }
+                            | Parameter::VariadicNamed { .. }
+                            | Parameter::VariadicPattern { .. }
                     )
                     || param.has_default()
                     || param

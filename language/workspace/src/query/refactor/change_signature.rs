@@ -636,10 +636,10 @@ fn function_parameter_name_positions(
     for (index, param_id) in signature.dynamic_parameters.iter().enumerate() {
         let parameter = dir_tree.get::<dir::Parameter>(*param_id);
         let name = match parameter {
-            dir::Parameter::Named { name, .. } | dir::Parameter::Variadic { name, .. } => {
+            dir::Parameter::Named { name, .. } | dir::Parameter::VariadicNamed { name, .. } => {
                 Some(session.strings.get(*name).to_string())
             }
-            dir::Parameter::Pattern { .. } => None,
+            dir::Parameter::Pattern { .. } | dir::Parameter::VariadicPattern { .. } => None,
         };
         if let Some(name) = name {
             positions.entry(name).or_insert(index);

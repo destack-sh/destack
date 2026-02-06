@@ -147,16 +147,37 @@ impl Compiler {
                     default,
                 }
             }
-            dir::Parameter::Variadic {
+            dir::Parameter::VariadicNamed {
                 modifiers, name, ..
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
                 let name = ast_strings.intern_from(&self.program.strings, *name);
                 let ty = None;
-                ast::Parameter::Variadic {
+                ast::Parameter::VariadicNamed {
                     modifiers,
                     name,
+                    ty,
+                }
+            }
+            dir::Parameter::VariadicPattern {
+                modifiers, pattern, ..
+            } => {
+                let modifiers =
+                    modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
+                let pattern = self.unbind_pattern(
+                    module,
+                    *pattern,
+                    tree,
+                    symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+                let ty = None;
+                ast::Parameter::VariadicPattern {
+                    modifiers,
+                    pattern,
                     ty,
                 }
             }

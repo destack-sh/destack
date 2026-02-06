@@ -114,7 +114,7 @@ fn is_param_bool_type(ctx: &LintModuleAstContext<'_>, param: &Parameter) -> bool
     let ty = match param {
         Parameter::Named { ty, .. } => *ty,
         Parameter::Pattern { ty, .. } => *ty,
-        Parameter::Variadic { ty, .. } => *ty,
+        Parameter::VariadicNamed { ty, .. } | Parameter::VariadicPattern { ty, .. } => *ty,
     };
     is_bool_type(ctx, ty)
 }

@@ -406,15 +406,14 @@ impl Parser {
                 (None, Some(name), Some(span))
             }
             // pattern
-            else if !is_variadic
-                && (self
-                    .peek_token_in(&[
-                        TokenType::OpenParenthesis,
-                        TokenType::OpenBracket,
-                        TokenType::OpenBrace,
-                    ])
-                    .is_ok()
-                    || self.peek_identifier_str("_").is_ok())
+            else if self
+                .peek_token_in(&[
+                    TokenType::OpenParenthesis,
+                    TokenType::OpenBracket,
+                    TokenType::OpenBrace,
+                ])
+                .is_ok()
+                || self.peek_identifier_str("_").is_ok()
             {
                 let pattern = self
                     .with_options(self.options.in_before_type(), |parser| parser.eat_pattern())?;
@@ -508,10 +507,18 @@ impl Parser {
             }
             // variadic parameter (cannot have a default value)
             else if is_variadic {
-                Parameter::Variadic {
-                    modifiers,
-                    name: name.expect("peeked"),
-                    ty,
+                if let Some(name) = name {
+                    Parameter::VariadicNamed {
+                        modifiers,
+                        name,
+                        ty,
+                    }
+                } else {
+                    Parameter::VariadicPattern {
+                        modifiers,
+                        pattern: pattern.expect("peeked"),
+                        ty,
+                    }
                 }
             }
             // no default value
@@ -584,7 +591,10 @@ impl Parser {
                 return Err(ParseError::unexpected(self.peek()?.span));
             }
 
-            if matches!(self.tree.get(parameter), Parameter::Variadic { .. }) {
+            if matches!(
+                self.tree.get(parameter),
+                Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. }
+            ) {
                 has_variadic_parameter = true;
             }
 
@@ -1391,7 +1401,7 @@ mod tests {
         let mut test = TestParser::new("...args");
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
-        assert_node!(parser.tree, parameter_id, Parameter::Variadic { modifiers: _, name, ty } => {
+        assert_node!(parser.tree, parameter_id, Parameter::VariadicNamed { modifiers: _, name, ty } => {
             assert_string!(parser, *name, "args");
             assert!(ty.is_none());
         });
@@ -1403,7 +1413,7 @@ mod tests {
         let mut test = TestParser::new("...args: int32[]");
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
-        assert_node!(parser.tree, parameter_id, Parameter::Variadic { modifiers: _, name, ty } => {
+        assert_node!(parser.tree, parameter_id, Parameter::VariadicNamed { modifiers: _, name, ty } => {
             assert_string!(parser, *name, "args");
             assert!(ty.is_some());
         });
@@ -1415,7 +1425,7 @@ mod tests {
         let mut test = TestParser::new_with_options("...args?", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
-        assert_node!(parser.tree, parameter_id, Parameter::Variadic { modifiers: Some(modifiers), name, .. } => {
+        assert_node!(parser.tree, parameter_id, Parameter::VariadicNamed { modifiers: Some(modifiers), name, .. } => {
             assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
             assert_string!(parser, *name, "args");
         });
@@ -1428,9 +1438,38 @@ mod tests {
         let mut parser = test.prepare();
         parser.options.in_variant = true;
         let parameter_id = parser.eat_parameter().unwrap();
-        assert_node!(parser.tree, parameter_id, Parameter::Variadic { modifiers: _, name, ty } => {
+        assert_node!(parser.tree, parameter_id, Parameter::VariadicNamed { modifiers: _, name, ty } => {
             assert_string!(parser, *name, "value");
             assert!(ty.is_some());
+        });
+    }
+
+    #[test]
+    fn test_parse_parameter_variadic_array_pattern() {
+        // ...[first, second]
+        let mut test = TestParser::new_with_options("...[first, second]", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let parameter_id = parser.eat_parameter().unwrap();
+        assert_node!(parser.tree, parameter_id, Parameter::VariadicPattern { modifiers: _, pattern, ty } => {
+            assert!(ty.is_none());
+            assert_node!(parser.tree, *pattern, Pattern::Array { fields, .. } => {
+                assert_eq!(fields.len(), 2);
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_parameter_variadic_object_pattern() {
+        // ...{ value: alias }
+        let mut test =
+            TestParser::new_with_options("...{ value: alias }", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let parameter_id = parser.eat_parameter().unwrap();
+        assert_node!(parser.tree, parameter_id, Parameter::VariadicPattern { modifiers: _, pattern, ty } => {
+            assert!(ty.is_none());
+            assert_node!(parser.tree, *pattern, Pattern::Object { fields } => {
+                assert_eq!(fields.len(), 1);
+            });
         });
     }
 

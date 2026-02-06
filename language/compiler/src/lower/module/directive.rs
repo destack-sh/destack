@@ -27,8 +27,8 @@ impl ModuleLowerer<'_> {
             let param: &dir::Parameter = self.dir_tree.get(*param_id);
             let param_name = match param {
                 dir::Parameter::Named { name, .. } => Some(*name),
-                dir::Parameter::Variadic { name, .. } => Some(*name),
-                dir::Parameter::Pattern { .. } => None,
+                dir::Parameter::VariadicNamed { name, .. } => Some(*name),
+                dir::Parameter::Pattern { .. } | dir::Parameter::VariadicPattern { .. } => None,
             };
             if let Some(name_id) = param_name {
                 param_name_to_index.insert(name_id, index as u32);

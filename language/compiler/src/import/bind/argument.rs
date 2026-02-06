@@ -225,7 +225,7 @@ impl Compiler {
                 }
                 parameter_id
             }
-            ast::Parameter::Variadic {
+            ast::Parameter::VariadicNamed {
                 modifiers,
                 name,
                 ty,
@@ -245,9 +245,60 @@ impl Compiler {
                     None,
                     symbols,
                 );
-                let parameter = Parameter::Variadic {
+                let parameter = Parameter::VariadicNamed {
                     modifiers,
                     name,
+                    symbol: symbol_id,
+                };
+                let parameter_id = tree.insert(parameter_id, parameter);
+                let symbol = symbols.get_symbol_mut(symbol_id);
+                symbol.primary_declaration = Some(parameter_id.into_global_any(module.id));
+                self.apply_binding_mutability(symbols, symbol_id, binding_mutability);
+                self.apply_binding_category(symbols, symbol_id, BindingCategory::Parameter);
+                if let Some(ty) = ty {
+                    let ty = self.bind_expression_to_type(
+                        module,
+                        ast,
+                        constraint_scope,
+                        *ty,
+                        Some(parameter_id.into()),
+                        tree,
+                        symbols,
+                        types,
+                    );
+                    types.set_declared_type(parameter_id.into_global_any(module.id), ty);
+                }
+                parameter_id
+            }
+            ast::Parameter::VariadicPattern {
+                modifiers,
+                pattern,
+                ty,
+            } => {
+                let modifiers =
+                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
+                let binding_mutability = modifiers
+                    .and_then(|modifiers| modifiers.mutability)
+                    .unwrap_or(default_mutability);
+                let pattern = self.bind_pattern(
+                    module,
+                    ast,
+                    scope,
+                    None,
+                    SymbolBinding::Runtime,
+                    Some(binding_mutability),
+                    Some(BindingCategory::Parameter),
+                    *pattern,
+                    Some(parameter_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                let (symbol_id, _) =
+                    self.bind_anonymous_item(module, ast, symbol_space, scope, None, symbols);
+                let parameter = Parameter::VariadicPattern {
+                    modifiers,
+                    pattern,
                     symbol: symbol_id,
                 };
                 let parameter_id = tree.insert(parameter_id, parameter);

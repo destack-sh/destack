@@ -1877,14 +1877,24 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("symbol", symbol)
                     .end();
             }
-            Parameter::Variadic {
+            Parameter::VariadicNamed {
                 modifiers,
                 name,
                 symbol,
             } => {
-                self.node("Parameter::Variadic", id.id)
+                self.node("Parameter::VariadicNamed", id.id)
                     .field_optional("modifiers", modifiers)
                     .field("name", name)
+                    .field("symbol", symbol)
+                    .end();
+            }
+            Parameter::VariadicPattern {
+                modifiers,
+                pattern: _,
+                symbol,
+            } => {
+                self.node("Parameter::VariadicPattern", id.id)
+                    .field_optional("modifiers", modifiers)
                     .field("symbol", symbol)
                     .end();
             }

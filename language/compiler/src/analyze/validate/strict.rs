@@ -623,10 +623,10 @@ impl Compiler {
             }
 
             match parameter {
-                Parameter::Named { name, .. } | Parameter::Variadic { name, .. } => {
+                Parameter::Named { name, .. } | Parameter::VariadicNamed { name, .. } => {
                     keys.push(StaticKey::Name(*name));
                 }
-                Parameter::Pattern { .. } => {}
+                Parameter::Pattern { .. } | Parameter::VariadicPattern { .. } => {}
             }
         }
 
@@ -966,7 +966,7 @@ impl Compiler {
             }
 
             match parameter {
-                Parameter::Named { name, .. } | Parameter::Variadic { name, .. } => {
+                Parameter::Named { name, .. } | Parameter::VariadicNamed { name, .. } => {
                     // skip explicit `this` parameters
                     if self.is_this_parameter_name(*name) {
                         continue;
@@ -987,7 +987,7 @@ impl Compiler {
                         name: *name,
                     });
                 }
-                Parameter::Pattern { pattern, .. } => {
+                Parameter::Pattern { pattern, .. } | Parameter::VariadicPattern { pattern, .. } => {
                     // collect pattern bindings from the parameter
                     let mut bindings = HashSet::new();
                     self.collect_value_binding_symbols_for_pattern(
@@ -1103,10 +1103,10 @@ impl Compiler {
             }
 
             match parameter {
-                Parameter::Named { .. } | Parameter::Variadic { .. } => {
+                Parameter::Named { .. } | Parameter::VariadicNamed { .. } => {
                     bindings.insert(symbol_id);
                 }
-                Parameter::Pattern { pattern, .. } => {
+                Parameter::Pattern { pattern, .. } | Parameter::VariadicPattern { pattern, .. } => {
                     self.collect_value_binding_symbols_for_pattern(
                         tree,
                         *pattern,
@@ -1452,7 +1452,7 @@ impl Compiler {
             let has_default = match parameter {
                 Parameter::Named { default, .. } => default.is_some(),
                 Parameter::Pattern { default, .. } => default.is_some(),
-                Parameter::Variadic { .. } => false,
+                Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } => false,
             };
             let symbol = parameter.symbol().into_global(module.id);
             self.report_implicit_any_for_parameter_unchecked(

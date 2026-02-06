@@ -22,10 +22,16 @@ pub enum Parameter {
         default: Option<LocalNodeId<Expression>>,
         symbol: LocalSymbolId,
     },
-    /// Variadic parameter (like `..T` or `...x: int32[]`).
-    Variadic {
+    /// Variadic parameter with a named binding (like `..T` or `...x: int32[]`).
+    VariadicNamed {
         modifiers: Option<BindingModifier>,
         name: StringId,
+        symbol: LocalSymbolId,
+    },
+    /// Variadic parameter with a pattern binding (like `...[x, y]`).
+    VariadicPattern {
+        modifiers: Option<BindingModifier>,
+        pattern: LocalNodeId<Pattern>,
         symbol: LocalSymbolId,
     },
 }
@@ -40,7 +46,8 @@ impl Parameter {
         match self {
             Parameter::Named { modifiers, .. } => modifiers.as_ref(),
             Parameter::Pattern { modifiers, .. } => modifiers.as_ref(),
-            Parameter::Variadic { modifiers, .. } => modifiers.as_ref(),
+            Parameter::VariadicNamed { modifiers, .. } => modifiers.as_ref(),
+            Parameter::VariadicPattern { modifiers, .. } => modifiers.as_ref(),
         }
     }
 
@@ -50,7 +57,7 @@ impl Parameter {
             Parameter::Named { default, .. } | Parameter::Pattern { default, .. } => {
                 default.is_some()
             }
-            Parameter::Variadic { .. } => false,
+            Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } => false,
         }
     }
 
@@ -59,7 +66,8 @@ impl Parameter {
         match self {
             Parameter::Named { symbol, .. } => *symbol,
             Parameter::Pattern { symbol, .. } => *symbol,
-            Parameter::Variadic { symbol, .. } => *symbol,
+            Parameter::VariadicNamed { symbol, .. } => *symbol,
+            Parameter::VariadicPattern { symbol, .. } => *symbol,
         }
     }
 }

@@ -317,10 +317,10 @@ impl ModuleLowerer<'_> {
             // track parameter names for diagnostics
             let parameter = self.dir_tree.get(*parameter_id);
             let name = match parameter {
-                dir::Parameter::Named { name, .. } | dir::Parameter::Variadic { name, .. } => {
+                dir::Parameter::Named { name, .. } | dir::Parameter::VariadicNamed { name, .. } => {
                     Some(*name)
                 }
-                dir::Parameter::Pattern { .. } => None,
+                dir::Parameter::Pattern { .. } | dir::Parameter::VariadicPattern { .. } => None,
             };
             parameter_names.push(name);
         }
@@ -482,10 +482,10 @@ impl ModuleLowerer<'_> {
             // track parameter names for diagnostics
             let parameter = self.dir_tree.get(*parameter_id);
             let name = match parameter {
-                dir::Parameter::Named { name, .. } | dir::Parameter::Variadic { name, .. } => {
+                dir::Parameter::Named { name, .. } | dir::Parameter::VariadicNamed { name, .. } => {
                     Some(*name)
                 }
-                dir::Parameter::Pattern { .. } => None,
+                dir::Parameter::Pattern { .. } | dir::Parameter::VariadicPattern { .. } => None,
             };
             parameter_names.push(name);
         }
@@ -923,10 +923,9 @@ impl ModuleLowerer<'_> {
             for parameter_id in &signature.dynamic_parameters {
                 let parameter = self.dir_tree.get(*parameter_id);
                 let name = match parameter {
-                    dir::Parameter::Named { name, .. } | dir::Parameter::Variadic { name, .. } => {
-                        Some(*name)
-                    }
-                    dir::Parameter::Pattern { .. } => None,
+                    dir::Parameter::Named { name, .. }
+                    | dir::Parameter::VariadicNamed { name, .. } => Some(*name),
+                    dir::Parameter::Pattern { .. } | dir::Parameter::VariadicPattern { .. } => None,
                 };
                 parameter_names.push(name);
             }

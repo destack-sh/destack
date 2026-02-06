@@ -387,7 +387,7 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
                     write!(f, [space(), token("="), space(), default])?;
                 }
             }
-            Parameter::Variadic {
+            Parameter::VariadicNamed {
                 modifiers,
                 name,
                 ty,
@@ -398,6 +398,26 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
                 write!(f, [token("...")])?;
                 // name
                 write!(f, [name])?;
+                // type
+                if let Some(ty) = ty {
+                    if parameter_is_static {
+                        write!(f, [space(), Keyword::Extends, space(), ty])?;
+                    } else {
+                        write!(f, [token(":"), space(), ty])?;
+                    }
+                }
+            }
+            Parameter::VariadicPattern {
+                modifiers,
+                pattern,
+                ty,
+            } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                // keyword
+                write!(f, [token("...")])?;
+                // pattern
+                write!(f, [pattern])?;
                 // type
                 if let Some(ty) = ty {
                     if parameter_is_static {

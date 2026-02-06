@@ -141,7 +141,7 @@ impl LintRule for NoShadowRestrictedNames {
 
             let name = match param {
                 ast::Parameter::Named { name, .. } => *name,
-                ast::Parameter::Variadic { name, .. } => *name,
+                ast::Parameter::VariadicNamed { name, .. } => *name,
                 _ => continue,
             };
 

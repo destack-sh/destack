@@ -21,11 +21,11 @@ pub fn parameter_display_name(session: &Session, parameter: &Parameter) -> Strin
     // choose the display name based on the parameter shape
     match parameter {
         Parameter::Named { name, .. } => session.strings.get(*name).to_string(),
-        Parameter::Variadic { name, .. } => {
+        Parameter::VariadicNamed { name, .. } => {
             let name_str = session.strings.get(*name).to_string();
             format!("...{name_str}")
         }
-        Parameter::Pattern { .. } => "<pattern>".to_string(),
+        Parameter::Pattern { .. } | Parameter::VariadicPattern { .. } => "<pattern>".to_string(),
     }
 }
 

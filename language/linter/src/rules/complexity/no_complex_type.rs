@@ -49,7 +49,8 @@ impl LintRule for NoComplexType {
             let ty_id = match param {
                 ast::Parameter::Named { ty, .. }
                 | ast::Parameter::Pattern { ty, .. }
-                | ast::Parameter::Variadic { ty, .. } => *ty,
+                | ast::Parameter::VariadicNamed { ty, .. }
+                | ast::Parameter::VariadicPattern { ty, .. } => *ty,
             };
             if let Some(ty_id) = ty_id {
                 check_type_complexity(ctx, meta, ty_id, max_type_complexity);

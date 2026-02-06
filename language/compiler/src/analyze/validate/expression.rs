@@ -793,7 +793,7 @@ impl Compiler {
     }
 
     /// Validate assignment target rules for for each binding patterns.
-    fn validate_for_each_assignment_pattern(
+    pub(super) fn validate_for_each_assignment_pattern(
         &self,
         module: &Module,
         profile: ProfileId,

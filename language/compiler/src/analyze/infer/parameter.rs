@@ -712,8 +712,8 @@ impl Compiler {
         // derive the parameter name for mapping
         let name = match parameter {
             Parameter::Named { name, .. } => Some(*name),
-            Parameter::Variadic { name, .. } => Some(*name),
-            Parameter::Pattern { .. } => None,
+            Parameter::VariadicNamed { name, .. } => Some(*name),
+            Parameter::Pattern { .. } | Parameter::VariadicPattern { .. } => None,
         };
 
         // resolve the default expression for the parameter
@@ -724,7 +724,7 @@ impl Compiler {
             Parameter::Pattern { default, .. } => {
                 default.map(|expression_id| expression_id.into_global(module.id))
             }
-            Parameter::Variadic { .. } => None,
+            Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } => None,
         };
 
         Some(StaticParameter {

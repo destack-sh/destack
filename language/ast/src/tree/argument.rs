@@ -34,10 +34,16 @@ pub enum Parameter {
         ty: Option<LocalNodeId<Expression>>,
         default: Option<LocalNodeId<Expression>>,
     },
-    /// Variadic parameter (like `..T` or `...x: int32[]`).
-    Variadic {
+    /// Variadic parameter with a named binding (like `..T` or `...x: int32[]`).
+    VariadicNamed {
         modifiers: Option<BindingModifier>,
         name: StringId,
+        ty: Option<LocalNodeId<Expression>>,
+    },
+    /// Variadic parameter with a pattern binding (like `...[x, y]`).
+    VariadicPattern {
+        modifiers: Option<BindingModifier>,
+        pattern: LocalNodeId<Pattern>,
         ty: Option<LocalNodeId<Expression>>,
     },
 }

@@ -300,10 +300,10 @@ fn resolve_name_from_node(
             let param = dir_tree.get::<dir::Parameter>(param_id);
             match param {
                 dir::Parameter::Named { name, .. } => Some(session.strings.get(*name).to_string()),
-                dir::Parameter::Variadic { name, .. } => {
+                dir::Parameter::VariadicNamed { name, .. } => {
                     Some(session.strings.get(*name).to_string())
                 }
-                dir::Parameter::Pattern { .. } => None,
+                dir::Parameter::Pattern { .. } | dir::Parameter::VariadicPattern { .. } => None,
             }
         }
         dir::NodeType::Declaration => {

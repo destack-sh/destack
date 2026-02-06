@@ -2025,8 +2025,10 @@ impl Compiler {
             let parameter = tree.get(*parameter_id);
             let parameter_symbol = parameter.symbol().into_global(module.id);
             let parameter_name = match parameter {
-                Parameter::Named { name, .. } | Parameter::Variadic { name, .. } => Some(*name),
-                _ => None,
+                Parameter::Named { name, .. } | Parameter::VariadicNamed { name, .. } => {
+                    Some(*name)
+                }
+                Parameter::Pattern { .. } | Parameter::VariadicPattern { .. } => None,
             };
 
             match subject {

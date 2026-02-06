@@ -497,7 +497,8 @@ impl Compiler {
             let parameter = tree.get(*parameter_id);
             match parameter {
                 Parameter::Named { default, .. } => default.is_some(),
-                Parameter::Pattern { .. } | Parameter::Variadic { .. } => true,
+                Parameter::Pattern { .. } | Parameter::VariadicPattern { .. } => true,
+                Parameter::VariadicNamed { .. } => false,
             }
         })
     }

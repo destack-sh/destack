@@ -72,7 +72,7 @@ impl ModuleLowerer<'_> {
                     default,
                 }
             }
-            dir::Parameter::Variadic {
+            dir::Parameter::VariadicNamed {
                 modifiers,
                 name,
                 symbol: _,
@@ -86,9 +86,29 @@ impl ModuleLowerer<'_> {
                     .get_declared_type_id(parameter_id.into_global_any(self.module.id))
                     .map(|ty| self.lower_type(ty))
                     .transpose()?;
-                Parameter::Variadic {
+                Parameter::VariadicNamed {
                     modifiers,
                     name,
+                    ty,
+                }
+            }
+            dir::Parameter::VariadicPattern {
+                modifiers,
+                pattern,
+                symbol: _,
+            } => {
+                let modifiers = modifiers
+                    .map(|modifiers| self.lower_binding_modifier(modifiers))
+                    .transpose()?;
+                let pattern = self.lower_pattern(*pattern)?;
+                let ty = self
+                    .types
+                    .get_declared_type_id(parameter_id.into_global_any(self.module.id))
+                    .map(|ty| self.lower_type(ty))
+                    .transpose()?;
+                Parameter::VariadicPattern {
+                    modifiers,
+                    pattern,
                     ty,
                 }
             }

@@ -1031,7 +1031,7 @@ impl ModuleLowerer<'_> {
         // match parameter kinds to resolve names
         match parameter {
             // handle named parameters
-            dir::Parameter::Named { name, .. } | dir::Parameter::Variadic { name, .. } => {
+            dir::Parameter::Named { name, .. } | dir::Parameter::VariadicNamed { name, .. } => {
                 Some(strings.get(*name).to_string())
             }
             // handle pattern parameters
@@ -1045,6 +1045,15 @@ impl ModuleLowerer<'_> {
                 }
 
                 // fall back to the pattern binding name
+                self.pattern_binding_name(*pattern)
+            }
+            dir::Parameter::VariadicPattern {
+                symbol, pattern, ..
+            } => {
+                let symbol = self.symbols.get_symbol(*symbol);
+                if let Some(name_id) = symbol.name() {
+                    return Some(strings.get(name_id).to_string());
+                }
                 self.pattern_binding_name(*pattern)
             }
         }

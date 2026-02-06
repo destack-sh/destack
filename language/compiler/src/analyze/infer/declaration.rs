@@ -1994,7 +1994,7 @@ impl Compiler {
             let has_default = match tree.get(*parameter_id) {
                 Parameter::Named { default, .. } => default.is_some(),
                 Parameter::Pattern { default, .. } => default.is_some(),
-                Parameter::Variadic { .. } => false,
+                Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } => false,
             };
 
             let param_symbol = tree.get(*parameter_id).symbol().into_global(module.id);
@@ -2488,12 +2488,21 @@ impl Compiler {
                     ctx,
                 )?;
             }
-            Parameter::Variadic {
+            Parameter::VariadicNamed {
                 modifiers: _,
                 name: _,
                 symbol,
             } => {
                 // bind variadic parameter symbol to its type
+                if let Some(binding_ty_id) = binding_ty_id {
+                    types.set_value_type(symbol.into_global(module.id), binding_ty_id);
+                }
+            }
+            Parameter::VariadicPattern {
+                modifiers: _,
+                pattern: _,
+                symbol,
+            } => {
                 if let Some(binding_ty_id) = binding_ty_id {
                     types.set_value_type(symbol.into_global(module.id), binding_ty_id);
                 }

@@ -1307,12 +1307,20 @@ pub fn walk_parameter<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *default, default_expression);
             }
         }
-        Parameter::Variadic {
+        Parameter::VariadicNamed {
             modifiers: _,
             name: _,
             symbol: _,
         } => {
             // nothing to do
+        }
+        Parameter::VariadicPattern {
+            modifiers: _,
+            pattern,
+            symbol: _,
+        } => {
+            let pattern_node = tree.get(*pattern);
+            visitor.visit_pattern(tree, *pattern, pattern_node);
         }
     }
 }
