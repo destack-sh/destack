@@ -1009,7 +1009,6 @@ js/range/reversed-range.js
 js/range/start-equals-end.js
 js/range/try-catch.js
 js/range/whitespace.js
-js/regex/test.js
 js/reserved-word/interfaces.js
 js/reserved-word/let.js
 js/rest/trailing-commas.js
