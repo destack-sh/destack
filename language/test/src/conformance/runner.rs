@@ -195,6 +195,15 @@ impl CategoryStats {
             self.passed as f64 / total as f64 * 100.0
         }
     }
+
+    pub fn pass_rate_with_skipped(&self) -> f64 {
+        let total = self.total_with_skipped();
+        if total == 0 {
+            100.0
+        } else {
+            self.passed as f64 / total as f64 * 100.0
+        }
+    }
 }
 
 /// Result of a conformance test run.
@@ -234,6 +243,16 @@ impl ConformanceResult {
             100.0
         } else {
             self.passed as f64 / run as f64 * 100.0
+        }
+    }
+
+    /// Pass rate including ignored tests.
+    pub fn pass_rate_with_skipped(&self) -> f64 {
+        let total = self.total();
+        if total == 0 {
+            100.0
+        } else {
+            self.passed as f64 / total as f64 * 100.0
         }
     }
 
@@ -934,6 +953,7 @@ struct ReadmeRow {
     skipped: usize,
     total: usize,
     rate: f64,
+    rate_with_skipped: f64,
 }
 
 impl ReadmeRow {
@@ -945,6 +965,7 @@ impl ReadmeRow {
             skipped: result.result.skipped,
             total: result.result.total_run(),
             rate: result.result.pass_rate(),
+            rate_with_skipped: result.result.pass_rate_with_skipped(),
         }
     }
 
@@ -954,12 +975,12 @@ impl ReadmeRow {
             format!(
                 "| {:<8} | {:>5}  | {:>5}  | {:>5}  | {:>5} | {:>6.2}% |",
                 self.name, self.passed, self.failed, self.skipped, self.total, self.rate
-            )
+            ) + &format!(" {:>6.2}% |", self.rate_with_skipped)
         } else {
             format!(
                 "| {:<8} | {:>5}  | {:>5}  | {:>5}  | {:>5} | {:>6.2}% |",
                 self.name, self.passed, self.failed, "-", self.total, self.rate
-            )
+            ) + &format!(" {:>6.2}% |", self.rate_with_skipped)
         }
     }
 }
@@ -972,7 +993,7 @@ pub struct ReadmeResults {
 
 impl ReadmeResults {
     /// Parse a row from the table (returns None for separator/header rows).
-    /// Handles both old format (5 columns) and new format (6 columns with ignored).
+    /// Handles historical table formats with and without ignored and inclusive-rate columns.
     fn parse_row(line: &str) -> Option<ReadmeRow> {
         let line = line.trim();
         if !line.starts_with('|') || !line.ends_with('|') {
@@ -981,28 +1002,68 @@ impl ReadmeResults {
 
         let parts: Vec<&str> = line.split('|').map(|s| s.trim()).collect();
 
-        // Handle both formats:
-        // Old: ["", "name", "passed", "failed", "total", "rate", ""] - 7 parts
-        // New: ["", "name", "passed", "failed", "ignored", "total", "rate", ""] - 8 parts
-        let (name, passed, failed, skipped, total, rate) = match parts.len() {
+        // infer the inclusive rate when older table formats do not provide it
+        let pass_rate_with_skipped = |passed: usize, failed: usize, skipped: usize| -> f64 {
+            let total = passed + failed + skipped;
+            if total == 0 {
+                100.0
+            } else {
+                passed as f64 / total as f64 * 100.0
+            }
+        };
+
+        // handle table formats:
+        // legacy: name, passed, failed, total, rate
+        // current: name, passed, failed, ignored, total, rate
+        // current+: name, passed, failed, ignored, total, rate, incl-rate
+        let (name, passed, failed, skipped, total, rate, rate_with_skipped) = match parts.len() {
             7 => {
-                // Old format without ignored column
+                // legacy format without ignored or inclusive-rate columns
                 let name = parts[1].to_lowercase();
                 let passed: usize = parts[2].parse().ok()?;
                 let failed: usize = parts[3].parse().ok()?;
                 let total: usize = parts[4].parse().ok()?;
                 let rate: f64 = parts[5].trim_end_matches('%').parse().ok()?;
-                (name, passed, failed, 0, total, rate)
+                let rate_with_skipped = pass_rate_with_skipped(passed, failed, 0);
+                (name, passed, failed, 0, total, rate, rate_with_skipped)
             }
             8 => {
-                // New format with ignored column
+                // format with ignored column but without inclusive-rate column
                 let name = parts[1].to_lowercase();
                 let passed: usize = parts[2].parse().ok()?;
                 let failed: usize = parts[3].parse().ok()?;
                 let skipped: usize = parts[4].parse().unwrap_or(0); // "-" parses as 0
                 let total: usize = parts[5].parse().ok()?;
                 let rate: f64 = parts[6].trim_end_matches('%').parse().ok()?;
-                (name, passed, failed, skipped, total, rate)
+                let rate_with_skipped = pass_rate_with_skipped(passed, failed, skipped);
+                (
+                    name,
+                    passed,
+                    failed,
+                    skipped,
+                    total,
+                    rate,
+                    rate_with_skipped,
+                )
+            }
+            9 => {
+                // format with ignored and inclusive-rate columns
+                let name = parts[1].to_lowercase();
+                let passed: usize = parts[2].parse().ok()?;
+                let failed: usize = parts[3].parse().ok()?;
+                let skipped: usize = parts[4].parse().unwrap_or(0); // "-" parses as 0
+                let total: usize = parts[5].parse().ok()?;
+                let rate: f64 = parts[6].trim_end_matches('%').parse().ok()?;
+                let rate_with_skipped: f64 = parts[7].trim_end_matches('%').parse().ok()?;
+                (
+                    name,
+                    passed,
+                    failed,
+                    skipped,
+                    total,
+                    rate,
+                    rate_with_skipped,
+                )
             }
             _ => return None,
         };
@@ -1024,6 +1085,7 @@ impl ReadmeResults {
             skipped,
             total,
             rate,
+            rate_with_skipped,
         })
     }
 
@@ -1122,12 +1184,22 @@ fn format_category_section(categories: &BTreeMap<String, CategoryStats>) -> Stri
     } else {
         0.0
     };
+    let total_total_with_skipped = total_total + total_skipped;
+    let total_rate_with_skipped = if total_total_with_skipped > 0 {
+        total_passed as f64 / total_total_with_skipped as f64 * 100.0
+    } else {
+        0.0
+    };
 
     let mut lines = Vec::new();
-    lines
-        .push("| Category             | Passed | Failed | Ignored | Total |  Rate   |".to_string());
-    lines
-        .push("|:---------------------|-------:|-------:|--------:|------:|--------:|".to_string());
+    lines.push(
+        "| Category             | Passed | Failed | Ignored | Total |  Rate   | Incl. Rate |"
+            .to_string(),
+    );
+    lines.push(
+        "|:---------------------|-------:|-------:|--------:|------:|--------:|-----------:|"
+            .to_string(),
+    );
 
     for (category, stats) in categories {
         let skipped = if stats.skipped > 0 {
@@ -1136,26 +1208,35 @@ fn format_category_section(categories: &BTreeMap<String, CategoryStats>) -> Stri
             "-".to_string()
         };
         lines.push(format!(
-            "| {:<20} | {:>5}  | {:>5}  | {:>7}  | {:>5} | {:>6.2}% |",
+            "| {:<20} | {:>5}  | {:>5}  | {:>7}  | {:>5} | {:>6.2}% | {:>9.2}% |",
             category,
             stats.passed,
             stats.failed,
             skipped,
             stats.total(),
-            stats.pass_rate()
+            stats.pass_rate(),
+            stats.pass_rate_with_skipped()
         ));
     }
 
-    lines
-        .push("|----------------------|--------|--------|---------|-------|---------|".to_string());
+    lines.push(
+        "|----------------------|--------|--------|---------|-------|---------|------------|"
+            .to_string(),
+    );
     let skipped_str = if total_skipped > 0 {
         total_skipped.to_string()
     } else {
         "-".to_string()
     };
     lines.push(format!(
-        "| {:<20} | {:>5}  | {:>5}  | {:>7}  | {:>5} | {:>6.2}% |",
-        "total", total_passed, total_failed, skipped_str, total_total, total_rate
+        "| {:<20} | {:>5}  | {:>5}  | {:>7}  | {:>5} | {:>6.2}% | {:>9.2}% |",
+        "total",
+        total_passed,
+        total_failed,
+        skipped_str,
+        total_total,
+        total_rate,
+        total_rate_with_skipped
     ));
 
     lines.join("\n")
@@ -1173,27 +1254,47 @@ fn format_results_section(rows: &[ReadmeRow]) -> String {
     } else {
         0.0
     };
+    let total_total_with_skipped = total_total + total_skipped;
+    let total_rate_with_skipped = if total_total_with_skipped > 0 {
+        total_passed as f64 / total_total_with_skipped as f64 * 100.0
+    } else {
+        0.0
+    };
 
     let mut lines = Vec::new();
-    lines.push("| Suite    | Passed | Failed | Ignored | Total |  Rate   |".to_string());
-    lines.push("|:---------|-------:|-------:|--------:|------:|--------:|".to_string());
+    lines.push(
+        "| Suite    | Passed | Failed | Ignored | Total |  Rate   | Incl. Rate |".to_string(),
+    );
+    lines.push(
+        "|:---------|-------:|-------:|--------:|------:|--------:|-----------:|".to_string(),
+    );
 
     for row in rows {
         lines.push(row.format());
     }
 
-    lines.push("|----------|--------|--------|---------|-------|---------|".to_string());
+    lines.push(
+        "|----------|--------|--------|---------|-------|---------|------------|".to_string(),
+    );
     let skipped_str = if total_skipped > 0 {
         format!("{total_skipped:>5}")
     } else {
         "-".to_string()
     };
     lines.push(format!(
-        "| {:<8} | {:>5}  | {:>5}  | {:>6}  | {:>5} | {:>6.2}% |",
-        "total", total_passed, total_failed, skipped_str, total_total, total_rate
+        "| {:<8} | {:>5}  | {:>5}  | {:>6}  | {:>5} | {:>6.2}% | {:>9.2}% |",
+        "total",
+        total_passed,
+        total_failed,
+        skipped_str,
+        total_total,
+        total_rate,
+        total_rate_with_skipped
     ));
     lines.push(String::new());
-    lines.push(format!("Total Blended Pass Rate: **{total_rate:.2}%**"));
+    lines.push(format!(
+        "Total Blended Pass Rate: **{total_rate:.2}%** ({total_rate_with_skipped:.2}% incl. ignored)"
+    ));
 
     lines.join("\n")
 }
@@ -1335,17 +1436,25 @@ pub fn update_readme(results: &[SuiteResult], is_partial: bool) -> bool {
         // compute totals for display
         let total_passed: usize = final_rows.iter().map(|r| r.passed).sum();
         let total_total: usize = final_rows.iter().map(|r| r.total).sum();
+        let total_skipped: usize = final_rows.iter().map(|r| r.skipped).sum();
         let total_rate = if total_total > 0 {
             total_passed as f64 / total_total as f64 * 100.0
+        } else {
+            0.0
+        };
+        let total_total_with_skipped = total_total + total_skipped;
+        let total_rate_with_skipped = if total_total_with_skipped > 0 {
+            total_passed as f64 / total_total_with_skipped as f64 * 100.0
         } else {
             0.0
         };
 
         println!();
         println!(
-            "  {} README.md unchanged — {:.2}% ({}/{})",
+            "  {} README.md unchanged — {:.2}% ({:.2}% incl. ignored, {}/{})",
             color::dim("(no changes)"),
             total_rate,
+            total_rate_with_skipped,
             total_passed,
             total_total
         );

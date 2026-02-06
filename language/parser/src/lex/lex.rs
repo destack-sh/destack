@@ -701,7 +701,9 @@ impl Lexer {
             // greater than, shift right, or tree tag close
             '>' => {
                 // in tree opening tag mode, > ends the tag
-                if self.tree_state() == TreeState::OpeningTag {
+                if self.tree_state() == TreeState::OpeningTag
+                    && !self.in_tree_attribute_expression()
+                {
                     if self.options.tree_tag_angle_depth > 0 {
                         self.options.tree_tag_angle_depth -= 1;
                         (TokenType::GreaterThan, None)
@@ -1481,19 +1483,26 @@ impl Lexer {
         if self.peek() == '{' {
             self.eat(); // eat `{`
             let mut digits = 0usize;
+            let mut value: u32 = 0;
+            let mut overflowed = false;
             while self.peek().is_ascii_hexdigit() {
+                if !overflowed {
+                    let digit = self.peek().to_digit(16).unwrap_or(0);
+                    if let Some(next) = value.checked_mul(16).and_then(|v| v.checked_add(digit)) {
+                        value = next;
+                    } else {
+                        overflowed = true;
+                    }
+                }
                 self.eat();
                 digits += 1;
-                if digits > 6 {
-                    return true;
-                }
             }
 
             if digits == 0 || self.peek() != '}' {
                 return true;
             }
             self.eat(); // eat `}`
-            false
+            overflowed || value > 0x10FFFF
         } else {
             self.eat_fixed_hex_escape(4)
         }
@@ -1515,17 +1524,35 @@ impl Lexer {
     /// Works exactly like JS/TS regex literals.
     fn eat_regex_string(&mut self) -> bool {
         debug_assert!(self.prev() == '/');
-        // match until next '/'
+        let mut escaped = false;
+        let mut in_character_class = false;
+
+        // match until next '/' outside character classes
         while let Some(c) = self.eat() {
-            match c {
-                '/' => {
-                    break;
+            if escaped {
+                escaped = false;
+                continue;
+            }
+
+            if c == '\\' {
+                escaped = true;
+                continue;
+            }
+
+            if in_character_class {
+                if c == ']' {
+                    in_character_class = false;
                 }
-                '\\' if self.peek() == '\\' || self.peek() == '/' => {
-                    // bump again to skip escaped character
-                    self.eat();
-                }
-                _ => (), // keep eating
+                continue;
+            }
+
+            if c == '[' {
+                in_character_class = true;
+                continue;
+            }
+
+            if c == '/' {
+                break;
             }
         }
         // flags are are any alpha characters immediately after the last '/'
@@ -1802,6 +1829,13 @@ impl Lexer {
             );
         }
 
+        // control statement headers can be followed by expression statements
+        if last_non_whitespace.token.ty == TokenType::CloseParenthesis
+            && self.close_parenthesis_ends_control_header()
+        {
+            return true;
+        }
+
         if EXPRESSION_START_TOKEN_TYPES.contains(&last_non_whitespace.token.ty) {
             return true;
         }
@@ -1812,11 +1846,87 @@ impl Lexer {
                     keyword.is_control()
                         || keyword == Keyword::Delete
                         || UnaryOperator::from_prefix_keyword(keyword).is_some()
+                        || keyword == Keyword::Default && self.default_follows_export()
                 })
                 .unwrap_or(false);
         }
 
         false
+    }
+
+    // detect `export default /regex/` context
+    fn default_follows_export(&self) -> bool {
+        let Some(previous) = self.options.prev_semantic_token.as_ref() else {
+            return false;
+        };
+        if previous.token.ty != TokenType::Identifier {
+            return false;
+        }
+        Keyword::from_str(self.get_span_str(previous.span)) == Ok(Keyword::Export)
+    }
+
+    // detect control headers ending in `)` where the body can start with `/regex/`
+    fn close_parenthesis_ends_control_header(&self) -> bool {
+        let Some(last_token) = self.options.last_semantic_token.as_ref() else {
+            return false;
+        };
+        if last_token.token.ty != TokenType::CloseParenthesis {
+            return false;
+        }
+
+        let mut depth = 0i32;
+        let mut matching_open_index: Option<usize> = None;
+
+        // find the matching opening parenthesis for the trailing `)`
+        for index in (0..self.tokens.len()).rev() {
+            let token = self.tokens[index];
+            if token.token.ty == TokenType::Newline {
+                continue;
+            }
+
+            if token.token.ty == TokenType::CloseParenthesis {
+                depth += 1;
+                continue;
+            }
+
+            if token.token.ty == TokenType::OpenParenthesis {
+                depth -= 1;
+                if depth == 0 {
+                    matching_open_index = Some(index);
+                    break;
+                }
+            }
+        }
+
+        let Some(matching_open_index) = matching_open_index else {
+            return false;
+        };
+
+        // look at the token before the matched `(`
+        let mut previous_keyword_token: Option<TokenSpan> = None;
+        for index in (0..matching_open_index).rev() {
+            let token = self.tokens[index];
+            if token.token.ty == TokenType::Newline {
+                continue;
+            }
+            previous_keyword_token = Some(token);
+            break;
+        }
+
+        let Some(previous_keyword_token) = previous_keyword_token else {
+            return false;
+        };
+        if previous_keyword_token.token.ty != TokenType::Identifier {
+            return false;
+        }
+
+        let Ok(keyword) = Keyword::from_str(self.get_span_str(previous_keyword_token.span)) else {
+            return false;
+        };
+        matches!(
+            keyword,
+            Keyword::If | Keyword::While | Keyword::For | Keyword::With
+        )
     }
 
     /// Check whether a newline can terminate a statement before a tree literal.

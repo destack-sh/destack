@@ -24,7 +24,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
         Err(error) => return TestResult::Failed { message: error },
     };
 
-    let new_parameters = exp.args.get(0).map(|value| value.as_str()).unwrap_or("");
+    let new_parameters = exp.args.first().map(|value| value.as_str()).unwrap_or("");
     let new_arguments = exp.args.get(1).map(|value| value.as_str()).unwrap_or("");
 
     let result = query::change_signature(

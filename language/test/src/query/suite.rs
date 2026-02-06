@@ -833,7 +833,7 @@ fn run_change_signature_expected_files(
 
     let new_parameters = expectation
         .args
-        .get(0)
+        .first()
         .map(|value| value.as_str())
         .unwrap_or("");
     let new_arguments = expectation
