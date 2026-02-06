@@ -16,13 +16,14 @@ use destack_builtin::LanguageSymbol;
 use destack_dir::{
     Addressability, Argument, BindingKind, BindingOperator, Block, CastOperator, CastSource,
     Constraint, Declaration, DependencyItem, DependencyKind, DependencyMode, DependencySource,
-    DynamicKey, Expression, FlowGraphBuilder, ForEachBinding, FunctionCardinality, GlobalNodeIdAny,
-    GlobalSymbolId, IfCondition, InferOrigin, InferScope, InferTable, LocalNodeId, LocalNodeIdAny,
-    LocalSymbolId, LocalTypeId, LoopKind, MatchCase, MatchKind, MatchSelector, MatchSource, Member,
-    Mutability, NodeTree, NodeType, NormalizationMode, Pattern, PrimitiveType, Property,
-    Resolution, ScalarLiteral, StaticArgument, StaticExpression, StaticKey, StringId,
-    SymbolDecorators, SymbolSpace, SymbolTable, Type, TypeBinaryOperator, TypeElement, TypeField,
-    TypeLiteral, TypeTable, TypeUnaryOperator, WellKnownSymbol, YieldCardinality,
+    DynamicKey, Expression, FlowGraphBuilder, ForEachBinding, FunctionCardinality, FunctionKind,
+    FunctionMode, GlobalNodeIdAny, GlobalSymbolId, IfCondition, InferOrigin, InferScope,
+    InferTable, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, LoopKind, MatchCase,
+    MatchKind, MatchSelector, MatchSource, Member, Mutability, NodeTree, NodeType,
+    NormalizationMode, Pattern, PrimitiveType, Property, Resolution, ScalarLiteral, StaticArgument,
+    StaticExpression, StaticKey, StringId, SymbolDecorators, SymbolSpace, SymbolTable, Type,
+    TypeBinaryOperator, TypeElement, TypeField, TypeLiteral, TypeTable, TypeUnaryOperator,
+    WellKnownSymbol, YieldCardinality,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ModuleSource, ProfileId};
@@ -54,8 +55,145 @@ pub(super) struct OptionalChainReceiver {
     pub(super) has_nullish: bool,
 }
 
+/// Lexical home-object kinds that allow super access.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SuperHomeObjectKind {
+    /// A class method home object.
+    ClassMethod { is_constructor: bool },
+    /// A class field home object.
+    ClassField,
+    /// A class static block home object.
+    ClassStaticBlock,
+    /// An object method home object.
+    ObjectMethod,
+}
+
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Return true when `super.x` is valid in the current lexical context.
+    pub(crate) fn super_property_is_valid_context(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        self.super_home_object_for_context(tree, expression_id, true)
+            .is_some()
+    }
+
+    /// Return true when `super(...)` is valid in the current lexical context.
+    pub(crate) fn super_call_is_valid_context(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        // super calls require a constructor method home object
+        let Some(home_object) = self.super_home_object_for_context(tree, expression_id, false)
+        else {
+            return false;
+        };
+        if !matches!(
+            home_object,
+            SuperHomeObjectKind::ClassMethod {
+                is_constructor: true
+            }
+        ) {
+            return false;
+        }
+
+        // super calls require an enclosing derived class
+        self.enclosing_class_is_derived(tree, expression_id)
+    }
+
+    /// Return the nearest lexical home object that can bind `super`.
+    fn super_home_object_for_context(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+        allow_lambda_boundaries: bool,
+    ) -> Option<SuperHomeObjectKind> {
+        let mut current = Some(expression_id.into_any());
+
+        // walk outward through parent scopes
+        while let Some(node_id) = current {
+            let Some(parent) = tree.get_parent(node_id.id) else {
+                break;
+            };
+
+            // non-lambda functions stop lexical super inheritance
+            if parent.ty == NodeType::Declaration {
+                let declaration = tree.get(parent.into_typed::<Declaration>());
+                if let Declaration::Function { signature, .. } = declaration {
+                    if allow_lambda_boundaries && signature.kind == FunctionKind::Lambda {
+                        current = Some(parent);
+                        continue;
+                    }
+                    return None;
+                }
+            }
+
+            // class member contexts provide a home object
+            if parent.ty == NodeType::Member {
+                let member = tree.get(parent.into_typed::<Member>());
+                match member {
+                    Member::Method { signature, .. } => {
+                        let is_constructor = signature.mode == Some(FunctionMode::Constructor);
+                        return Some(SuperHomeObjectKind::ClassMethod { is_constructor });
+                    }
+                    Member::Field { .. } => return Some(SuperHomeObjectKind::ClassField),
+                    Member::StaticBlock { .. } => {
+                        return Some(SuperHomeObjectKind::ClassStaticBlock);
+                    }
+                    Member::Type { .. } | Member::Embed { .. } | Member::ComptimeBlock { .. } => {
+                        return None;
+                    }
+                }
+            }
+
+            // object method contexts provide a home object
+            if parent.ty == NodeType::Property {
+                let property = tree.get(parent.into_typed::<Property>());
+                match property {
+                    Property::Method { .. } => return Some(SuperHomeObjectKind::ObjectMethod),
+                    Property::Field { .. } | Property::Spread { .. } => return None,
+                }
+            }
+
+            current = Some(parent);
+        }
+
+        None
+    }
+
+    /// Return true when the nearest enclosing class declaration has an extends clause.
+    fn enclosing_class_is_derived(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        let mut current = Some(expression_id.into_any());
+
+        // walk outward to the first class declaration
+        while let Some(node_id) = current {
+            let Some(parent) = tree.get_parent(node_id.id) else {
+                break;
+            };
+
+            if parent.ty == NodeType::Declaration {
+                let declaration = tree.get(parent.into_typed::<Declaration>());
+                if let Declaration::Class { heritage, .. } = declaration {
+                    return heritage
+                        .extends_types
+                        .as_ref()
+                        .is_some_and(|types| !types.is_empty());
+                }
+            }
+
+            current = Some(parent);
+        }
+
+        false
+    }
+
     /// Recover static parameters for a signature when the type omitted them.
     fn recover_static_parameters_for_signature(
         &self,
@@ -3418,6 +3556,11 @@ impl Compiler {
         ctx: &InferContext,
         types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
+        // super references require a valid lexical home object
+        if !self.super_property_is_valid_context(tree, expression_id) {
+            return None;
+        }
+
         // resolve the enclosing class declaration
         let mut current = Some(expression_id.into_any());
         while let Some(node_id) = current {

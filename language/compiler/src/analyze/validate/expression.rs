@@ -3,10 +3,10 @@ use crate::{AnalyzeError, AnalyzeOptions, Compiler};
 use destack_dir::{
     Argument, Asynchrony, BinaryOperator, BindingKind, Declaration, DeclarationKind, Declarator,
     DependencyItem, DependencyKind, DependencyMode, DependencySource, Expression, ForEachBinding,
-    ForEachKind, FunctionMode, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, MatchCase, MatchKind,
-    MatchSelector, Member, Mutability, NodeTree, NodeType, Path, Pattern, Property,
-    RuntimeCheckKind, ScalarLiteral, StaticKey, StringId, SymbolTable, SymbolType, TemplateLiteral,
-    Type, TypeBinaryOperator, TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator,
+    ForEachKind, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, MatchCase, MatchKind, MatchSelector,
+    Member, Mutability, NodeTree, NodeType, Path, Pattern, Property, RuntimeCheckKind,
+    ScalarLiteral, StaticKey, StringId, SymbolTable, SymbolType, TemplateLiteral, Type,
+    TypeBinaryOperator, TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -50,10 +50,12 @@ impl Compiler {
             }
             Expression::Call { left, .. } => {
                 self.validate_super_call_expression(module, profile, tree, expression_id, *left);
+                self.validate_super_property_expression(module, profile, tree, expression_id);
             }
             Expression::Member { left, .. }
             | Expression::PrivateMember { left, .. }
             | Expression::Index { left, .. } => {
+                self.validate_super_property_expression(module, profile, tree, expression_id);
                 self.validate_instantiation_access(module, profile, tree, expression_id, *left);
             }
             Expression::Maybe { left } => {
@@ -185,6 +187,9 @@ impl Compiler {
                 right,
             } => {
                 self.validate_readonly_type_operator(module, profile, tree, expression_id, *right);
+            }
+            Expression::Unary { operator, right } => {
+                self.validate_update_target(module, profile, tree, *operator, *right, is_strict);
             }
             Expression::TypeIndex { left, .. } => {
                 self.validate_intrinsic_type_index(module, profile, tree, expression_id, *left);
@@ -349,6 +354,31 @@ impl Compiler {
             }
             _ => {}
         }
+    }
+
+    /// Validate update expression targets.
+    fn validate_update_target(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        operator: UnaryOperator,
+        target: LocalNodeId<Expression>,
+        is_strict: bool,
+    ) {
+        // skip non update operators
+        if !matches!(
+            operator,
+            UnaryOperator::PostIncrement
+                | UnaryOperator::PostDecrement
+                | UnaryOperator::PreIncrement
+                | UnaryOperator::PreDecrement
+        ) {
+            return;
+        }
+
+        // update operators share assignment target constraints
+        self.validate_assignment_target(module, profile, tree, target, is_strict);
     }
 
     /// Validate for of binding constraints.
@@ -813,6 +843,37 @@ impl Compiler {
         self.error(AnalyzeError::InvalidSuperOptionalChain { node });
     }
 
+    /// Validate non-call super property access.
+    fn validate_super_property_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) {
+        // skip plain super calls, they are checked separately
+        if let Expression::Call { left, .. } = tree.get(expression_id)
+            && self.expression_is_super_reference(tree, *left)
+        {
+            return;
+        }
+
+        // skip expressions that are not rooted in super
+        if !self.expression_roots_in_super(tree, expression_id) {
+            return;
+        }
+
+        // allow contexts that have valid super bindings
+        if self.can_access_super_in_context(tree, expression_id) {
+            return;
+        }
+
+        let node = expression_id
+            .into_global_any(module.id)
+            .into_anchored(Some(profile));
+        self.error(AnalyzeError::InvalidSuperCall { node });
+    }
+
     /// Return true when an expression is exactly a `super` reference.
     fn expression_is_super_reference(
         &self,
@@ -851,55 +912,16 @@ impl Compiler {
         tree: &NodeTree,
         expression_id: LocalNodeId<Expression>,
     ) -> bool {
-        let mut current = Some(expression_id.into_any());
-        let mut found_constructor_method = false;
+        self.super_call_is_valid_context(tree, expression_id)
+    }
 
-        // walk outward through parent scopes
-        while let Some(node_id) = current {
-            let Some(parent) = tree.get_parent(node_id.id) else {
-                break;
-            };
-
-            // constructor methods are the only methods that can call super
-            if parent.ty == NodeType::Member {
-                let member = tree.get(parent.into_typed::<Member>());
-                if let Member::Method { signature, .. } = member {
-                    if signature.mode == Some(FunctionMode::Constructor) {
-                        found_constructor_method = true;
-                    } else {
-                        return false;
-                    }
-                }
-            }
-
-            // nested function boundaries invalidate super calls
-            if parent.ty == NodeType::Declaration {
-                let declaration = tree.get(parent.into_typed::<Declaration>());
-                match declaration {
-                    Declaration::Function { .. } => return false,
-                    Declaration::Class { heritage, .. } => {
-                        if found_constructor_method {
-                            return heritage
-                                .extends_types
-                                .as_ref()
-                                .is_some_and(|types| !types.is_empty());
-                        }
-                    }
-                    _ => {}
-                }
-            }
-
-            if parent.ty == NodeType::Property {
-                let property = tree.get(parent.into_typed::<Property>());
-                if matches!(property, Property::Method { .. }) {
-                    return false;
-                }
-            }
-
-            current = Some(parent);
-        }
-
-        false
+    /// Return true when `super.x` is valid in the current lexical context.
+    fn can_access_super_in_context(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        self.super_property_is_valid_context(tree, expression_id)
     }
 
     /// Return true when an expression chain contains optional access.
@@ -1198,7 +1220,7 @@ impl Compiler {
     ) -> Option<(LocalNodeId<Expression>, StringId)> {
         let target = self.unwrap_parenthesized_expression(target, tree);
         let name = self.assignment_target_binding_name(tree, target)?;
-        if !self.is_reserved_strict_assignment_name(name) {
+        if !self.is_reserved_binding_name(name) {
             return None;
         }
 
@@ -2311,6 +2333,157 @@ cls.myFunc<ConcreteClass> = (instance) => {
 
             panic!("expected assignment expression");
         });
+        test.check_has_diagnostic("EA226");
+    }
+
+    /// Reject super member access in plain functions.
+    #[test]
+    fn test_reject_super_member_access_in_plain_function() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.js",
+            r#"
+function a() {
+    super.b;
+}
+"#,
+        );
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA244");
+    }
+
+    /// Reject super member access in nested non-lambda functions.
+    #[test]
+    fn test_reject_super_member_access_in_nested_function() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.js",
+            r#"
+class A extends B {
+    m() {
+        function n() {
+            super.x;
+        }
+    }
+}
+"#,
+        );
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA244");
+    }
+
+    /// Allow super member access in class methods.
+    #[test]
+    fn test_allow_super_member_access_in_method() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.js",
+            r#"
+class A extends B {
+    m() {
+        return super.x;
+    }
+}
+"#,
+        );
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("EA244");
+    }
+
+    /// Allow super member access in lambdas nested inside methods.
+    #[test]
+    fn test_allow_super_member_access_in_lambda_inside_method() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.js",
+            r#"
+class A extends B {
+    m() {
+        const get = () => super.x;
+        return get();
+    }
+}
+"#,
+        );
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("EA244");
+    }
+
+    /// Reject strict mode updates of arguments.
+    #[test]
+    fn test_reject_strict_mode_update_arguments() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.js",
+            r#"
+function a() {
+    "use strict";
+    ++arguments;
+}
+"#,
+        );
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA214");
+    }
+
+    /// Reject strict mode assignments to reserved identifier names.
+    #[test]
+    fn test_reject_strict_mode_assignment_to_reserved_identifier() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.js",
+            r#"
+function a() {
+    "use strict";
+    interface = 1;
+}
+"#,
+        );
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA214");
+    }
+
+    /// Reject update expressions on non-assignable literals.
+    #[test]
+    fn test_reject_update_on_literal_target() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module("test.js", "0++;");
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
         test.check_has_diagnostic("EA226");
     }
 }
