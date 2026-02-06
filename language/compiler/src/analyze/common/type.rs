@@ -1283,59 +1283,6 @@ impl Compiler {
         }
     }
 
-    /// Check whether a type can be instantiated as a callable value target.
-    pub(crate) fn type_is_callable_instantiation_target(
-        &self,
-        type_id: LocalTypeId,
-        types: &TypeTable,
-        visited: &mut HashSet<LocalTypeId>,
-    ) -> bool {
-        if !visited.insert(type_id) {
-            return false;
-        }
-
-        match types.get_type(type_id) {
-            Type::Function { .. } => true,
-            Type::Object {
-                call_signatures, ..
-            } => !call_signatures.is_empty(),
-            Type::Union {
-                elements: candidates,
-                ..
-            }
-            | Type::Intersection {
-                elements: candidates,
-                ..
-            } => candidates.iter().any(|candidate| {
-                self.type_is_callable_instantiation_target(*candidate, types, visited)
-            }),
-            Type::Reference { symbol, .. } => {
-                if symbol.ty() == SymbolType::Function {
-                    return true;
-                }
-
-                if let Some(alias_target_id) = types.get_alias_target_type_id(*symbol) {
-                    return self.type_is_callable_instantiation_target(
-                        alias_target_id,
-                        types,
-                        visited,
-                    );
-                }
-
-                if let Some(instance_type_id) = types.get_instance_type_id(*symbol) {
-                    return self.type_is_callable_instantiation_target(
-                        instance_type_id,
-                        types,
-                        visited,
-                    );
-                }
-
-                false
-            }
-            _ => false,
-        }
-    }
-
     /// Resolve an enum symbol from a type when possible.
     pub(crate) fn enum_symbol_for_type(
         &self,

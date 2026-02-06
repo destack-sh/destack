@@ -1352,6 +1352,12 @@ impl Lexer {
         }
     }
 
+    /// Return true when quoted strings can span lines in tree opening tag attributes.
+    #[inline]
+    fn allow_line_terminator_in_tree_attribute_string(&self) -> bool {
+        self.tree_state() == TreeState::OpeningTag && !self.in_tree_attribute_expression()
+    }
+
     /// Parse a single-quoted literal (excluding the initial `'`).
     /// Might be a character if single-quoted length is 1 or a string otherwise.
     fn eat_single_quoted_string(&mut self) -> SingleQuotedLiteral {
@@ -1379,6 +1385,12 @@ impl Lexer {
                 }
                 // line terminators are not allowed in single quoted strings
                 '\n' | '\r' => {
+                    // allow multiline quoted values inside tree opening tag attributes
+                    if self.allow_line_terminator_in_tree_attribute_string() {
+                        self.eat();
+                        logical_len = logical_len.saturating_add(1);
+                        continue;
+                    }
                     return Self::finish_single_quoted_literal(
                         logical_len,
                         false,
@@ -1450,6 +1462,11 @@ impl Lexer {
                 }
                 // line terminators are not allowed in double quoted strings
                 '\n' | '\r' => {
+                    // allow multiline quoted values inside tree opening tag attributes
+                    if self.allow_line_terminator_in_tree_attribute_string() {
+                        self.eat();
+                        continue;
+                    }
                     return (false, has_invalid_escape);
                 }
                 _ => {
