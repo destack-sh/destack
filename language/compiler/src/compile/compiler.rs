@@ -1,14 +1,12 @@
 use std::num::NonZero;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
 
 use dashmap::DashMap;
 
 use destack_base::ImmutableStringPool;
-use destack_dir::GlobalSymbolId;
 use destack_source::{DiagnosticCollector, DiagnosticOptions, DiagnosticSeverity, ModuleId, Uri};
-use destack_workspace::{Builtins, ProfileId, Program, Session, Target};
+use destack_workspace::{Builtins, Program, Session, Target};
 use parking_lot::Mutex;
 
 use crate::{
@@ -211,14 +209,6 @@ pub struct Compiler {
     pub cache: CacheRegistry,
     /// Snapshot of strings for signature hashing.
     signature_strings: Mutex<Option<CompilerStringSnapshot>>,
-    /// monotonic counter for infer substitution cache keys
-    infer_substitution_counter: AtomicU64,
-    /// cache for static parameter symbol lookup by (profile, symbol)
-    static_parameter_cache: DashMap<(ProfileId, GlobalSymbolId), Option<Vec<GlobalSymbolId>>>,
-    /// cache for canonical symbol resolution by (profile, symbol, mode)
-    canonical_symbol_cache: DashMap<(ProfileId, GlobalSymbolId, u8), GlobalSymbolId>,
-    /// cache for normalized reference symbol lookup by (profile, module, symbol)
-    normalized_reference_cache: DashMap<(ProfileId, ModuleId, GlobalSymbolId), GlobalSymbolId>,
 
     /// Locks for serializing module creation per (URI, loader) pair.
     /// The loader salt distinguishes imports with non-default loaders.
@@ -264,10 +254,6 @@ impl Compiler {
             stats: Arc::new(CompilerStats::new_with_timings(timings)),
             cache: CacheRegistry::new(),
             signature_strings: Mutex::new(None),
-            infer_substitution_counter: AtomicU64::new(1),
-            static_parameter_cache: DashMap::new(),
-            canonical_symbol_cache: DashMap::new(),
-            normalized_reference_cache: DashMap::new(),
         };
 
         // load workspace index snapshot when available
@@ -276,75 +262,6 @@ impl Compiler {
         }
 
         compiler
-    }
-
-    /// Read the static parameter cache entry for a symbol.
-    pub(crate) fn cached_static_parameter_symbols(
-        &self,
-        profile: ProfileId,
-        symbol: GlobalSymbolId,
-    ) -> Option<Option<Vec<GlobalSymbolId>>> {
-        self.static_parameter_cache
-            .get(&(profile, symbol))
-            .map(|entry| entry.clone())
-    }
-
-    /// Write the static parameter cache entry for a symbol.
-    pub(crate) fn set_cached_static_parameter_symbols(
-        &self,
-        profile: ProfileId,
-        symbol: GlobalSymbolId,
-        value: Option<Vec<GlobalSymbolId>>,
-    ) {
-        self.static_parameter_cache.insert((profile, symbol), value);
-    }
-
-    /// Read the canonical symbol cache entry for a symbol.
-    pub(crate) fn cached_canonical_symbol(
-        &self,
-        profile: ProfileId,
-        symbol: GlobalSymbolId,
-        mode_key: u8,
-    ) -> Option<GlobalSymbolId> {
-        self.canonical_symbol_cache
-            .get(&(profile, symbol, mode_key))
-            .map(|entry| *entry)
-    }
-
-    /// Write the canonical symbol cache entry for a symbol.
-    pub(crate) fn set_cached_canonical_symbol(
-        &self,
-        profile: ProfileId,
-        symbol: GlobalSymbolId,
-        mode_key: u8,
-        canonical_symbol: GlobalSymbolId,
-    ) {
-        self.canonical_symbol_cache
-            .insert((profile, symbol, mode_key), canonical_symbol);
-    }
-
-    /// Read the normalized reference cache entry for a symbol.
-    pub(crate) fn cached_normalized_reference_symbol(
-        &self,
-        profile: ProfileId,
-        module_id: ModuleId,
-        symbol: GlobalSymbolId,
-    ) -> Option<GlobalSymbolId> {
-        self.normalized_reference_cache
-            .get(&(profile, module_id, symbol))
-            .map(|entry| *entry)
-    }
-
-    /// Write the normalized reference cache entry for a symbol.
-    pub(crate) fn set_cached_normalized_reference_symbol(
-        &self,
-        profile: ProfileId,
-        module_id: ModuleId,
-        symbol: GlobalSymbolId,
-        normalized: GlobalSymbolId,
-    ) {
-        self.normalized_reference_cache
-            .insert((profile, module_id, symbol), normalized);
     }
 
     /// Emit a compiler event to the event handler (if configured).
@@ -372,12 +289,6 @@ impl Compiler {
             strings: strings.clone(),
         });
         strings
-    }
-
-    /// Return a fresh cache key for infer substitution sets.
-    pub(crate) fn next_infer_substitution_key(&self) -> u64 {
-        self.infer_substitution_counter
-            .fetch_add(1, Ordering::Relaxed)
     }
 
     /// Get the builtins (if loaded in program).

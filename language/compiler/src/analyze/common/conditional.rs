@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::hash::{Hash, Hasher};
 
 use destack_dir::{
     GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NormalizationMode, PrimitiveType, ScalarLiteral,
@@ -24,8 +25,8 @@ pub(crate) struct InferSubstitutions {
 
 impl InferSubstitutions {
     /// Create an empty substitution set with a fresh cache key.
-    fn empty(compiler: &Compiler) -> Self {
-        Self::from_map(compiler, HashMap::new())
+    fn empty() -> Self {
+        Self::from_map(HashMap::new())
     }
 
     /// Return the cache key for these substitutions.
@@ -39,9 +40,9 @@ impl InferSubstitutions {
     }
 
     /// Build a substitution set from a map.
-    fn from_map(compiler: &Compiler, by_name: HashMap<StringId, LocalTypeId>) -> Self {
+    fn from_map(by_name: HashMap<StringId, LocalTypeId>) -> Self {
         Self {
-            cache_key: compiler.next_infer_substitution_key(),
+            cache_key: infer_substitution_cache_key(&by_name),
             by_name,
         }
     }
@@ -54,15 +55,15 @@ impl InferSubstitutions {
 
 /// Builder for immutable substitution sets.
 struct InferSubstitutionsBuilder<'a> {
-    compiler: &'a Compiler,
+    _compiler: std::marker::PhantomData<&'a Compiler>,
     by_name: HashMap<StringId, LocalTypeId>,
 }
 
 impl<'a> InferSubstitutionsBuilder<'a> {
     /// Create a new builder with an empty substitution set.
-    fn new(compiler: &'a Compiler) -> Self {
+    fn new() -> Self {
         Self {
-            compiler,
+            _compiler: std::marker::PhantomData,
             by_name: HashMap::new(),
         }
     }
@@ -83,8 +84,33 @@ impl<'a> InferSubstitutionsBuilder<'a> {
 
     /// Finish the builder and return an immutable substitution set.
     fn build(self) -> InferSubstitutions {
-        InferSubstitutions::from_map(self.compiler, self.by_name)
+        InferSubstitutions::from_map(self.by_name)
     }
+}
+
+/// Build a deterministic cache key for inferred substitutions.
+fn infer_substitution_cache_key(substitutions: &HashMap<StringId, LocalTypeId>) -> u64 {
+    // keep empty substitutions stable and cheap
+    if substitutions.is_empty() {
+        return 0x8d3c_4fb1_5e0a_1d79;
+    }
+
+    // sort by infer binding name for deterministic hashing
+    let mut entries = substitutions
+        .iter()
+        .map(|(name, ty)| (*name, *ty))
+        .collect::<Vec<_>>();
+    entries.sort_by_key(|(name, _)| *name);
+
+    // hash the ordered entries into one cache key
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    entries.len().hash(&mut hasher);
+    for (name, type_id) in entries {
+        name.hash(&mut hasher);
+        type_id.hash(&mut hasher);
+    }
+
+    hasher.finish()
 }
 
 /// Merge mode for inferred bindings.
@@ -253,7 +279,7 @@ impl Compiler {
     ) -> Option<InferSubstitutions> {
         // stop on recursion cycles
         if !visited.insert((left, right)) {
-            return Some(InferSubstitutions::empty(self));
+            return Some(InferSubstitutions::empty());
         }
 
         // NOTE #Suspicious: infer substitution matching normalizes aliases eagerly, may evaluate instantiation dependent types
@@ -319,7 +345,7 @@ impl Compiler {
         // handle infer bindings and trivial matches early
         match (&left_type, &right_type) {
             (_, Type::Infer { name, .. }) => {
-                let mut substitutions = InferSubstitutionsBuilder::new(self);
+                let mut substitutions = InferSubstitutionsBuilder::new();
                 substitutions.insert(*name, left);
                 return Some(substitutions.build());
             }
@@ -419,7 +445,7 @@ impl Compiler {
             && right_symbol.ty() == SymbolType::TypeAlias
             && symbol == right_symbol
         {
-            return Some(InferSubstitutions::empty(self));
+            return Some(InferSubstitutions::empty());
         }
 
         // compare instance types for identical references
@@ -601,10 +627,10 @@ impl Compiler {
         // structural matching across type shapes
         match (left_type, right_type) {
             (Type::Conditional { .. }, _) | (_, Type::Conditional { .. }) => {
-                Some(InferSubstitutions::empty(self))
+                Some(InferSubstitutions::empty())
             }
             (Type::Union { elements }, _) => {
-                let mut combined = InferSubstitutionsBuilder::new(self);
+                let mut combined = InferSubstitutionsBuilder::new();
                 for element_id in elements {
                     let inferred = self.infer_conditional_type_substitutions_inner(
                         module,
@@ -639,7 +665,7 @@ impl Compiler {
                 Some(combined.build())
             }
             (_, Type::Union { elements }) => {
-                let mut combined = InferSubstitutionsBuilder::new(self);
+                let mut combined = InferSubstitutionsBuilder::new();
                 // require at least one matching union branch
                 let mut matched_any = false;
                 for element_id in elements {
@@ -672,7 +698,7 @@ impl Compiler {
                 Some(combined.build())
             }
             (Type::Intersection { elements }, _) => {
-                let mut combined = InferSubstitutionsBuilder::new(self);
+                let mut combined = InferSubstitutionsBuilder::new();
                 for element_id in elements {
                     if let Some(inferred) = self.infer_conditional_type_substitutions_inner(
                         module,
@@ -759,7 +785,7 @@ impl Compiler {
                 visited,
             ),
             (_, Type::Intersection { elements }) => {
-                let mut combined = InferSubstitutionsBuilder::new(self);
+                let mut combined = InferSubstitutionsBuilder::new();
                 for element_id in elements {
                     let inferred = self.infer_conditional_type_substitutions_inner(
                         module,
@@ -792,10 +818,10 @@ impl Compiler {
                 },
             ) => {
                 let Some(left_element) = element else {
-                    return Some(InferSubstitutions::empty(self));
+                    return Some(InferSubstitutions::empty());
                 };
                 let Some(right_element) = right_element else {
-                    return Some(InferSubstitutions::empty(self));
+                    return Some(InferSubstitutions::empty());
                 };
                 self.infer_conditional_type_substitutions_inner(
                     module,
@@ -842,7 +868,7 @@ impl Compiler {
                 if elements.len() != right_elements.len() {
                     return None;
                 }
-                let mut combined = InferSubstitutionsBuilder::new(self);
+                let mut combined = InferSubstitutionsBuilder::new();
                 for (left_element, right_element) in elements.iter().zip(right_elements.iter()) {
                     let inferred = self.infer_conditional_type_substitutions_inner(
                         module,
@@ -889,7 +915,7 @@ impl Compiler {
                 }
 
                 // infer static parameter substitutions
-                let mut combined = InferSubstitutionsBuilder::new(self);
+                let mut combined = InferSubstitutionsBuilder::new();
                 for (left_parameter, right_parameter) in
                     static_parameters.iter().zip(right_static_parameters.iter())
                 {
@@ -928,7 +954,7 @@ impl Compiler {
                             types,
                             visited,
                         ),
-                    (None, None) => Some(InferSubstitutions::empty(self)),
+                    (None, None) => Some(InferSubstitutions::empty()),
                     _ => None,
                 }?;
                 self.merge_infer_substitutions(
@@ -1055,7 +1081,7 @@ impl Compiler {
                 },
             ) => {
                 // match function types against callable object patterns
-                let mut combined = InferSubstitutionsBuilder::new(self);
+                let mut combined = InferSubstitutionsBuilder::new();
                 for right_signature in call_signatures
                     .iter()
                     .chain(construct_signatures.iter())
@@ -1093,7 +1119,7 @@ impl Compiler {
                 Type::Function { .. },
             ) => {
                 // match callable objects against function patterns
-                let mut combined = InferSubstitutionsBuilder::new(self);
+                let mut combined = InferSubstitutionsBuilder::new();
                 for left_signature in call_signatures
                     .iter()
                     .chain(construct_signatures.iter())
@@ -1136,7 +1162,7 @@ impl Compiler {
                     index_signatures: right_indexes,
                 },
             ) => {
-                let mut combined = InferSubstitutionsBuilder::new(self);
+                let mut combined = InferSubstitutionsBuilder::new();
 
                 // match required fields in the pattern
                 for right_field in right_fields {
@@ -1319,7 +1345,7 @@ impl Compiler {
                 Type::TypeLiteral {
                     value: TypeLiteral::Primitive(destack_dir::PrimitiveType::String),
                 },
-            ) => Some(InferSubstitutions::empty(self)),
+            ) => Some(InferSubstitutions::empty()),
             (
                 Type::TypeLiteral {
                     value: TypeLiteral::ScalarLiteral(ScalarLiteral::Boolean(_)),
@@ -1327,10 +1353,10 @@ impl Compiler {
                 Type::TypeLiteral {
                     value: TypeLiteral::Primitive(destack_dir::PrimitiveType::Boolean),
                 },
-            ) => Some(InferSubstitutions::empty(self)),
+            ) => Some(InferSubstitutions::empty()),
             (Type::TypeLiteral { value }, Type::TypeLiteral { value: right_value }) => {
                 if value == right_value {
-                    return Some(InferSubstitutions::empty(self));
+                    return Some(InferSubstitutions::empty());
                 }
                 None
             }
@@ -1339,7 +1365,7 @@ impl Compiler {
                     value: TypeLiteral::Any,
                 },
                 _,
-            ) => Some(InferSubstitutions::empty(self)),
+            ) => Some(InferSubstitutions::empty()),
             _ => None,
         }
     }
@@ -1358,7 +1384,7 @@ impl Compiler {
     ) -> Option<InferSubstitutions> {
         // handle union patterns by merging successful branches
         if let Type::Union { elements } = types.get_type(right).clone() {
-            let mut combined = InferSubstitutionsBuilder::new(self);
+            let mut combined = InferSubstitutionsBuilder::new();
             let mut matched = false;
 
             for element_id in elements {
@@ -1409,7 +1435,7 @@ impl Compiler {
 
         // default to an empty substitution when there are no infer names
         if names.is_empty() {
-            return Some(InferSubstitutions::empty(self));
+            return Some(InferSubstitutions::empty());
         }
 
         // map infer bindings to any for `any` patterns
@@ -1419,7 +1445,7 @@ impl Compiler {
             },
             source_id,
         );
-        let mut substitutions = InferSubstitutionsBuilder::new(self);
+        let mut substitutions = InferSubstitutionsBuilder::new();
         for name in names {
             substitutions.insert(name, any_type);
         }
@@ -1441,7 +1467,7 @@ impl Compiler {
         visited: &mut HashSet<(LocalTypeId, LocalTypeId)>,
     ) -> Option<InferSubstitutions> {
         // infer substitutions for each aligned argument
-        let mut combined = InferSubstitutionsBuilder::new(self);
+        let mut combined = InferSubstitutionsBuilder::new();
         if left_arguments.len() != right_arguments.len() {
             return None;
         }
@@ -1721,7 +1747,7 @@ impl Compiler {
 
         // merge inferred defaults across union branches
         if let Type::Union { elements } = right_type {
-            let mut combined = InferSubstitutionsBuilder::new(self);
+            let mut combined = InferSubstitutionsBuilder::new();
             for element_id in elements {
                 if let Some(inferred) = self.infer_substitutions_for_never_left(
                     module, profile, element_id, source_id, symbols, types,
@@ -1742,7 +1768,7 @@ impl Compiler {
 
         // merge inferred defaults across intersection branches
         if let Type::Intersection { elements } = right_type {
-            let mut combined = InferSubstitutionsBuilder::new(self);
+            let mut combined = InferSubstitutionsBuilder::new();
             for element_id in elements {
                 if let Some(inferred) = self.infer_substitutions_for_never_left(
                     module, profile, element_id, source_id, symbols, types,
@@ -1764,7 +1790,7 @@ impl Compiler {
         // default infer bindings to never
         let mut infer_names = HashSet::new();
         self.collect_infer_names_from_type(right, types, &mut HashSet::new(), &mut infer_names);
-        let mut substitutions = InferSubstitutionsBuilder::new(self);
+        let mut substitutions = InferSubstitutionsBuilder::new();
         let never_id = types.insert_type_from_any(
             Type::TypeLiteral {
                 value: TypeLiteral::Never,
@@ -1800,7 +1826,7 @@ impl Compiler {
         }
 
         // collect inferred substitutions
-        let mut substitutions = InferSubstitutionsBuilder::new(self);
+        let mut substitutions = InferSubstitutionsBuilder::new();
         let mut visited = HashSet::new();
 
         // apply each span constraint
@@ -1881,7 +1907,7 @@ impl Compiler {
         );
 
         // collect inferred substitutions
-        let mut substitutions = InferSubstitutionsBuilder::new(self);
+        let mut substitutions = InferSubstitutionsBuilder::new();
 
         // collect inferred bindings from each span
         for span_ty_id in spans {
@@ -1926,7 +1952,7 @@ impl Compiler {
             source_id,
         );
 
-        let mut substitutions = InferSubstitutionsBuilder::new(self);
+        let mut substitutions = InferSubstitutionsBuilder::new();
         for span_ty_id in spans {
             let span_ty = types.get_type(*span_ty_id).clone();
             let Type::Infer { name, .. } = span_ty else {
@@ -1967,7 +1993,7 @@ impl Compiler {
         }
 
         // collect inferred substitutions
-        let mut substitutions = InferSubstitutionsBuilder::new(self);
+        let mut substitutions = InferSubstitutionsBuilder::new();
 
         // apply each span mapping
         for (left_span, right_span) in left_spans.iter().zip(right_spans.iter()) {

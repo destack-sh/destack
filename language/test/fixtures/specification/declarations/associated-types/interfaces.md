@@ -586,6 +586,43 @@ declare const right: Pair<int32, string>.RightItem;
 right satisfies string;
 ```
 
+### implementing multiple interfaces can share one compatible associated projection
+
+> A single associated alias can satisfy multiple interfaces when requirements agree.
+
+```ds
+interface Left<T> {
+    type Item = T;
+}
+
+interface Right<T> {
+    type Item = T;
+}
+
+class Shared<T> implements Left<T>, Right<T> {}
+
+declare const value: Shared<int32>.Item;
+value satisfies int32;
+```
+
+### implementing multiple interfaces rejects incompatible associated defaults
+
+> Implementing interfaces with incompatible associated defaults requires an explicit compatible override.
+
+```ds
+interface Left {
+    type Item = int32;
+}
+
+interface Right {
+    type Item = string;
+}
+
+class Broken implements Left, Right {}
+```
+
+- contains: associated
+
 ### interface abstract associated type must be implemented by classes
 
 > Class implementors must define abstract interface associated types.
@@ -897,4 +934,33 @@ import { Box } from "./box";
 
 declare const value: Box<int32>.Item<string>;
 value satisfies [int32, string];
+```
+
+### interface mixed generic associated defaults resolve across module boundaries
+
+> Imported implementors preserve associated defaults that mix type and value static parameters.
+
+```ds:factory.ds
+export interface Factory<T> {
+    type Item<U, comptime n: uint> = [T, U, n];
+}
+```
+
+```ds:box.ds
+import type { Factory } from "./factory";
+
+export class Box<T> implements Factory<T> {
+    value: T;
+
+    constructor(value: T) {
+        this.value = value;
+    }
+}
+```
+
+```ds:main.ds
+import { Box } from "./box";
+
+declare const value: Box<int32>.Item<string, 3>;
+value satisfies [int32, string, 3];
 ```

@@ -22,25 +22,17 @@ impl Compiler {
         profile: ProfileId,
         symbol: GlobalSymbolId,
     ) -> GlobalSymbolId {
-        if let Some(cached) = self.cached_normalized_reference_symbol(profile, module.id, symbol) {
-            return cached;
-        }
-
-        let normalized =
-            self.with_module_symbols_base(module, symbol.module_id, |owner_module, symbols| {
-                let symbol_entry = symbols.get_symbol(symbol.local_id).clone();
-                self.normalize_reference_symbol_id_with_symbols(
-                    module,
-                    profile,
-                    owner_module,
-                    symbol,
-                    symbols,
-                    symbol_entry,
-                )
-            });
-
-        self.set_cached_normalized_reference_symbol(profile, module.id, symbol, normalized);
-        normalized
+        self.with_module_symbols_base(module, symbol.module_id, |owner_module, symbols| {
+            let symbol_entry = symbols.get_symbol(symbol.local_id).clone();
+            self.normalize_reference_symbol_id_with_symbols(
+                module,
+                profile,
+                owner_module,
+                symbol,
+                symbols,
+                symbol_entry,
+            )
+        })
     }
 
     /// Normalize a reference symbol id using a symbol table snapshot.
@@ -1610,7 +1602,7 @@ impl Compiler {
 
         // skip value materialization when the alias has no value parameters
         let Some(parameters) =
-            self.collect_static_parameter_symbols(module, symbol, profile, &tree, &symbols)
+            self.collect_static_parameter_symbols(module, symbol, profile, &tree, &symbols, types)
         else {
             return false;
         };

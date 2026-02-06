@@ -375,6 +375,23 @@ declare const value: Box<string>.Wrap<int32>;
 value satisfies [string, int32];
 ```
 
+### class mixed generic associated projections resolve across module boundaries
+
+> Imported class projections preserve mixed type and value substitutions.
+
+```ds:box.ds
+export class Box<T> {
+    type Wrap<U, comptime n: uint> = [T, U, n];
+}
+```
+
+```ds:main.ds
+import { Box } from "./box";
+
+declare const value: Box<string>.Wrap<int32, 3>;
+value satisfies [string, int32, 3];
+```
+
 ### class inheritance preserves generic associated defaults
 
 > Subclasses inherit generic associated defaults from base classes.

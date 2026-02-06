@@ -269,6 +269,23 @@ declare const value: Pair<string>.Wrap<int32>;
 value satisfies [string, int32];
 ```
 
+### struct mixed generic associated projections resolve across module boundaries
+
+> Imported struct projections preserve mixed type and value substitutions.
+
+```ds:grid.ds
+export struct Grid<T> {
+    type Cell<U, comptime n: uint> = [T, U, n];
+}
+```
+
+```ds:main.ds
+import { Grid } from "./grid";
+
+declare const value: Grid<string>.Cell<int32, 2>;
+value satisfies [string, int32, 2];
+```
+
 ### struct associated defaults support multiple static value parameters
 
 > Struct associated defaults can combine multiple static value parameters.

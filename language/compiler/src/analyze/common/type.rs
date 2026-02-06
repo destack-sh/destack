@@ -1721,7 +1721,7 @@ impl Compiler {
 
         // resolve parameter kinds for the referenced declaration
         let Some(parameter_symbols) =
-            self.collect_static_parameter_symbols(module, symbol, profile, tree, symbols)
+            self.collect_static_parameter_symbols(module, symbol, profile, tree, symbols, types)
         else {
             return false;
         };

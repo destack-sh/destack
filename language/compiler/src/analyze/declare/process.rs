@@ -97,7 +97,7 @@ impl Compiler {
 
         // index declaration static parameter metadata
         self.index_static_parameter_metadata_for_module_declarations(
-            &module, profile, &tree, &symbols, &mut types,
+            &module, &tree, &symbols, &mut types,
         );
 
         // yield after declaration metadata writes

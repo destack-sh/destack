@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use super::expression::has_implicit_return;
+use crate::analyze::common::TypeRewriteCache;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_base::StringId;
 use destack_dir::{
@@ -541,6 +542,7 @@ impl Compiler {
 
         let declaration_members =
             self.collect_declaration_associated_type_members(module.id, members, tree);
+        let mut inherited_defaults_by_name = HashMap::new();
 
         for interface_expression_id in implements_types {
             self.infer_associated_type_requirements_for_interface(
@@ -548,6 +550,7 @@ impl Compiler {
                 profile,
                 *interface_expression_id,
                 &declaration_members,
+                &mut inherited_defaults_by_name,
                 tree,
                 symbols,
                 types,
@@ -599,6 +602,7 @@ impl Compiler {
         profile: ProfileId,
         interface_expression_id: LocalNodeId<Expression>,
         declaration_members: &HashMap<StringId, DeclarationAssociatedTypeMember<'_>>,
+        inherited_defaults_by_name: &mut HashMap<StringId, LocalTypeId>,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -651,6 +655,7 @@ impl Compiler {
 
         for requirement in requirements {
             let Some(declaration_member) = declaration_members.get(&requirement.name) else {
+                // require explicit implementations for abstract members
                 if requirement.requires_implementation {
                     let node = interface_expression_id
                         .into_global_any(module.id)
@@ -659,7 +664,21 @@ impl Compiler {
                         node,
                         message: "missing associated type implementation".to_string(),
                     });
+                    continue;
                 }
+
+                // validate that inherited defaults do not conflict by name
+                self.validate_inherited_associated_default_compatibility(
+                    module,
+                    profile,
+                    interface_expression_id,
+                    &requirement,
+                    &interface_substitutions,
+                    inherited_defaults_by_name,
+                    symbols,
+                    tree,
+                    types,
+                );
                 continue;
             };
 
@@ -698,6 +717,96 @@ impl Compiler {
         }
 
         Ok(())
+    }
+
+    /// Validate that inherited associated defaults agree across implemented interfaces.
+    #[allow(clippy::too_many_arguments)]
+    fn validate_inherited_associated_default_compatibility(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        interface_expression_id: LocalNodeId<Expression>,
+        requirement: &InterfaceAssociatedTypeRequirement,
+        interface_substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
+        inherited_defaults_by_name: &mut HashMap<StringId, LocalTypeId>,
+        symbols: &SymbolTable,
+        tree: &NodeTree,
+        types: &mut TypeTable,
+    ) {
+        // resolve and substitute the inherited default target
+        let Some(default_ty_id) = self.alias_target_type_id_for_symbol(
+            module,
+            profile,
+            requirement.symbol,
+            interface_expression_id.into_any(),
+            symbols,
+            types,
+        ) else {
+            return;
+        };
+        let mut default_ty_id = if interface_substitutions.is_empty() {
+            default_ty_id
+        } else {
+            let mut substitution_cache = HashMap::new();
+            self.substitute_static_parameters(
+                default_ty_id,
+                interface_substitutions,
+                types,
+                &mut substitution_cache,
+            )
+        };
+
+        // materialize static value arguments before relation checks
+        let mut materialize_cache = TypeRewriteCache::new();
+        default_ty_id = self.materialize_static_arguments_in_type(
+            module,
+            profile,
+            default_ty_id,
+            tree,
+            symbols,
+            types,
+            &mut materialize_cache,
+        );
+
+        // register the first inherited default for this associated name
+        let Some(existing_default_id) = inherited_defaults_by_name.get(&requirement.name).copied()
+        else {
+            inherited_defaults_by_name.insert(requirement.name, default_ty_id);
+            return;
+        };
+
+        // enforce bidirectional compatibility for inherited defaults
+        let options = self.analyze_context_options_for_module(module.id);
+        let left = self.is_type_assignable(
+            module,
+            profile,
+            symbols,
+            existing_default_id,
+            default_ty_id,
+            types,
+            &options,
+        );
+        let right = self.is_type_assignable(
+            module,
+            profile,
+            symbols,
+            default_ty_id,
+            existing_default_id,
+            types,
+            &options,
+        );
+        if left != Assignability::NotAssignable && right != Assignability::NotAssignable {
+            return;
+        }
+
+        let node = interface_expression_id
+            .into_global_any(module.id)
+            .into_anchored(Some(profile));
+        self.error(AnalyzeError::InvalidStaticArgument {
+            node,
+            message: "incompatible associated type defaults across implemented interfaces"
+                .to_string(),
+        });
     }
 
     /// Resolve interface references for associated type requirement checks.
