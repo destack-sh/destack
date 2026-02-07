@@ -349,6 +349,12 @@ impl Compiler {
                     descriptor.kind == DeclarationKind::Declaration || is_in_declare_namespace;
                 let allow_ambient_const_initializers = is_in_declare_module;
                 for declarator_id in declarators {
+                    self.validate_js_ts_compat_declarator_pattern(
+                        module,
+                        profile,
+                        tree,
+                        *declarator_id,
+                    );
                     self.validate_definite_assignment_declarator(
                         module,
                         profile,
@@ -387,6 +393,12 @@ impl Compiler {
                 let is_declare_context = descriptor.kind == DeclarationKind::Declaration
                     || self.is_in_declare_namespace(tree, expression_id.into_any());
                 for declarator_id in declarators {
+                    self.validate_js_ts_compat_declarator_pattern(
+                        module,
+                        profile,
+                        tree,
+                        *declarator_id,
+                    );
                     self.validate_definite_assignment_declarator(
                         module,
                         profile,
@@ -1160,6 +1172,14 @@ impl Compiler {
     /// Return true when a node starts a fresh label scope.
     fn node_starts_function_scope(&self, tree: &NodeTree, node_id: LocalNodeIdAny) -> bool {
         match node_id.ty {
+            NodeType::Expression => {
+                let expression = tree.get(node_id.into_typed::<Expression>());
+                let Expression::Declaration { declaration } = expression else {
+                    return false;
+                };
+
+                matches!(tree.get(*declaration), Declaration::Function { .. })
+            }
             NodeType::Declaration => {
                 matches!(
                     tree.get(node_id.into_typed::<Declaration>()),
@@ -2893,6 +2913,82 @@ impl Compiler {
         let target_symbols = target_dir.symbols.read();
         let symbol = target_symbols.get_symbol(symbol_id.local_id);
         symbol.ty == SymbolType::Enum
+    }
+
+    /// Validate declarator patterns against JS/TS compatibility rules.
+    /// (Destack is more permissive around declarators and patterns)
+    fn validate_js_ts_compat_declarator_pattern(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        declarator_id: LocalNodeId<Declarator>,
+    ) {
+        // only js and ts require assignment style declarator bindings
+        if !(module.language_type.is_javascript() || module.language_type.is_typescript()) {
+            return;
+        }
+
+        let declarator = tree.get(declarator_id);
+        if self.pattern_is_valid_js_ts_compat_declarator_binding(tree, declarator.pattern) {
+            return;
+        }
+
+        let node = declarator
+            .pattern
+            .into_global_any(module.id)
+            .into_anchored(Some(profile));
+        self.error(AnalyzeError::InvalidAssignmentTarget { node });
+    }
+
+    /// Return true when a pattern is valid for JS/TS declarator binding compatibility.
+    fn pattern_is_valid_js_ts_compat_declarator_binding(
+        &self,
+        tree: &NodeTree,
+        pattern_id: LocalNodeId<Pattern>,
+    ) -> bool {
+        match tree.get(pattern_id) {
+            Pattern::Binding { .. }
+            | Pattern::Array { .. }
+            | Pattern::Object { .. }
+            | Pattern::TaggedTuple { .. }
+            | Pattern::TaggedObject { .. } => true,
+            Pattern::Expression { value } => {
+                self.expression_is_valid_js_ts_compat_declarator_binding(tree, *value)
+            }
+            _ => false,
+        }
+    }
+
+    /// Return true when an expression is valid for JS/TS declarator binding compatibility.
+    fn expression_is_valid_js_ts_compat_declarator_binding(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        match tree.get(expression_id) {
+            Expression::UnresolvedPath {
+                path,
+                static_arguments: None,
+                ..
+            }
+            | Expression::LocalReference {
+                path,
+                static_arguments: None,
+                ..
+            }
+            | Expression::ModuleReference {
+                path,
+                static_arguments: None,
+                ..
+            }
+            | Expression::GlobalReference {
+                path,
+                static_arguments: None,
+                ..
+            } => path.segments.len() == 1,
+            _ => false,
+        }
     }
 
     /// Validate a destructuring declaration without an initializer.
