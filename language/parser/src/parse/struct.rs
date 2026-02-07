@@ -96,9 +96,10 @@ impl Parser {
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::Declaration)?;
         self.eat_newlines_maybe()?;
+        let allow_comma_separators = !is_class;
         let members = self
             .with_options(self.options.nested().in_variant(), |parser| {
-                parser.eat_members()
+                parser.eat_members(allow_comma_separators)
             })
             .for_node_type(NodeType::Declaration)?;
         self.eat_token(TokenType::CloseBrace)
@@ -171,6 +172,42 @@ class {}
         let start = parser.mark();
         let result = parser.eat_struct_or_class(&start, DeclarationDescriptor::default(), false);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_class_rejects_comma_separated_members() {
+        // source: class Foo { x: int32, y: int32 }
+        let mut test = TestParser::new(
+            r###"
+class Foo { x: int32, y: int32 }
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let start = parser.mark();
+        let result = parser.eat_struct_or_class(&start, DeclarationDescriptor::default(), false);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_struct_allows_comma_separated_members() {
+        // source: struct Foo { x: int32, y: int32 }
+        let mut test = TestParser::new(
+            r###"
+struct Foo { x: int32, y: int32 }
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let start = parser.mark();
+        let struct_id = parser
+            .eat_struct_or_class(&start, DeclarationDescriptor::default(), false)
+            .unwrap();
+        assert_node!(parser.tree, struct_id, Declaration::Struct { members, .. } => {
+            assert_eq!(members.len(), 2);
+        });
     }
 
     #[test]

@@ -83,7 +83,7 @@ impl Parser {
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::Declaration)?;
         self.eat_newlines_maybe()?;
-        let members = self.eat_members()?;
+        let members = self.eat_members(true)?;
         self.eat_token(TokenType::CloseBrace)?;
 
         // extension

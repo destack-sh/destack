@@ -102,12 +102,12 @@ impl Parser {
             // parse interface members in type context for typescript
             let members = if self.language.is_typescript() {
                 self.with_options(self.options.nested().in_variant().in_type(), |parser| {
-                    parser.eat_members()
+                    parser.eat_members(true)
                 })
                 .for_node_type(NodeType::Declaration)?
             } else {
                 self.with_options(self.options.nested().in_variant(), |parser| {
-                    parser.eat_members()
+                    parser.eat_members(true)
                 })
                 .for_node_type(NodeType::Declaration)?
             };

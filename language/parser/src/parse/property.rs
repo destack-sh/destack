@@ -1045,7 +1045,10 @@ impl Parser {
     }
 
     /// Eat members (class/struct/interface/extension body).
-    pub fn eat_members(&mut self) -> ParseResult<Vec<LocalNodeId<Member>>> {
+    pub fn eat_members(
+        &mut self,
+        allow_comma_separators: bool,
+    ) -> ParseResult<Vec<LocalNodeId<Member>>> {
         let mut members: Vec<LocalNodeId<Member>> = Vec::new();
         while self.has_more_tokens() {
             // stop on closing brace
@@ -1054,6 +1057,10 @@ impl Parser {
             }
             // consume any stop
             else if self.is_any_stop() {
+                // class bodies do not allow comma separators
+                if !allow_comma_separators && self.peek_is(TokenType::Comma) {
+                    return Err(ParseError::unexpected(self.peek()?.span));
+                }
                 self.eat_any_stop_with_newlines()?;
                 continue;
             }
