@@ -1,5 +1,5 @@
 use crate::{ParseError, ParseResult, Parser};
-use destack_ast::{Key, Keyword, LiteralType, Name, TokenSpan, TokenType};
+use destack_ast::{Key, Keyword, LiteralType, Name, ScalarLiteral, TokenSpan, TokenType};
 use destack_base::StringId;
 
 impl Parser {
@@ -505,10 +505,7 @@ impl Parser {
         }
         // numeric key
         else if self.peek_numeric_literal().is_ok() {
-            // numeric key (like `{123: value}` or `{2e308: value}`)
-            let token = *self.eat()?;
-            let key_str = self.file.span_str(token.span);
-            let string_id = self.strings.intern(key_str);
+            let (string_id, _span) = self.eat_numeric_key_name_with_span()?;
             Ok(Key::Name(Name::Number(string_id)))
         }
         // dynamic key
@@ -569,11 +566,8 @@ impl Parser {
         }
         // numeric key
         else if self.peek_numeric_literal().is_ok() {
-            // numeric key (like `{123: value}` or `{2e308: value}`)
-            let token = *self.eat()?;
-            let key_str = self.file.span_str(token.span);
-            let string_id = self.strings.intern(key_str);
-            Ok((Key::Name(Name::Number(string_id)), token.span))
+            let (string_id, span) = self.eat_numeric_key_name_with_span()?;
+            Ok((Key::Name(Name::Number(string_id)), span))
         }
         // dynamic key
         else if self.peek_is(TokenType::OpenBracket) {
@@ -618,6 +612,26 @@ impl Parser {
             Ok(None)
         }
     }
+
+    /// Eat a numeric key token and return the raw key text with its span.
+    fn eat_numeric_key_name_with_span(&mut self) -> ParseResult<(StringId, destack_source::Span)> {
+        // capture the original numeric token text for key identity
+        let token = *self.peek_numeric_literal()?;
+        let key_string = self.file.span_str(token.span).to_string();
+
+        // parse and validate numeric literal grammar in key position
+        // keep the original raw token text, object key identity is source text not normalized value
+        let numeric_literal = self.eat_scalar_literal()?;
+        if !matches!(
+            numeric_literal,
+            ScalarLiteral::Integer(_) | ScalarLiteral::Float(_) | ScalarLiteral::Bigint(_)
+        ) {
+            return Err(ParseError::unexpected(token.span));
+        }
+
+        let key_name = self.strings.intern(key_string);
+        Ok((key_name, token.span))
+    }
 }
 
 #[cfg(test)]
@@ -656,5 +670,17 @@ mod tests {
 
         // ,
         assert_eq!(parser.get_span_str(error.leaf_span()), ",");
+    }
+
+    /// Reject legacy octal numeric keys in javascript.
+    #[test]
+    fn test_reject_legacy_octal_numeric_key_javascript() {
+        // source: 021
+        let mut test = TestParser::new_with_options("021", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let error = parser.eat_key_with_span().unwrap_err();
+
+        // 021
+        assert_eq!(parser.get_span_str(error.leaf_span()), "021");
     }
 }

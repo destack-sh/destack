@@ -1,7 +1,9 @@
 use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
-use destack_ast::{Expression, LocalNodeId, NodeType, Pattern, PatternField, TokenType};
+use destack_ast::{
+    Expression, LocalNodeId, NodeType, Pattern, PatternField, TokenType, TypeLiteral,
+};
 
 impl Parser {
     /// Eat a pattern that might be paranthesized (skip the parenthesis if present).
@@ -209,6 +211,27 @@ impl Parser {
                             path,
                             static_arguments: None,
                         },
+                        self.get_span_from(&start),
+                    );
+                    self.tree.set_main_span(expression_id, name_span);
+                    self.tree.insert(
+                        Pattern::Expression {
+                            value: expression_id,
+                        },
+                        self.get_span_from(&start),
+                    )
+                }
+                // nullish literals in patterns
+                else if path.segments[0] == self.type_literal_identifiers.null_
+                    || path.segments[0] == self.type_literal_identifiers.undefined
+                {
+                    let type_literal = if path.segments[0] == self.type_literal_identifiers.null_ {
+                        TypeLiteral::Null
+                    } else {
+                        TypeLiteral::Undefined
+                    };
+                    let expression_id = self.tree.insert(
+                        Expression::TypeLiteral(type_literal),
                         self.get_span_from(&start),
                     );
                     self.tree.set_main_span(expression_id, name_span);

@@ -4,9 +4,9 @@ use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
-    Argument, AssignOperator, Asynchrony, BinaryOperator, BindingAnchor, Declaration,
-    DeclarationAbstraction, DeclarationDescriptor, DeclarationKind, DependencyMode, EnumKind,
-    Expression, FunctionKind, IfCondition, IfKind, InfixOperator, Keyword, LiteralType,
+    Argument, AssignOperator, Asynchrony, BinaryOperator, BindingAnchor, Block, BlockFormat,
+    Declaration, DeclarationAbstraction, DeclarationDescriptor, DeclarationKind, DependencyMode,
+    EnumKind, Expression, FunctionKind, IfCondition, IfKind, InfixOperator, Keyword, LiteralType,
     LocalNodeId, NodeType, PostfixPosition, Token, TokenSpan, TokenType, TypeBinaryOperator,
     TypeKind, TypeUnaryOperator, UnaryOperator,
 };
@@ -219,6 +219,17 @@ impl Parser {
                         if signature.kind == FunctionKind::Lambda
                 )
         )
+    }
+
+    /// Return true when an expression can be used as an unparenthesized tagged template tag.
+    fn tagged_template_tag_is_valid(&self, expression_id: LocalNodeId<Expression>) -> bool {
+        // unparenthesized lambdas cannot be tagged template receivers
+        if self.is_unparenthesized_lambda_expression(expression_id) {
+            return false;
+        }
+
+        // unparenthesized unary expressions are not valid tagged template receivers
+        !matches!(self.tree.get(expression_id), Expression::Unary { .. })
     }
 
     /// Peek a unary prefix operator.
@@ -2118,7 +2129,22 @@ impl Parser {
             if can_parse_label {
                 let (label, label_span) = self.eat_identifier_with_span()?;
                 self.eat_colon()?;
-                let body = self.eat_expression()?;
+                // allow empty statement bodies in labelled statements
+                let body = if self.peek_is(TokenType::Semicolon) {
+                    let body_start = self.mark();
+                    self.bump(); // eat semicolon
+                    let block_id = self.tree.insert(
+                        Block {
+                            format: BlockFormat::Implicit,
+                            expressions: Vec::new(),
+                        },
+                        self.get_span_from(&body_start),
+                    );
+                    self.tree
+                        .insert(Expression::Block(block_id), self.get_span_from(&body_start))
+                } else {
+                    self.eat_expression()?
+                };
                 // reject labelled declarations that are invalid labelled items in JS/TS
                 if !self.language.is_destack() && self.is_single_statement_declaration(body) {
                     return Err(ParseError::unexpected(self.tree.get_span(body)));
@@ -2284,6 +2310,12 @@ impl Parser {
                         }
                         let right =
                             self.with_options(right_options, |parser| parser.eat_expression())?;
+
+                        // unparenthesized arrow functions are not unary operands
+                        if self.is_unparenthesized_lambda_expression(right) {
+                            return Err(ParseError::unexpected(self.tree.get_span(right)));
+                        }
+
                         let expression = Expression::Unary { operator, right };
                         let expression_id =
                             self.tree.insert(expression, self.get_span_from(&start));
@@ -2908,6 +2940,11 @@ impl Parser {
                 }
 
                 if self.is_template_literal_start() {
+                    // tagged template receivers must be left hand side expressions
+                    if !self.tagged_template_tag_is_valid(left_expression_id) {
+                        return Err(ParseError::unexpected(self.peek()?.span));
+                    }
+
                     let template_literal = self.eat_template_literal()?;
                     left_expression_id = self.tree.insert(
                         Expression::TaggedTemplateExpression {
@@ -4717,6 +4754,34 @@ const shapes = (
         });
     }
 
+    /// Parse parenthesized instantiation receivers before member access.
+    #[test]
+    fn test_parse_instantiation_expression_member_access_with_parentheses() {
+        let mut test = TestParser::new_with_options("(f<T>).x", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Member { left, name, static_arguments } => {
+            assert!(static_arguments.is_none());
+            assert_string!(parser, *name, "x");
+            assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+                assert_node!(parser.tree, *expression, Expression::Instantiation { left, static_arguments } => {
+                    assert_eq!(static_arguments.len(), 1);
+                    assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
+                        assert_node!(parser.tree, *value, Expression::Path { path, static_arguments } => {
+                            assert!(static_arguments.is_none());
+                            assert_path!(parser, *path, "T");
+                        });
+                    });
+                    assert_node!(parser.tree, *left, Expression::Path { path, static_arguments } => {
+                        assert!(static_arguments.is_none());
+                        assert_path!(parser, *path, "f");
+                    });
+                });
+            });
+        });
+    }
+
     /// Instantiation expressions should parse in mixed operator contexts.
     #[test]
     fn test_parse_instantiation_expression_more_exprs() {
@@ -5755,6 +5820,50 @@ self
     fn test_reject_regex_unicode_escape_out_of_range() {
         // source: /\u{110000}/u
         let mut test = TestParser::new_with_options("/\\u{110000}/u", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let error = parser.eat_expression().unwrap_err();
+
+        assert_eq!(error.leaf_span().start, 0);
+    }
+
+    /// Reject unicode regex decimal escapes without matching capture groups.
+    #[test]
+    fn test_reject_regex_unicode_invalid_decimal_escape() {
+        // source: /\1/u
+        let mut test = TestParser::new_with_options("/\\1/u", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let error = parser.eat_expression().unwrap_err();
+
+        assert_eq!(error.leaf_span().start, 0);
+    }
+
+    /// Reject unicode regex literals with lone quantifier opening braces.
+    #[test]
+    fn test_reject_regex_unicode_lone_opening_quantifier_brace() {
+        // source: /{*/u
+        let mut test = TestParser::new_with_options("/{*/u", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let error = parser.eat_expression().unwrap_err();
+
+        assert_eq!(error.leaf_span().start, 0);
+    }
+
+    /// Reject unicode regex literals with invalid quantified lookaheads.
+    #[test]
+    fn test_reject_regex_unicode_quantified_lookahead() {
+        // source: /(?!.){0,}?/u
+        let mut test = TestParser::new_with_options("/(?!.){0,}?/u", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let error = parser.eat_expression().unwrap_err();
+
+        assert_eq!(error.leaf_span().start, 0);
+    }
+
+    /// Reject unicode regex literals with lone quantifier closing braces.
+    #[test]
+    fn test_reject_regex_unicode_lone_closing_quantifier_brace() {
+        // source: /}?/u
+        let mut test = TestParser::new_with_options("/}?/u", LanguageType::JavaScript);
         let mut parser = test.prepare();
         let error = parser.eat_expression().unwrap_err();
 

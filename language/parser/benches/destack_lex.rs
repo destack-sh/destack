@@ -1,5 +1,5 @@
 use destack_parser::Lexer;
-use destack_source::{FileId, FileType, LanguageType, glob};
+use destack_source::{File, FileId, FileType, LanguageType, Uri, glob};
 
 use criterion::profiler::Profiler;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
@@ -8,14 +8,15 @@ use pprof::flamegraph::Options as FlamegraphOptions;
 
 use std::hint::black_box;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::{env, fs};
 
 /// Source file info for lexer benchmarks.
 struct SourceFile {
+    /// The source file used by the lexer.
+    file: Arc<File>,
     /// The file type.
     file_type: FileType,
-    /// The file contents.
-    content: String,
 }
 
 /// Pprof profiler for Criterion benches.
@@ -99,7 +100,25 @@ fn bench_lex(criterion: &mut Criterion) {
         total_lines = total_lines.saturating_add(line_count);
 
         // record source
-        sources.push(SourceFile { file_type, content });
+        let file_id = FileId::new(sources.len() as u32);
+        let file_name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("<unknown>")
+            .to_string();
+        let file_uri = Uri::from_string(path.to_string_lossy().to_string());
+        let file = File::from_text(
+            file_id,
+            file_name,
+            file_uri,
+            Some(path.clone()),
+            file_type,
+            content,
+        );
+        sources.push(SourceFile {
+            file: Arc::new(file),
+            file_type,
+        });
     }
 
     // benchmark
@@ -111,11 +130,9 @@ fn bench_lex(criterion: &mut Criterion) {
         |bencher, source_files| {
             bencher.iter(|| {
                 // lex each file
-                for (index, source) in source_files.iter().enumerate() {
-                    let file_id = FileId::new(index as u32);
+                for source in source_files {
                     let language_type = LanguageType::from(source.file_type);
-                    let (tokens, side_tokens, _) =
-                        Lexer::lex(file_id, &source.content, language_type);
+                    let (tokens, side_tokens, _) = Lexer::lex(source.file.clone(), language_type);
                     black_box((tokens, side_tokens));
                 }
             });

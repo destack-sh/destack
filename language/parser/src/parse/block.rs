@@ -152,8 +152,15 @@ impl Parser {
         let mut pending_expression: Option<(LocalNodeId<Expression>, bool)> = None;
         while self.has_more_tokens() {
             let next_token = self.peek_token_type();
-            // break if we're at the end of the block
-            if next_token == TokenType::End || next_token == TokenType::CloseBrace {
+            // break if we're at the end of the file
+            if next_token == TokenType::End {
+                break;
+            }
+            // reject unmatched close braces at the implicit root block
+            else if next_token == TokenType::CloseBrace {
+                if format == BlockFormat::Implicit {
+                    return Err(ParseError::unexpected(self.peek()?.span));
+                }
                 break;
             }
             // consume any expression stops (semicolon or newline)

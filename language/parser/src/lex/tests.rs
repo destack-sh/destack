@@ -769,6 +769,39 @@ fn test_lex_divide_after_switch_header() {
 }
 
 #[test]
+fn test_lex_regex_literal_after_switch_case_block_newline() {
+    assert_tokenize_eq_roundtrip!(
+        "switch(a){case 1:{}\n/foo/}",
+        Token::new(TokenType::Identifier, 6, None),
+        Token::new(TokenType::OpenParenthesis, 1, None),
+        Token::new(TokenType::Identifier, 1, None),
+        Token::new(TokenType::CloseParenthesis, 1, None),
+        Token::new(TokenType::OpenBrace, 1, None),
+        Token::new(TokenType::Identifier, 4, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(
+            TokenType::Literal,
+            1,
+            Some(LiteralType::Int {
+                base: NumberBase::Decimal,
+                is_empty: false,
+                is_bigint: false,
+            })
+        ),
+        Token::new(TokenType::Colon, 1, None),
+        Token::new(TokenType::OpenBrace, 1, None),
+        Token::new(TokenType::CloseBrace, 1, None),
+        Token::new(TokenType::Newline, 1, None),
+        Token::new(
+            TokenType::Literal,
+            5,
+            Some(LiteralType::RegexString { has_flags: false })
+        ),
+        Token::new(TokenType::CloseBrace, 1, None),
+    );
+}
+
+#[test]
 fn test_lex_divide_after_catch_header() {
     let (semantic_tokens, side_tokens) =
         lex_source_tokens("catch (e) /foo/", LanguageType::JavaScript);
