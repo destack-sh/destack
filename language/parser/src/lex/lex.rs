@@ -1036,8 +1036,11 @@ impl Lexer {
         // consume continuation characters until an unknown character is met
         self.eat_while(is_identifier_continue);
         // check for unicode escapes mid-identifier (e.g., `AB\u{43}`)
-        // Only consume if it's a valid escape
-        if self.peek() == '\\' && self.peek_next() == 'u' && self.is_valid_unicode_escape_ahead() {
+        // only consume escapes that decode to identifier continuations
+        if self.peek() == '\\'
+            && self.peek_next() == 'u'
+            && self.is_valid_identifier_continue_unicode_escape_ahead()
+        {
             self.eat_identifier_with_unicode_escapes();
             return (TokenType::Identifier, None);
         }
@@ -1092,51 +1095,8 @@ impl Lexer {
         }
         self.eat(); // eat 'u'
 
-        // parse the unicode escape value
-        let code_point = if self.peek() == '{' {
-            // \u{XXXX} form (ES6)
-            self.eat(); // eat '{'
-            let mut value: u32 = 0;
-            let mut count = 0;
-            while self.peek() != '}' && !self.is_end() {
-                let c = self.peek();
-                let digit = match c {
-                    '0'..='9' => c as u32 - '0' as u32,
-                    'a'..='f' => c as u32 - 'a' as u32 + 10,
-                    'A'..='F' => c as u32 - 'A' as u32 + 10,
-                    _ => return None, // invalid hex digit
-                };
-                value = value.checked_mul(16)?.checked_add(digit)?;
-                self.eat();
-                count += 1;
-                if count > 6 {
-                    return None; // too many digits
-                }
-            }
-            if count == 0 || self.peek() != '}' {
-                return None; // empty or unterminated
-            }
-            self.eat(); // eat '}'
-            value
-        } else {
-            // \uXXXX form (ES5) - exactly 4 hex digits
-            let mut value: u32 = 0;
-            for _ in 0..4 {
-                let c = self.peek();
-                let digit = match c {
-                    '0'..='9' => c as u32 - '0' as u32,
-                    'a'..='f' => c as u32 - 'a' as u32 + 10,
-                    'A'..='F' => c as u32 - 'A' as u32 + 10,
-                    _ => return None, // invalid hex digit
-                };
-                value = value * 16 + digit;
-                self.eat();
-            }
-            value
-        };
-
-        // convert to char and check if valid identifier start
-        let ch = char::from_u32(code_point)?;
+        // parse and validate the escaped code point for identifier-start
+        let ch = self.eat_unicode_escape_char()?;
         if !is_identifier_start(ch) {
             return None;
         }
@@ -1154,27 +1114,14 @@ impl Lexer {
             if is_identifier_continue(c) {
                 self.eat();
             } else if c == '\\' && self.peek_next() == 'u' {
-                // Validate the unicode escape before consuming it
-                if !self.is_valid_unicode_escape_ahead() {
-                    break; // invalid escape, stop here
+                // validate the unicode escape before consuming it
+                if !self.is_valid_identifier_continue_unicode_escape_ahead() {
+                    break;
                 }
-                // Now consume the validated escape
                 self.eat(); // eat '\'
                 self.eat(); // eat 'u'
-                if self.peek() == '{' {
-                    // \u{XXXX} form
-                    self.eat(); // eat '{'
-                    while self.peek() != '}' && !self.is_end() {
-                        self.eat();
-                    }
-                    if self.peek() == '}' {
-                        self.eat();
-                    }
-                } else {
-                    // \uXXXX form - exactly 4 hex digits
-                    for _ in 0..4 {
-                        self.eat();
-                    }
+                if self.eat_unicode_escape_char().is_none() {
+                    break;
                 }
             } else {
                 break;
@@ -1182,40 +1129,116 @@ impl Lexer {
         }
     }
 
-    /// Check if there's a valid unicode escape sequence starting at current position.
-    /// Does NOT consume any characters, just peeks ahead.
-    fn is_valid_unicode_escape_ahead(&self) -> bool {
+    /// Decode an identifier unicode escape body after `u`.
+    ///
+    /// Returns the decoded character and consumed byte count from the body.
+    fn decode_identifier_unicode_escape_body(bytes: &[u8]) -> Option<(char, usize)> {
+        let (value, consumed) = if bytes.first() == Some(&b'{') {
+            let mut index = 1usize;
+            let mut digit_count = 0usize;
+            let mut value: u32 = 0;
+
+            while let Some(&byte) = bytes.get(index) {
+                if byte == b'}' {
+                    break;
+                }
+                if !byte.is_ascii_hexdigit() {
+                    return None;
+                }
+
+                let digit = (byte as char).to_digit(16)?;
+                value = value.checked_mul(16)?.checked_add(digit)?;
+                digit_count += 1;
+                index += 1;
+                if digit_count > 6 {
+                    return None;
+                }
+            }
+
+            if digit_count == 0 || bytes.get(index) != Some(&b'}') {
+                return None;
+            }
+
+            (value, index + 1)
+        } else {
+            if bytes.len() < 4 {
+                return None;
+            }
+
+            let mut value: u32 = 0;
+            for &byte in &bytes[..4] {
+                if !byte.is_ascii_hexdigit() {
+                    return None;
+                }
+                let digit = (byte as char).to_digit(16)?;
+                value = value.checked_mul(16)?.checked_add(digit)?;
+            }
+
+            (value, 4)
+        };
+
+        Some((char::from_u32(value)?, consumed))
+    }
+
+    /// Parse a unicode escape code point at the current `\u` tail.
+    ///
+    /// The lexer cursor must be positioned after `'u'` when this is called.
+    fn eat_unicode_escape_char(&mut self) -> Option<char> {
         let bytes = self.as_str().as_bytes();
-        if bytes.len() < 2 || bytes[0] != b'\\' || bytes[1] != b'u' {
-            return false;
+        let Some((decoded, consumed)) = Self::decode_identifier_unicode_escape_body(bytes) else {
+            self.eat_invalid_identifier_unicode_escape_body_prefix();
+            return None;
+        };
+
+        for _ in 0..consumed {
+            self.eat();
         }
 
-        if bytes.len() > 2 && bytes[2] == b'{' {
-            // \u{XXXX} form - at least one hex digit and closing brace
-            let mut i = 3;
-            let mut count = 0;
-            while i < bytes.len() && bytes[i] != b'}' {
-                let c = bytes[i];
-                if !c.is_ascii_hexdigit() {
-                    return false;
+        Some(decoded)
+    }
+
+    /// Consume the maximal invalid identifier unicode escape prefix after `\u`.
+    ///
+    /// This preserves legacy lexer behavior where malformed escapes are grouped
+    /// into a single unknown token prefix like `\u11`.
+    fn eat_invalid_identifier_unicode_escape_body_prefix(&mut self) {
+        if self.peek() == '{' {
+            self.eat(); // eat '{'
+            let mut digit_count = 0usize;
+            while self.peek().is_ascii_hexdigit() {
+                self.eat();
+                digit_count += 1;
+                if digit_count > 6 {
+                    break;
                 }
-                count += 1;
-                i += 1;
-                if count > 6 {
-                    return false;
-                }
             }
-            count > 0 && i < bytes.len() && bytes[i] == b'}'
-        } else {
-            // \uXXXX form - exactly 4 hex digits
-            if bytes.len() < 6 {
-                return false;
-            }
-            if !(bytes[2..6].iter().all(|&c| c.is_ascii_hexdigit())) {
-                return false;
-            }
-            true
+            return;
         }
+
+        for _ in 0..4 {
+            if !self.peek().is_ascii_hexdigit() {
+                break;
+            }
+            self.eat();
+        }
+    }
+
+    /// Decode a unicode escape sequence at the current position without consuming it.
+    fn peek_unicode_escape_ahead_char(&self) -> Option<char> {
+        let bytes = self.as_str().as_bytes();
+        if bytes.len() < 2 || bytes[0] != b'\\' || bytes[1] != b'u' {
+            return None;
+        }
+
+        let (decoded, _) = Self::decode_identifier_unicode_escape_body(&bytes[2..])?;
+        Some(decoded)
+    }
+
+    /// Check if there's a valid identifier-continuation unicode escape at current position.
+    /// Does NOT consume any characters, just peeks ahead.
+    fn is_valid_identifier_continue_unicode_escape_ahead(&self) -> bool {
+        self.peek_unicode_escape_ahead_char()
+            .is_some_and(is_identifier_continue)
     }
 
     /// Parses a number literal (excluding first digit).

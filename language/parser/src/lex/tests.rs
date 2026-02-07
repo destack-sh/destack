@@ -2134,3 +2134,25 @@ fn test_lex_invalid_unicode_escape_one_digit() {
         Token::new(TokenType::Identifier, 1, None), // "z"
     );
 }
+
+/// Invalid identifier unicode continuation escape should terminate identifier.
+#[test]
+fn test_lex_identifier_unicode_escape_backslash_is_not_continuation() {
+    // x\u005c: "x" (ident), "\u005c" (unknown)
+    assert_tokenize_eq_roundtrip!(
+        r"x\u005c",
+        Token::new(TokenType::Identifier, 1, None), // "x"
+        Token::new(TokenType::Unknown, 6, None),    // "\u005c"
+    );
+}
+
+/// Invalid identifier unicode continuation escape should terminate identifier.
+#[test]
+fn test_lex_identifier_unicode_escape_asterisk_is_not_continuation() {
+    // x\u002a: "x" (ident), "\u002a" (unknown)
+    assert_tokenize_eq_roundtrip!(
+        r"x\u002a",
+        Token::new(TokenType::Identifier, 1, None), // "x"
+        Token::new(TokenType::Unknown, 6, None),    // "\u002a"
+    );
+}
