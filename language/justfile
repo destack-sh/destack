@@ -2,6 +2,8 @@ set shell := ["bash", "-cu"]
 
 # all language crates
 packages := "-p destack_ast -p destack_codegen_js -p destack_compiler -p destack_dir -p destack_fir -p destack_formatter -p destack_linter -p destack_vm -p destack_mir -p destack_parser -p destack_resolver -p destack_source -p destack_test -p destack_unicode -p destack_workspace"
+packages-no-linter := "-p destack_ast -p destack_codegen_js -p destack_compiler -p destack_dir -p destack_fir -p destack_formatter -p destack_vm -p destack_mir -p destack_parser -p destack_resolver -p destack_source -p destack_test -p destack_unicode -p destack_workspace"
+linter-test-threads := "2"
 
 _default:
     @just --list --unsorted
@@ -105,7 +107,12 @@ fetch-builtin-libs:
 
 # run all tests
 test:
-    cargo test --release --all-targets --no-fail-fast {{ packages }}
+    cargo test --release --all-targets --no-fail-fast {{ packages-no-linter }}
+    cargo test --release --all-targets --no-fail-fast -p destack_linter -- --test-threads={{ linter-test-threads }}
+
+# run linter tests with capped rust test threads
+test-linter:
+    cargo test --release --all-targets --no-fail-fast -p destack_linter -- --test-threads={{ linter-test-threads }}
 
 # run smoke tests
 test-smoke:
@@ -191,6 +198,10 @@ bench-compiler:
 # run compiler bench stats
 bench-compiler-stats args="--help":
     cargo run -p destack_compiler --example bench_stats --features bench -- {{args}}
+
+# run linter bench stats
+bench-linter-stats args="--help":
+    cargo run -p destack_linter --example bench_stats -- {{args}}
 
 # run lexer benchmarks
 bench-lexer:

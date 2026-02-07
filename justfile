@@ -62,6 +62,10 @@ test:
     just library/test
     just platform/test
 
+# run linter tests (language) with capped test threads
+test-linter:
+    just language/test-linter
+
 # --- bench ---
 
 # run benchmarks

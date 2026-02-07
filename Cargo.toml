@@ -137,6 +137,7 @@ similar = "2.1.0"
 slice-group-by = "0.3.1"
 
 # general
+aho-corasick = "1.1"
 base64 = "0.22"
 cfg-if = "1.0.4"
 regex = "1.12"

@@ -1,5 +1,6 @@
 use std::env::current_dir;
-use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, LazyLock};
 
 use destack_ast::NodeParentIndex;
 use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, ImportTask, ResolveTask};
@@ -16,7 +17,14 @@ use destack_workspace::{
     Platform, ProfileFlags, ProfileId, ProfileKey, Program, Runtime, Session,
 };
 
-use crate::{BoxedLintRule, Fixability, LintDiagnostic, LintLevel, LintRequirement, LintRunner};
+use crate::{
+    BoxedLintRule, Fixability, LintDiagnostic, LintLevel, LintModuleReport, LintRequirement,
+    LintRunner,
+};
+
+/// Shared memory cache store for linter tests.
+static TEST_CACHE_STORE: LazyLock<Arc<MemoryCacheStore>> =
+    LazyLock::new(|| Arc::new(MemoryCacheStore::new()));
 
 /// Test wrapper for linting.
 #[allow(unused)]
@@ -35,6 +43,8 @@ pub(crate) struct TestProgram {
     runner: LintRunner,
     /// Linter options for tests (all rules enabled by default).
     linter_options: LinterOptions,
+    /// Whether builtin and lib resolution has been enqueued.
+    has_enqueued_profile_resolution: AtomicBool,
 }
 
 impl std::fmt::Debug for TestProgram {
@@ -64,7 +74,7 @@ impl TestProgram {
         let session = Arc::new(
             Session::new(cwd.clone())
                 .with_fs(fs.clone())
-                .with_cache_store(Arc::new(MemoryCacheStore::new())),
+                .with_cache_store(TEST_CACHE_STORE.clone()),
         );
         let program = session.add_root(cwd);
 
@@ -117,6 +127,7 @@ impl TestProgram {
             compiler,
             runner,
             linter_options: test_linter_options(),
+            has_enqueued_profile_resolution: AtomicBool::new(false),
         }
     }
 
@@ -215,6 +226,19 @@ impl TestProgram {
         });
     }
 
+    /// Enqueue builtin and lib resolution once for this test program.
+    pub(crate) fn enqueue_profile_resolution_once(&self) {
+        let has_enqueued = self
+            .has_enqueued_profile_resolution
+            .swap(true, Ordering::Relaxed);
+        if has_enqueued {
+            return;
+        }
+
+        self.resolve_builtins();
+        self.resolve_libs();
+    }
+
     /// Analyze a module.
     pub(crate) fn analyze_module(&self, module: ModuleId) {
         let module_stamp =
@@ -250,12 +274,28 @@ impl TestProgram {
         )
     }
 
+    /// Lint a module at the given level and collect performance data.
+    pub(crate) fn lint_module_profiled(
+        &self,
+        module: ModuleId,
+        level: LintLevel,
+    ) -> LintModuleReport {
+        let module = self.program.modules.get(module);
+        let profile = self.profile_id;
+        self.runner.lint_module_profiled(
+            self.program.clone(),
+            module,
+            profile,
+            &self.linter_options,
+            level,
+        )
+    }
+
     /// Add module, compile through analysis, and lint at DIR level.
     pub(crate) fn lint_dir(&self, path: &str, content: &str) -> Vec<LintDiagnostic> {
         let module = self.add_module(path, content);
         self.import_module(module);
-        self.resolve_builtins();
-        self.resolve_libs();
+        self.enqueue_profile_resolution_once();
         self.analyze_module(module);
         self.compile();
         self.lint_module(module, LintLevel::Dir)
