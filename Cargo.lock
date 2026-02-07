@@ -1060,6 +1060,8 @@ dependencies = [
 name = "destack_linter"
 version = "0.53.0"
 dependencies = [
+ "aho-corasick",
+ "clap",
  "destack_ast",
  "destack_base",
  "destack_builtin",

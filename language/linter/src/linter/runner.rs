@@ -1,14 +1,140 @@
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use parking_lot::RwLock;
 
 use destack_source::ModuleId;
-use destack_workspace::{LintPreset, LinterOptions, Module, ProfileId, Program};
+use destack_workspace::{LintCategory, LintPreset, LinterOptions, Module, ProfileId, Program};
 
 use crate::{
     BoxedLintRule, LintDiagnostic, LintLevel, LintModuleAstContext, LintModuleDirContext,
     all_rules, recommended_rules,
 };
+
+/// Per lint rule performance metrics.
+#[derive(Debug, Clone)]
+pub struct LintRulePerformance {
+    /// The lint rule id.
+    pub id: &'static str,
+    /// The lint diagnostic code.
+    pub code: &'static str,
+    /// The lint type name.
+    pub name: &'static str,
+    /// The lint category.
+    pub category: LintCategory,
+    /// The lint IR level.
+    pub level: LintLevel,
+    /// How many times this rule ran.
+    pub runs: usize,
+    /// How many diagnostics this rule produced.
+    pub diagnostics: usize,
+    /// The accumulated execution time for this rule.
+    pub total_duration: Duration,
+}
+
+impl LintRulePerformance {
+    /// Return the average execution time per run.
+    pub fn average_duration(&self) -> Duration {
+        if self.runs == 0 {
+            return Duration::ZERO;
+        }
+
+        let nanos = self.total_duration.as_nanos() / self.runs as u128;
+        let capped_nanos = nanos.min(u64::MAX as u128) as u64;
+        Duration::from_nanos(capped_nanos)
+    }
+}
+
+/// Aggregate lint performance metrics for a run.
+#[derive(Debug, Clone, Default)]
+pub struct LintPerformanceReport {
+    /// Total time spent executing lint rules.
+    pub total_duration: Duration,
+    /// Total number of rule executions.
+    pub total_rule_runs: usize,
+    /// Total number of diagnostics emitted.
+    pub total_diagnostics: usize,
+    /// Per rule timing metrics.
+    pub rules: Vec<LintRulePerformance>,
+}
+
+impl LintPerformanceReport {
+    /// Record one rule execution sample.
+    pub fn record(
+        &mut self,
+        id: &'static str,
+        code: &'static str,
+        name: &'static str,
+        category: LintCategory,
+        level: LintLevel,
+        duration: Duration,
+        diagnostics: usize,
+    ) {
+        self.total_duration += duration;
+        self.total_rule_runs += 1;
+        self.total_diagnostics += diagnostics;
+
+        if let Some(existing) = self.rules.iter_mut().find(|rule| rule.id == id) {
+            existing.runs += 1;
+            existing.diagnostics += diagnostics;
+            existing.total_duration += duration;
+            return;
+        }
+
+        self.rules.push(LintRulePerformance {
+            id,
+            code,
+            name,
+            category,
+            level,
+            runs: 1,
+            diagnostics,
+            total_duration: duration,
+        });
+    }
+
+    /// Merge another performance report into this one.
+    pub fn merge(&mut self, other: &Self) {
+        self.total_duration += other.total_duration;
+        self.total_rule_runs += other.total_rule_runs;
+        self.total_diagnostics += other.total_diagnostics;
+
+        for rule in &other.rules {
+            if let Some(existing) = self.rules.iter_mut().find(|entry| entry.id == rule.id) {
+                existing.runs += rule.runs;
+                existing.diagnostics += rule.diagnostics;
+                existing.total_duration += rule.total_duration;
+            } else {
+                self.rules.push(rule.clone());
+            }
+        }
+    }
+
+    /// Return rules sorted by descending total duration.
+    pub fn sorted_by_total_duration(&self) -> Vec<LintRulePerformance> {
+        let mut rules = self.rules.clone();
+        rules.sort_by_key(|rule| std::cmp::Reverse(rule.total_duration));
+        rules
+    }
+}
+
+/// Lint result for one module with diagnostics and performance metrics.
+#[derive(Debug, Clone, Default)]
+pub struct LintModuleReport {
+    /// The emitted diagnostics.
+    pub diagnostics: Vec<LintDiagnostic>,
+    /// Rule execution performance metrics.
+    pub performance: LintPerformanceReport,
+}
+
+/// Lint result for a full multi module run.
+#[derive(Debug, Clone, Default)]
+pub struct LintRunReport {
+    /// The emitted diagnostics.
+    pub diagnostics: Vec<LintDiagnostic>,
+    /// Rule execution performance metrics.
+    pub performance: LintPerformanceReport,
+}
 
 /// Runs lint rules against modules and programs.
 pub struct LintRunner {
@@ -95,23 +221,48 @@ impl LintRunner {
         options: &LinterOptions,
         level: LintLevel,
     ) -> Vec<LintDiagnostic> {
+        self.lint_module_profiled(program, module, profile, options, level)
+            .diagnostics
+    }
+
+    /// Lint a module at a specific IR level and collect performance metrics.
+    pub fn lint_module_profiled(
+        &self,
+        program: Arc<Program>,
+        module: Arc<RwLock<Module>>,
+        profile: ProfileId,
+        options: &LinterOptions,
+        level: LintLevel,
+    ) -> LintModuleReport {
         if !options.enabled {
-            return Vec::new();
+            return LintModuleReport::default();
         }
-        match level {
-            LintLevel::Ast => self.lint_module_ast(program, module, profile, options),
-            LintLevel::Dir => self.lint_module_dir(program, module, profile, options),
+        let mut performance = LintPerformanceReport::default();
+
+        let diagnostics = match level {
+            LintLevel::Ast => {
+                self.lint_module_ast(program, module, profile, options, Some(&mut performance))
+            }
+            LintLevel::Dir => {
+                self.lint_module_dir(program, module, profile, options, Some(&mut performance))
+            }
             LintLevel::Mir => todo!("MIR rules not yet supported"),
+        };
+
+        LintModuleReport {
+            diagnostics,
+            performance,
         }
     }
 
-    /// Lint a module at AST level.
+    /// Lint a module at a specific IR level.
     fn lint_module_ast(
         &self,
         program: Arc<Program>,
         module: Arc<RwLock<Module>>,
         _profile: ProfileId,
         options: &LinterOptions,
+        mut performance: Option<&mut LintPerformanceReport>,
     ) -> Vec<LintDiagnostic> {
         let module = module.read();
         let ast = &module.ast();
@@ -136,7 +287,26 @@ impl LintRunner {
                 && ctx.is_rule_enabled(meta)
             {
                 let severity = ctx.get_severity(meta);
-                rule.check_module_ast(severity, &mut ctx);
+                if let Some(performance) = performance.as_deref_mut() {
+                    let diagnostics_before = ctx.diagnostics().len();
+                    let start = Instant::now();
+                    rule.check_module_ast(severity, &mut ctx);
+                    let duration = start.elapsed();
+                    let diagnostics_after = ctx.diagnostics().len();
+                    let diagnostics_added = diagnostics_after.saturating_sub(diagnostics_before);
+
+                    performance.record(
+                        meta.id,
+                        meta.code,
+                        meta.name,
+                        meta.category,
+                        meta.level,
+                        duration,
+                        diagnostics_added,
+                    );
+                } else {
+                    rule.check_module_ast(severity, &mut ctx);
+                }
             }
         }
 
@@ -150,6 +320,7 @@ impl LintRunner {
         module: Arc<RwLock<Module>>,
         profile: ProfileId,
         options: &LinterOptions,
+        mut performance: Option<&mut LintPerformanceReport>,
     ) -> Vec<LintDiagnostic> {
         // context
         let module = module.read();
@@ -194,7 +365,26 @@ impl LintRunner {
                 && ctx.is_rule_enabled(meta)
             {
                 let severity = ctx.get_severity(meta);
-                rule.check_module_dir(severity, &mut ctx);
+                if let Some(performance) = performance.as_deref_mut() {
+                    let diagnostics_before = ctx.diagnostics().len();
+                    let start = Instant::now();
+                    rule.check_module_dir(severity, &mut ctx);
+                    let duration = start.elapsed();
+                    let diagnostics_after = ctx.diagnostics().len();
+                    let diagnostics_added = diagnostics_after.saturating_sub(diagnostics_before);
+
+                    performance.record(
+                        meta.id,
+                        meta.code,
+                        meta.name,
+                        meta.category,
+                        meta.level,
+                        duration,
+                        diagnostics_added,
+                    );
+                } else {
+                    rule.check_module_dir(severity, &mut ctx);
+                }
             }
         }
 
@@ -221,16 +411,35 @@ impl LintRunner {
         options: &LinterOptions,
         level: LintLevel,
     ) -> Vec<LintDiagnostic> {
+        self.lint_all_modules_profiled(program, options, level)
+            .diagnostics
+    }
+
+    /// Lint all modules at a specific level and collect performance metrics.
+    pub fn lint_all_modules_profiled(
+        &self,
+        program: Arc<Program>,
+        options: &LinterOptions,
+        level: LintLevel,
+    ) -> LintRunReport {
         if !options.enabled {
-            return Vec::new();
+            return LintRunReport::default();
         }
 
         let mut diagnostics = Vec::new();
+        let mut performance = LintPerformanceReport::default();
         for module in program.modules.iter() {
             let profile = program.default_profile_id_for_module(module.read().id);
-            diagnostics.extend(self.lint_module(program.clone(), module, profile, options, level));
+            let report =
+                self.lint_module_profiled(program.clone(), module, profile, options, level);
+            diagnostics.extend(report.diagnostics);
+            performance.merge(&report.performance);
         }
-        diagnostics
+
+        LintRunReport {
+            diagnostics,
+            performance,
+        }
     }
 }
 

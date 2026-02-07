@@ -1,5 +1,8 @@
+use aho_corasick::{AhoCorasick, MatchKind};
 use destack_ast as ast;
+use destack_base::StringId;
 use destack_workspace::LintSeverity;
+use indexmap::IndexMap;
 use regex::bytes::{Regex as BytesRegex, RegexBuilder as BytesRegexBuilder};
 use std::sync::LazyLock;
 
@@ -27,7 +30,6 @@ declare_lint! {
 
 /// A parsed rule from the Gitleaks configuration file.
 #[derive(Debug)]
-#[allow(dead_code)]
 struct SecretRule {
     /// Unique identifier for the rule (e.g., "aws-access-key").
     id: String,
@@ -37,8 +39,6 @@ struct SecretRule {
     regex: String,
     /// Keywords to pre-filter strings before regex matching.
     keywords: Vec<String>,
-    /// Minimum entropy threshold for the match.
-    entropy: Option<f64>,
 }
 
 /// Parse the Gitleaks TOML configuration into a list of rules.
@@ -66,14 +66,12 @@ fn parse_gitleaks_config(content: &str) -> Vec<SecretRule> {
                         .collect()
                 })
                 .unwrap_or_default();
-            let entropy = rule.get("entropy").and_then(|e| e.as_float());
 
             Some(SecretRule {
                 id,
                 description,
                 regex,
                 keywords,
-                entropy,
             })
         })
         .collect()
@@ -102,28 +100,97 @@ impl TryFrom<&SecretRule> for SecretPattern {
     }
 }
 
-impl SecretPattern {
-    /// Check if the given string matches this secret pattern.
-    fn matches(&self, s: &str) -> bool {
-        self.regex.is_match(s.as_bytes())
-    }
+/// Keyword matcher and lookup index for secret pattern prefiltering.
+struct SecretKeywordIndex {
+    /// Multi-pattern matcher built from unique gitleaks keywords.
+    matcher: AhoCorasick,
+    /// For each keyword index, the patterns that should be tested.
+    pattern_indexes: Vec<Vec<usize>>,
+    /// Patterns that cannot be prefiltered by keywords.
+    fallback_pattern_indexes: Vec<usize>,
+}
+
+/// Compiled secret patterns with optional keyword prefilter index.
+struct SecretPatternSet {
+    /// All compiled secret regex patterns.
+    patterns: Vec<SecretPattern>,
+    /// Keyword matcher index for fast candidate narrowing.
+    keyword_index: Option<SecretKeywordIndex>,
 }
 
 /// Compiled secret patterns, initialized lazily at runtime.
 static SECRET_PATTERNS_PATH: &str = include_str!("gitleaks.toml");
-static SECRET_PATTERNS: LazyLock<Vec<SecretPattern>> = LazyLock::new(|| {
+static SECRET_PATTERNS: LazyLock<SecretPatternSet> = LazyLock::new(|| {
     let rules = parse_gitleaks_config(SECRET_PATTERNS_PATH);
 
     // compile regex patterns, skipping any that fail to compile
     // (some gitleaks patterns may use features not supported by the regex crate)
     let mut patterns = Vec::with_capacity(rules.len());
+    let mut keyword_to_pattern_indexes: IndexMap<String, Vec<usize>> = IndexMap::new();
+    let mut fallback_pattern_indexes = Vec::new();
     for rule in &rules {
         match SecretPattern::try_from(rule) {
-            Ok(pattern) => patterns.push(pattern),
+            Ok(pattern) => {
+                let pattern_index = patterns.len();
+                patterns.push(pattern);
+
+                // map each keyword to the patterns it can unlock
+                let mut has_keyword = false;
+                for keyword in &rule.keywords {
+                    if keyword.is_empty() {
+                        continue;
+                    }
+
+                    has_keyword = true;
+                    let keyword = keyword.to_ascii_lowercase();
+                    keyword_to_pattern_indexes
+                        .entry(keyword)
+                        .or_default()
+                        .push(pattern_index);
+                }
+
+                // rules without keywords still need direct regex checks
+                if !has_keyword {
+                    fallback_pattern_indexes.push(pattern_index);
+                }
+            }
             Err(e) => eprintln!("warning: skipping rule '{}': {e}", rule.id),
         }
     }
-    patterns
+
+    // build a keyword matcher so each string is scanned once before regex checks
+    let keyword_index = if keyword_to_pattern_indexes.is_empty() {
+        None
+    } else {
+        let mut keyword_patterns = Vec::with_capacity(keyword_to_pattern_indexes.len());
+        let mut keyword_literals = Vec::with_capacity(keyword_to_pattern_indexes.len());
+
+        for (keyword, pattern_indexes) in keyword_to_pattern_indexes {
+            keyword_literals.push(keyword);
+            keyword_patterns.push(pattern_indexes);
+        }
+
+        match AhoCorasick::builder()
+            .ascii_case_insensitive(true)
+            .match_kind(MatchKind::Standard)
+            .build(keyword_literals)
+        {
+            Ok(matcher) => Some(SecretKeywordIndex {
+                matcher,
+                pattern_indexes: keyword_patterns,
+                fallback_pattern_indexes,
+            }),
+            Err(e) => {
+                eprintln!("warning: disabling no-secrets keyword prefilter: {e}");
+                None
+            }
+        }
+    };
+
+    SecretPatternSet {
+        patterns,
+        keyword_index,
+    }
 });
 
 /// Variable name patterns that suggest secrets (for context-based detection).
@@ -149,12 +216,18 @@ const SUSPICIOUS_NAME_PATTERNS: &[&str] = &[
     "signing_key",
 ];
 
+/// Suspicious variable name matcher.
+static SUSPICIOUS_NAME_MATCHER: LazyLock<AhoCorasick> = LazyLock::new(|| {
+    AhoCorasick::builder()
+        .ascii_case_insensitive(true)
+        .match_kind(MatchKind::Standard)
+        .build(SUSPICIOUS_NAME_PATTERNS)
+        .expect("invalid suspicious name patterns")
+});
+
 /// Check if a variable name suggests it might hold a secret.
 fn is_suspicious_name(name: &str) -> bool {
-    let lower = name.to_lowercase();
-    SUSPICIOUS_NAME_PATTERNS
-        .iter()
-        .any(|pattern| lower.contains(pattern))
+    SUSPICIOUS_NAME_MATCHER.is_match(name.as_bytes())
 }
 
 /// Check if a string value is suspicious when assigned to a secret-named variable.
@@ -176,9 +249,10 @@ const ENTROPY_THRESHOLD: f64 = 4.5;
 const MIN_SUSPICIOUS_VALUE_LENGTH: usize = 8;
 
 /// Result of checking a string for secret patterns.
-enum SecretMatch<'a> {
+#[derive(Clone, Copy)]
+enum SecretMatch {
     /// Matched a known secret pattern (e.g., AWS key, GitHub token).
-    KnownPattern(&'a str),
+    KnownPattern(&'static str),
     /// High entropy string that looks like a random secret.
     HighEntropy,
 }
@@ -187,16 +261,42 @@ enum SecretMatch<'a> {
 ///
 /// Returns `Some(SecretMatch)` if the string matches a known pattern or has
 /// suspiciously high entropy, `None` otherwise.
-fn detect_secret(value: &str) -> Option<SecretMatch<'_>> {
+fn detect_secret(value: &str) -> Option<SecretMatch> {
     // skip short or placeholder strings
     if value.len() < MIN_SUSPICIOUS_VALUE_LENGTH || is_placeholder(value) {
         return None;
     }
 
     // check against known secret patterns from gitleaks
-    for pattern in SECRET_PATTERNS.iter() {
-        if pattern.matches(value) {
-            return Some(SecretMatch::KnownPattern(&pattern.description));
+    let value_bytes = value.as_bytes();
+    if let Some(keyword_matcher) = &SECRET_PATTERNS.keyword_index {
+        let mut matched_keyword_indexes = Vec::new();
+        for keyword_match in keyword_matcher.matcher.find_overlapping_iter(value_bytes) {
+            let keyword_match_index = keyword_match.pattern().as_usize();
+            if matched_keyword_indexes.contains(&keyword_match_index) {
+                continue;
+            }
+            matched_keyword_indexes.push(keyword_match_index);
+
+            for pattern_index in &keyword_matcher.pattern_indexes[keyword_match_index] {
+                let pattern = &SECRET_PATTERNS.patterns[*pattern_index];
+                if pattern.regex.is_match(value_bytes) {
+                    return Some(SecretMatch::KnownPattern(&pattern.description));
+                }
+            }
+        }
+
+        for pattern_index in &keyword_matcher.fallback_pattern_indexes {
+            let pattern = &SECRET_PATTERNS.patterns[*pattern_index];
+            if pattern.regex.is_match(value_bytes) {
+                return Some(SecretMatch::KnownPattern(&pattern.description));
+            }
+        }
+    } else {
+        for pattern in &SECRET_PATTERNS.patterns {
+            if pattern.regex.is_match(value_bytes) {
+                return Some(SecretMatch::KnownPattern(&pattern.description));
+            }
         }
     }
 
@@ -252,19 +352,37 @@ fn calculate_entropy(s: &str) -> f64 {
 
 /// Check if a string looks like a placeholder or example value.
 fn is_placeholder(s: &str) -> bool {
-    let lower = s.to_lowercase();
-    lower.contains("example")
-        || lower.contains("placeholder")
-        || lower.contains("your_")
-        || lower.contains("your-")
-        || lower.contains("<your")
-        || lower.contains("xxx")
-        || lower.contains("changeme")
-        || lower.contains("fixme")
-        || lower.contains("todo")
-        || lower.starts_with("test")
-        || lower == "password"
-        || lower == "secret"
+    PLACEHOLDER_MATCHER.is_match(s.as_bytes())
+        || starts_with_ascii_case_insensitive(s, "test")
+        || s.eq_ignore_ascii_case("password")
+        || s.eq_ignore_ascii_case("secret")
+}
+
+/// Placeholder substring matcher.
+static PLACEHOLDER_MATCHER: LazyLock<AhoCorasick> = LazyLock::new(|| {
+    AhoCorasick::builder()
+        .ascii_case_insensitive(true)
+        .match_kind(MatchKind::Standard)
+        .build([
+            "example",
+            "placeholder",
+            "your_",
+            "your-",
+            "<your",
+            "xxx",
+            "changeme",
+            "fixme",
+            "todo",
+        ])
+        .expect("invalid placeholder patterns")
+});
+
+/// Return true when `value` starts with `prefix` using ascii-insensitive comparison.
+fn starts_with_ascii_case_insensitive(value: &str, prefix: &str) -> bool {
+    value
+        .as_bytes()
+        .get(..prefix.len())
+        .is_some_and(|head| head.eq_ignore_ascii_case(prefix.as_bytes()))
 }
 
 /// Check if a string looks like a safe path or URL (no embedded secrets).
@@ -292,15 +410,24 @@ impl LintRule for NoSecrets {
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
+        let mut secret_match_cache: IndexMap<StringId, Option<SecretMatch>> = IndexMap::new();
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
             match expression {
                 // string literals: check for secrets
                 ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(s)) => {
-                    let string_ref = ctx.strings.get(*s);
-                    let string_value: &str = &string_ref;
-                    if let Some(secret_match) = detect_secret(string_value) {
+                    let secret_match = if let Some(secret_match) = secret_match_cache.get(s) {
+                        *secret_match
+                    } else {
+                        let string_ref = ctx.strings.get(*s);
+                        let string_value: &str = &string_ref;
+                        let secret_match = detect_secret(string_value);
+                        secret_match_cache.insert(*s, secret_match);
+                        secret_match
+                    };
+
+                    if let Some(secret_match) = secret_match {
                         let severity = ctx.get_effective_severity(meta, node_id);
                         if !severity.is_enabled() {
                             continue;
