@@ -204,7 +204,7 @@ interface Empty {}
             .assert_lint("no-empty-interface")
             .assert_safe_fixed(
                 r#"
-type Empty = { };
+type Empty = {};
 "#,
             );
     }

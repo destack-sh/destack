@@ -93,7 +93,6 @@ High-confidence issues that are almost always wrong.
 | `LC004` | `no-arguments-order-mismatch` | SonarQube | DIR |  | Suggestion | Disallow arguments that appear swapped based on parameter names |
 | `LC005` | `no-array-constructor` | ESLint | DIR | ✓ | Safe | Disallow `new Array()` (confusing behavior) |
 | `LC006` | `no-array-delete` | TS-ESLint | DIR | ✓ | None | Disallow `delete` on arrays (creates holes) |
-| `LC068` | `no-addrspace-mismatch` | Destack | DIR |  | None | Disallow address spaces not supported by the current target or VM |
 | `LC007` | `no-async-promise-executor` | ESLint | DIR | ✓ | Unsafe | Disallow async functions as Promise executor |
 | `LC008` | `no-base-to-string` | TS-ESLint | DIR | ✓ | Suggestion | Disallow `.toString()` on objects without useful representation |
 | `LC011` | `no-compare-neg-zero` | ESLint | AST | ✓ | Safe | Disallow comparing against negative zero |
@@ -228,8 +227,6 @@ Patterns that may expose the application to attacks.
 | `LS009` | `no-script-url` | ESLint | AST | ✓ | None | Disallow `javascript:` URLs |
 | `LS010` | `no-secrets` | Biome | AST | ✓ | None | Disallow hardcoded secrets and credentials |
 | `LS017` | `no-unsafe-decorator` | Destack | DIR |  | Suggestion | Disallow decorators with unsafe side effects |
-| `LS018` | `no-unsafe-ffi` | Destack | DIR |  | None | Disallow FFI calls outside explicit safety fences |
-| `LS019` | `no-unpinned-ffi` | Destack | DIR |  | None | Disallow passing unpinned GC-managed pointers across FFI |
 | `LS015` | `no-weak-crypto` | Semgrep | DIR | ✓ | None | Disallow weak cryptographic algorithms |
 
 ## Performance (P)

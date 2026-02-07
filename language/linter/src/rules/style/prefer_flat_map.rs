@@ -285,7 +285,7 @@ let flat = items.flat();
             "test.ds",
             r#"
 let items = [[1, 2], [3, 4]];
-let flat = items.map(x => x).filter(x => x.length > 0).flat();
+let flat = items.map(x => x).slice().flat();
 "#,
         );
         test.result(result).assert_no_lint("prefer-flat-map");
