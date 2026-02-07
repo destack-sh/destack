@@ -81,12 +81,12 @@ let re = /(/
     }
 
     #[test]
-    fn test_detects_invalid_regex_unmatched_bracket() {
+    fn test_detects_invalid_regex_invalid_group() {
         let test = TestProgram::for_rule_without_prelude(NoInvalidRegexp);
         let result = test.lint_ast(
             "test.ds",
             r#"
-let re = /[/
+let re = /(?/
 "#,
         );
         test.result(result).assert_lint("no-invalid-regexp");

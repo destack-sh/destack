@@ -432,8 +432,8 @@ is_ready &&= is_valid
             "test.ds",
             r#"
 let count = 1
-let is_ready: boolean = true
-is_ready ||= count
+let fallback = 2
+count ||= fallback
 "#,
         );
         test.check_clean();

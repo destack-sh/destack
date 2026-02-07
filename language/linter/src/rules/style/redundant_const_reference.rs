@@ -174,7 +174,7 @@ type T = &const Foo
             .assert_lint("redundant-const-reference")
             .assert_safe_fixed(
                 r#"
-type T = &Foo
+type T = &Foo;
 "#,
             );
     }
@@ -194,7 +194,7 @@ type T = *const Foo
             .assert_lint("redundant-const-reference")
             .assert_safe_fixed(
                 r#"
-type T = *Foo
+type T = *Foo;
 "#,
             );
     }
