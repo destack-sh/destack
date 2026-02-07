@@ -32,6 +32,13 @@ impl Compiler {
         match expression {
             Expression::Labelled { label, .. } => {
                 self.validate_duplicate_label(module, profile, tree, expression_id, *label);
+                self.validate_strict_reserved_label_identifier(
+                    module,
+                    profile,
+                    expression_id,
+                    *label,
+                    is_strict,
+                );
             }
             Expression::Break {
                 target,
@@ -109,15 +116,22 @@ impl Compiler {
                 self.validate_super_call_expression(module, profile, tree, expression_id, *left);
                 self.validate_super_property_expression(module, profile, tree, expression_id);
             }
-            Expression::New { .. } => {
+            Expression::New { left, .. } => {
+                self.validate_new_optional_chain_expression(
+                    module,
+                    profile,
+                    tree,
+                    expression_id,
+                    *left,
+                );
                 self.validate_super_property_expression(module, profile, tree, expression_id);
             }
-            Expression::Member { left, .. }
-            | Expression::PrivateMember { left, .. }
-            | Expression::Index { left, .. } => {
+            Expression::Member { .. }
+            | Expression::PrivateMember { .. }
+            | Expression::Index { .. } => {
+                self.validate_instantiation_access(module, profile, tree, expression_id);
                 self.validate_new_target_expression(module, profile, tree, expression_id);
                 self.validate_super_property_expression(module, profile, tree, expression_id);
-                self.validate_instantiation_access(module, profile, tree, expression_id, *left);
             }
             Expression::Maybe { left } => {
                 self.validate_super_optional_chain(module, profile, tree, expression_id, *left);
@@ -532,11 +546,7 @@ impl Compiler {
         path: &Path,
         is_strict: bool,
     ) {
-        // this check only applies in strict mode for JS/TS modules
-        if !module.is_user()
-            || !is_strict
-            || !(module.language_type.is_javascript() || module.language_type.is_typescript())
-        {
+        if !module.is_user() || !is_strict {
             return;
         }
 
@@ -549,6 +559,30 @@ impl Compiler {
             .into_global_any(module.id)
             .into_anchored(Some(profile));
         self.error(AnalyzeError::ReservedIdentifier { node, name });
+    }
+
+    /// Validate strict-mode labels for reserved names.
+    fn validate_strict_reserved_label_identifier(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        label: StringId,
+        is_strict: bool,
+    ) {
+        if !module.is_user() || !is_strict {
+            return;
+        }
+
+        // labels use identifier rules in strict mode
+        if !self.strict_reserved_reference_name(label) {
+            return;
+        }
+
+        let node = expression_id
+            .into_global_any(module.id)
+            .into_anchored(Some(profile));
+        self.error(AnalyzeError::ReservedIdentifier { node, name: label });
     }
 
     /// Return the reserved identifier for a strict reference path when present.
@@ -598,6 +632,82 @@ impl Compiler {
             .into_global_any(module.id)
             .into_anchored(Some(profile));
         self.error(AnalyzeError::InvalidNewTarget { node });
+    }
+
+    /// Validate `new` constructor expressions that use optional chaining.
+    fn validate_new_optional_chain_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+        left: LocalNodeId<Expression>,
+    ) {
+        if !self.expression_contains_optional_chain(tree, left) {
+            return;
+        }
+
+        let node = expression_id
+            .into_global_any(module.id)
+            .into_anchored(Some(profile));
+        self.error(AnalyzeError::InvalidNewOptionalChain { node });
+    }
+
+    /// Validate member and index access after instantiation expressions.
+    fn validate_instantiation_access(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) {
+        if !self.expression_has_invalid_instantiation_access_receiver(tree, expression_id) {
+            return;
+        }
+
+        let node = expression_id
+            .into_global_any(module.id)
+            .into_anchored(Some(profile));
+        self.error(AnalyzeError::InvalidInstantiationAccess { node });
+    }
+
+    /// Return true when a member-like expression directly follows an instantiation expression.
+    fn expression_has_invalid_instantiation_access_receiver(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        // extract the receiver for member-like expressions
+        let left_expression_id = match tree.get(expression_id) {
+            Expression::Member { left, .. }
+            | Expression::PrivateMember { left, .. }
+            | Expression::Index { left, .. } => *left,
+            _ => return false,
+        };
+
+        self.expression_is_unparenthesized_instantiation_receiver(tree, left_expression_id)
+    }
+
+    /// Return true when an expression is an instantiation receiver without parentheses.
+    fn expression_is_unparenthesized_instantiation_receiver(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        match tree.get(expression_id) {
+            // direct instantiation receivers are invalid for member-like access
+            Expression::Instantiation { .. } => true,
+
+            // optional-chain wrappers preserve the original receiver shape
+            Expression::Maybe { left } => {
+                self.expression_is_unparenthesized_instantiation_receiver(tree, *left)
+            }
+
+            // parenthesized receivers are explicitly allowed
+            Expression::Parenthesized { .. } => false,
+
+            _ => false,
+        }
     }
 
     /// Return true when an expression is exactly `new.target`.
@@ -1859,67 +1969,6 @@ impl Compiler {
         self.error(AnalyzeError::UnsoundNarrowingDisabled { node });
     }
 
-    /// Validate instantiation expressions followed by member or index access.
-    fn validate_instantiation_access(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
-        expression_id: LocalNodeId<Expression>,
-        left: LocalNodeId<Expression>,
-    ) {
-        // skip non-instantiation receivers
-        if !self.is_unparenthesized_instantiation_access_target(tree, left) {
-            return;
-        }
-
-        // report invalid instantiation access
-        let node = expression_id
-            .into_global_any(module.id)
-            .into_anchored(Some(profile));
-        self.error(AnalyzeError::InvalidInstantiationAccess { node });
-    }
-
-    /// Check whether a receiver is an unparenthesized instantiation expression.
-    fn is_unparenthesized_instantiation_access_target(
-        &self,
-        tree: &NodeTree,
-        expression_id: LocalNodeId<Expression>,
-    ) -> bool {
-        match tree.get(expression_id) {
-            Expression::Instantiation { .. } => true,
-            Expression::UnresolvedPath {
-                static_arguments: Some(static_arguments),
-                ..
-            }
-            | Expression::LocalReference {
-                static_arguments: Some(static_arguments),
-                ..
-            }
-            | Expression::ModuleReference {
-                static_arguments: Some(static_arguments),
-                ..
-            }
-            | Expression::GlobalReference {
-                static_arguments: Some(static_arguments),
-                ..
-            }
-            | Expression::Member {
-                static_arguments: Some(static_arguments),
-                ..
-            }
-            | Expression::PrivateMember {
-                static_arguments: Some(static_arguments),
-                ..
-            } => !static_arguments.is_empty(),
-            Expression::Maybe { left } => {
-                self.is_unparenthesized_instantiation_access_target(tree, *left)
-            }
-            Expression::Parenthesized { .. } => false,
-            _ => false,
-        }
-    }
-
     /// Validate assignment targets for assignment expressions.
     fn validate_assignment_target(
         &self,
@@ -2053,23 +2102,6 @@ impl Compiler {
         kind: DependencyKind,
         items: Option<&[LocalNodeId<DependencyItem>]>,
     ) {
-        // top level enforcement for static dependencies
-        if self.dependency_requires_top_level(source)
-            && !self.is_top_level_dependency_expression(tree, expression_id)
-        {
-            let node = expression_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile));
-            if matches!(
-                source,
-                DependencySource::ImportStatement | DependencySource::ImportEquals
-            ) {
-                self.error(AnalyzeError::ImportNotTopLevel { node });
-            } else {
-                self.error(AnalyzeError::ExportNotTopLevel { node });
-            }
-        }
-
         // reject type-only dependencies in JavaScript modules
         if module.language_type.is_javascript() && kind == DependencyKind::Type {
             let node = expression_id
@@ -2144,44 +2176,6 @@ impl Compiler {
                     return false;
                 }
             }
-        }
-    }
-
-    /// Return true when a dependency source must be top level.
-    fn dependency_requires_top_level(&self, source: DependencySource) -> bool {
-        matches!(
-            source,
-            DependencySource::ImportStatement
-                | DependencySource::ImportEquals
-                | DependencySource::ExportStatement
-                | DependencySource::ValueExpression
-        )
-    }
-
-    /// Return true when a dependency expression is rooted at the module.
-    fn is_top_level_dependency_expression(
-        &self,
-        tree: &NodeTree,
-        expression_id: LocalNodeId<Expression>,
-    ) -> bool {
-        let mut current = expression_id.into_any();
-
-        // unwrap statement wrappers to find the outer parent
-        loop {
-            let Some(parent) = tree.get_parent(current.id) else {
-                return true;
-            };
-            if parent.ty != NodeType::Expression {
-                return false;
-            }
-
-            let parent_expression = tree.get(parent.into_typed::<Expression>());
-            if matches!(parent_expression, Expression::Statement { .. }) {
-                current = parent;
-                continue;
-            }
-
-            return false;
         }
     }
 
@@ -2930,7 +2924,10 @@ impl Compiler {
         }
 
         let declarator = tree.get(declarator_id);
-        if self.pattern_is_valid_js_ts_compat_declarator_binding(tree, declarator.pattern) {
+        let Pattern::Expression { value } = tree.get(declarator.pattern) else {
+            return;
+        };
+        if self.expression_is_valid_js_ts_compat_declarator_binding(tree, *value) {
             return;
         }
 
@@ -2939,25 +2936,6 @@ impl Compiler {
             .into_global_any(module.id)
             .into_anchored(Some(profile));
         self.error(AnalyzeError::InvalidAssignmentTarget { node });
-    }
-
-    /// Return true when a pattern is valid for JS/TS declarator binding compatibility.
-    fn pattern_is_valid_js_ts_compat_declarator_binding(
-        &self,
-        tree: &NodeTree,
-        pattern_id: LocalNodeId<Pattern>,
-    ) -> bool {
-        match tree.get(pattern_id) {
-            Pattern::Binding { .. }
-            | Pattern::Array { .. }
-            | Pattern::Object { .. }
-            | Pattern::TaggedTuple { .. }
-            | Pattern::TaggedObject { .. } => true,
-            Pattern::Expression { value } => {
-                self.expression_is_valid_js_ts_compat_declarator_binding(tree, *value)
-            }
-            _ => false,
-        }
     }
 
     /// Return true when an expression is valid for JS/TS declarator binding compatibility.
@@ -3083,6 +3061,44 @@ cls.myFunc<ConcreteClass> = (instance) => {
             panic!("expected assignment expression");
         });
         test.check_has_diagnostic("EA226");
+    }
+
+    /// Reject direct property access after instantiation expressions.
+    #[test]
+    fn test_reject_instantiation_property_access() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ts",
+            r#"
+const value = f<T>.x;
+"#,
+        );
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA234");
+    }
+
+    /// Allow parenthesized instantiation property access.
+    #[test]
+    fn test_allow_parenthesized_instantiation_property_access() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ts",
+            r#"
+const value = (f<T>).x;
+"#,
+        );
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("EA234");
     }
 
     /// Reject super member access in plain functions.
@@ -3560,6 +3576,22 @@ const __proto__ = 1;
         test.check_has_diagnostic("EA214");
     }
 
+    /// Reject strict reserved labels.
+    #[test]
+    fn test_reject_strict_reserved_label_identifier() {
+        let test = TestProgram::memory_sequential();
+
+        // source: "use strict"; yield:;
+        let module_id = test.add_module("test.js", r#""use strict"; yield:;"#);
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA214");
+    }
+
     /// Reject `new.target` outside function-like contexts.
     #[test]
     fn test_reject_new_target_at_top_level() {
@@ -3590,6 +3622,22 @@ const __proto__ = 1;
         test.analyze_module(module_id);
         test.compile();
         test.check_no_diagnostic_code("EA248");
+    }
+
+    /// Reject `new` calls rooted in optional chains.
+    #[test]
+    fn test_reject_new_optional_chain_expression() {
+        let test = TestProgram::memory_sequential();
+
+        // source: new Test?.test();
+        let module_id = test.add_module("test.ts", "new Test?.test();");
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA250");
     }
 
     /// Reject labelled breaks that cross function boundaries.

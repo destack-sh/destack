@@ -1,11 +1,13 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
+use destack_ast::Keyword;
 use destack_base::StringId;
 use destack_dir::{
-    Declaration, DependencyItem, DependencyKind, DependencyMode, Expression, LocalNodeId,
-    LocalNodeIdAny, Pattern, PatternField, StaticKey,
+    Declaration, DependencyItem, DependencyKind, DependencyMode, DependencySource, Expression,
+    LocalNodeId, LocalNodeIdAny, Pattern, PatternField, StaticKey,
 };
 use destack_workspace::Module;
+use std::str::FromStr;
 
 use crate::{Compiler, ImportError};
 
@@ -19,6 +21,110 @@ enum ExportConflictKind {
 }
 
 impl Compiler {
+    /// Validate import and export declarations appear at the module root.
+    pub(super) fn validate_dependency_top_level(&self, module: &Module) {
+        // declaration files allow nested ambient import and export forms
+        if module.language_type.is_declaration() {
+            return;
+        }
+
+        // load the module tree once for dependency scanning
+        let dir = module.dir_base();
+        let tree = dir.tree.read();
+
+        // collect top level expressions after unwrapping statement wrappers
+        let mut top_level_expression_ids = HashSet::new();
+        for root_id in &dir.roots {
+            let expression_id = self.unwrap_statement_expression_for_import(&tree, *root_id);
+            top_level_expression_ids.insert(expression_id.id);
+        }
+
+        // report nested static dependencies as import errors
+        for (expression_id, expression) in tree.iter_nodes_of_type::<Expression>() {
+            let is_top_level = top_level_expression_ids.contains(&expression_id.id);
+            if is_top_level {
+                continue;
+            }
+
+            // import declarations
+            if let Expression::Import { source, .. } | Expression::UnresolvedImport { source, .. } =
+                expression
+            {
+                if self.import_dependency_requires_top_level(*source) {
+                    let node = expression_id.into_global_any(module.id).into_anchored(None);
+                    self.error(ImportError::ImportNotTopLevel { node });
+                }
+                continue;
+            }
+
+            // export declarations
+            if matches!(
+                expression,
+                Expression::Export { .. }
+                    | Expression::ReExport { .. }
+                    | Expression::UnresolvedReExport { .. }
+                    | Expression::ExportNamespace { .. }
+            ) {
+                let node = expression_id.into_global_any(module.id).into_anchored(None);
+                self.error(ImportError::ExportNotTopLevel { node });
+            }
+        }
+    }
+
+    /// Validate local export item names use binding-compatible identifiers.
+    pub(super) fn validate_export_local_item_names(&self, module: &Module) {
+        // load the module tree once for dependency scanning
+        let dir = module.dir_base();
+        let tree = dir.tree.read();
+
+        // only direct module exports participate in local export name validation
+        for root_id in &dir.roots {
+            let expression_id = self.unwrap_statement_expression_for_import(&tree, *root_id);
+            let Expression::Export { items, .. } = tree.get(expression_id) else {
+                continue;
+            };
+
+            for item_id in items {
+                let item = tree.get(*item_id);
+                let (mode, kind, name) = match item {
+                    DependencyItem::UnresolvedLocal {
+                        mode, kind, name, ..
+                    }
+                    | DependencyItem::Local {
+                        mode, kind, name, ..
+                    } => (*mode, *kind, *name),
+                    _ => continue,
+                };
+
+                // item mode carries local names that must be binding-compatible
+                if mode != DependencyMode::Item || kind != DependencyKind::Value {
+                    continue;
+                }
+
+                let Some(destack_dir::Name::Identifier(name)) = name else {
+                    continue;
+                };
+                if !self.export_local_name_is_disallowed_identifier(name) {
+                    continue;
+                }
+
+                let node = (*item_id).into_global_any(module.id).into_anchored(None);
+                self.error(ImportError::ReservedIdentifier { node, name });
+            }
+        }
+    }
+
+    /// Return true when a dependency source must be top level.
+    fn import_dependency_requires_top_level(&self, source: DependencySource) -> bool {
+        matches!(
+            source,
+            DependencySource::ImportStatement
+                | DependencySource::ImportEquals
+                | DependencySource::ExportStatement
+                | DependencySource::ValueExpression
+        )
+    }
+
     /// Validate duplicate value exports in a module.
     pub(super) fn validate_export_conflicts(&self, module: &Module) {
         // load the module tree once for export scanning
@@ -158,6 +264,61 @@ impl Compiler {
 
             return current;
         }
+    }
+
+    /// Return true when an export local name is disallowed as a binding identifier.
+    fn export_local_name_is_disallowed_identifier(&self, name: StringId) -> bool {
+        let name = self.program.strings.get(name);
+        let Ok(keyword) = Keyword::from_str(name.as_ref()) else {
+            return false;
+        };
+
+        matches!(
+            keyword,
+            Keyword::Await
+                | Keyword::Break
+                | Keyword::Case
+                | Keyword::Catch
+                | Keyword::Class
+                | Keyword::Const
+                | Keyword::Continue
+                | Keyword::Debugger
+                | Keyword::Default
+                | Keyword::Delete
+                | Keyword::Do
+                | Keyword::Else
+                | Keyword::Enum
+                | Keyword::Export
+                | Keyword::Extends
+                | Keyword::Finally
+                | Keyword::For
+                | Keyword::Function
+                | Keyword::If
+                | Keyword::Import
+                | Keyword::In
+                | Keyword::InstanceOf
+                | Keyword::New
+                | Keyword::Return
+                | Keyword::Super
+                | Keyword::Switch
+                | Keyword::This
+                | Keyword::Throw
+                | Keyword::Try
+                | Keyword::Typeof
+                | Keyword::Var
+                | Keyword::Void
+                | Keyword::While
+                | Keyword::With
+                | Keyword::Yield
+                | Keyword::Let
+                | Keyword::Static
+                | Keyword::Implements
+                | Keyword::Interface
+                | Keyword::Package
+                | Keyword::Private
+                | Keyword::Protected
+                | Keyword::Public
+        )
     }
 
     /// Resolve the value export name declared by a declaration.
@@ -433,6 +594,16 @@ mod tests {
         test.check_no_diagnostic_code("EI201");
     }
 
+    /// Reject export declarations nested under block statements.
+    #[test]
+    fn test_reject_nested_export_declaration_not_top_level() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module("test.mjs", "{ export {a}; }");
+        test.import_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EI305");
+    }
+
     /// Reject export clauses that reference missing local names.
     #[test]
     fn test_reject_export_missing_local_binding() {
@@ -451,5 +622,25 @@ mod tests {
         test.resolve_module(module_id);
         test.compile();
         test.check_has_diagnostic("ER104");
+    }
+
+    /// Reject reserved keyword local names in export item lists.
+    #[test]
+    fn test_reject_export_reserved_keyword_local_name() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module("test.mjs", "export {if};");
+        test.import_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EI302");
+    }
+
+    /// Reject reserved keyword local names even when exported with an alias.
+    #[test]
+    fn test_reject_export_reserved_keyword_local_name_with_alias() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module("test.mjs", "export {if as foo};");
+        test.import_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EI302");
     }
 }

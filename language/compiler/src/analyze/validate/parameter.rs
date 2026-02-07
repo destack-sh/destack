@@ -139,6 +139,12 @@ impl Compiler {
             self.error(AnalyzeError::InvalidParameterProperty { node });
         }
 
+        // parameter properties cannot be rest parameters
+        if is_parameter_property && matches!(parameter, Parameter::VariadicNamed { .. }) {
+            let node = id.into_global_any(module.id).into_anchored(Some(profile));
+            self.error(AnalyzeError::InvalidParameterProperty { node });
+        }
+
         // optional pattern or rest parameters are not valid
         let is_optional =
             modifiers.is_some_and(|modifiers| modifiers.kind == Some(BindingKind::Maybe));

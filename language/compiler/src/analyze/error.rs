@@ -389,24 +389,16 @@ pub enum AnalyzeError {
     )]
     InvalidImportAliasTarget { node: AnchoredGlobalNodeId },
 
-    /// Instantiation expressions must be parenthesized before member or index access.
+    /// Member-like access cannot directly follow instantiation expressions.
     #[error(
         code = "EA234",
-        message = "instantiation expressions must be parenthesized before member or index access"
+        message = "invalid property access after an instantiation expression"
     )]
     InvalidInstantiationAccess { node: AnchoredGlobalNodeId },
 
     /// Object pattern rest must be an identifier.
     #[error(code = "EA235", message = "object pattern rest must be an identifier")]
     ObjectPatternRestNotIdentifier { node: AnchoredGlobalNodeId },
-
-    /// Import declarations must be at the top level.
-    #[error(code = "EA236", message = "import declarations must be top-level")]
-    ImportNotTopLevel { node: AnchoredGlobalNodeId },
-
-    /// Export declarations must be at the top level.
-    #[error(code = "EA237", message = "export declarations must be top-level")]
-    ExportNotTopLevel { node: AnchoredGlobalNodeId },
 
     /// Duplicate default export in a module.
     #[error(code = "EA238", message = "duplicate default export")]
@@ -485,6 +477,13 @@ pub enum AnalyzeError {
         message = "object literal '__proto__' setters are not supported"
     )]
     UnsupportedObjectPrototypeSetter { node: AnchoredGlobalNodeId },
+
+    /// New expressions cannot target optional chains.
+    #[error(
+        code = "EA250",
+        message = "optional chaining cannot be used in new expressions"
+    )]
+    InvalidNewOptionalChain { node: AnchoredGlobalNodeId },
 
     // -------------------------------------------------------------------------
     // 3xx: Control flow

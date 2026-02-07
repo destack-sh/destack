@@ -20,6 +20,8 @@ impl Compiler {
 
         let module = self.program.modules.get(module_id);
         let module = module.read();
+        self.validate_dependency_top_level(&module);
+        self.validate_export_local_item_names(&module);
         self.validate_binding_conflicts(&module);
         self.validate_export_conflicts(&module);
         Ok(())
