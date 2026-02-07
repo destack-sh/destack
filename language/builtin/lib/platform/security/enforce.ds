@@ -1,0 +1,128 @@
+import { Slice } from "native";
+import type { PlatformError } from "../error/index.ds";
+import type { PlatformCapability } from "./capability.ds";
+import { SandboxHandle } from "../resource/index.ds";
+
+/// Host filter kind for sandbox enforcement.
+export enum SecurityFilterKind {
+    /// Linux seccomp BPF program.
+    SeccompBpf = 1,
+    /// Linux landlock ruleset payload.
+    Landlock = 2,
+    /// OpenBSD pledge policy payload.
+    Pledge = 3,
+    /// OpenBSD unveil policy payload.
+    Unveil = 4,
+    /// macOS seatbelt profile payload.
+    Seatbelt = 5,
+    /// Windows app container or token restriction payload.
+    WindowsToken = 6,
+    /// Runtime-defined custom filter payload.
+    Custom = 255,
+}
+
+/// Host filter descriptor for sandbox installation.
+export struct SecurityFilter {
+    /// Filter kind selector.
+    kind: SecurityFilterKind,
+    /// Filter payload bytes.
+    payload: Slice<uint8>,
+    /// Filter flags forwarded to host APIs.
+    flags: uint32,
+    /// Optional profile name for host-side lookup.
+    profileName: string,
+}
+
+/// Security enforcement bindings.
+declare namespace security {
+    /// Seal one sandbox policy.
+    ///
+    /// Transition one sandbox scope into sealed mode.
+    /// Sealed policy rejects further capability broadening.
+    ///
+    /// # Platform
+    /// Runtime-managed on all targets.
+    /// Uses runtime sandbox policy controls.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `security.restrict`.
+    ///
+    /// # Replay
+    /// Deterministic.
+    @binding(
+        "destack.security.enforce.sandboxSeal",
+        {
+            effect: "deterministic",
+            requires: ["security.restrict"],
+            scope: "runtime",
+            blocking: "never",
+        },
+    )
+    export function sandboxSeal(handle: SandboxHandle): Result<void, PlatformError>;
+
+    /// Apply an explicit capability set to one sandbox scope.
+    ///
+    /// Replace one sandbox capability set with explicit allow-list semantics.
+    /// Capability inheritance and scope visibility follow runtime policy rules.
+    ///
+    /// # Platform
+    /// Runtime-managed on all targets.
+    /// Uses runtime sandbox policy controls.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `security.restrict`.
+    ///
+    /// # Replay
+    /// Deterministic.
+    @binding(
+        "destack.security.enforce.sandboxSetCapabilities",
+        {
+            effect: "deterministic",
+            requires: ["security.restrict"],
+            scope: "runtime",
+            blocking: "never",
+        },
+    )
+    export function sandboxSetCapabilities(
+        handle: SandboxHandle,
+        capabilities: Slice<PlatformCapability>,
+    ): Result<void, PlatformError>;
+
+    /// Install one host filter for a sandbox scope.
+    ///
+    /// Install one host-enforced filter descriptor for a sandbox scope.
+    /// Filter parsing and host mapping are selected by the filter kind.
+    ///
+    /// # Platform
+    /// Hybrid across runtime and host enforcement hooks.
+    /// Uses runtime-to-host policy adapters for seccomp, pledge, landlock, seatbelt, or token restrictions.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `security.filter`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.security.enforce.sandboxInstallFilter",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["security.filter"],
+            scope: "hybrid",
+            blocking: "sometimes",
+        },
+    )
+    export function sandboxInstallFilter(
+        handle: SandboxHandle,
+        filter: SecurityFilter,
+    ): Result<void, PlatformError>;
+}

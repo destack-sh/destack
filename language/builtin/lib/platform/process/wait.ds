@@ -1,0 +1,133 @@
+import type { PlatformError } from "../error/index.ds";
+import { ProcessHandle } from "../resource/index.ds";
+import { ProcessId } from "./ids.ds";
+import { Signal } from "./signals.ds";
+
+/// Wait flags for process waits.
+export newtype ProcessWaitFlags = uint32;
+
+/// Child process status kind.
+export enum ProcessWaitKind {
+    /// Process is still running.
+    Running = 0,
+    /// Process exited with an exit code.
+    Exited = 1,
+    /// Process exited due to a signal.
+    Signaled = 2,
+    /// Process is stopped.
+    Stopped = 3,
+    /// Process was resumed after stop.
+    Continued = 4,
+}
+
+/// Child process status payload.
+export struct ProcessWaitStatus {
+    /// Child process identifier.
+    pid: ProcessId,
+    /// Status kind.
+    kind: ProcessWaitKind,
+    /// Exit code when available.
+    exitCode: int32,
+    /// Signal number when available.
+    signal: Signal,
+    /// Whether a core file was produced.
+    coreDumped: boolean,
+}
+
+/// Process wait bindings for the native runtime.
+declare namespace process {
+    /// Wait for a child process handle.
+    ///
+    /// Wait for one child state transition and return a normalized wait status payload.
+    /// Blocking and state-filter behavior is controlled by wait flags and host wait semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses waitpid or waitid on Unix and WaitForSingleObject plus status queries on Windows.
+    ///
+    /// # Errors
+    /// Returns processNotFound, processPermissionDenied, ioInterrupted, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `process.wait`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.process.wait.wait",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["process.wait"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function wait(
+        handle: ProcessHandle,
+        flags: ProcessWaitFlags,
+    ): Result<ProcessWaitStatus, PlatformError>;
+
+    /// Poll a child process handle without blocking.
+    ///
+    /// Poll one child for a state transition and return immediately when no transition is pending.
+    /// Pending absence is reported through `ioWouldBlock` without sleeping.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses nonblocking waitpid or waitid on Unix and zero-timeout wait on Windows.
+    ///
+    /// # Errors
+    /// Returns processNotFound, processPermissionDenied, ioInterrupted, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `process.wait`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.process.wait.tryWait",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["process.wait"],
+            scope: "os",
+            blocking: "never",
+        },
+    )
+    export function tryWait(
+        handle: ProcessHandle,
+    ): Result<ProcessWaitStatus, PlatformError>;
+
+    /// Wait for a process identifier.
+    ///
+    /// Wait for one state transition for the specified process identifier.
+    /// Identifier matching and visibility follow host process table and job-control rules.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses waitpid or waitid on Unix and process-handle wait translation on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, processNotFound, processPermissionDenied, ioInterrupted, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `process.wait`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.process.wait.pid",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["process.wait"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function waitPid(
+        pid: ProcessId,
+        flags: ProcessWaitFlags,
+    ): Result<ProcessWaitStatus, PlatformError>;
+}

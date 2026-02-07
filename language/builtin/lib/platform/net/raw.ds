@@ -1,0 +1,170 @@
+import { Slice } from "native";
+import type { PlatformError } from "../error/index.ds";
+import { SocketFamily } from "./address.ds";
+import { SocketHandle } from "../resource/index.ds";
+
+/// Packet timestamp mode.
+export enum PacketTimestampMode {
+    /// Disable packet timestamps.
+    Disabled = 0,
+    /// Enable software timestamps.
+    Software = 1,
+    /// Enable hardware timestamps when available.
+    Hardware = 2,
+}
+
+/// Packet capture options.
+export struct PacketCaptureOptions {
+    /// Interface index for capture.
+    interfaceIndex: uint32,
+    /// Maximum frame bytes per packet.
+    snapLength: uint32,
+    /// Capture timeout in milliseconds.
+    timeoutMs: int32,
+    /// Whether promiscuous mode is requested.
+    promiscuous: boolean,
+}
+
+/// Captured packet metadata.
+export struct PacketCaptureRecord {
+    /// Number of packet bytes written to the target buffer.
+    bytes: uint64,
+    /// Interface index that produced the packet.
+    interfaceIndex: uint32,
+    /// Capture timestamp in nanoseconds.
+    timestampNs: uint64,
+    /// Whether packet bytes were truncated.
+    truncated: boolean,
+}
+
+/// Raw network bindings for the native runtime.
+declare namespace net {
+    /// Open a raw IP socket.
+    ///
+    /// Creates a raw socket endpoint for protocol-level packet control.
+    /// Host privilege checks and protocol restrictions are enforced by the kernel.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses socket(AF_INET/AF_INET6, SOCK_RAW) on Unix and WSASocketW raw mode on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.raw`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.rawSocket", { effect: "external", replay: "recordable", requires: ["net.raw"], scope: "os", blocking: "sometimes" })
+    export function rawSocket(family: SocketFamily, protocol: int32): Result<SocketHandle, PlatformError>;
+
+    /// Enable or disable IP header inclusion on a raw socket.
+    ///
+    /// Updates the raw socket header include mode.
+    /// Caller is responsible for writing valid protocol headers when enabled.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses setsockopt(IP_HDRINCL) on Unix and setsockopt on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.raw`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.rawSetHeaderIncluded", { effect: "external", replay: "recordable", requires: ["net.raw"], scope: "os", blocking: "sometimes" })
+    export function rawSetHeaderIncluded(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>;
+
+    /// Open a packet capture or inject endpoint.
+    ///
+    /// Opens a link-layer packet endpoint for packet capture and injection.
+    /// Host privilege checks and backend-specific limits are enforced by the kernel or driver.
+    ///
+    /// # Platform
+    /// Linux, BSD, and Windows.
+    /// Uses AF_PACKET on Linux, BPF devices on BSD, and packet capture drivers on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.raw`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.raw.packetOpen", { effect: "external", replay: "recordable", requires: ["net.raw"], scope: "os", blocking: "sometimes" })
+    export function packetOpen(options: PacketCaptureOptions): Result<SocketHandle, PlatformError>;
+
+    /// Receive one packet from a packet endpoint.
+    ///
+    /// Reads one packet record into the provided payload buffer and returns packet metadata.
+    /// Truncation is reported explicitly when the payload buffer is smaller than the captured frame.
+    ///
+    /// # Platform
+    /// Linux, BSD, and Windows.
+    /// Uses AF_PACKET or BPF packet reads on Unix and packet capture driver reads on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.raw`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.raw.packetReceive", { effect: "external", replay: "recordable", requires: ["net.raw"], scope: "os", blocking: "sometimes" })
+    export function packetReceive(
+        handle: SocketHandle,
+        payload: Slice<uint8>,
+    ): Result<PacketCaptureRecord, PlatformError>;
+
+    /// Send one packet through a packet endpoint.
+    ///
+    /// Writes one raw packet frame from the provided payload buffer.
+    /// Partial sends are reported through the returned byte count.
+    ///
+    /// # Platform
+    /// Linux, BSD, and Windows.
+    /// Uses AF_PACKET or BPF packet writes on Unix and packet injection driver writes on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.raw`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.raw.packetSend", { effect: "external", replay: "recordable", requires: ["net.raw"], scope: "os", blocking: "sometimes" })
+    export function packetSend(
+        handle: SocketHandle,
+        payload: Slice<uint8>,
+    ): Result<uint64, PlatformError>;
+
+    /// Configure packet timestamp mode for a socket or packet endpoint.
+    ///
+    /// Updates timestamping mode for packet metadata capture on supported backends.
+    /// Unsupported timestamp modes return notSupported.
+    ///
+    /// # Platform
+    /// Linux, BSD, and Windows.
+    /// Uses SO_TIMESTAMP families on Unix and socket timestamp controls on Windows where available.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.raw`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.raw.packetSetTimestampMode", { effect: "external", replay: "recordable", requires: ["net.raw"], scope: "os", blocking: "sometimes" })
+    export function packetSetTimestampMode(
+        handle: SocketHandle,
+        mode: PacketTimestampMode,
+    ): Result<void, PlatformError>;
+}

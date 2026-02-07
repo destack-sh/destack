@@ -1,0 +1,4 @@
+export declare namespace device {}
+
+export * from "./io.ds";
+export * from "./control.ds";

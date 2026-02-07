@@ -1,0 +1,62 @@
+import type { PlatformError } from "../error/index.ds";
+
+/// Core debug control bindings.
+declare namespace debug {
+    /// Mark a debug timeline point.
+    ///
+    /// Record one runtime debug marker with a user-provided label.
+    /// Marker ordering follows the active runtime scheduler and trace clock.
+    ///
+    /// # Platform
+    /// Runtime-managed on all targets.
+    /// Uses runtime debug instrumentation, not direct host syscalls.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `debug.trace`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.debug.core.mark",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["debug.trace"],
+            scope: "runtime",
+            blocking: "never",
+        },
+    )
+    export function mark(label: string): Result<void, PlatformError>;
+
+    /// Request a runtime debug break.
+    ///
+    /// Trigger one debugger stop request for the current runtime execution context.
+    /// Break behavior depends on whether a debugger session is attached.
+    ///
+    /// # Platform
+    /// Runtime-managed on all targets.
+    /// Uses runtime debugger integration hooks, not direct host syscalls.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `debug.inspect`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.debug.core.breakNow",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["debug.inspect"],
+            scope: "runtime",
+            blocking: "never",
+        },
+    )
+    export function breakNow(): Result<void, PlatformError>;
+}

@@ -1,0 +1,104 @@
+import type { PlatformError } from "../error/index.ds";
+import {
+    GpuAdapterHandle,
+    GpuDeviceHandle,
+    GpuQueueHandle,
+} from "../resource/index.ds";
+
+/// GPU device creation options.
+export struct GpuDeviceOptions {
+    /// Required feature bitset.
+    requiredFeatures: uint64,
+    /// Required limits bitset selector.
+    requiredLimits: uint64,
+    /// Device option flags.
+    flags: uint32,
+}
+
+/// GPU device bindings.
+declare namespace gpu {
+    /// Open one logical GPU device.
+    ///
+    /// Create one logical device from one adapter using explicit feature and limit requirements.
+    /// Device creation fails when host backend cannot satisfy required capabilities.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses vkCreateDevice, MTLDevice command queue creation paths, or D3D12 device creation.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.device`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.device.open", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.device"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function deviceOpen(
+        adapter: GpuAdapterHandle,
+        options: GpuDeviceOptions,
+    ): Result<GpuDeviceHandle, PlatformError>;
+
+    /// Close one logical GPU device.
+    ///
+    /// Close one logical device and release backend device resources.
+    /// Outstanding queue work behavior follows host backend teardown guarantees.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific device destroy or release operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.device`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.device.close", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.device"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function deviceClose(handle: GpuDeviceHandle): Result<void, PlatformError>;
+
+    /// Resolve one queue from a logical device.
+    ///
+    /// Resolve one queue endpoint from one logical device for command submission.
+    /// Queue family and index mapping follow host backend queue model.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend queue lookup operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.queue`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.device.queue", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.queue"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function deviceQueue(
+        device: GpuDeviceHandle,
+        family: uint32,
+        index: uint32,
+    ): Result<GpuQueueHandle, PlatformError>;
+}

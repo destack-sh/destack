@@ -1,0 +1,162 @@
+import { Slice } from "native";
+import type { PlatformError } from "../error/index.ds";
+import { DisplayHandle } from "../resource/index.ds";
+
+/// Display mode information.
+export struct DisplayMode {
+    /// Pixel width.
+    width: uint32,
+    /// Pixel height.
+    height: uint32,
+    /// Refresh rate in millihertz.
+    refreshMilliHz: uint32,
+    /// Color format identifier.
+    format: uint32,
+}
+
+/// Display device information.
+export struct DisplayInfo {
+    /// Stable runtime display identifier.
+    id: string,
+    /// Host display name.
+    name: string,
+    /// Physical width in millimeters.
+    widthMm: uint32,
+    /// Physical height in millimeters.
+    heightMm: uint32,
+    /// Whether this display is primary.
+    primary: boolean,
+}
+
+/// Display monitor bindings.
+declare namespace display {
+    /// List available displays.
+    ///
+    /// Enumerate host display outputs and return stable identifiers and physical metadata.
+    /// Output ordering and hotplug visibility follow host compositor or kernel display APIs.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses DRM or Wayland or X11 display enumeration on Unix-like hosts and DXGI display enumeration on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.monitor.list", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["display.read"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function list(): Result<Slice<DisplayInfo>, PlatformError>;
+
+    /// Open one display endpoint.
+    ///
+    /// Open one host display endpoint by identifier for mode queries and updates.
+    /// Endpoint lifetime semantics follow host display management APIs.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific display open handles.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.monitor.open", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["display.read"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function open(id: string): Result<DisplayHandle, PlatformError>;
+
+    /// Close one display endpoint.
+    ///
+    /// Close one opened display endpoint and release host resources.
+    /// Any outstanding mode-change session state is discarded.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific display close operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.monitor.close", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["display.read"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function close(handle: DisplayHandle): Result<void, PlatformError>;
+
+    /// Read available display modes.
+    ///
+    /// Read all host-supported modes for one opened display endpoint.
+    /// Mode list ordering follows host backend reporting behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses drmModeGetConnector or compositor APIs on Unix-like hosts and DXGI mode queries on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.mode`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.monitor.modes", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["display.mode"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function modes(handle: DisplayHandle): Result<Slice<DisplayMode>, PlatformError>;
+
+    /// Apply one display mode.
+    ///
+    /// Apply one mode to an opened display endpoint.
+    /// Mode-set behavior and rollback semantics are host-defined.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses KMS mode setting on Unix-like hosts and display mode APIs on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.mode`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.display.monitor.setMode", {
+        effect: "external",
+        replay: "nonrecordable",
+        requires: ["display.mode"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function setMode(handle: DisplayHandle, mode: DisplayMode): Result<void, PlatformError>;
+}

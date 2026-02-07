@@ -1,0 +1,150 @@
+import { Slice } from "native";
+import type { PlatformError } from "../error/index.ds";
+import {
+    GpuDeviceHandle,
+    GpuPipelineHandle,
+    GpuShaderHandle,
+} from "../resource/index.ds";
+
+/// GPU shader stage selector.
+export enum GpuShaderStage {
+    /// Vertex stage.
+    Vertex = 1,
+    /// Fragment stage.
+    Fragment = 2,
+    /// Compute stage.
+    Compute = 3,
+}
+
+/// GPU shader module options.
+export struct GpuShaderOptions {
+    /// Shader stage selector.
+    stage: GpuShaderStage,
+    /// Shader binary format selector.
+    format: uint32,
+    /// Shader entry point name.
+    entry: string,
+}
+
+/// GPU pipeline options.
+export struct GpuPipelineOptions {
+    /// Pipeline kind selector.
+    kind: uint32,
+    /// Pipeline option flags.
+    flags: uint32,
+}
+
+/// GPU pipeline bindings.
+declare namespace gpu {
+    /// Create one shader module.
+    ///
+    /// Create one shader module from one binary payload and explicit stage metadata.
+    /// Shader validation and backend translation follow host compiler rules.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend shader module creation APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.shader`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.pipeline.shaderCreate", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.shader"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function shaderCreate(
+        device: GpuDeviceHandle,
+        options: GpuShaderOptions,
+        bytes: Slice<uint8>,
+    ): Result<GpuShaderHandle, PlatformError>;
+
+    /// Destroy one shader module.
+    ///
+    /// Destroy one shader module and release backend compiler or cache resources.
+    /// The shader handle becomes invalid after destroy.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend shader module destroy operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.shader`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.pipeline.shaderDestroy", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.shader"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function shaderDestroy(handle: GpuShaderHandle): Result<void, PlatformError>;
+
+    /// Create one pipeline object.
+    ///
+    /// Create one pipeline from one shader module set and explicit pipeline options.
+    /// Pipeline compilation and cache behavior follow host backend semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend pipeline creation APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.compute`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.pipeline.create", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.compute"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function pipelineCreate(
+        device: GpuDeviceHandle,
+        shaders: Slice<GpuShaderHandle>,
+        options: GpuPipelineOptions,
+    ): Result<GpuPipelineHandle, PlatformError>;
+
+    /// Destroy one pipeline object.
+    ///
+    /// Destroy one pipeline object and release backend compiled state.
+    /// Outstanding command lists referencing the pipeline should be synchronized by callers.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend pipeline destroy operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.compute`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.pipeline.destroy", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.compute"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function pipelineDestroy(handle: GpuPipelineHandle): Result<void, PlatformError>;
+}

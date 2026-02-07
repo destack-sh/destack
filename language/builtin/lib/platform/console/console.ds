@@ -3,18 +3,82 @@ import type { PlatformError } from "../error/index.ds";
 /// Console bindings for native runtime.
 export declare namespace console {
     /// Write a line to stdout.
-    @binding("destack.console.log", { effect: "external", replay: "recordable" })
+    ///
+    /// Writes the provided string payload directly to the selected console stream.
+    /// Does not apply formatting, buffering, or retry behavior beyond the underlying platform write call.
+    ///
+    /// # Platform
+    /// all runtime targets that include the native platform runtime.
+    /// Uses write(2) to stdout on Unix, WriteFile on Windows stdout handle.
+    ///
+    /// # Errors
+    /// Returns ioWriteFailed, ioBrokenPipe, notSupported.
+    ///
+    /// # Security
+    /// Requires `console.write`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.console.console.log", { effect: "external", replay: "recordable", requires: ["console.write"] })
     export function log(value: string): Result<void, PlatformError>;
 
     /// Write an info line to stdout.
-    @binding("destack.console.info", { effect: "external", replay: "recordable" })
+    ///
+    /// Writes the provided string payload directly to the selected console stream.
+    /// Does not apply formatting, buffering, or retry behavior beyond the underlying platform write call.
+    ///
+    /// # Platform
+    /// all runtime targets that include the native platform runtime.
+    /// Uses write(2) to stdout on Unix, WriteFile on Windows stdout handle.
+    ///
+    /// # Errors
+    /// Returns ioWriteFailed, ioBrokenPipe, notSupported.
+    ///
+    /// # Security
+    /// Requires `console.write`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.console.console.info", { effect: "external", replay: "recordable", requires: ["console.write"] })
     export function info(value: string): Result<void, PlatformError>;
 
     /// Write a warning line to stderr.
-    @binding("destack.console.warn", { effect: "external", replay: "recordable" })
+    ///
+    /// Writes the provided string payload directly to the selected console stream.
+    /// Does not apply formatting, buffering, or retry behavior beyond the underlying platform write call.
+    ///
+    /// # Platform
+    /// all runtime targets that include the native platform runtime.
+    /// Uses write(2) to stderr on Unix, WriteFile on Windows stderr handle.
+    ///
+    /// # Errors
+    /// Returns ioWriteFailed, ioBrokenPipe, notSupported.
+    ///
+    /// # Security
+    /// Requires `console.write`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.console.console.warn", { effect: "external", replay: "recordable", requires: ["console.write"] })
     export function warn(value: string): Result<void, PlatformError>;
 
     /// Write an error line to stderr.
-    @binding("destack.console.error", { effect: "external", replay: "recordable" })
+    ///
+    /// Writes the provided string payload directly to the selected console stream.
+    /// Does not apply formatting, buffering, or retry behavior beyond the underlying platform write call.
+    ///
+    /// # Platform
+    /// all runtime targets that include the native platform runtime.
+    /// Uses write(2) to stderr on Unix, WriteFile on Windows stderr handle.
+    ///
+    /// # Errors
+    /// Returns ioWriteFailed, ioBrokenPipe, notSupported.
+    ///
+    /// # Security
+    /// Requires `console.write`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.console.console.error", { effect: "external", replay: "recordable", requires: ["console.write"] })
     export function error(value: string): Result<void, PlatformError>;
 }

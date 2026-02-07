@@ -1,0 +1,168 @@
+/// Capability names for platform binding policy and sandboxing.
+export type PlatformCapability =
+    | "audio.capture"
+    | "audio.control"
+    | "audio.device"
+    | "audio.playback"
+    | "display.mode"
+    | "display.read"
+    | "display.vsync"
+    | "display.window"
+    | "console.write"
+    | "diagnostic.read"
+    | "debug.inspect"
+    | "debug.profile"
+    | "debug.trace"
+    | "device.control"
+    | "device.read"
+    | "device.write"
+    | "env.read"
+    | "env.write"
+    | "ffi.call"
+    | "ffi.load"
+    | "ffi.pointer"
+    | "ffi.symbol"
+    | "fs.chmod"
+    | "fs.chown"
+    | "fs.handle"
+    | "fs.link"
+    | "fs.lock"
+    | "fs.metadata"
+    | "fs.mmap"
+    | "fs.read"
+    | "fs.special"
+    | "fs.sync"
+    | "fs.temp"
+    | "fs.watch"
+    | "fs.write"
+    | "fs.xattr"
+    | "gpu.adapter"
+    | "gpu.compute"
+    | "gpu.device"
+    | "gpu.memory"
+    | "gpu.present"
+    | "gpu.queue"
+    | "gpu.shader"
+    | "gpu.surface"
+    | "input.control"
+    | "input.read"
+    | "input.write"
+    | "ipc.event"
+    | "ipc.fdPass"
+    | "ipc.futex"
+    | "ipc.message"
+    | "ipc.pipe"
+    | "ipc.semaphore"
+    | "ipc.sharedMemory"
+    | "ipc.unix"
+    | "io.completion"
+    | "io.event"
+    | "io.poll"
+    | "io.register"
+    | "io.submit"
+    | "io.uring"
+    | "memory.advise"
+    | "memory.execute"
+    | "memory.hugePage"
+    | "memory.lock"
+    | "memory.map"
+    | "memory.numa"
+    | "memory.protect"
+    | "net.accept"
+    | "net.close"
+    | "net.connect"
+    | "net.control"
+    | "net.dns"
+    | "net.interface"
+    | "net.listen"
+    | "net.multicast"
+    | "net.raw"
+    | "net.route.read"
+    | "net.route.write"
+    | "net.udp"
+    | "os.hostname"
+    | "os.mount"
+    | "os.power"
+    | "os.sysinfo"
+    | "process.affinity"
+    | "process.handle"
+    | "process.exec"
+    | "process.identity.read"
+    | "process.identity.write"
+    | "process.namespace"
+    | "process.priority"
+    | "process.spawn"
+    | "process.cgroup"
+    | "process.run"
+    | "process.session"
+    | "process.signal.receive"
+    | "process.signal.send"
+    | "process.wait"
+    | "process.workdir.read"
+    | "process.workdir.write"
+    | "random.deterministic"
+    | "random.secure"
+    | "resource.close"
+    | "resource.manage"
+    | "resource.read"
+    | "resource.transfer"
+    | "resource.write"
+    | "security.policy.read"
+    | "security.policy.write"
+    | "security.filter"
+    | "security.restrict"
+    | "security.sandbox"
+    | "thread.local"
+    | "thread.priority"
+    | "thread.spawn"
+    | "thread.sync"
+    | "thread.wait"
+    | "time.monotonic.read"
+    | "time.timer"
+    | "time.wall.read"
+    | "time.wall.sleep"
+    | "tty.mode"
+    | "tty.read"
+    | "tty.size"
+    | "tty.write";
+
+/// Options for runtime bindings.
+export type BindingOptions = {
+    /// Effect classification for the binding.
+    effect: "pure" | "deterministic" | "external" | "io",
+    /// Replay policy for external effects.
+    replay?: "recordable" | "nonrecordable",
+    /// Replay payload policy for the binding.
+    payload?: "results" | "argumentsAndResults",
+    /// Capability requirements for this binding.
+    requires?: PlatformCapability[],
+    /// Platform scope for this binding.
+    scope?: "os" | "runtime" | "hybrid",
+    /// Blocking behavior classification for this binding.
+    blocking?: "always" | "never" | "sometimes",
+};
+
+/// Marks something as a runtime binding.
+///
+/// ```
+/// @binding("destack.fs.open", {
+///   effect: "external",
+///   replay: "recordable",
+///   payload: "results",
+/// })
+/// function open() { }
+/// ```
+export newtype binding = (string, BindingOptions);
+
+/// Require one or more platform capabilities.
+///
+/// ```
+/// @require("fs.read")
+/// declare function readFile(...): ...
+/// ```
+///
+/// ```
+/// @require("fs.read", "net.listen")
+/// declare function startServer(...): ...
+/// ```
+export newtype require = (...PlatformCapability[]);

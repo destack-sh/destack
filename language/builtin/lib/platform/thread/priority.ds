@@ -1,0 +1,121 @@
+import type { PlatformError } from "../error/index.ds";
+import { ThreadHandle } from "../resource/index.ds";
+
+/// Thread scheduling bindings.
+declare namespace thread {
+    /// Set thread priority.
+    ///
+    /// Set one thread priority value using host scheduler controls.
+    /// Priority range and interpretation are host-specific.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses pthread scheduling APIs on Unix and SetThreadPriority on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `thread.priority`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.thread.priority.setPriority",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["thread.priority"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function setPriority(handle: ThreadHandle, priority: int32): Result<void, PlatformError>;
+
+    /// Read thread priority.
+    ///
+    /// Read one thread priority value from host scheduler state.
+    /// Priority value normalization is runtime-defined per host.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses pthread scheduling APIs on Unix and GetThreadPriority on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `thread.priority`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.thread.priority.getPriority",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["thread.priority"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function getPriority(handle: ThreadHandle): Result<int32, PlatformError>;
+
+    /// Set thread affinity mask.
+    ///
+    /// Bind one thread to a CPU affinity mask.
+    /// Affinity mask semantics are host scheduler-defined.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses sched affinity APIs on Unix and SetThreadAffinityMask on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `thread.priority`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.thread.priority.setAffinity",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["thread.priority"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function setAffinity(handle: ThreadHandle, mask: uint64): Result<void, PlatformError>;
+
+    /// Read thread affinity mask.
+    ///
+    /// Read one thread CPU affinity mask.
+    /// Affinity mask width and normalization are host-architecture dependent.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses sched affinity APIs on Unix and GetThreadGroupAffinity on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `thread.priority`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.thread.priority.getAffinity",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["thread.priority"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function getAffinity(handle: ThreadHandle): Result<uint64, PlatformError>;
+}

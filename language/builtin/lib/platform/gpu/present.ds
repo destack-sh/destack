@@ -1,0 +1,43 @@
+import type { PlatformError } from "../error/index.ds";
+import { GpuQueueHandle, WindowHandle } from "../resource/index.ds";
+
+/// Present options.
+export struct GpuPresentOptions {
+    /// Present option flags.
+    flags: uint32,
+    /// Target frame identifier when supported.
+    frameId: uint64,
+}
+
+/// Present bindings.
+declare namespace gpu {
+    /// Present one frame to one window surface.
+    ///
+    /// Present one rendered frame from one queue to one window surface.
+    /// Swap behavior and presentation latency follow host compositor and backend contracts.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses swapchain present APIs on Vulkan, Metal layer present, or DXGI present.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.present`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.gpu.present.queuePresent", {
+        effect: "external",
+        replay: "nonrecordable",
+        requires: ["gpu.present"],
+        scope: "hybrid",
+        blocking: "sometimes",
+    })
+    export function queuePresent(
+        queue: GpuQueueHandle,
+        window: WindowHandle,
+        options: GpuPresentOptions,
+    ): Result<void, PlatformError>;
+}

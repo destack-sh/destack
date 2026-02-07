@@ -1,0 +1,45 @@
+import type { PlatformError } from "../error/index.ds";
+
+/// Host identity descriptor.
+export struct HostIdentity {
+    /// Hostname string.
+    hostname: string,
+    /// Kernel or operating-system name.
+    kernel: string,
+    /// Kernel or operating-system release string.
+    release: string,
+    /// Machine architecture string.
+    architecture: string,
+}
+
+/// Host identity bindings.
+declare namespace os {
+    /// Read host identity.
+    ///
+    /// Return one normalized host identity payload.
+    /// Identity fields are sourced from host kernel and runtime normalization rules.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses uname and hostname APIs on Unix, version and hostname APIs on Windows, and wasi host metadata.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.hostname`, `os.sysinfo`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.os.host.identity",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["os.hostname", "os.sysinfo"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function hostIdentity(): Result<HostIdentity, PlatformError>;
+}

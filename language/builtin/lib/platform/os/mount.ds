@@ -1,0 +1,110 @@
+import type { PlatformError } from "../error/index.ds";
+import { OsPath } from "../fs/path.ds";
+
+/// Mount table entry.
+export struct MountEntry {
+    /// Source device or backing object.
+    source: string,
+    /// Target mount path.
+    target: OsPath,
+    /// Filesystem type name.
+    fileSystem: string,
+    /// Mount flags bitmask.
+    flags: uint64,
+}
+
+/// Mount bindings.
+declare namespace os {
+    /// Enumerate mount table entries.
+    ///
+    /// Return one snapshot of the current host mount table.
+    /// Entry shape is normalized but field availability is host-dependent.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses mount table APIs on Unix and volume enumeration APIs on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.mount`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.os.mount.list",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["os.mount"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function list(): Result<Array<MountEntry>, PlatformError>;
+
+    /// Mount one filesystem target.
+    ///
+    /// Mount one source on one target path with explicit flags and data.
+    /// Mount privilege checks and propagation policy are host-defined.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses mount(2)-family APIs on Unix and volume-mount APIs on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.mount`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.os.mount.add",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["os.mount"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function add(
+        source: OsPath,
+        target: OsPath,
+        fileSystem: string,
+        flags: uint64,
+        data: string,
+    ): Result<void, PlatformError>;
+
+    /// Unmount one filesystem target.
+    ///
+    /// Unmount one target path with explicit unmount flags.
+    /// Forced unmount behavior follows host kernel semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses umount or unmount APIs on Unix and volume unmount APIs on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.mount`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.os.mount.remove",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["os.mount"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function remove(target: OsPath, flags: uint32): Result<void, PlatformError>;
+}

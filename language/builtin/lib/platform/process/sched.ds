@@ -1,0 +1,133 @@
+import type { PlatformError } from "../error/index.ds";
+import { ProcessId } from "./ids.ds";
+
+/// CPU affinity set.
+export struct ProcessCpuSet {
+    /// CPU indices in the affinity set.
+    cpus: uint32[],
+}
+
+/// Process scheduler bindings for the native runtime.
+declare namespace process {
+    /// Read a process priority value.
+    ///
+    /// Read the scheduler priority value for the target process identifier.
+    /// Priority ranges and classes are host-defined.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses getpriority(2) on Unix and GetPriorityClass plus thread priority mapping on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `process.priority`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.process.sched.getPriority",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["process.priority"],
+            scope: "os",
+            blocking: "never",
+        },
+    )
+    export function getPriority(pid: ProcessId): Result<int32, PlatformError>;
+
+    /// Set a process priority value.
+    ///
+    /// Set the scheduler priority value for the target process identifier.
+    /// Privilege checks and clamping are enforced by the host scheduler.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses setpriority(2) on Unix and SetPriorityClass or SetThreadPriority on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `process.priority`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.process.sched.setPriority",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["process.priority"],
+            scope: "os",
+            blocking: "never",
+        },
+    )
+    export function setPriority(
+        pid: ProcessId,
+        priority: int32,
+    ): Result<void, PlatformError>;
+
+    /// Read process CPU affinity.
+    ///
+    /// Read the active CPU affinity mask for the target process identifier.
+    /// Returned CPUs reflect host scheduler topology visibility.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses sched_getaffinity(2) on Unix and GetProcessAffinityMask on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `process.affinity`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.process.sched.getAffinity",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["process.affinity"],
+            scope: "os",
+            blocking: "never",
+        },
+    )
+    export function getAffinity(pid: ProcessId): Result<ProcessCpuSet, PlatformError>;
+
+    /// Set process CPU affinity.
+    ///
+    /// Set the CPU affinity mask for the target process identifier.
+    /// Invalid CPU sets and privilege violations are rejected by the host scheduler.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses sched_setaffinity(2) on Unix and SetProcessAffinityMask on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `process.affinity`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.process.sched.setAffinity",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["process.affinity"],
+            scope: "os",
+            blocking: "never",
+        },
+    )
+    export function setAffinity(
+        pid: ProcessId,
+        cpus: ProcessCpuSet,
+    ): Result<void, PlatformError>;
+}

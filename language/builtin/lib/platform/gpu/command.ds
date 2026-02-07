@@ -1,0 +1,285 @@
+import { Slice } from "native";
+import type { PlatformError } from "../error/index.ds";
+import {
+    GpuBufferHandle,
+    GpuCommandListHandle,
+    GpuDeviceHandle,
+    GpuPipelineHandle,
+    GpuQueueHandle,
+} from "../resource/index.ds";
+
+/// GPU command list options.
+export struct GpuCommandListOptions {
+    /// Command list option flags.
+    flags: uint32,
+}
+
+/// GPU submit options.
+export struct GpuSubmitOptions {
+    /// Submit option flags.
+    flags: uint32,
+    /// Optional wait timeout in nanoseconds.
+    timeoutNs: uint64,
+}
+
+/// GPU command bindings.
+declare namespace gpu {
+    /// Open one command list.
+    ///
+    /// Open one command list object for recording backend commands.
+    /// Command list lifecycle follows backend recording and submission semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend command buffer or command list creation APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.queue`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.command.listOpen", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.queue"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function commandListOpen(
+        device: GpuDeviceHandle,
+        options: GpuCommandListOptions,
+    ): Result<GpuCommandListHandle, PlatformError>;
+
+    /// Close one command list.
+    ///
+    /// Close one command list object and release backend recording resources.
+    /// The command list handle becomes invalid after close.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend command list destroy operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.queue`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.command.listClose", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.queue"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function commandListClose(handle: GpuCommandListHandle): Result<void, PlatformError>;
+
+    /// Begin one command list recording pass.
+    ///
+    /// Begin recording commands into one command list.
+    /// Nested begin semantics follow backend command recording rules.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend begin command recording calls.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.queue`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.command.listBegin", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.queue"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function commandListBegin(handle: GpuCommandListHandle): Result<void, PlatformError>;
+
+    /// End one command list recording pass.
+    ///
+    /// End recording commands and finalize one command list for submission.
+    /// Finalization semantics follow backend validation rules.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend end command recording calls.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.queue`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.command.listEnd", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.queue"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function commandListEnd(handle: GpuCommandListHandle): Result<void, PlatformError>;
+
+    /// Bind one compute pipeline.
+    ///
+    /// Bind one compute pipeline to one command list for subsequent dispatch operations.
+    /// Binding state remains active until changed or command list reset.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend pipeline bind commands.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.compute`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.command.bindPipeline", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.compute"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function commandBindPipeline(
+        handle: GpuCommandListHandle,
+        pipeline: GpuPipelineHandle,
+    ): Result<void, PlatformError>;
+
+    /// Dispatch one compute workgroup grid.
+    ///
+    /// Dispatch one compute workload with explicit workgroup counts.
+    /// Grid interpretation follows backend compute pipeline contracts.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend dispatch commands.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.compute`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.command.dispatch", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.compute"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function commandDispatch(
+        handle: GpuCommandListHandle,
+        groupX: uint32,
+        groupY: uint32,
+        groupZ: uint32,
+    ): Result<void, PlatformError>;
+
+    /// Copy one buffer range.
+    ///
+    /// Encode one buffer-to-buffer copy command with explicit offsets and size.
+    /// Copy constraints follow backend alignment and usage rules.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend copy buffer commands.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.memory`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.command.copyBuffer", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.memory"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function commandCopyBuffer(
+        handle: GpuCommandListHandle,
+        src: GpuBufferHandle,
+        srcOffset: uint64,
+        dst: GpuBufferHandle,
+        dstOffset: uint64,
+        bytes: uint64,
+    ): Result<void, PlatformError>;
+
+    /// Submit one command list batch to one queue.
+    ///
+    /// Submit one batch of command lists to one queue with explicit submit options.
+    /// Queue ordering and dependency behavior follow backend queue semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend queue submit APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.queue`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.command.queueSubmit", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.queue"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function queueSubmit(
+        queue: GpuQueueHandle,
+        commandLists: Slice<GpuCommandListHandle>,
+        options: GpuSubmitOptions,
+    ): Result<void, PlatformError>;
+
+    /// Wait for one queue to become idle.
+    ///
+    /// Wait until one queue has no remaining submitted work.
+    /// Wait semantics follow backend queue fence and idle behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend queue wait-idle or fence wait APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.queue`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.command.queueWaitIdle", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.queue"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function queueWaitIdle(
+        queue: GpuQueueHandle,
+        timeoutNs: uint64,
+    ): Result<void, PlatformError>;
+}

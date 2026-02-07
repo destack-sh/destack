@@ -1,0 +1,157 @@
+import type { PlatformError } from "../error/index.ds";
+
+/// Memory range descriptor.
+export struct MemoryRange {
+    /// Base address of the mapped range.
+    address: uint64,
+    /// Length of the mapped range in bytes.
+    length: uint64,
+}
+
+/// Virtual memory map bindings.
+declare namespace memory {
+    /// Reserve one virtual memory range.
+    ///
+    /// Reserve one address range without committing physical backing.
+    /// Address placement and alignment follow host virtual-memory allocation policy.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses mmap reserve patterns on Unix and VirtualAlloc reserve on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `memory.map`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.memory.map.reserve",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["memory.map"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function reserve(length: uint64, flags: uint32): Result<MemoryRange, PlatformError>;
+
+    /// Commit one reserved range.
+    ///
+    /// Commit physical backing for one reserved address range.
+    /// Commit granularity and zero-fill behavior follow host memory manager semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses mprotect or mmap commit semantics on Unix and VirtualAlloc commit on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `memory.map`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.memory.map.commit",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["memory.map"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function commit(address: uint64, length: uint64, flags: uint32): Result<void, PlatformError>;
+
+    /// Decommit one range.
+    ///
+    /// Decommit physical backing while preserving virtual address reservation.
+    /// Decommit effects on dirty pages follow host memory manager semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses madvise or mmap replacement patterns on Unix and VirtualFree decommit on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `memory.map`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.memory.map.decommit",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["memory.map"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function decommit(address: uint64, length: uint64): Result<void, PlatformError>;
+
+    /// Release one reserved range.
+    ///
+    /// Release one virtual memory reservation back to the host allocator.
+    /// Released ranges become invalid for future access by caller code.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses munmap on Unix and VirtualFree release on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `memory.map`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.memory.map.release",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["memory.map"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function release(address: uint64, length: uint64): Result<void, PlatformError>;
+
+    /// Bind one range to a NUMA policy.
+    ///
+    /// Apply NUMA placement policy for one virtual memory range.
+    /// Node masks and policy modes are interpreted by host NUMA APIs.
+    ///
+    /// # Platform
+    /// Linux and Windows.
+    /// Uses mbind or set_mempolicy on Linux and VirtualAllocExNuma-style APIs on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `memory.numa`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.memory.map.numaBind",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["memory.numa"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function numaBind(address: uint64, length: uint64, policy: uint32, nodeMask: uint64): Result<void, PlatformError>;
+}

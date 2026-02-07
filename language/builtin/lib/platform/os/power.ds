@@ -1,0 +1,72 @@
+import type { PlatformError } from "../error/index.ds";
+
+/// Host power state.
+export enum PowerState {
+    /// Host is on AC line power.
+    AC = 1,
+    /// Host is on battery power.
+    Battery = 2,
+    /// Host power source is unknown.
+    Unknown = 3,
+}
+
+/// Power-management bindings.
+declare namespace os {
+    /// Read current host power state.
+    ///
+    /// Return one normalized host power-state classification.
+    /// State mapping follows runtime normalization over host power APIs.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host power management APIs such as sysfs and IOKit on Unix-like systems and GetSystemPowerStatus on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.power`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.os.power.state",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["os.power"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function powerState(): Result<PowerState, PlatformError>;
+
+    /// Request host suspend.
+    ///
+    /// Request one host suspend transition through platform power APIs.
+    /// Request acceptance and timing are host-policy and privilege dependent.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host power-management APIs where supported.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.power`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.os.power.suspend",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["os.power"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function suspend(): Result<void, PlatformError>;
+}

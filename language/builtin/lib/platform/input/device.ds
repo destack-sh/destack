@@ -1,0 +1,116 @@
+import { Slice } from "native";
+import type { PlatformError } from "../error/index.ds";
+import { InputDeviceHandle } from "../resource/index.ds";
+
+/// Input device kind.
+export enum InputDeviceKind {
+    /// Keyboard input source.
+    Keyboard = 1,
+    /// Mouse input source.
+    Mouse = 2,
+    /// Touch input source.
+    Touch = 3,
+    /// Gamepad input source.
+    Gamepad = 4,
+    /// Pen or stylus input source.
+    Pen = 5,
+    /// Raw or vendor-specific input source.
+    Raw = 255,
+}
+
+/// Input device information.
+export struct InputDeviceInfo {
+    /// Stable runtime input device identifier.
+    id: string,
+    /// Host device name.
+    name: string,
+    /// Device kind.
+    kind: InputDeviceKind,
+    /// Vendor identifier when available.
+    vendorId: uint16,
+    /// Product identifier when available.
+    productId: uint16,
+    /// Whether this device is currently connected.
+    connected: boolean,
+}
+
+/// Input device bindings.
+declare namespace input {
+    /// List available input devices.
+    ///
+    /// Enumerate host input devices and return stable identifiers and typed device metadata.
+    /// Device ordering and hotplug visibility follow host input subsystem semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses evdev or libinput or HID managers on Unix-like hosts and raw input or HID APIs on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.input.device.list", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["input.read"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function list(): Result<Slice<InputDeviceInfo>, PlatformError>;
+
+    /// Open one input device.
+    ///
+    /// Open one input device endpoint for event reads and optional control operations.
+    /// Exclusive-grab behavior and permission checks are host-defined.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses device node open on Unix-like hosts and raw-input registration or handle open on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.input.device.open", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["input.read"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function open(id: string): Result<InputDeviceHandle, PlatformError>;
+
+    /// Close one input device.
+    ///
+    /// Close one opened input device endpoint and release host resources.
+    /// Pending unread events are discarded according to host backend behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses close(2) on Unix-like hosts and handle close on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.input.device.close", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["input.read"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function close(handle: InputDeviceHandle): Result<void, PlatformError>;
+}

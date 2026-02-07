@@ -1,0 +1,131 @@
+import { Slice } from "native";
+import type { PlatformError } from "../error/index.ds";
+import { AudioDeviceHandle } from "../resource/index.ds";
+
+/// Audio device direction.
+export enum AudioDeviceDirection {
+    /// Playback-only device.
+    Playback = 1,
+    /// Capture-only device.
+    Capture = 2,
+    /// Duplex playback and capture device.
+    Duplex = 3,
+}
+
+/// Audio sample format selector.
+export enum AudioSampleFormat {
+    /// Unsigned 8-bit PCM.
+    U8 = 1,
+    /// Signed 16-bit PCM.
+    S16 = 2,
+    /// Signed 24-bit PCM in 32-bit lanes.
+    S24 = 3,
+    /// Signed 32-bit PCM.
+    S32 = 4,
+    /// 32-bit floating-point PCM.
+    F32 = 5,
+    /// 64-bit floating-point PCM.
+    F64 = 6,
+}
+
+/// Audio device information.
+export struct AudioDeviceInfo {
+    /// Stable runtime device identifier.
+    id: string,
+    /// Host-facing device name.
+    name: string,
+    /// Device direction capability.
+    direction: AudioDeviceDirection,
+    /// Preferred sample rate.
+    sampleRate: uint32,
+    /// Minimum channel count.
+    minChannels: uint16,
+    /// Maximum channel count.
+    maxChannels: uint16,
+    /// Default low-latency period in frames.
+    defaultPeriodFrames: uint32,
+}
+
+/// Audio device bindings.
+declare namespace audio {
+    /// List available audio devices.
+    ///
+    /// Enumerate host audio endpoints and return stable identifiers for later open operations.
+    /// Device visibility and ordering follow host audio backend semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA or PulseAudio or CoreAudio enumeration on Unix-like hosts and WASAPI or MMDevice on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.device`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.audio.device.list", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["audio.device"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function deviceList(): Result<Slice<AudioDeviceInfo>, PlatformError>;
+
+    /// Open one audio device endpoint.
+    ///
+    /// Open one host audio endpoint for playback, capture, or duplex operation.
+    /// Handle lifetime and exclusivity semantics follow host backend rules.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA or CoreAudio or PulseAudio device open on Unix-like hosts and WASAPI endpoint open on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.device`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.audio.device.open", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["audio.device"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function deviceOpen(
+        id: string,
+        direction: AudioDeviceDirection,
+    ): Result<AudioDeviceHandle, PlatformError>;
+
+    /// Close one audio device endpoint.
+    ///
+    /// Close one opened audio endpoint and release host stream resources.
+    /// Close semantics follow host backend teardown behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific stream close operations on both Unix-like hosts and Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.device`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.audio.device.close", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["audio.device"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function deviceClose(handle: AudioDeviceHandle): Result<void, PlatformError>;
+}

@@ -1,0 +1,142 @@
+import { Slice } from "native";
+import type { PlatformError } from "../error/index.ds";
+import { FileHandle, PipeHandle, ProcessHandle } from "../resource/index.ds";
+import { FileMode, OpenFlags } from "../fs/flags.ds";
+import { OsPath } from "../fs/path.ds";
+
+/// Standard I/O wiring mode for spawned processes.
+export enum ProcessStdioKind {
+    /// Inherit the parent process stream.
+    Inherit = 0,
+    /// Connect to a null sink.
+    Null = 1,
+    /// Create a pipe endpoint.
+    Pipe = 2,
+    /// Use an existing file handle.
+    File = 3,
+    /// Use an existing numeric descriptor.
+    Descriptor = 4,
+}
+
+/// Stdio entry for process spawning.
+export struct ProcessStdio {
+    /// Selected stdio wiring mode.
+    kind: ProcessStdioKind,
+    /// File handle used when the mode is file.
+    file: FileHandle,
+    /// Pipe handle used when the mode is pipe.
+    pipe: PipeHandle,
+    /// Numeric descriptor used when the mode is descriptor.
+    descriptor: int32,
+}
+
+/// File descriptor action for process spawning.
+export enum ProcessFdActionKind {
+    /// Close one descriptor before exec.
+    Close = 1,
+    /// Duplicate one descriptor onto another.
+    Dup2 = 2,
+    /// Open one path and bind it to one descriptor.
+    Open = 3,
+}
+
+/// File descriptor action for process spawning.
+export struct ProcessFdAction {
+    /// Action opcode.
+    op: ProcessFdActionKind,
+    /// Source descriptor.
+    source: int32,
+    /// Target descriptor.
+    target: int32,
+    /// Path used by open actions.
+    path: OsPath,
+    /// Open flags for open actions.
+    flags: OpenFlags,
+    /// Open mode for open actions.
+    mode: FileMode,
+}
+
+/// Process spawn options.
+export struct ProcessSpawnOptions {
+    /// Current directory for the child process.
+    cwd: OsPath,
+    /// Whether to create a detached child process.
+    detached: boolean,
+    /// Whether to reset signal dispositions in the child.
+    resetSignals: boolean,
+    /// Whether to create a new process group.
+    newProcessGroup: boolean,
+}
+
+/// Process spawn bindings for the native runtime.
+declare namespace process {
+    /// Spawn a child process with default stdio inheritance.
+    ///
+    /// Spawn one child process using the provided command, argv, envp, and spawn options.
+    /// Descriptor inheritance and process-group behavior follow host process-launch semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses posix_spawn or fork-plus-exec on Unix and CreateProcessW on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, processSpawnFailed, notSupported.
+    ///
+    /// # Security
+    /// Requires `process.spawn`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.process.spawn.spawn",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["process.spawn"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function spawn(
+        command: OsPath,
+        arguments: Slice<string>,
+        environment: Slice<string>,
+        options: ProcessSpawnOptions,
+    ): Result<ProcessHandle, PlatformError>;
+
+    /// Spawn a child process with explicit stdio and descriptor actions.
+    ///
+    /// Spawn one child process and apply explicit stdio wiring and descriptor action scripts.
+    /// File-action ordering and inheritance behavior follow host spawn primitives.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses posix_spawn_file_actions on Unix and handle-inheritance setup on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, processSpawnFailed, notSupported.
+    ///
+    /// # Security
+    /// Requires `process.spawn`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.process.spawn.withActions",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["process.spawn"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function spawnWithActions(
+        command: OsPath,
+        arguments: Slice<string>,
+        environment: Slice<string>,
+        options: ProcessSpawnOptions,
+        stdio: Slice<ProcessStdio>,
+        actions: Slice<ProcessFdAction>,
+    ): Result<ProcessHandle, PlatformError>;
+}

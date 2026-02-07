@@ -1,0 +1,6 @@
+export declare namespace thread {}
+
+export * from "./spawn.ds";
+export * from "./sync.ds";
+export * from "./local.ds";
+export * from "./priority.ds";

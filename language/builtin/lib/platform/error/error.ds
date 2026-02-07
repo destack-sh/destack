@@ -10,6 +10,7 @@ export enum PlatformErrorCode {
     NullPointer = 1100,
     /// Feature is not supported.
     NotSupported = 1200,
+
     /// Generic I/O error.
     Io = 2000,
     /// I/O read failed.
@@ -52,6 +53,7 @@ export enum PlatformErrorCode {
     IoBusy = 2118,
     /// Operation would block.
     IoWouldBlock = 2119,
+
     /// Generic network error.
     Net = 3000,
     /// Connection refused.
@@ -74,6 +76,27 @@ export enum PlatformErrorCode {
     NetBrokenPipe = 3108,
     /// DNS lookup failed.
     NetDnsFailed = 3109,
+    /// Socket is not connected.
+    NetNotConnected = 3110,
+    /// Socket is already connected.
+    NetAlreadyConnected = 3111,
+    /// Message is too large for target transport.
+    NetMessageTooLarge = 3112,
+    /// Handle is not a socket.
+    NetNotSocket = 3113,
+    /// Protocol operation failed.
+    NetProtocolError = 3114,
+    /// Operation is in progress.
+    NetInProgress = 3115,
+    /// Socket is shutdown for this operation.
+    NetShutdown = 3116,
+    /// Address family is not supported.
+    NetUnsupportedFamily = 3117,
+    /// Protocol is not supported.
+    NetUnsupportedProtocol = 3118,
+    /// No buffer space available.
+    NetNoBufferSpace = 3119,
+
     /// Generic process error.
     Process = 4000,
     /// Process spawn failed.
@@ -82,53 +105,277 @@ export enum PlatformErrorCode {
     ProcessNotFound = 4101,
     /// Process permission denied.
     ProcessPermissionDenied = 4102,
+    /// Process exec failed.
+    ProcessExecFailed = 4103,
+    /// Process wait failed.
+    ProcessWaitFailed = 4104,
+    /// Process terminated by signal.
+    ProcessSignaled = 4105,
+    /// Process operation timed out.
+    ProcessTimedOut = 4106,
+
     /// Randomness error.
     Random = 5000,
     /// Randomness unavailable.
     RandomUnavailable = 5100,
+
     /// Time source error.
     Time = 6000,
     /// Time source unavailable.
     TimeUnavailable = 6100,
+
+    /// Generic IPC error.
+    Ipc = 7000,
+    /// IPC payload too large.
+    IpcMessageTooLarge = 7100,
+    /// IPC operation timed out.
+    IpcTimedOut = 7101,
+    /// IPC endpoint is closed.
+    IpcClosed = 7102,
+    /// IPC operation would block.
+    IpcWouldBlock = 7103,
+    /// IPC resource already exists.
+    IpcAlreadyExists = 7104,
+
+    /// Generic security error.
+    Security = 7200,
+    /// Security policy denied operation.
+    SecurityDenied = 7210,
+    /// Security policy violation.
+    SecurityViolation = 7211,
+
+    /// Generic thread error.
+    Thread = 7300,
+    /// Thread spawn failed.
+    ThreadSpawnFailed = 7310,
+    /// Thread join failed.
+    ThreadJoinFailed = 7311,
+    /// Thread synchronization deadlock.
+    ThreadDeadlock = 7312,
+
+    /// Generic FFI error.
+    Ffi = 7400,
+    /// FFI library load failed.
+    FfiLibraryLoadFailed = 7410,
+    /// FFI symbol not found.
+    FfiSymbolNotFound = 7411,
+    /// FFI call failed.
+    FfiCallFailed = 7412,
+
+    /// Generic device error.
+    Device = 7500,
+    /// Device unavailable.
+    DeviceUnavailable = 7510,
+
+    /// Generic display error.
+    Display = 7600,
+    /// Display unavailable.
+    DisplayUnavailable = 7610,
+
+    /// Generic audio error.
+    Audio = 7700,
+    /// Audio device unavailable.
+    AudioUnavailable = 7710,
+
+    /// Generic GPU error.
+    Gpu = 7800,
+    /// GPU device unavailable.
+    GpuUnavailable = 7810,
+    /// GPU out of memory.
+    GpuOutOfMemory = 7811,
+    /// GPU device lost.
+    GpuDeviceLost = 7812,
+
+    /// Generic resource-table error.
+    Resource = 7900,
+    /// Resource not found.
+    ResourceNotFound = 7910,
+    /// Resource already closed.
+    ResourceClosed = 7911,
+    /// Resource busy.
+    ResourceBusy = 7912,
+    /// Resource type mismatch.
+    ResourceTypeMismatch = 7913,
+
+    /// Generic I/O driver error.
+    IoDriver = 8000,
+    /// I/O submission failed.
+    IoSubmissionFailed = 8010,
+    /// I/O completion failed.
+    IoCompletionFailed = 8011,
+    /// I/O operation canceled.
+    IoCancelled = 8012,
+
     /// Generic platform error.
     Generic = 9000,
 }
 
+/// System source kind for host-level error codes.
+export enum PlatformSystemSourceKind {
+    /// POSIX-style errno value.
+    Errno = 1,
+    /// Winsock WSA error value.
+    Winsock = 2,
+    /// HRESULT value.
+    HResult = 3,
+    /// getaddrinfo/getnameinfo error value.
+    Eai = 4,
+    /// Signal value.
+    Signal = 5,
+    /// Other host source.
+    Other = 255,
+}
+
+/// Host-level system source metadata.
+export struct PlatformSystemSource {
+    /// Host source kind.
+    kind: PlatformSystemSourceKind,
+    /// Numeric source value.
+    value: int32,
+    /// Optional symbolic source name.
+    name?: string,
+}
+
+/// Path payload encoding for error context.
+export enum PlatformPathEncoding {
+    /// Raw byte payload.
+    Bytes = 1,
+    /// UTF-16 little-endian payload.
+    Utf16 = 2,
+}
+
+/// Path payload attached to an error context.
+export struct PlatformPathPayload {
+    /// Path payload encoding.
+    encoding: PlatformPathEncoding,
+    /// Encoded path bytes.
+    data: uint8[],
+}
+
+/// Context kind for platform error metadata.
+export enum PlatformErrorContextKind {
+    /// Generic context.
+    Generic = 1,
+    /// File system or generic I/O context.
+    Io = 2,
+    /// Network context.
+    Net = 3,
+    /// Process context.
+    Process = 4,
+    /// Timer context.
+    Timer = 5,
+    /// Resource-table context.
+    Resource = 6,
+    /// Security context.
+    Security = 7,
+    /// FFI context.
+    Ffi = 8,
+    /// Thread context.
+    Thread = 9,
+    /// IPC context.
+    Ipc = 10,
+    /// Device context.
+    Device = 11,
+    /// Display context.
+    Display = 12,
+    /// Audio context.
+    Audio = 13,
+    /// GPU context.
+    Gpu = 14,
+    /// I/O driver context.
+    IoDriver = 15,
+}
+
+/// Typed context for platform error metadata.
+export struct PlatformErrorContext {
+    /// Context kind.
+    kind: PlatformErrorContextKind,
+    /// Optional syscall or host API name.
+    syscall?: string,
+    /// Optional primary path payload.
+    path?: PlatformPathPayload,
+    /// Optional destination path payload.
+    dest?: PlatformPathPayload,
+    /// Optional primary path text fallback.
+    pathText?: string,
+    /// Optional destination path text fallback.
+    destText?: string,
+    /// Optional file descriptor.
+    fd?: int32,
+    /// Optional network address text.
+    address?: string,
+    /// Optional network port.
+    port?: uint16,
+    /// Optional host name.
+    hostname?: string,
+    /// Optional process id.
+    pid?: uint64,
+    /// Optional signal name.
+    signal?: string,
+    /// Optional exit code.
+    exitCode?: int32,
+    /// Optional timer id.
+    timerId?: uint64,
+    /// Optional timer deadline.
+    deadlineNs?: uint64,
+    /// Optional resource id.
+    resourceId?: uint64,
+    /// Optional resource kind.
+    resourceKind?: string,
+    /// Optional capability name.
+    capability?: string,
+    /// Optional policy name.
+    policy?: string,
+    /// Optional FFI library name.
+    library?: string,
+    /// Optional FFI symbol name.
+    symbol?: string,
+    /// Optional thread id.
+    threadId?: uint64,
+    /// Optional argument name.
+    argument?: string,
+    /// Optional pointer label.
+    pointer?: string,
+    /// Optional feature identifier.
+    feature?: string,
+}
+
 /// Error returned by platform bindings.
 export newtype PlatformError = {
-    kind:
-        | "invalidArgument"
-        | "nullPointer"
-        | "notSupported"
-        | "io"
-        | "net"
-        | "process"
-        | "random"
-        | "time"
-        | "generic",
-    message: string,
-    name?: string,
-    code?: PlatformErrorCode,
-    systemCode?: string,
-    errno?: int32,
-    syscall?: string,
-    path?: string,
-    dest?: string,
-    fd?: int32,
-    address?: string,
-    port?: uint16,
-    hostname?: string,
-    signal?: string,
-    exitCode?: int32,
-    cause?: string,
-    argument?: string,
-    pointer?: string,
-    feature?: string,
+    code: PlatformErrorCode,
+    op?: string,
+    source?: PlatformSystemSource,
+    context?: PlatformErrorContext,
+    message?: string,
 };
 
 /// Error bindings for runtime error propagation.
 export declare namespace error {
     /// Take a runtime platform error by id.
-    @binding("destack.error.takePlatformError", { effect: "deterministic" })
+    ///
+    /// Reads and consumes one stored platform error entry by id.
+    /// Removes the entry from the runtime error store after a successful read.
+    ///
+    /// # Platform
+    /// Managed by the runtime platform layer rather than an OS-specific syscall.
+    /// Uses no direct syscall: reads and clears one runtime error-store entry.
+    ///
+    /// # Errors
+    /// Returns `invalidArgument` or `generic`.
+    ///
+    /// # Security
+    /// Requires `diagnostic.read`.
+    ///
+    /// # Replay
+    /// Deterministic.
+    @binding(
+        "destack.error.error.takePlatformError",
+        {
+            effect: "deterministic",
+            requires: ["diagnostic.read"],
+            scope: "runtime",
+            blocking: "never",
+        },
+    )
     export function takePlatformError(errorId: uint64): Result<PlatformError, PlatformError>;
 }
