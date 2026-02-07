@@ -248,7 +248,7 @@ mod tests {
     fn test_unsorted_members_detected() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
-            "test.ds",
+            "sort_imports/test_unsorted_members_detected.ds",
             r#"
 import { z, a, m } from "utils"
 "#,
@@ -260,7 +260,7 @@ import { z, a, m } from "utils"
     fn test_sorted_members_allowed() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
-            "test.ds",
+            "sort_imports/test_sorted_members_allowed.ds",
             r#"
 import { a, m, z } from "utils"
 "#,
@@ -272,7 +272,7 @@ import { a, m, z } from "utils"
     fn test_member_sorting_case_insensitive() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
-            "test.ds",
+            "sort_imports/test_member_sorting_case_insensitive.ds",
             r#"
 import { Alpha, beta, Gamma } from "utils"
 "#,
@@ -284,7 +284,7 @@ import { Alpha, beta, Gamma } from "utils"
     fn test_single_member_allowed() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
-            "test.ds",
+            "sort_imports/test_single_member_allowed.ds",
             r#"
 import { foo } from "utils"
 "#,
@@ -296,7 +296,7 @@ import { foo } from "utils"
     fn test_external_before_sibling_required() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
-            "test.ds",
+            "sort_imports/test_external_before_sibling_required.ds",
             r#"
 import { local } from "./local"
 import { external } from "external"
@@ -309,7 +309,7 @@ import { external } from "external"
     fn test_correct_group_order_allowed() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
-            "test.ds",
+            "sort_imports/test_correct_group_order_allowed.ds",
             r#"
 import { external } from "external"
 import { internal } from "@/internal"
@@ -324,7 +324,7 @@ import { sibling } from "./sibling"
     fn test_internal_before_parent_required() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
-            "test.ds",
+            "sort_imports/test_internal_before_parent_required.ds",
             r#"
 import { parent } from "../parent"
 import { internal } from "@/internal"
@@ -337,7 +337,7 @@ import { internal } from "@/internal"
     fn test_parent_before_sibling_required() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
-            "test.ds",
+            "sort_imports/test_parent_before_sibling_required.ds",
             r#"
 import { sibling } from "./sibling"
 import { parent } from "../parent"
@@ -350,7 +350,7 @@ import { parent } from "../parent"
     fn test_alphabetical_within_external_group() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
-            "test.ds",
+            "sort_imports/test_alphabetical_within_external_group.ds",
             r#"
 import { z } from "zod"
 import { a } from "axios"
@@ -363,7 +363,7 @@ import { a } from "axios"
     fn test_alphabetical_within_sibling_group() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
-            "test.ds",
+            "sort_imports/test_alphabetical_within_sibling_group.ds",
             r#"
 import { z } from "./z"
 import { a } from "./a"
@@ -376,7 +376,7 @@ import { a } from "./a"
     fn test_sorted_within_groups_allowed() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
-            "test.ds",
+            "sort_imports/test_sorted_within_groups_allowed.ds",
             r#"
 import { a } from "axios"
 import { z } from "zod"
@@ -393,7 +393,7 @@ import { z } from "./z"
     fn test_both_member_and_declaration_issues() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
-            "test.ds",
+            "sort_imports/test_both_member_and_declaration_issues.ds",
             r#"
 import { z, a } from "./local"
 import { foo } from "external"
@@ -407,7 +407,7 @@ import { foo } from "external"
     fn test_internal_alias_paths() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
-            "test.ds",
+            "sort_imports/test_internal_alias_paths.ds",
             r#"
 import { a } from "external"
 import { b } from "@/components"

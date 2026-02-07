@@ -179,7 +179,7 @@ mod tests {
     fn test_flags_console_call() {
         let test = TestProgram::for_rule_with_prelude(NoConsole);
         let result = test.lint_dir(
-            "test.ds",
+            "no_console/test_flags_console_call.ds",
             r#"
 console.log("debug");
 "#,
@@ -192,7 +192,7 @@ console.log("debug");
     fn test_flags_window_console_call() {
         let test = TestProgram::for_rule_with_prelude(NoConsole);
         let result = test.lint_dir(
-            "test.ds",
+            "no_console/test_flags_window_console_call.ds",
             r#"
 globalThis.console.error("oops");
 "#,
@@ -205,7 +205,7 @@ globalThis.console.error("oops");
     fn test_allows_other_member_access() {
         let test = TestProgram::for_rule_with_prelude(NoConsole);
         let result = test.lint_dir(
-            "test.ds",
+            "no_console/test_allows_other_member_access.ds",
             r#"
 logger.info("ok");
 "#,

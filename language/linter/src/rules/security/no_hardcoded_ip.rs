@@ -271,7 +271,7 @@ mod tests {
     fn test_detects_ipv4_address() {
         let test = TestProgram::for_rule_without_prelude(NoHardcodedIp);
         let result = test.lint_ast(
-            "test.ds",
+            "no_hardcoded_ip/test_detects_ipv4_address.ds",
             r#"
 let server = "192.168.1.100"
 "#,
@@ -283,7 +283,7 @@ let server = "192.168.1.100"
     fn test_detects_ipv4_in_url() {
         let test = TestProgram::for_rule_without_prelude(NoHardcodedIp);
         let result = test.lint_ast(
-            "test.ds",
+            "no_hardcoded_ip/test_detects_ipv4_in_url.ds",
             r#"
 let url = "http://10.0.0.1:8080/api"
 "#,
@@ -295,7 +295,7 @@ let url = "http://10.0.0.1:8080/api"
     fn test_allows_localhost() {
         let test = TestProgram::for_rule_without_prelude(NoHardcodedIp);
         let result = test.lint_ast(
-            "test.ds",
+            "no_hardcoded_ip/test_allows_localhost.ds",
             r#"
 let server = "127.0.0.1"
 "#,
@@ -307,7 +307,7 @@ let server = "127.0.0.1"
     fn test_allows_bind_all() {
         let test = TestProgram::for_rule_without_prelude(NoHardcodedIp);
         let result = test.lint_ast(
-            "test.ds",
+            "no_hardcoded_ip/test_allows_bind_all.ds",
             r#"
 let bind = "0.0.0.0"
 "#,
@@ -319,7 +319,7 @@ let bind = "0.0.0.0"
     fn test_allows_broadcast() {
         let test = TestProgram::for_rule_without_prelude(NoHardcodedIp);
         let result = test.lint_ast(
-            "test.ds",
+            "no_hardcoded_ip/test_allows_broadcast.ds",
             r#"
 let broadcast = "255.255.255.255"
 "#,
@@ -331,7 +331,7 @@ let broadcast = "255.255.255.255"
     fn test_allows_documentation_ip() {
         let test = TestProgram::for_rule_without_prelude(NoHardcodedIp);
         let result = test.lint_ast(
-            "test.ds",
+            "no_hardcoded_ip/test_allows_documentation_ip.ds",
             r#"
 let example = "192.0.2.1"
 "#,
@@ -343,7 +343,7 @@ let example = "192.0.2.1"
     fn test_allows_normal_string() {
         let test = TestProgram::for_rule_without_prelude(NoHardcodedIp);
         let result = test.lint_ast(
-            "test.ds",
+            "no_hardcoded_ip/test_allows_normal_string.ds",
             r#"
 let msg = "hello world"
 "#,
@@ -355,7 +355,7 @@ let msg = "hello world"
     fn test_allows_version_number() {
         let test = TestProgram::for_rule_without_prelude(NoHardcodedIp);
         let result = test.lint_ast(
-            "test.ds",
+            "no_hardcoded_ip/test_allows_version_number.ds",
             r#"
 let version = "1.2.3"
 "#,
@@ -367,7 +367,7 @@ let version = "1.2.3"
     fn test_detects_ipv6_address() {
         let test = TestProgram::for_rule_without_prelude(NoHardcodedIp);
         let result = test.lint_ast(
-            "test.ds",
+            "no_hardcoded_ip/test_detects_ipv6_address.ds",
             r#"
 let server = "2001:db8::1"
 "#,
@@ -379,7 +379,7 @@ let server = "2001:db8::1"
     fn test_allows_ipv6_localhost() {
         let test = TestProgram::for_rule_without_prelude(NoHardcodedIp);
         let result = test.lint_ast(
-            "test.ds",
+            "no_hardcoded_ip/test_allows_ipv6_localhost.ds",
             r#"
 let localhost = "::1"
 "#,

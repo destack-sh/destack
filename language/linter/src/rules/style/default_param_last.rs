@@ -138,7 +138,7 @@ mod tests {
     fn test_detects_non_default_after_default() {
         let test = TestProgram::for_rule_without_prelude(DefaultParamLast);
         let result = test.lint_ast(
-            "test.ds",
+            "default_param_last/test_detects_non_default_after_default.ds",
             r#"
 function foo(a: int32 = 1, b: int32) {}
 "#,
@@ -150,7 +150,7 @@ function foo(a: int32 = 1, b: int32) {}
     fn test_detects_non_default_after_default_in_arrow() {
         let test = TestProgram::for_rule_without_prelude(DefaultParamLast);
         let result = test.lint_ast(
-            "test.ds",
+            "default_param_last/test_detects_non_default_after_default_in_arrow.ds",
             r#"
 let foo = (a: int32 = 1, b: int32) => {}
 "#,
@@ -162,7 +162,7 @@ let foo = (a: int32 = 1, b: int32) => {}
     fn test_allows_defaults_last() {
         let test = TestProgram::for_rule_without_prelude(DefaultParamLast);
         let result = test.lint_ast(
-            "test.ds",
+            "default_param_last/test_allows_defaults_last.ds",
             r#"
 function foo(a: int32, b: int32 = 1) {}
 "#,
@@ -174,7 +174,7 @@ function foo(a: int32, b: int32 = 1) {}
     fn test_allows_all_defaults() {
         let test = TestProgram::for_rule_without_prelude(DefaultParamLast);
         let result = test.lint_ast(
-            "test.ds",
+            "default_param_last/test_allows_all_defaults.ds",
             r#"
 function foo(a: int32 = 1, b: int32 = 2) {}
 "#,
@@ -186,7 +186,7 @@ function foo(a: int32 = 1, b: int32 = 2) {}
     fn test_allows_no_defaults() {
         let test = TestProgram::for_rule_without_prelude(DefaultParamLast);
         let result = test.lint_ast(
-            "test.ds",
+            "default_param_last/test_allows_no_defaults.ds",
             r#"
 function foo(a: int32, b: int32) {}
 "#,
@@ -198,7 +198,7 @@ function foo(a: int32, b: int32) {}
     fn test_allows_variadic_after_default() {
         let test = TestProgram::for_rule_without_prelude(DefaultParamLast);
         let result = test.lint_ast(
-            "test.ds",
+            "default_param_last/test_allows_variadic_after_default.ds",
             r#"
 function foo(a: int32 = 1, ...rest: int32[]) {}
 "#,

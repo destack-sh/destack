@@ -288,6 +288,10 @@ impl<'a> LintModuleDirContext<'a> {
 
     /// Check if a rule is supported.
     pub fn is_rule_supported(&self, meta: &LintMeta) -> bool {
+        if !self.options.include_declaration_files && !meta.supports_file_type(self.file.ty) {
+            return false;
+        }
+
         // requires all
         if !meta.requires_all.is_empty() {
             for requirement in meta.requires_all {
@@ -303,7 +307,10 @@ impl<'a> LintModuleDirContext<'a> {
                     return true;
                 }
             }
+
+            return false;
         }
+
         true
     }
 
@@ -528,7 +535,7 @@ mod tests {
     fn test_allow_suppresses_by_id() {
         let test = TestProgram::for_rule_with_prelude(NoSelfCompare);
         let result = test.lint_dir(
-            "test.ds",
+            "dir/test_allow_suppresses_by_id.ds",
             r#"
 @allow("no-self-compare")
 function foo() {
@@ -545,7 +552,7 @@ function foo() {
     fn test_allow_suppresses_by_code() {
         let test = TestProgram::for_rule_with_prelude(NoSelfCompare);
         let result = test.lint_dir(
-            "test.ds",
+            "dir/test_allow_suppresses_by_code.ds",
             r#"
 @allow("LC038")
 function foo() {
@@ -562,7 +569,7 @@ function foo() {
     fn test_allow_does_not_affect_other_lints() {
         let test = TestProgram::for_rule_with_prelude(NoSelfCompare);
         let result = test.lint_dir(
-            "test.ds",
+            "dir/test_allow_does_not_affect_other_lints.ds",
             r#"
 @allow("some-other-lint")
 function foo() {
@@ -579,7 +586,7 @@ function foo() {
     fn test_forbid_prevents_inner_allow() {
         let test = TestProgram::for_rule_with_prelude(NoSelfCompare);
         let result = test.lint_dir(
-            "test.ds",
+            "dir/test_forbid_prevents_inner_allow.ds",
             r#"
 @forbid("no-self-compare")
 function outer() {
@@ -600,7 +607,7 @@ function outer() {
     fn test_warn_changes_severity() {
         let test = TestProgram::for_rule_with_prelude(NoSelfCompare);
         let result = test.lint_dir(
-            "test.ds",
+            "dir/test_warn_changes_severity.ds",
             r#"
 @warn("no-self-compare")
 function foo() {
@@ -617,7 +624,7 @@ function foo() {
     fn test_deny_changes_severity() {
         let test = TestProgram::for_rule_with_prelude(NoSelfCompare);
         let result = test.lint_dir(
-            "test.ds",
+            "dir/test_deny_changes_severity.ds",
             r#"
 @deny("no-self-compare")
 function foo() {

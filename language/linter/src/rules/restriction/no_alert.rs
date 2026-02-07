@@ -230,7 +230,7 @@ mod tests {
     fn test_flags_alert_call() {
         let test = TestProgram::for_rule_with_prelude(NoAlert);
         let result = test.lint_dir(
-            "test.ds",
+            "no_alert/test_flags_alert_call.ds",
             r#"
 alert("stop");
 "#,
@@ -243,7 +243,7 @@ alert("stop");
     fn test_flags_window_confirm_call() {
         let test = TestProgram::for_rule_with_prelude(NoAlert);
         let result = test.lint_dir(
-            "test.ds",
+            "no_alert/test_flags_window_confirm_call.ds",
             r#"
 window.confirm("ok");
 "#,
@@ -256,7 +256,7 @@ window.confirm("ok");
     fn test_flags_prompt_call() {
         let test = TestProgram::for_rule_with_prelude(NoAlert);
         let result = test.lint_dir(
-            "test.ds",
+            "no_alert/test_flags_prompt_call.ds",
             r#"
 prompt("name");
 "#,
@@ -269,7 +269,7 @@ prompt("name");
     fn test_allows_other_call() {
         let test = TestProgram::for_rule_with_prelude(NoAlert);
         let result = test.lint_dir(
-            "test.ds",
+            "no_alert/test_allows_other_call.ds",
             r#"
 notify("ok");
 "#,

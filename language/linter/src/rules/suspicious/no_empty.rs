@@ -69,7 +69,8 @@ mod tests {
     fn test_detects_empty_block() {
         let test = TestProgram::for_rule_without_prelude(NoEmpty);
         let result = test.lint_ast(
-            "test.ds", r#"
+            "no_empty/test_detects_empty_block.ds",
+            r#"
 {}
 "#,
         );
@@ -80,7 +81,7 @@ mod tests {
     fn test_detects_empty_if_block() {
         let test = TestProgram::for_rule_without_prelude(NoEmpty);
         let result = test.lint_ast(
-            "test.ds",
+            "no_empty/test_detects_empty_if_block.ds",
             r#"
 if (true) {}
 "#,
@@ -92,7 +93,7 @@ if (true) {}
     fn test_detects_empty_function_body() {
         let test = TestProgram::for_rule_without_prelude(NoEmpty);
         let result = test.lint_ast(
-            "test.ds",
+            "no_empty/test_detects_empty_function_body.ds",
             r#"
 function foo() {}
 "#,
@@ -104,7 +105,7 @@ function foo() {}
     fn test_no_empty_with_content() {
         let test = TestProgram::for_rule_without_prelude(NoEmpty);
         let result = test.lint_ast(
-            "test.ds",
+            "no_empty/test_no_empty_with_content.ds",
             r#"
 { let x = 1; }
 "#,
@@ -117,7 +118,7 @@ function foo() {}
         // implicit module-level blocks should not trigger
         let test = TestProgram::for_rule_without_prelude(NoEmpty);
         let result = test.lint_ast(
-            "test.ds",
+            "no_empty/test_no_empty_module_level.ds",
             r#"
 let x = 1;
 "#,
@@ -129,7 +130,7 @@ let x = 1;
     fn test_no_empty_block_with_comment() {
         let test = TestProgram::for_rule_without_prelude(NoEmpty);
         let result = test.lint_ast(
-            "test.ds",
+            "no_empty/test_no_empty_block_with_comment.ds",
             r#"
 { /* intentionally empty */ }
 "#,

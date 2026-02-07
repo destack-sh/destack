@@ -116,7 +116,7 @@ mod tests {
     fn test_exclusive_plus_one_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferInclusiveRange);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_inclusive_range/test_exclusive_plus_one_detected.ds",
             r#"
 const range = 0..n + 1
 "#,
@@ -128,7 +128,7 @@ const range = 0..n + 1
     fn test_exclusive_plus_one_with_start_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferInclusiveRange);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_inclusive_range/test_exclusive_plus_one_with_start_detected.ds",
             r#"
 const range = 1..len + 1
 "#,
@@ -140,7 +140,7 @@ const range = 1..len + 1
     fn test_inclusive_range_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferInclusiveRange);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_inclusive_range/test_inclusive_range_allowed.ds",
             r#"
 const range = 0..=n
 "#,
@@ -152,7 +152,7 @@ const range = 0..=n
     fn test_exclusive_without_plus_one_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferInclusiveRange);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_inclusive_range/test_exclusive_without_plus_one_allowed.ds",
             r#"
 const range = 0..n
 "#,
@@ -164,7 +164,7 @@ const range = 0..n
     fn test_exclusive_length_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferInclusiveRange);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_inclusive_range/test_exclusive_length_allowed.ds",
             r#"
 const range = 0..arr.length
 "#,
@@ -176,7 +176,7 @@ const range = 0..arr.length
     fn test_for_loop_plus_one_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferInclusiveRange);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_inclusive_range/test_for_loop_plus_one_detected.ds",
             r#"
 function foo(n: int32) {
     for (const i of 0..n + 1) {
@@ -192,7 +192,7 @@ function foo(n: int32) {
     fn test_plus_two_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferInclusiveRange);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_inclusive_range/test_plus_two_allowed.ds",
             r#"
 const range = 0..n + 2
 "#,
@@ -205,7 +205,7 @@ const range = 0..n + 2
     fn test_minus_one_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferInclusiveRange);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_inclusive_range/test_minus_one_allowed.ds",
             r#"
 const range = 0..n - 1
 "#,

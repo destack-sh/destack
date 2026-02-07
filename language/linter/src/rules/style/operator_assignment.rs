@@ -149,7 +149,7 @@ mod tests {
     fn test_detects_add_assignment() {
         let test = TestProgram::for_rule_without_prelude(OperatorAssignment);
         let result = test.lint_ast(
-            "test.ds",
+            "operator_assignment/test_detects_add_assignment.ds",
             r#"
 let x = 1
 x = x + 1
@@ -162,7 +162,7 @@ x = x + 1
     fn test_detects_multiply_assignment() {
         let test = TestProgram::for_rule_without_prelude(OperatorAssignment);
         let result = test.lint_ast(
-            "test.ds",
+            "operator_assignment/test_detects_multiply_assignment.ds",
             r#"
 let x = 2
 x = x * 3
@@ -175,7 +175,7 @@ x = x * 3
     fn test_allows_compound_assignment() {
         let test = TestProgram::for_rule_without_prelude(OperatorAssignment);
         let result = test.lint_ast(
-            "test.ds",
+            "operator_assignment/test_allows_compound_assignment.ds",
             r#"
 let x = 1
 x += 1
@@ -188,7 +188,7 @@ x += 1
     fn test_allows_different_variable() {
         let test = TestProgram::for_rule_without_prelude(OperatorAssignment);
         let result = test.lint_ast(
-            "test.ds",
+            "operator_assignment/test_allows_different_variable.ds",
             r#"
 let x = 1
 let y = 2
@@ -202,7 +202,7 @@ x = y + 1
     fn test_allows_non_compound_operators() {
         let test = TestProgram::for_rule_without_prelude(OperatorAssignment);
         let result = test.lint_ast(
-            "test.ds",
+            "operator_assignment/test_allows_non_compound_operators.ds",
             r#"
 let x = 1
 x = x == 1
@@ -215,7 +215,7 @@ x = x == 1
     fn test_fix_add_assignment() {
         let test = TestProgram::for_rule_without_prelude(OperatorAssignment);
         let result = test.lint_ast(
-            "test.ds",
+            "operator_assignment/test_fix_add_assignment.ds",
             r#"
 let x = 1
 x = x + 1
@@ -235,7 +235,7 @@ x += 1;
     fn test_fix_multiply_assignment() {
         let test = TestProgram::for_rule_without_prelude(OperatorAssignment);
         let result = test.lint_ast(
-            "test.ds",
+            "operator_assignment/test_fix_multiply_assignment.ds",
             r#"
 let x = 2
 x = x * 3

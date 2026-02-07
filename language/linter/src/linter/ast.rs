@@ -121,6 +121,10 @@ impl<'a> LintModuleAstContext<'a> {
 
     /// Check if a rule is supported.
     pub fn is_rule_supported(&self, meta: &LintMeta) -> bool {
+        if !self.options.include_declaration_files && !meta.supports_file_type(self.file.ty) {
+            return false;
+        }
+
         // requires all
         if !meta.requires_all.is_empty() {
             for requirement in meta.requires_all {
@@ -136,7 +140,10 @@ impl<'a> LintModuleAstContext<'a> {
                     return true;
                 }
             }
+
+            return false;
         }
+
         true
     }
 
@@ -381,7 +388,7 @@ mod tests {
     fn test_allow_suppresses_by_id() {
         let test = TestProgram::for_rule_with_prelude(NoEmpty);
         let result = test.lint_ast(
-            "test.ds",
+            "ast/test_allow_suppresses_by_id.ds",
             r#"
 @allow("no-empty")
 function foo() {}
@@ -394,7 +401,7 @@ function foo() {}
     fn test_allow_suppresses_by_code() {
         let test = TestProgram::for_rule_with_prelude(NoEmpty);
         let result = test.lint_ast(
-            "test.ds",
+            "ast/test_allow_suppresses_by_code.ds",
             r#"
 @allow("LU014")
 function foo() {}
@@ -407,7 +414,7 @@ function foo() {}
     fn test_allow_on_block() {
         let test = TestProgram::for_rule_with_prelude(NoEmpty);
         let result = test.lint_ast(
-            "test.ds",
+            "ast/test_allow_on_block.ds",
             r#"
 @allow("no-empty")
 {}
@@ -420,7 +427,7 @@ function foo() {}
     fn test_allow_does_not_affect_other_lints() {
         let test = TestProgram::for_rule_with_prelude(NoEmpty);
         let result = test.lint_ast(
-            "test.ds",
+            "ast/test_allow_does_not_affect_other_lints.ds",
             r#"
 @allow("some-other-lint")
 function foo() {}
@@ -433,7 +440,7 @@ function foo() {}
     fn test_forbid_prevents_inner_allow() {
         let test = TestProgram::for_rule_with_prelude(NoEmpty);
         let result = test.lint_ast(
-            "test.ds",
+            "ast/test_forbid_prevents_inner_allow.ds",
             r#"
 @forbid("no-empty")
 function outer() {
@@ -450,7 +457,7 @@ function outer() {
     fn test_warn_changes_severity() {
         let test = TestProgram::for_rule_with_prelude(NoEmpty);
         let result = test.lint_ast(
-            "test.ds",
+            "ast/test_warn_changes_severity.ds",
             r#"
 @warn("no-empty")
 function foo() {}
@@ -464,7 +471,7 @@ function foo() {}
     fn test_deny_changes_severity() {
         let test = TestProgram::for_rule_with_prelude(NoEmpty);
         let result = test.lint_ast(
-            "test.ds",
+            "ast/test_deny_changes_severity.ds",
             r#"
 @deny("no-empty")
 function foo() {}

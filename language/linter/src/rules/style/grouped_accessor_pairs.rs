@@ -231,7 +231,7 @@ mod tests {
     fn test_adjacent_accessors_allowed() {
         let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
         let result = test.lint_ast(
-            "test.ds",
+            "grouped_accessor_pairs/test_adjacent_accessors_allowed.ds",
             r#"
 class Example {
     get foo() { return this._foo }
@@ -246,7 +246,7 @@ class Example {
     fn test_setter_then_getter_adjacent_allowed() {
         let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
         let result = test.lint_ast(
-            "test.ds",
+            "grouped_accessor_pairs/test_setter_then_getter_adjacent_allowed.ds",
             r#"
 class Example {
     set foo(v) { this._foo = v }
@@ -261,7 +261,7 @@ class Example {
     fn test_non_adjacent_accessors_detected() {
         let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
         let result = test.lint_ast(
-            "test.ds",
+            "grouped_accessor_pairs/test_non_adjacent_accessors_detected.ds",
             r#"
 class Example {
     get foo() { return this._foo }
@@ -277,7 +277,7 @@ class Example {
     fn test_multiple_fields_between_detected() {
         let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
         let result = test.lint_ast(
-            "test.ds",
+            "grouped_accessor_pairs/test_multiple_fields_between_detected.ds",
             r#"
 class Example {
     get foo() { return this._foo }
@@ -294,7 +294,7 @@ class Example {
     fn test_only_getter_allowed() {
         let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
         let result = test.lint_ast(
-            "test.ds",
+            "grouped_accessor_pairs/test_only_getter_allowed.ds",
             r#"
 class Example {
     get foo() { return this._foo }
@@ -309,7 +309,7 @@ class Example {
     fn test_only_setter_allowed() {
         let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
         let result = test.lint_ast(
-            "test.ds",
+            "grouped_accessor_pairs/test_only_setter_allowed.ds",
             r#"
 class Example {
     set foo(v) { this._foo = v }
@@ -324,7 +324,7 @@ class Example {
     fn test_object_literal_non_adjacent_detected() {
         let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
         let result = test.lint_ast(
-            "test.ds",
+            "grouped_accessor_pairs/test_object_literal_non_adjacent_detected.ds",
             r#"
 const obj = {
     get foo() { return this._foo },
@@ -340,7 +340,7 @@ const obj = {
     fn test_object_literal_adjacent_allowed() {
         let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
         let result = test.lint_ast(
-            "test.ds",
+            "grouped_accessor_pairs/test_object_literal_adjacent_allowed.ds",
             r#"
 const obj = {
     get foo() { return this._foo },
@@ -356,7 +356,7 @@ const obj = {
     fn test_multiple_accessor_pairs_one_ungrouped() {
         let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
         let result = test.lint_ast(
-            "test.ds",
+            "grouped_accessor_pairs/test_multiple_accessor_pairs_one_ungrouped.ds",
             r#"
 class Example {
     get foo() { return this._foo }
@@ -374,7 +374,7 @@ class Example {
     fn test_struct_accessors_non_adjacent_detected() {
         let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
         let result = test.lint_ast(
-            "test.ds",
+            "grouped_accessor_pairs/test_struct_accessors_non_adjacent_detected.ds",
             r#"
 struct Example {
     get foo() { this._foo }

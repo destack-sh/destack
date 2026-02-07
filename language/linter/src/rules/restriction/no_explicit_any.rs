@@ -67,7 +67,7 @@ mod tests {
     fn test_detects_any_type_annotation() {
         let test = TestProgram::for_rule_without_prelude(NoExplicitAny);
         let result = test.lint_ast(
-            "test.ts",
+            "no_explicit_any/test_detects_any_type_annotation.ts",
             r#"
 let x: any = 42;
 "#,
@@ -79,7 +79,7 @@ let x: any = 42;
     fn test_detects_any_parameter() {
         let test = TestProgram::for_rule_without_prelude(NoExplicitAny);
         let result = test.lint_ast(
-            "test.ts",
+            "no_explicit_any/test_detects_any_parameter.ts",
             r#"
 function foo(x: any) {}
 "#,
@@ -91,7 +91,7 @@ function foo(x: any) {}
     fn test_detects_any_return_type() {
         let test = TestProgram::for_rule_without_prelude(NoExplicitAny);
         let result = test.lint_ast(
-            "test.ts",
+            "no_explicit_any/test_detects_any_return_type.ts",
             r#"
 function foo(): any { return 42; }
 "#,
@@ -103,7 +103,7 @@ function foo(): any { return 42; }
     fn test_allows_unknown() {
         let test = TestProgram::for_rule_without_prelude(NoExplicitAny);
         let result = test.lint_ast(
-            "test.ts",
+            "no_explicit_any/test_allows_unknown.ts",
             r#"
 let x: unknown = 42;
 "#,
@@ -115,7 +115,7 @@ let x: unknown = 42;
     fn test_allows_specific_types() {
         let test = TestProgram::for_rule_without_prelude(NoExplicitAny);
         let result = test.lint_ast(
-            "test.ts",
+            "no_explicit_any/test_allows_specific_types.ts",
             r#"
 let x: number = 42;
 let y: string = "hello";

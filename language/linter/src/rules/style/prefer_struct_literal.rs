@@ -110,7 +110,7 @@ mod tests {
     fn test_new_struct_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferStructLiteral);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_struct_literal/test_new_struct_detected.ds",
             r#"
 const p = new Point(1, 2)
 "#,
@@ -122,7 +122,7 @@ const p = new Point(1, 2)
     fn test_struct_literal_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferStructLiteral);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_struct_literal/test_struct_literal_allowed.ds",
             r#"
 const p = Point { x: 1, y: 2 }
 "#,
@@ -134,7 +134,7 @@ const p = Point { x: 1, y: 2 }
     fn test_new_namespaced_struct_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferStructLiteral);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_struct_literal/test_new_namespaced_struct_detected.ds",
             r#"
 const p = new geom.Point(1, 2)
 "#,
@@ -146,7 +146,7 @@ const p = new geom.Point(1, 2)
     fn test_new_lowercase_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferStructLiteral);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_struct_literal/test_new_lowercase_allowed.ds",
             r#"
 const p = new factory(1, 2)
 "#,
@@ -159,7 +159,7 @@ const p = new factory(1, 2)
     fn test_multiple_new_calls_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferStructLiteral);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_struct_literal/test_multiple_new_calls_detected.ds",
             r#"
 const a = new Point(1, 2)
 const b = new Vector(3, 4)
@@ -174,7 +174,7 @@ const b = new Vector(3, 4)
     fn test_new_without_args_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferStructLiteral);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_struct_literal/test_new_without_args_detected.ds",
             r#"
 const p = new Point()
 "#,

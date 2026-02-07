@@ -113,7 +113,7 @@ mod tests {
     fn test_detects_useless_escape() {
         let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_escape/test_detects_useless_escape.ds",
             r#"
 const x = "hel\lo"
 "#,
@@ -125,7 +125,7 @@ const x = "hel\lo"
     fn test_allows_valid_escapes() {
         let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_escape/test_allows_valid_escapes.ds",
             r#"
 const x = "hello\nworld"
 "#,
@@ -137,7 +137,7 @@ const x = "hello\nworld"
     fn test_allows_quote_escape() {
         let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_escape/test_allows_quote_escape.ds",
             r#"
 const x = "say \"hello\""
 "#,
@@ -149,7 +149,7 @@ const x = "say \"hello\""
     fn test_allows_backslash_escape() {
         let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_escape/test_allows_backslash_escape.ds",
             r#"
 const x = "path\\to\\file"
 "#,

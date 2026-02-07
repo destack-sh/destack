@@ -111,7 +111,7 @@ mod tests {
     fn test_detects_block_with_return() {
         let test = TestProgram::for_rule_without_prelude(PreferImplicitReturn);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_implicit_return/test_detects_block_with_return.ds",
             r#"
 const double = (x) => { return x * 2 }
 "#,
@@ -123,7 +123,7 @@ const double = (x) => { return x * 2 }
     fn test_allows_implicit_return() {
         let test = TestProgram::for_rule_without_prelude(PreferImplicitReturn);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_implicit_return/test_allows_implicit_return.ds",
             r#"
 const double = (x) => x * 2
 "#,
@@ -136,7 +136,7 @@ const double = (x) => x * 2
         let test = TestProgram::for_rule_without_prelude(PreferImplicitReturn);
         // multi-statement blocks can't use implicit return
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_implicit_return/test_allows_multi_statement_block.ds",
             r#"
 const double = (x) => {
     const y = x * 2
@@ -152,7 +152,7 @@ const double = (x) => {
         let test = TestProgram::for_rule_without_prelude(PreferImplicitReturn);
         // traditional functions always need blocks
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_implicit_return/test_allows_function_declaration.ds",
             r#"
 function double(x) {
     return x * 2
@@ -167,7 +167,7 @@ function double(x) {
         let test = TestProgram::for_rule_without_prelude(PreferImplicitReturn);
         // void returns can't be implicit
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_implicit_return/test_allows_void_return.ds",
             r#"
 const log = (x) => { return }
 "#,

@@ -171,7 +171,7 @@ mod tests {
     fn test_detects_return_in_finally() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeFinally);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unsafe_finally/test_detects_return_in_finally.ds",
             r#"
 function foo() {
     try {
@@ -189,7 +189,7 @@ function foo() {
     fn test_detects_throw_in_finally() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeFinally);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unsafe_finally/test_detects_throw_in_finally.ds",
             r#"
 function foo() {
     try {
@@ -207,7 +207,7 @@ function foo() {
     fn test_detects_break_in_finally() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeFinally);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unsafe_finally/test_detects_break_in_finally.ds",
             r#"
 while (true) {
     try {
@@ -225,7 +225,7 @@ while (true) {
     fn test_detects_continue_in_finally() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeFinally);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unsafe_finally/test_detects_continue_in_finally.ds",
             r#"
 while (true) {
     try {
@@ -243,7 +243,7 @@ while (true) {
     fn test_allows_return_in_try() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeFinally);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unsafe_finally/test_allows_return_in_try.ds",
             r#"
 function foo() {
     try {
@@ -261,7 +261,7 @@ function foo() {
     fn test_allows_return_in_nested_function() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeFinally);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unsafe_finally/test_allows_return_in_nested_function.ds",
             r#"
 function foo() {
     try {

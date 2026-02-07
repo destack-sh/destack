@@ -139,7 +139,7 @@ mod tests {
     fn test_detects_generator_without_yield() {
         let test = TestProgram::for_rule_without_prelude(RequireYield);
         let result = test.lint_ast(
-            "test.ds",
+            "require_yield/test_detects_generator_without_yield.ds",
             r#"
 function* gen() {
     return 1
@@ -153,7 +153,7 @@ function* gen() {
     fn test_detects_empty_generator() {
         let test = TestProgram::for_rule_without_prelude(RequireYield);
         let result = test.lint_ast(
-            "test.ds",
+            "require_yield/test_detects_empty_generator.ds",
             r#"
 function* gen() {}
 "#,
@@ -165,7 +165,7 @@ function* gen() {}
     fn test_allows_generator_with_yield() {
         let test = TestProgram::for_rule_without_prelude(RequireYield);
         let result = test.lint_ast(
-            "test.ds",
+            "require_yield/test_allows_generator_with_yield.ds",
             r#"
 function* gen() {
     yield 1
@@ -180,7 +180,7 @@ function* gen() {
     fn test_allows_generator_with_yield_in_loop() {
         let test = TestProgram::for_rule_without_prelude(RequireYield);
         let result = test.lint_ast(
-            "test.ds",
+            "require_yield/test_allows_generator_with_yield_in_loop.ds",
             r#"
 function* gen() {
     for (const i of 0..10) {
@@ -196,7 +196,7 @@ function* gen() {
     fn test_allows_regular_function() {
         let test = TestProgram::for_rule_without_prelude(RequireYield);
         let result = test.lint_ast(
-            "test.ds",
+            "require_yield/test_allows_regular_function.ds",
             r#"
 function foo() {
     return 1
@@ -210,7 +210,7 @@ function foo() {
     fn test_allows_generator_with_yield_star() {
         let test = TestProgram::for_rule_without_prelude(RequireYield);
         let result = test.lint_ast(
-            "test.ds",
+            "require_yield/test_allows_generator_with_yield_star.ds",
             r#"
 function* gen() {
     yield* other()

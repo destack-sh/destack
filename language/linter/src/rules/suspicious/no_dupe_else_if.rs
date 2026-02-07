@@ -143,7 +143,7 @@ mod tests {
     fn test_detects_duplicate_else_if() {
         let test = TestProgram::for_rule_without_prelude(NoDupeElseIf);
         let result = test.lint_ast(
-            "test.ds",
+            "no_dupe_else_if/test_detects_duplicate_else_if.ds",
             r#"
 if (x > 0) {
     a()
@@ -159,7 +159,7 @@ if (x > 0) {
     fn test_detects_duplicate_in_longer_chain() {
         let test = TestProgram::for_rule_without_prelude(NoDupeElseIf);
         let result = test.lint_ast(
-            "test.ds",
+            "no_dupe_else_if/test_detects_duplicate_in_longer_chain.ds",
             r#"
 if (x > 0) {
     a()
@@ -177,7 +177,7 @@ if (x > 0) {
     fn test_allows_different_conditions() {
         let test = TestProgram::for_rule_without_prelude(NoDupeElseIf);
         let result = test.lint_ast(
-            "test.ds",
+            "no_dupe_else_if/test_allows_different_conditions.ds",
             r#"
 if (x > 0) {
     a()
@@ -195,7 +195,7 @@ if (x > 0) {
     fn test_allows_simple_if_else() {
         let test = TestProgram::for_rule_without_prelude(NoDupeElseIf);
         let result = test.lint_ast(
-            "test.ds",
+            "no_dupe_else_if/test_allows_simple_if_else.ds",
             r#"
 if (x > 0) {
     a()

@@ -100,7 +100,7 @@ mod tests {
     fn test_detects_template_in_double_quoted_string() {
         let test = TestProgram::for_rule_without_prelude(NoTemplateCurlyInString);
         let result = test.lint_ast(
-            "test.ds",
+            "no_template_curly_in_string/test_detects_template_in_double_quoted_string.ds",
             r#"
 const x = "Hello ${name}"
 "#,
@@ -113,7 +113,7 @@ const x = "Hello ${name}"
     fn test_detects_multiple_templates() {
         let test = TestProgram::for_rule_without_prelude(NoTemplateCurlyInString);
         let result = test.lint_ast(
-            "test.ds",
+            "no_template_curly_in_string/test_detects_multiple_templates.ds",
             r#"
 const x = "${a} + ${b} = ${c}"
 "#,
@@ -126,7 +126,7 @@ const x = "${a} + ${b} = ${c}"
     fn test_allows_template_literal() {
         let test = TestProgram::for_rule_without_prelude(NoTemplateCurlyInString);
         let result = test.lint_ast(
-            "test.ds",
+            "no_template_curly_in_string/test_allows_template_literal.ds",
             r#"
 const x = `Hello ${name}`
 "#,
@@ -139,7 +139,7 @@ const x = `Hello ${name}`
     fn test_allows_regular_string() {
         let test = TestProgram::for_rule_without_prelude(NoTemplateCurlyInString);
         let result = test.lint_ast(
-            "test.ds",
+            "no_template_curly_in_string/test_allows_regular_string.ds",
             r#"
 const x = "Hello world"
 "#,
@@ -152,7 +152,7 @@ const x = "Hello world"
     fn test_allows_dollar_without_brace() {
         let test = TestProgram::for_rule_without_prelude(NoTemplateCurlyInString);
         let result = test.lint_ast(
-            "test.ds",
+            "no_template_curly_in_string/test_allows_dollar_without_brace.ds",
             r#"
 const x = "Price: $100"
 "#,
@@ -165,7 +165,7 @@ const x = "Price: $100"
     fn test_allows_incomplete_template() {
         let test = TestProgram::for_rule_without_prelude(NoTemplateCurlyInString);
         let result = test.lint_ast(
-            "test.ds",
+            "no_template_curly_in_string/test_allows_incomplete_template.ds",
             r#"
 const x = "${unclosed"
 "#,

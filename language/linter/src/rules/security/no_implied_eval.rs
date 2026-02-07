@@ -277,21 +277,13 @@ impl NodeVisitor for NoImpliedEvalVisitor<'_, '_> {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::LazyLock;
-
-    use parking_lot::Mutex;
-
     use super::*;
     use crate::linter::TestProgram;
-
-    /// Shared test program for no-implied-eval coverage.
-    static TEST_PROGRAM: LazyLock<Mutex<TestProgram>> =
-        LazyLock::new(|| Mutex::new(TestProgram::for_rule_with_prelude(NoImpliedEval)));
 
     /// Report setTimeout with string arguments.
     #[test]
     fn test_flags_string_set_timeout() {
-        let test = TEST_PROGRAM.lock();
+        let test = TestProgram::for_rule_with_prelude(NoImpliedEval);
         let result = test.lint_dir(
             "no_implied_eval/test_flags_string_set_timeout.ds",
             r#"
@@ -304,7 +296,7 @@ setTimeout("doThing()", 10);
     /// Report setInterval with string arguments.
     #[test]
     fn test_flags_string_set_interval() {
-        let test = TEST_PROGRAM.lock();
+        let test = TestProgram::for_rule_with_prelude(NoImpliedEval);
         let result = test.lint_dir(
             "no_implied_eval/test_flags_string_set_interval.ds",
             r#"
@@ -317,7 +309,7 @@ setInterval("doThing()", 10);
     /// Report global setImmediate with string arguments.
     #[test]
     fn test_flags_global_set_immediate() {
-        let test = TEST_PROGRAM.lock();
+        let test = TestProgram::for_rule_with_prelude(NoImpliedEval);
         let result = test.lint_dir(
             "no_implied_eval/test_flags_global_set_immediate.ds",
             r#"
@@ -330,7 +322,7 @@ globalThis.setImmediate("doThing()");
     /// Report Function constructor calls.
     #[test]
     fn test_flags_function_constructor() {
-        let test = TEST_PROGRAM.lock();
+        let test = TestProgram::for_rule_with_prelude(NoImpliedEval);
         let result = test.lint_dir(
             "no_implied_eval/test_flags_function_constructor.ds",
             r#"
@@ -343,7 +335,7 @@ const fn = Function("return 1;");
     /// Allow function callbacks in timers.
     #[test]
     fn test_allows_function_timer() {
-        let test = TEST_PROGRAM.lock();
+        let test = TestProgram::for_rule_with_prelude(NoImpliedEval);
         let result = test.lint_dir(
             "no_implied_eval/test_allows_function_timer.ds",
             r#"

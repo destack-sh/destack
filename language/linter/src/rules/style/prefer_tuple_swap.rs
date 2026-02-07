@@ -201,7 +201,7 @@ mod tests {
     fn test_detects_swap_with_const() {
         let test = TestProgram::for_rule_without_prelude(PreferTupleSwap);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_tuple_swap/test_detects_swap_with_const.ds",
             r#"
 function swap() {
     const temp = a
@@ -217,7 +217,7 @@ function swap() {
     fn test_detects_swap_with_let() {
         let test = TestProgram::for_rule_without_prelude(PreferTupleSwap);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_tuple_swap/test_detects_swap_with_let.ds",
             r#"
 function swap() {
     let temp = x
@@ -233,7 +233,7 @@ function swap() {
     fn test_allows_tuple_swap() {
         let test = TestProgram::for_rule_without_prelude(PreferTupleSwap);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_tuple_swap/test_allows_tuple_swap.ds",
             r#"
 function swap() {
     (a, b) = (b, a)
@@ -247,7 +247,7 @@ function swap() {
     fn test_allows_non_swap_temp() {
         let test = TestProgram::for_rule_without_prelude(PreferTupleSwap);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_tuple_swap/test_allows_non_swap_temp.ds",
             r#"
 function notSwap() {
     const temp = a
@@ -264,7 +264,7 @@ function notSwap() {
     fn test_allows_different_variables() {
         let test = TestProgram::for_rule_without_prelude(PreferTupleSwap);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_tuple_swap/test_allows_different_variables.ds",
             r#"
 function notSwap() {
     const temp = a
@@ -281,7 +281,7 @@ function notSwap() {
     fn test_allows_complex_expressions() {
         let test = TestProgram::for_rule_without_prelude(PreferTupleSwap);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_tuple_swap/test_allows_complex_expressions.ds",
             r#"
 function notSwap() {
     const temp = arr[0]

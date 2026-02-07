@@ -282,7 +282,7 @@ mod tests {
     fn test_flags_index_of_not_found_check() {
         let test = TestProgram::for_rule_without_prelude(PreferIncludes);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_includes/test_flags_index_of_not_found_check.ds",
             r#"
 let items = [1, 2, 3];
 let has = items.indexOf(2) !== -1;
@@ -296,7 +296,7 @@ let has = items.indexOf(2) !== -1;
     fn test_flags_string_index_of_check() {
         let test = TestProgram::for_rule_without_prelude(PreferIncludes);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_includes/test_flags_string_index_of_check.ds",
             r#"
 let text = "hello";
 let has = text.indexOf("lo") != -1;
@@ -310,7 +310,7 @@ let has = text.indexOf("lo") != -1;
     fn test_allows_index_of_zero_check() {
         let test = TestProgram::for_rule_without_prelude(PreferIncludes);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_includes/test_allows_index_of_zero_check.ds",
             r#"
 let items = [1, 2, 3];
 let first = items.indexOf(2) === 0;

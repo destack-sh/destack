@@ -238,7 +238,7 @@ mod tests {
     fn test_flags_non_iterable_array_spread() {
         let test = TestProgram::for_rule_with_prelude(NoMisusedSpread);
         let result = test.lint_dir(
-            "test.ds",
+            "no_misused_spread/test_flags_non_iterable_array_spread.ds",
             r#"
 let obj = { x: 1 };
 let arr = [...obj];
@@ -252,7 +252,7 @@ let arr = [...obj];
     fn test_allows_array_spread() {
         let test = TestProgram::for_rule_with_prelude(NoMisusedSpread);
         let result = test.lint_dir(
-            "test.ds",
+            "no_misused_spread/test_allows_array_spread.ds",
             r#"
 let arr1 = [1, 2, 3];
 let arr2 = [...arr1, 4, 5];
@@ -266,7 +266,7 @@ let arr2 = [...arr1, 4, 5];
     fn test_allows_string_spread() {
         let test = TestProgram::for_rule_with_prelude(NoMisusedSpread);
         let result = test.lint_dir(
-            "test.ds",
+            "no_misused_spread/test_allows_string_spread.ds",
             r#"
 let str = "hello";
 let chars = [...str];
@@ -280,7 +280,7 @@ let chars = [...str];
     fn test_allows_object_spread() {
         let test = TestProgram::for_rule_with_prelude(NoMisusedSpread);
         let result = test.lint_dir(
-            "test.ds",
+            "no_misused_spread/test_allows_object_spread.ds",
             r#"
 let obj1 = { x: 1 };
 let obj2 = { ...obj1, y: 2 };

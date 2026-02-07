@@ -268,7 +268,7 @@ mod tests {
     fn test_flags_empty_array_push() {
         let test = TestProgram::for_rule_without_prelude(PreferArrayLiteral);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_array_literal/test_flags_empty_array_push.ds",
             r#"
 let items: number[] = [];
 items.push(1);
@@ -283,7 +283,7 @@ items.push(2);
     fn test_flags_single_push() {
         let test = TestProgram::for_rule_without_prelude(PreferArrayLiteral);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_array_literal/test_flags_single_push.ds",
             r#"
 let items: string[] = [];
 items.push("hello");
@@ -297,7 +297,7 @@ items.push("hello");
     fn test_allows_array_literal() {
         let test = TestProgram::for_rule_without_prelude(PreferArrayLiteral);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_array_literal/test_allows_array_literal.ds",
             r#"
 let items = [1, 2, 3];
 "#,
@@ -310,7 +310,7 @@ let items = [1, 2, 3];
     fn test_allows_empty_array_with_other_uses() {
         let test = TestProgram::for_rule_without_prelude(PreferArrayLiteral);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_array_literal/test_allows_empty_array_with_other_uses.ds",
             r#"
 let items: number[] = [];
 items.push(1);
@@ -326,7 +326,7 @@ items.push(2);
     fn test_allows_dynamic_population() {
         let test = TestProgram::for_rule_without_prelude(PreferArrayLiteral);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_array_literal/test_allows_dynamic_population.ds",
             r#"
 let items: number[] = [];
 for (let i = 0; i < 10; i += 1) {
@@ -345,7 +345,7 @@ for (let i = 0; i < 10; i += 1) {
     fn test_allows_const_array() {
         let test = TestProgram::for_rule_without_prelude(PreferArrayLiteral);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_array_literal/test_allows_const_array.ds",
             r#"
 const items: number[] = [];
 "#,

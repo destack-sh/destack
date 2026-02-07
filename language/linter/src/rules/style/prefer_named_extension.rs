@@ -91,7 +91,7 @@ mod tests {
     fn test_anonymous_extension_of_foreign_type_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferNamedExtension);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_named_extension/test_anonymous_extension_of_foreign_type_detected.ds",
             r#"
 extension for std.io.File {
     function read() {}
@@ -105,7 +105,7 @@ extension for std.io.File {
     fn test_named_extension_of_foreign_type_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferNamedExtension);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_named_extension/test_named_extension_of_foreign_type_allowed.ds",
             r#"
 extension FileHelpers for std.io.File {
     function read() {}
@@ -119,7 +119,7 @@ extension FileHelpers for std.io.File {
     fn test_anonymous_extension_of_local_type_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferNamedExtension);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_named_extension/test_anonymous_extension_of_local_type_allowed.ds",
             r#"
 struct Point { x: int32, y: int32 }
 

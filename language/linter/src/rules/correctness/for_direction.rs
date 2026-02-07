@@ -151,7 +151,7 @@ mod tests {
     fn test_detects_wrong_direction_increment() {
         let test = TestProgram::for_rule_without_prelude(ForDirection);
         let result = test.lint_ast(
-            "test.ds",
+            "for_direction/test_detects_wrong_direction_increment.ds",
             r#"
 for (let i = 0; i < 10; i--) {
     console.log(i);
@@ -165,7 +165,7 @@ for (let i = 0; i < 10; i--) {
     fn test_detects_wrong_direction_decrement() {
         let test = TestProgram::for_rule_without_prelude(ForDirection);
         let result = test.lint_ast(
-            "test.ds",
+            "for_direction/test_detects_wrong_direction_decrement.ds",
             r#"
 for (let i = 10; i > 0; i++) {
     console.log(i);
@@ -179,7 +179,7 @@ for (let i = 10; i > 0; i++) {
     fn test_detects_wrong_direction_less_equal() {
         let test = TestProgram::for_rule_without_prelude(ForDirection);
         let result = test.lint_ast(
-            "test.ds",
+            "for_direction/test_detects_wrong_direction_less_equal.ds",
             r#"
 for (let i = 0; i <= 10; i--) {
     console.log(i);
@@ -193,7 +193,7 @@ for (let i = 0; i <= 10; i--) {
     fn test_detects_wrong_direction_greater_equal() {
         let test = TestProgram::for_rule_without_prelude(ForDirection);
         let result = test.lint_ast(
-            "test.ds",
+            "for_direction/test_detects_wrong_direction_greater_equal.ds",
             r#"
 for (let i = 10; i >= 0; i++) {
     console.log(i);
@@ -207,7 +207,7 @@ for (let i = 10; i >= 0; i++) {
     fn test_correct_direction_increment() {
         let test = TestProgram::for_rule_without_prelude(ForDirection);
         let result = test.lint_ast(
-            "test.ds",
+            "for_direction/test_correct_direction_increment.ds",
             r#"
 for (let i = 0; i < 10; i++) {
     console.log(i);
@@ -221,7 +221,7 @@ for (let i = 0; i < 10; i++) {
     fn test_correct_direction_decrement() {
         let test = TestProgram::for_rule_without_prelude(ForDirection);
         let result = test.lint_ast(
-            "test.ds",
+            "for_direction/test_correct_direction_decrement.ds",
             r#"
 for (let i = 10; i > 0; i--) {
     console.log(i);
@@ -235,7 +235,7 @@ for (let i = 10; i > 0; i--) {
     fn test_correct_direction_add_assign() {
         let test = TestProgram::for_rule_without_prelude(ForDirection);
         let result = test.lint_ast(
-            "test.ds",
+            "for_direction/test_correct_direction_add_assign.ds",
             r#"
 for (let i = 0; i < 10; i += 2) {
     console.log(i);
@@ -249,7 +249,7 @@ for (let i = 0; i < 10; i += 2) {
     fn test_correct_direction_subtract_assign() {
         let test = TestProgram::for_rule_without_prelude(ForDirection);
         let result = test.lint_ast(
-            "test.ds",
+            "for_direction/test_correct_direction_subtract_assign.ds",
             r#"
 for (let i = 10; i > 0; i -= 2) {
     console.log(i);
@@ -263,7 +263,7 @@ for (let i = 10; i > 0; i -= 2) {
     fn test_no_condition() {
         let test = TestProgram::for_rule_without_prelude(ForDirection);
         let result = test.lint_ast(
-            "test.ds",
+            "for_direction/test_no_condition.ds",
             r#"
 for (;;) {
     break;

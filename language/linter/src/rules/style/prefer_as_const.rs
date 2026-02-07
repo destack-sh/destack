@@ -87,7 +87,7 @@ mod tests {
     fn test_detects_string_literal_cast() {
         let test = TestProgram::for_rule_without_prelude(PreferAsConst);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_as_const/test_detects_string_literal_cast.ds",
             r#"
 const x = "hello" as "hello"
 "#,
@@ -99,7 +99,7 @@ const x = "hello" as "hello"
     fn test_detects_number_literal_cast() {
         let test = TestProgram::for_rule_without_prelude(PreferAsConst);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_as_const/test_detects_number_literal_cast.ds",
             r#"
 const x = 42 as 42
 "#,
@@ -111,7 +111,7 @@ const x = 42 as 42
     fn test_allows_as_const() {
         let test = TestProgram::for_rule_without_prelude(PreferAsConst);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_as_const/test_allows_as_const.ds",
             r#"
 const x = "hello" as const
 "#,
@@ -123,7 +123,7 @@ const x = "hello" as const
     fn test_allows_type_cast() {
         let test = TestProgram::for_rule_without_prelude(PreferAsConst);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_as_const/test_allows_type_cast.ds",
             r#"
 const x = value as string
 "#,
@@ -135,7 +135,7 @@ const x = value as string
     fn test_allows_object_cast() {
         let test = TestProgram::for_rule_without_prelude(PreferAsConst);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_as_const/test_allows_object_cast.ds",
             r#"
 const x = obj as { foo: string }
 "#,

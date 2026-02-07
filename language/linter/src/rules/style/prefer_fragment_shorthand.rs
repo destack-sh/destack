@@ -176,7 +176,7 @@ mod tests {
     fn test_fragment_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferFragmentShorthand);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_fragment_shorthand/test_fragment_detected.ds",
             r#"
 let elem = <Fragment><Child /></Fragment>
 "#,
@@ -188,7 +188,7 @@ let elem = <Fragment><Child /></Fragment>
     fn test_shorthand_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferFragmentShorthand);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_fragment_shorthand/test_shorthand_allowed.ds",
             r#"
 let elem = <><Child /></>
 "#,
@@ -201,7 +201,7 @@ let elem = <><Child /></>
     fn test_empty_fragment_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferFragmentShorthand);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_fragment_shorthand/test_empty_fragment_detected.ds",
             r#"
 let elem = <Fragment></Fragment>
 "#,
@@ -213,7 +213,7 @@ let elem = <Fragment></Fragment>
     fn test_empty_shorthand_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferFragmentShorthand);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_fragment_shorthand/test_empty_shorthand_allowed.ds",
             r#"
 let elem = <></>
 "#,
@@ -226,7 +226,7 @@ let elem = <></>
     fn test_fragment_with_key_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferFragmentShorthand);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_fragment_shorthand/test_fragment_with_key_allowed.ds",
             r#"
 let elem = <Fragment key={id}><Child /></Fragment>
 "#,
@@ -240,7 +240,7 @@ let elem = <Fragment key={id}><Child /></Fragment>
     fn test_other_element_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferFragmentShorthand);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_fragment_shorthand/test_other_element_allowed.ds",
             r#"
 let elem = <div><Child /></div>
 "#,
@@ -253,7 +253,7 @@ let elem = <div><Child /></div>
     fn test_multiple_children_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferFragmentShorthand);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_fragment_shorthand/test_multiple_children_detected.ds",
             r#"
 let elem = <Fragment>
     <Child1 />
@@ -268,7 +268,7 @@ let elem = <Fragment>
     fn test_qualified_fragment_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferFragmentShorthand);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_fragment_shorthand/test_qualified_fragment_detected.ds",
             r#"
 let elem = <React.Fragment><Child /></React.Fragment>
 "#,
@@ -280,7 +280,7 @@ let elem = <React.Fragment><Child /></React.Fragment>
     fn test_fix_fragment_to_shorthand() {
         let test = TestProgram::for_rule_without_prelude(PreferFragmentShorthand);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_fragment_shorthand/test_fix_fragment_to_shorthand.ds",
             r#"
 let elem = <Fragment><Child /></Fragment>;
 "#,
@@ -300,7 +300,7 @@ let elem = <>
     fn test_fix_empty_fragment() {
         let test = TestProgram::for_rule_without_prelude(PreferFragmentShorthand);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_fragment_shorthand/test_fix_empty_fragment.ds",
             r#"
 let elem = <Fragment></Fragment>;
 "#,

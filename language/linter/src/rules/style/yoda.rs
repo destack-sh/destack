@@ -114,7 +114,7 @@ mod tests {
     fn test_detects_yoda_equality() {
         let test = TestProgram::for_rule_without_prelude(Yoda);
         let result = test.lint_ast(
-            "test.ds",
+            "yoda/test_detects_yoda_equality.ds",
             r#"
 if ("red" === color) {
     doSomething()
@@ -128,7 +128,7 @@ if ("red" === color) {
     fn test_detects_yoda_strict_equality() {
         let test = TestProgram::for_rule_without_prelude(Yoda);
         let result = test.lint_ast(
-            "test.ds",
+            "yoda/test_detects_yoda_strict_equality.ds",
             r#"
 if (5 === x) {
     doSomething()
@@ -142,7 +142,7 @@ if (5 === x) {
     fn test_detects_yoda_less_than() {
         let test = TestProgram::for_rule_without_prelude(Yoda);
         let result = test.lint_ast(
-            "test.ds",
+            "yoda/test_detects_yoda_less_than.ds",
             r#"
 if (10 < x) {
     doSomething()
@@ -156,7 +156,7 @@ if (10 < x) {
     fn test_detects_yoda_null_check() {
         let test = TestProgram::for_rule_without_prelude(Yoda);
         let result = test.lint_ast(
-            "test.ds",
+            "yoda/test_detects_yoda_null_check.ds",
             r#"
 if (null === value) {
     doSomething()
@@ -170,7 +170,7 @@ if (null === value) {
     fn test_allows_normal_comparison() {
         let test = TestProgram::for_rule_without_prelude(Yoda);
         let result = test.lint_ast(
-            "test.ds",
+            "yoda/test_allows_normal_comparison.ds",
             r#"
 if (color === "red") {
     doSomething()
@@ -184,7 +184,7 @@ if (color === "red") {
     fn test_allows_variable_comparison() {
         let test = TestProgram::for_rule_without_prelude(Yoda);
         let result = test.lint_ast(
-            "test.ds",
+            "yoda/test_allows_variable_comparison.ds",
             r#"
 if (a === b) {
     doSomething()
@@ -198,7 +198,7 @@ if (a === b) {
     fn test_allows_literal_to_literal() {
         let test = TestProgram::for_rule_without_prelude(Yoda);
         let result = test.lint_ast(
-            "test.ds",
+            "yoda/test_allows_literal_to_literal.ds",
             r#"
 if (5 === 5) {
     doSomething()
@@ -212,7 +212,7 @@ if (5 === 5) {
     fn test_allows_non_comparison_operators() {
         let test = TestProgram::for_rule_without_prelude(Yoda);
         let result = test.lint_ast(
-            "test.ds",
+            "yoda/test_allows_non_comparison_operators.ds",
             r#"
 let x = 5 + a;
 "#,
@@ -224,7 +224,7 @@ let x = 5 + a;
     fn test_fix_yoda_equality() {
         let test = TestProgram::for_rule_without_prelude(Yoda);
         let result = test.lint_ast(
-            "test.ds",
+            "yoda/test_fix_yoda_equality.ds",
             r#"
 if (5 === x) { y() }
 "#,
@@ -240,7 +240,7 @@ if (x === 5) { y() }
     fn test_fix_yoda_less_than() {
         let test = TestProgram::for_rule_without_prelude(Yoda);
         let result = test.lint_ast(
-            "test.ds",
+            "yoda/test_fix_yoda_less_than.ds",
             r#"
 if (10 < x) { y() }
 "#,
@@ -256,7 +256,7 @@ if (x > 10) { y() }
     fn test_fix_yoda_greater_than_or_equal() {
         let test = TestProgram::for_rule_without_prelude(Yoda);
         let result = test.lint_ast(
-            "test.ds",
+            "yoda/test_fix_yoda_greater_than_or_equal.ds",
             r#"
 if (10 >= x) { y() }
 "#,

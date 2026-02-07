@@ -246,7 +246,7 @@ mod tests {
     fn test_flags_object_spread_in_reduce() {
         let test = TestProgram::for_rule_without_prelude(NoObjectSpreadInReduce);
         let result = test.lint_dir(
-            "test.ds",
+            "no_object_spread_in_reduce/test_flags_object_spread_in_reduce.ds",
             r#"
 let items = [{ id: 1 }, { id: 2 }];
 let byId = items.reduce((acc, item) => ({ ...acc, [item.id]: item }), {});
@@ -261,7 +261,7 @@ let byId = items.reduce((acc, item) => ({ ...acc, [item.id]: item }), {});
     fn test_flags_spread_with_properties() {
         let test = TestProgram::for_rule_without_prelude(NoObjectSpreadInReduce);
         let result = test.lint_dir(
-            "test.ds",
+            "no_object_spread_in_reduce/test_flags_spread_with_properties.ds",
             r#"
 let items = ["a", "b", "c"];
 let counts = items.reduce((acc, item) => ({ ...acc, [item]: (acc[item] || 0) + 1 }), {});
@@ -276,7 +276,7 @@ let counts = items.reduce((acc, item) => ({ ...acc, [item]: (acc[item] || 0) + 1
     fn test_flags_spread_in_block_body() {
         let test = TestProgram::for_rule_without_prelude(NoObjectSpreadInReduce);
         let result = test.lint_dir(
-            "test.ds",
+            "no_object_spread_in_reduce/test_flags_spread_in_block_body.ds",
             r#"
 let items = [{ id: 1 }, { id: 2 }];
 let byId = items.reduce((acc, item) => {
@@ -293,7 +293,7 @@ let byId = items.reduce((acc, item) => {
     fn test_allows_direct_assignment() {
         let test = TestProgram::for_rule_without_prelude(NoObjectSpreadInReduce);
         let result = test.lint_dir(
-            "test.ds",
+            "no_object_spread_in_reduce/test_allows_direct_assignment.ds",
             r#"
 let items = [{ id: 1 }, { id: 2 }];
 let byId = items.reduce((acc, item) => {
@@ -311,7 +311,7 @@ let byId = items.reduce((acc, item) => {
     fn test_allows_spread_outside_reduce() {
         let test = TestProgram::for_rule_without_prelude(NoObjectSpreadInReduce);
         let result = test.lint_dir(
-            "test.ds",
+            "no_object_spread_in_reduce/test_allows_spread_outside_reduce.ds",
             r#"
 let base = { a: 1 };
 let extended = { ...base, b: 2 };
@@ -326,7 +326,7 @@ let extended = { ...base, b: 2 };
     fn test_allows_from_entries() {
         let test = TestProgram::for_rule_without_prelude(NoObjectSpreadInReduce);
         let result = test.lint_dir(
-            "test.ds",
+            "no_object_spread_in_reduce/test_allows_from_entries.ds",
             r#"
 let items = [{ id: 1, name: "a" }, { id: 2, name: "b" }];
 let byId = Object.fromEntries(items.map((item) => [item.id, item]));

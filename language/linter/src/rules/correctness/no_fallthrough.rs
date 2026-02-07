@@ -164,7 +164,7 @@ mod tests {
     fn test_detects_fallthrough() {
         let test = TestProgram::for_rule_without_prelude(NoFallthrough);
         let result = test.lint_ast(
-            "test.ds",
+            "no_fallthrough/test_detects_fallthrough.ds",
             r#"
 let x = 1;
 switch (x) {
@@ -183,7 +183,7 @@ switch (x) {
     fn test_allows_break() {
         let test = TestProgram::for_rule_without_prelude(NoFallthrough);
         let result = test.lint_ast(
-            "test.ds",
+            "no_fallthrough/test_allows_break.ds",
             r#"
 let x = 1;
 switch (x) {
@@ -203,7 +203,7 @@ switch (x) {
     fn test_allows_return() {
         let test = TestProgram::for_rule_without_prelude(NoFallthrough);
         let result = test.lint_ast(
-            "test.ds",
+            "no_fallthrough/test_allows_return.ds",
             r#"
 function foo(x: int32): int32 {
     switch (x) {
@@ -223,7 +223,7 @@ function foo(x: int32): int32 {
     fn test_allows_throw() {
         let test = TestProgram::for_rule_without_prelude(NoFallthrough);
         let result = test.lint_ast(
-            "test.ds",
+            "no_fallthrough/test_allows_throw.ds",
             r#"
 let x = 1;
 switch (x) {
@@ -241,7 +241,7 @@ switch (x) {
     fn test_allows_last_case_without_break() {
         let test = TestProgram::for_rule_without_prelude(NoFallthrough);
         let result = test.lint_ast(
-            "test.ds",
+            "no_fallthrough/test_allows_last_case_without_break.ds",
             r#"
 let x = 1;
 switch (x) {
@@ -260,7 +260,7 @@ switch (x) {
     fn test_ignores_match() {
         let test = TestProgram::for_rule_without_prelude(NoFallthrough);
         let result = test.lint_ast(
-            "test.ds",
+            "no_fallthrough/test_ignores_match.ds",
             r#"
 let x = 1;
 match (x) {

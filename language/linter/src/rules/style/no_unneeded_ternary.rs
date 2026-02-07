@@ -130,7 +130,7 @@ mod tests {
     fn test_detects_true_false() {
         let test = TestProgram::for_rule_without_prelude(NoUnneededTernary);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unneeded_ternary/test_detects_true_false.ds",
             r#"
 const result = x ? true : false
 "#,
@@ -142,7 +142,7 @@ const result = x ? true : false
     fn test_detects_false_true() {
         let test = TestProgram::for_rule_without_prelude(NoUnneededTernary);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unneeded_ternary/test_detects_false_true.ds",
             r#"
 const result = x ? false : true
 "#,
@@ -154,7 +154,7 @@ const result = x ? false : true
     fn test_allows_useful_ternary() {
         let test = TestProgram::for_rule_without_prelude(NoUnneededTernary);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unneeded_ternary/test_allows_useful_ternary.ds",
             r#"
 const result = x ? "yes" : "no"
 "#,
@@ -166,7 +166,7 @@ const result = x ? "yes" : "no"
     fn test_allows_if_else() {
         let test = TestProgram::for_rule_without_prelude(NoUnneededTernary);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unneeded_ternary/test_allows_if_else.ds",
             r#"
 const result = if (x) { true } else { false }
 "#,
@@ -179,7 +179,7 @@ const result = if (x) { true } else { false }
     fn test_fix_true_false() {
         let test = TestProgram::for_rule_without_prelude(NoUnneededTernary);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unneeded_ternary/test_fix_true_false.ds",
             r#"
 const result = x ? true : false
 "#,
@@ -197,7 +197,7 @@ const result = x;
     fn test_fix_false_true() {
         let test = TestProgram::for_rule_without_prelude(NoUnneededTernary);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unneeded_ternary/test_fix_false_true.ds",
             r#"
 const result = x ? false : true
 "#,

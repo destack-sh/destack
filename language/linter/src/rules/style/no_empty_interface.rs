@@ -131,7 +131,7 @@ mod tests {
     fn test_detects_empty_interface() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyInterface);
         let result = test.lint_ast(
-            "test.ts",
+            "no_empty_interface/test_detects_empty_interface.ts",
             r#"
 interface Empty {}
 "#,
@@ -143,7 +143,7 @@ interface Empty {}
     fn test_detects_single_extends() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyInterface);
         let result = test.lint_ast(
-            "test.ts",
+            "no_empty_interface/test_detects_single_extends.ts",
             r#"
 interface Child extends Parent {}
 "#,
@@ -155,7 +155,7 @@ interface Child extends Parent {}
     fn test_allows_interface_with_members() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyInterface);
         let result = test.lint_ast(
-            "test.ts",
+            "no_empty_interface/test_allows_interface_with_members.ts",
             r#"
 interface Foo {
     bar(): void;
@@ -169,7 +169,7 @@ interface Foo {
     fn test_allows_multiple_extends() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyInterface);
         let result = test.lint_ast(
-            "test.ts",
+            "no_empty_interface/test_allows_multiple_extends.ts",
             r#"
 interface Combined extends A, B {}
 "#,
@@ -181,7 +181,7 @@ interface Combined extends A, B {}
     fn test_allows_extends_with_members() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyInterface);
         let result = test.lint_ast(
-            "test.ts",
+            "no_empty_interface/test_allows_extends_with_members.ts",
             r#"
 interface Child extends Parent {
     extra(): void;
@@ -195,7 +195,7 @@ interface Child extends Parent {
     fn test_fix_empty_interface() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyInterface);
         let result = test.lint_ast(
-            "test.ts",
+            "no_empty_interface/test_fix_empty_interface.ts",
             r#"
 interface Empty {}
 "#,
@@ -213,7 +213,7 @@ type Empty = {};
     fn test_fix_single_extends() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyInterface);
         let result = test.lint_ast(
-            "test.ts",
+            "no_empty_interface/test_fix_single_extends.ts",
             r#"
 interface Child extends Parent {}
 "#,

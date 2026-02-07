@@ -239,7 +239,7 @@ mod tests {
     fn test_flags_index_of_zero_check() {
         let test = TestProgram::for_rule_without_prelude(PreferStringStartsWith);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_string_startswith/test_flags_index_of_zero_check.ds",
             r#"
 let text = "hello";
 let has = text.indexOf("he") === 0;
@@ -253,7 +253,7 @@ let has = text.indexOf("he") === 0;
     fn test_allows_index_of_not_zero_check() {
         let test = TestProgram::for_rule_without_prelude(PreferStringStartsWith);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_string_startswith/test_allows_index_of_not_zero_check.ds",
             r#"
 let text = "hello";
 let has = text.indexOf("he") !== -1;

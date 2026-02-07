@@ -171,7 +171,7 @@ mod tests {
     fn test_single_sentence_allowed() {
         let test = TestProgram::for_rule_without_prelude(CommentLayout);
         let result = test.lint_ast(
-            "test.ds",
+            "comment_layout/test_single_sentence_allowed.ds",
             r#"
 /// This is a single sentence.
 function foo() {}
@@ -184,7 +184,7 @@ function foo() {}
     fn test_multiple_sentences_on_one_line_detected() {
         let test = TestProgram::for_rule_without_prelude(CommentLayout);
         let result = test.lint_ast(
-            "test.ds",
+            "comment_layout/test_multiple_sentences_on_one_line_detected.ds",
             r#"
 /// This is one sentence. This is another sentence.
 function foo() {}
@@ -197,7 +197,7 @@ function foo() {}
     fn test_multiple_sentences_on_separate_lines_allowed() {
         let test = TestProgram::for_rule_without_prelude(CommentLayout);
         let result = test.lint_ast(
-            "test.ds",
+            "comment_layout/test_multiple_sentences_on_separate_lines_allowed.ds",
             r#"
 /// This is one sentence.
 /// This is another sentence.
@@ -211,7 +211,7 @@ function foo() {}
     fn test_hyphen_separator_detected() {
         let test = TestProgram::for_rule_without_prelude(CommentLayout);
         let result = test.lint_ast(
-            "test.ds",
+            "comment_layout/test_hyphen_separator_detected.ds",
             r#"
 /// This is a comment - with a hyphen separator.
 function foo() {}
@@ -224,7 +224,7 @@ function foo() {}
     fn test_colon_separator_allowed() {
         let test = TestProgram::for_rule_without_prelude(CommentLayout);
         let result = test.lint_ast(
-            "test.ds",
+            "comment_layout/test_colon_separator_allowed.ds",
             r#"
 /// This is a comment: with a colon separator.
 function foo() {}
@@ -237,7 +237,7 @@ function foo() {}
     fn test_compound_word_hyphen_allowed() {
         let test = TestProgram::for_rule_without_prelude(CommentLayout);
         let result = test.lint_ast(
-            "test.ds",
+            "comment_layout/test_compound_word_hyphen_allowed.ds",
             r#"
 /// This is a well-known pattern.
 function foo() {}
@@ -250,7 +250,7 @@ function foo() {}
     fn test_url_hyphen_allowed() {
         let test = TestProgram::for_rule_without_prelude(CommentLayout);
         let result = test.lint_ast(
-            "test.ds",
+            "comment_layout/test_url_hyphen_allowed.ds",
             r#"
 /// See https://example-site.com/foo-bar.
 function foo() {}

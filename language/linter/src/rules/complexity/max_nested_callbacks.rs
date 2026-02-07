@@ -170,7 +170,7 @@ mod tests {
     fn test_detects_deeply_nested_callbacks() {
         let test = TestProgram::for_rule_without_prelude(MaxNestedCallbacks);
         let result = test.lint_ast(
-            "test.ds",
+            "max_nested_callbacks/test_detects_deeply_nested_callbacks.ds",
             r#"
 foo(() => {
     bar(() => {
@@ -192,7 +192,7 @@ foo(() => {
     fn test_allows_shallow_callbacks() {
         let test = TestProgram::for_rule_without_prelude(MaxNestedCallbacks);
         let result = test.lint_ast(
-            "test.ds",
+            "max_nested_callbacks/test_allows_shallow_callbacks.ds",
             r#"
 foo(() => {
     bar(() => {
@@ -208,7 +208,7 @@ foo(() => {
     fn test_allows_exactly_at_limit() {
         let test = TestProgram::for_rule_without_prelude(MaxNestedCallbacks);
         let result = test.lint_ast(
-            "test.ds",
+            "max_nested_callbacks/test_allows_exactly_at_limit.ds",
             r#"
 foo(() => {
     bar(() => {
@@ -228,7 +228,7 @@ foo(() => {
     fn test_non_callback_functions_dont_count() {
         let test = TestProgram::for_rule_without_prelude(MaxNestedCallbacks);
         let result = test.lint_ast(
-            "test.ds",
+            "max_nested_callbacks/test_non_callback_functions_dont_count.ds",
             r#"
 function outer() {
     function inner1() {

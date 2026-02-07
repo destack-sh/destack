@@ -179,7 +179,7 @@ mod tests {
     fn test_flags_struct_strict_equality() {
         let test = TestProgram::for_rule_without_prelude(NoStructIdentityCompare);
         let result = test.lint_dir(
-            "test.ds",
+            "no_struct_identity_compare/test_flags_struct_strict_equality.ds",
             r#"
 struct Point { x: int32, y: int32 }
 let a = Point { x: 1, y: 2 };
@@ -196,7 +196,7 @@ let equal = a === b;
     fn test_flags_struct_strict_not_equal() {
         let test = TestProgram::for_rule_without_prelude(NoStructIdentityCompare);
         let result = test.lint_dir(
-            "test.ds",
+            "no_struct_identity_compare/test_flags_struct_strict_not_equal.ds",
             r#"
 struct Point { x: int32, y: int32 }
 let a = Point { x: 1, y: 2 };
@@ -213,7 +213,7 @@ let notEqual = a !== b;
     fn test_allows_struct_value_equality() {
         let test = TestProgram::for_rule_without_prelude(NoStructIdentityCompare);
         let result = test.lint_dir(
-            "test.ds",
+            "no_struct_identity_compare/test_allows_struct_value_equality.ds",
             r#"
 struct Point { x: int32, y: int32 }
 let a = Point { x: 1, y: 2 };
@@ -230,7 +230,7 @@ let equal = a == b;
     fn test_allows_class_identity() {
         let test = TestProgram::for_rule_without_prelude(NoStructIdentityCompare);
         let result = test.lint_dir(
-            "test.ds",
+            "no_struct_identity_compare/test_allows_class_identity.ds",
             r#"
 class Point { x: int32; y: int32 }
 let a = new Point();
@@ -247,7 +247,7 @@ let equal = a === b;
     fn test_allows_primitive_identity() {
         let test = TestProgram::for_rule_without_prelude(NoStructIdentityCompare);
         let result = test.lint_dir(
-            "test.ds",
+            "no_struct_identity_compare/test_allows_primitive_identity.ds",
             r#"
 let a: int32 = 1;
 let b: int32 = 2;

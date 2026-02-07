@@ -136,7 +136,7 @@ mod tests {
     fn test_inline_comment_lowercase_allowed() {
         let test = TestProgram::for_rule_without_prelude(CommentCasing);
         let result = test.lint_ast(
-            "test.ds",
+            "comment_casing/test_inline_comment_lowercase_allowed.ds",
             r#"
 let x = 1 // this is fine
 "#,
@@ -148,7 +148,7 @@ let x = 1 // this is fine
     fn test_inline_comment_uppercase_detected() {
         let test = TestProgram::for_rule_without_prelude(CommentCasing);
         let result = test.lint_ast(
-            "test.ds",
+            "comment_casing/test_inline_comment_uppercase_detected.ds",
             r#"
 let x = 1 // This should be lowercase
 "#,
@@ -160,7 +160,7 @@ let x = 1 // This should be lowercase
     fn test_doc_comment_uppercase_allowed() {
         let test = TestProgram::for_rule_without_prelude(CommentCasing);
         let result = test.lint_ast(
-            "test.ds",
+            "comment_casing/test_doc_comment_uppercase_allowed.ds",
             r#"
 /// This is proper documentation.
 function foo() {}
@@ -173,7 +173,7 @@ function foo() {}
     fn test_doc_comment_lowercase_detected() {
         let test = TestProgram::for_rule_without_prelude(CommentCasing);
         let result = test.lint_ast(
-            "test.ds",
+            "comment_casing/test_doc_comment_lowercase_detected.ds",
             r#"
 /// this should be uppercase
 function foo() {}
@@ -186,7 +186,7 @@ function foo() {}
     fn test_special_markers_skipped() {
         let test = TestProgram::for_rule_without_prelude(CommentCasing);
         let result = test.lint_ast(
-            "test.ds",
+            "comment_casing/test_special_markers_skipped.ds",
             r#"
 let x = 1 // @ts-ignore
 let y = 2 // #region

@@ -227,7 +227,7 @@ mod tests {
     fn test_flags_object_assign_with_empty_object() {
         let test = TestProgram::for_rule_with_prelude(PreferObjectSpread);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_object_spread/test_flags_object_assign_with_empty_object.ds",
             r#"
 let base = { a: 1 };
 let merged = Object.assign({}, base);
@@ -241,7 +241,7 @@ let merged = Object.assign({}, base);
     fn test_flags_global_object_assign_with_empty_object() {
         let test = TestProgram::for_rule_with_prelude(PreferObjectSpread);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_object_spread/test_flags_global_object_assign_with_empty_object.ds",
             r#"
 let base = { a: 1 };
 let merged = globalThis.Object.assign({}, base);
@@ -254,7 +254,7 @@ let merged = globalThis.Object.assign({}, base);
     fn test_allows_object_assign_with_non_empty_target() {
         let test = TestProgram::for_rule_with_prelude(PreferObjectSpread);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_object_spread/test_allows_object_assign_with_non_empty_target.ds",
             r#"
 let base = { a: 1 };
 let merged = Object.assign({ b: 2 }, base);

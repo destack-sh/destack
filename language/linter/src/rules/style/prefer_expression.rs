@@ -270,7 +270,7 @@ mod tests {
     fn test_detects_uninitialized_let_with_if_assignment() {
         let test = TestProgram::for_rule_without_prelude(PreferExpression);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_expression/test_detects_uninitialized_let_with_if_assignment.ds",
             r#"
 function foo(condition: boolean) {
     let x;
@@ -289,7 +289,7 @@ function foo(condition: boolean) {
     fn test_allows_initialized_let() {
         let test = TestProgram::for_rule_without_prelude(PreferExpression);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_expression/test_allows_initialized_let.ds",
             r#"
 function foo(condition: boolean) {
     let x = 0;
@@ -308,7 +308,7 @@ function foo(condition: boolean) {
     fn test_allows_expression_based_if() {
         let test = TestProgram::for_rule_without_prelude(PreferExpression);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_expression/test_allows_expression_based_if.ds",
             r#"
 function foo(condition: boolean) {
     const x = if (condition) { 1 } else { 2 };
@@ -322,7 +322,7 @@ function foo(condition: boolean) {
     fn test_allows_if_without_else() {
         let test = TestProgram::for_rule_without_prelude(PreferExpression);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_expression/test_allows_if_without_else.ds",
             r#"
 function foo(condition: boolean) {
     let x;
@@ -339,7 +339,7 @@ function foo(condition: boolean) {
     fn test_allows_if_not_assigning_to_same_variable() {
         let test = TestProgram::for_rule_without_prelude(PreferExpression);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_expression/test_allows_if_not_assigning_to_same_variable.ds",
             r#"
 function foo(condition: boolean) {
     let x;
@@ -359,7 +359,7 @@ function foo(condition: boolean) {
     fn test_allows_non_adjacent_statements() {
         let test = TestProgram::for_rule_without_prelude(PreferExpression);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_expression/test_allows_non_adjacent_statements.ds",
             r#"
 function foo(condition: boolean) {
     let x;

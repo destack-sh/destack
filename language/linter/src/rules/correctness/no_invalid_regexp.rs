@@ -72,7 +72,7 @@ mod tests {
     fn test_detects_invalid_regex_unmatched_paren() {
         let test = TestProgram::for_rule_without_prelude(NoInvalidRegexp);
         let result = test.lint_ast(
-            "test.ds",
+            "no_invalid_regexp/test_detects_invalid_regex_unmatched_paren.ds",
             r#"
 let re = /(/
 "#,
@@ -84,7 +84,7 @@ let re = /(/
     fn test_detects_invalid_regex_invalid_group() {
         let test = TestProgram::for_rule_without_prelude(NoInvalidRegexp);
         let result = test.lint_ast(
-            "test.ds",
+            "no_invalid_regexp/test_detects_invalid_regex_invalid_group.ds",
             r#"
 let re = /(?/
 "#,
@@ -96,7 +96,7 @@ let re = /(?/
     fn test_detects_invalid_regex_incomplete_escape() {
         let test = TestProgram::for_rule_without_prelude(NoInvalidRegexp);
         let result = test.lint_ast(
-            "test.ds",
+            "no_invalid_regexp/test_detects_invalid_regex_incomplete_escape.ds",
             r#"
 let re = /\p/
 "#,
@@ -109,7 +109,7 @@ let re = /\p/
     fn test_allows_valid_regex() {
         let test = TestProgram::for_rule_without_prelude(NoInvalidRegexp);
         let result = test.lint_ast(
-            "test.ds",
+            "no_invalid_regexp/test_allows_valid_regex.ds",
             r#"
 let re = /^[a-z]+$/
 "#,
@@ -121,7 +121,7 @@ let re = /^[a-z]+$/
     fn test_allows_complex_valid_regex() {
         let test = TestProgram::for_rule_without_prelude(NoInvalidRegexp);
         let result = test.lint_ast(
-            "test.ds",
+            "no_invalid_regexp/test_allows_complex_valid_regex.ds",
             r#"
 let re = /(\d{1,3}\.){3}\d{1,3}/
 "#,
@@ -133,7 +133,7 @@ let re = /(\d{1,3}\.){3}\d{1,3}/
     fn test_detects_invalid_repetition() {
         let test = TestProgram::for_rule_without_prelude(NoInvalidRegexp);
         let result = test.lint_ast(
-            "test.ds",
+            "no_invalid_regexp/test_detects_invalid_repetition.ds",
             r#"
 let re = /a{3,1}/
 "#,

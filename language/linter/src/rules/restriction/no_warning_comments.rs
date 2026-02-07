@@ -78,35 +78,50 @@ mod tests {
     #[test]
     fn test_detects_todo_comment() {
         let test = TestProgram::for_rule_without_prelude(NoWarningComments);
-        let result = test.lint_ast("test.ts", "// TODO: fix this");
+        let result = test.lint_ast(
+            "no_warning_comments/test_detects_todo_comment.ts",
+            "// TODO: fix this",
+        );
         test.result(result).assert_lint("no-warning-comments");
     }
 
     #[test]
     fn test_detects_fixme_comment() {
         let test = TestProgram::for_rule_without_prelude(NoWarningComments);
-        let result = test.lint_ast("test.ts", "// FIXME: broken");
+        let result = test.lint_ast(
+            "no_warning_comments/test_detects_fixme_comment.ts",
+            "// FIXME: broken",
+        );
         test.result(result).assert_lint("no-warning-comments");
     }
 
     #[test]
     fn test_detects_hack_comment() {
         let test = TestProgram::for_rule_without_prelude(NoWarningComments);
-        let result = test.lint_ast("test.ts", "/* HACK: temporary workaround */");
+        let result = test.lint_ast(
+            "no_warning_comments/test_detects_hack_comment.ts",
+            "/* HACK: temporary workaround */",
+        );
         test.result(result).assert_lint("no-warning-comments");
     }
 
     #[test]
     fn test_case_insensitive() {
         let test = TestProgram::for_rule_without_prelude(NoWarningComments);
-        let result = test.lint_ast("test.ts", "// todo: lowercase");
+        let result = test.lint_ast(
+            "no_warning_comments/test_case_insensitive.ts",
+            "// todo: lowercase",
+        );
         test.result(result).assert_lint("no-warning-comments");
     }
 
     #[test]
     fn test_allows_normal_comment() {
         let test = TestProgram::for_rule_without_prelude(NoWarningComments);
-        let result = test.lint_ast("test.ts", "// this is a regular comment");
+        let result = test.lint_ast(
+            "no_warning_comments/test_allows_normal_comment.ts",
+            "// this is a regular comment",
+        );
         test.result(result).assert_no_lint("no-warning-comments");
     }
 }

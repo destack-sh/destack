@@ -84,7 +84,7 @@ mod tests {
     fn test_detects_chained_assignment() {
         let test = TestProgram::for_rule_without_prelude(NoMultiAssign);
         let result = test.lint_ast(
-            "test.ds",
+            "no_multi_assign/test_detects_chained_assignment.ds",
             r#"
 let a: int32;
 let b: int32;
@@ -99,7 +99,7 @@ a = (b = (c = 1));
     fn test_detects_simple_chain() {
         let test = TestProgram::for_rule_without_prelude(NoMultiAssign);
         let result = test.lint_ast(
-            "test.ds",
+            "no_multi_assign/test_detects_simple_chain.ds",
             r#"
 let a: int32;
 let b: int32;
@@ -113,7 +113,7 @@ a = (b = 1);
     fn test_detects_parenthesized_chain() {
         let test = TestProgram::for_rule_without_prelude(NoMultiAssign);
         let result = test.lint_ast(
-            "test.ds",
+            "no_multi_assign/test_detects_parenthesized_chain.ds",
             r#"
 let a: int32;
 let b: int32;
@@ -127,7 +127,7 @@ a = (b = 1);
     fn test_allows_separate_assignments() {
         let test = TestProgram::for_rule_without_prelude(NoMultiAssign);
         let result = test.lint_ast(
-            "test.ds",
+            "no_multi_assign/test_allows_separate_assignments.ds",
             r#"
 let a: int32;
 let b: int32;
@@ -142,7 +142,7 @@ b = 1;
     fn test_allows_assignment_in_declaration() {
         let test = TestProgram::for_rule_without_prelude(NoMultiAssign);
         let result = test.lint_ast(
-            "test.ds",
+            "no_multi_assign/test_allows_assignment_in_declaration.ds",
             r#"
 let a = 1;
 let b = 2;
@@ -155,7 +155,7 @@ let b = 2;
     fn test_allows_compound_assignment() {
         let test = TestProgram::for_rule_without_prelude(NoMultiAssign);
         let result = test.lint_ast(
-            "test.ds",
+            "no_multi_assign/test_allows_compound_assignment.ds",
             r#"
 let a = 1;
 a += 2;

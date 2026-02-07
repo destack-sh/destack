@@ -93,7 +93,10 @@ mod tests {
             source.push_str(&format!("    let x{i} = {i};\n"));
         }
         source.push_str("}\n");
-        let result = test.lint_ast("test.ds", &source);
+        let result = test.lint_ast(
+            "max_statements/test_detects_too_many_statements.ds",
+            &source,
+        );
         test.result(result).assert_lint("max-statements");
     }
 
@@ -101,7 +104,7 @@ mod tests {
     fn test_allows_few_statements() {
         let test = TestProgram::for_rule_without_prelude(MaxStatements);
         let result = test.lint_ast(
-            "test.ds",
+            "max_statements/test_allows_few_statements.ds",
             r#"
 function foo() {
     let x = 1;
@@ -122,7 +125,7 @@ function foo() {
             source.push_str(&format!("    let x{i} = {i};\n"));
         }
         source.push_str("}\n");
-        let result = test.lint_ast("test.ds", &source);
+        let result = test.lint_ast("max_statements/test_allows_exactly_at_limit.ds", &source);
         test.result(result).assert_no_lint("max-statements");
     }
 }

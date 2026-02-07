@@ -114,7 +114,7 @@ mod tests {
     fn test_detects_nested_template() {
         let test = TestProgram::for_rule_without_prelude(NoNestedTemplateLiteral);
         let result = test.lint_ast(
-            "test.ds",
+            "no_nested_template_literal/test_detects_nested_template.ds",
             r#"
 let outer = `hello ${`world ${name}`}`;
 "#,
@@ -127,7 +127,7 @@ let outer = `hello ${`world ${name}`}`;
     fn test_allows_simple_template() {
         let test = TestProgram::for_rule_without_prelude(NoNestedTemplateLiteral);
         let result = test.lint_ast(
-            "test.ds",
+            "no_nested_template_literal/test_allows_simple_template.ds",
             r#"
 let greeting = `hello ${name}`;
 "#,
@@ -140,7 +140,7 @@ let greeting = `hello ${name}`;
     fn test_allows_sequential_templates() {
         let test = TestProgram::for_rule_without_prelude(NoNestedTemplateLiteral);
         let result = test.lint_ast(
-            "test.ds",
+            "no_nested_template_literal/test_allows_sequential_templates.ds",
             r#"
 let a = `hello ${name}`;
 let b = `goodbye ${name}`;
@@ -154,7 +154,7 @@ let b = `goodbye ${name}`;
     fn test_allows_template_in_function_call() {
         let test = TestProgram::for_rule_without_prelude(NoNestedTemplateLiteral);
         let result = test.lint_ast(
-            "test.ds",
+            "no_nested_template_literal/test_allows_template_in_function_call.ds",
             r#"
 let x = `hello ${format(`${name}`)}`;
 "#,

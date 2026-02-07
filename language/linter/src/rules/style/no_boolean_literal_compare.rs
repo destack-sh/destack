@@ -169,7 +169,7 @@ mod tests {
     fn test_equal_true_detected() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
         let result = test.lint_ast(
-            "test.ds",
+            "no_boolean_literal_compare/test_equal_true_detected.ds",
             r#"
 const result = x == true;
 "#,
@@ -182,7 +182,7 @@ const result = x == true;
     fn test_equal_false_detected() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
         let result = test.lint_ast(
-            "test.ds",
+            "no_boolean_literal_compare/test_equal_false_detected.ds",
             r#"
 const result = x == false;
 "#,
@@ -195,7 +195,7 @@ const result = x == false;
     fn test_not_equal_true_detected() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
         let result = test.lint_ast(
-            "test.ds",
+            "no_boolean_literal_compare/test_not_equal_true_detected.ds",
             r#"
 const result = x != true;
 "#,
@@ -208,7 +208,7 @@ const result = x != true;
     fn test_not_equal_false_detected() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
         let result = test.lint_ast(
-            "test.ds",
+            "no_boolean_literal_compare/test_not_equal_false_detected.ds",
             r#"
 const result = x != false;
 "#,
@@ -221,7 +221,7 @@ const result = x != false;
     fn test_strict_equal_true_detected() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
         let result = test.lint_ast(
-            "test.ds",
+            "no_boolean_literal_compare/test_strict_equal_true_detected.ds",
             r#"
 const result = x === true;
 "#,
@@ -234,7 +234,7 @@ const result = x === true;
     fn test_strict_not_equal_false_detected() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
         let result = test.lint_ast(
-            "test.ds",
+            "no_boolean_literal_compare/test_strict_not_equal_false_detected.ds",
             r#"
 const result = x !== false;
 "#,
@@ -247,7 +247,7 @@ const result = x !== false;
     fn test_literal_on_left_detected() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
         let result = test.lint_ast(
-            "test.ds",
+            "no_boolean_literal_compare/test_literal_on_left_detected.ds",
             r#"
 const result = true == x;
 "#,
@@ -260,7 +260,7 @@ const result = true == x;
     fn test_false_on_left_detected() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
         let result = test.lint_ast(
-            "test.ds",
+            "no_boolean_literal_compare/test_false_on_left_detected.ds",
             r#"
 const result = false != x;
 "#,
@@ -273,7 +273,7 @@ const result = false != x;
     fn test_non_boolean_comparison_allowed() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
         let result = test.lint_ast(
-            "test.ds",
+            "no_boolean_literal_compare/test_non_boolean_comparison_allowed.ds",
             r#"
 const result = x == 42;
 "#,
@@ -286,7 +286,7 @@ const result = x == 42;
     fn test_boolean_variable_comparison_allowed() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
         let result = test.lint_ast(
-            "test.ds",
+            "no_boolean_literal_compare/test_boolean_variable_comparison_allowed.ds",
             r#"
 const result = x == y;
 "#,
@@ -299,7 +299,7 @@ const result = x == y;
     fn test_in_if_condition_detected() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
         let result = test.lint_ast(
-            "test.ds",
+            "no_boolean_literal_compare/test_in_if_condition_detected.ds",
             r#"
 function foo(x: bool) {
     if (x == true) {
@@ -316,7 +316,7 @@ function foo(x: bool) {
     fn test_in_ternary_condition_detected() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
         let result = test.lint_ast(
-            "test.ds",
+            "no_boolean_literal_compare/test_in_ternary_condition_detected.ds",
             r#"
 const result = (x == false) ? 1 : 2;
 "#,
@@ -329,7 +329,7 @@ const result = (x == false) ? 1 : 2;
     fn test_fix_equal_true() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
         let result = test.lint_ast(
-            "test.ds",
+            "no_boolean_literal_compare/test_fix_equal_true.ds",
             r#"
 const result = x === true
 "#,
@@ -347,7 +347,7 @@ const result = x;
     fn test_fix_equal_false() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
         let result = test.lint_ast(
-            "test.ds",
+            "no_boolean_literal_compare/test_fix_equal_false.ds",
             r#"
 const result = x === false
 "#,
@@ -365,7 +365,7 @@ const result = !x;
     fn test_fix_not_equal_true() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
         let result = test.lint_ast(
-            "test.ds",
+            "no_boolean_literal_compare/test_fix_not_equal_true.ds",
             r#"
 const result = x !== true
 "#,
@@ -383,7 +383,7 @@ const result = !x;
     fn test_fix_not_equal_false() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
         let result = test.lint_ast(
-            "test.ds",
+            "no_boolean_literal_compare/test_fix_not_equal_false.ds",
             r#"
 const result = x !== false
 "#,

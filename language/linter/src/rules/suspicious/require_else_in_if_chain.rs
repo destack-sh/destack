@@ -101,7 +101,7 @@ mod tests {
     fn test_if_else_if_without_else_detected() {
         let test = TestProgram::for_rule_without_prelude(RequireElseInIfChain);
         let result = test.lint_ast(
-            "test.ds",
+            "require_else_in_if_chain/test_if_else_if_without_else_detected.ds",
             r#"
 function foo(x: int32) {
     if (x > 0) {
@@ -119,7 +119,7 @@ function foo(x: int32) {
     fn test_if_else_if_else_allowed() {
         let test = TestProgram::for_rule_without_prelude(RequireElseInIfChain);
         let result = test.lint_ast(
-            "test.ds",
+            "require_else_in_if_chain/test_if_else_if_else_allowed.ds",
             r#"
 function foo(x: int32) {
     if (x > 0) {
@@ -140,7 +140,7 @@ function foo(x: int32) {
     fn test_simple_if_allowed() {
         let test = TestProgram::for_rule_without_prelude(RequireElseInIfChain);
         let result = test.lint_ast(
-            "test.ds",
+            "require_else_in_if_chain/test_simple_if_allowed.ds",
             r#"
 function foo(x: int32) {
     if (x > 0) {
@@ -157,7 +157,7 @@ function foo(x: int32) {
     fn test_simple_if_else_allowed() {
         let test = TestProgram::for_rule_without_prelude(RequireElseInIfChain);
         let result = test.lint_ast(
-            "test.ds",
+            "require_else_in_if_chain/test_simple_if_else_allowed.ds",
             r#"
 function foo(x: int32) {
     if (x > 0) {

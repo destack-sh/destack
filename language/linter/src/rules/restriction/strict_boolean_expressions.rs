@@ -294,7 +294,7 @@ mod tests {
     fn test_allows_boolean_condition() {
         let test = TestProgram::for_rule_with_prelude(StrictBooleanExpressions);
         let result = test.lint_dir(
-            "test.ds",
+            "strict_boolean_expressions/test_allows_boolean_condition.ds",
             r#"
 let is_ready = true
 if (is_ready) {
@@ -310,7 +310,7 @@ if (is_ready) {
     fn test_flags_non_boolean_condition() {
         let test = TestProgram::for_rule_with_prelude(StrictBooleanExpressions);
         let result = test.lint_dir(
-            "test.ds",
+            "strict_boolean_expressions/test_flags_non_boolean_condition.ds",
             r#"
 let count = 1
 if (count) {
@@ -326,7 +326,7 @@ if (count) {
     fn test_flags_negation_operand() {
         let test = TestProgram::for_rule_with_prelude(StrictBooleanExpressions);
         let result = test.lint_dir(
-            "test.ds",
+            "strict_boolean_expressions/test_flags_negation_operand.ds",
             r#"
 let name = "destack"
 if (!name) {
@@ -343,7 +343,7 @@ if (!name) {
     fn test_allows_comparison_condition() {
         let test = TestProgram::for_rule_with_prelude(StrictBooleanExpressions);
         let result = test.lint_dir(
-            "test.ds",
+            "strict_boolean_expressions/test_allows_comparison_condition.ds",
             r#"
 let count = 1
 if (count > 0) {
@@ -360,7 +360,7 @@ if (count > 0) {
     fn test_flags_logical_operands() {
         let test = TestProgram::for_rule_with_prelude(StrictBooleanExpressions);
         let result = test.lint_dir(
-            "test.ds",
+            "strict_boolean_expressions/test_flags_logical_operands.ds",
             r#"
 let count = 1
 let is_ready = true
@@ -378,7 +378,7 @@ if (count && is_ready) {
     fn test_allows_logical_expression_values() {
         let test = TestProgram::for_rule_with_prelude(StrictBooleanExpressions);
         let result = test.lint_dir(
-            "test.ds",
+            "strict_boolean_expressions/test_allows_logical_expression_values.ds",
             r#"
 let is_ready: boolean = true
 let is_valid: boolean = false
@@ -395,7 +395,7 @@ let is_ok = is_ready && is_valid
     fn test_flags_logical_expression_values() {
         let test = TestProgram::for_rule_with_prelude(StrictBooleanExpressions);
         let result = test.lint_dir(
-            "test.ds",
+            "strict_boolean_expressions/test_flags_logical_expression_values.ds",
             r#"
 let count = 1
 let name = "destack"
@@ -412,7 +412,7 @@ let fallback = count || name
     fn test_allows_logical_assignment() {
         let test = TestProgram::for_rule_with_prelude(StrictBooleanExpressions);
         let result = test.lint_dir(
-            "test.ds",
+            "strict_boolean_expressions/test_allows_logical_assignment.ds",
             r#"
 let is_ready: boolean = true
 let is_valid: boolean = false
@@ -429,7 +429,7 @@ is_ready &&= is_valid
     fn test_flags_logical_assignment() {
         let test = TestProgram::for_rule_with_prelude(StrictBooleanExpressions);
         let result = test.lint_dir(
-            "test.ds",
+            "strict_boolean_expressions/test_flags_logical_assignment.ds",
             r#"
 let count = 1
 let fallback = 2
@@ -446,7 +446,7 @@ count ||= fallback
     fn test_flags_loop_condition() {
         let test = TestProgram::for_rule_with_prelude(StrictBooleanExpressions);
         let result = test.lint_dir(
-            "test.ds",
+            "strict_boolean_expressions/test_flags_loop_condition.ds",
             r#"
 let count = 1
 while (count) {
@@ -463,7 +463,7 @@ while (count) {
     fn test_flags_match_guard() {
         let test = TestProgram::for_rule_with_prelude(StrictBooleanExpressions);
         let result = test.lint_dir(
-            "test.ds",
+            "strict_boolean_expressions/test_flags_match_guard.ds",
             r#"
 let value = 1
 match (value) {

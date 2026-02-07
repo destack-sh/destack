@@ -74,35 +74,50 @@ mod tests {
     #[test]
     fn test_detects_arrow_expression_body() {
         let test = TestProgram::for_rule_without_prelude(NoImplicitReturn);
-        let result = test.lint_ast("test.ts", "const foo = () => 1;");
+        let result = test.lint_ast(
+            "no_implicit_return/test_detects_arrow_expression_body.ts",
+            "const foo = () => 1;",
+        );
         test.result(result).assert_lint("no-implicit-return");
     }
 
     #[test]
     fn test_detects_arrow_expression_body_complex() {
         let test = TestProgram::for_rule_without_prelude(NoImplicitReturn);
-        let result = test.lint_ast("test.ts", "const add = (a: number, b: number) => a + b;");
+        let result = test.lint_ast(
+            "no_implicit_return/test_detects_arrow_expression_body_complex.ts",
+            "const add = (a: number, b: number) => a + b;",
+        );
         test.result(result).assert_lint("no-implicit-return");
     }
 
     #[test]
     fn test_allows_arrow_block_body() {
         let test = TestProgram::for_rule_without_prelude(NoImplicitReturn);
-        let result = test.lint_ast("test.ts", "const foo = () => { return 1; };");
+        let result = test.lint_ast(
+            "no_implicit_return/test_allows_arrow_block_body.ts",
+            "const foo = () => { return 1; };",
+        );
         test.result(result).assert_no_lint("no-implicit-return");
     }
 
     #[test]
     fn test_allows_function_with_block() {
         let test = TestProgram::for_rule_without_prelude(NoImplicitReturn);
-        let result = test.lint_ast("test.ts", "function foo() { return 1; }");
+        let result = test.lint_ast(
+            "no_implicit_return/test_allows_function_with_block.ts",
+            "function foo() { return 1; }",
+        );
         test.result(result).assert_no_lint("no-implicit-return");
     }
 
     #[test]
     fn test_allows_void_function() {
         let test = TestProgram::for_rule_without_prelude(NoImplicitReturn);
-        let result = test.lint_ast("test.ts", "function foo() { console.log('hi'); }");
+        let result = test.lint_ast(
+            "no_implicit_return/test_allows_void_function.ts",
+            "function foo() { console.log('hi'); }",
+        );
         test.result(result).assert_no_lint("no-implicit-return");
     }
 }

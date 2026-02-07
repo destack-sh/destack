@@ -99,7 +99,8 @@ mod tests {
     fn test_detects_unused_literal() {
         let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions);
         let result = test.lint_ast(
-            "test.ds", r#"
+            "no_unused_expressions/test_detects_unused_literal.ds",
+            r#"
 5
 "#,
         );
@@ -110,7 +111,7 @@ mod tests {
     fn test_detects_unused_string() {
         let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unused_expressions/test_detects_unused_string.ds",
             r#"
 "hello"
 "#,
@@ -122,7 +123,7 @@ mod tests {
     fn test_detects_unused_binary() {
         let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unused_expressions/test_detects_unused_binary.ds",
             r#"
 x + 1
 "#,
@@ -134,7 +135,8 @@ x + 1
     fn test_detects_unused_identifier() {
         let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions);
         let result = test.lint_ast(
-            "test.ds", r#"
+            "no_unused_expressions/test_detects_unused_identifier.ds",
+            r#"
 x
 "#,
         );
@@ -145,7 +147,7 @@ x
     fn test_allows_function_call() {
         let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unused_expressions/test_allows_function_call.ds",
             r#"
 doSomething()
 "#,
@@ -157,7 +159,7 @@ doSomething()
     fn test_allows_assignment() {
         let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unused_expressions/test_allows_assignment.ds",
             r#"
 x = 5
 "#,
@@ -169,7 +171,7 @@ x = 5
     fn test_allows_let_binding() {
         let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unused_expressions/test_allows_let_binding.ds",
             r#"
 let x = 5
 "#,
@@ -181,7 +183,7 @@ let x = 5
     fn test_allows_return() {
         let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unused_expressions/test_allows_return.ds",
             r#"
 function foo() {
     return 5

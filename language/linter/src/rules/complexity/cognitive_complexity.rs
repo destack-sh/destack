@@ -230,7 +230,7 @@ mod tests {
             .with_options(|options| options.max_cognitive_complexity = 15);
         // nested structures have higher cognitive complexity
         let result = test.lint_ast(
-            "test.ds",
+            "cognitive_complexity/test_detects_high_cognitive_complexity.ds",
             r#"
 function complex(a: bool, b: bool, c: bool) {
     if (a) {
@@ -264,7 +264,7 @@ function complex(a: bool, b: bool, c: bool) {
     fn test_allows_simple_function() {
         let test = TestProgram::for_rule_without_prelude(CognitiveComplexity);
         let result = test.lint_ast(
-            "test.ds",
+            "cognitive_complexity/test_allows_simple_function.ds",
             r#"
 function simple(x: int32): int32 {
     if (x > 0) {
@@ -282,7 +282,7 @@ function simple(x: int32): int32 {
     fn test_nesting_increases_complexity() {
         let test = TestProgram::for_rule_without_prelude(CognitiveComplexity);
         let result = test.lint_ast(
-            "test.ds",
+            "cognitive_complexity/test_nesting_increases_complexity.ds",
             r#"
 function nested(a: bool) {
     if (a) {
@@ -307,7 +307,7 @@ function nested(a: bool) {
     fn test_flat_ifs_lower_complexity() {
         let test = TestProgram::for_rule_without_prelude(CognitiveComplexity);
         let result = test.lint_ast(
-            "test.ds",
+            "cognitive_complexity/test_flat_ifs_lower_complexity.ds",
             r#"
 function flat(a: bool) {
     if (a) { x() }
@@ -331,7 +331,7 @@ function flat(a: bool) {
     fn test_logical_operator_sequences() {
         let test = TestProgram::for_rule_without_prelude(CognitiveComplexity);
         let result = test.lint_ast(
-            "test.ds",
+            "cognitive_complexity/test_logical_operator_sequences.ds",
             r#"
 function logical(a: bool): bool {
     return a && a && a && a && a
@@ -346,7 +346,7 @@ function logical(a: bool): bool {
     fn test_mixed_logical_operators() {
         let test = TestProgram::for_rule_without_prelude(CognitiveComplexity);
         let result = test.lint_ast(
-            "test.ds",
+            "cognitive_complexity/test_mixed_logical_operators.ds",
             r#"
 function mixed(a: bool): bool {
     return a && a || a && a || a && a || a
@@ -361,7 +361,7 @@ function mixed(a: bool): bool {
     fn test_loops_add_complexity() {
         let test = TestProgram::for_rule_without_prelude(CognitiveComplexity);
         let result = test.lint_ast(
-            "test.ds",
+            "cognitive_complexity/test_loops_add_complexity.ds",
             r#"
 function loops() {
     while (true) {

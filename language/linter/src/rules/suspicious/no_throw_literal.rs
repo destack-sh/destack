@@ -94,7 +94,7 @@ mod tests {
     fn test_flags_string_literal_throw() {
         let test = TestProgram::for_rule_without_prelude(NoThrowLiteral);
         let result = test.lint_dir(
-            "test.ds",
+            "no_throw_literal/test_flags_string_literal_throw.ds",
             r#"
 throw "oops";
 "#,
@@ -107,7 +107,7 @@ throw "oops";
     fn test_flags_object_literal_throw() {
         let test = TestProgram::for_rule_without_prelude(NoThrowLiteral);
         let result = test.lint_dir(
-            "test.ds",
+            "no_throw_literal/test_flags_object_literal_throw.ds",
             r#"
 throw { message: "oops" };
 "#,
@@ -120,7 +120,7 @@ throw { message: "oops" };
     fn test_allows_error_throw() {
         let test = TestProgram::for_rule_without_prelude(NoThrowLiteral);
         let result = test.lint_dir(
-            "test.ds",
+            "no_throw_literal/test_allows_error_throw.ds",
             r#"
 throw new Error("oops");
 "#,

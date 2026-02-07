@@ -185,7 +185,7 @@ mod tests {
     fn test_nested_if_without_else_detected() {
         let test = TestProgram::for_rule_without_prelude(NoCollapsibleIf);
         let result = test.lint_ast(
-            "test.ds",
+            "no_collapsible_if/test_nested_if_without_else_detected.ds",
             r#"
 function foo(a: bool, b: bool) {
     if (a) {
@@ -203,7 +203,7 @@ function foo(a: bool, b: bool) {
     fn test_nested_three_levels_detected() {
         let test = TestProgram::for_rule_without_prelude(NoCollapsibleIf);
         let result = test.lint_ast(
-            "test.ds",
+            "no_collapsible_if/test_nested_three_levels_detected.ds",
             r#"
 function foo(a: bool, b: bool, c: bool) {
     if (a) {
@@ -224,7 +224,7 @@ function foo(a: bool, b: bool, c: bool) {
     fn test_outer_has_else_allowed() {
         let test = TestProgram::for_rule_without_prelude(NoCollapsibleIf);
         let result = test.lint_ast(
-            "test.ds",
+            "no_collapsible_if/test_outer_has_else_allowed.ds",
             r#"
 function foo(a: bool, b: bool) {
     if (a) {
@@ -244,7 +244,7 @@ function foo(a: bool, b: bool) {
     fn test_inner_has_else_allowed() {
         let test = TestProgram::for_rule_without_prelude(NoCollapsibleIf);
         let result = test.lint_ast(
-            "test.ds",
+            "no_collapsible_if/test_inner_has_else_allowed.ds",
             r#"
 function foo(a: bool, b: bool) {
     if (a) {
@@ -264,7 +264,7 @@ function foo(a: bool, b: bool) {
     fn test_multiple_statements_in_then_allowed() {
         let test = TestProgram::for_rule_without_prelude(NoCollapsibleIf);
         let result = test.lint_ast(
-            "test.ds",
+            "no_collapsible_if/test_multiple_statements_in_then_allowed.ds",
             r#"
 function foo(a: bool, b: bool) {
     if (a) {
@@ -283,7 +283,7 @@ function foo(a: bool, b: bool) {
     fn test_simple_if_allowed() {
         let test = TestProgram::for_rule_without_prelude(NoCollapsibleIf);
         let result = test.lint_ast(
-            "test.ds",
+            "no_collapsible_if/test_simple_if_allowed.ds",
             r#"
 function foo(a: bool) {
     if (a) {
@@ -299,7 +299,7 @@ function foo(a: bool) {
     fn test_if_else_allowed() {
         let test = TestProgram::for_rule_without_prelude(NoCollapsibleIf);
         let result = test.lint_ast(
-            "test.ds",
+            "no_collapsible_if/test_if_else_allowed.ds",
             r#"
 function foo(a: bool) {
     if (a) {
@@ -317,7 +317,7 @@ function foo(a: bool) {
     fn test_already_combined_condition_allowed() {
         let test = TestProgram::for_rule_without_prelude(NoCollapsibleIf);
         let result = test.lint_ast(
-            "test.ds",
+            "no_collapsible_if/test_already_combined_condition_allowed.ds",
             r#"
 function foo(a: bool, b: bool) {
     if (a && b) {
@@ -333,7 +333,7 @@ function foo(a: bool, b: bool) {
     fn test_fix_nested_if() {
         let test = TestProgram::for_rule_without_prelude(NoCollapsibleIf);
         let result = test.lint_ast(
-            "test.ds",
+            "no_collapsible_if/test_fix_nested_if.ds",
             r#"
 function foo(a: bool, b: bool) {
     if (a) {

@@ -299,7 +299,7 @@ mod tests {
     fn test_flags_filter_index_zero() {
         let test = TestProgram::for_rule_with_prelude(PreferArrayFind);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_array_find/test_flags_filter_index_zero.ds",
             r#"
 let items = [1, 2, 3];
 let first = items.filter(x => x > 1)[0];
@@ -313,7 +313,7 @@ let first = items.filter(x => x > 1)[0];
     fn test_flags_filter_shift() {
         let test = TestProgram::for_rule_with_prelude(PreferArrayFind);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_array_find/test_flags_filter_shift.ds",
             r#"
 let items = [1, 2, 3];
 let first = items.filter(x => x > 1).shift();
@@ -327,7 +327,7 @@ let first = items.filter(x => x > 1).shift();
     fn test_flags_filter_at_zero() {
         let test = TestProgram::for_rule_with_prelude(PreferArrayFind);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_array_find/test_flags_filter_at_zero.ds",
             r#"
 let items = [1, 2, 3];
 let first = items.filter(x => x > 1).at(0);
@@ -341,7 +341,7 @@ let first = items.filter(x => x > 1).at(0);
     fn test_allows_filter_index_one() {
         let test = TestProgram::for_rule_with_prelude(PreferArrayFind);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_array_find/test_allows_filter_index_one.ds",
             r#"
 let items = [1, 2, 3];
 let second = items.filter(x => x > 1)[1];
@@ -355,7 +355,7 @@ let second = items.filter(x => x > 1)[1];
     fn test_allows_find_directly() {
         let test = TestProgram::for_rule_with_prelude(PreferArrayFind);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_array_find/test_allows_find_directly.ds",
             r#"
 let items = [1, 2, 3];
 let first = items.find(x => x > 1);
@@ -369,7 +369,7 @@ let first = items.find(x => x > 1);
     fn test_allows_non_filter_index() {
         let test = TestProgram::for_rule_with_prelude(PreferArrayFind);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_array_find/test_allows_non_filter_index.ds",
             r#"
 let items = [1, 2, 3];
 let first = items.map(x => x * 2)[0];
@@ -383,7 +383,7 @@ let first = items.map(x => x * 2)[0];
     fn test_allows_filter_at_one() {
         let test = TestProgram::for_rule_with_prelude(PreferArrayFind);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_array_find/test_allows_filter_at_one.ds",
             r#"
 let items = [1, 2, 3];
 let second = items.filter(x => x > 0).at(1);
@@ -397,7 +397,7 @@ let second = items.filter(x => x > 0).at(1);
     fn test_allows_filter_at_negative() {
         let test = TestProgram::for_rule_with_prelude(PreferArrayFind);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_array_find/test_allows_filter_at_negative.ds",
             r#"
 let items = [1, 2, 3];
 let last = items.filter(x => x > 0).at(-1);

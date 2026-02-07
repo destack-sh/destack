@@ -277,7 +277,7 @@ mod tests {
     fn test_flags_executor_return_value() {
         let test = TestProgram::for_rule_with_prelude(NoPromiseExecutorReturn);
         let result = test.lint_dir(
-            "test.ds",
+            "no_promise_executor_return/test_flags_executor_return_value.ds",
             r#"
 let task = new Promise((resolve, reject) => {
     return 1;
@@ -292,7 +292,7 @@ let task = new Promise((resolve, reject) => {
     fn test_flags_executor_expression_body() {
         let test = TestProgram::for_rule_with_prelude(NoPromiseExecutorReturn);
         let result = test.lint_dir(
-            "test.ds",
+            "no_promise_executor_return/test_flags_executor_expression_body.ds",
             r#"
 let task = new Promise((resolve, reject) => resolve(1));
 "#,
@@ -305,7 +305,7 @@ let task = new Promise((resolve, reject) => resolve(1));
     fn test_allows_executor_without_return() {
         let test = TestProgram::for_rule_with_prelude(NoPromiseExecutorReturn);
         let result = test.lint_dir(
-            "test.ds",
+            "no_promise_executor_return/test_allows_executor_without_return.ds",
             r#"
 let task = new Promise((resolve, reject) => {
     resolve(1);

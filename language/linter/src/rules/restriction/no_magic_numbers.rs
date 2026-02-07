@@ -79,49 +79,61 @@ mod tests {
     #[test]
     fn test_detects_magic_integer() {
         let test = TestProgram::for_rule_without_prelude(NoMagicNumbers);
-        let result = test.lint_ast("test.ts", "let x = 42;");
+        let result = test.lint_ast(
+            "no_magic_numbers/test_detects_magic_integer.ts",
+            "let x = 42;",
+        );
         test.result(result).assert_lint("no-magic-numbers");
     }
 
     #[test]
     fn test_detects_magic_float() {
         let test = TestProgram::for_rule_without_prelude(NoMagicNumbers);
-        let result = test.lint_ast("test.ts", "let x = 3.14;");
+        let result = test.lint_ast(
+            "no_magic_numbers/test_detects_magic_float.ts",
+            "let x = 3.14;",
+        );
         test.result(result).assert_lint("no-magic-numbers");
     }
 
     #[test]
     fn test_allows_zero() {
         let test = TestProgram::for_rule_without_prelude(NoMagicNumbers);
-        let result = test.lint_ast("test.ts", "let x = 0;");
+        let result = test.lint_ast("no_magic_numbers/test_allows_zero.ts", "let x = 0;");
         test.result(result).assert_no_lint("no-magic-numbers");
     }
 
     #[test]
     fn test_allows_one() {
         let test = TestProgram::for_rule_without_prelude(NoMagicNumbers);
-        let result = test.lint_ast("test.ts", "let x = 1;");
+        let result = test.lint_ast("no_magic_numbers/test_allows_one.ts", "let x = 1;");
         test.result(result).assert_no_lint("no-magic-numbers");
     }
 
     #[test]
     fn test_allows_negative_one() {
         let test = TestProgram::for_rule_without_prelude(NoMagicNumbers);
-        let result = test.lint_ast("test.ts", "let x = -1;");
+        let result = test.lint_ast(
+            "no_magic_numbers/test_allows_negative_one.ts",
+            "let x = -1;",
+        );
         test.result(result).assert_no_lint("no-magic-numbers");
     }
 
     #[test]
     fn test_allows_two() {
         let test = TestProgram::for_rule_without_prelude(NoMagicNumbers);
-        let result = test.lint_ast("test.ts", "let x = 2;");
+        let result = test.lint_ast("no_magic_numbers/test_allows_two.ts", "let x = 2;");
         test.result(result).assert_no_lint("no-magic-numbers");
     }
 
     #[test]
     fn test_allows_strings() {
         let test = TestProgram::for_rule_without_prelude(NoMagicNumbers);
-        let result = test.lint_ast("test.ts", r#"let x = "hello";"#);
+        let result = test.lint_ast(
+            "no_magic_numbers/test_allows_strings.ts",
+            r#"let x = "hello";"#,
+        );
         test.result(result).assert_no_lint("no-magic-numbers");
     }
 }

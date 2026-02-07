@@ -115,7 +115,10 @@ mod tests {
     #[test]
     fn test_detects_throw_not_implemented() {
         let test = TestProgram::for_rule_without_prelude(NoPlaceholderImplementation);
-        let result = test.lint_ast("test.ts", r#"throw "not implemented";"#);
+        let result = test.lint_ast(
+            "no_placeholder_implementation/test_detects_throw_not_implemented.ts",
+            r#"throw "not implemented";"#,
+        );
         test.result(result)
             .assert_lint("no-placeholder-implementation");
     }
@@ -123,7 +126,10 @@ mod tests {
     #[test]
     fn test_detects_throw_todo() {
         let test = TestProgram::for_rule_without_prelude(NoPlaceholderImplementation);
-        let result = test.lint_ast("test.ts", r#"throw "TODO: implement this";"#);
+        let result = test.lint_ast(
+            "no_placeholder_implementation/test_detects_throw_todo.ts",
+            r#"throw "TODO: implement this";"#,
+        );
         test.result(result)
             .assert_lint("no-placeholder-implementation");
     }
@@ -131,7 +137,10 @@ mod tests {
     #[test]
     fn test_detects_throw_new_error() {
         let test = TestProgram::for_rule_without_prelude(NoPlaceholderImplementation);
-        let result = test.lint_ast("test.ts", r#"throw new Error("not implemented");"#);
+        let result = test.lint_ast(
+            "no_placeholder_implementation/test_detects_throw_new_error.ts",
+            r#"throw new Error("not implemented");"#,
+        );
         test.result(result)
             .assert_lint("no-placeholder-implementation");
     }
@@ -139,7 +148,10 @@ mod tests {
     #[test]
     fn test_allows_real_error() {
         let test = TestProgram::for_rule_without_prelude(NoPlaceholderImplementation);
-        let result = test.lint_ast("test.ts", r#"throw new Error("Invalid input");"#);
+        let result = test.lint_ast(
+            "no_placeholder_implementation/test_allows_real_error.ts",
+            r#"throw new Error("Invalid input");"#,
+        );
         test.result(result)
             .assert_no_lint("no-placeholder-implementation");
     }
@@ -147,7 +159,10 @@ mod tests {
     #[test]
     fn test_allows_throw_variable() {
         let test = TestProgram::for_rule_without_prelude(NoPlaceholderImplementation);
-        let result = test.lint_ast("test.ts", "throw error;");
+        let result = test.lint_ast(
+            "no_placeholder_implementation/test_allows_throw_variable.ts",
+            "throw error;",
+        );
         test.result(result)
             .assert_no_lint("no-placeholder-implementation");
     }

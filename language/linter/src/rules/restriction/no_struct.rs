@@ -68,7 +68,7 @@ mod tests {
     fn test_detects_struct() {
         let test = TestProgram::for_rule_without_prelude(NoStruct);
         let result = test.lint_ast(
-            "test.ds",
+            "no_struct/test_detects_struct.ds",
             r#"
 struct Point {
     x: int32,
@@ -83,7 +83,7 @@ struct Point {
     fn test_detects_exported_struct() {
         let test = TestProgram::for_rule_without_prelude(NoStruct);
         let result = test.lint_ast(
-            "test.ds",
+            "no_struct/test_detects_exported_struct.ds",
             r#"
 export struct Point {
     x: int32,
@@ -98,7 +98,7 @@ export struct Point {
     fn test_allows_class() {
         let test = TestProgram::for_rule_without_prelude(NoStruct);
         let result = test.lint_ast(
-            "test.ts",
+            "no_struct/test_allows_class.ts",
             r#"
 class MyClass {
     foo() {}
@@ -112,7 +112,7 @@ class MyClass {
     fn test_allows_interface() {
         let test = TestProgram::for_rule_without_prelude(NoStruct);
         let result = test.lint_ast(
-            "test.ts",
+            "no_struct/test_allows_interface.ts",
             r#"
 interface MyInterface {
     foo(): void;
@@ -126,7 +126,7 @@ interface MyInterface {
     fn test_allows_type() {
         let test = TestProgram::for_rule_without_prelude(NoStruct);
         let result = test.lint_ast(
-            "test.ts",
+            "no_struct/test_allows_type.ts",
             r#"
 type Point = { x: number, y: number };
 "#,

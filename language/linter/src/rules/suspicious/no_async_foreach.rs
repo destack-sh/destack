@@ -193,7 +193,7 @@ mod tests {
     fn test_flags_async_foreach() {
         let test = TestProgram::for_rule_without_prelude(NoAsyncForeach);
         let result = test.lint_dir(
-            "test.ds",
+            "no_async_foreach/test_flags_async_foreach.ds",
             r#"
 let items = [1, 2, 3];
 items.forEach(async (item) => {
@@ -208,7 +208,7 @@ items.forEach(async (item) => {
     fn test_allows_sync_foreach() {
         let test = TestProgram::for_rule_without_prelude(NoAsyncForeach);
         let result = test.lint_dir(
-            "test.ds",
+            "no_async_foreach/test_allows_sync_foreach.ds",
             r#"
 let items = [1, 2, 3];
 items.forEach((item) => {
@@ -223,7 +223,7 @@ items.forEach((item) => {
     fn test_allows_async_map() {
         let test = TestProgram::for_rule_without_prelude(NoAsyncForeach);
         let result = test.lint_dir(
-            "test.ds",
+            "no_async_foreach/test_allows_async_map.ds",
             r#"
 let items = [1, 2, 3];
 let results = items.map(async (item) => {

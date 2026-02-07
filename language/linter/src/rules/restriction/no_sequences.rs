@@ -68,7 +68,7 @@ mod tests {
     fn test_detects_sequence_expression() {
         let test = TestProgram::for_rule_without_prelude(NoSequences);
         let result = test.lint_ast(
-            "test.ts",
+            "no_sequences/test_detects_sequence_expression.ts",
             r#"
 let x = (1, 2, 3);
 "#,
@@ -80,7 +80,7 @@ let x = (1, 2, 3);
     fn test_allows_function_calls_with_multiple_args() {
         let test = TestProgram::for_rule_without_prelude(NoSequences);
         let result = test.lint_ast(
-            "test.ts",
+            "no_sequences/test_allows_function_calls_with_multiple_args.ts",
             r#"
 foo(1, 2, 3);
 "#,
@@ -92,7 +92,7 @@ foo(1, 2, 3);
     fn test_allows_array_literals() {
         let test = TestProgram::for_rule_without_prelude(NoSequences);
         let result = test.lint_ast(
-            "test.ts",
+            "no_sequences/test_allows_array_literals.ts",
             r#"
 let arr = [1, 2, 3];
 "#,
@@ -105,7 +105,7 @@ let arr = [1, 2, 3];
         let test = TestProgram::for_rule_without_prelude(NoSequences);
         // in .ds files, (1, 2) is a tuple, not a sequence
         let result = test.lint_ast(
-            "test.ds",
+            "no_sequences/test_allows_destack_tuples.ds",
             r#"
 let tuple = (1, 2, 3);
 "#,

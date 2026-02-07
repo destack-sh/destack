@@ -91,7 +91,7 @@ mod tests {
     fn test_single_arm_match_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferIfLet);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_if_let/test_single_arm_match_detected.ds",
             r#"
 function foo(x: int32?) {
     match (x) {
@@ -108,7 +108,7 @@ function foo(x: int32?) {
     fn test_if_let_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferIfLet);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_if_let/test_if_let_allowed.ds",
             r#"
 function foo(x: int32?) {
     if let Some(n) = x {
@@ -124,7 +124,7 @@ function foo(x: int32?) {
     fn test_multi_arm_match_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferIfLet);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_if_let/test_multi_arm_match_allowed.ds",
             r#"
 function foo(x: int32) {
     match (x) {

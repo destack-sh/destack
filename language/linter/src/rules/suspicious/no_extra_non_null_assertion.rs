@@ -86,7 +86,7 @@ mod tests {
     fn test_detects_double_assertion() {
         let test = TestProgram::for_rule_without_prelude(NoExtraNonNullAssertion);
         let result = test.lint_ast(
-            "test.ts",
+            "no_extra_non_null_assertion/test_detects_double_assertion.ts",
             r#"
 const x = value!!;
 "#,
@@ -99,7 +99,7 @@ const x = value!!;
     fn test_detects_triple_assertion() {
         let test = TestProgram::for_rule_without_prelude(NoExtraNonNullAssertion);
         let result = test.lint_ast(
-            "test.ts",
+            "no_extra_non_null_assertion/test_detects_triple_assertion.ts",
             r#"
 const x = value!!!;
 "#,
@@ -113,7 +113,7 @@ const x = value!!!;
     fn test_allows_single_assertion() {
         let test = TestProgram::for_rule_without_prelude(NoExtraNonNullAssertion);
         let result = test.lint_ast(
-            "test.ts",
+            "no_extra_non_null_assertion/test_allows_single_assertion.ts",
             r#"
 const x = value!;
 "#,
@@ -126,7 +126,7 @@ const x = value!;
     fn test_allows_no_assertion() {
         let test = TestProgram::for_rule_without_prelude(NoExtraNonNullAssertion);
         let result = test.lint_ast(
-            "test.ts",
+            "no_extra_non_null_assertion/test_allows_no_assertion.ts",
             r#"
 const x = value;
 "#,
@@ -139,7 +139,7 @@ const x = value;
     fn test_allows_assertion_on_different_values() {
         let test = TestProgram::for_rule_without_prelude(NoExtraNonNullAssertion);
         let result = test.lint_ast(
-            "test.ts",
+            "no_extra_non_null_assertion/test_allows_assertion_on_different_values.ts",
             r#"
 const x = a!.b!;
 "#,
@@ -152,7 +152,7 @@ const x = a!.b!;
     fn test_fix_removes_extra_assertion() {
         let test = TestProgram::for_rule_without_prelude(NoExtraNonNullAssertion);
         let result = test.lint_ast(
-            "test.ts",
+            "no_extra_non_null_assertion/test_fix_removes_extra_assertion.ts",
             r#"
 const x = value!!
 "#,

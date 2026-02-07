@@ -76,7 +76,10 @@ mod tests {
     fn test_detects_control_char_in_regex() {
         let test = TestProgram::for_rule_without_prelude(NoControlRegex);
         // use a hex escape to embed a control character
-        let result = test.lint_ast("test.ds", "/\x01/");
+        let result = test.lint_ast(
+            "no_control_regex/test_detects_control_char_in_regex.ds",
+            "/\x01/",
+        );
         test.result(result).assert_lint("no-control-regex");
     }
 
@@ -84,7 +87,7 @@ mod tests {
     fn test_allows_normal_regex() {
         let test = TestProgram::for_rule_without_prelude(NoControlRegex);
         let result = test.lint_ast(
-            "test.ds",
+            "no_control_regex/test_allows_normal_regex.ds",
             r#"
 let re = /abc/
 "#,
@@ -96,7 +99,7 @@ let re = /abc/
     fn test_allows_escaped_control_sequences() {
         let test = TestProgram::for_rule_without_prelude(NoControlRegex);
         let result = test.lint_ast(
-            "test.ds",
+            "no_control_regex/test_allows_escaped_control_sequences.ds",
             r#"
 let re = /\n\t\r/
 "#,
@@ -108,7 +111,7 @@ let re = /\n\t\r/
     fn test_allows_hex_escapes() {
         let test = TestProgram::for_rule_without_prelude(NoControlRegex);
         let result = test.lint_ast(
-            "test.ds",
+            "no_control_regex/test_allows_hex_escapes.ds",
             r#"
 let re = /\x00\x1F/
 "#,

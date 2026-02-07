@@ -226,7 +226,7 @@ mod tests {
     fn test_flags_map_flat() {
         let test = TestProgram::for_rule_with_prelude(PreferFlatMap);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_flat_map/test_flags_map_flat.ds",
             r#"
 let items = [[1, 2], [3, 4]];
 let flat = items.map(x => x).flat();
@@ -240,7 +240,7 @@ let flat = items.map(x => x).flat();
     fn test_flags_map_flat_one() {
         let test = TestProgram::for_rule_with_prelude(PreferFlatMap);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_flat_map/test_flags_map_flat_one.ds",
             r#"
 let items = [[1, 2], [3, 4]];
 let flat = items.map(x => x).flat(1);
@@ -254,7 +254,7 @@ let flat = items.map(x => x).flat(1);
     fn test_allows_map_flat_two() {
         let test = TestProgram::for_rule_with_prelude(PreferFlatMap);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_flat_map/test_allows_map_flat_two.ds",
             r#"
 let items = [[[1, 2]], [[3, 4]]];
 let flat = items.map(x => x).flat(2);
@@ -268,7 +268,7 @@ let flat = items.map(x => x).flat(2);
     fn test_allows_flat_alone() {
         let test = TestProgram::for_rule_with_prelude(PreferFlatMap);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_flat_map/test_allows_flat_alone.ds",
             r#"
 let items = [[1, 2], [3, 4]];
 let flat = items.flat();
@@ -282,7 +282,7 @@ let flat = items.flat();
     fn test_allows_non_adjacent() {
         let test = TestProgram::for_rule_with_prelude(PreferFlatMap);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_flat_map/test_allows_non_adjacent.ds",
             r#"
 let items = [[1, 2], [3, 4]];
 let flat = items.map(x => x).slice().flat();
@@ -296,7 +296,7 @@ let flat = items.map(x => x).slice().flat();
     fn test_allows_map_flat_zero() {
         let test = TestProgram::for_rule_with_prelude(PreferFlatMap);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_flat_map/test_allows_map_flat_zero.ds",
             r#"
 let items = [[1, 2], [3, 4]];
 let flat = items.map(x => x).flat(0);
@@ -310,7 +310,7 @@ let flat = items.map(x => x).flat(0);
     fn test_allows_flatmap_directly() {
         let test = TestProgram::for_rule_with_prelude(PreferFlatMap);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_flat_map/test_allows_flatmap_directly.ds",
             r#"
 let items = [[1, 2], [3, 4]];
 let flat = items.flatMap(x => x);

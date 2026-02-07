@@ -177,7 +177,7 @@ mod tests {
     fn test_flags_sort_without_compare() {
         let test = TestProgram::for_rule_without_prelude(RequireArraySortCompare);
         let result = test.lint_dir(
-            "test.ds",
+            "require_array_sort_compare/test_flags_sort_without_compare.ds",
             r#"
 let items = [3, 1, 2];
 items.sort();
@@ -191,7 +191,7 @@ items.sort();
     fn test_flags_sort_on_typed_array() {
         let test = TestProgram::for_rule_without_prelude(RequireArraySortCompare);
         let result = test.lint_dir(
-            "test.ds",
+            "require_array_sort_compare/test_flags_sort_on_typed_array.ds",
             r#"
 let items: number[] = [3, 1, 2];
 items.sort();
@@ -205,7 +205,7 @@ items.sort();
     fn test_allows_sort_with_compare() {
         let test = TestProgram::for_rule_without_prelude(RequireArraySortCompare);
         let result = test.lint_dir(
-            "test.ds",
+            "require_array_sort_compare/test_allows_sort_with_compare.ds",
             r#"
 let items = [3, 1, 2];
 items.sort((a, b) => a - b);
@@ -219,7 +219,7 @@ items.sort((a, b) => a - b);
     fn test_allows_sort_on_non_array() {
         let test = TestProgram::for_rule_without_prelude(RequireArraySortCompare);
         let result = test.lint_dir(
-            "test.ds",
+            "require_array_sort_compare/test_allows_sort_on_non_array.ds",
             r#"
 let custom = { sort: () => {} };
 custom.sort();
@@ -233,7 +233,7 @@ custom.sort();
     fn test_flags_string_array_sort() {
         let test = TestProgram::for_rule_without_prelude(RequireArraySortCompare);
         let result = test.lint_dir(
-            "test.ds",
+            "require_array_sort_compare/test_flags_string_array_sort.ds",
             r#"
 let names: string[] = ["c", "a", "b"];
 names.sort();

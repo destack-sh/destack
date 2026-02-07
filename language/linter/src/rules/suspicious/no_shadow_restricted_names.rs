@@ -180,7 +180,7 @@ mod tests {
     fn test_detects_nan_variable() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
         let result = test.lint_ast(
-            "test.ds",
+            "no_shadow_restricted_names/test_detects_nan_variable.ds",
             r#"
 let NaN = 0
 "#,
@@ -193,7 +193,7 @@ let NaN = 0
     fn test_detects_infinity_variable() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
         let result = test.lint_ast(
-            "test.ds",
+            "no_shadow_restricted_names/test_detects_infinity_variable.ds",
             r#"
 let Infinity = 100
 "#,
@@ -206,7 +206,7 @@ let Infinity = 100
     fn test_detects_arguments_param() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
         let result = test.lint_ast(
-            "test.ds",
+            "no_shadow_restricted_names/test_detects_arguments_param.ds",
             r#"
 function foo(arguments: int) {}
 "#,
@@ -219,7 +219,7 @@ function foo(arguments: int) {}
     fn test_detects_object_class() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
         let result = test.lint_ast(
-            "test.ds",
+            "no_shadow_restricted_names/test_detects_object_class.ds",
             r#"
 class Object {}
 "#,
@@ -232,7 +232,7 @@ class Object {}
     fn test_detects_array_function() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
         let result = test.lint_ast(
-            "test.ds",
+            "no_shadow_restricted_names/test_detects_array_function.ds",
             r#"
 function Array() {}
 "#,
@@ -245,7 +245,7 @@ function Array() {}
     fn test_allows_normal_names() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
         let result = test.lint_ast(
-            "test.ds",
+            "no_shadow_restricted_names/test_allows_normal_names.ds",
             r#"
 const x = 42
 let myVar = "hello"
@@ -260,7 +260,7 @@ function foo() {}
     fn test_allows_similar_names() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
         let result = test.lint_ast(
-            "test.ds",
+            "no_shadow_restricted_names/test_allows_similar_names.ds",
             r#"
 const undefinedValue = 42
 let isNaN = true
@@ -274,7 +274,7 @@ let isNaN = true
     fn test_detects_language_symbol_type() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
         let result = test.lint_ast(
-            "test.ds",
+            "no_shadow_restricted_names/test_detects_language_symbol_type.ds",
             r#"
 let Type = 42
 "#,
@@ -287,7 +287,7 @@ let Type = 42
     fn test_detects_language_symbol_add() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
         let result = test.lint_ast(
-            "test.ds",
+            "no_shadow_restricted_names/test_detects_language_symbol_add.ds",
             r#"
 struct Add {}
 "#,
@@ -300,7 +300,7 @@ struct Add {}
     fn test_detects_language_symbol_range() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
         let result = test.lint_ast(
-            "test.ds",
+            "no_shadow_restricted_names/test_detects_language_symbol_range.ds",
             r#"
 function Range() {}
 "#,

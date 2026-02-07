@@ -188,7 +188,7 @@ mod tests {
     fn test_flags_math_random() {
         let test = TestProgram::for_rule_with_prelude(NoInsecureRandom);
         let result = test.lint_dir(
-            "test.ds",
+            "no_insecure_random/test_flags_math_random.ds",
             r#"
 let value = Math.random();
 "#,
@@ -201,7 +201,7 @@ let value = Math.random();
     fn test_flags_global_math_random() {
         let test = TestProgram::for_rule_with_prelude(NoInsecureRandom);
         let result = test.lint_dir(
-            "test.ds",
+            "no_insecure_random/test_flags_global_math_random.ds",
             r#"
 let value = globalThis.Math.random();
 "#,
@@ -214,7 +214,7 @@ let value = globalThis.Math.random();
     fn test_allows_other_math_call() {
         let test = TestProgram::for_rule_with_prelude(NoInsecureRandom);
         let result = test.lint_dir(
-            "test.ds",
+            "no_insecure_random/test_allows_other_math_call.ds",
             r#"
 let value = Math.max(1, 2);
 "#,

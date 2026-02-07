@@ -199,6 +199,8 @@ pub struct LinterOptions {
     pub categories: IndexMap<LintCategory, LintSeverity>,
     /// Individual rule severity overrides.
     pub overrides: IndexMap<String, LintSeverity>,
+    /// Include declaration files when evaluating declaration-gated rules.
+    pub include_declaration_files: bool,
 
     // complexity thresholds
     /// Maximum boolean parameters or fields.
@@ -266,6 +268,7 @@ impl Default for LinterOptions {
             preset: LintPreset::Recommended,
             categories: IndexMap::new(),
             overrides: IndexMap::new(),
+            include_declaration_files: false,
             // complexity
             max_booleans: 3,
             max_branching_factor: 10,
@@ -340,6 +343,12 @@ impl LinterOptions {
     /// Set a rule's severity.
     pub fn with_rule(mut self, rule: impl Into<String>, severity: LintSeverity) -> Self {
         self.overrides.insert(rule.into(), severity);
+        self
+    }
+
+    /// Include declaration files when evaluating declaration-gated rules.
+    pub fn with_include_declaration_files(mut self, include: bool) -> Self {
+        self.include_declaration_files = include;
         self
     }
 

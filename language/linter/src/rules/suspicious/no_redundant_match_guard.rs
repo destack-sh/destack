@@ -90,7 +90,7 @@ mod tests {
     fn test_detects_guard_true() {
         let test = TestProgram::for_rule_without_prelude(NoRedundantMatchGuard);
         let result = test.lint_ast(
-            "test.ds",
+            "no_redundant_match_guard/test_detects_guard_true.ds",
             r#"
 match (x) {
     1 if true => "one"
@@ -105,7 +105,7 @@ match (x) {
     fn test_detects_guard_false() {
         let test = TestProgram::for_rule_without_prelude(NoRedundantMatchGuard);
         let result = test.lint_ast(
-            "test.ds",
+            "no_redundant_match_guard/test_detects_guard_false.ds",
             r#"
 match (x) {
     1 if false => "one"
@@ -120,7 +120,7 @@ match (x) {
     fn test_detects_guard_not_false() {
         let test = TestProgram::for_rule_without_prelude(NoRedundantMatchGuard);
         let result = test.lint_ast(
-            "test.ds",
+            "no_redundant_match_guard/test_detects_guard_not_false.ds",
             r#"
 match (x) {
     1 if !false => "one"
@@ -135,7 +135,7 @@ match (x) {
     fn test_detects_guard_zero() {
         let test = TestProgram::for_rule_without_prelude(NoRedundantMatchGuard);
         let result = test.lint_ast(
-            "test.ds",
+            "no_redundant_match_guard/test_detects_guard_zero.ds",
             r#"
 match (x) {
     1 if 0 => "one"
@@ -150,7 +150,7 @@ match (x) {
     fn test_detects_guard_one() {
         let test = TestProgram::for_rule_without_prelude(NoRedundantMatchGuard);
         let result = test.lint_ast(
-            "test.ds",
+            "no_redundant_match_guard/test_detects_guard_one.ds",
             r#"
 match (x) {
     1 if 1 => "one"
@@ -165,7 +165,7 @@ match (x) {
     fn test_allows_variable_guard() {
         let test = TestProgram::for_rule_without_prelude(NoRedundantMatchGuard);
         let result = test.lint_ast(
-            "test.ds",
+            "no_redundant_match_guard/test_allows_variable_guard.ds",
             r#"
 match (x) {
     1 if y > 0 => "one"
@@ -181,7 +181,7 @@ match (x) {
     fn test_allows_no_guard() {
         let test = TestProgram::for_rule_without_prelude(NoRedundantMatchGuard);
         let result = test.lint_ast(
-            "test.ds",
+            "no_redundant_match_guard/test_allows_no_guard.ds",
             r#"
 match (x) {
     1 => "one"

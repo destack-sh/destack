@@ -107,7 +107,7 @@ mod tests {
     fn test_wildcard_with_call_allowed() {
         let test = TestProgram::for_rule_without_prelude(NoUselessUnderscoreBinding);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_underscore_binding/test_wildcard_with_call_allowed.ds",
             r#"
 let _ = doSomething()
 "#,
@@ -120,7 +120,7 @@ let _ = doSomething()
     fn test_wildcard_with_literal_detected() {
         let test = TestProgram::for_rule_without_prelude(NoUselessUnderscoreBinding);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_underscore_binding/test_wildcard_with_literal_detected.ds",
             r#"
 let _ = 42
 "#,
@@ -133,7 +133,7 @@ let _ = 42
     fn test_underscore_name_with_literal_detected() {
         let test = TestProgram::for_rule_without_prelude(NoUselessUnderscoreBinding);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_underscore_binding/test_underscore_name_with_literal_detected.ds",
             r#"
 let _unused = "hello"
 "#,
@@ -146,7 +146,7 @@ let _unused = "hello"
     fn test_underscore_name_with_call_allowed() {
         let test = TestProgram::for_rule_without_prelude(NoUselessUnderscoreBinding);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_underscore_binding/test_underscore_name_with_call_allowed.ds",
             r#"
 let _result = fetchData()
 "#,
@@ -159,7 +159,7 @@ let _result = fetchData()
     fn test_normal_binding_with_literal_allowed() {
         let test = TestProgram::for_rule_without_prelude(NoUselessUnderscoreBinding);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_underscore_binding/test_normal_binding_with_literal_allowed.ds",
             r#"
 let x = 42
 "#,
@@ -172,7 +172,7 @@ let x = 42
     fn test_wildcard_with_variable_detected() {
         let test = TestProgram::for_rule_without_prelude(NoUselessUnderscoreBinding);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_underscore_binding/test_wildcard_with_variable_detected.ds",
             r#"
 let _ = someVariable
 "#,
@@ -185,7 +185,7 @@ let _ = someVariable
     fn test_wildcard_with_await_allowed() {
         let test = TestProgram::for_rule_without_prelude(NoUselessUnderscoreBinding);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_underscore_binding/test_wildcard_with_await_allowed.ds",
             r#"
 async function foo() {
     let _ = await promise

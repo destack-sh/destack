@@ -169,7 +169,7 @@ mod tests {
     fn test_flags_async_promise_executor() {
         let test = TestProgram::for_rule_with_prelude(NoAsyncPromiseExecutor);
         let result = test.lint_dir(
-            "test.ds",
+            "no_async_promise_executor/test_flags_async_promise_executor.ds",
             r#"
 let task = new Promise(async (resolve, reject) => {
     resolve(1);
@@ -183,7 +183,7 @@ let task = new Promise(async (resolve, reject) => {
     fn test_allows_sync_promise_executor() {
         let test = TestProgram::for_rule_with_prelude(NoAsyncPromiseExecutor);
         let result = test.lint_dir(
-            "test.ds",
+            "no_async_promise_executor/test_allows_sync_promise_executor.ds",
             r#"
 let task = new Promise((resolve, reject) => {
     resolve(1);
@@ -198,7 +198,7 @@ let task = new Promise((resolve, reject) => {
     fn test_flags_async_executor_reference() {
         let test = TestProgram::for_rule_with_prelude(NoAsyncPromiseExecutor);
         let result = test.lint_dir(
-            "test.ds",
+            "no_async_promise_executor/test_flags_async_executor_reference.ds",
             r#"
 async function executor(resolve, reject) {
     resolve(1);

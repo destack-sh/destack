@@ -82,7 +82,7 @@ mod tests {
     fn test_detects_export_star() {
         let test = TestProgram::for_rule_without_prelude(NoReExportAll);
         let result = test.lint_ast(
-            "test.ds",
+            "no_re_export_all/test_detects_export_star.ds",
             r#"
 export * from "./module"
 "#,
@@ -94,7 +94,7 @@ export * from "./module"
     fn test_detects_export_star_from_path() {
         let test = TestProgram::for_rule_without_prelude(NoReExportAll);
         let result = test.lint_ast(
-            "test.ds",
+            "no_re_export_all/test_detects_export_star_from_path.ds",
             r#"
 export * from "some/path"
 "#,
@@ -106,7 +106,7 @@ export * from "some/path"
     fn test_allows_export_star_as() {
         let test = TestProgram::for_rule_without_prelude(NoReExportAll);
         let result = test.lint_ast(
-            "test.ds",
+            "no_re_export_all/test_allows_export_star_as.ds",
             r#"
 export * as utils from "./utils"
 "#,
@@ -118,7 +118,7 @@ export * as utils from "./utils"
     fn test_allows_named_exports() {
         let test = TestProgram::for_rule_without_prelude(NoReExportAll);
         let result = test.lint_ast(
-            "test.ds",
+            "no_re_export_all/test_allows_named_exports.ds",
             r#"
 export { foo, bar } from "./module"
 "#,
@@ -130,7 +130,7 @@ export { foo, bar } from "./module"
     fn test_allows_default_export() {
         let test = TestProgram::for_rule_without_prelude(NoReExportAll);
         let result = test.lint_ast(
-            "test.ds",
+            "no_re_export_all/test_allows_default_export.ds",
             r#"
 export default foo
 "#,
@@ -142,7 +142,7 @@ export default foo
     fn test_allows_local_exports() {
         let test = TestProgram::for_rule_without_prelude(NoReExportAll);
         let result = test.lint_ast(
-            "test.ds",
+            "no_re_export_all/test_allows_local_exports.ds",
             r#"
 export { foo, bar }
 "#,

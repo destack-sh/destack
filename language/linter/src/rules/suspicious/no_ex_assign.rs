@@ -177,7 +177,7 @@ mod tests {
     fn test_flags_exception_reassignment() {
         let test = TestProgram::for_rule_without_prelude(NoExAssign);
         let result = test.lint_ast(
-            "test.ds",
+            "no_ex_assign/test_flags_exception_reassignment.ds",
             r#"
 try {
     riskyOperation();
@@ -193,7 +193,7 @@ try {
     fn test_flags_exception_reassignment_with_new() {
         let test = TestProgram::for_rule_without_prelude(NoExAssign);
         let result = test.lint_ast(
-            "test.ds",
+            "no_ex_assign/test_flags_exception_reassignment_with_new.ds",
             r#"
 try {
     riskyOperation();
@@ -209,7 +209,7 @@ try {
     fn test_allows_catch_without_reassignment() {
         let test = TestProgram::for_rule_without_prelude(NoExAssign);
         let result = test.lint_ast(
-            "test.ds",
+            "no_ex_assign/test_allows_catch_without_reassignment.ds",
             r#"
 try {
     riskyOperation();
@@ -226,7 +226,7 @@ try {
     fn test_allows_different_variable_assignment() {
         let test = TestProgram::for_rule_without_prelude(NoExAssign);
         let result = test.lint_ast(
-            "test.ds",
+            "no_ex_assign/test_allows_different_variable_assignment.ds",
             r#"
 try {
     riskyOperation();

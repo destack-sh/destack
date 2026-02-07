@@ -105,7 +105,7 @@ mod tests {
     fn test_detects_simple_self_assign() {
         let test = TestProgram::for_rule_without_prelude(NoSelfAssign);
         let result = test.lint_ast(
-            "test.ds",
+            "no_self_assign/test_detects_simple_self_assign.ds",
             r#"
 x = x
 "#,
@@ -117,7 +117,7 @@ x = x
     fn test_detects_member_self_assign() {
         let test = TestProgram::for_rule_without_prelude(NoSelfAssign);
         let result = test.lint_ast(
-            "test.ds",
+            "no_self_assign/test_detects_member_self_assign.ds",
             r#"
 obj.x = obj.x
 "#,
@@ -129,7 +129,7 @@ obj.x = obj.x
     fn test_detects_index_self_assign() {
         let test = TestProgram::for_rule_without_prelude(NoSelfAssign);
         let result = test.lint_ast(
-            "test.ds",
+            "no_self_assign/test_detects_index_self_assign.ds",
             r#"
 arr[0] = arr[0]
 "#,
@@ -141,7 +141,7 @@ arr[0] = arr[0]
     fn test_allows_different_assignment() {
         let test = TestProgram::for_rule_without_prelude(NoSelfAssign);
         let result = test.lint_ast(
-            "test.ds",
+            "no_self_assign/test_allows_different_assignment.ds",
             r#"
 x = y
 "#,
@@ -153,7 +153,7 @@ x = y
     fn test_allows_different_member_assignment() {
         let test = TestProgram::for_rule_without_prelude(NoSelfAssign);
         let result = test.lint_ast(
-            "test.ds",
+            "no_self_assign/test_allows_different_member_assignment.ds",
             r#"
 obj.x = obj.y
 "#,
@@ -165,7 +165,7 @@ obj.x = obj.y
     fn test_allows_compound_assignment() {
         let test = TestProgram::for_rule_without_prelude(NoSelfAssign);
         let result = test.lint_ast(
-            "test.ds",
+            "no_self_assign/test_allows_compound_assignment.ds",
             r#"
 x += x
 "#,
@@ -177,7 +177,7 @@ x += x
     fn test_fix_self_assign() {
         let test = TestProgram::for_rule_without_prelude(NoSelfAssign);
         let result = test.lint_ast(
-            "test.ds",
+            "no_self_assign/test_fix_self_assign.ds",
             r#"
 x = x
 "#,

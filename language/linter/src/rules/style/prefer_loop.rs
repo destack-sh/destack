@@ -121,7 +121,7 @@ mod tests {
     fn test_detects_while_true() {
         let test = TestProgram::for_rule_without_prelude(PreferLoop);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_loop/test_detects_while_true.ds",
             r#"
 while (true) {
     break
@@ -135,7 +135,7 @@ while (true) {
     fn test_detects_while_one() {
         let test = TestProgram::for_rule_without_prelude(PreferLoop);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_loop/test_detects_while_one.ds",
             r#"
 while (1) {
     break
@@ -149,7 +149,7 @@ while (1) {
     fn test_detects_for_empty() {
         let test = TestProgram::for_rule_without_prelude(PreferLoop);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_loop/test_detects_for_empty.ds",
             r#"
 for (;;) {
     break
@@ -163,7 +163,7 @@ for (;;) {
     fn test_allows_loop() {
         let test = TestProgram::for_rule_without_prelude(PreferLoop);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_loop/test_allows_loop.ds",
             r#"
 loop {
     break
@@ -177,7 +177,7 @@ loop {
     fn test_allows_while_condition() {
         let test = TestProgram::for_rule_without_prelude(PreferLoop);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_loop/test_allows_while_condition.ds",
             r#"
 while (x > 0) {
     x = x - 1
@@ -191,7 +191,7 @@ while (x > 0) {
     fn test_allows_for_with_condition() {
         let test = TestProgram::for_rule_without_prelude(PreferLoop);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_loop/test_allows_for_with_condition.ds",
             r#"
 for (let i = 0; i < 10; i++) {
     console.log(i)
@@ -206,7 +206,7 @@ for (let i = 0; i < 10; i++) {
         let test = TestProgram::for_rule_without_prelude(PreferLoop);
         // for loop with just initialization is not infinite
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_loop/test_allows_for_with_partial.ds",
             r#"
 for (let i = 0;;) {
     if (i > 10) break
@@ -221,7 +221,7 @@ for (let i = 0;;) {
     fn test_fix_while_true() {
         let test = TestProgram::for_rule_without_prelude(PreferLoop);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_loop/test_fix_while_true.ds",
             r#"
 while (true) {
     break
@@ -243,7 +243,7 @@ loop {
     fn test_fix_for_empty() {
         let test = TestProgram::for_rule_without_prelude(PreferLoop);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_loop/test_fix_for_empty.ds",
             r#"
 for (;;) {
     break

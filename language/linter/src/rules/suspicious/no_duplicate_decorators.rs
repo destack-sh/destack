@@ -113,7 +113,7 @@ mod tests {
     fn test_flags_duplicate_decorator() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateDecorators);
         let result = test.lint_ast(
-            "test.ds",
+            "no_duplicate_decorators/test_flags_duplicate_decorator.ds",
             r#"
 @inline
 @inline
@@ -127,7 +127,7 @@ function foo() {}
     fn test_flags_duplicate_decorator_with_same_args() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateDecorators);
         let result = test.lint_ast(
-            "test.ds",
+            "no_duplicate_decorators/test_flags_duplicate_decorator_with_same_args.ds",
             r#"
 @cache(100)
 @cache(100)
@@ -141,7 +141,7 @@ function foo() {}
     fn test_allows_different_decorators() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateDecorators);
         let result = test.lint_ast(
-            "test.ds",
+            "no_duplicate_decorators/test_allows_different_decorators.ds",
             r#"
 @inline
 @deprecated
@@ -156,7 +156,7 @@ function foo() {}
     fn test_allows_same_decorator_different_args() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateDecorators);
         let result = test.lint_ast(
-            "test.ds",
+            "no_duplicate_decorators/test_allows_same_decorator_different_args.ds",
             r#"
 @validate({ min: 1 })
 @validate({ max: 100 })
@@ -171,7 +171,7 @@ function foo() {}
     fn test_allows_same_decorator_different_numeric_args() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateDecorators);
         let result = test.lint_ast(
-            "test.ds",
+            "no_duplicate_decorators/test_allows_same_decorator_different_numeric_args.ds",
             r#"
 @cache(10)
 @cache(20)
@@ -186,7 +186,7 @@ function foo() {}
     fn test_allows_single_decorator() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateDecorators);
         let result = test.lint_ast(
-            "test.ds",
+            "no_duplicate_decorators/test_allows_single_decorator.ds",
             r#"
 @inline
 function foo() {}
@@ -200,7 +200,7 @@ function foo() {}
     fn test_flags_triple_decorator() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateDecorators);
         let result = test.lint_ast(
-            "test.ds",
+            "no_duplicate_decorators/test_flags_triple_decorator.ds",
             r#"
 @inline
 @inline
@@ -216,7 +216,7 @@ function foo() {}
     fn test_flags_only_exact_duplicates_among_multiple() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateDecorators);
         let result = test.lint_ast(
-            "test.ds",
+            "no_duplicate_decorators/test_flags_only_exact_duplicates_among_multiple.ds",
             r#"
 @cache(10)
 @cache(20)

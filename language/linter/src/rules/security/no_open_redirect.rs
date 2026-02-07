@@ -297,7 +297,7 @@ mod tests {
     fn test_flags_location_href_with_variable() {
         let test = TestProgram::for_rule_with_prelude(NoOpenRedirect);
         let result = test.lint_dir(
-            "test.ds",
+            "no_open_redirect/test_flags_location_href_with_variable.ds",
             r#"
 let url = location.search;
 location.href = url;
@@ -311,7 +311,7 @@ location.href = url;
     fn test_flags_location_assign_with_variable() {
         let test = TestProgram::for_rule_with_prelude(NoOpenRedirect);
         let result = test.lint_dir(
-            "test.ds",
+            "no_open_redirect/test_flags_location_assign_with_variable.ds",
             r#"
 let url = location.search;
 location.assign(url);
@@ -325,7 +325,7 @@ location.assign(url);
     fn test_flags_location_replace_with_variable() {
         let test = TestProgram::for_rule_with_prelude(NoOpenRedirect);
         let result = test.lint_dir(
-            "test.ds",
+            "no_open_redirect/test_flags_location_replace_with_variable.ds",
             r#"
 let url = location.hash;
 location.replace(url);
@@ -339,7 +339,7 @@ location.replace(url);
     fn test_allows_literal_url() {
         let test = TestProgram::for_rule_with_prelude(NoOpenRedirect);
         let result = test.lint_dir(
-            "test.ds",
+            "no_open_redirect/test_allows_literal_url.ds",
             r#"
 location.href = "https://example.com";
 "#,
@@ -352,7 +352,7 @@ location.href = "https://example.com";
     fn test_allows_literal_in_assign() {
         let test = TestProgram::for_rule_with_prelude(NoOpenRedirect);
         let result = test.lint_dir(
-            "test.ds",
+            "no_open_redirect/test_allows_literal_in_assign.ds",
             r#"
 location.assign("/dashboard");
 "#,

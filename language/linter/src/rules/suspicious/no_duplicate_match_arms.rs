@@ -101,7 +101,7 @@ mod tests {
     fn test_detects_duplicate_match_arms() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateMatchArms);
         let result = test.lint_ast(
-            "test.ds",
+            "no_duplicate_match_arms/test_detects_duplicate_match_arms.ds",
             r#"
 match (x) {
     1 => foo()
@@ -116,7 +116,7 @@ match (x) {
     fn test_allows_different_bodies() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateMatchArms);
         let result = test.lint_ast(
-            "test.ds",
+            "no_duplicate_match_arms/test_allows_different_bodies.ds",
             r#"
 match (x) {
     1 => foo()
@@ -132,7 +132,7 @@ match (x) {
     fn test_detects_duplicate_literals() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateMatchArms);
         let result = test.lint_ast(
-            "test.ds",
+            "no_duplicate_match_arms/test_detects_duplicate_literals.ds",
             r#"
 match (x) {
     1 => 42

@@ -246,7 +246,7 @@ mod tests {
     fn test_flags_spread_in_reduce() {
         let test = TestProgram::for_rule_without_prelude(NoAccumulatingSpread);
         let result = test.lint_dir(
-            "test.ds",
+            "no_accumulating_spread/test_flags_spread_in_reduce.ds",
             r#"
 let items = [1, 2, 3];
 let doubled = items.reduce((acc, x) => [...acc, x * 2], []);
@@ -260,7 +260,7 @@ let doubled = items.reduce((acc, x) => [...acc, x * 2], []);
     fn test_flags_spread_at_end() {
         let test = TestProgram::for_rule_without_prelude(NoAccumulatingSpread);
         let result = test.lint_dir(
-            "test.ds",
+            "no_accumulating_spread/test_flags_spread_at_end.ds",
             r#"
 let items = [1, 2, 3];
 let reversed = items.reduce((acc, x) => [x, ...acc], []);
@@ -274,7 +274,7 @@ let reversed = items.reduce((acc, x) => [x, ...acc], []);
     fn test_flags_spread_in_block_body() {
         let test = TestProgram::for_rule_without_prelude(NoAccumulatingSpread);
         let result = test.lint_dir(
-            "test.ds",
+            "no_accumulating_spread/test_flags_spread_in_block_body.ds",
             r#"
 let items = [1, 2, 3];
 let doubled = items.reduce((acc, x) => {
@@ -290,7 +290,7 @@ let doubled = items.reduce((acc, x) => {
     fn test_allows_push_mutation() {
         let test = TestProgram::for_rule_without_prelude(NoAccumulatingSpread);
         let result = test.lint_dir(
-            "test.ds",
+            "no_accumulating_spread/test_allows_push_mutation.ds",
             r#"
 let items = [1, 2, 3];
 let doubled = items.reduce((acc, x) => {
@@ -307,7 +307,7 @@ let doubled = items.reduce((acc, x) => {
     fn test_allows_spread_outside_reduce() {
         let test = TestProgram::for_rule_without_prelude(NoAccumulatingSpread);
         let result = test.lint_dir(
-            "test.ds",
+            "no_accumulating_spread/test_allows_spread_outside_reduce.ds",
             r#"
 let items = [1, 2, 3];
 let more = [0, ...items, 4];
@@ -321,7 +321,7 @@ let more = [0, ...items, 4];
     fn test_allows_map() {
         let test = TestProgram::for_rule_without_prelude(NoAccumulatingSpread);
         let result = test.lint_dir(
-            "test.ds",
+            "no_accumulating_spread/test_allows_map.ds",
             r#"
 let items = [1, 2, 3];
 let doubled = items.map((x) => x * 2);

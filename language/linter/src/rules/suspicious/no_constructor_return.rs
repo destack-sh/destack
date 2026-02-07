@@ -132,7 +132,7 @@ mod tests {
     fn test_detects_return_value_in_constructor() {
         let test = TestProgram::for_rule_without_prelude(NoConstructorReturn);
         let result = test.lint_ast(
-            "test.ds",
+            "no_constructor_return/test_detects_return_value_in_constructor.ds",
             r#"
 class Foo {
     constructor() {
@@ -148,7 +148,7 @@ class Foo {
     fn test_detects_return_value_in_if() {
         let test = TestProgram::for_rule_without_prelude(NoConstructorReturn);
         let result = test.lint_ast(
-            "test.ds",
+            "no_constructor_return/test_detects_return_value_in_if.ds",
             r#"
 class Foo {
     constructor(x: boolean) {
@@ -166,7 +166,7 @@ class Foo {
     fn test_allows_bare_return() {
         let test = TestProgram::for_rule_without_prelude(NoConstructorReturn);
         let result = test.lint_ast(
-            "test.ds",
+            "no_constructor_return/test_allows_bare_return.ds",
             r#"
 class Foo {
     constructor(x: boolean) {
@@ -185,7 +185,7 @@ class Foo {
     fn test_allows_constructor_without_return() {
         let test = TestProgram::for_rule_without_prelude(NoConstructorReturn);
         let result = test.lint_ast(
-            "test.ds",
+            "no_constructor_return/test_allows_constructor_without_return.ds",
             r#"
 class Foo {
     constructor() {
@@ -201,7 +201,7 @@ class Foo {
     fn test_allows_return_in_nested_function() {
         let test = TestProgram::for_rule_without_prelude(NoConstructorReturn);
         let result = test.lint_ast(
-            "test.ds",
+            "no_constructor_return/test_allows_return_in_nested_function.ds",
             r#"
 class Foo {
     constructor() {

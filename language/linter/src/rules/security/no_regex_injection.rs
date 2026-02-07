@@ -206,7 +206,7 @@ mod tests {
     fn test_flags_new_regexp_with_variable() {
         let test = TestProgram::for_rule_with_prelude(NoRegexInjection);
         let result = test.lint_dir(
-            "test.ds",
+            "no_regex_injection/test_flags_new_regexp_with_variable.ds",
             r#"
 let pattern = getUserInput();
 let regex = new RegExp(pattern);
@@ -220,7 +220,7 @@ let regex = new RegExp(pattern);
     fn test_flags_regexp_call_with_variable() {
         let test = TestProgram::for_rule_with_prelude(NoRegexInjection);
         let result = test.lint_dir(
-            "test.ds",
+            "no_regex_injection/test_flags_regexp_call_with_variable.ds",
             r#"
 let pattern = getUserInput();
 let regex = RegExp(pattern);
@@ -234,7 +234,7 @@ let regex = RegExp(pattern);
     fn test_flags_new_regexp_with_concatenation() {
         let test = TestProgram::for_rule_with_prelude(NoRegexInjection);
         let result = test.lint_dir(
-            "test.ds",
+            "no_regex_injection/test_flags_new_regexp_with_concatenation.ds",
             r#"
 let input = "user";
 let regex = new RegExp("^" + input + "$");
@@ -248,7 +248,7 @@ let regex = new RegExp("^" + input + "$");
     fn test_allows_literal_pattern() {
         let test = TestProgram::for_rule_with_prelude(NoRegexInjection);
         let result = test.lint_dir(
-            "test.ds",
+            "no_regex_injection/test_allows_literal_pattern.ds",
             r#"
 let regex = new RegExp("^[a-z]+$");
 "#,
@@ -261,7 +261,7 @@ let regex = new RegExp("^[a-z]+$");
     fn test_allows_literal_pattern_call() {
         let test = TestProgram::for_rule_with_prelude(NoRegexInjection);
         let result = test.lint_dir(
-            "test.ds",
+            "no_regex_injection/test_allows_literal_pattern_call.ds",
             r#"
 let regex = RegExp("\\d+");
 "#,

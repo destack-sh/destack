@@ -166,7 +166,7 @@ mod tests {
             .with_options(|options| options.max_cyclomatic_complexity = 20);
         // create a function with 21+ decision points to exceed limit of 20
         let result = test.lint_ast(
-            "test.ds",
+            "cyclomatic_complexity/test_detects_high_complexity.ds",
             r#"
 function complex(a: bool) {
     if (a) { x() }
@@ -201,7 +201,7 @@ function complex(a: bool) {
     fn test_allows_simple_function() {
         let test = TestProgram::for_rule_without_prelude(CyclomaticComplexity);
         let result = test.lint_ast(
-            "test.ds",
+            "cyclomatic_complexity/test_allows_simple_function.ds",
             r#"
 function simple(x: int32): int32 {
     if (x > 0) {
@@ -219,7 +219,7 @@ function simple(x: int32): int32 {
         let test = TestProgram::for_rule_without_prelude(CyclomaticComplexity)
             .with_options(|opts| opts.max_cyclomatic_complexity = 20);
         let result = test.lint_ast(
-            "test.ds",
+            "cyclomatic_complexity/test_counts_logical_operators.ds",
             r#"
 function manyConditions(a: bool): bool {
     return a && a && a && a && a && a && a && a && a && a && a && a && a && a && a && a && a && a && a && a && a
@@ -234,7 +234,7 @@ function manyConditions(a: bool): bool {
     fn test_counts_match_arms() {
         let test = TestProgram::for_rule_without_prelude(CyclomaticComplexity);
         let result = test.lint_ast(
-            "test.ds",
+            "cyclomatic_complexity/test_counts_match_arms.ds",
             r#"
 function manyMatches(x: int32): string {
     match x {
@@ -256,7 +256,7 @@ function manyMatches(x: int32): string {
     fn test_counts_ternary() {
         let test = TestProgram::for_rule_without_prelude(CyclomaticComplexity);
         let result = test.lint_ast(
-            "test.ds",
+            "cyclomatic_complexity/test_counts_ternary.ds",
             r#"
 function nested(a: bool, b: bool): int32 {
     return a ? (b ? 1 : 2) : (b ? 3 : 4)
@@ -271,7 +271,7 @@ function nested(a: bool, b: bool): int32 {
     fn test_counts_try_catch() {
         let test = TestProgram::for_rule_without_prelude(CyclomaticComplexity);
         let result = test.lint_ast(
-            "test.ds",
+            "cyclomatic_complexity/test_counts_try_catch.ds",
             r#"
 function withTry() {
     try {

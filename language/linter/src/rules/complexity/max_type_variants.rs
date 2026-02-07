@@ -157,7 +157,7 @@ mod tests {
         let test = TestProgram::for_rule_without_prelude(MaxTypeVariants)
             .with_options(|options| options.max_type_variants = 5);
         let result = test.lint_ast(
-            "test.ds",
+            "max_type_variants/test_detects_too_many_union_members.ds",
             r#"
 type BigUnion = A | B | C | D | E | F;
 "#,
@@ -169,7 +169,7 @@ type BigUnion = A | B | C | D | E | F;
     fn test_allows_few_union_members() {
         let test = TestProgram::for_rule_without_prelude(MaxTypeVariants);
         let result = test.lint_ast(
-            "test.ds",
+            "max_type_variants/test_allows_few_union_members.ds",
             r#"
 type SmallUnion = A | B | C;
 "#,
@@ -182,7 +182,7 @@ type SmallUnion = A | B | C;
         let test = TestProgram::for_rule_without_prelude(MaxTypeVariants)
             .with_options(|options| options.max_type_variants = 5);
         let result = test.lint_ast(
-            "test.ds",
+            "max_type_variants/test_allows_exactly_at_limit.ds",
             r#"
 type AtLimit = A | B | C | D | E;
 "#,
@@ -195,7 +195,7 @@ type AtLimit = A | B | C | D | E;
         let test = TestProgram::for_rule_without_prelude(MaxTypeVariants)
             .with_options(|options| options.max_type_variants = 3);
         let result = test.lint_ast(
-            "test.ds",
+            "max_type_variants/test_counts_in_function_parameter.ds",
             r#"
 function test(x: A | B | C | D): void {}
 "#,
@@ -208,7 +208,7 @@ function test(x: A | B | C | D): void {}
         let test = TestProgram::for_rule_without_prelude(MaxTypeVariants)
             .with_options(|options| options.max_type_variants = 3);
         let result = test.lint_ast(
-            "test.ds",
+            "max_type_variants/test_detects_too_many_enum_variants.ds",
             r#"
 enum TooMany {
     A,
@@ -225,7 +225,7 @@ enum TooMany {
     fn test_allows_few_enum_variants() {
         let test = TestProgram::for_rule_without_prelude(MaxTypeVariants);
         let result = test.lint_ast(
-            "test.ds",
+            "max_type_variants/test_allows_few_enum_variants.ds",
             r#"
 enum SmallEnum {
     A,

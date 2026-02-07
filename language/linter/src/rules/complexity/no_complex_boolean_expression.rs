@@ -168,7 +168,7 @@ mod tests {
     fn test_detects_double_negation() {
         let test = TestProgram::for_rule_without_prelude(NoComplexBooleanExpression);
         let result = test.lint_ast(
-            "test.ds",
+            "no_complex_boolean_expression/test_detects_double_negation.ds",
             r#"
 let x = !!value
 "#,
@@ -181,7 +181,7 @@ let x = !!value
     fn test_detects_redundant_and() {
         let test = TestProgram::for_rule_without_prelude(NoComplexBooleanExpression);
         let result = test.lint_ast(
-            "test.ds",
+            "no_complex_boolean_expression/test_detects_redundant_and.ds",
             r#"
 let x = a && a
 "#,
@@ -194,7 +194,7 @@ let x = a && a
     fn test_detects_redundant_or() {
         let test = TestProgram::for_rule_without_prelude(NoComplexBooleanExpression);
         let result = test.lint_ast(
-            "test.ds",
+            "no_complex_boolean_expression/test_detects_redundant_or.ds",
             r#"
 let x = b || b
 "#,
@@ -207,7 +207,7 @@ let x = b || b
     fn test_detects_contradiction_and() {
         let test = TestProgram::for_rule_without_prelude(NoComplexBooleanExpression);
         let result = test.lint_ast(
-            "test.ds",
+            "no_complex_boolean_expression/test_detects_contradiction_and.ds",
             r#"
 let x = a && !a
 "#,
@@ -220,7 +220,7 @@ let x = a && !a
     fn test_detects_contradiction_or() {
         let test = TestProgram::for_rule_without_prelude(NoComplexBooleanExpression);
         let result = test.lint_ast(
-            "test.ds",
+            "no_complex_boolean_expression/test_detects_contradiction_or.ds",
             r#"
 let x = a || !a
 "#,
@@ -233,7 +233,7 @@ let x = a || !a
     fn test_allows_valid_expressions() {
         let test = TestProgram::for_rule_without_prelude(NoComplexBooleanExpression);
         let result = test.lint_ast(
-            "test.ds",
+            "no_complex_boolean_expression/test_allows_valid_expressions.ds",
             r#"
 let x = a && b
 let y = a || b

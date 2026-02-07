@@ -71,28 +71,40 @@ mod tests {
     #[test]
     fn test_detects_star_import() {
         let test = TestProgram::for_rule_without_prelude(NoWildcardImports);
-        let result = test.lint_ast("test.ts", r#"import * as foo from "foo";"#);
+        let result = test.lint_ast(
+            "no_wildcard_imports/test_detects_star_import.ts",
+            r#"import * as foo from "foo";"#,
+        );
         test.result(result).assert_lint("no-wildcard-imports");
     }
 
     #[test]
     fn test_allows_named_import() {
         let test = TestProgram::for_rule_without_prelude(NoWildcardImports);
-        let result = test.lint_ast("test.ts", r#"import { foo, bar } from "foo";"#);
+        let result = test.lint_ast(
+            "no_wildcard_imports/test_allows_named_import.ts",
+            r#"import { foo, bar } from "foo";"#,
+        );
         test.result(result).assert_no_lint("no-wildcard-imports");
     }
 
     #[test]
     fn test_allows_default_import() {
         let test = TestProgram::for_rule_without_prelude(NoWildcardImports);
-        let result = test.lint_ast("test.ts", r#"import foo from "foo";"#);
+        let result = test.lint_ast(
+            "no_wildcard_imports/test_allows_default_import.ts",
+            r#"import foo from "foo";"#,
+        );
         test.result(result).assert_no_lint("no-wildcard-imports");
     }
 
     #[test]
     fn test_allows_side_effect_import() {
         let test = TestProgram::for_rule_without_prelude(NoWildcardImports);
-        let result = test.lint_ast("test.ts", r#"import "foo";"#);
+        let result = test.lint_ast(
+            "no_wildcard_imports/test_allows_side_effect_import.ts",
+            r#"import "foo";"#,
+        );
         test.result(result).assert_no_lint("no-wildcard-imports");
     }
 }

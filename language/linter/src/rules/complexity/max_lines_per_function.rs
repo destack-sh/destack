@@ -99,7 +99,10 @@ mod tests {
             source.push_str(&format!("    let x{i} = {i};\n"));
         }
         source.push_str("}\n");
-        let result = test.lint_ast("test.ds", &source);
+        let result = test.lint_ast(
+            "max_lines_per_function/test_detects_long_function.ds",
+            &source,
+        );
         test.result(result).assert_lint("max-lines-per-function");
     }
 
@@ -107,7 +110,7 @@ mod tests {
     fn test_allows_short_function() {
         let test = TestProgram::for_rule_without_prelude(MaxLinesPerFunction);
         let result = test.lint_ast(
-            "test.ds",
+            "max_lines_per_function/test_allows_short_function.ds",
             r#"
 function foo() {
     let x = 1;
@@ -128,7 +131,10 @@ function foo() {
             source.push_str(&format!("    let x{i} = {i};\n"));
         }
         source.push_str("}\n");
-        let result = test.lint_ast("test.ds", &source);
+        let result = test.lint_ast(
+            "max_lines_per_function/test_allows_exactly_at_limit.ds",
+            &source,
+        );
         test.result(result).assert_no_lint("max-lines-per-function");
     }
 
@@ -141,7 +147,10 @@ function foo() {
             source.push_str(&format!("    let x{i} = {i};\n"));
         }
         source.push_str("};\n");
-        let result = test.lint_ast("test.ds", &source);
+        let result = test.lint_ast(
+            "max_lines_per_function/test_checks_arrow_functions.ds",
+            &source,
+        );
         test.result(result).assert_lint("max-lines-per-function");
     }
 
@@ -149,7 +158,7 @@ function foo() {
     fn test_ignores_function_declarations() {
         let test = TestProgram::for_rule_without_prelude(MaxLinesPerFunction);
         let result = test.lint_ast(
-            "test.ds",
+            "max_lines_per_function/test_ignores_function_declarations.ds",
             r#"
 declare function foo(): void;
 "#,

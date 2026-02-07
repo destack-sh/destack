@@ -149,7 +149,7 @@ mod tests {
     fn test_flags_for_in_array() {
         let test = TestProgram::for_rule_without_prelude(NoForInArray);
         let result = test.lint_dir(
-            "test.ds",
+            "no_for_in_array/test_flags_for_in_array.ds",
             r#"
 let items = [1, 2, 3];
 for (const key in items) {
@@ -164,7 +164,7 @@ for (const key in items) {
     fn test_flags_for_in_typed_array() {
         let test = TestProgram::for_rule_without_prelude(NoForInArray);
         let result = test.lint_dir(
-            "test.ds",
+            "no_for_in_array/test_flags_for_in_typed_array.ds",
             r#"
 let items: number[] = [1, 2, 3];
 for (const key in items) {
@@ -179,7 +179,7 @@ for (const key in items) {
     fn test_allows_for_of_array() {
         let test = TestProgram::for_rule_without_prelude(NoForInArray);
         let result = test.lint_dir(
-            "test.ds",
+            "no_for_in_array/test_allows_for_of_array.ds",
             r#"
 let items = [1, 2, 3];
 for (const value of items) {
@@ -194,7 +194,7 @@ for (const value of items) {
     fn test_allows_for_in_object() {
         let test = TestProgram::for_rule_without_prelude(NoForInArray);
         let result = test.lint_dir(
-            "test.ds",
+            "no_for_in_array/test_allows_for_in_object.ds",
             r#"
 let obj = { a: 1, b: 2 };
 for (const key in obj) {

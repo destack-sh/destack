@@ -147,7 +147,7 @@ mod tests {
     fn test_flags_delete_array_element() {
         let test = TestProgram::for_rule_without_prelude(NoArrayDelete);
         let result = test.lint_dir(
-            "test.ds",
+            "no_array_delete/test_flags_delete_array_element.ds",
             r#"
 let items = [1, 2, 3];
 delete items[0];
@@ -161,7 +161,7 @@ delete items[0];
     fn test_allows_delete_object_property() {
         let test = TestProgram::for_rule_without_prelude(NoArrayDelete);
         let result = test.lint_dir(
-            "test.ds",
+            "no_array_delete/test_allows_delete_object_property.ds",
             r#"
 let item = { value: 1 };
 delete item.value;

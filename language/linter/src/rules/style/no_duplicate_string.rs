@@ -108,7 +108,7 @@ mod tests {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateString)
             .with_options(|options| options.max_duplicate_string_occurrences = 2);
         let result = test.lint_ast(
-            "test.ds",
+            "no_duplicate_string/test_detects_duplicate_strings.ds",
             r#"
 let a = "hello world";
 let b = "hello world";
@@ -123,7 +123,7 @@ let c = "hello world";
         let test = TestProgram::for_rule_without_prelude(NoDuplicateString)
             .with_options(|options| options.max_duplicate_string_occurrences = 3);
         let result = test.lint_ast(
-            "test.ds",
+            "no_duplicate_string/test_allows_few_occurrences.ds",
             r#"
 let a = "hello world";
 let b = "hello world";
@@ -138,7 +138,7 @@ let c = "hello world";
         let test = TestProgram::for_rule_without_prelude(NoDuplicateString)
             .with_options(|options| options.max_duplicate_string_occurrences = 1);
         let result = test.lint_ast(
-            "test.ds",
+            "no_duplicate_string/test_ignores_short_strings.ds",
             r#"
 let a = "";
 let b = "";
@@ -156,7 +156,7 @@ let f = "a";
         let test = TestProgram::for_rule_without_prelude(NoDuplicateString)
             .with_options(|options| options.max_duplicate_string_occurrences = 2);
         let result = test.lint_ast(
-            "test.ds",
+            "no_duplicate_string/test_counts_unique_strings_separately.ds",
             r#"
 let a = "hello";
 let b = "hello";

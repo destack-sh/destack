@@ -182,7 +182,7 @@ mod tests {
     fn test_flags_process_exit_call() {
         let test = TestProgram::for_rule_with_prelude(NoProcessExit);
         let result = test.lint_dir(
-            "test.ds",
+            "no_process_exit/test_flags_process_exit_call.ds",
             r#"
 process.exit(1);
 "#,
@@ -195,7 +195,7 @@ process.exit(1);
     fn test_flags_global_process_exit_call() {
         let test = TestProgram::for_rule_with_prelude(NoProcessExit);
         let result = test.lint_dir(
-            "test.ds",
+            "no_process_exit/test_flags_global_process_exit_call.ds",
             r#"
 globalThis.process.exit(1);
 "#,
@@ -208,7 +208,7 @@ globalThis.process.exit(1);
     fn test_allows_other_process_call() {
         let test = TestProgram::for_rule_with_prelude(NoProcessExit);
         let result = test.lint_dir(
-            "test.ds",
+            "no_process_exit/test_allows_other_process_call.ds",
             r#"
 process.cwd();
 "#,

@@ -75,35 +75,35 @@ mod tests {
     #[test]
     fn test_detects_post_increment() {
         let test = TestProgram::for_rule_without_prelude(NoPlusplus);
-        let result = test.lint_ast("test.ts", "x++;");
+        let result = test.lint_ast("no_plusplus/test_detects_post_increment.ts", "x++;");
         test.result(result).assert_lint("no-plusplus");
     }
 
     #[test]
     fn test_detects_pre_increment() {
         let test = TestProgram::for_rule_without_prelude(NoPlusplus);
-        let result = test.lint_ast("test.ts", "++x;");
+        let result = test.lint_ast("no_plusplus/test_detects_pre_increment.ts", "++x;");
         test.result(result).assert_lint("no-plusplus");
     }
 
     #[test]
     fn test_detects_post_decrement() {
         let test = TestProgram::for_rule_without_prelude(NoPlusplus);
-        let result = test.lint_ast("test.ts", "x--;");
+        let result = test.lint_ast("no_plusplus/test_detects_post_decrement.ts", "x--;");
         test.result(result).assert_lint("no-plusplus");
     }
 
     #[test]
     fn test_detects_pre_decrement() {
         let test = TestProgram::for_rule_without_prelude(NoPlusplus);
-        let result = test.lint_ast("test.ts", "--x;");
+        let result = test.lint_ast("no_plusplus/test_detects_pre_decrement.ts", "--x;");
         test.result(result).assert_lint("no-plusplus");
     }
 
     #[test]
     fn test_allows_plus_equals() {
         let test = TestProgram::for_rule_without_prelude(NoPlusplus);
-        let result = test.lint_ast("test.ts", "x += 1;");
+        let result = test.lint_ast("no_plusplus/test_allows_plus_equals.ts", "x += 1;");
         test.result(result).assert_no_lint("no-plusplus");
     }
 }

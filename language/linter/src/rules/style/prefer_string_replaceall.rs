@@ -200,7 +200,7 @@ mod tests {
     fn test_flags_global_regex_replace() {
         let test = TestProgram::for_rule_without_prelude(PreferStringReplaceAll);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_string_replaceall/test_flags_global_regex_replace.ds",
             r#"
 let text = "hello";
 let next = text.replace(/l/g, "x");
@@ -213,7 +213,7 @@ let next = text.replace(/l/g, "x");
     fn test_allows_non_global_regex_replace() {
         let test = TestProgram::for_rule_without_prelude(PreferStringReplaceAll);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_string_replaceall/test_allows_non_global_regex_replace.ds",
             r#"
 let text = "hello";
 let next = text.replace(/l/, "x");

@@ -116,7 +116,7 @@ mod tests {
     fn test_function_with_return_no_doc_detected() {
         let test = TestProgram::for_rule_without_prelude(RequireReturnsDoc);
         let result = test.lint_ast(
-            "test.ds",
+            "require_returns_doc/test_function_with_return_no_doc_detected.ds",
             r#"
 /// Does something.
 export function foo(): int32 {
@@ -131,7 +131,7 @@ export function foo(): int32 {
     fn test_function_with_returns_doc_allowed() {
         let test = TestProgram::for_rule_without_prelude(RequireReturnsDoc);
         let result = test.lint_ast(
-            "test.ds",
+            "require_returns_doc/test_function_with_returns_doc_allowed.ds",
             r#"
 /// Does something.
 /// @returns The answer.
@@ -147,7 +147,7 @@ export function foo(): int32 {
     fn test_void_function_allowed() {
         let test = TestProgram::for_rule_without_prelude(RequireReturnsDoc);
         let result = test.lint_ast(
-            "test.ds",
+            "require_returns_doc/test_void_function_allowed.ds",
             r#"
 /// Does something.
 export function foo() {
@@ -162,7 +162,7 @@ export function foo() {
     fn test_private_function_allowed() {
         let test = TestProgram::for_rule_without_prelude(RequireReturnsDoc);
         let result = test.lint_ast(
-            "test.ds",
+            "require_returns_doc/test_private_function_allowed.ds",
             r#"
 /// Does something.
 function foo(): int32 {

@@ -145,7 +145,7 @@ mod tests {
     fn test_inline_no_period_allowed() {
         let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
         let result = test.lint_ast(
-            "test.ds",
+            "comment_punctuation/test_inline_no_period_allowed.ds",
             r#"
 let x = 1 // increment counter
 "#,
@@ -157,7 +157,7 @@ let x = 1 // increment counter
     fn test_inline_with_period_detected() {
         let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
         let result = test.lint_ast(
-            "test.ds",
+            "comment_punctuation/test_inline_with_period_detected.ds",
             r#"
 let x = 1 // increment counter.
 "#,
@@ -169,7 +169,7 @@ let x = 1 // increment counter.
     fn test_doc_with_period_allowed() {
         let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
         let result = test.lint_ast(
-            "test.ds",
+            "comment_punctuation/test_doc_with_period_allowed.ds",
             r#"
 /// Increments the counter.
 function foo() {}
@@ -182,7 +182,7 @@ function foo() {}
     fn test_doc_without_punctuation_detected() {
         let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
         let result = test.lint_ast(
-            "test.ds",
+            "comment_punctuation/test_doc_without_punctuation_detected.ds",
             r#"
 /// Increments the counter
 function foo() {}
@@ -195,7 +195,7 @@ function foo() {}
     fn test_doc_with_question_allowed() {
         let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
         let result = test.lint_ast(
-            "test.ds",
+            "comment_punctuation/test_doc_with_question_allowed.ds",
             r#"
 /// Is this valid?
 function foo() {}
@@ -208,7 +208,7 @@ function foo() {}
     fn test_doc_with_exclamation_allowed() {
         let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
         let result = test.lint_ast(
-            "test.ds",
+            "comment_punctuation/test_doc_with_exclamation_allowed.ds",
             r#"
 /// Do not call this!
 function foo() {}

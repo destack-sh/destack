@@ -75,7 +75,7 @@ mod tests {
     fn test_detects_javascript_url() {
         let test = TestProgram::for_rule_without_prelude(NoScriptUrl);
         let result = test.lint_ast(
-            "test.ds",
+            "no_script_url/test_detects_javascript_url.ds",
             r#"
 let url = "javascript:alert('XSS')"
 "#,
@@ -87,7 +87,7 @@ let url = "javascript:alert('XSS')"
     fn test_detects_javascript_url_case_insensitive() {
         let test = TestProgram::for_rule_without_prelude(NoScriptUrl);
         let result = test.lint_ast(
-            "test.ds",
+            "no_script_url/test_detects_javascript_url_case_insensitive.ds",
             r#"
 let url = "JavaScript:alert('XSS')"
 "#,
@@ -99,7 +99,7 @@ let url = "JavaScript:alert('XSS')"
     fn test_detects_javascript_url_with_whitespace() {
         let test = TestProgram::for_rule_without_prelude(NoScriptUrl);
         let result = test.lint_ast(
-            "test.ds",
+            "no_script_url/test_detects_javascript_url_with_whitespace.ds",
             r#"
 let url = "  javascript:void(0)"
 "#,
@@ -111,7 +111,7 @@ let url = "  javascript:void(0)"
     fn test_allows_normal_url() {
         let test = TestProgram::for_rule_without_prelude(NoScriptUrl);
         let result = test.lint_ast(
-            "test.ds",
+            "no_script_url/test_allows_normal_url.ds",
             r#"
 let url = "https://example.com"
 "#,
@@ -123,7 +123,7 @@ let url = "https://example.com"
     fn test_allows_string_containing_javascript_word() {
         let test = TestProgram::for_rule_without_prelude(NoScriptUrl);
         let result = test.lint_ast(
-            "test.ds",
+            "no_script_url/test_allows_string_containing_javascript_word.ds",
             r#"
 let msg = "I love javascript programming"
 "#,
@@ -135,7 +135,7 @@ let msg = "I love javascript programming"
     fn test_allows_data_url() {
         let test = TestProgram::for_rule_without_prelude(NoScriptUrl);
         let result = test.lint_ast(
-            "test.ds",
+            "no_script_url/test_allows_data_url.ds",
             r#"
 let url = "data:text/html,<h1>Hello</h1>"
 "#,

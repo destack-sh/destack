@@ -244,7 +244,7 @@ mod tests {
     fn test_flags_foreach_unconditional_push() {
         let test = TestProgram::for_rule_with_prelude(PreferArrayMap);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_array_map/test_flags_foreach_unconditional_push.ds",
             r#"
 let items = [1, 2, 3];
 let result: number[] = [];
@@ -261,7 +261,7 @@ items.forEach(x => {
     fn test_flags_arrow_block_body() {
         let test = TestProgram::for_rule_with_prelude(PreferArrayMap);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_array_map/test_flags_arrow_block_body.ds",
             r#"
 let items = [1, 2, 3];
 let result: number[] = [];
@@ -276,7 +276,7 @@ items.forEach(x => { result.push(x * 2) });
     fn test_allows_conditional_push() {
         let test = TestProgram::for_rule_with_prelude(PreferArrayMap);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_array_map/test_allows_conditional_push.ds",
             r#"
 let items = [1, 2, 3];
 let result: number[] = [];
@@ -295,7 +295,7 @@ items.forEach(x => {
     fn test_allows_multiple_statements() {
         let test = TestProgram::for_rule_with_prelude(PreferArrayMap);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_array_map/test_allows_multiple_statements.ds",
             r#"
 let items = [1, 2, 3];
 let result: number[] = [];
@@ -313,7 +313,7 @@ items.forEach(x => {
     fn test_allows_map_directly() {
         let test = TestProgram::for_rule_with_prelude(PreferArrayMap);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_array_map/test_allows_map_directly.ds",
             r#"
 let items = [1, 2, 3];
 let result = items.map(x => x * 2);

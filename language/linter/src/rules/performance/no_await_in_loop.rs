@@ -99,7 +99,7 @@ mod tests {
     fn test_detects_await_in_for_loop() {
         let test = TestProgram::for_rule_without_prelude(NoAwaitInLoop);
         let result = test.lint_ast(
-            "test.ds",
+            "no_await_in_loop/test_detects_await_in_for_loop.ds",
             r#"
 async function fetchAll(urls: string[]) {
     for (const url of urls) {
@@ -115,7 +115,7 @@ async function fetchAll(urls: string[]) {
     fn test_detects_await_in_while_loop() {
         let test = TestProgram::for_rule_without_prelude(NoAwaitInLoop);
         let result = test.lint_ast(
-            "test.ds",
+            "no_await_in_loop/test_detects_await_in_while_loop.ds",
             r#"
 async function process() {
     while (hasMore()) {
@@ -131,7 +131,7 @@ async function process() {
     fn test_detects_await_in_traditional_for() {
         let test = TestProgram::for_rule_without_prelude(NoAwaitInLoop);
         let result = test.lint_ast(
-            "test.ds",
+            "no_await_in_loop/test_detects_await_in_traditional_for.ds",
             r#"
 async function fetchAll() {
     for (let i = 0; i < 10; i++) {
@@ -147,7 +147,7 @@ async function fetchAll() {
     fn test_allows_await_outside_loop() {
         let test = TestProgram::for_rule_without_prelude(NoAwaitInLoop);
         let result = test.lint_ast(
-            "test.ds",
+            "no_await_in_loop/test_allows_await_outside_loop.ds",
             r#"
 async function fetchOne(url: string) {
     const response = await fetch(url);
@@ -162,7 +162,7 @@ async function fetchOne(url: string) {
     fn test_allows_promise_all() {
         let test = TestProgram::for_rule_without_prelude(NoAwaitInLoop);
         let result = test.lint_ast(
-            "test.ds",
+            "no_await_in_loop/test_allows_promise_all.ds",
             r#"
 async function fetchAll(urls: string[]) {
     const results = await Promise.all(urls.map(url => fetch(url)));
@@ -178,7 +178,7 @@ async function fetchAll(urls: string[]) {
         // await inside a nested async function should not be flagged
         let test = TestProgram::for_rule_without_prelude(NoAwaitInLoop);
         let result = test.lint_ast(
-            "test.ds",
+            "no_await_in_loop/test_allows_await_in_nested_async_function.ds",
             r#"
 function process(items: int32[]) {
     for (const item of items) {

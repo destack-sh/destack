@@ -192,7 +192,7 @@ mod tests {
     fn test_flags_parseint_hex() {
         let test = TestProgram::for_rule_with_prelude(PreferNumericLiterals);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_numeric_literals/test_flags_parseint_hex.ds",
             r#"
 let hex = Number.parseInt("FF", 16);
 "#,
@@ -205,7 +205,7 @@ let hex = Number.parseInt("FF", 16);
     fn test_flags_parseint_binary() {
         let test = TestProgram::for_rule_with_prelude(PreferNumericLiterals);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_numeric_literals/test_flags_parseint_binary.ds",
             r#"
 let bin = Number.parseInt("1010", 2);
 "#,
@@ -218,7 +218,7 @@ let bin = Number.parseInt("1010", 2);
     fn test_flags_parseint_octal() {
         let test = TestProgram::for_rule_with_prelude(PreferNumericLiterals);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_numeric_literals/test_flags_parseint_octal.ds",
             r#"
 let oct = Number.parseInt("777", 8);
 "#,
@@ -231,7 +231,7 @@ let oct = Number.parseInt("777", 8);
     fn test_allows_parseint_decimal() {
         let test = TestProgram::for_rule_with_prelude(PreferNumericLiterals);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_numeric_literals/test_allows_parseint_decimal.ds",
             r#"
 let dec = Number.parseInt("42", 10);
 "#,
@@ -245,7 +245,7 @@ let dec = Number.parseInt("42", 10);
     fn test_allows_parseint_variable_string() {
         let test = TestProgram::for_rule_with_prelude(PreferNumericLiterals);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_numeric_literals/test_allows_parseint_variable_string.ds",
             r#"
 let hex = "FF";
 let value = Number.parseInt(hex, 16);
@@ -260,7 +260,7 @@ let value = Number.parseInt(hex, 16);
     fn test_allows_parseint_variable_radix() {
         let test = TestProgram::for_rule_with_prelude(PreferNumericLiterals);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_numeric_literals/test_allows_parseint_variable_radix.ds",
             r#"
 let radix = 16;
 let value = Number.parseInt("FF", radix);
@@ -275,7 +275,7 @@ let value = Number.parseInt("FF", radix);
     fn test_allows_numeric_literals() {
         let test = TestProgram::for_rule_with_prelude(PreferNumericLiterals);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_numeric_literals/test_allows_numeric_literals.ds",
             r#"
 let hex = 0xFF;
 let bin = 0b1010;

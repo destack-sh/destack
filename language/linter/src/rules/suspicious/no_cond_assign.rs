@@ -94,7 +94,7 @@ mod tests {
     fn test_detects_if_assignment() {
         let test = TestProgram::for_rule_without_prelude(NoCondAssign);
         let result = test.lint_ast(
-            "test.ds",
+            "no_cond_assign/test_detects_if_assignment.ds",
             r#"
 if (x = 1) {
     console.log(x);
@@ -108,7 +108,7 @@ if (x = 1) {
     fn test_detects_while_assignment() {
         let test = TestProgram::for_rule_without_prelude(NoCondAssign);
         let result = test.lint_ast(
-            "test.ds",
+            "no_cond_assign/test_detects_while_assignment.ds",
             r#"
 while (x = getValue()) {
     process(x);
@@ -122,7 +122,7 @@ while (x = getValue()) {
     fn test_allows_comparison() {
         let test = TestProgram::for_rule_without_prelude(NoCondAssign);
         let result = test.lint_ast(
-            "test.ds",
+            "no_cond_assign/test_allows_comparison.ds",
             r#"
 if (x == 1) {
     console.log(x);
@@ -136,7 +136,7 @@ if (x == 1) {
     fn test_allows_strict_comparison() {
         let test = TestProgram::for_rule_without_prelude(NoCondAssign);
         let result = test.lint_ast(
-            "test.ds",
+            "no_cond_assign/test_allows_strict_comparison.ds",
             r#"
 if (x === 1) {
     console.log(x);
@@ -150,7 +150,7 @@ if (x === 1) {
     fn test_allows_boolean_condition() {
         let test = TestProgram::for_rule_without_prelude(NoCondAssign);
         let result = test.lint_ast(
-            "test.ds",
+            "no_cond_assign/test_allows_boolean_condition.ds",
             r#"
 if (isReady) {
     start();
@@ -164,7 +164,7 @@ if (isReady) {
     fn test_allows_function_call_condition() {
         let test = TestProgram::for_rule_without_prelude(NoCondAssign);
         let result = test.lint_ast(
-            "test.ds",
+            "no_cond_assign/test_allows_function_call_condition.ds",
             r#"
 while (hasMore()) {
     processNext()
@@ -178,7 +178,7 @@ while (hasMore()) {
     fn test_allows_let_expression_in_condition() {
         let test = TestProgram::for_rule_without_prelude(NoCondAssign);
         let result = test.lint_ast(
-            "test.ds",
+            "no_cond_assign/test_allows_let_expression_in_condition.ds",
             r#"
 if (const x = getValue()) {
     process(x)

@@ -312,7 +312,7 @@ mod tests {
     fn test_flags_md5_hash() {
         let test = TestProgram::for_rule_with_prelude(NoWeakCrypto);
         let result = test.lint_dir(
-            "test.ds",
+            "no_weak_crypto/test_flags_md5_hash.ds",
             r#"
 let hash = crypto.createHash("md5");
 "#,
@@ -325,7 +325,7 @@ let hash = crypto.createHash("md5");
     fn test_flags_sha1_hash() {
         let test = TestProgram::for_rule_with_prelude(NoWeakCrypto);
         let result = test.lint_dir(
-            "test.ds",
+            "no_weak_crypto/test_flags_sha1_hash.ds",
             r#"
 let hash = crypto.createHash("sha1");
 "#,
@@ -338,7 +338,7 @@ let hash = crypto.createHash("sha1");
     fn test_flags_des_cipher() {
         let test = TestProgram::for_rule_with_prelude(NoWeakCrypto);
         let result = test.lint_dir(
-            "test.ds",
+            "no_weak_crypto/test_flags_des_cipher.ds",
             r#"
 let key = "secret";
 let cipher = crypto.createCipher("des", key);
@@ -352,7 +352,7 @@ let cipher = crypto.createCipher("des", key);
     fn test_flags_rc4_cipher() {
         let test = TestProgram::for_rule_with_prelude(NoWeakCrypto);
         let result = test.lint_dir(
-            "test.ds",
+            "no_weak_crypto/test_flags_rc4_cipher.ds",
             r#"
 let key = "secret";
 let iv = "iv";
@@ -367,7 +367,7 @@ let cipher = crypto.createCipheriv("rc4", key, iv);
     fn test_flags_md5_hmac() {
         let test = TestProgram::for_rule_with_prelude(NoWeakCrypto);
         let result = test.lint_dir(
-            "test.ds",
+            "no_weak_crypto/test_flags_md5_hmac.ds",
             r#"
 let key = "secret";
 let hmac = crypto.createHmac("md5", key);
@@ -381,7 +381,7 @@ let hmac = crypto.createHmac("md5", key);
     fn test_allows_sha256_hash() {
         let test = TestProgram::for_rule_with_prelude(NoWeakCrypto);
         let result = test.lint_dir(
-            "test.ds",
+            "no_weak_crypto/test_allows_sha256_hash.ds",
             r#"
 let hash = crypto.createHash("sha256");
 "#,
@@ -394,7 +394,7 @@ let hash = crypto.createHash("sha256");
     fn test_allows_aes_cipher() {
         let test = TestProgram::for_rule_with_prelude(NoWeakCrypto);
         let result = test.lint_dir(
-            "test.ds",
+            "no_weak_crypto/test_allows_aes_cipher.ds",
             r#"
 let key = "secret";
 let iv = "iv";
