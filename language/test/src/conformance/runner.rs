@@ -301,6 +301,8 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
 
     // discover tests
     let all_tests = suite.discover();
+    let discovered_names: HashSet<String> =
+        all_tests.iter().map(|test| test.name.clone()).collect();
     let total_discovered = all_tests.len();
     let tests: Vec<_> = if let Some(filter) = &options.filter {
         all_tests
@@ -331,6 +333,11 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
 
     let ignored_failures_path = suite.ignored_failures_path();
     let ignored_failures = load_expected_failures(&ignored_failures_path);
+    let stale_ignored: Vec<String> = ignored_failures
+        .iter()
+        .filter(|name| !discovered_names.contains(*name))
+        .cloned()
+        .collect();
 
     // count how many tests are in ignored list (for display)
     let skipped_count = tests
@@ -357,6 +364,20 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
             color::dim(&skipped_count.to_string()),
             ignored_failures_path.display()
         );
+    }
+    if !stale_ignored.is_empty() {
+        println!(
+            "  {} stale ignored entries in {}",
+            color::yellow(&stale_ignored.len().to_string()),
+            ignored_failures_path.display()
+        );
+        let show_count = stale_ignored.len().min(20);
+        for name in stale_ignored.iter().take(show_count) {
+            println!("    - {name}");
+        }
+        if stale_ignored.len() > show_count {
+            println!("    ... and {} more", stale_ignored.len() - show_count);
+        }
     }
     println!();
 
@@ -435,17 +456,13 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
         let category = suite.category_for_test(&name);
         let cat_stats = categories.entry(category).or_default();
 
-        if is_skipped && !ignored_failures_are_strict {
-            skipped += 1;
-            cat_stats.skipped += 1;
-            continue;
-        }
-
         match outcome {
             TestResult::Passed => {
                 if is_skipped {
-                    // ignored test now passes: report so we can remove from ignored list
-                    unskipped.push(name);
+                    // report passing ignored tests only when strict mode tracks ignored outcomes
+                    if ignored_failures_are_strict {
+                        unskipped.push(name);
+                    }
                     skipped += 1;
                     cat_stats.skipped += 1;
                 } else {

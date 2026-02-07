@@ -33,7 +33,6 @@ typescript/types/invalid-import-type-trailing-comma
 
 # operator restrictions are enforced via type checking (not "early" syntax)
 typescript/exponentiation/await-non-null-before-exponential
-typescript/exponentiation/unary-non-null-before-exponential
 
 # allow namespace declarations without `declare` prefix (we're a bit more permissive)
 typescript/module-namespace/module-declare-new-line
