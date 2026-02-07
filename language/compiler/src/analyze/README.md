@@ -70,6 +70,7 @@ Infer owns contextual typing, freshness consumption, widening commit decisions, 
 Infer performs use-site substitution and materialization when concrete arguments are known.
 Infer may project associated types through declaration-owned projection metadata using use-site substitutions.
 Infer must not backfill missing declaration-owned metadata.
+Infer run-state is owned by `InferSession` and recreated per module/profile infer task.
 
 ### Capture
 
@@ -94,6 +95,7 @@ Any write outside the owner stage is a correctness bug.
 | Export boundary type data | Export | Read-only |
 | Inferred expression types and resolutions | Infer | Read-only |
 | Instance table entries | Infer | Read-only |
+| Infer session state (`InferTable`, `InferContext`) | Infer | Not accessible outside infer task |
 | Capture metadata | Capture | Read-only |
 | Diagnostics | Validate | Append-only |
 

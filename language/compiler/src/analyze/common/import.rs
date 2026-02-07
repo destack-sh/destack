@@ -4,7 +4,7 @@ use destack_dir::{
 };
 use destack_workspace::{Module, ProfileId};
 
-use crate::Compiler;
+use crate::{AnalyzeResult, Compiler};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -16,42 +16,54 @@ impl Compiler {
         node: LocalNodeIdAny,
         target: StringId,
         qualifier: Option<&Path>,
-    ) -> Option<GlobalSymbolId> {
+    ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         // reject empty or nested qualifiers for now
-        let member_key = self.import_type_member_key(qualifier)?;
+        let Some(member_key) = self.import_type_member_key(qualifier) else {
+            return Ok(None);
+        };
 
         // resolve the module target from the import specifier
         let dir = module.dir(profile);
         let node = node.into_global(module.id);
-        let target = self
-            .resolve_import(
-                module,
-                dir,
-                profile,
-                node,
-                DependencySource::ImportStatement,
-                target,
-                DependencyKind::Type,
-            )
-            .ok()?;
+        let target = match self.resolve_import(
+            module,
+            dir,
+            profile,
+            node,
+            DependencySource::ImportStatement,
+            target,
+            DependencyKind::Type,
+        ) {
+            Ok(target) => target,
+            Err(error) => {
+                self.error(error);
+                return Ok(None);
+            }
+        };
 
         // resolve the exported symbol from the target module
-        let symbol = self
-            .resolve_export_symbol_for_target(
-                module.id,
-                node,
-                target,
-                profile,
-                SymbolSpaceOrder::TypeOnly,
-                member_key,
-            )
-            .ok()
-            .flatten()?;
+        let symbol = match self.resolve_export_symbol_for_target(
+            module.id,
+            node,
+            target,
+            profile,
+            SymbolSpaceOrder::TypeOnly,
+            member_key,
+        ) {
+            Ok(symbol) => symbol,
+            Err(error) => {
+                self.error(error);
+                return Ok(None);
+            }
+        };
+        let Some(symbol) = symbol else {
+            return Ok(None);
+        };
 
         // ensure exported types are available for the resolved symbol
-        let _ = self.require_analyze_module_export(symbol.module_id, profile);
+        self.require_analyze_module_export(symbol.module_id, profile)?;
 
-        Some(symbol)
+        Ok(Some(symbol))
     }
 
     /// Resolve a type import into a local reference type.
@@ -64,15 +76,43 @@ impl Compiler {
         qualifier: Option<&Path>,
         static_arguments: Option<&[StaticArgument]>,
         types: &mut TypeTable,
-    ) -> Option<LocalTypeId> {
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
         let symbol =
             self.resolve_import_type_symbol(module, profile, source_id, target, qualifier)?;
+        let Some(symbol) = symbol else {
+            return Ok(None);
+        };
+
         let static_arguments = static_arguments.map(|arguments| arguments.to_vec());
         let reference = Type::Reference {
             symbol,
             static_arguments,
         };
-        Some(types.insert_type_from_any(reference, source_id))
+        Ok(Some(types.insert_type_from_any(reference, source_id)))
+    }
+
+    /// Resolve a type import into a local reference type without yielding.
+    pub(crate) fn resolve_import_type_reference_best_effort(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        source_id: LocalNodeIdAny,
+        target: StringId,
+        qualifier: Option<&Path>,
+        static_arguments: Option<&[StaticArgument]>,
+        types: &mut TypeTable,
+    ) -> Option<LocalTypeId> {
+        self.resolve_import_type_reference(
+            module,
+            profile,
+            source_id,
+            target,
+            qualifier,
+            static_arguments,
+            types,
+        )
+        .ok()
+        .flatten()
     }
 
     /// Convert an import qualifier path into a static key.

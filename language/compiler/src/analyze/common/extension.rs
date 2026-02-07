@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::analyze::common::CanonicalSymbolMode;
+use crate::analyze::common::{AnalyzeReadStage, CanonicalSymbolMode};
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Extension, ExtensionKind, GlobalSymbolId, Lineage, SymbolTable, SymbolType, TypeTable,
@@ -41,28 +41,29 @@ impl Compiler {
 
         // include inherent extensions from the target module
         let mut include_inherent_extensions = |target_symbol: GlobalSymbolId| -> AnalyzeResult<()> {
-            if target_symbol.module_id == module.id {
-                return Ok(());
-            }
-
-            self.require_analyze_module_declare(target_symbol.module_id, profile)
-                .map_err(AnalyzeError::from)?;
-
-            let target_module = self.program.modules.get(target_symbol.module_id);
-            let target_module = target_module.read();
-            let target_types = target_module.dir(profile).types.read();
-
-            if let Some(extension_ids) = target_types.get_extensions_for_target(target_symbol) {
-                for extension_id in extension_ids {
-                    let extension = target_types.get_extension(*extension_id);
-                    if extension.kind != ExtensionKind::Inherent {
-                        continue;
+            self.with_module_types_or_local_for_stage(
+                module,
+                profile,
+                target_symbol.module_id,
+                types,
+                AnalyzeReadStage::Declare,
+                |_, target_types| {
+                    if let Some(extension_ids) =
+                        target_types.get_extensions_for_target(target_symbol)
+                    {
+                        for extension_id in extension_ids {
+                            let extension = target_types.get_extension(*extension_id);
+                            if extension.kind != ExtensionKind::Inherent {
+                                continue;
+                            }
+                            if seen.insert(extension.symbol) {
+                                extensions.push(extension.symbol);
+                            }
+                        }
                     }
-                    if seen.insert(extension.symbol) {
-                        extensions.push(extension.symbol);
-                    }
-                }
-            }
+                },
+            )
+            .map_err(AnalyzeError::from)?;
 
             Ok(())
         };
@@ -70,19 +71,29 @@ impl Compiler {
         include_inherent_extensions(canonical_target)?;
 
         // include inherent extensions for global symbol groups
-        let should_scan_global_group;
-        let (target_key, target_space) = if canonical_target.module_id == module.id {
-            let symbol_entry = symbols.get_symbol(canonical_target.local_id);
-            should_scan_global_group = symbol_entry.origin.is_global_augmentation();
-            (symbol_entry.key, symbol_entry.space)
-        } else {
-            let target_module = self.program.modules.get(canonical_target.module_id);
-            let target_module = target_module.read();
-            should_scan_global_group = matches!(target_module.source, ModuleSource::Builtin(_));
-            let target_symbols = target_module.dir(profile).symbols.read();
-            let symbol_entry = target_symbols.get_symbol(canonical_target.local_id);
-            (symbol_entry.key, symbol_entry.space)
-        };
+        let (should_scan_global_group, target_key, target_space) = self
+            .with_module_symbols_or_local_for_stage(
+                module,
+                profile,
+                canonical_target.module_id,
+                symbols,
+                AnalyzeReadStage::Declare,
+                |target_module, target_symbols| {
+                    let symbol_entry = target_symbols.get_symbol(canonical_target.local_id);
+                    let should_scan_global_group = if canonical_target.module_id == module.id {
+                        symbol_entry.origin.is_global_augmentation()
+                    } else {
+                        matches!(target_module.source, ModuleSource::Builtin(_))
+                    };
+
+                    (
+                        should_scan_global_group,
+                        symbol_entry.key,
+                        symbol_entry.space,
+                    )
+                },
+            )
+            .map_err(AnalyzeError::from)?;
 
         if should_scan_global_group
             && let Some(key) = target_key
@@ -135,17 +146,17 @@ impl Compiler {
         profile: ProfileId,
         extension_symbol: GlobalSymbolId,
     ) -> AnalyzeResult<Option<Extension>> {
-        self.require_analyze_module_declare(extension_symbol.module_id, profile)
-            .map_err(AnalyzeError::from)?;
+        self.with_module_types_by_id_for_stage(
+            profile,
+            extension_symbol.module_id,
+            AnalyzeReadStage::Declare,
+            |_, types| {
+                let extension_id = types.get_extension_id_for_symbol(extension_symbol)?;
 
-        let module = self.program.modules.get(extension_symbol.module_id);
-        let module = module.read();
-        let types = module.dir(profile).types.read();
-        let Some(extension_id) = types.get_extension_id_for_symbol(extension_symbol) else {
-            return Ok(None);
-        };
-
-        Ok(Some(types.get_extension(extension_id).clone()))
+                Some(types.get_extension(extension_id).clone())
+            },
+        )
+        .map_err(AnalyzeError::from)
     }
 
     /// Load extension metadata using local tables when possible.
@@ -187,9 +198,12 @@ impl Compiler {
             return Ok(Some(types.get_lineage(lineage_id).clone()));
         }
 
-        let module = self.program.modules.get(extension_symbol.module_id);
-        let module = module.read();
-        let types = module.dir(profile).types.read();
-        Ok(Some(types.get_lineage(lineage_id).clone()))
+        self.with_module_types_by_id_for_stage(
+            profile,
+            extension_symbol.module_id,
+            AnalyzeReadStage::Declare,
+            |_, owner_types| Some(owner_types.get_lineage(lineage_id).clone()),
+        )
+        .map_err(AnalyzeError::from)
     }
 }

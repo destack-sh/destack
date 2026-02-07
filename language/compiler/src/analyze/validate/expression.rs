@@ -2803,8 +2803,13 @@ impl Compiler {
             target,
             Some(qualifier),
         );
-        if resolved.is_some() {
-            return;
+        match resolved {
+            Ok(Some(_)) => return,
+            Ok(None) => {}
+            Err(error) => {
+                self.error(error);
+                return;
+            }
         }
 
         // emit missing member when the export is absent

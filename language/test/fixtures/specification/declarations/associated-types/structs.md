@@ -335,6 +335,59 @@ declare const value: Buffer<int32>.View<boolean>;
 value satisfies [int32, boolean];
 ```
 
+### struct associated types can use conditional type operators
+
+> Struct associated type aliases can evaluate conditional type operators with outer substitutions.
+
+```ds
+struct Box<T> {
+    type Item = T extends string ? int32 : int16;
+    value: T;
+}
+
+declare const text: Box<string>.Item;
+text satisfies int32;
+
+declare const flag: Box<boolean>.Item;
+flag satisfies int16;
+```
+
+### struct associated types can use mapped type operators
+
+> Struct associated type aliases can evaluate mapped type operators over outer substitutions.
+
+```ds
+struct Project<T> {
+    type Shape = { [K in keyof T]: T[K] };
+    value: T;
+}
+
+declare const shape: Project<{ left: int32, right: string }>.Shape;
+shape satisfies { left: int32, right: string };
+```
+
+### struct associated types are not static expressions for comptime value arguments
+
+> Projected struct associated types are not yet valid static value expressions.
+
+```ds
+type Bytes<comptime n: number> = uint8[n];
+
+struct BufferShape<T> {
+    type Length = T extends string ? 8 : 12;
+    type Buffer = Bytes<Length>;
+    value: T;
+}
+
+declare const short: BufferShape<string>.Buffer;
+short satisfies uint8[8];
+
+declare const wide: BufferShape<boolean>.Buffer;
+wide satisfies uint8[12];
+```
+
+- contains: static argument must be a static expression
+
 ### struct associated types are not runtime members
 
 > Associated type aliases are type only and cannot be accessed as runtime values.

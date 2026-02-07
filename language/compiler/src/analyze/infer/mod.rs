@@ -18,6 +18,7 @@ mod parameter;
 mod pattern;
 mod process;
 mod resolution;
+mod session;
 mod solve;
 mod template;
 mod r#type;
@@ -35,6 +36,7 @@ pub(super) enum SignatureResolutionMode {
 
 pub use assign::*;
 pub use context::*;
+pub use session::*;
 pub use solve::*;
 
 #[cfg(test)]
