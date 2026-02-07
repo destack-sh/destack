@@ -157,7 +157,7 @@ impl Compiler {
                     );
                 }
 
-                // strict directive prologues require simple parameter lists in js and ts modes
+                // strict directive prologues require simple parameter lists in JS/TS modes
                 if !module.language_type.is_destack()
                     && let Some(body) = body
                     && self.has_non_simple_dynamic_parameters(tree, &signature.dynamic_parameters)

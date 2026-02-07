@@ -1055,7 +1055,7 @@ impl BorrowMode {
 /// Runtime environment that actually executes the compiled code (at runtime).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum Runtime {
-    // JS runtimes (for output=js/ts)
+    // JS runtimes (for output=JS/TS)
     /// Web browser (Chrome, Firefox, Safari, etc.)
     Browser,
     /// Node.js

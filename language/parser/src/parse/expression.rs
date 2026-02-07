@@ -205,6 +205,22 @@ impl Parser {
         current
     }
 
+    /// Return true when an expression is a lambda declaration without wrapping parentheses.
+    pub(crate) fn is_unparenthesized_lambda_expression(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        matches!(
+            self.tree.get(expression_id),
+            Expression::Declaration(declaration_id)
+                if matches!(
+                    self.tree.get(*declaration_id),
+                    Declaration::Function { signature, .. }
+                        if signature.kind == FunctionKind::Lambda
+                )
+        )
+    }
+
     /// Peek a unary prefix operator.
     #[inline]
     pub fn peek_unary_prefix_operator(&mut self) -> ParseResult<UnaryOperator> {
@@ -2103,8 +2119,8 @@ impl Parser {
                 let (label, label_span) = self.eat_identifier_with_span()?;
                 self.eat_colon()?;
                 let body = self.eat_expression()?;
-                // reject labelled function declarations (:c)
-                if self.is_function_declaration_expression(body) {
+                // reject labelled declarations that are invalid labelled items in JS/TS
+                if !self.language.is_destack() && self.is_single_statement_declaration(body) {
                     return Err(ParseError::unexpected(self.tree.get_span(body)));
                 }
                 let labelled_id = self.tree.insert(
@@ -3027,6 +3043,13 @@ impl Parser {
                 }
                 // call (like `()`)
                 else if should_parse_call {
+                    // unparenthesized arrow functions cannot be direct call receivers
+                    if has_direct_call
+                        && self.is_unparenthesized_lambda_expression(left_expression_id)
+                    {
+                        return Err(ParseError::unexpected(self.peek()?.span));
+                    }
+
                     let _call_timing = self.timing_scope(tags::PARSE_EXPRESSION_POSTFIX_CALL);
                     if self.peek_is(TokenType::Newline)
                         && self
@@ -6532,6 +6555,24 @@ function isStringy(value: any): asserts value is string {
             .get_main_span(expr_id)
             .expect("expected label main span");
         assert_eq!(parser.get_span_str(main_span), "label");
+    }
+
+    /// Reject labelled lexical declarations in javascript.
+    #[test]
+    fn test_reject_labelled_lexical_declaration_javascript() {
+        // source: a: let a
+        let mut test = TestParser::new_with_options("a: let a", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let _ = parser.parse();
+        let diagnostic = parser
+            .diagnostics
+            .iter()
+            .into_iter()
+            .find(|diagnostic| diagnostic.code.starts_with("EP"))
+            .expect("expected parse diagnostic");
+
+        // let a
+        assert_eq!(parser.get_span_str(diagnostic.primary_span.span), "let a");
     }
 
     /// Parse a leading elementwise operator in a type expression.

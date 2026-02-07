@@ -520,7 +520,7 @@ impl Compiler {
         path: &Path,
         is_strict: bool,
     ) {
-        // this check only applies in strict mode for js and ts modules
+        // this check only applies in strict mode for JS/TS modules
         if !module.is_user()
             || !is_strict
             || !(module.language_type.is_javascript() || module.language_type.is_typescript())
@@ -1057,12 +1057,12 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         catch_pattern_id: LocalNodeId<Pattern>,
     ) {
-        // this restriction only applies to js and ts source forms
+        // this restriction only applies to JS/TS source forms
         if !(module.language_type.is_javascript() || module.language_type.is_typescript()) {
             return;
         }
 
-        // js and ts allow identifier bindings and destructuring binding patterns
+        // JS/TS allow identifier bindings and destructuring binding patterns
         if matches!(
             tree.get(catch_pattern_id),
             Pattern::Binding { .. } | Pattern::Array { .. } | Pattern::Object { .. }
@@ -1076,7 +1076,7 @@ impl Compiler {
         self.error(AnalyzeError::InvalidCatchBinding { node });
     }
 
-    /// Validate catch type annotations for js and ts compatibility.
+    /// Validate catch type annotations for JS/TS compatibility.
     fn validate_catch_annotation_type(
         &self,
         module: &Module,
@@ -1192,7 +1192,7 @@ impl Compiler {
         left: LocalNodeId<Expression>,
         operator: BinaryOperator,
     ) {
-        // only enforce the js and ts exponentiation grammar
+        // only enforce the JS/TS exponentiation grammar
         if !(module.language_type.is_javascript() || module.language_type.is_typescript()) {
             return;
         }
@@ -1223,7 +1223,7 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         elements: &[LocalNodeId<Argument>],
     ) {
-        // only enforce for js and ts modules
+        // only enforce for JS/TS modules
         if !(module.language_type.is_javascript() || module.language_type.is_typescript()) {
             return;
         }
@@ -1245,12 +1245,12 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         expressions: &[LocalNodeId<Expression>],
     ) {
-        // only enforce for js and ts modules
+        // only enforce for JS/TS modules
         if !(module.language_type.is_javascript() || module.language_type.is_typescript()) {
             return;
         }
 
-        // js and ts represent `()` as an empty sequence expression
+        // JS/TS represent `()` as an empty sequence expression
         if expressions.is_empty() {
             let node = expression_id
                 .into_global_any(module.id)
@@ -2208,7 +2208,7 @@ impl Compiler {
                 signature, body, ..
             } = property
             {
-                // strict directive prologues require simple parameter lists in js and ts modes
+                // strict directive prologues require simple parameter lists in JS/TS modes
                 if !module.language_type.is_destack()
                     && let Some(body) = body
                     && self.has_non_simple_dynamic_parameters(tree, &signature.dynamic_parameters)
@@ -3583,6 +3583,38 @@ const __proto__ = 1;
         test.analyze_module(module_id);
         test.compile();
         test.check_no_diagnostic_code("EA503");
+    }
+
+    /// Reject object literal fields as arrow binding parameters in JavaScript.
+    #[test]
+    fn test_reject_arrow_object_literal_parameter_javascript() {
+        let test = TestProgram::memory_sequential();
+
+        // source: ({ 5 }) => {}
+        let module_id = test.add_module("test.js", "({ 5 }) => {}");
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA226");
+    }
+
+    /// Reject array literal elements as arrow binding parameters in JavaScript.
+    #[test]
+    fn test_reject_arrow_array_literal_parameter_javascript() {
+        let test = TestProgram::memory_sequential();
+
+        // source: ([ 5 ]) => {}
+        let module_id = test.add_module("test.js", "([ 5 ]) => {}");
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA226");
     }
 
     /// Reject yield expressions in generator parameter initializers.

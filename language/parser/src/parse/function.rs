@@ -1134,4 +1134,44 @@ function onResolve(
             assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Void));
         });
     }
+
+    /// Reject direct calls on unparenthesized arrow functions.
+    #[test]
+    fn test_reject_unparenthesized_arrow_call() {
+        // source: () => {}()
+        let mut test = TestParser::new_with_options("() => {}()", LanguageType::Destack);
+        let mut parser = test.prepare();
+        let error = parser.eat_expression().unwrap_err();
+
+        // (
+        assert_eq!(parser.get_span_str(error.leaf_span()), "(");
+
+        // source: a => {}()
+        let mut test = TestParser::new_with_options("a => {}()", LanguageType::Destack);
+        let mut parser = test.prepare();
+        let error = parser.eat_expression().unwrap_err();
+
+        // (
+        assert_eq!(parser.get_span_str(error.leaf_span()), "(");
+    }
+
+    /// Parse direct calls on parenthesized arrow functions.
+    #[test]
+    fn test_parse_parenthesized_arrow_call() {
+        // source: (() => {})()
+        let mut test = TestParser::new_with_options("(() => {})()", LanguageType::Destack);
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        // (() => {})()
+        assert_node!(parser.tree, expression_id, Expression::Call { left, .. } => {
+            assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+                assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
+                    assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+                        assert_eq!(signature.kind, FunctionKind::Lambda);
+                    });
+                });
+            });
+        });
+    }
 }

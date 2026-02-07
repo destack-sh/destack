@@ -1,6 +1,6 @@
 use destack_ast::{
-    Block, BlockFormat, Declaration, Expression, Keyword, LetKind, LocalNodeId, NodeType,
-    TokenType, YieldCardinality,
+    Block, BlockFormat, Expression, Keyword, LetKind, LocalNodeId, NodeType, TokenType,
+    YieldCardinality,
 };
 
 use crate::parse::prelude::*;
@@ -75,21 +75,6 @@ impl Parser {
             Expression::Let { kind, .. } => *kind != LetKind::Var,
             _ => false,
         }
-    }
-
-    /// Check whether an expression resolves to a function declaration.
-    pub(crate) fn is_function_declaration_expression(
-        &self,
-        expression_id: LocalNodeId<Expression>,
-    ) -> bool {
-        // unwrap statement and label layers
-        let current = self.unwrap_statement_expression(expression_id);
-
-        matches!(
-            self.tree.get(current),
-            Expression::Declaration(declaration_id)
-                if matches!(self.tree.get(*declaration_id), Declaration::Function { .. })
-        )
     }
 
     /// Peek a block. Optional `do` prefix for disambiguation.

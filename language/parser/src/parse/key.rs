@@ -529,7 +529,10 @@ impl Parser {
             }
             // expression
             else {
-                let key = self.eat_expression()?;
+                let key = self.with_options(
+                    self.options.not_in_position().not_in_sequence_expression(),
+                    |parser| parser.eat_expression(),
+                )?;
                 self.eat_token(TokenType::CloseBracket)?;
                 Ok(Key::Expression(key))
             }
@@ -593,7 +596,10 @@ impl Parser {
             }
             // expression
             else {
-                let key = self.eat_expression()?;
+                let key = self.with_options(
+                    self.options.not_in_position().not_in_sequence_expression(),
+                    |parser| parser.eat_expression(),
+                )?;
                 self.eat_token(TokenType::CloseBracket)?;
                 Ok((Key::Expression(key), self.get_span_from(&start)))
             }
@@ -617,6 +623,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{Expression, Key};
+    use destack_source::LanguageType;
 
     use crate::tests::TestParser;
     use crate::{assert_node, assert_string};
@@ -637,5 +644,17 @@ mod tests {
             }
             _ => panic!("expected NamedExpression"),
         }
+    }
+
+    /// Reject computed keys with sequence expressions in javascript.
+    #[test]
+    fn test_reject_key_computed_sequence_expression_javascript() {
+        // source: [a,b]
+        let mut test = TestParser::new_with_options("[a,b]", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let error = parser.eat_key_with_span().unwrap_err();
+
+        // ,
+        assert_eq!(parser.get_span_str(error.leaf_span()), ",");
     }
 }

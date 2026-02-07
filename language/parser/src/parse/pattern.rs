@@ -330,9 +330,10 @@ impl Parser {
                 {
                     let mutability = self.eat_mutability_maybe()?;
                     self.eat_token(TokenType::OpenBracket)?;
-                    let key = self.with_options(self.options.not_in_position(), |parser| {
-                        parser.eat_expression()
-                    })?;
+                    let key = self.with_options(
+                        self.options.not_in_position().not_in_sequence_expression(),
+                        |parser| parser.eat_expression(),
+                    )?;
                     self.eat_token(TokenType::CloseBracket)?;
                     self.eat_newlines_maybe()?;
                     self.eat_token(TokenType::Colon)?;
