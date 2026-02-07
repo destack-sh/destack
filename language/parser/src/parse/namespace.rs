@@ -159,7 +159,8 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Declaration, DeclarationDescriptor, DeclarationKind, Expression, Name, WhereClause,
+        Declaration, DeclarationDescriptor, DeclarationKind, DependencyMode, Expression, Name,
+        WhereClause,
     };
     use destack_source::LanguageType;
 
@@ -498,6 +499,36 @@ namespace Foo where Guard: Limit {
                 assert_string!(parser, *left, "Requirement");
                 assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
                     assert_path!(parser, *path, "Interface");
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_namespace_directive_then_export_with_comment_newline() {
+        let mut test = TestParser::new_with_options(
+            r###"
+namespace M {
+  /******/ 'use strict'
+  /******/ export const a = 1;
+}
+"###,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+        assert_eq!(expressions.len(), 1);
+
+        assert_node!(parser.tree, expressions[0], Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Namespace { expressions, .. } => {
+                assert_eq!(expressions.len(), 2);
+                assert_node!(parser.tree, expressions[0], Expression::Statement(statement_id) => {
+                    assert_node!(parser.tree, *statement_id, Expression::ScalarLiteral(_) => {});
+                });
+                assert_node!(parser.tree, expressions[1], Expression::Statement(statement_id) => {
+                    assert_node!(parser.tree, *statement_id, Expression::Let { descriptor, .. } => {
+                        assert_eq!(descriptor.export, Some(DependencyMode::Item));
+                    });
                 });
             });
         });

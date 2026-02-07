@@ -1342,7 +1342,9 @@ impl Parser {
                 )))
             }
             // struct or class declaration
-            Keyword::Struct | Keyword::Class if is_declaration_start => {
+            Keyword::Struct | Keyword::Class
+                if is_declaration_start || next_token_type == TokenType::Newline =>
+            {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let allow_anonymous_class = !self.options.in_statement_position
                     || descriptor.export == Some(DependencyMode::Default);
@@ -4980,6 +4982,46 @@ f<x> !== g<y>;
                 assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
                     assert_node!(parser.tree, *declaration_id, Declaration::Class { heritage, .. } => {
                         assert!(heritage.implements_types.is_some());
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse a TypeScript class expression when heritage starts on the next line.
+    #[test]
+    fn test_parse_class_expression_with_newline_implements() {
+        let mut test = TestParser::new_with_options(
+            "new (class\n  implements Foo\n{})()",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::New { left, .. } => {
+            assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+                assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
+                    assert_node!(parser.tree, *declaration_id, Declaration::Class { heritage, .. } => {
+                        assert!(heritage.implements_types.is_some());
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse a TypeScript class expression with multiline extends heritage.
+    #[test]
+    fn test_parse_class_expression_with_newline_extends() {
+        let mut test = TestParser::new_with_options(
+            "new (class\n  extends Foo<Bar>\n{})()",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::New { left, .. } => {
+            assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+                assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
+                    assert_node!(parser.tree, *declaration_id, Declaration::Class { heritage, .. } => {
+                        assert!(heritage.extends_types.is_some());
                     });
                 });
             });
