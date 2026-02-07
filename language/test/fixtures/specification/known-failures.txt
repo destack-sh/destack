@@ -1,3 +1,115 @@
+destack_test::specification::declarations/associated-comptime/classes.md/classes/abstract-classes-can-declare-abstract-associated-comptime-constants
+destack_test::specification::declarations/associated-comptime/classes.md/classes/class-associated-comptime-constants-can-coexist-with-runtime-static-constants
+destack_test::specification::declarations/associated-comptime/classes.md/classes/class-associated-comptime-constants-can-use-outer-type-substitutions
+destack_test::specification::declarations/associated-comptime/classes.md/classes/class-associated-comptime-constants-require-initializer
+destack_test::specification::declarations/associated-comptime/classes.md/classes/class-associated-comptime-constants-require-static-initializers
+destack_test::specification::declarations/associated-comptime/classes.md/classes/class-can-declare-associated-comptime-constants
+destack_test::specification::declarations/associated-comptime/classes.md/classes/class-static-comptime-const-is-rejected-as-redundant
+destack_test::specification::declarations/associated-comptime/classes.md/classes/class-static-const-remains-runtime-member-not-associated-comptime-member
+destack_test::specification::declarations/associated-comptime/classes.md/classes/concrete-subclasses-must-implement-abstract-associated-comptime-constants
+destack_test::specification::declarations/associated-comptime/composition.md/composition/inferred-element-aliases-can-drive-associated-comptime-widths
+destack_test::specification::declarations/associated-comptime/composition.md/composition/policy-defaults-can-combine-conditional-and-mapped-associated-aliases
+destack_test::specification::declarations/associated-comptime/composition.md/composition/service-profile-composes-batching-with-mapped-envelopes
+destack_test::specification::declarations/associated-comptime/composition.md/composition/unresolved-value-projection-still-rejects-generic-runtime-paths
+destack_test::specification::declarations/associated-comptime/contracts.md/contracts/class-owner-can-satisfy-abstract-base-and-interface-associated-comptime-contracts
+destack_test::specification::declarations/associated-comptime/contracts.md/contracts/class-owner-rejects-incompatible-associated-comptime-contract-overrides
+destack_test::specification::declarations/associated-comptime/contracts.md/contracts/owner-contracts-require-implementation-through-cross-module-abstract-chains
+destack_test::specification::declarations/associated-comptime/interfaces.md/interfaces/class-implementor-can-override-interface-associated-comptime-constants
+destack_test::specification::declarations/associated-comptime/interfaces.md/interfaces/extension-implementor-can-satisfy-abstract-interface-associated-comptime-constants
+destack_test::specification::declarations/associated-comptime/interfaces.md/interfaces/implementing-multiple-interfaces-can-share-compatible-associated-comptime-constants
+destack_test::specification::declarations/associated-comptime/interfaces.md/interfaces/implementing-multiple-interfaces-rejects-incompatible-associated-comptime-defaults
+destack_test::specification::declarations/associated-comptime/interfaces.md/interfaces/implementor-must-define-abstract-associated-comptime-constants
+destack_test::specification::declarations/associated-comptime/interfaces.md/interfaces/implementor-override-must-satisfy-interface-associated-comptime-constant-type
+destack_test::specification::declarations/associated-comptime/interfaces.md/interfaces/interface-associated-comptime-constants-can-describe-fixed-tensor-layouts
+destack_test::specification::declarations/associated-comptime/interfaces.md/interfaces/interface-associated-comptime-constants-can-drive-vector-lane-aliases
+destack_test::specification::declarations/associated-comptime/interfaces.md/interfaces/interface-can-declare-abstract-associated-comptime-constants
+destack_test::specification::declarations/associated-comptime/interfaces.md/interfaces/interface-can-declare-default-associated-comptime-constants
+destack_test::specification::declarations/associated-comptime/interfaces.md/interfaces/interface-default-can-reference-sibling-associated-comptime-constants
+destack_test::specification::declarations/associated-comptime/layouts.md/layouts/extension-implementor-can-project-associated-comptime-tile-layout
+destack_test::specification::declarations/associated-comptime/layouts.md/layouts/generic-value-parameters-can-feed-associated-layout-constants
+destack_test::specification::declarations/associated-comptime/layouts.md/layouts/kernel-profile-composes-lane-width-with-tensor-tile-aliases
+destack_test::specification::declarations/associated-comptime/layouts.md/layouts/layout-aliases-can-compose-arithmetic-across-sibling-associated-constants
+destack_test::specification::declarations/associated-comptime/modules.md/modules/associated-comptime-constants-resolve-across-module-boundaries
+destack_test::specification::declarations/associated-comptime/modules.md/modules/associated-comptime-constants-resolve-through-re-export-chains
+destack_test::specification::declarations/associated-comptime/modules.md/modules/associated-comptime-constants-support-tensor-style-shape-specialization-across-modules
+destack_test::specification::declarations/associated-comptime/modules.md/modules/associated-comptime-projections-reject-unresolved-imported-generic-value-usage
+destack_test::specification::declarations/associated-comptime/modules.md/modules/associated-comptime-projections-resolve-through-namespace-imports
+destack_test::specification::declarations/associated-comptime/modules.md/modules/cross-module-codec-layout-composes-associated-comptime-and-associated-types
+destack_test::specification::declarations/associated-comptime/modules.md/modules/interface-abstract-associated-comptime-requirements-survive-imports
+destack_test::specification::declarations/associated-comptime/projections.md/projections/associated-comptime-constants-cannot-be-declared-in-type-aliases
+destack_test::specification::declarations/associated-comptime/projections.md/projections/associated-comptime-projections-can-parameterize-vector-width-aliases
+destack_test::specification::declarations/associated-comptime/projections.md/projections/associated-comptime-projections-compose-with-associated-types
+destack_test::specification::declarations/associated-comptime/projections.md/projections/associated-comptime-projections-detect-cycles
+destack_test::specification::declarations/associated-comptime/projections.md/projections/associated-comptime-projections-reject-assignment-in-value-space
+destack_test::specification::declarations/associated-comptime/projections.md/projections/associated-comptime-projections-reject-dynamic-instance-access
+destack_test::specification::declarations/associated-comptime/projections.md/projections/associated-comptime-projections-reject-runtime-only-operations-in-initializer-flow
+destack_test::specification::declarations/associated-comptime/projections.md/projections/type-level-projections-can-use-associated-comptime-constants
+destack_test::specification::declarations/associated-comptime/projections.md/projections/value-level-projections-can-be-used-when-fully-resolvable
+destack_test::specification::declarations/associated-comptime/projections.md/projections/value-level-projections-reject-unresolved-generic-substitutions
+destack_test::specification::declarations/associated-comptime/structs.md/structs/struct-associated-comptime-constants-can-drive-sibling-associated-types
+destack_test::specification::declarations/associated-comptime/structs.md/structs/struct-associated-comptime-constants-can-use-static-value-parameters
+destack_test::specification::declarations/associated-comptime/structs.md/structs/struct-associated-comptime-constants-reject-declaration-without-initializer
+destack_test::specification::declarations/associated-comptime/structs.md/structs/struct-associated-comptime-constants-reject-non-static-initializers
+destack_test::specification::declarations/associated-comptime/structs.md/structs/struct-can-declare-associated-comptime-constants
+destack_test::specification::declarations/associated-types/classes.md/classes/class-associated-defaults-can-reference-sibling-associated-types
+destack_test::specification::declarations/associated-types/classes.md/classes/class-associated-interface-implementations-resolve-across-module-boundaries
+destack_test::specification::declarations/associated-types/classes.md/classes/class-associated-projections-remain-non-static-expressions-across-module-boundaries
+destack_test::specification::declarations/associated-types/classes.md/classes/class-associated-projections-resolve-across-module-boundaries
+destack_test::specification::declarations/associated-types/classes.md/classes/class-associated-projections-resolve-through-namespace-imports
+destack_test::specification::declarations/associated-types/classes.md/classes/class-associated-projections-work-through-type-aliases
+destack_test::specification::declarations/associated-types/classes.md/classes/class-associated-type-can-declare-static-parameters
+destack_test::specification::declarations/associated-types/classes.md/classes/class-associated-type-can-declare-static-value-parameters
+destack_test::specification::declarations/associated-types/classes.md/classes/class-associated-type-names-can-coexist-with-associated-comptime-constants
+destack_test::specification::declarations/associated-types/classes.md/classes/class-associated-type-override-keeps-interface-substitution
+destack_test::specification::declarations/associated-types/classes.md/classes/class-associated-type-satisfies-interface-contract
+destack_test::specification::declarations/associated-types/classes.md/classes/class-associated-types-are-not-static-expressions-for-comptime-value-arguments
+destack_test::specification::declarations/associated-types/classes.md/classes/class-associated-types-can-use-conditional-type-operators
+destack_test::specification::declarations/associated-types/classes.md/classes/class-associated-types-can-use-mapped-type-operators
+destack_test::specification::declarations/associated-types/classes.md/classes/class-conditional-associated-projections-resolve-across-module-boundaries
+destack_test::specification::declarations/associated-types/classes.md/classes/class-generic-associated-defaults-can-reference-sibling-generic-aliases
+destack_test::specification::declarations/associated-types/classes.md/classes/class-generic-associated-projections-resolve-across-module-boundaries
+destack_test::specification::declarations/associated-types/classes.md/classes/class-inheritance-allows-associated-type-overrides
+destack_test::specification::declarations/associated-types/classes.md/classes/class-inheritance-override-projections-resolve-across-module-boundaries
+destack_test::specification::declarations/associated-types/classes.md/classes/class-inheritance-preserves-associated-type-defaults-with-value-parameters
+destack_test::specification::declarations/associated-types/classes.md/classes/class-inheritance-preserves-associated-type-projections
+destack_test::specification::declarations/associated-types/classes.md/classes/class-inheritance-preserves-generic-associated-defaults
+destack_test::specification::declarations/associated-types/classes.md/classes/class-inherits-interface-associated-type-defaults-with-static-value-parameters
+destack_test::specification::declarations/associated-types/classes.md/classes/class-inherits-interface-generic-associated-defaults
+destack_test::specification::declarations/associated-types/classes.md/classes/class-mixed-generic-associated-projections-resolve-across-module-boundaries
+destack_test::specification::declarations/associated-types/interfaces.md/interfaces/associated-type-projection-on-constrained-type-parameters
+destack_test::specification::declarations/associated-types/interfaces.md/interfaces/associated-type-projection-supports-mixed-outer-and-member-substitutions
+destack_test::specification::declarations/associated-types/interfaces.md/interfaces/associated-type-projections-resolve-through-re-export-chains
+destack_test::specification::declarations/associated-types/interfaces.md/interfaces/class-implementors-can-override-mixed-generic-associated-defaults
+destack_test::specification::declarations/associated-types/interfaces.md/interfaces/implementing-multiple-interfaces-can-share-one-compatible-associated-projection
+destack_test::specification::declarations/associated-types/interfaces.md/interfaces/implementing-multiple-interfaces-composes-associated-projections
+destack_test::specification::declarations/associated-types/interfaces.md/interfaces/interface-associated-defaults-resolve-through-namespace-imports
+destack_test::specification::declarations/associated-types/interfaces.md/interfaces/interface-associated-type-bounds-use-implementor-substitutions
+destack_test::specification::declarations/associated-types/interfaces.md/interfaces/interface-associated-type-can-be-generic
+destack_test::specification::declarations/associated-types/interfaces.md/interfaces/interface-associated-type-default-can-be-overridden
+destack_test::specification::declarations/associated-types/interfaces.md/interfaces/interface-generic-associated-defaults-resolve-across-module-boundaries
+destack_test::specification::declarations/associated-types/interfaces.md/interfaces/interface-generic-associated-type-defaults-are-inherited
+destack_test::specification::declarations/associated-types/interfaces.md/interfaces/interface-inheritance-carries-abstract-associated-requirements
+destack_test::specification::declarations/associated-types/interfaces.md/interfaces/interface-inheritance-carries-associated-type-defaults
+destack_test::specification::declarations/associated-types/interfaces.md/interfaces/interface-inheritance-rejects-missing-abstract-associated-requirements
+destack_test::specification::declarations/associated-types/interfaces.md/interfaces/interface-mixed-generic-associated-defaults-resolve-across-module-boundaries
+destack_test::specification::declarations/associated-types/structs.md/structs/struct-associated-defaults-can-reference-sibling-associated-types
+destack_test::specification::declarations/associated-types/structs.md/structs/struct-associated-defaults-support-multiple-static-value-parameters
+destack_test::specification::declarations/associated-types/structs.md/structs/struct-associated-projections-resolve-across-module-boundaries
+destack_test::specification::declarations/associated-types/structs.md/structs/struct-associated-projections-use-inherited-interface-generic-defaults
+destack_test::specification::declarations/associated-types/structs.md/structs/struct-associated-projections-work-through-type-aliases
+destack_test::specification::declarations/associated-types/structs.md/structs/struct-associated-type-can-be-referenced-from-the-type
+destack_test::specification::declarations/associated-types/structs.md/structs/struct-associated-type-can-declare-static-parameters
+destack_test::specification::declarations/associated-types/structs.md/structs/struct-associated-type-can-use-static-value-parameters
+destack_test::specification::declarations/associated-types/structs.md/structs/struct-associated-type-parameters-can-reference-outer-parameters
+destack_test::specification::declarations/associated-types/structs.md/structs/struct-associated-type-projection-composes-across-aliases
+destack_test::specification::declarations/associated-types/structs.md/structs/struct-associated-type-projection-works-on-constrained-parameters
+destack_test::specification::declarations/associated-types/structs.md/structs/struct-associated-type-supports-mixed-type-and-value-parameters
+destack_test::specification::declarations/associated-types/structs.md/structs/struct-associated-types-are-not-static-expressions-for-comptime-value-arguments
+destack_test::specification::declarations/associated-types/structs.md/structs/struct-associated-types-can-use-conditional-type-operators
+destack_test::specification::declarations/associated-types/structs.md/structs/struct-associated-types-can-use-mapped-type-operators
+destack_test::specification::declarations/associated-types/structs.md/structs/struct-generic-associated-defaults-can-reference-sibling-generic-aliases
+destack_test::specification::declarations/associated-types/structs.md/structs/struct-generic-associated-projections-resolve-across-module-boundaries
+destack_test::specification::declarations/associated-types/structs.md/structs/struct-mixed-generic-associated-projections-resolve-across-module-boundaries
 destack_test::specification::expressions/comptime/conditions.md/comptime-conditions/comptime-type-condition-narrows-in-true-branch
 destack_test::specification::options/runtime.md/noexceptions/noexceptions-reports-throw-when-true
 destack_test::specification::options/runtime.md/noexceptions/noexceptions-reports-try-catch-when-true
@@ -9,60 +121,11 @@ destack_test::specification::types/control/result.md/constructors/ok-and-err-val
 destack_test::specification::types/control/result.md/narrowing/discriminant-narrows-result-variants
 destack_test::specification::types/operators/import.md/import-type-queries/import-type-accesses-default-exports
 destack_test::specification::types/operators/import.md/import-type-queries/import-type-accesses-exported-types
-destack_test::specification::types/operators/import.md/import-type-queries/import-type-rejects-missing-members
-destack_test::specification::types/ownership/managed.md/owned-mutability/readonly-owned-values-forbid-mutation
 destack_test::specification::types/ownership/borrows.md/borrow-modes/hint-mode-emits-warnings-for-conflicts
 destack_test::specification::types/ownership/borrows.md/borrow-modes/strict-mode-reports-conflicts-as-errors
-    destack_test::specification::declarations/associated-comptime/classes.md/classes/abstract-classes-can-declare-abstract-associated-comptime-constants
-    destack_test::specification::declarations/associated-comptime/classes.md/classes/class-associated-comptime-constants-can-coexist-with-runtime-static-constants
-    destack_test::specification::declarations/associated-comptime/classes.md/classes/class-associated-comptime-constants-can-use-outer-type-substitutions
-    destack_test::specification::declarations/associated-comptime/classes.md/classes/class-associated-comptime-constants-enforce-annotation-compatibility
-    destack_test::specification::declarations/associated-comptime/classes.md/classes/class-associated-comptime-constants-require-initializer
-    destack_test::specification::declarations/associated-comptime/classes.md/classes/class-associated-comptime-constants-require-static-initializers
-    destack_test::specification::declarations/associated-comptime/classes.md/classes/class-can-declare-associated-comptime-constants
-    destack_test::specification::declarations/associated-comptime/classes.md/classes/class-static-const-remains-runtime-member-not-associated-comptime-member
-    destack_test::specification::declarations/associated-comptime/classes.md/classes/concrete-subclasses-must-implement-abstract-associated-comptime-constants
-    destack_test::specification::declarations/associated-comptime/interfaces.md/interfaces/class-implementor-can-override-interface-associated-comptime-constants
-    destack_test::specification::declarations/associated-comptime/interfaces.md/interfaces/implementor-must-define-abstract-associated-comptime-constants
-    destack_test::specification::declarations/associated-comptime/interfaces.md/interfaces/implementor-override-must-satisfy-interface-associated-comptime-constant-type
-    destack_test::specification::declarations/associated-comptime/interfaces.md/interfaces/interface-associated-comptime-constants-can-describe-fixed-tensor-layouts
-    destack_test::specification::declarations/associated-comptime/interfaces.md/interfaces/interface-associated-comptime-constants-can-drive-vector-lane-aliases
-    destack_test::specification::declarations/associated-comptime/interfaces.md/interfaces/interface-can-declare-abstract-associated-comptime-constants
-    destack_test::specification::declarations/associated-comptime/interfaces.md/interfaces/interface-can-declare-default-associated-comptime-constants
-    destack_test::specification::declarations/associated-comptime/interfaces.md/interfaces/interface-default-can-reference-sibling-associated-comptime-constants
-    destack_test::specification::declarations/associated-comptime/modules.md/modules/associated-comptime-constants-resolve-across-module-boundaries
-    destack_test::specification::declarations/associated-comptime/modules.md/modules/associated-comptime-constants-resolve-through-re-export-chains
-    destack_test::specification::declarations/associated-comptime/modules.md/modules/associated-comptime-constants-support-tensor-style-shape-specialization-across-modules
-    destack_test::specification::declarations/associated-comptime/modules.md/modules/associated-comptime-projections-reject-unresolved-imported-generic-value-usage
-    destack_test::specification::declarations/associated-comptime/modules.md/modules/interface-abstract-associated-comptime-requirements-survive-imports
-    destack_test::specification::declarations/associated-comptime/projections.md/projections/associated-comptime-projections-can-parameterize-vector-width-aliases
-    destack_test::specification::declarations/associated-comptime/projections.md/projections/associated-comptime-projections-compose-with-associated-types
-    destack_test::specification::declarations/associated-comptime/projections.md/projections/associated-comptime-projections-detect-cycles
-    destack_test::specification::declarations/associated-comptime/projections.md/projections/associated-comptime-projections-reject-dynamic-instance-access
-    destack_test::specification::declarations/associated-comptime/projections.md/projections/associated-comptime-projections-reject-runtime-only-operations-in-initializer-flow
-    destack_test::specification::declarations/associated-comptime/projections.md/projections/type-level-projections-can-use-associated-comptime-constants
-    destack_test::specification::declarations/associated-comptime/projections.md/projections/value-level-projections-can-be-used-when-fully-resolvable
-    destack_test::specification::declarations/associated-comptime/projections.md/projections/value-level-projections-reject-unresolved-generic-substitutions
-    destack_test::specification::declarations/associated-comptime/structs.md/structs/struct-associated-comptime-constants-can-drive-sibling-associated-types
-    destack_test::specification::declarations/associated-comptime/structs.md/structs/struct-associated-comptime-constants-can-use-static-value-parameters
-    destack_test::specification::declarations/associated-comptime/structs.md/structs/struct-associated-comptime-constants-reject-declaration-without-initializer
-    destack_test::specification::declarations/associated-comptime/structs.md/structs/struct-associated-comptime-constants-reject-non-static-initializers
-    destack_test::specification::declarations/associated-comptime/structs.md/structs/struct-can-declare-associated-comptime-constants
-    destack_test::specification::declarations/associated-comptime/classes.md/classes/class-static-comptime-const-is-rejected-as-redundant
-    destack_test::specification::declarations/associated-comptime/interfaces.md/interfaces/implementing-multiple-interfaces-can-share-compatible-associated-comptime-constants
-    destack_test::specification::declarations/associated-comptime/interfaces.md/interfaces/implementing-multiple-interfaces-rejects-incompatible-associated-comptime-defaults
-    destack_test::specification::declarations/associated-comptime/modules.md/modules/associated-comptime-projections-resolve-through-namespace-imports
-    destack_test::specification::declarations/associated-comptime/modules.md/modules/cross-module-codec-layout-composes-associated-comptime-and-associated-types
-    destack_test::specification::declarations/associated-comptime/layouts.md/layouts/kernel-profile-composes-lane-width-with-tensor-tile-aliases
-    destack_test::specification::declarations/associated-comptime/layouts.md/layouts/layout-aliases-can-compose-arithmetic-across-sibling-associated-constants
-    destack_test::specification::declarations/associated-comptime/layouts.md/layouts/generic-value-parameters-can-feed-associated-layout-constants
-    destack_test::specification::declarations/associated-comptime/composition.md/composition/service-profile-composes-batching-with-mapped-envelopes
-    destack_test::specification::declarations/associated-comptime/composition.md/composition/policy-defaults-can-combine-conditional-and-mapped-associated-aliases
-    destack_test::specification::declarations/associated-comptime/composition.md/composition/inferred-element-aliases-can-drive-associated-comptime-widths
-    destack_test::specification::declarations/associated-comptime/composition.md/composition/unresolved-value-projection-still-rejects-generic-runtime-paths
-    destack_test::specification::declarations/associated-comptime/contracts.md/contracts/class-owner-can-satisfy-abstract-base-and-interface-associated-comptime-contracts
-    destack_test::specification::declarations/associated-comptime/contracts.md/contracts/class-owner-rejects-incompatible-associated-comptime-contract-overrides
-    destack_test::specification::declarations/associated-comptime/contracts.md/contracts/owner-contracts-require-implementation-through-cross-module-abstract-chains
-    destack_test::specification::declarations/associated-comptime/projections.md/projections/associated-comptime-constants-cannot-be-declared-in-type-aliases
-destack_test::specification::declarations/associated-types/interfaces.md/interfaces/associated-type-projection-on-constrained-type-parameters
-destack_test::specification::declarations/associated-types/classes.md/classes/class-associated-type-names-can-coexist-with-associated-comptime-constants
+destack_test::specification::types/ownership/managed.md/owned-mutability/readonly-owned-values-forbid-mutation
+destack_test::specification::types/template-literals/associated.md/associated/associated-aliases-can-combine-conditional-template-inference-and-projection
+destack_test::specification::types/template-literals/associated.md/associated/associated-aliases-can-remap-keys-with-template-literals
+destack_test::specification::types/template-literals/associated.md/associated/class-associated-aliases-can-project-template-literals-from-owner-substitutions
+destack_test::specification::types/template-literals/associated.md/associated/interface-generic-associated-defaults-can-compose-template-projections
+destack_test::specification::types/template-literals/modules.md/modules/associated-template-projections-resolve-across-module-boundaries

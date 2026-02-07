@@ -191,6 +191,14 @@ pub enum Member {
         value: Option<LocalNodeId<Expression>>,
         symbol: LocalSymbolId,
     },
+    /// Associated compile-time constant (like `comptime const Width: number = 8`).
+    ComptimeConst {
+        modifiers: Option<BindingModifier>,
+        name: StringId,
+        ty: Option<LocalNodeId<Expression>>,
+        value: Option<LocalNodeId<Expression>>,
+        symbol: LocalSymbolId,
+    },
     /// Named field (like `x: int32`).
     Field {
         modifiers: Option<BindingModifier>,
@@ -232,6 +240,7 @@ impl Member {
     pub fn symbol(&self) -> LocalSymbolId {
         match self {
             Member::Type { symbol, .. } => *symbol,
+            Member::ComptimeConst { symbol, .. } => *symbol,
             Member::Field { symbol, .. } => *symbol,
             Member::Method { symbol, .. } => *symbol,
             Member::Embed { symbol, .. } => *symbol,
@@ -244,6 +253,7 @@ impl Member {
     pub fn key(&self) -> Option<&DynamicKey> {
         match self {
             Member::Type { .. } => None,
+            Member::ComptimeConst { .. } => None,
             Member::Field { key, .. } => key.as_ref(),
             Member::Method { key, .. } => key.as_ref(),
             Member::Embed { .. } => None,

@@ -1557,7 +1557,7 @@ impl Compiler {
         for member_id in members {
             let member = tree.get(*member_id);
             match member {
-                Member::Type { .. } => {}
+                Member::Type { .. } | Member::ComptimeConst { .. } => {}
                 Member::Field {
                     modifiers,
                     key,
@@ -1916,7 +1916,7 @@ impl Compiler {
         let mut shape = ObjectShape::default();
 
         match member {
-            Member::Type { .. } => Ok(shape),
+            Member::Type { .. } | Member::ComptimeConst { .. } => Ok(shape),
             Member::Field {
                 modifiers,
                 key,

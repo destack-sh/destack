@@ -1437,6 +1437,73 @@ impl Compiler {
 
                 Ok(())
             }
+            Member::ComptimeConst {
+                ty,
+                value,
+                symbol,
+                modifiers: _,
+                name: _,
+            } => {
+                // resolve the member symbol
+                let member_symbol = symbol.into_global(module.id);
+
+                // evaluate optional annotation
+                let constraint_type = if let Some(ty) = ty {
+                    Some(self.try_evaluate_expression_to_type(
+                        module,
+                        ctx.profile,
+                        *ty,
+                        tree,
+                        symbols,
+                        types,
+                        true,
+                        true,
+                    )?)
+                } else {
+                    None
+                };
+
+                // evaluate optional initializer
+                let value_type = if let Some(value) = value {
+                    let value_type = self.try_evaluate_expression_to_type(
+                        module,
+                        ctx.profile,
+                        *value,
+                        tree,
+                        symbols,
+                        types,
+                        true,
+                        true,
+                    )?;
+                    types.set_value_type(member_symbol, value_type);
+                    Some(value_type)
+                } else {
+                    None
+                };
+
+                // validate initializer against annotation
+                if let (Some(constraint_type), Some(value_type)) = (constraint_type, value_type) {
+                    let options = self.analyze_context_options_for_module(module.id);
+                    let is_assignable = self.is_type_assignable(
+                        module,
+                        ctx.profile,
+                        symbols,
+                        constraint_type,
+                        value_type,
+                        types,
+                        &options,
+                    );
+                    if is_assignable == Assignability::NotAssignable {
+                        self.error(AnalyzeError::UnassignableType {
+                            node: member_id.into_global(module.id).into(),
+                            expected_ty: constraint_type.into_global(module.id),
+                            actual_ty: value_type.into_global(module.id),
+                        });
+                    }
+                }
+
+                Ok(())
+            }
             Member::Field {
                 modifiers,
                 key,

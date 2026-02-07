@@ -1278,6 +1278,7 @@ impl Compiler {
         // extract visibility from modifiers
         let modifiers = match member {
             Member::Type { modifiers, .. }
+            | Member::ComptimeConst { modifiers, .. }
             | Member::Field { modifiers, .. }
             | Member::Method { modifiers, .. }
             | Member::Embed { modifiers, .. }
@@ -2340,12 +2341,13 @@ impl Compiler {
     fn member_visible_for_lookup(&self, member: &Member, lookup_mode: MemberLookupMode) -> bool {
         // resolve modifiers from the member node
         let modifiers = match member {
-            Member::Type { modifiers, .. } => modifiers.as_ref(),
-            Member::Field { modifiers, .. } => modifiers.as_ref(),
-            Member::Method { modifiers, .. } => modifiers.as_ref(),
-            Member::Embed { modifiers, .. } => modifiers.as_ref(),
-            Member::StaticBlock { modifiers, .. } => modifiers.as_ref(),
-            Member::ComptimeBlock { modifiers, .. } => modifiers.as_ref(),
+            Member::Type { modifiers, .. }
+            | Member::ComptimeConst { modifiers, .. }
+            | Member::Field { modifiers, .. }
+            | Member::Method { modifiers, .. }
+            | Member::Embed { modifiers, .. }
+            | Member::StaticBlock { modifiers, .. }
+            | Member::ComptimeBlock { modifiers, .. } => modifiers.as_ref(),
         };
 
         // filter by anchor for the lookup mode

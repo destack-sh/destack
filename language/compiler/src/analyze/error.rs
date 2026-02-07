@@ -392,7 +392,7 @@ pub enum AnalyzeError {
     /// Member-like access cannot directly follow instantiation expressions.
     #[error(
         code = "EA234",
-        message = "invalid property access after an instantiation expression"
+        message = "instantiation expressions must be parenthesized before member or index access"
     )]
     InvalidInstantiationAccess { node: AnchoredGlobalNodeId },
 

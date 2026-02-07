@@ -213,6 +213,45 @@ impl Compiler {
                     value,
                 }
             }
+            dir::Member::ComptimeConst {
+                modifiers,
+                name,
+                ty,
+                value,
+                ..
+            } => {
+                let modifiers =
+                    modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
+                let name = ast_strings.intern_from(&self.program.strings, *name);
+                let ty = ty.map(|ty| {
+                    self.unbind_expression(
+                        module,
+                        ty,
+                        tree,
+                        symbols,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
+                });
+                let value = value.map(|value| {
+                    self.unbind_expression(
+                        module,
+                        value,
+                        tree,
+                        symbols,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
+                });
+                ast::Member::ComptimeConst {
+                    modifiers,
+                    name,
+                    ty,
+                    value,
+                }
+            }
             dir::Member::Field {
                 modifiers,
                 key,

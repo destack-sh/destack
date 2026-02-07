@@ -81,6 +81,7 @@ pub(crate) fn declaration_symbol_kind(declaration: &Declaration) -> SymbolKind {
 pub(crate) fn member_symbol_kind(member: &Member) -> Option<SymbolKind> {
     match member {
         Member::Type { .. } => Some(SymbolKind::TypeParameter),
+        Member::ComptimeConst { .. } => Some(SymbolKind::Constant),
         Member::Field { .. } => Some(SymbolKind::Field),
         Member::Method { .. } => Some(SymbolKind::Method),
         Member::Embed { .. } => None,

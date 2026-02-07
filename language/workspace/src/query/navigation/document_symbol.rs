@@ -317,6 +317,10 @@ fn member_to_document_symbol_ast(
             let name = ast.strings.get(*name).to_string();
             (name, SymbolKind::TypeParameter)
         }
+        ast::Member::ComptimeConst { name, .. } => {
+            let name = ast.strings.get(*name).to_string();
+            (name, SymbolKind::Constant)
+        }
         ast::Member::Field { key, .. } => {
             let key = key.as_ref()?;
             let name = member_key_name_ast(ast, key)?;

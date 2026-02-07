@@ -282,6 +282,13 @@ pub enum Member {
         ty: Option<LocalNodeId<Expression>>,
         value: Option<LocalNodeId<Expression>>,
     },
+    /// Associated compile-time constant (like `comptime const Width: number = 8`).
+    ComptimeConst {
+        modifiers: Option<BindingModifier>,
+        name: StringId,
+        ty: Option<LocalNodeId<Expression>>,
+        value: Option<LocalNodeId<Expression>>,
+    },
     /// Named field (like `x: int32`).
     Field {
         modifiers: Option<BindingModifier>,

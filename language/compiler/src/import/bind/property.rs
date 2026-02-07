@@ -358,6 +358,70 @@ impl Compiler {
 
                 member_id
             }
+            ast::Member::ComptimeConst {
+                modifiers,
+                name,
+                ty,
+                value,
+            } => {
+                let member_id =
+                    tree.reserve_from_source(NodeType::Member, ast_member_id.id, scope, parent_id);
+                let modifiers =
+                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
+                let name = self.program.strings.intern_from(&ast.strings, *name);
+                let ty = ty.map(|ty| {
+                    self.bind_expression(
+                        module,
+                        ast,
+                        scope,
+                        ty,
+                        Some(member_id),
+                        tree,
+                        symbols,
+                        types,
+                        SymbolSpaceOrder::TypeThenValue,
+                    )
+                });
+                let value = value.map(|value| {
+                    self.bind_expression(
+                        module,
+                        ast,
+                        scope,
+                        value,
+                        Some(member_id),
+                        tree,
+                        symbols,
+                        types,
+                        SymbolSpaceOrder::TypeThenValue,
+                    )
+                });
+
+                // associated comptime constants live in owner value space
+                let (symbol_id, _) = symbols.insert_symbol(
+                    SymbolKind::Item,
+                    SymbolType::Void,
+                    SymbolSpace::Value,
+                    SymbolBinding::Runtime,
+                    Some(StaticKey::Name(name)),
+                    scope,
+                    None,
+                );
+                let member_id = tree.insert(
+                    member_id,
+                    Member::ComptimeConst {
+                        modifiers,
+                        name,
+                        ty,
+                        value,
+                        symbol: symbol_id,
+                    },
+                );
+
+                // bind symbol to member node
+                symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
+
+                member_id
+            }
             ast::Member::Field {
                 modifiers,
                 key,
