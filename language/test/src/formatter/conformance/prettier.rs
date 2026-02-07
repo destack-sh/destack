@@ -6,7 +6,7 @@ use super::fixtures::{
     expect_error_from_path, is_formattable_file_type, should_skip_directory,
     should_skip_fixture_file,
 };
-use super::format::run_formatter_case;
+use super::format::{default_conformance_formatter_options, run_formatter_case};
 use super::runner::{ConformanceSuite, SuiteResult, Test, TestOutcome, run_conformance_suite};
 use crate::harness::{TestOptions, fixtures_dir};
 
@@ -107,7 +107,14 @@ impl ConformanceSuite for PrettierSuite {
     fn run(&self, test: &Test, show_diff: bool) -> TestOutcome {
         let path = self.root.join(&test.name);
 
-        run_formatter_case(&path, test.file_type, None, test.expect_error, show_diff)
+        run_formatter_case(
+            &path,
+            test.file_type,
+            None,
+            default_conformance_formatter_options(),
+            test.expect_error,
+            show_diff,
+        )
     }
 
     fn download_instructions(&self) -> String {

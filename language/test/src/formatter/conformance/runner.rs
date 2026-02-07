@@ -18,8 +18,14 @@ use crate::harness::{TestOptions, load_expected_failures, save_expected_failures
 pub enum TestOutcome {
     /// Test passed (actual result matched expected).
     Passed,
-    /// Test failed (actual result did not match expected).
-    Failed,
+    /// Test failed because parsing failed.
+    FailedParse,
+    /// Test failed because output mismatched expected output.
+    FailedOutput,
+    /// Test failed because formatting was not idempotent.
+    FailedIdempotence,
+    /// Test failed because fixture input could not be read.
+    FailedRead,
 }
 
 /// A discovered conformance test with metadata.
@@ -148,8 +154,7 @@ pub trait ConformanceSuite: Send + Sync + Clone {
 
 /// Internal result including timeout state.
 enum TestResult {
-    Passed,
-    Failed,
+    Completed(TestOutcome),
     TimedOut,
 }
 
@@ -178,10 +183,9 @@ fn run_test_with_timeout<S: ConformanceSuite + 'static>(
         .expect("failed to spawn test thread");
 
     let outcome = match rx.recv_timeout(timeout) {
-        Ok(TestOutcome::Passed) => TestResult::Passed,
-        Ok(TestOutcome::Failed) => TestResult::Failed,
+        Ok(outcome) => TestResult::Completed(outcome),
         Err(mpsc::RecvTimeoutError::Timeout) => TestResult::TimedOut,
-        Err(mpsc::RecvTimeoutError::Disconnected) => TestResult::Failed,
+        Err(mpsc::RecvTimeoutError::Disconnected) => TestResult::Completed(TestOutcome::FailedRead),
     };
 
     // abort on timeouts to prevent runaway test threads
@@ -229,6 +233,16 @@ pub struct ConformanceResult {
     pub failed: usize,
     pub skipped: usize,
     pub timedout: usize,
+    /// tests that failed due to parser errors
+    pub parse_failed: usize,
+    /// tests that failed due to parser errors.
+    pub parse_failure_tests: Vec<String>,
+    /// tests that failed due to output mismatch
+    pub output_failed: usize,
+    /// tests that failed due to idempotence mismatch
+    pub idempotence_failed: usize,
+    /// tests that failed due to fixture read errors
+    pub read_failed: usize,
     /// tests that failed unexpectedly (not in known-failures or ignored list)
     pub regressions: Vec<String>,
     /// tests that passed but were in known-failures (progress!)
@@ -430,6 +444,11 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
     let mut unskipped = Vec::new();
     let mut timeouts = Vec::new();
     let mut current_failures = HashSet::new();
+    let mut parse_failed = 0;
+    let mut parse_failure_tests = Vec::new();
+    let mut output_failed = 0;
+    let mut idempotence_failed = 0;
+    let mut read_failed = 0;
     let mut categories: BTreeMap<String, CategoryStats> = BTreeMap::new();
 
     let ignored_failures_are_strict = suite.ignored_failures_are_strict();
@@ -449,7 +468,7 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
         }
 
         match outcome {
-            TestResult::Passed => {
+            TestResult::Completed(TestOutcome::Passed) => {
                 if is_skipped {
                     // ignored test now passes: report so we can remove from ignored list
                     unskipped.push(name);
@@ -463,7 +482,12 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
                     }
                 }
             }
-            TestResult::Failed => {
+            TestResult::Completed(
+                failure_kind @ (TestOutcome::FailedParse
+                | TestOutcome::FailedOutput
+                | TestOutcome::FailedIdempotence
+                | TestOutcome::FailedRead),
+            ) => {
                 if is_skipped {
                     // Expected - ignored tests should fail
                     skipped += 1;
@@ -471,6 +495,16 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
                 } else {
                     failed += 1;
                     cat_stats.failed += 1;
+                    match failure_kind {
+                        TestOutcome::FailedParse => {
+                            parse_failed += 1;
+                            parse_failure_tests.push(name.clone());
+                        }
+                        TestOutcome::FailedOutput => output_failed += 1,
+                        TestOutcome::FailedIdempotence => idempotence_failed += 1,
+                        TestOutcome::FailedRead => read_failed += 1,
+                        TestOutcome::Passed => unreachable!("passed outcomes are handled above"),
+                    }
                     if !is_known_failure {
                         regressions.push(name.clone());
                     }
@@ -523,6 +557,11 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
         failed,
         skipped,
         timedout,
+        parse_failed,
+        parse_failure_tests,
+        output_failed,
+        idempotence_failed,
+        read_failed,
         regressions,
         fixed,
         unskipped,
@@ -770,6 +809,16 @@ fn print_conformance_result(
         result.failed,
         failed_pct
     );
+    if result.failed > 0 {
+        println!(
+            "  {}  parse={} output={} idempotence={} read={}",
+            color::dim("failure kinds:"),
+            result.parse_failed,
+            result.output_failed,
+            result.idempotence_failed,
+            result.read_failed
+        );
+    }
     if result.skipped > 0 {
         println!("  {} {:>5}", color::yellow("ignored:"), result.skipped);
     }
@@ -857,6 +906,27 @@ fn print_conformance_result(
                 "  {} ... and {} more",
                 color::dim(""),
                 result.timeouts.len() - show_count
+            );
+        }
+        println!();
+    }
+
+    // parse failures
+    if !result.parse_failure_tests.is_empty() {
+        println!(
+            "{} ({} tests failed in parser stage):",
+            color::yellow("PARSE FAILURES"),
+            result.parse_failure_tests.len()
+        );
+        let show_count = result.parse_failure_tests.len().min(20);
+        for test in &result.parse_failure_tests[..show_count] {
+            println!("  {test}");
+        }
+        if result.parse_failure_tests.len() > show_count {
+            println!(
+                "  {} ... and {} more",
+                color::dim(""),
+                result.parse_failure_tests.len() - show_count
             );
         }
         println!();

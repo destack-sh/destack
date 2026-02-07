@@ -2,12 +2,12 @@ use std::path::{Path, PathBuf};
 
 use destack_source::FileType;
 
-use super::expected::load_expected_output;
+use super::expected::{load_expected_output, load_oxfmt_expected_case};
 use super::fixtures::{
     expect_error_from_path, is_formattable_file_type, should_skip_directory,
     should_skip_fixture_file, sibling_with_suffix,
 };
-use super::format::run_formatter_case;
+use super::format::{default_conformance_formatter_options, run_formatter_case};
 use super::runner::{
     ConformanceSuite, ExpectedOutput, SuiteResult, Test, TestOutcome, run_conformance_suite,
 };
@@ -120,12 +120,26 @@ impl ConformanceSuite for OxfmtSuite {
 
     fn run(&self, test: &Test, show_diff: bool) -> TestOutcome {
         let path = self.root.join(&test.name);
-        let expected_output = load_expected_output(self.root(), &test.expected_output);
+        let mut formatter_options = default_conformance_formatter_options();
+        let expected_output = match &test.expected_output {
+            ExpectedOutput::OxfmtSnapshot(path) => {
+                if let Some(expected_case) =
+                    load_oxfmt_expected_case(self.root(), path, formatter_options)
+                {
+                    formatter_options = expected_case.formatter_options;
+                    Some(expected_case.output)
+                } else {
+                    None
+                }
+            }
+            _ => load_expected_output(self.root(), &test.expected_output),
+        };
 
         run_formatter_case(
             &path,
             test.file_type,
             expected_output.as_deref(),
+            formatter_options,
             test.expect_error,
             show_diff,
         )
