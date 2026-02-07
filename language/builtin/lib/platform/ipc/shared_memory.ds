@@ -98,6 +98,64 @@ declare namespace ipc {
     )
     export function sharedMemoryClose(handle: SharedMemoryHandle): Result<void, PlatformError>;
 
+    /// Remove one named shared memory object.
+    ///
+    /// Remove one shared memory object name from the host namespace.
+    /// Live mappings and handles remain valid until they are closed and unmapped.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses shm_unlink-style APIs on Unix, named mapping object removal on Windows, and wasi equivalents when available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `ipc.sharedMemory`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.ipc.sharedMemory.unlink",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["ipc.sharedMemory"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function sharedMemoryUnlink(name: string): Result<void, PlatformError>;
+
+    /// Resize one shared memory object.
+    ///
+    /// Resize one shared memory object to the requested length.
+    /// Shrinking and growth semantics for existing mappings follow host virtual-memory rules.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses ftruncate-style resizing on Unix, section resizing on Windows where supported, and wasi equivalents when available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `ipc.sharedMemory`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.ipc.sharedMemory.resize",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["ipc.sharedMemory"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function sharedMemoryResize(handle: SharedMemoryHandle, size: uint64): Result<void, PlatformError>;
+
     /// Map one shared memory range.
     ///
     /// Map one region of a shared memory object into the current process address space.

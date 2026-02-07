@@ -112,7 +112,7 @@ declare namespace random {
     /// Advance a deterministic stream by one jump count.
     ///
     /// Move one stream forward by a deterministic jump count without generating intermediate values.
-    /// Jump semantics are runtime-defined and versioned for replay compatibility.
+    /// Jump uses the runtime deterministic PRNG jump function and is versioned for replay compatibility.
     ///
     /// # Platform
     /// Runtime-level operation available on all native runtime targets.

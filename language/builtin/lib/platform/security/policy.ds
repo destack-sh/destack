@@ -1,6 +1,5 @@
 import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
-import type { PlatformCapability } from "./capability.ds";
 
 /// Policy decision mode for one capability entry.
 export enum SecurityPolicyMode {
@@ -38,11 +37,12 @@ declare namespace security {
     /// Requires `security.policy.read`.
     ///
     /// # Replay
-    /// Deterministic.
+    /// External, nonrecordable.
     @binding(
         "destack.security.policy.get",
         {
             effect: "deterministic",
+            replay: "nonrecordable",
             requires: ["security.policy.read"],
             scope: "runtime",
             blocking: "never",
@@ -71,6 +71,7 @@ declare namespace security {
         "destack.security.policy.getRules",
         {
             effect: "deterministic",
+            replay: "nonrecordable",
             requires: ["security.policy.read"],
             scope: "runtime",
             blocking: "never",
@@ -100,7 +101,8 @@ declare namespace security {
     @binding(
         "destack.security.policy.set",
         {
-            effect: "deterministic",
+            effect: "external",
+            replay: "nonrecordable",
             requires: ["security.policy.write"],
             scope: "runtime",
             blocking: "never",
@@ -124,11 +126,12 @@ declare namespace security {
     /// Requires `security.policy.write`.
     ///
     /// # Replay
-    /// Deterministic.
+    /// External, nonrecordable.
     @binding(
         "destack.security.policy.setRules",
         {
-            effect: "deterministic",
+            effect: "external",
+            replay: "nonrecordable",
             requires: ["security.policy.write"],
             scope: "runtime",
             blocking: "never",

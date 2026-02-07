@@ -1,0 +1,369 @@
+import { Slice } from "native";
+import type { PlatformError } from "../error/index.ds";
+import { CryptoKeyHandle, CryptoStoreHandle } from "../resource/index.ds";
+
+/// Key algorithm selector.
+export enum CryptoKeyAlgorithm {
+    /// Rsa key algorithm.
+    Rsa = 1,
+    /// Elliptic curve key algorithm.
+    Ec = 2,
+    /// Ed25519 key algorithm.
+    Ed25519 = 3,
+    /// X25519 key algorithm.
+    X25519 = 4,
+    /// Aes key algorithm.
+    Aes = 5,
+    /// Hmac key algorithm.
+    Hmac = 6,
+}
+
+/// Key material format.
+export enum CryptoKeyFormat {
+    /// Pkcs8 pem format.
+    Pkcs8Pem = 1,
+    /// Pkcs8 der format.
+    Pkcs8Der = 2,
+    /// Spki pem format.
+    SpkiPem = 3,
+    /// Spki der format.
+    SpkiDer = 4,
+    /// Json web key format.
+    Jwk = 5,
+    /// Raw unstructured key bytes.
+    Raw = 6,
+}
+
+/// Signature scheme selector.
+export newtype CryptoSignatureScheme = uint32;
+
+/// Encryption scheme selector.
+export newtype CryptoEncryptionScheme = uint32;
+
+/// Key usage bitmask.
+export newtype CryptoKeyUsageMask = uint32;
+
+/// Key generation options.
+export struct CryptoKeySpec {
+    /// Key algorithm.
+    algorithm: CryptoKeyAlgorithm,
+    /// Key size in bits when applicable.
+    sizeBits: uint32,
+    /// Key usage mask.
+    usageMask: CryptoKeyUsageMask,
+    /// Key label.
+    label: string,
+    /// Whether key material may be exported.
+    extractable: boolean,
+    /// Whether hardware-backed keys are required.
+    hardwareBacked: boolean,
+}
+
+/// Key metadata.
+export struct CryptoKeyMetadata {
+    /// Key algorithm.
+    algorithm: CryptoKeyAlgorithm,
+    /// Key size in bits when applicable.
+    sizeBits: uint32,
+    /// Key usage mask.
+    usageMask: CryptoKeyUsageMask,
+    /// Key label.
+    label: string,
+    /// Whether key material may be exported.
+    extractable: boolean,
+    /// Whether key is hardware-backed.
+    hardwareBacked: boolean,
+}
+
+/// Key bindings for host provider key objects.
+declare namespace crypto {
+    /// Generate one key in one provider store.
+    ///
+    /// Create one provider-backed key object with the requested algorithm and key policy.
+    /// Generated key material remains owned by the host provider unless export is explicitly allowed.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses Security.framework, CNG, or provider-backed generate-key APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.key.generate`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.crypto.key.generate",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["crypto.key.generate"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function keyGenerate(
+        store: CryptoStoreHandle,
+        spec: CryptoKeySpec,
+    ): Result<CryptoKeyHandle, PlatformError>;
+
+    /// Import one key into one provider store.
+    ///
+    /// Parse and import one key blob into the selected provider store.
+    /// Key visibility and persistence follow host provider policies.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host provider key import APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.store.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.crypto.key.import",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["crypto.store.write"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function keyImport(
+        store: CryptoStoreHandle,
+        format: CryptoKeyFormat,
+        bytes: Slice<uint8>,
+        usageMask: CryptoKeyUsageMask,
+        label: string,
+    ): Result<CryptoKeyHandle, PlatformError>;
+
+    /// Export one public key.
+    ///
+    /// Export one public-key representation for the selected key handle in the requested format.
+    /// Exported bytes only include public material and are provider-normalized.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host provider public-key export APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.store.read`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.crypto.key.exportPublic",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["crypto.store.read"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function keyExportPublic(
+        handle: CryptoKeyHandle,
+        format: CryptoKeyFormat,
+    ): Result<Slice<uint8>, PlatformError>;
+
+    /// Return metadata for one key.
+    ///
+    /// Query one provider key object and return normalized metadata fields.
+    /// Metadata visibility is subject to host provider permissions.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host provider key attribute queries.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.store.read`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.crypto.key.metadata",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["crypto.store.read"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function keyMetadata(handle: CryptoKeyHandle): Result<CryptoKeyMetadata, PlatformError>;
+
+    /// Sign one message digest or payload.
+    ///
+    /// Produce one signature using one provider-backed key and one signature scheme.
+    /// Payload interpretation follows provider and scheme requirements.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses provider sign APIs over host key handles.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.key.verify`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.crypto.key.sign",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["crypto.key.verify"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function keySign(
+        handle: CryptoKeyHandle,
+        scheme: CryptoSignatureScheme,
+        payload: Slice<uint8>,
+    ): Result<Slice<uint8>, PlatformError>;
+
+    /// Verify one signature with one key handle.
+    ///
+    /// Verify one signature over one payload using one provider-backed key.
+    /// Verification semantics and required prehashing follow scheme and provider rules.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses provider verify APIs over host key handles.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.key.sign`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.crypto.key.verify",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["crypto.key.sign"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function keyVerify(
+        handle: CryptoKeyHandle,
+        scheme: CryptoSignatureScheme,
+        payload: Slice<uint8>,
+        signature: Slice<uint8>,
+    ): Result<boolean, PlatformError>;
+
+    /// Encrypt one payload with one key handle.
+    ///
+    /// Encrypt one payload using one provider-backed key and one encryption scheme.
+    /// Padding and nonce requirements are provider-specific and scheme-specific.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses provider encrypt APIs over host key handles.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.key.encrypt`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.crypto.key.encrypt",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["crypto.key.encrypt"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function keyEncrypt(
+        handle: CryptoKeyHandle,
+        scheme: CryptoEncryptionScheme,
+        payload: Slice<uint8>,
+    ): Result<Slice<uint8>, PlatformError>;
+
+    /// Decrypt one payload with one key handle.
+    ///
+    /// Decrypt one payload using one provider-backed key and one encryption scheme.
+    /// Padding and nonce requirements are provider-specific and scheme-specific.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses provider decrypt APIs over host key handles.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.key.decrypt`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.crypto.key.decrypt",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["crypto.key.decrypt"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function keyDecrypt(
+        handle: CryptoKeyHandle,
+        scheme: CryptoEncryptionScheme,
+        payload: Slice<uint8>,
+    ): Result<Slice<uint8>, PlatformError>;
+
+    /// Delete one key handle and backing key material when allowed.
+    ///
+    /// Remove one provider-backed key object and invalidate this handle.
+    /// Deletion permissions and persistence policies are enforced by the host provider.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses provider key delete APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.store.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.crypto.key.delete",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["crypto.store.write"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function keyDelete(handle: CryptoKeyHandle): Result<void, PlatformError>;
+}

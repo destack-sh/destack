@@ -2,7 +2,32 @@ import type { PlatformError } from "../error/index.ds";
 
 /// Process umask bindings for the native runtime.
 declare namespace process {
-    /// Update the process umask and return the previous value.
-    @binding("destack.process.umask", { effect: "external", replay: "recordable" })
+    /// Set process file-creation umask and return the previous value.
+    ///
+    /// Update the process-wide file mode creation mask used by future file-creation operations.
+    /// Mask interpretation follows POSIX mode bit rules.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses umask(2) on Unix and runtime compatibility behavior on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `process.identity.write`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.process.umask.umask",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["process.identity.write"],
+            scope: "os",
+            blocking: "never",
+        },
+    )
     export function umask(mask: uint32): Result<uint32, PlatformError>;
 }

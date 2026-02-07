@@ -4,16 +4,88 @@ import { SocketHandle } from "../resource/index.ds";
 /// Socket reuse option bindings for the native runtime.
 declare namespace net {
     /// Enable or disable SO_REUSEADDR.
-    @binding("destack.net.setReuseAddr", { effect: "external", replay: "recordable" })
+    ///
+    /// Toggle address-level listener reuse on a socket.
+    /// Rebind behavior after close follows host kernel time-wait policy.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses setsockopt(SO_REUSEADDR) on Unix and setsockopt on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.reuse.setReuseAddr", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
     export function setReuseAddr(
         handle: SocketHandle,
         enabled: boolean,
     ): Result<void, PlatformError>;
 
     /// Enable or disable SO_REUSEPORT.
-    @binding("destack.net.setReusePort", { effect: "external", replay: "recordable" })
+    ///
+    /// Toggle port-level listener fanout reuse on a socket.
+    /// Load distribution behavior across listeners follows host kernel policy.
+    ///
+    /// # Platform
+    /// Unix only. This operation returns `notSupported` on Windows.
+    /// Uses setsockopt(SO_REUSEPORT) on Unix and notSupported on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.reuse.setReusePort", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
     export function setReusePort(
         handle: SocketHandle,
         enabled: boolean,
     ): Result<void, PlatformError>;
+
+    /// Read SO_REUSEADDR.
+    ///
+    /// Read the current SO_REUSEADDR value from the host socket option layer.
+    /// Returned state reflects kernel listener-reuse policy for future binds.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses getsockopt(SO_REUSEADDR) on Unix and getsockopt on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.reuse.getReuseAddr", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
+    export function getReuseAddr(handle: SocketHandle): Result<boolean, PlatformError>;
+
+    /// Read SO_REUSEPORT.
+    ///
+    /// Read the current SO_REUSEPORT value from the host socket option layer.
+    /// Returned state reflects kernel port-fanout policy for future binds.
+    ///
+    /// # Platform
+    /// Unix only. This operation returns `notSupported` on Windows.
+    /// Uses getsockopt(SO_REUSEPORT) on Unix and notSupported on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.reuse.getReusePort", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
+    export function getReusePort(handle: SocketHandle): Result<boolean, PlatformError>;
 }

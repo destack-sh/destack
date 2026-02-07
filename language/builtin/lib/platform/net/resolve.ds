@@ -3,35 +3,81 @@ import type { PlatformError } from "../error/index.ds";
 import { SocketAddress, SocketFamily } from "./address.ds";
 
 /// Address resolution flags.
+///
+/// This value maps to native resolver flags such as AI_PASSIVE and AI_ADDRCONFIG.
 export newtype ResolveFlags = uint32;
 
-/// Passive address resolution (bindable).
-export const RESOLVE_PASSIVE: ResolveFlags = ResolveFlags(0x1);
-/// Return canonical names when possible.
-export const RESOLVE_CANONNAME: ResolveFlags = ResolveFlags(0x2);
-/// Numeric host only.
-export const RESOLVE_NUMERICHOST: ResolveFlags = ResolveFlags(0x4);
-/// Numeric service only.
-export const RESOLVE_NUMERICSERV: ResolveFlags = ResolveFlags(0x8);
-/// Return IPv4-mapped IPv6 addresses.
-export const RESOLVE_V4MAPPED: ResolveFlags = ResolveFlags(0x10);
-/// Return all matching addresses.
-export const RESOLVE_ALL: ResolveFlags = ResolveFlags(0x20);
-/// Filter by configured address families.
-export const RESOLVE_ADDRCONFIG: ResolveFlags = ResolveFlags(0x40);
+/// Reverse lookup flags.
+///
+/// This value maps to native reverse-lookup flags such as NI_NUMERICHOST and NI_NUMERICSERV.
+export newtype ReverseLookupFlags = uint32;
+
+/// Host and service query payload for address resolution.
+export struct ResolveQuery {
+    /// Whether to resolve one host value.
+    hasHost: boolean,
+    /// Hostname or numeric host literal when `hasHost` is true.
+    host: string,
+    /// Whether to resolve one service value.
+    hasService: boolean,
+    /// Service name or numeric port string when `hasService` is true.
+    service: string,
+    /// Requested address family filter.
+    family: SocketFamily,
+    /// Native resolver flags.
+    flags: ResolveFlags,
+}
+
+/// Reverse lookup host and service result.
+export struct ReverseLookupName {
+    /// Resolved host value.
+    host: string,
+    /// Resolved service value.
+    service: string,
+}
 
 /// Name resolution bindings for the native runtime.
 declare namespace net {
-    /// Resolve a hostname and port into socket addresses.
-    @binding("destack.net.resolve", { effect: "external", replay: "recordable" })
-    export function resolve(
-        host: string,
-        port: uint16,
-        family: SocketFamily,
-        flags: ResolveFlags,
-    ): Result<Array<SocketAddress>, PlatformError>;
+    /// Resolve a host and service query into raw socket addresses.
+    ///
+    /// Resolve the requested host and service to one or more socket addresses.
+    /// Name-service order, search domains, and canonicalization follow host resolver policy.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses getaddrinfo(3) on Unix and GetAddrInfoW on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.dns`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.resolve.resolve", { effect: "external", replay: "recordable", requires: ["net.dns"], scope: "os", blocking: "sometimes" })
+    export function resolve(query: ResolveQuery): Result<Array<SocketAddress>, PlatformError>;
 
-    /// Reverse lookup a socket address into hostnames.
-    @binding("destack.net.reverseLookup", { effect: "external", replay: "recordable" })
-    export function reverseLookup(address: SocketAddress): Result<Array<string>, PlatformError>;
+    /// Reverse lookup a raw socket address into host and service names.
+    ///
+    /// Resolve a socket address back to host and service names.
+    /// Reverse lookup policy and name formatting follow host resolver behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses getnameinfo(3) on Unix and GetNameInfoW on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.dns`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.resolve.reverseLookup", { effect: "external", replay: "recordable", requires: ["net.dns"], scope: "os", blocking: "sometimes" })
+    export function reverseLookup(
+        address: SocketAddress,
+        flags: ReverseLookupFlags,
+    ): Result<Array<ReverseLookupName>, PlatformError>;
 }

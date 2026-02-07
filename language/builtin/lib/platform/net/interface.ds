@@ -46,7 +46,7 @@ declare namespace net {
     /// Resolve an interface name to an index.
     ///
     /// Maps a host interface name to its numeric index for route and multicast operations.
-    /// The mapping follows host network namespace rules.
+    /// Name matching uses host interface namespaces and canonicalization behavior.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -66,7 +66,7 @@ declare namespace net {
     /// Resolve an interface index to a name.
     ///
     /// Maps a numeric host interface index to its canonical interface name.
-    /// The mapping follows host network namespace rules.
+    /// Returned naming follows host interface aliasing and normalization rules.
     ///
     /// # Platform
     /// Unix and Windows.

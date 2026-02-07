@@ -9,8 +9,8 @@ declare namespace timer {
     /// Cancellation is idempotent when supported by the runtime implementation.
     ///
     /// # Platform
-    /// Runtime-level operation available on all native runtime targets.
-    /// Uses runtime scheduler timer queues.
+    /// Runtime-integrated operation on Unix, Windows, and Wasi targets.
+    /// Returns `notSupported` when the active runtime backend does not implement timer support.
     ///
     /// # Errors
     /// Returns timeUnavailable, invalidArgument, notSupported.
@@ -38,8 +38,8 @@ declare namespace timer {
     /// Resume behavior and retained delay follow the active runtime timer policy.
     ///
     /// # Platform
-    /// Runtime-level operation available on all native runtime targets.
-    /// Uses runtime scheduler timer queues.
+    /// Runtime-integrated operation on Unix, Windows, and Wasi targets.
+    /// Returns `notSupported` when the active runtime backend does not implement timer support.
     ///
     /// # Errors
     /// Returns timeUnavailable, invalidArgument, notSupported.
@@ -67,8 +67,8 @@ declare namespace timer {
     /// Resume timing semantics follow runtime timer policy.
     ///
     /// # Platform
-    /// Runtime-level operation available on all native runtime targets.
-    /// Uses runtime scheduler timer queues.
+    /// Runtime-integrated operation on Unix, Windows, and Wasi targets.
+    /// Returns `notSupported` when the active runtime backend does not implement timer support.
     ///
     /// # Errors
     /// Returns timeUnavailable, invalidArgument, notSupported.
@@ -96,8 +96,8 @@ declare namespace timer {
     /// Active state reflects runtime scheduler ownership and cancellation state.
     ///
     /// # Platform
-    /// Runtime-level operation available on all native runtime targets.
-    /// Uses runtime scheduler timer queues.
+    /// Runtime-integrated operation on Unix, Windows, and Wasi targets.
+    /// Returns `notSupported` when the active runtime backend does not implement timer support.
     ///
     /// # Errors
     /// Returns timeUnavailable, invalidArgument, notSupported.
@@ -125,8 +125,8 @@ declare namespace timer {
     /// Remaining delay is zero when timer has fired or is inactive.
     ///
     /// # Platform
-    /// Runtime-level operation available on all native runtime targets.
-    /// Uses runtime scheduler timer queues.
+    /// Runtime-integrated operation on Unix, Windows, and Wasi targets.
+    /// Returns `notSupported` when the active runtime backend does not implement timer support.
     ///
     /// # Errors
     /// Returns timeUnavailable, invalidArgument, notSupported.
@@ -154,8 +154,8 @@ declare namespace timer {
     /// Reset semantics preserve timer identity and replay ordering.
     ///
     /// # Platform
-    /// Runtime-level operation available on all native runtime targets.
-    /// Uses runtime scheduler timer queues.
+    /// Runtime-integrated operation on Unix, Windows, and Wasi targets.
+    /// Returns `notSupported` when the active runtime backend does not implement timer support.
     ///
     /// # Errors
     /// Returns timeUnavailable, invalidArgument, notSupported.
@@ -180,11 +180,11 @@ declare namespace timer {
     /// Update one timer interval period.
     ///
     /// Replace one interval timer period while preserving timer identity.
-    /// Update semantics are runtime-defined for already-expired intervals.
+    /// When the timer already expired, update applies to the next interval tick only.
     ///
     /// # Platform
-    /// Runtime-level operation available on all native runtime targets.
-    /// Uses runtime scheduler timer queues.
+    /// Runtime-integrated operation on Unix, Windows, and Wasi targets.
+    /// Returns `notSupported` when the active runtime backend does not implement timer support.
     ///
     /// # Errors
     /// Returns timeUnavailable, invalidArgument, notSupported.

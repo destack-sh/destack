@@ -18,7 +18,7 @@ declare namespace debug {
     /// Start a runtime trace stream.
     ///
     /// Start one trace stream for runtime events with the requested level and destination.
-    /// Destination routing is runtime-defined and may target file, socket, or collector backends.
+    /// Destination is selected by runtime trace sinks such as file, socket, or collector backends.
     ///
     /// # Platform
     /// Runtime-managed on all targets.

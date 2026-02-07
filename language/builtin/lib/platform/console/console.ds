@@ -4,11 +4,11 @@ import type { PlatformError } from "../error/index.ds";
 export declare namespace console {
     /// Write a line to stdout.
     ///
-    /// Writes the provided string payload directly to the selected console stream.
-    /// Does not apply formatting, buffering, or retry behavior beyond the underlying platform write call.
+    /// Emit one plain log line to stdout using the runtime console sink.
+    /// The payload is written as-is, without level prefixes, interpolation, or color transforms.
     ///
     /// # Platform
-    /// all runtime targets that include the native platform runtime.
+    /// All runtime targets that include the native platform runtime.
     /// Uses write(2) to stdout on Unix, WriteFile on Windows stdout handle.
     ///
     /// # Errors
@@ -19,16 +19,16 @@ export declare namespace console {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.console.console.log", { effect: "external", replay: "recordable", requires: ["console.write"] })
+    @binding("destack.console.log", { effect: "external", replay: "recordable", requires: ["console.write"], scope: "runtime", blocking: "sometimes" })
     export function log(value: string): Result<void, PlatformError>;
 
     /// Write an info line to stdout.
     ///
-    /// Writes the provided string payload directly to the selected console stream.
-    /// Does not apply formatting, buffering, or retry behavior beyond the underlying platform write call.
+    /// Emit one informational line to stdout using the runtime console sink.
+    /// The payload is written as-is, without level prefixes, interpolation, or color transforms.
     ///
     /// # Platform
-    /// all runtime targets that include the native platform runtime.
+    /// All runtime targets that include the native platform runtime.
     /// Uses write(2) to stdout on Unix, WriteFile on Windows stdout handle.
     ///
     /// # Errors
@@ -39,16 +39,16 @@ export declare namespace console {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.console.console.info", { effect: "external", replay: "recordable", requires: ["console.write"] })
+    @binding("destack.console.info", { effect: "external", replay: "recordable", requires: ["console.write"], scope: "runtime", blocking: "sometimes" })
     export function info(value: string): Result<void, PlatformError>;
 
     /// Write a warning line to stderr.
     ///
-    /// Writes the provided string payload directly to the selected console stream.
-    /// Does not apply formatting, buffering, or retry behavior beyond the underlying platform write call.
+    /// Emit one warning line to stderr using the runtime console sink.
+    /// The payload is written as-is, without level prefixes, interpolation, or color transforms.
     ///
     /// # Platform
-    /// all runtime targets that include the native platform runtime.
+    /// All runtime targets that include the native platform runtime.
     /// Uses write(2) to stderr on Unix, WriteFile on Windows stderr handle.
     ///
     /// # Errors
@@ -59,16 +59,16 @@ export declare namespace console {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.console.console.warn", { effect: "external", replay: "recordable", requires: ["console.write"] })
+    @binding("destack.console.warn", { effect: "external", replay: "recordable", requires: ["console.write"], scope: "runtime", blocking: "sometimes" })
     export function warn(value: string): Result<void, PlatformError>;
 
     /// Write an error line to stderr.
     ///
-    /// Writes the provided string payload directly to the selected console stream.
-    /// Does not apply formatting, buffering, or retry behavior beyond the underlying platform write call.
+    /// Emit one error line to stderr using the runtime console sink.
+    /// The payload is written as-is, without level prefixes, interpolation, or color transforms.
     ///
     /// # Platform
-    /// all runtime targets that include the native platform runtime.
+    /// All runtime targets that include the native platform runtime.
     /// Uses write(2) to stderr on Unix, WriteFile on Windows stderr handle.
     ///
     /// # Errors
@@ -79,6 +79,6 @@ export declare namespace console {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.console.console.error", { effect: "external", replay: "recordable", requires: ["console.write"] })
+    @binding("destack.console.error", { effect: "external", replay: "recordable", requires: ["console.write"], scope: "runtime", blocking: "sometimes" })
     export function error(value: string): Result<void, PlatformError>;
 }

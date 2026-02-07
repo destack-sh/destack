@@ -29,7 +29,23 @@ export enum MmapAdvice {
 /// Memory mapping bindings for the native runtime.
 declare namespace fs {
     /// Create a file-backed memory mapping.
-    @binding("destack.fs.mmapFile", { effect: "external", replay: "recordable" })
+    ///
+    /// Map a file-backed region into virtual memory using the requested offset, length, and protection.
+    /// Page alignment, commit behavior, and fault semantics follow host VM policy.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses mmap(2) MAP_SHARED/MAP_PRIVATE on Unix and CreateFileMapping/MapViewOfFile on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.mmap`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.mmap.mmapFile", { effect: "external", replay: "recordable", requires: ["fs.mmap"], scope: "os", blocking: "sometimes" })
     export function mmapFile(
         handle: FileHandle,
         offset: FileOffset,
@@ -39,7 +55,23 @@ declare namespace fs {
     ): Result<Slice<uint8>, PlatformError>;
 
     /// Create an anonymous memory mapping.
-    @binding("destack.fs.mmapAnonymous", { effect: "external", replay: "recordable" })
+    ///
+    /// Map an anonymous zero-initialized region into virtual memory using host allocation primitives.
+    /// Backing pages are managed by the host kernel and are not file-persistent.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses mmap(2) MAP_ANONYMOUS on Unix and VirtualAlloc/MapViewOfFile on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.mmap`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.mmap.mmapAnonymous", { effect: "external", replay: "recordable", requires: ["fs.mmap"], scope: "os", blocking: "sometimes" })
     export function mmapAnonymous(
         length: FileSize,
         prot: MmapProt,
@@ -47,52 +79,91 @@ declare namespace fs {
     ): Result<Slice<uint8>, PlatformError>;
 
     /// Unmap a memory region.
-    @binding("destack.fs.munmap", { effect: "external", replay: "recordable" })
+    ///
+    /// Unmap the specified virtual-memory range and release its mapping resources.
+    /// Access after unmap is invalid and follows host memory fault behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses munmap(2) on Unix and UnmapViewOfFile/VirtualFree on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.mmap`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.mmap.munmap", { effect: "external", replay: "recordable", requires: ["fs.mmap"], scope: "os", blocking: "sometimes" })
     export function munmap(mapping: Slice<uint8>): Result<void, PlatformError>;
 
     /// Change memory protection for a mapping.
-    @binding("destack.fs.mprotect", { effect: "external", replay: "recordable" })
+    ///
+    /// Update memory access permissions for the provided mapped region.
+    /// Protection transitions are validated against host page and mapping constraints.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses mprotect(2) on Unix and VirtualProtect on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.mmap`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.mmap.mprotect", { effect: "external", replay: "recordable", requires: ["fs.mmap"], scope: "os", blocking: "sometimes" })
     export function mprotect(
         mapping: Slice<uint8>,
         prot: MmapProt,
     ): Result<void, PlatformError>;
 
     /// Flush a mapping to storage.
-    @binding("destack.fs.msync", { effect: "external", replay: "recordable" })
+    ///
+    /// Flush dirty pages in the mapped region to backing storage.
+    /// Writeback scope and completion guarantees follow host `msync` semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses msync(2) on Unix and FlushViewOfFile on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.mmap`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.mmap.msync", { effect: "external", replay: "recordable", requires: ["fs.mmap"], scope: "os", blocking: "sometimes" })
     export function msync(
         mapping: Slice<uint8>,
         flags: MmapSyncFlags,
     ): Result<void, PlatformError>;
 
     /// Advise the kernel about access patterns.
-    @binding("destack.fs.madvise", { effect: "external", replay: "recordable" })
+    ///
+    /// Provide expected access behavior hints for the mapped region.
+    /// Advice is best effort and may be ignored by the host memory manager.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses madvise(2) on Unix and advisory memory APIs where available on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.mmap`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.mmap.madvise", { effect: "external", replay: "recordable", requires: ["fs.mmap"], scope: "os", blocking: "sometimes" })
     export function madvise(
         mapping: Slice<uint8>,
         advice: MmapAdvice,
     ): Result<void, PlatformError>;
 }
-
-/// Allow read access.
-export const PROT_READ: MmapProt = MmapProt(0x1);
-/// Allow write access.
-export const PROT_WRITE: MmapProt = MmapProt(0x2);
-/// Allow execute access.
-export const PROT_EXEC: MmapProt = MmapProt(0x4);
-/// No access.
-export const PROT_NONE: MmapProt = MmapProt(0x0);
-
-/// Shared mapping.
-export const MAP_SHARED: MmapFlags = MmapFlags(0x1);
-/// Private mapping.
-export const MAP_PRIVATE: MmapFlags = MmapFlags(0x2);
-/// Fixed address mapping.
-export const MAP_FIXED: MmapFlags = MmapFlags(0x10);
-/// Anonymous mapping.
-export const MAP_ANON: MmapFlags = MmapFlags(0x20);
-
-/// Sync writes to storage.
-export const MS_SYNC: MmapSyncFlags = MmapSyncFlags(0x1);
-/// Schedule writes and return immediately.
-export const MS_ASYNC: MmapSyncFlags = MmapSyncFlags(0x2);
-/// Invalidate cached pages.
-export const MS_INVALIDATE: MmapSyncFlags = MmapSyncFlags(0x4);

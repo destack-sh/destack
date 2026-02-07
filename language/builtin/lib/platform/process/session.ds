@@ -32,6 +32,35 @@ declare namespace process {
     )
     export function setsid(): Result<ProcessId, PlatformError>;
 
+    /// Read the session identifier for a process.
+    ///
+    /// Read the session identifier currently associated with the target process.
+    /// Session visibility and lookup semantics follow host process-table rules.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses getsid(2) on Unix and runtime emulation or `notSupported` on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `process.session`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.process.session.getsid",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["process.session"],
+            scope: "os",
+            blocking: "never",
+        },
+    )
+    export function getsid(pid: ProcessId): Result<ProcessId, PlatformError>;
+
     /// Set a process group id for a process.
     ///
     /// Move the target process into the requested process group identifier.

@@ -38,6 +38,35 @@ declare namespace thread {
     )
     export function mutexCreate(flags: uint32): Result<MutexHandle, PlatformError>;
 
+    /// Destroy one mutex.
+    ///
+    /// Destroy one mutex and release host synchronization resources.
+    /// Destroy fails when host semantics disallow destroying a mutex that is still in use.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses host mutex destroy or close primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `thread.sync`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.thread.sync.mutexDestroy",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["thread.sync"],
+            scope: "os",
+            blocking: "never",
+        },
+    )
+    export function mutexDestroy(handle: MutexHandle): Result<void, PlatformError>;
+
     /// Lock one mutex.
     ///
     /// Acquire one mutex, waiting until ownership is available.
@@ -124,6 +153,35 @@ declare namespace thread {
         },
     )
     export function rwlockCreate(flags: uint32): Result<RwLockHandle, PlatformError>;
+
+    /// Destroy one read-write lock.
+    ///
+    /// Destroy one read-write lock and release host synchronization resources.
+    /// Destroy fails when host semantics disallow destroying a lock that is still in use.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses host rwlock destroy or close primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `thread.sync`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.thread.sync.rwlockDestroy",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["thread.sync"],
+            scope: "os",
+            blocking: "never",
+        },
+    )
+    export function rwlockDestroy(handle: RwLockHandle): Result<void, PlatformError>;
 
     /// Lock one read-write lock for read access.
     ///
@@ -240,6 +298,35 @@ declare namespace thread {
         },
     )
     export function condVarCreate(flags: uint32): Result<CondVarHandle, PlatformError>;
+
+    /// Destroy one condition variable.
+    ///
+    /// Destroy one condition variable and release host synchronization resources.
+    /// Destroy fails when host semantics disallow destroying a condition variable with waiters.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses host condition-variable destroy or close primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `thread.sync`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.thread.sync.condVarDestroy",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["thread.sync"],
+            scope: "os",
+            blocking: "never",
+        },
+    )
+    export function condVarDestroy(handle: CondVarHandle): Result<void, PlatformError>;
 
     /// Wait on one condition variable.
     ///
@@ -361,6 +448,35 @@ declare namespace thread {
         flags: uint32,
     ): Result<ThreadSemaphoreHandle, PlatformError>;
 
+    /// Destroy one thread-scoped semaphore.
+    ///
+    /// Destroy one semaphore and release host synchronization resources.
+    /// Destroy fails when host semantics disallow destroying a semaphore that is still in use.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses host semaphore destroy or close primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `thread.sync`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.thread.sync.semaphoreDestroy",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["thread.sync"],
+            scope: "os",
+            blocking: "never",
+        },
+    )
+    export function semaphoreDestroy(handle: ThreadSemaphoreHandle): Result<void, PlatformError>;
+
     /// Wait one semaphore count for thread synchronization.
     ///
     /// Decrement one semaphore count, waiting up to the timeout when needed.
@@ -456,6 +572,35 @@ declare namespace thread {
         participants: uint32,
         flags: uint32,
     ): Result<BarrierHandle, PlatformError>;
+
+    /// Destroy one barrier.
+    ///
+    /// Destroy one barrier and release host synchronization resources.
+    /// Destroy fails when host semantics disallow destroying a barrier with active waiters.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host barrier destroy or runtime-host teardown primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `thread.sync`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.thread.sync.barrierDestroy",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["thread.sync"],
+            scope: "os",
+            blocking: "never",
+        },
+    )
+    export function barrierDestroy(handle: BarrierHandle): Result<void, PlatformError>;
 
     /// Wait for barrier rendezvous.
     ///

@@ -12,6 +12,8 @@ ROOT = Path(__file__).resolve().parent
 LIB_ROOT = ROOT / "lib"
 REGISTRY_PATH = LIB_ROOT / "registry.json"
 OUT_DIR = ROOT / "src" / "libs" / "lib"
+PLATFORM_DOC_DIRECTORIES = ["fs", "net", "process", "time", "timer"]
+PLATFORM_DOC_SECTIONS = ["# Platform", "# Errors", "# Security", "# Replay"]
 
 
 @dataclass(frozen=True)
@@ -369,6 +371,72 @@ def group_by_parent(files: list[FileEntry]) -> dict[str, list[FileEntry]]:
     return grouped
 
 
+def find_binding_doc_errors(path: Path) -> list[str]:
+    """Find missing binding documentation sections in a platform file."""
+    # read file content
+    lines = path.read_text(encoding="utf-8").splitlines()
+    errors: list[str] = []
+
+    # scan for binding decorators
+    for index, line in enumerate(lines):
+        if "@binding(" not in line:
+            continue
+
+        # collect adjacent documentation lines
+        documentation_lines: list[str] = []
+        cursor = index - 1
+        while cursor >= 0:
+            stripped_line = lines[cursor].strip()
+
+            # include documentation comments
+            if stripped_line.startswith("///"):
+                documentation_lines.append(stripped_line)
+                cursor -= 1
+                continue
+
+            # include blank separators inside docs
+            if stripped_line == "":
+                documentation_lines.append(stripped_line)
+                cursor -= 1
+                continue
+
+            break
+
+        # reverse to source order
+        documentation_lines.reverse()
+        if not documentation_lines:
+            errors.append(f"{path}:{index + 1}: missing binding documentation")
+            continue
+
+        # join docs for section checks
+        joined = "\n".join(documentation_lines)
+        for section in PLATFORM_DOC_SECTIONS:
+            if section not in joined:
+                errors.append(
+                    f"{path}:{index + 1}: missing `{section}` in binding documentation"
+                )
+
+    return errors
+
+
+def validate_platform_binding_docs() -> None:
+    """Validate platform binding docs for required sections."""
+    # collect files in configured directories
+    all_errors: list[str] = []
+    for directory_name in PLATFORM_DOC_DIRECTORIES:
+        directory = LIB_ROOT / "platform" / directory_name
+        for path in sorted(directory.glob("*.ds")):
+            all_errors.extend(find_binding_doc_errors(path))
+
+    # fail with the full error list
+    if all_errors:
+        formatted_errors = "\n".join(all_errors)
+        raise ValueError(
+            "platform binding documentation validation failed:\n"
+            f"{formatted_errors}"
+        )
+
+
 def render_symbols(symbol_sets: dict[str, list[str]], alias_sets: dict[str, list[list[str]]]) -> str:
     """Render the generated symbols module."""
     lines = [
@@ -652,6 +720,9 @@ def render_file(
 
 def generate() -> None:
     """Generate the builtin lib sources."""
+    # validate platform binding docs
+    validate_platform_binding_docs()
+
     symbol_sets, alias_sets, source_sets, files = parse_registry()
 
     # symbols

@@ -32,6 +32,93 @@ declare namespace ipc {
     )
     export function semaphoreCreate(name: string, initial: uint32, flags: uint32): Result<SemaphoreHandle, PlatformError>;
 
+    /// Open one named semaphore.
+    ///
+    /// Open one existing named semaphore by name.
+    /// Name lookup and access checks follow host semaphore namespace rules.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses sem_open without create flags on Unix and OpenSemaphore on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `ipc.semaphore`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.ipc.sync.semaphoreOpen",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["ipc.semaphore"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function semaphoreOpen(name: string, flags: uint32): Result<SemaphoreHandle, PlatformError>;
+
+    /// Close one semaphore handle.
+    ///
+    /// Close one semaphore handle without removing its namespace entry.
+    /// Unlink operations remain explicit so ownership stays caller-defined.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses sem_close on Unix and CloseHandle on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `ipc.semaphore`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.ipc.sync.semaphoreClose",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["ipc.semaphore"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function semaphoreClose(handle: SemaphoreHandle): Result<void, PlatformError>;
+
+    /// Remove one named semaphore.
+    ///
+    /// Remove one semaphore name from the host namespace.
+    /// Live handles remain valid until closed per host semaphore rules.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses sem_unlink on Unix and named object namespace removal on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `ipc.semaphore`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.ipc.sync.semaphoreUnlink",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["ipc.semaphore"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function semaphoreUnlink(name: string): Result<void, PlatformError>;
+
     /// Wait one semaphore count.
     ///
     /// Decrement one semaphore count, waiting up to the provided timeout.

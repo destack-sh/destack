@@ -1,7 +1,7 @@
 import { Array, Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
 import { FileHandle } from "../resource/index.ds";
-import { PathRef } from "./path.ds";
+import { OsPath, PathBytes } from "./path.ds";
 
 /// Extended attribute flags.
 export newtype XattrFlags = uint32;
@@ -14,46 +14,249 @@ export const XATTR_REPLACE: XattrFlags = XattrFlags(0x2);
 /// Extended attribute bindings for the native runtime.
 declare namespace fs {
     /// Read an extended attribute by path.
-    @binding("destack.fs.getxattr", { effect: "external", replay: "recordable" })
+    ///
+    /// Read one named extended attribute value from a path-resolved filesystem entry.
+    /// The returned bytes are the host attribute payload without higher-level decoding.
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses getxattr(2) on Unix and extended-attribute APIs where available on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.xattr`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.xattr.getxattr", { effect: "external", replay: "recordable", requires: ["fs.xattr"], scope: "os", blocking: "sometimes" })
     export function getxattr(
-        path: PathRef,
+        path: OsPath,
+        name: string,
+    ): Result<Array<uint8>, PlatformError>;
+
+    /// Read an extended attribute by path with a raw name payload.
+    ///
+    /// Raw name bytes preserve host namespace data without UTF transcoding.
+    /// This path-based variant resolves the entry name before xattr namespace lookup.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses getxattr(2) on Unix and extended-attribute APIs where available on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.xattr`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.xattr.getxattrBytes", { effect: "external", replay: "recordable", requires: ["fs.xattr"], scope: "os", blocking: "sometimes" })
+    export function getxattrBytes(
+        path: PathBytes,
         name: string,
     ): Result<Array<uint8>, PlatformError>;
 
     /// Read an extended attribute without following symlinks.
-    @binding("destack.fs.lgetxattr", { effect: "external", replay: "recordable" })
+    ///
+    /// Read one named extended attribute value from a link entry without dereferencing.
+    /// No-follow behavior applies to path resolution before attribute namespace lookup.
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses lgetxattr(2) on Unix and reparse-aware xattr query where available on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.xattr`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.xattr.lgetxattr", { effect: "external", replay: "recordable", requires: ["fs.xattr"], scope: "os", blocking: "sometimes" })
     export function lgetxattr(
-        path: PathRef,
+        path: OsPath,
+        name: string,
+    ): Result<Array<uint8>, PlatformError>;
+
+    /// Read an extended attribute without following symlinks, using a raw name payload.
+    ///
+    /// Raw name bytes preserve host namespace data without UTF transcoding.
+    /// No-follow resolution is applied before xattr namespace lookup on the link entry.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses lgetxattr(2) on Unix and reparse-aware xattr query where available on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.xattr`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.xattr.lgetxattrBytes", { effect: "external", replay: "recordable", requires: ["fs.xattr"], scope: "os", blocking: "sometimes" })
+    export function lgetxattrBytes(
+        path: PathBytes,
         name: string,
     ): Result<Array<uint8>, PlatformError>;
 
     /// Read an extended attribute by handle.
-    @binding("destack.fs.fgetxattr", { effect: "external", replay: "recordable" })
+    ///
+    /// Read one named extended attribute value from an already-open file handle.
+    /// Handle-based lookup avoids path traversal and link-following ambiguity.
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses fgetxattr(2) on Unix and handle-based xattr query where available on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.xattr`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.xattr.fgetxattr", { effect: "external", replay: "recordable", requires: ["fs.xattr"], scope: "os", blocking: "sometimes" })
     export function fgetxattr(
         handle: FileHandle,
         name: string,
     ): Result<Array<uint8>, PlatformError>;
 
+    /// Read an extended attribute by handle with a raw name payload.
+    ///
+    /// Raw name bytes preserve host namespace data without UTF transcoding.
+    /// Handle-based lookup avoids path traversal and link-following differences.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses fgetxattr(2) on Unix and handle-based xattr query where available on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.xattr`.
+    ///
+    /// # Replay
+    /// External, recordable.
     /// Set an extended attribute by path.
-    @binding("destack.fs.setxattr", { effect: "external", replay: "recordable" })
+    ///
+    /// Write one named extended attribute value to a path-resolved filesystem entry.
+    /// Create and replace behavior is controlled by `flags` and follows host xattr rules.
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses setxattr(2) on Unix and extended-attribute APIs where available on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.xattr`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.xattr.setxattr", { effect: "external", replay: "recordable", requires: ["fs.xattr"], scope: "os", blocking: "sometimes" })
     export function setxattr(
-        path: PathRef,
+        path: OsPath,
+        name: string,
+        value: Slice<uint8>,
+        flags: XattrFlags,
+    ): Result<void, PlatformError>;
+
+    /// Set an extended attribute by path with a raw name payload.
+    ///
+    /// Raw name bytes preserve host namespace data without UTF transcoding.
+    /// Path-based updates resolve the filesystem entry before attribute write semantics apply.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses setxattr(2) on Unix and extended-attribute APIs where available on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.xattr`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.xattr.setxattrBytes", { effect: "external", replay: "recordable", requires: ["fs.xattr"], scope: "os", blocking: "sometimes" })
+    export function setxattrBytes(
+        path: PathBytes,
         name: string,
         value: Slice<uint8>,
         flags: XattrFlags,
     ): Result<void, PlatformError>;
 
     /// Set an extended attribute without following symlinks.
-    @binding("destack.fs.lsetxattr", { effect: "external", replay: "recordable" })
+    ///
+    /// Write one named extended attribute value on a link entry without dereferencing.
+    /// No-follow behavior applies during path resolution before attribute update.
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses lsetxattr(2) on Unix and reparse-aware xattr write where available on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.xattr`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.xattr.lsetxattr", { effect: "external", replay: "recordable", requires: ["fs.xattr"], scope: "os", blocking: "sometimes" })
     export function lsetxattr(
-        path: PathRef,
+        path: OsPath,
+        name: string,
+        value: Slice<uint8>,
+        flags: XattrFlags,
+    ): Result<void, PlatformError>;
+
+    /// Set an extended attribute without following symlinks, using a raw name payload.
+    ///
+    /// Raw name bytes preserve host namespace data without UTF transcoding.
+    /// No-follow resolution is applied before xattr update on the link entry.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses lsetxattr(2) on Unix and reparse-aware xattr write where available on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.xattr`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.xattr.lsetxattrBytes", { effect: "external", replay: "recordable", requires: ["fs.xattr"], scope: "os", blocking: "sometimes" })
+    export function lsetxattrBytes(
+        path: PathBytes,
         name: string,
         value: Slice<uint8>,
         flags: XattrFlags,
     ): Result<void, PlatformError>;
 
     /// Set an extended attribute by handle.
-    @binding("destack.fs.fsetxattr", { effect: "external", replay: "recordable" })
+    ///
+    /// Write one named extended attribute value on an already-open file handle.
+    /// Handle-based writes avoid path races and preserve descriptor identity semantics.
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses fsetxattr(2) on Unix and handle-based xattr write where available on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.xattr`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.xattr.fsetxattr", { effect: "external", replay: "recordable", requires: ["fs.xattr"], scope: "os", blocking: "sometimes" })
     export function fsetxattr(
         handle: FileHandle,
         name: string,
@@ -61,27 +264,252 @@ declare namespace fs {
         flags: XattrFlags,
     ): Result<void, PlatformError>;
 
+    /// Set an extended attribute by handle with a raw name payload.
+    ///
+    /// Raw name bytes preserve host namespace data without UTF transcoding.
+    /// Handle-based updates avoid path races and preserve descriptor identity semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses fsetxattr(2) on Unix and handle-based xattr write where available on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.xattr`.
+    ///
+    /// # Replay
+    /// External, recordable.
     /// List extended attribute names by path.
-    @binding("destack.fs.listxattr", { effect: "external", replay: "recordable" })
-    export function listxattr(path: PathRef): Result<Array<string>, PlatformError>;
+    ///
+    /// Enumerate attribute names stored on one path-resolved filesystem entry.
+    /// Name ordering and namespace visibility follow host filesystem behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses listxattr(2) on Unix and xattr enumeration APIs where available on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.xattr`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.xattr.listxattr", { effect: "external", replay: "recordable", requires: ["fs.xattr"], scope: "os", blocking: "sometimes" })
+    export function listxattr(path: OsPath): Result<Array<string>, PlatformError>;
+
+    /// List extended attribute names by path as raw byte payloads.
+    ///
+    /// Enumerate attribute names stored on one path-resolved filesystem entry as raw bytes.
+    /// Raw name bytes preserve host namespace data without UTF transcoding.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses listxattr(2) on Unix and xattr enumeration APIs where available on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.xattr`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.xattr.listxattrBytes", { effect: "external", replay: "recordable", requires: ["fs.xattr"], scope: "os", blocking: "sometimes" })
+    export function listxattrBytes(path: PathBytes): Result<Array<string>, PlatformError>;
 
     /// List extended attribute names without following symlinks.
-    @binding("destack.fs.llistxattr", { effect: "external", replay: "recordable" })
-    export function llistxattr(path: PathRef): Result<Array<string>, PlatformError>;
+    ///
+    /// Enumerate attribute names on one link entry without dereferencing its target.
+    /// No-follow behavior applies before host attribute namespace enumeration.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses llistxattr(2) on Unix and reparse-aware xattr enumeration on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.xattr`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.xattr.llistxattr", { effect: "external", replay: "recordable", requires: ["fs.xattr"], scope: "os", blocking: "sometimes" })
+    export function llistxattr(path: OsPath): Result<Array<string>, PlatformError>;
+
+    /// List extended attribute names without following symlinks as raw byte payloads.
+    ///
+    /// Enumerate attribute names on one link entry without dereferencing as raw bytes.
+    /// Raw name bytes preserve host namespace data without UTF transcoding.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses llistxattr(2) on Unix and reparse-aware xattr enumeration on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.xattr`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.xattr.llistxattrBytes", { effect: "external", replay: "recordable", requires: ["fs.xattr"], scope: "os", blocking: "sometimes" })
+    export function llistxattrBytes(path: PathBytes): Result<Array<string>, PlatformError>;
 
     /// List extended attribute names by handle.
-    @binding("destack.fs.flistxattr", { effect: "external", replay: "recordable" })
+    ///
+    /// Enumerate attribute names associated with one already-open file handle.
+    /// Handle-based enumeration bypasses path lookup and link traversal differences.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses flistxattr(2) on Unix and handle-based xattr enumeration on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.xattr`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.xattr.flistxattr", { effect: "external", replay: "recordable", requires: ["fs.xattr"], scope: "os", blocking: "sometimes" })
     export function flistxattr(handle: FileHandle): Result<Array<string>, PlatformError>;
 
+    /// List extended attribute names by handle as raw byte payloads.
+    ///
+    /// Enumerate attribute names for one already-open file handle as raw bytes.
+    /// Raw name bytes preserve host namespace data without UTF transcoding.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses flistxattr(2) on Unix and handle-based xattr enumeration on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.xattr`.
+    ///
+    /// # Replay
+    /// External, recordable.
     /// Remove an extended attribute by path.
-    @binding("destack.fs.removexattr", { effect: "external", replay: "recordable" })
-    export function removexattr(path: PathRef, name: string): Result<void, PlatformError>;
+    ///
+    /// Remove one named extended attribute from a path-resolved filesystem entry.
+    /// Deletion semantics follow host xattr namespace and permission rules.
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses removexattr(2) on Unix and xattr delete APIs where available on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.xattr`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.xattr.removexattr", { effect: "external", replay: "recordable", requires: ["fs.xattr"], scope: "os", blocking: "sometimes" })
+    export function removexattr(path: OsPath, name: string): Result<void, PlatformError>;
+
+    /// Remove an extended attribute by path with a raw name payload.
+    ///
+    /// Raw name bytes preserve host namespace data without UTF transcoding.
+    /// Path-based deletion resolves the target entry before namespace removal rules apply.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses removexattr(2) on Unix and xattr delete APIs where available on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.xattr`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.xattr.removexattrBytes", { effect: "external", replay: "recordable", requires: ["fs.xattr"], scope: "os", blocking: "sometimes" })
+    export function removexattrBytes(path: PathBytes, name: string): Result<void, PlatformError>;
 
     /// Remove an extended attribute without following symlinks.
-    @binding("destack.fs.lremovexattr", { effect: "external", replay: "recordable" })
-    export function lremovexattr(path: PathRef, name: string): Result<void, PlatformError>;
+    ///
+    /// Remove one named extended attribute from a link entry without dereferencing.
+    /// No-follow behavior applies during lookup before host attribute removal.
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses lremovexattr(2) on Unix and reparse-aware xattr delete on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.xattr`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.xattr.lremovexattr", { effect: "external", replay: "recordable", requires: ["fs.xattr"], scope: "os", blocking: "sometimes" })
+    export function lremovexattr(path: OsPath, name: string): Result<void, PlatformError>;
+
+    /// Remove an extended attribute without following symlinks, using a raw name payload.
+    ///
+    /// Raw name bytes preserve host namespace data without UTF transcoding.
+    /// No-follow resolution is applied before xattr deletion on the link entry.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses lremovexattr(2) on Unix and reparse-aware xattr delete on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.xattr`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.xattr.lremovexattrBytes", { effect: "external", replay: "recordable", requires: ["fs.xattr"], scope: "os", blocking: "sometimes" })
+    export function lremovexattrBytes(path: PathBytes, name: string): Result<void, PlatformError>;
 
     /// Remove an extended attribute by handle.
-    @binding("destack.fs.fremovexattr", { effect: "external", replay: "recordable" })
+    ///
+    /// Remove one named extended attribute from an already-open file handle.
+    /// Handle-based deletion avoids path races and follows descriptor-scoped permissions.
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses fremovexattr(2) on Unix and handle-based xattr delete on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.xattr`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.xattr.fremovexattr", { effect: "external", replay: "recordable", requires: ["fs.xattr"], scope: "os", blocking: "sometimes" })
     export function fremovexattr(handle: FileHandle, name: string): Result<void, PlatformError>;
+
+    /// Remove an extended attribute by handle with a raw name payload.
+    ///
+    /// Raw name bytes preserve host namespace data without UTF transcoding.
+    /// Handle-based deletion avoids path traversal and link resolution differences.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses fremovexattr(2) on Unix and handle-based xattr delete on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.xattr`.
+    ///
+    /// # Replay
+    /// External, recordable.
 }

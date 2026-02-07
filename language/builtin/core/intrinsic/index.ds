@@ -6,6 +6,7 @@
 /// # What's Here
 ///
 /// - **import-meta.ds** - `import.meta` compile-time module information
+/// - **binding.ds** - Binding decorators and capability types
 /// - **decorator.ds** - Compiler-recognized decorator markers (@intrinsic, @inline, etc.)
 /// - **bit.ds** - Bit manipulation (clz, ctz, popcnt, rotates)
 /// - **arithmetic.ds** - Checked, unchecked, and saturating arithmetic
@@ -17,6 +18,7 @@
 /// - **vector.ds** - SIMD vector operations
 
 export * from "./import-meta.ds";
+export * from "./binding.ds";
 export * from "./decorator.ds";
 export * from "./bit.ds";
 export * from "./arithmetic.ds";

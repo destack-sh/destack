@@ -6,7 +6,6 @@ export newtype TimerFlags = uint32;
 
 /// Timer scheduling bindings for the native runtime.
 declare namespace timer {
-    /// Timer clock domain.
     export enum TimerClock {
         /// Wall-clock timer domain.
         Wall = 1,
@@ -16,7 +15,6 @@ declare namespace timer {
 
     /// Timer scheduling options.
     export struct TimerOptions {
-        /// Timer clock domain.
         clock: TimerClock,
         /// Timer behavior flags.
         flags: TimerFlags,
@@ -25,11 +23,11 @@ declare namespace timer {
     /// Schedule a one-shot timer.
     ///
     /// Register one timer that fires once after a relative delay.
-    /// Timer firing order follows runtime scheduler ordering rules.
+    /// The handle remains valid until explicit cancel or one-shot completion.
     ///
     /// # Platform
-    /// Runtime-level operation available on all native runtime targets.
-    /// Uses runtime scheduler timer queues.
+    /// Runtime-integrated operation on Unix, Windows, and Wasi targets.
+    /// Returns `notSupported` when the active runtime backend does not implement timer support.
     ///
     /// # Errors
     /// Returns timeUnavailable, invalidArgument, notSupported.
@@ -57,8 +55,8 @@ declare namespace timer {
     /// Drift and catch-up behavior follow runtime timer policy.
     ///
     /// # Platform
-    /// Runtime-level operation available on all native runtime targets.
-    /// Uses runtime scheduler timer queues.
+    /// Runtime-integrated operation on Unix, Windows, and Wasi targets.
+    /// Returns `notSupported` when the active runtime backend does not implement timer support.
     ///
     /// # Errors
     /// Returns timeUnavailable, invalidArgument, notSupported.
@@ -86,8 +84,8 @@ declare namespace timer {
     /// Deadline interpretation follows runtime wall-clock policy.
     ///
     /// # Platform
-    /// Runtime-level operation available on all native runtime targets.
-    /// Uses runtime scheduler timer queues.
+    /// Runtime-integrated operation on Unix, Windows, and Wasi targets.
+    /// Returns `notSupported` when the active runtime backend does not implement timer support.
     ///
     /// # Errors
     /// Returns timeUnavailable, invalidArgument, notSupported.
@@ -112,11 +110,11 @@ declare namespace timer {
     /// Schedule a one-shot timer with explicit options.
     ///
     /// Register one timer that fires once after a relative delay using explicit timer options.
-    /// Timer firing order follows runtime scheduler ordering rules.
+    /// The handle remains valid until explicit cancel or one-shot completion.
     ///
     /// # Platform
-    /// Runtime-level operation available on all native runtime targets.
-    /// Uses runtime scheduler timer queues.
+    /// Runtime-integrated operation on Unix, Windows, and Wasi targets.
+    /// Returns `notSupported` when the active runtime backend does not implement timer support.
     ///
     /// # Errors
     /// Returns timeUnavailable, invalidArgument, notSupported.
@@ -147,8 +145,8 @@ declare namespace timer {
     /// Drift and catch-up behavior follow runtime timer policy.
     ///
     /// # Platform
-    /// Runtime-level operation available on all native runtime targets.
-    /// Uses runtime scheduler timer queues.
+    /// Runtime-integrated operation on Unix, Windows, and Wasi targets.
+    /// Returns `notSupported` when the active runtime backend does not implement timer support.
     ///
     /// # Errors
     /// Returns timeUnavailable, invalidArgument, notSupported.
@@ -179,8 +177,8 @@ declare namespace timer {
     /// Deadline interpretation follows runtime wall-clock and monotonic policy.
     ///
     /// # Platform
-    /// Runtime-level operation available on all native runtime targets.
-    /// Uses runtime scheduler timer queues.
+    /// Runtime-integrated operation on Unix, Windows, and Wasi targets.
+    /// Returns `notSupported` when the active runtime backend does not implement timer support.
     ///
     /// # Errors
     /// Returns timeUnavailable, invalidArgument, notSupported.

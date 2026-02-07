@@ -103,7 +103,7 @@ declare namespace time {
     /// Return process CPU time in nanoseconds.
     ///
     /// Read CPU time consumed by the current process.
-    /// Time excludes wall-clock idle periods and depends on host accounting granularity.
+    /// Accounting granularity and scheduling inclusion follow host kernel behavior.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -132,7 +132,7 @@ declare namespace time {
     /// Return current thread CPU time in nanoseconds.
     ///
     /// Read CPU time consumed by the current thread.
-    /// Time excludes wall-clock idle periods and depends on host accounting granularity.
+    /// Accounting granularity and scheduling inclusion follow host kernel behavior.
     ///
     /// # Platform
     /// Unix and Windows.

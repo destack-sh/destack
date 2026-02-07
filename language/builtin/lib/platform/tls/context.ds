@@ -1,0 +1,159 @@
+import { Slice } from "native";
+import type { PlatformError } from "../error/index.ds";
+import { TlsContextHandle } from "../resource/index.ds";
+
+/// Tls protocol version.
+export enum TlsVersion {
+    /// Tls 1.2.
+    Tls12 = 0x0303,
+    /// Tls 1.3.
+    Tls13 = 0x0304,
+}
+
+/// Tls endpoint role.
+export enum TlsRole {
+    /// Client endpoint.
+    Client = 0,
+    /// Server endpoint.
+    Server = 1,
+}
+
+/// Options for opening one tls context.
+export struct TlsContextOptions {
+    /// Client or server role.
+    role: TlsRole,
+    /// Minimum protocol version.
+    minVersion: TlsVersion,
+    /// Maximum protocol version.
+    maxVersion: TlsVersion,
+    /// Require peer certificate validation.
+    verifyPeer: boolean,
+    /// Application layer protocol names in preference order.
+    alpnProtocols: Slice<string>,
+}
+
+/// Tls context bindings for the platform runtime boundary.
+declare namespace tls {
+    /// Open one tls context object.
+    ///
+    /// Create one provider-backed tls context with explicit role and version bounds.
+    /// Cipher suite policy and provider defaults follow host tls backend semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host tls providers such as SecureTransport, Schannel, OpenSSL, or rustls-backed runtime providers.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `tls.context`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.tls.context.open",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["tls.context"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function contextOpen(options: TlsContextOptions): Result<TlsContextHandle, PlatformError>;
+
+    /// Close one tls context object.
+    ///
+    /// Release one provider-backed tls context and associated host resources.
+    /// Existing sessions created from this context remain provider-defined.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses provider-specific context teardown semantics.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, notSupported.
+    ///
+    /// # Security
+    /// Requires `tls.context`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.tls.context.close",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["tls.context"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function contextClose(handle: TlsContextHandle): Result<void, PlatformError>;
+
+    /// Set one server certificate chain and private key on a tls context.
+    ///
+    /// Install one PEM-encoded certificate chain and one PEM-encoded private key for server handshakes.
+    /// Key parsing and supported key formats follow host provider behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses provider identity import APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `tls.identity.use`, `tls.certificate.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.tls.context.setIdentityPem",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["tls.identity.use", "tls.certificate.write"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function contextSetIdentityPem(
+        handle: TlsContextHandle,
+        certificateChainPem: Slice<uint8>,
+        privateKeyPem: Slice<uint8>,
+    ): Result<void, PlatformError>;
+
+    /// Set trust anchors on a tls context from one PEM bundle.
+    ///
+    /// Install one PEM-encoded trust-anchor bundle used for peer certificate validation.
+    /// Bundle parse rules and chain-building behavior follow host provider semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses provider trust-store APIs or runtime trust bundle loading.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `tls.certificate.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.tls.context.setTrustAnchorsPem",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["tls.certificate.write"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function contextSetTrustAnchorsPem(
+        handle: TlsContextHandle,
+        trustAnchorsPem: Slice<uint8>,
+    ): Result<void, PlatformError>;
+}
