@@ -108,4 +108,12 @@ pub enum ImportError {
         node: AnchoredGlobalNodeId,
         content: String,
     },
+
+    /// Import declarations must be direct module roots.
+    #[error(code = "EI304", message = "import declarations must be top-level")]
+    ImportNotTopLevel { node: AnchoredGlobalNodeId },
+
+    /// Export declarations must be direct module roots.
+    #[error(code = "EI305", message = "export declarations must be top-level")]
+    ExportNotTopLevel { node: AnchoredGlobalNodeId },
 }

@@ -43,8 +43,6 @@ const EARLY_SYNTAX_ANALYZE_CODES: &[&str] = &[
     "EA216", // ObjectPatternMultipleSpreads
     "EA217", // ObjectPatternSpreadNotLast
     "EA235", // ObjectPatternRestNotIdentifier
-    "EA236", // ImportNotTopLevel
-    "EA237", // ExportNotTopLevel
     "EA238", // DuplicateDefaultExport
     "EA239", // InvalidPrivateIdentifier
     "EA240", // InvalidExponentLeftUnary
@@ -57,6 +55,7 @@ const EARLY_SYNTAX_ANALYZE_CODES: &[&str] = &[
     "EA247", // InvalidTypeImportTarget
     "EA248", // InvalidNewTarget
     "EA249", // UnsupportedObjectPrototypeSetter
+    "EA250", // InvalidNewOptionalChain
     "EA218", // ExportNamespaceOutsideDeclaration
     "EA219", // InvalidTypeParameterModifier
     "EA220", // InvalidReadonlyType
