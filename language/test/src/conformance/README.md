@@ -2,10 +2,25 @@
 
 Conformance tests check that the Destack parser conforms both to the ECMAScript specification and various other established "real-world" test suites.
 
+## Objectives
+
+The point of testing conformance is to ensure that modern TS-first libraries can just work straight in Destack without major - or ideally _any_ - changes.
+However, we do not expect or need to reach 100% _general_ conformance across all suites because:
+
+- **Modern (TS) ESM**: We target strict module semantics and do not support script mode or certain legacy JS/TS syntax.
+- **Annex B**: Legacy Annex B syntax is out of scope.
+- **JS-only in JS**: `.js` and `.jsx` reject TS-only syntax and decorators, and JSX is only enabled in `.jsx`.
+- **TypeScript++**: `.ds` files override obscure TypeScript patterns like the comma operator in favor of tuple syntax.
+- **TSX ambiguity**: Some suites disallow ambiguous JSX-like syntax, so generic arrows may require `<T,>` or `extends` disambiguators there.
+- **Flow**: Flow is intentionally excluded (though it usually overlaps with TS anyway).
+- **JSDoc typing**: JSDoc-based typing and `@ts-check` semantics are out of scope.
+- **Proposals**: Stage N proposals are out of scope unless explicitly documented (we do support `using`).
+- **Conflicting tests**: Some test suites are mutually conflicting (i.e. you can't make them both pass without suite-specific hacks), so in general we align with the "modern standard"
+
 ## Status
 
 The pass rate intentionally excludes the explicitly ignored tests.
-We exclude a small subset of legacy, non-standard and mutually conflicting test expectations.
+As described above, we exclude a small subset of legacy, non-standard and mutually conflicting test expectations.
 (See the individual *-ignored.txt files for details.)
 
 <!-- (results are automatically updated by the conformance test runner) -->
@@ -15,11 +30,11 @@ We exclude a small subset of legacy, non-standard and mutually conflicting test 
 | babel    |   690  |     0  |    25  |   690 | 100.00% |  96.50% |
 | biome    |   608  |     0  |    29  |   608 | 100.00% |  95.45% |
 | swc      |   525  |     0  |    13  |   525 | 100.00% |  97.58% |
-| test262  |  5147  |    23  |   193  |  5170 |  99.56% |  95.97% |
+| test262  |  5152  |    18  |   193  |  5170 |  99.65% |  96.07% |
 |----------|--------|--------|---------|-------|---------|------------|
-| total    |  6970  |    23  |    260  |  6993 |  99.67% |     96.10% |
+| total    |  6975  |    18  |    260  |  6993 |  99.74% |     96.17% |
 
-Total Blended Pass Rate: **99.67%** (96.10% incl. ignored)
+Total Blended Pass Rate: **99.74%** (96.17% incl. ignored)
 <!-- end:summary-results -->
 
 ### babel
@@ -135,22 +150,9 @@ Total Blended Pass Rate: **99.67%** (96.10% incl. ignored)
 | Category             | Passed | Failed | Ignored | Total |  Rate   | Incl. Rate |
 |:---------------------|-------:|-------:|--------:|------:|--------:|-----------:|
 | early                |   668  |     0  |       -  |   668 | 100.00% |    100.00% |
-| fail                 |   702  |    19  |       8  |   721 |  97.36% |     96.30% |
+| fail                 |   707  |    14  |       8  |   721 |  98.06% |     96.98% |
 | pass                 |  1861  |     2  |     120  |  1863 |  99.89% |     93.85% |
 | pass-explicit        |  1916  |     2  |      65  |  1918 |  99.90% |     96.62% |
 |----------------------|--------|--------|---------|-------|---------|------------|
-| total                |  5147  |    23  |     193  |  5170 |  99.56% |     95.97% |
+| total                |  5152  |    18  |     193  |  5170 |  99.65% |     96.07% |
 <!-- end:test262-results -->
-
-## Notes
-
-We do not expect to reach 100% _general_ conformance because:
-
-- **Modern TS modules only**: We target strict module semantics and do not support script mode.
-- **JS restrictions**: `.js` and `.jsx` reject TS-only syntax and decorators, and JSX is only enabled in `.jsx`.
-- **JSDoc typing**: JSDoc-based typing and `@ts-check` semantics are out of scope.
-- **TypeScript++**: `.ds` files override obscure TypeScript patterns like the comma operator in favor of tuple syntax.
-- **TSX ambiguity**: Some suites disallow ambiguous JSX-like syntax, so generic arrows may require `<T,>` or `extends` disambiguators there.
-- **Annex B**: Legacy Annex B syntax is out of scope.
-- **Flow**: Flow is intentionally excluded because we support TypeScript only.
-- **Proposals**: Stage N proposals are out of scope unless explicitly documented.
