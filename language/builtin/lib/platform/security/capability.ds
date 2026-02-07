@@ -1,12 +1,6 @@
 import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
 
-/// Platform capability selector.
-///
-/// Capability names are validated by runtime policy and binding metadata.
-/// The canonical list is defined by binding metadata declarations.
-export type PlatformCapability = string;
-
 /// Security capability bindings.
 declare namespace security {
     /// List active capabilities.
@@ -30,6 +24,7 @@ declare namespace security {
         "destack.security.capability.list",
         {
             effect: "deterministic",
+            replay: "nonrecordable",
             requires: ["security.policy.read"],
             scope: "runtime",
             blocking: "never",
@@ -58,6 +53,7 @@ declare namespace security {
         "destack.security.capability.has",
         {
             effect: "deterministic",
+            replay: "nonrecordable",
             requires: ["security.policy.read"],
             scope: "runtime",
             blocking: "never",

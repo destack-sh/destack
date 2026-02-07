@@ -1,6 +1,5 @@
 import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
-import type { PlatformCapability } from "./capability.ds";
 import { SandboxHandle } from "../resource/index.ds";
 
 /// Host filter kind for sandbox enforcement.
@@ -51,11 +50,12 @@ declare namespace security {
     /// Requires `security.restrict`.
     ///
     /// # Replay
-    /// Deterministic.
+    /// External, nonrecordable.
     @binding(
         "destack.security.enforce.sandboxSeal",
         {
-            effect: "deterministic",
+            effect: "external",
+            replay: "nonrecordable",
             requires: ["security.restrict"],
             scope: "runtime",
             blocking: "never",
@@ -79,11 +79,12 @@ declare namespace security {
     /// Requires `security.restrict`.
     ///
     /// # Replay
-    /// Deterministic.
+    /// External, nonrecordable.
     @binding(
         "destack.security.enforce.sandboxSetCapabilities",
         {
-            effect: "deterministic",
+            effect: "external",
+            replay: "nonrecordable",
             requires: ["security.restrict"],
             scope: "runtime",
             blocking: "never",

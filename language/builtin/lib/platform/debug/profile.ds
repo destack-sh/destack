@@ -74,7 +74,7 @@ declare namespace debug {
     /// Capture a profiling snapshot.
     ///
     /// Export one profile snapshot as bytes for offline analysis.
-    /// Output format is runtime-defined but versioned for tooling compatibility.
+    /// Output uses the runtime profile snapshot binary format with a versioned header.
     ///
     /// # Platform
     /// Runtime-managed on all targets.

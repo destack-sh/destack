@@ -1,40 +1,228 @@
 import type { PlatformError } from "../error/index.ds";
-import { FileHandle } from "../resource/index.ds";
-import { PathRef } from "./path.ds";
-import { AccessMode, FileMode } from "./flags.ds";
+import { DirectoryHandle, FileHandle } from "../resource/index.ds";
+import { OsPath } from "./path.ds";
+import { AccessMode, AtFlags, FileMode } from "./flags.ds";
 
 /// File attribute bindings for the native runtime.
 declare namespace fs {
     /// Check file access permissions.
-    @binding("destack.fs.access", { effect: "external", replay: "recordable" })
-    export function access(path: PathRef, mode: AccessMode): Result<void, PlatformError>;
+    ///
+    /// Probe the requested access mode against one filesystem entry using host credential checks.
+    /// This operation is a permission check only and does not open the target file.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses access(2) on Unix and GetFileAttributesW plus ACL checks on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.metadata`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.attrs.access", { effect: "external", replay: "recordable", requires: ["fs.metadata"], scope: "os", blocking: "sometimes" })
+    export function access(path: OsPath, mode: AccessMode): Result<void, PlatformError>;
+
+    /// Check file access permissions relative to a directory handle.
+    ///
+    /// Probe the requested access mode for one path resolved from `dir`.
+    /// Directory-relative resolution avoids ambient current-working-directory lookup.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses faccessat(2) on Unix and relative path checks via native handles on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.metadata`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.attrs.accessat", { effect: "external", replay: "recordable", requires: ["fs.metadata"], scope: "os", blocking: "sometimes" })
+    export function accessat(
+        dir: DirectoryHandle,
+        path: OsPath,
+        mode: AccessMode,
+        flags: AtFlags,
+    ): Result<void, PlatformError>;
 
     /// Change file permissions.
-    @binding("destack.fs.chmod", { effect: "external", replay: "recordable" })
-    export function chmod(path: PathRef, mode: FileMode): Result<void, PlatformError>;
+    ///
+    /// Update mode bits for one filesystem entry identified by path.
+    /// Permission semantics follow host chmod behavior for unsupported bits and mask rules.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses chmod(2) on Unix and file attribute/security updates on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.chmod`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.attrs.chmod", { effect: "external", replay: "recordable", requires: ["fs.chmod"], scope: "os", blocking: "sometimes" })
+    export function chmod(path: OsPath, mode: FileMode): Result<void, PlatformError>;
 
     /// Change file permissions by handle.
-    @binding("destack.fs.fchmod", { effect: "external", replay: "recordable" })
+    ///
+    /// Update mode bits for one already-open file handle.
+    /// Handle-based updates avoid path races between lookup and metadata mutation.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses fchmod(2) on Unix and handle-based mode updates on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.chmod`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.attrs.fchmod", { effect: "external", replay: "recordable", requires: ["fs.chmod"], scope: "os", blocking: "sometimes" })
     export function fchmod(handle: FileHandle, mode: FileMode): Result<void, PlatformError>;
 
+    /// Change file permissions relative to a directory handle.
+    ///
+    /// Update mode bits for one path resolved from `dir`.
+    /// Relative resolution keeps permission updates scoped to caller-selected directory roots.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses fchmodat(2) on Unix and handle-relative mode updates on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.chmod`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.attrs.fchmodat", { effect: "external", replay: "recordable", requires: ["fs.chmod"], scope: "os", blocking: "sometimes" })
+    export function fchmodat(
+        dir: DirectoryHandle,
+        path: OsPath,
+        mode: FileMode,
+        flags: AtFlags,
+    ): Result<void, PlatformError>;
+
     /// Change file owner and group.
-    @binding("destack.fs.chown", { effect: "external", replay: "recordable" })
-    export function chown(path: PathRef, uid: uint32, gid: uint32): Result<void, PlatformError>;
+    ///
+    /// Update owner and group identifiers for one filesystem entry identified by path.
+    /// Ownership change rules follow host privilege checks and id namespace semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses chown(2) on Unix and token/owner updates where supported on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.chown`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.attrs.chown", { effect: "external", replay: "recordable", requires: ["fs.chown"], scope: "os", blocking: "sometimes" })
+    export function chown(path: OsPath, uid: uint32, gid: uint32): Result<void, PlatformError>;
 
     /// Change file owner and group by handle.
-    @binding("destack.fs.fchown", { effect: "external", replay: "recordable" })
+    ///
+    /// Update owner and group identifiers for one already-open file handle.
+    /// Handle-based updates avoid path races and preserve descriptor identity semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses fchown(2) on Unix and handle owner updates where supported on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.chown`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.attrs.fchown", { effect: "external", replay: "recordable", requires: ["fs.chown"], scope: "os", blocking: "sometimes" })
     export function fchown(handle: FileHandle, uid: uint32, gid: uint32): Result<void, PlatformError>;
 
+    /// Change file owner and group relative to a directory handle.
+    ///
+    /// Update owner and group identifiers for one path resolved from `dir`.
+    /// Relative ownership updates keep path traversal scoped to the provided directory handle.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses fchownat(2) on Unix and handle-relative owner updates where supported on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.chown`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.attrs.fchownat", { effect: "external", replay: "recordable", requires: ["fs.chown"], scope: "os", blocking: "sometimes" })
+    export function fchownat(
+        dir: DirectoryHandle,
+        path: OsPath,
+        uid: uint32,
+        gid: uint32,
+        flags: AtFlags,
+    ): Result<void, PlatformError>;
+
     /// Update access and modification times.
-    @binding("destack.fs.utimes", { effect: "external", replay: "recordable" })
+    ///
+    /// Set explicit atime and mtime values for one filesystem entry identified by path.
+    /// Timestamp write semantics follow host timestamp precision and normalization rules.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses utimensat/utimes on Unix and SetFileTime on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.metadata`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.attrs.utimes", { effect: "external", replay: "recordable", requires: ["fs.metadata"], scope: "os", blocking: "sometimes" })
     export function utimes(
-        path: PathRef,
+        path: OsPath,
         atimeNs: uint64,
         mtimeNs: uint64,
     ): Result<void, PlatformError>;
 
     /// Update access and modification times by handle.
-    @binding("destack.fs.futimes", { effect: "external", replay: "recordable" })
+    ///
+    /// Set explicit atime and mtime values for one already-open file handle.
+    /// Handle-based timestamp updates bypass path lookup and link traversal concerns.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses futimens/futimes on Unix and SetFileTime on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.metadata`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.attrs.futimes", { effect: "external", replay: "recordable", requires: ["fs.metadata"], scope: "os", blocking: "sometimes" })
     export function futimes(
         handle: FileHandle,
         atimeNs: uint64,
@@ -42,10 +230,52 @@ declare namespace fs {
     ): Result<void, PlatformError>;
 
     /// Update access and modification times without following symlinks.
-    @binding("destack.fs.lutimes", { effect: "external", replay: "recordable" })
+    ///
+    /// Set explicit atime and mtime values for one link entry without dereferencing its target.
+    /// No-follow behavior is enforced by host-specific symlink metadata APIs.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses lutimes/utimensat with nofollow on Unix and reparse-point time updates on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.metadata`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.attrs.lutimes", { effect: "external", replay: "recordable", requires: ["fs.metadata"], scope: "os", blocking: "sometimes" })
     export function lutimes(
-        path: PathRef,
+        path: OsPath,
         atimeNs: uint64,
         mtimeNs: uint64,
+    ): Result<void, PlatformError>;
+
+    /// Update access and modification times relative to a directory handle.
+    ///
+    /// Set explicit atime and mtime values for one path resolved from `dir`.
+    /// Relative timestamp updates avoid ambient cwd dependence and keep path scope explicit.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses utimensat(2) on Unix and handle-relative SetFileTime on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.metadata`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.attrs.utimensat", { effect: "external", replay: "recordable", requires: ["fs.metadata"], scope: "os", blocking: "sometimes" })
+    export function utimensat(
+        dir: DirectoryHandle,
+        path: OsPath,
+        atimeNs: uint64,
+        mtimeNs: uint64,
+        flags: AtFlags,
     ): Result<void, PlatformError>;
 }

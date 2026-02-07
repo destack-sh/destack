@@ -5,9 +5,11 @@ export newtype ResourceId = uint64;
 
 /// Resource ownership mode.
 export enum ResourceOwnership {
-    /// The caller keeps ownership.
+    /// The caller keeps ownership and the receiver gets a call-scoped borrow.
+    /// Borrowed handles must not outlive the receiving binding call boundary.
     Borrowed = 1,
     /// Ownership is moved to the receiver.
+    /// Owned handles must be closed or removed by the new owner.
     Owned = 2,
 }
 
@@ -37,6 +39,7 @@ export declare namespace resource {
         "destack.resource.id.remove",
         {
             effect: "deterministic",
+            replay: "nonrecordable",
             requires: ["resource.manage"],
             scope: "runtime",
             blocking: "never",
@@ -65,6 +68,7 @@ export declare namespace resource {
         "destack.resource.id.kind",
         {
             effect: "deterministic",
+            replay: "nonrecordable",
             requires: ["resource.read"],
             scope: "runtime",
             blocking: "never",
@@ -76,6 +80,7 @@ export declare namespace resource {
     ///
     /// Move one resource identifier into the requested ownership mode.
     /// Ownership transitions are validated against runtime boundary policy.
+    /// Transfer uses exact handle identity and does not duplicate underlying host resources.
     ///
     /// # Platform
     /// Runtime-managed on all targets.
@@ -93,6 +98,7 @@ export declare namespace resource {
         "destack.resource.id.transfer",
         {
             effect: "deterministic",
+            replay: "nonrecordable",
             requires: ["resource.transfer"],
             scope: "runtime",
             blocking: "never",

@@ -1,0 +1,228 @@
+import { Array, Slice } from "native";
+import type { PlatformError } from "../error/index.ds";
+import { CryptoCertificateHandle, CryptoStoreHandle } from "../resource/index.ds";
+
+/// Certificate encoding format.
+export enum CryptoCertificateFormat {
+    /// Pem encoded certificate bytes.
+    Pem = 1,
+    /// Der encoded certificate bytes.
+    Der = 2,
+}
+
+/// Certificate verification purpose.
+export enum CryptoCertificatePurpose {
+    /// Server tls authentication.
+    ServerAuth = 1,
+    /// Client tls authentication.
+    ClientAuth = 2,
+    /// Code signing validation.
+    CodeSigning = 3,
+    /// Email protection validation.
+    EmailProtection = 4,
+}
+
+/// Certificate validity window.
+export struct CryptoCertificateValidity {
+    /// Not before timestamp in unix seconds.
+    notBeforeUnixSeconds: uint64,
+    /// Not after timestamp in unix seconds.
+    notAfterUnixSeconds: uint64,
+}
+
+/// Certificate metadata fields.
+export struct CryptoCertificateMetadata {
+    /// Distinguished subject name.
+    subject: string,
+    /// Distinguished issuer name.
+    issuer: string,
+    /// Serial number string.
+    serialNumber: string,
+    /// Subject alternative names.
+    subjectAlternativeNames: Array<string>,
+    /// Sha256 fingerprint bytes.
+    fingerprintSha256: Slice<uint8>,
+    /// Certificate validity window.
+    validity: CryptoCertificateValidity,
+}
+
+/// Certificate chain verify request.
+export struct CryptoCertificateVerifyRequest {
+    /// Leaf certificate handle.
+    leaf: CryptoCertificateHandle,
+    /// Intermediate certificate handles.
+    intermediates: Slice<CryptoCertificateHandle>,
+    /// Trust anchor certificate handles.
+    trustAnchors: Slice<CryptoCertificateHandle>,
+    /// Verification purpose.
+    purpose: CryptoCertificatePurpose,
+    /// Optional dns name for server identity verification.
+    serverName: string,
+    /// Verification time in unix seconds.
+    verificationUnixSeconds: uint64,
+}
+
+/// Certificate chain verify result.
+export struct CryptoCertificateVerifyResult {
+    /// Whether the chain validates.
+    valid: boolean,
+    /// Provider or runtime error code when validation fails.
+    errorCode: uint32,
+}
+
+/// Certificate bindings for host provider certificate stores.
+declare namespace crypto {
+    /// Import one certificate into one provider store.
+    ///
+    /// Parse and import one certificate blob into one store and return one certificate handle.
+    /// Import visibility and persistence are enforced by host provider policies.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host certificate import APIs for keychain and cert store backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.certificate.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.crypto.certificate.import",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["crypto.certificate.write"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function certificateImport(
+        store: CryptoStoreHandle,
+        format: CryptoCertificateFormat,
+        certificate: Slice<uint8>,
+    ): Result<CryptoCertificateHandle, PlatformError>;
+
+    /// Export one certificate from one handle.
+    ///
+    /// Serialize one certificate handle into the requested encoding format.
+    /// Output bytes are provider-normalized representations of the underlying certificate.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host certificate export APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.certificate.read`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.crypto.certificate.export",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["crypto.certificate.read"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function certificateExport(
+        handle: CryptoCertificateHandle,
+        format: CryptoCertificateFormat,
+    ): Result<Slice<uint8>, PlatformError>;
+
+    /// Return metadata for one certificate.
+    ///
+    /// Query one certificate handle and return normalized identity and validity metadata.
+    /// Metadata extraction follows host parser and provider normalization behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host certificate query APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.certificate.read`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.crypto.certificate.metadata",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["crypto.certificate.read"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function certificateMetadata(handle: CryptoCertificateHandle): Result<CryptoCertificateMetadata, PlatformError>;
+
+    /// Verify one certificate chain against requested trust anchors.
+    ///
+    /// Build and verify one certificate path for the requested purpose and verification time.
+    /// Chain-building and policy evaluation follow host provider trust engine behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host trust engine APIs for path building and policy evaluation.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.certificate.read`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.crypto.certificate.verify",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["crypto.certificate.read"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function certificateVerify(
+        request: CryptoCertificateVerifyRequest,
+    ): Result<CryptoCertificateVerifyResult, PlatformError>;
+
+    /// Delete one certificate from one provider store when allowed.
+    ///
+    /// Remove one certificate object and invalidate the handle.
+    /// Deletion permissions and persistence are enforced by host provider policies.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host certificate delete APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.certificate.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.crypto.certificate.delete",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["crypto.certificate.write"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function certificateDelete(handle: CryptoCertificateHandle): Result<void, PlatformError>;
+}

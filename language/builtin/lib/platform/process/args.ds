@@ -3,7 +3,31 @@ import type { PlatformError } from "../error/index.ds";
 
 /// Process argument bindings for the native runtime.
 declare namespace process {
-    /// Return the process arguments.
-    @binding("destack.process.args", { effect: "external", replay: "recordable" })
+    /// Return the process argument vector.
+    ///
+    /// Read the immutable argument list captured by the runtime at process startup.
+    /// Argument decoding and quoting semantics follow the host process loader.
+    ///
+    /// # Platform
+    /// Uses startup argument capture, not a dedicated syscall.
+    ///
+    /// # Errors
+    /// Returns ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `process.run`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.process.args.args",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["process.run"],
+            scope: "runtime",
+            blocking: "never",
+        },
+    )
     export function args(): Result<Slice<string>, PlatformError>;
 }

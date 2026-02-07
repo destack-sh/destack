@@ -80,6 +80,7 @@ builtin_source!(REFLECT_DECORATOR, "reflect", "decorator.ds");
 // intrinsic
 builtin_source!(INTRINSIC_INDEX, "intrinsic", "index.ds");
 builtin_source!(INTRINSIC_IMPORT_META, "intrinsic", "import-meta.ds");
+builtin_source!(INTRINSIC_BINDING, "intrinsic", "binding.ds");
 builtin_source!(INTRINSIC_DECORATOR, "intrinsic", "decorator.ds");
 builtin_source!(INTRINSIC_BIT, "intrinsic", "bit.ds");
 builtin_source!(INTRINSIC_ARITHMETIC, "intrinsic", "arithmetic.ds");
@@ -114,6 +115,7 @@ pub const CORE_SOURCES: &[BuiltinSource] = &[
     CONTROL_RESULT,
     CONTROL_INDEX,
     // intrinsic
+    INTRINSIC_BINDING,
     INTRINSIC_DECORATOR,
     INTRINSIC_IMPORT_META,
     INTRINSIC_BIT,

@@ -1,0 +1,5 @@
+export declare namespace crypto {}
+
+export * from "./certificate.ds";
+export * from "./key.ds";
+export * from "./store.ds";

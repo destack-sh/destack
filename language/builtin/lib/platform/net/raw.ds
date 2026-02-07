@@ -37,6 +37,56 @@ export struct PacketCaptureRecord {
     truncated: boolean,
 }
 
+/// Packet capture backend statistics.
+export struct PacketCaptureStats {
+    /// Number of packets received by the backend.
+    receivedPackets: uint64,
+    /// Number of packets dropped by the backend.
+    droppedPackets: uint64,
+    /// Number of packets dropped by the interface.
+    interfaceDroppedPackets: uint64,
+}
+
+/// Packet fanout mode for shared packet sockets.
+export enum PacketFanoutMode {
+    /// Hash packets across sockets.
+    Hash = 0,
+    /// Load balance packets across sockets.
+    LoadBalance = 1,
+    /// Forward packets to the same CPU socket.
+    Cpu = 2,
+    /// Use round robin packet distribution.
+    RoundRobin = 3,
+    /// Use rollover failover packet distribution.
+    Rollover = 4,
+    /// Keep flows and load balance across sockets.
+    QueueMap = 5,
+}
+
+/// Packet fanout options for packet sockets.
+export struct PacketFanoutOptions {
+    /// Fanout group identifier.
+    groupId: uint16,
+    /// Fanout algorithm mode.
+    mode: PacketFanoutMode,
+    /// Mode-specific fanout flags.
+    flags: uint16,
+}
+
+/// Packet ring options for rx and tx packet queues.
+export struct PacketRingOptions {
+    /// Ring block size in bytes.
+    blockSize: uint32,
+    /// Number of blocks in the ring.
+    blockCount: uint32,
+    /// Frame size in bytes.
+    frameSize: uint32,
+    /// Number of frames in the ring.
+    frameCount: uint32,
+    /// Block retire timeout in milliseconds.
+    retireTimeoutMs: uint32,
+}
+
 /// Raw network bindings for the native runtime.
 declare namespace net {
     /// Open a raw IP socket.
@@ -167,4 +217,178 @@ declare namespace net {
         handle: SocketHandle,
         mode: PacketTimestampMode,
     ): Result<void, PlatformError>;
+
+    /// Attach one packet filter program to a raw endpoint.
+    ///
+    /// Installs one backend packet filter program for capture path filtering.
+    /// Filter verification and accepted instruction sets are host defined.
+    ///
+    /// # Platform
+    /// Linux, BSD, and Windows.
+    /// Uses SO_ATTACH_FILTER or BPF attach APIs on Unix and equivalent packet filter APIs on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.raw`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.raw.packetSetFilter", { effect: "external", replay: "recordable", requires: ["net.raw"], scope: "os", blocking: "sometimes" })
+    export function packetSetFilter(
+        handle: SocketHandle,
+        filterProgram: Slice<uint8>,
+    ): Result<void, PlatformError>;
+
+    /// Clear the active packet filter program.
+    ///
+    /// Removes any backend packet filter from the raw endpoint.
+    /// Filter teardown semantics are host defined.
+    ///
+    /// # Platform
+    /// Linux, BSD, and Windows.
+    /// Uses SO_DETACH_FILTER or BPF detach APIs on Unix and equivalent packet filter APIs on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.raw`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.raw.packetClearFilter", { effect: "external", replay: "recordable", requires: ["net.raw"], scope: "os", blocking: "sometimes" })
+    export function packetClearFilter(handle: SocketHandle): Result<void, PlatformError>;
+
+    /// Set packet fanout on a packet endpoint.
+    ///
+    /// Attach this endpoint to one kernel packet fanout group with the provided mode.
+    /// Fanout group behavior and mode-specific flags follow host packet socket semantics.
+    ///
+    /// # Platform
+    /// Linux, BSD, and Windows.
+    /// Uses PACKET_FANOUT on Linux and returns notSupported where fanout groups are unavailable.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.raw`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.raw.packetSetFanout", { effect: "external", replay: "recordable", requires: ["net.raw"], scope: "os", blocking: "sometimes" })
+    export function packetSetFanout(
+        handle: SocketHandle,
+        options: PacketFanoutOptions,
+    ): Result<void, PlatformError>;
+
+    /// Clear packet fanout from a packet endpoint.
+    ///
+    /// Remove this endpoint from any active fanout group.
+    /// Group teardown behavior and packet redistribution follow host kernel semantics.
+    ///
+    /// # Platform
+    /// Linux, BSD, and Windows.
+    /// Uses PACKET_FANOUT reset on Linux and returns notSupported where fanout groups are unavailable.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.raw`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.raw.packetClearFanout", { effect: "external", replay: "recordable", requires: ["net.raw"], scope: "os", blocking: "sometimes" })
+    export function packetClearFanout(handle: SocketHandle): Result<void, PlatformError>;
+
+    /// Configure one packet rx ring for zero-copy capture.
+    ///
+    /// Configure one receive ring so packet frames are delivered through kernel ring buffers.
+    /// Ring geometry is validated by the host kernel and may be clamped or rejected.
+    ///
+    /// # Platform
+    /// Linux, BSD, and Windows.
+    /// Uses PACKET_RX_RING on Linux and returns notSupported where packet rings are unavailable.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.raw`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.raw.packetSetRxRing", { effect: "external", replay: "recordable", requires: ["net.raw"], scope: "os", blocking: "sometimes" })
+    export function packetSetRxRing(
+        handle: SocketHandle,
+        options: PacketRingOptions,
+    ): Result<void, PlatformError>;
+
+    /// Configure one packet tx ring for zero-copy transmit.
+    ///
+    /// Configure one transmit ring so packet frames are queued through kernel ring buffers.
+    /// Ring geometry is validated by the host kernel and may be clamped or rejected.
+    ///
+    /// # Platform
+    /// Linux, BSD, and Windows.
+    /// Uses PACKET_TX_RING on Linux and returns notSupported where packet rings are unavailable.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.raw`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.raw.packetSetTxRing", { effect: "external", replay: "recordable", requires: ["net.raw"], scope: "os", blocking: "sometimes" })
+    export function packetSetTxRing(
+        handle: SocketHandle,
+        options: PacketRingOptions,
+    ): Result<void, PlatformError>;
+
+    /// Clear packet rx and tx ring configuration.
+    ///
+    /// Disable ring-backed packet queues and return to syscall-based send and receive.
+    /// Pending ring buffers are released according to host packet socket semantics.
+    ///
+    /// # Platform
+    /// Linux, BSD, and Windows.
+    /// Uses PACKET_RX_RING and PACKET_TX_RING reset on Linux and returns notSupported elsewhere.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.raw`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.raw.packetClearRing", { effect: "external", replay: "recordable", requires: ["net.raw"], scope: "os", blocking: "sometimes" })
+    export function packetClearRing(handle: SocketHandle): Result<void, PlatformError>;
+
+    /// Read packet capture statistics from one endpoint.
+    ///
+    /// Reads cumulative backend packet counters for the endpoint.
+    /// Counter units and reset behavior follow host backend semantics.
+    ///
+    /// # Platform
+    /// Linux, BSD, and Windows.
+    /// Uses packet socket stats on Linux, BPF stats on BSD, and equivalent packet backend stats on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.raw`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.raw.packetStats", { effect: "external", replay: "recordable", requires: ["net.raw"], scope: "os", blocking: "sometimes" })
+    export function packetStats(
+        handle: SocketHandle,
+    ): Result<PacketCaptureStats, PlatformError>;
 }

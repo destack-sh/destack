@@ -1,2 +1,2 @@
 /// Filesystem API for the Destack runtime.
-export * from "../../platform/fs/index.ds";
+export declare namespace fs {}

@@ -71,7 +71,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.watch", { effect: "external", replay: "recordable", requires: ["fs.watch"], scope: "os", blocking: "sometimes" })
+    @binding("destack.fs.watch.watch", { effect: "external", replay: "recordable", requires: ["fs.watch"], scope: "os", blocking: "sometimes" })
     export function watch(path: OsPath, options: WatchOptions): Result<WatchHandle, PlatformError>;
 
     /// Start watching a path relative to a directory handle.
@@ -91,7 +91,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.watchat", { effect: "external", replay: "recordable", requires: ["fs.watch"], scope: "os", blocking: "sometimes" })
+    @binding("destack.fs.watch.watchat", { effect: "external", replay: "recordable", requires: ["fs.watch"], scope: "os", blocking: "sometimes" })
     export function watchat(
         directory: DirectoryHandle,
         path: OsPath,
@@ -115,7 +115,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.watchRead", { effect: "external", replay: "recordable", requires: ["fs.watch"], scope: "os", blocking: "sometimes" })
+    @binding("destack.fs.watch.watchRead", { effect: "external", replay: "recordable", requires: ["fs.watch"], scope: "os", blocking: "sometimes" })
     export function watchRead(handle: WatchHandle): Result<WatchBatch, PlatformError>;
 
     /// Close a watch handle.
@@ -135,6 +135,6 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.watchClose", { effect: "external", replay: "recordable", requires: ["fs.watch"], scope: "os", blocking: "sometimes" })
+    @binding("destack.fs.watch.watchClose", { effect: "external", replay: "recordable", requires: ["fs.watch"], scope: "os", blocking: "sometimes" })
     export function watchClose(handle: WatchHandle): Result<void, PlatformError>;
 }

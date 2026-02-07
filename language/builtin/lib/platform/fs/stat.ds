@@ -1,7 +1,16 @@
 import type { PlatformError } from "../error/index.ds";
 import { DirectoryHandle, FileHandle } from "../resource/index.ds";
-import { AtFlags, FileSize } from "./flags.ds";
-import { PathRef } from "./path.ds";
+import { AtFlags, FileMode, FileSize } from "./flags.ds";
+import { OsPath } from "./path.ds";
+
+/// statx mask bits.
+export newtype StatxMask = uint32;
+
+/// statx flags bits.
+export newtype StatxFlags = uint32;
+
+/// Filesystem mount flags returned by statfs.
+export newtype StatFsFlags = uint64;
 
 /// File metadata returned by stat calls.
 export struct Stat {
@@ -10,7 +19,7 @@ export struct Stat {
     /// Inode number.
     ino: uint64,
     /// File mode bits.
-    mode: uint32,
+    mode: FileMode,
     /// Hard link count.
     nlink: uint32,
     /// User id of owner.
@@ -54,34 +63,210 @@ export struct StatFs {
     /// Filesystem ID.
     fsid: uint64,
     /// Mount flags.
-    flags: uint64,
+    flags: StatFsFlags,
     /// Maximum filename length.
     namelen: uint64,
+}
+
+/// Extended stat metadata returned by statx.
+export struct Statx {
+    /// Mask of fields populated by the kernel.
+    mask: StatxMask,
+    /// Block size for filesystem I/O.
+    blksize: uint32,
+    /// Mount identifier.
+    mountId: uint64,
+    /// Device major number.
+    devMajor: uint32,
+    /// Device minor number.
+    devMinor: uint32,
+    /// Inode number.
+    ino: uint64,
+    /// File mode bits.
+    mode: FileMode,
+    /// Hard link count.
+    nlink: uint32,
+    /// User id of owner.
+    uid: uint32,
+    /// Group id of owner.
+    gid: uint32,
+    /// Device major for special files.
+    rdevMajor: uint32,
+    /// Device minor for special files.
+    rdevMinor: uint32,
+    /// File size in bytes.
+    size: FileSize,
+    /// Number of allocated blocks.
+    blocks: uint64,
+    /// Last access time in nanoseconds.
+    atimeNs: uint64,
+    /// Creation time in nanoseconds.
+    btimeNs: uint64,
+    /// Last status change time in nanoseconds.
+    ctimeNs: uint64,
+    /// Last modification time in nanoseconds.
+    mtimeNs: uint64,
 }
 
 /// Stat bindings for the native runtime.
 declare namespace fs {
     /// Stat a file.
-    @binding("destack.fs.stat", { effect: "external", replay: "recordable" })
-    export function stat(path: PathRef): Result<Stat, PlatformError>;
+    ///
+    /// Read metadata for one filesystem entry resolved from a path.
+    /// Returned fields follow host stat layout and normalization rules.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses stat(2) on Unix and GetFileInformationByHandleEx on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.metadata`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.stat.stat", { effect: "external", replay: "recordable", requires: ["fs.metadata"], scope: "os", blocking: "sometimes" })
+    export function stat(path: OsPath): Result<Stat, PlatformError>;
 
     /// Stat a file relative to a directory handle.
-    @binding("destack.fs.statat", { effect: "external", replay: "recordable" })
-    export function statat(dir: DirectoryHandle, path: PathRef, flags: AtFlags): Result<Stat, PlatformError>;
+    ///
+    /// Read metadata for one path resolved relative to `dir`.
+    /// Directory-relative lookup avoids ambient current-working-directory traversal.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses fstatat(2) on Unix and handle-relative stat on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.metadata`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.stat.statat", { effect: "external", replay: "recordable", requires: ["fs.metadata"], scope: "os", blocking: "sometimes" })
+    export function statat(dir: DirectoryHandle, path: OsPath, flags: AtFlags): Result<Stat, PlatformError>;
 
     /// Stat a file by handle.
-    @binding("destack.fs.fstat", { effect: "external", replay: "recordable" })
+    ///
+    /// Read metadata for one already-open file handle.
+    /// Handle-based metadata lookup bypasses path traversal and symlink resolution.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses fstat(2) on Unix and GetFileInformationByHandleEx on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.metadata`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.stat.fstat", { effect: "external", replay: "recordable", requires: ["fs.metadata"], scope: "os", blocking: "sometimes" })
     export function fstat(handle: FileHandle): Result<Stat, PlatformError>;
 
     /// Stat a file without following symlinks.
-    @binding("destack.fs.lstat", { effect: "external", replay: "recordable" })
-    export function lstat(path: PathRef): Result<Stat, PlatformError>;
+    ///
+    /// Read metadata for one link entry without dereferencing its target.
+    /// No-follow behavior is enforced by host lstat-style calls.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses lstat(2) on Unix and reparse-point aware metadata query on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.metadata`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.stat.lstat", { effect: "external", replay: "recordable", requires: ["fs.metadata"], scope: "os", blocking: "sometimes" })
+    export function lstat(path: OsPath): Result<Stat, PlatformError>;
 
     /// Stat a filesystem.
-    @binding("destack.fs.statfs", { effect: "external", replay: "recordable" })
-    export function statfs(path: PathRef): Result<StatFs, PlatformError>;
+    ///
+    /// Read filesystem-capacity and mount metadata for the filesystem containing `path`.
+    /// Values reflect host block, inode, and mount flag accounting at call time.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses statfs/statvfs on Unix and GetDiskFreeSpaceExW/GetVolumeInformationW on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.metadata`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.stat.statfs", { effect: "external", replay: "recordable", requires: ["fs.metadata"], scope: "os", blocking: "sometimes" })
+    export function statfs(path: OsPath): Result<StatFs, PlatformError>;
 
     /// Stat a filesystem by handle.
-    @binding("destack.fs.fstatfs", { effect: "external", replay: "recordable" })
+    ///
+    /// Read filesystem-capacity and mount metadata using an already-open file handle.
+    /// Handle-based queries avoid path races during mount selection.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses fstatfs/statvfs by handle on Unix and volume information by handle on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.metadata`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.stat.fstatfs", { effect: "external", replay: "recordable", requires: ["fs.metadata"], scope: "os", blocking: "sometimes" })
     export function fstatfs(handle: FileHandle): Result<StatFs, PlatformError>;
+
+    /// Read extended file metadata.
+    ///
+    /// Read an extended metadata payload using the closest host API surface.
+    /// Field population follows host capability and mask support for the requested `statx` bits.
+    ///
+    /// # Platform
+    /// Unix only in the current runtime implementation.
+    /// Uses fstatat-backed metadata mapping today, with statx field layout compatibility for shared callers.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.metadata`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.stat.statx", { effect: "external", replay: "recordable", requires: ["fs.metadata"], scope: "os", blocking: "sometimes" })
+    export function statx(
+        dir: DirectoryHandle,
+        path: OsPath,
+        flags: StatxFlags,
+        mask: StatxMask,
+    ): Result<Statx, PlatformError>;
 }
+
+/// Request basic file stats.
+export const STATX_BASIC_STATS: StatxMask = StatxMask(0x07ff);
+/// Request file birth time.
+export const STATX_BTIME: StatxMask = StatxMask(0x0800);
+/// Request all available fields.
+export const STATX_ALL: StatxMask = StatxMask(0x0fff);
+/// Stat without forcing sync.
+export const STATX_DONT_SYNC: StatxFlags = StatxFlags(0x4000);
+/// Force attribute sync from server.
+export const STATX_FORCE_SYNC: StatxFlags = StatxFlags(0x2000);
+/// Allow empty path for statx.
+export const STATX_EMPTY_PATH: StatxFlags = StatxFlags(0x10);
+/// Do not follow symlinks for statx.
+export const STATX_NOFOLLOW: StatxFlags = StatxFlags(0x1);

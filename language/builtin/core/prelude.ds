@@ -54,7 +54,6 @@ export {
     deny,
     forbid,
     expect,
-    binding,
     extern,
     intrinsic,
     languageItem,
@@ -83,6 +82,9 @@ export {
     lifetime,
     addrspace,
 } from "./intrinsic/decorator.ds";
+
+// binding decorators (intrinsics)
+export { binding, require, type BindingOptions, type PlatformCapability } from "./intrinsic/binding.ds";
 
 // arithmetic operators
 export {

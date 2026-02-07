@@ -35,7 +35,7 @@ declare namespace thread {
     /// Read thread priority.
     ///
     /// Read one thread priority value from host scheduler state.
-    /// Priority value normalization is runtime-defined per host.
+    /// Returned values follow host scheduler ranges and are normalized by runtime host adapters.
     ///
     /// # Platform
     /// Unix and Windows.

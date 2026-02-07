@@ -97,4 +97,120 @@ declare namespace thread {
         },
     )
     export function detach(handle: ThreadHandle): Result<void, PlatformError>;
+
+    /// Read the current host thread handle.
+    ///
+    /// Return the runtime handle for the currently executing host thread.
+    /// Handle identity and lifetime rules follow host threading primitives.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses pthread_self on Unix, GetCurrentThread on Windows, and wasi equivalents when available.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `thread.spawn`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.thread.spawn.current",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["thread.spawn"],
+            scope: "os",
+            blocking: "never",
+        },
+    )
+    export function current(): Result<ThreadHandle, PlatformError>;
+
+    /// Yield execution for the current host thread.
+    ///
+    /// Hint the host scheduler to run another runnable thread before continuing.
+    /// Scheduling effect is host-defined and may be a no-op on some targets.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses sched_yield on Unix, SwitchToThread on Windows, and wasi equivalents when available.
+    ///
+    /// # Errors
+    /// Returns ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `thread.wait`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.thread.spawn.yieldNow",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["thread.wait"],
+            scope: "os",
+            blocking: "never",
+        },
+    )
+    export function yieldNow(): Result<void, PlatformError>;
+
+    /// Set one host thread name.
+    ///
+    /// Assign one debug-visible name to the target host thread.
+    /// Name length and encoding limits are host-defined.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses pthread_setname_np on Unix, SetThreadDescription on Windows, and wasi equivalents when available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `thread.spawn`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.thread.spawn.setName",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["thread.spawn"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function setName(handle: ThreadHandle, name: string): Result<void, PlatformError>;
+
+    /// Read one host thread name.
+    ///
+    /// Read one debug-visible name from the target host thread.
+    /// Returned text is normalized from host representation by runtime policy.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses pthread_getname_np on Unix, GetThreadDescription on Windows, and wasi equivalents when available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `thread.spawn`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.thread.spawn.getName",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["thread.spawn"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function getName(handle: ThreadHandle): Result<string, PlatformError>;
 }

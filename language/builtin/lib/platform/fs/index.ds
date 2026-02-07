@@ -7,4 +7,5 @@ export * from "./flags.ds";
 export * from "./path.ds";
 export * from "./stat.ds";
 export * from "./mmap.ds";
+export * from "./watch.ds";
 export * from "./xattr.ds";

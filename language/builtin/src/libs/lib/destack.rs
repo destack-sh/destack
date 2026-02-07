@@ -33,6 +33,18 @@ builtin_lib_sources_targeted!(
             "assert.ds"
         ),
         (
+            LIB_DESTACK_ASYNC_INDEX_DS,
+            "lib",
+            "destack/async",
+            "index.ds"
+        ),
+        (
+            LIB_DESTACK_ASYNC_ASYNC_DS,
+            "lib",
+            "destack/async",
+            "async.ds"
+        ),
+        (
             LIB_DESTACK_BUFFER_INDEX_DS,
             "lib",
             "destack/buffer",
@@ -69,6 +81,32 @@ builtin_lib_sources_targeted!(
             "crypto.ds"
         ),
         (
+            LIB_DESTACK_DGRAM_INDEX_DS,
+            "lib",
+            "destack/dgram",
+            "index.ds"
+        ),
+        (
+            LIB_DESTACK_DGRAM_DGRAM_DS,
+            "lib",
+            "destack/dgram",
+            "dgram.ds"
+        ),
+        (
+            LIB_DESTACK_DEBUG_INDEX_DS,
+            "lib",
+            "destack/debug",
+            "index.ds"
+        ),
+        (
+            LIB_DESTACK_DEBUG_DEBUG_DS,
+            "lib",
+            "destack/debug",
+            "debug.ds"
+        ),
+        (LIB_DESTACK_DNS_INDEX_DS, "lib", "destack/dns", "index.ds"),
+        (LIB_DESTACK_DNS_DNS_DS, "lib", "destack/dns", "dns.ds"),
+        (
             LIB_DESTACK_ERROR_INDEX_DS,
             "lib",
             "destack/error",
@@ -80,8 +118,46 @@ builtin_lib_sources_targeted!(
             "destack/error",
             "error.ds"
         ),
+        (
+            LIB_DESTACK_EVENTS_INDEX_DS,
+            "lib",
+            "destack/events",
+            "index.ds"
+        ),
+        (
+            LIB_DESTACK_EVENTS_EVENTS_DS,
+            "lib",
+            "destack/events",
+            "events.ds"
+        ),
         (LIB_DESTACK_FS_INDEX_DS, "lib", "destack/fs", "index.ds"),
         (LIB_DESTACK_FS_FS_DS, "lib", "destack/fs", "fs.ds"),
+        (LIB_DESTACK_HTTP_INDEX_DS, "lib", "destack/http", "index.ds"),
+        (LIB_DESTACK_HTTP_HTTP_DS, "lib", "destack/http", "http.ds"),
+        (
+            LIB_DESTACK_HTTP2_INDEX_DS,
+            "lib",
+            "destack/http2",
+            "index.ds"
+        ),
+        (
+            LIB_DESTACK_HTTP2_HTTP2_DS,
+            "lib",
+            "destack/http2",
+            "http2.ds"
+        ),
+        (
+            LIB_DESTACK_HTTPS_INDEX_DS,
+            "lib",
+            "destack/https",
+            "index.ds"
+        ),
+        (
+            LIB_DESTACK_HTTPS_HTTPS_DS,
+            "lib",
+            "destack/https",
+            "https.ds"
+        ),
         (LIB_DESTACK_NET_INDEX_DS, "lib", "destack/net", "index.ds"),
         (LIB_DESTACK_NET_NET_DS, "lib", "destack/net", "net.ds"),
         (LIB_DESTACK_OS_INDEX_DS, "lib", "destack/os", "index.ds"),
@@ -113,6 +189,18 @@ builtin_lib_sources_targeted!(
             "win32.ds"
         ),
         (
+            LIB_DESTACK_PERMISSIONS_INDEX_DS,
+            "lib",
+            "destack/permissions",
+            "index.ds"
+        ),
+        (
+            LIB_DESTACK_PERMISSIONS_PERMISSIONS_DS,
+            "lib",
+            "destack/permissions",
+            "permissions.ds"
+        ),
+        (
             LIB_DESTACK_PROCESS_INDEX_DS,
             "lib",
             "destack/process",
@@ -137,6 +225,30 @@ builtin_lib_sources_targeted!(
             "random.ds"
         ),
         (
+            LIB_DESTACK_READLINE_INDEX_DS,
+            "lib",
+            "destack/readline",
+            "index.ds"
+        ),
+        (
+            LIB_DESTACK_READLINE_READLINE_DS,
+            "lib",
+            "destack/readline",
+            "readline.ds"
+        ),
+        (
+            LIB_DESTACK_REPLAY_INDEX_DS,
+            "lib",
+            "destack/replay",
+            "index.ds"
+        ),
+        (
+            LIB_DESTACK_REPLAY_REPLAY_DS,
+            "lib",
+            "destack/replay",
+            "replay.ds"
+        ),
+        (
             LIB_DESTACK_RESOURCE_INDEX_DS,
             "lib",
             "destack/resource",
@@ -155,6 +267,18 @@ builtin_lib_sources_targeted!(
             "id.ds"
         ),
         (
+            LIB_DESTACK_SNAPSHOT_INDEX_DS,
+            "lib",
+            "destack/snapshot",
+            "index.ds"
+        ),
+        (
+            LIB_DESTACK_SNAPSHOT_SNAPSHOT_DS,
+            "lib",
+            "destack/snapshot",
+            "snapshot.ds"
+        ),
+        (
             LIB_DESTACK_STREAM_INDEX_DS,
             "lib",
             "destack/stream",
@@ -166,8 +290,22 @@ builtin_lib_sources_targeted!(
             "destack/stream",
             "stream.ds"
         ),
+        (
+            LIB_DESTACK_STRING_INDEX_DS,
+            "lib",
+            "destack/string",
+            "index.ds"
+        ),
+        (
+            LIB_DESTACK_STRING_STRING_DS,
+            "lib",
+            "destack/string",
+            "string.ds"
+        ),
         (LIB_DESTACK_SYS_INDEX_DS, "lib", "destack/sys", "index.ds"),
         (LIB_DESTACK_SYS_SYS_DS, "lib", "destack/sys", "sys.ds"),
+        (LIB_DESTACK_TEST_INDEX_DS, "lib", "destack/test", "index.ds"),
+        (LIB_DESTACK_TEST_TEST_DS, "lib", "destack/test", "test.ds"),
         (LIB_DESTACK_TIME_INDEX_DS, "lib", "destack/time", "index.ds"),
         (LIB_DESTACK_TIME_TIME_DS, "lib", "destack/time", "time.ds"),
         (
@@ -188,6 +326,10 @@ builtin_lib_sources_targeted!(
             "destack/timers",
             "timers.ds"
         ),
+        (LIB_DESTACK_TLS_INDEX_DS, "lib", "destack/tls", "index.ds"),
+        (LIB_DESTACK_TLS_TLS_DS, "lib", "destack/tls", "tls.ds"),
+        (LIB_DESTACK_TTY_INDEX_DS, "lib", "destack/tty", "index.ds"),
+        (LIB_DESTACK_TTY_TTY_DS, "lib", "destack/tty", "tty.ds"),
         (LIB_DESTACK_URL_INDEX_DS, "lib", "destack/url", "index.ds"),
         (LIB_DESTACK_URL_URL_DS, "lib", "destack/url", "url.ds"),
         (LIB_DESTACK_UTIL_INDEX_DS, "lib", "destack/util", "index.ds"),
@@ -199,6 +341,20 @@ builtin_lib_sources_targeted!(
         ),
         (LIB_DESTACK_VM_INDEX_DS, "lib", "destack/vm", "index.ds"),
         (LIB_DESTACK_VM_VM_DS, "lib", "destack/vm", "vm.ds"),
+        (
+            LIB_DESTACK_WORKER_INDEX_DS,
+            "lib",
+            "destack/worker",
+            "index.ds"
+        ),
+        (
+            LIB_DESTACK_WORKER_WORKER_DS,
+            "lib",
+            "destack/worker",
+            "worker.ds"
+        ),
+        (LIB_DESTACK_ZLIB_INDEX_DS, "lib", "destack/zlib", "index.ds"),
+        (LIB_DESTACK_ZLIB_ZLIB_DS, "lib", "destack/zlib", "zlib.ds"),
     ]
 );
 
@@ -208,16 +364,32 @@ pub const LIB_DESTACK: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_DESTACK_INDEX_DS,
         LIB_DESTACK_ASSERT_INDEX_DS,
         LIB_DESTACK_ASSERT_ASSERT_DS,
+        LIB_DESTACK_ASYNC_INDEX_DS,
+        LIB_DESTACK_ASYNC_ASYNC_DS,
         LIB_DESTACK_BUFFER_INDEX_DS,
         LIB_DESTACK_BUFFER_BUFFER_DS,
         LIB_DESTACK_CONSOLE_INDEX_DS,
         LIB_DESTACK_CONSOLE_CONSOLE_DS,
         LIB_DESTACK_CRYPTO_INDEX_DS,
         LIB_DESTACK_CRYPTO_CRYPTO_DS,
+        LIB_DESTACK_DGRAM_INDEX_DS,
+        LIB_DESTACK_DGRAM_DGRAM_DS,
+        LIB_DESTACK_DEBUG_INDEX_DS,
+        LIB_DESTACK_DEBUG_DEBUG_DS,
+        LIB_DESTACK_DNS_INDEX_DS,
+        LIB_DESTACK_DNS_DNS_DS,
         LIB_DESTACK_ERROR_INDEX_DS,
         LIB_DESTACK_ERROR_ERROR_DS,
+        LIB_DESTACK_EVENTS_INDEX_DS,
+        LIB_DESTACK_EVENTS_EVENTS_DS,
         LIB_DESTACK_FS_INDEX_DS,
         LIB_DESTACK_FS_FS_DS,
+        LIB_DESTACK_HTTP_INDEX_DS,
+        LIB_DESTACK_HTTP_HTTP_DS,
+        LIB_DESTACK_HTTP2_INDEX_DS,
+        LIB_DESTACK_HTTP2_HTTP2_DS,
+        LIB_DESTACK_HTTPS_INDEX_DS,
+        LIB_DESTACK_HTTPS_HTTPS_DS,
         LIB_DESTACK_NET_INDEX_DS,
         LIB_DESTACK_NET_NET_DS,
         LIB_DESTACK_OS_INDEX_DS,
@@ -228,28 +400,48 @@ pub const LIB_DESTACK: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_DESTACK_PATH_POSIX_POSIX_DS,
         LIB_DESTACK_PATH_WIN32_INDEX_DS,
         LIB_DESTACK_PATH_WIN32_WIN32_DS,
+        LIB_DESTACK_PERMISSIONS_INDEX_DS,
+        LIB_DESTACK_PERMISSIONS_PERMISSIONS_DS,
         LIB_DESTACK_PROCESS_INDEX_DS,
         LIB_DESTACK_PROCESS_PROCESS_DS,
         LIB_DESTACK_RANDOM_INDEX_DS,
         LIB_DESTACK_RANDOM_RANDOM_DS,
+        LIB_DESTACK_READLINE_INDEX_DS,
+        LIB_DESTACK_READLINE_READLINE_DS,
+        LIB_DESTACK_REPLAY_INDEX_DS,
+        LIB_DESTACK_REPLAY_REPLAY_DS,
         LIB_DESTACK_RESOURCE_INDEX_DS,
         LIB_DESTACK_RESOURCE_HANDLES_DS,
         LIB_DESTACK_RESOURCE_ID_DS,
+        LIB_DESTACK_SNAPSHOT_INDEX_DS,
+        LIB_DESTACK_SNAPSHOT_SNAPSHOT_DS,
         LIB_DESTACK_STREAM_INDEX_DS,
         LIB_DESTACK_STREAM_STREAM_DS,
+        LIB_DESTACK_STRING_INDEX_DS,
+        LIB_DESTACK_STRING_STRING_DS,
         LIB_DESTACK_SYS_INDEX_DS,
         LIB_DESTACK_SYS_SYS_DS,
+        LIB_DESTACK_TEST_INDEX_DS,
+        LIB_DESTACK_TEST_TEST_DS,
         LIB_DESTACK_TIME_INDEX_DS,
         LIB_DESTACK_TIME_TIME_DS,
         LIB_DESTACK_TIMERS_INDEX_DS,
         LIB_DESTACK_TIMERS_PROMISES_INDEX_DS,
         LIB_DESTACK_TIMERS_TIMERS_DS,
+        LIB_DESTACK_TLS_INDEX_DS,
+        LIB_DESTACK_TLS_TLS_DS,
+        LIB_DESTACK_TTY_INDEX_DS,
+        LIB_DESTACK_TTY_TTY_DS,
         LIB_DESTACK_URL_INDEX_DS,
         LIB_DESTACK_URL_URL_DS,
         LIB_DESTACK_UTIL_INDEX_DS,
         LIB_DESTACK_UTIL_INSPECT_DS,
         LIB_DESTACK_VM_INDEX_DS,
         LIB_DESTACK_VM_VM_DS,
+        LIB_DESTACK_WORKER_INDEX_DS,
+        LIB_DESTACK_WORKER_WORKER_DS,
+        LIB_DESTACK_ZLIB_INDEX_DS,
+        LIB_DESTACK_ZLIB_ZLIB_DS,
     ],
     &["native", "platform"],
 );

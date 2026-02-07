@@ -13,7 +13,7 @@ declare namespace time {
     /// Sleep for at least the given duration in nanoseconds.
     ///
     /// Suspend the current execution context for the requested minimum duration.
-    /// Wakeup precision depends on host timer granularity and scheduler latency.
+    /// Minimum-sleep overshoot depends on host timer granularity and scheduler load.
     ///
     /// # Platform
     /// Runtime-integrated sleep available on Unix, Windows, and Wasi targets.
@@ -71,7 +71,7 @@ declare namespace time {
     /// Sleep for at least the given duration on one clock domain.
     ///
     /// Suspend the current execution context for the requested duration on the selected clock domain.
-    /// Wakeup precision depends on host timer granularity and scheduler latency.
+    /// Clock-domain drift and wakeup precision follow host timing behavior.
     ///
     /// # Platform
     /// Runtime-integrated sleep available on Unix, Windows, and Wasi targets.

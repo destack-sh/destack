@@ -1,3 +1,4 @@
+import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
 import { SocketHandle } from "../resource/index.ds";
 
@@ -9,61 +10,699 @@ export struct Linger {
     seconds: uint32,
 }
 
+/// Packet timestamping mode.
+export enum SocketTimestampingMode {
+    /// Disable packet timestamping.
+    Off = 0,
+    /// Enable software timestamping.
+    Software = 1,
+    /// Enable hardware timestamping when available.
+    Hardware = 2,
+}
+
+/// Native socket option level.
+export newtype SocketOptionLevel = uint32;
+
+/// Native socket option name.
+export newtype SocketOptionName = uint32;
+
 /// Socket option bindings for the native runtime.
 declare namespace net {
     /// Set socket linger settings.
-    @binding("destack.net.setLinger", { effect: "external", replay: "recordable" })
+    ///
+    /// Set SO_LINGER parameters on the target socket.
+    /// The host kernel validates and applies linger policy exactly once for this call.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses setsockopt(SO_LINGER) on Unix and setsockopt on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.options.setLinger", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
     export function setLinger(
         handle: SocketHandle,
         linger: Linger,
     ): Result<void, PlatformError>;
 
     /// Set the receive buffer size.
-    @binding("destack.net.setRecvBuffer", { effect: "external", replay: "recordable" })
+    ///
+    /// Set SO_RCVBUF on the target socket.
+    /// Host kernels may clamp the requested size and apply protocol-specific minimums.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses setsockopt(SO_RCVBUF) on Unix and setsockopt on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.options.setRecvBuffer", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
     export function setRecvBuffer(
         handle: SocketHandle,
         size: uint32,
     ): Result<void, PlatformError>;
 
     /// Set the send buffer size.
-    @binding("destack.net.setSendBuffer", { effect: "external", replay: "recordable" })
+    ///
+    /// Set SO_SNDBUF on the target socket.
+    /// Host kernels may clamp the requested size and apply protocol-specific minimums.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses setsockopt(SO_SNDBUF) on Unix and setsockopt on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.options.setSendBuffer", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
     export function setSendBuffer(
         handle: SocketHandle,
         size: uint32,
     ): Result<void, PlatformError>;
 
+    /// Set the minimum readable byte threshold.
+    ///
+    /// Set SO_RCVLOWAT for receive wakeup behavior on this socket.
+    /// Readiness semantics remain host-specific for stream and datagram sockets.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses setsockopt(SO_RCVLOWAT) on Unix and setsockopt on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.options.setRecvLowWater", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
+    export function setRecvLowWater(
+        handle: SocketHandle,
+        size: uint32,
+    ): Result<void, PlatformError>;
+
+    /// Set the minimum writable byte threshold.
+    ///
+    /// Set SO_SNDLOWAT for send wakeup behavior on this socket.
+    /// Host kernels may reject this option for protocols that do not support it.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses setsockopt(SO_SNDLOWAT) on Unix and setsockopt on Windows where supported.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.options.setSendLowWater", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
+    export function setSendLowWater(
+        handle: SocketHandle,
+        size: uint32,
+    ): Result<void, PlatformError>;
+
+    /// Enable or disable inline out-of-band data.
+    ///
+    /// Toggle SO_OOBINLINE so urgent TCP data is delivered in-band.
+    /// Urgent-pointer handling remains host TCP stack specific.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses setsockopt(SO_OOBINLINE) on Unix and setsockopt on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.options.setOutOfBandInline", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
+    export function setOutOfBandInline(
+        handle: SocketHandle,
+        enabled: boolean,
+    ): Result<void, PlatformError>;
+
+    /// Enable or disable direct routing bypass.
+    ///
+    /// Toggle SO_DONTROUTE for direct interface routing behavior.
+    /// Route lookup bypass is host-kernel and interface topology dependent.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses setsockopt(SO_DONTROUTE) on Unix and setsockopt on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.options.setDontRoute", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
+    export function setDontRoute(
+        handle: SocketHandle,
+        enabled: boolean,
+    ): Result<void, PlatformError>;
+
     /// Enable or disable broadcast.
-    @binding("destack.net.setBroadcast", { effect: "external", replay: "recordable" })
+    ///
+    /// Toggle SO_BROADCAST for datagram socket sends.
+    /// Broadcast routing scope and privilege checks follow host kernel policy.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses setsockopt(SO_BROADCAST) on Unix and setsockopt on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.options.setBroadcast", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
     export function setBroadcast(
         handle: SocketHandle,
         enabled: boolean,
     ): Result<void, PlatformError>;
 
     /// Set the IP time-to-live.
-    @binding("destack.net.setTtl", { effect: "external", replay: "recordable" })
+    ///
+    /// Set default unicast hop limit for outbound packets on this socket.
+    /// Applied value may be clamped by host stack limits.
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses setsockopt(IP_TTL/IPV6_UNICAST_HOPS) on Unix and setsockopt on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.options.setTtl", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
     export function setTtl(
         handle: SocketHandle,
         ttl: uint32,
     ): Result<void, PlatformError>;
 
     /// Set the IP type-of-service field.
-    @binding("destack.net.setTos", { effect: "external", replay: "recordable" })
+    ///
+    /// Set default DSCP/TOS class for outbound packets on this socket.
+    /// Field interpretation follows host networking stack behavior.
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses setsockopt(IP_TOS/IPV6_TCLASS) on Unix and setsockopt on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.options.setTos", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
     export function setTos(
         handle: SocketHandle,
         tos: uint32,
     ): Result<void, PlatformError>;
 
     /// Set the read timeout in milliseconds.
-    @binding("destack.net.setReadTimeout", { effect: "external", replay: "recordable" })
+    ///
+    /// Set SO_RCVTIMEO on the target socket.
+    /// Timeout units and rounding behavior follow host socket timeout representation.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses setsockopt(SO_RCVTIMEO) on Unix and setsockopt on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.options.setReadTimeout", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
     export function setReadTimeout(
         handle: SocketHandle,
         timeoutMs: uint32,
     ): Result<void, PlatformError>;
 
     /// Set the write timeout in milliseconds.
-    @binding("destack.net.setWriteTimeout", { effect: "external", replay: "recordable" })
+    ///
+    /// Set SO_SNDTIMEO on the target socket.
+    /// Timeout units and rounding behavior follow host socket timeout representation.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses setsockopt(SO_SNDTIMEO) on Unix and setsockopt on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.options.setWriteTimeout", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
     export function setWriteTimeout(
         handle: SocketHandle,
         timeoutMs: uint32,
     ): Result<void, PlatformError>;
+
+    /// Restrict an IPv6 socket to IPv6 traffic only.
+    ///
+    /// Set IPV6_V6ONLY on the target socket.
+    /// Dual-stack behavior follows host kernel policy after this option is applied.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses setsockopt(IPV6_V6ONLY) on Unix and setsockopt on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.options.setOnlyV6", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
+    export function setOnlyV6(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>;
+
+    /// Read socket linger settings.
+    ///
+    /// Read SO_LINGER state for this socket endpoint.
+    /// Returned timeout units and disable behavior match host kernel representation.
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses getsockopt(SO_LINGER) on Unix and getsockopt on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.options.getLinger", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
+    export function getLinger(handle: SocketHandle): Result<Linger, PlatformError>;
+
+    /// Read the receive buffer size.
+    ///
+    /// Read SO_RCVBUF from the socket option layer.
+    /// Returned value includes host-side normalization and minimums.
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses getsockopt(SO_RCVBUF) on Unix and getsockopt on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.options.getRecvBuffer", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
+    export function getRecvBuffer(handle: SocketHandle): Result<uint32, PlatformError>;
+
+    /// Read the send buffer size.
+    ///
+    /// Read SO_SNDBUF from the socket option layer.
+    /// Returned value includes host-side normalization and minimums.
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses getsockopt(SO_SNDBUF) on Unix and getsockopt on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.options.getSendBuffer", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
+    export function getSendBuffer(handle: SocketHandle): Result<uint32, PlatformError>;
+
+    /// Read the minimum readable byte threshold.
+    ///
+    /// Read SO_RCVLOWAT from the socket option layer.
+    /// Readiness wakeup behavior is host-specific and protocol dependent.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses getsockopt(SO_RCVLOWAT) on Unix and getsockopt on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.options.getRecvLowWater", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
+    export function getRecvLowWater(handle: SocketHandle): Result<uint32, PlatformError>;
+
+    /// Read the minimum writable byte threshold.
+    ///
+    /// Read SO_SNDLOWAT from the socket option layer.
+    /// Host kernels may report `notSupported` when this option is not available.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses getsockopt(SO_SNDLOWAT) on Unix and getsockopt on Windows where supported.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.options.getSendLowWater", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
+    export function getSendLowWater(handle: SocketHandle): Result<uint32, PlatformError>;
+
+    /// Read broadcast mode.
+    ///
+    /// Read SO_BROADCAST mode from the socket option layer.
+    /// Returned value reflects whether limited broadcast sends are allowed.
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses getsockopt(SO_BROADCAST) on Unix and getsockopt on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.options.getBroadcast", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
+    export function getBroadcast(handle: SocketHandle): Result<boolean, PlatformError>;
+
+    /// Read inline out-of-band mode.
+    ///
+    /// Read SO_OOBINLINE mode from the socket option layer.
+    /// Returned value controls urgent-data delivery semantics for this endpoint.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses getsockopt(SO_OOBINLINE) on Unix and getsockopt on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.options.getOutOfBandInline", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
+    export function getOutOfBandInline(handle: SocketHandle): Result<boolean, PlatformError>;
+
+    /// Read direct-routing mode.
+    ///
+    /// Read SO_DONTROUTE mode from the socket option layer.
+    /// Returned value indicates whether route lookup bypass is requested.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses getsockopt(SO_DONTROUTE) on Unix and getsockopt on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.options.getDontRoute", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
+    export function getDontRoute(handle: SocketHandle): Result<boolean, PlatformError>;
+
+    /// Read the IP time-to-live.
+    ///
+    /// Read default unicast hop limit for this socket.
+    /// Returned value follows host transport-family option mapping.
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses getsockopt(IP_TTL/IPV6_UNICAST_HOPS) on Unix and getsockopt on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.options.getTtl", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
+    export function getTtl(handle: SocketHandle): Result<uint32, PlatformError>;
+
+    /// Read the IP type-of-service field.
+    ///
+    /// Read default DSCP/TOS class for outbound packets on this socket.
+    /// Returned value follows host transport-family option mapping.
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses getsockopt(IP_TOS/IPV6_TCLASS) on Unix and getsockopt on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.options.getTos", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
+    export function getTos(handle: SocketHandle): Result<uint32, PlatformError>;
+
+    /// Set packet timestamping mode.
+    ///
+    /// Configure timestamping controls on one socket endpoint.
+    /// Timestamp delivery channel and precision follow host kernel capabilities.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses SO_TIMESTAMP families on Unix and host timestamping controls on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.options.setTimestamping", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
+    export function setTimestamping(
+        handle: SocketHandle,
+        mode: SocketTimestampingMode,
+    ): Result<void, PlatformError>;
+
+    /// Read packet timestamping mode.
+    ///
+    /// Read timestamping controls from one socket endpoint.
+    /// Returned mode is normalized across host option variants.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses SO_TIMESTAMP families on Unix and host timestamping controls on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.options.getTimestamping", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
+    export function getTimestamping(handle: SocketHandle): Result<SocketTimestampingMode, PlatformError>;
+
+    /// Set socket packet mark.
+    ///
+    /// Set packet mark metadata used by host routing and firewall policy.
+    /// Mark interpretation is host-network-stack specific.
+    ///
+    /// # Platform
+    /// Linux and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses SO_MARK on Linux and host route-marking controls on Windows where available.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.options.setPacketMark", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
+    export function setPacketMark(handle: SocketHandle, mark: uint32): Result<void, PlatformError>;
+
+    /// Read socket packet mark.
+    ///
+    /// Read packet mark metadata from one socket endpoint.
+    /// Mark value interpretation is host-network-stack specific.
+    ///
+    /// # Platform
+    /// Linux and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses SO_MARK on Linux and host route-marking controls on Windows where available.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.options.getPacketMark", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
+    export function getPacketMark(handle: SocketHandle): Result<uint32, PlatformError>;
+
+    /// Read the read timeout in milliseconds.
+    ///
+    /// Read SO_RCVTIMEO timeout value for this socket.
+    /// Timeout granularity and rounding follow host kernel conventions.
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses getsockopt(SO_RCVTIMEO) on Unix and getsockopt on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.options.getReadTimeout", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
+    export function getReadTimeout(handle: SocketHandle): Result<uint32, PlatformError>;
+
+    /// Read the write timeout in milliseconds.
+    ///
+    /// Read SO_SNDTIMEO timeout value for this socket.
+    /// Timeout granularity and rounding follow host kernel conventions.
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses getsockopt(SO_SNDTIMEO) on Unix and getsockopt on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.options.getWriteTimeout", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
+    export function getWriteTimeout(handle: SocketHandle): Result<uint32, PlatformError>;
+
+    /// Read IPv6-only mode.
+    ///
+    /// Read IPV6_V6ONLY mode for this socket.
+    /// Returned value reflects dual-stack receive policy for the endpoint.
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses getsockopt(IPV6_V6ONLY) on Unix and getsockopt on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.options.getOnlyV6", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
+    export function getOnlyV6(handle: SocketHandle): Result<boolean, PlatformError>;
+
+    /// Set one raw socket option payload.
+    ///
+    /// Set one host socket option using raw level, name, and byte payload.
+    /// This escape hatch covers options that do not yet have typed bindings.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses setsockopt on Unix and setsockopt on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.options.setSockOptRaw", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
+    export function setSockOptRaw(
+        handle: SocketHandle,
+        level: SocketOptionLevel,
+        name: SocketOptionName,
+        value: Slice<uint8>,
+    ): Result<void, PlatformError>;
+
+    /// Read one raw socket option payload.
+    ///
+    /// Read one host socket option using raw level and name.
+    /// The returned byte payload is host-defined and must be decoded by the caller.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses getsockopt on Unix and getsockopt on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.options.getSockOptRaw", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
+    export function getSockOptRaw(
+        handle: SocketHandle,
+        level: SocketOptionLevel,
+        name: SocketOptionName,
+        maxBytes: uint32,
+    ): Result<uint8[], PlatformError>;
 }

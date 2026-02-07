@@ -99,6 +99,35 @@ declare namespace ipc {
     )
     export function pipeRead(handle: PipeHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>;
 
+    /// Read bytes into multiple buffers from a pipe endpoint.
+    ///
+    /// Read bytes into one scatter buffer list from one pipe endpoint.
+    /// Partial fills are reported exactly as returned by host vectored-read semantics.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses readv(2) on Unix, runtime vectored emulation on Windows, and wasi vectored reads where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `ipc.pipe`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.ipc.pipe.readv",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["ipc.pipe"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function pipeReadv(handle: PipeHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>;
+
     /// Write bytes to a pipe endpoint.
     ///
     /// Write bytes from caller-provided memory to one pipe endpoint.
@@ -127,4 +156,62 @@ declare namespace ipc {
         },
     )
     export function pipeWrite(handle: PipeHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>;
+
+    /// Write bytes from multiple buffers to a pipe endpoint.
+    ///
+    /// Write bytes from one gather buffer list to one pipe endpoint.
+    /// Partial writes are reported exactly as returned by host vectored-write semantics.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses writev(2) on Unix, runtime vectored emulation on Windows, and wasi vectored writes where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `ipc.pipe`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.ipc.pipe.writev",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["ipc.pipe"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function pipeWritev(handle: PipeHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>;
+
+    /// Enable or disable nonblocking mode on a pipe endpoint.
+    ///
+    /// Toggle host descriptor nonblocking mode for one pipe endpoint.
+    /// Subsequent read and write blocking behavior follows host descriptor state.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses fcntl or ioctl on Unix, handle mode updates on Windows, and wasi fd flags where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `ipc.pipe`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.ipc.pipe.setNonblocking",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["ipc.pipe"],
+            scope: "os",
+            blocking: "never",
+        },
+    )
+    export function pipeSetNonblocking(handle: PipeHandle, enabled: boolean): Result<void, PlatformError>;
 }

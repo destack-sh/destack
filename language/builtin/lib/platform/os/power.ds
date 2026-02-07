@@ -69,4 +69,91 @@ declare namespace os {
         },
     )
     export function suspend(): Result<void, PlatformError>;
+
+    /// Request host hibernate.
+    ///
+    /// Request one host hibernate transition through platform power APIs.
+    /// Request acceptance and timing are host-policy and privilege dependent.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host power-management APIs where supported.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.power`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.os.power.hibernate",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["os.power"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function hibernate(): Result<void, PlatformError>;
+
+    /// Request host shutdown.
+    ///
+    /// Request one host shutdown transition through platform power APIs.
+    /// Request acceptance and timing are host-policy and privilege dependent.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host shutdown APIs where supported.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.power`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.os.power.shutdown",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["os.power"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function shutdown(): Result<void, PlatformError>;
+
+    /// Request host reboot.
+    ///
+    /// Request one host reboot transition through platform power APIs.
+    /// Request acceptance and timing are host-policy and privilege dependent.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host reboot APIs where supported.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.power`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.os.power.reboot",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["os.power"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function reboot(): Result<void, PlatformError>;
 }
