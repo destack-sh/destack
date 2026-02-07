@@ -15,17 +15,134 @@ export newtype ListenerHandle = ResourceId;
 /// Handle for a spawned process.
 export newtype ProcessHandle = ResourceId;
 
+/// Handle for a process file descriptor style object.
+export newtype ProcessFdHandle = ResourceId;
+
 /// Handle for a scheduled timer.
 export newtype TimerHandle = ResourceId;
 
 /// Handle for a filesystem watcher.
 export newtype WatchHandle = ResourceId;
 
-/// Handle for a pipe or IPC stream.
+/// Handle for a pipe endpoint.
 export newtype PipeHandle = ResourceId;
+
+/// Handle for an IPC shared memory object.
+export newtype SharedMemoryHandle = ResourceId;
+
+/// Handle for an IPC semaphore.
+export newtype SemaphoreHandle = ResourceId;
+
+/// Handle for a readiness poll instance.
+export newtype PollHandle = ResourceId;
+
+/// Handle for a completion queue instance.
+export newtype CompletionHandle = ResourceId;
+
+/// Handle for an io_uring ring instance.
+export newtype UringHandle = ResourceId;
+
+/// Handle for a dynamically loaded library.
+export newtype LibraryHandle = ResourceId;
+
+/// Handle for a foreign function symbol.
+export newtype SymbolHandle = ResourceId;
+
+/// Handle for a device endpoint.
+export newtype DeviceHandle = ResourceId;
+
+/// Handle for a pseudo terminal endpoint.
+export newtype PtyHandle = ResourceId;
+
+/// Handle for a thread object.
+export newtype ThreadHandle = ResourceId;
+
+/// Handle for a mutex object.
+export newtype MutexHandle = ResourceId;
+
+/// Handle for a read write lock object.
+export newtype RwLockHandle = ResourceId;
+
+/// Handle for a condition variable object.
+export newtype CondVarHandle = ResourceId;
+
+/// Handle for a thread-scoped semaphore object.
+export newtype ThreadSemaphoreHandle = ResourceId;
+
+/// Handle for a thread-scoped barrier object.
+export newtype BarrierHandle = ResourceId;
+
+/// Handle for a thread local key.
+export newtype ThreadLocalKey = ResourceId;
+
+/// Handle for a sandbox scope.
+export newtype SandboxHandle = ResourceId;
+
+/// Handle for an inspector session.
+export newtype InspectorHandle = ResourceId;
+
+/// Handle for an active profiler session.
+export newtype ProfileHandle = ResourceId;
+
+/// Handle for an active trace stream.
+export newtype TraceHandle = ResourceId;
 
 /// Handle for a TTY device.
 export newtype TtyHandle = ResourceId;
 
 /// Handle for a signal subscription.
 export newtype SignalHandle = ResourceId;
+
+/// Handle for a signalfd style signal queue descriptor.
+export newtype SignalFdHandle = ResourceId;
+
+/// Handle transferred through ancillary transport.
+export newtype TransferredHandle = ResourceId;
+
+/// Handle for an IPC message queue.
+export newtype MessageQueueHandle = ResourceId;
+
+/// Handle for one audio device endpoint.
+export newtype AudioDeviceHandle = ResourceId;
+
+/// Handle for one audio stream endpoint.
+export newtype AudioStreamHandle = ResourceId;
+
+/// Handle for one display device endpoint.
+export newtype DisplayHandle = ResourceId;
+
+/// Handle for one window or surface host object.
+export newtype WindowHandle = ResourceId;
+
+/// Handle for one input device endpoint.
+export newtype InputDeviceHandle = ResourceId;
+
+/// Handle for one GPU adapter endpoint.
+export newtype GpuAdapterHandle = ResourceId;
+
+/// Handle for one GPU device endpoint.
+export newtype GpuDeviceHandle = ResourceId;
+
+/// Handle for one GPU queue endpoint.
+export newtype GpuQueueHandle = ResourceId;
+
+/// Handle for one GPU command list endpoint.
+export newtype GpuCommandListHandle = ResourceId;
+
+/// Handle for one GPU memory allocation endpoint.
+export newtype GpuMemoryHandle = ResourceId;
+
+/// Handle for one GPU buffer endpoint.
+export newtype GpuBufferHandle = ResourceId;
+
+/// Handle for one GPU texture endpoint.
+export newtype GpuTextureHandle = ResourceId;
+
+/// Handle for one GPU sampler endpoint.
+export newtype GpuSamplerHandle = ResourceId;
+
+/// Handle for one GPU shader module endpoint.
+export newtype GpuShaderHandle = ResourceId;
+
+/// Handle for one GPU pipeline endpoint.
+export newtype GpuPipelineHandle = ResourceId;
