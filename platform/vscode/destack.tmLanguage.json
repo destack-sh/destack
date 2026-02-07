@@ -1857,30 +1857,36 @@
       "patterns": [
         {
           "name": "meta.type.definition.ds",
-          "match": "(?x)^([ \\t]*)(?:\\b(?:public|protected|private|readonly|mut|static|final|accessor|default|abstract|override|export|declare)\\s+)*(?:(newtype)\\s+)?(struct|class|interface)\\b(?:\\s*\\([^)]*\\))*\\s+([A-Za-z_]\\w*)\\s*\\{[^}]*\\}",
+          "match": "(?x)^([ \\t]*)(?:(export)\\s+)?(?:\\b(?:public|protected|private|readonly|mut|static|final|accessor|default|abstract|override|declare)\\s+)*(?:(newtype)\\s+)?(struct|class|interface)\\b(?:\\s*\\([^)]*\\))*\\s+([A-Za-z_]\\w*)\\s*\\{[^}]*\\}",
           "captures": {
             "2": {
-              "name": "keyword.declaration.type.ds"
+              "name": "keyword.declaration.import.ds"
             },
             "3": {
               "name": "keyword.declaration.type.ds"
             },
             "4": {
+              "name": "keyword.declaration.type.ds"
+            },
+            "5": {
               "name": "entity.name.type.definition.ds"
             }
           }
         },
         {
           "name": "meta.type.definition.ds",
-          "begin": "(?x)^([ \\t]*)(?:\\b(?:public|protected|private|readonly|mut|static|final|accessor|default|abstract|override|export|declare)\\s+)*(?:(newtype)\\s+)?(struct|class|interface)\\b(?:\\s*\\([^)]*\\))*\\s+([A-Za-z_]\\w*)\\s*\\{",
+          "begin": "(?x)^([ \\t]*)(?:(export)\\s+)?(?:\\b(?:public|protected|private|readonly|mut|static|final|accessor|default|abstract|override|declare)\\s+)*(?:(newtype)\\s+)?(struct|class|interface)\\b(?:\\s*\\([^)]*\\))*\\s+([A-Za-z_]\\w*)\\s*\\{",
           "beginCaptures": {
             "2": {
-              "name": "keyword.declaration.type.ds"
+              "name": "keyword.declaration.import.ds"
             },
             "3": {
               "name": "keyword.declaration.type.ds"
             },
             "4": {
+              "name": "keyword.declaration.type.ds"
+            },
+            "5": {
               "name": "entity.name.type.definition.ds"
             }
           },
@@ -1914,30 +1920,36 @@
       "patterns": [
         {
           "name": "meta.enum.definition.ds",
-          "match": "(?x)^([ \\t]*)(?:\\b(?:public|protected|private|readonly|mut|static|final|accessor|default|abstract|override|export|declare)\\s+)*(?:(newtype)\\s+)?(enum|union)\\b(?:\\s*\\([^)]*\\))*\\s+([A-Za-z_]\\w*)\\s*\\{[^}]*\\}",
+          "match": "(?x)^([ \\t]*)(?:(export)\\s+)?(?:\\b(?:public|protected|private|readonly|mut|static|final|accessor|default|abstract|override|declare)\\s+)*(?:(newtype)\\s+)?(enum|union)\\b(?:\\s*\\([^)]*\\))*\\s+([A-Za-z_]\\w*)\\s*\\{[^}]*\\}",
           "captures": {
             "2": {
-              "name": "keyword.declaration.type.ds"
+              "name": "keyword.declaration.import.ds"
             },
             "3": {
               "name": "keyword.declaration.type.ds"
             },
             "4": {
+              "name": "keyword.declaration.type.ds"
+            },
+            "5": {
               "name": "entity.name.type.definition.ds"
             }
           }
         },
         {
           "name": "meta.enum.definition.ds",
-          "begin": "(?x)^([ \\t]*)(?:\\b(?:public|protected|private|readonly|mut|static|final|accessor|default|abstract|override|export|declare)\\s+)*(?:(newtype)\\s+)?(enum|union)\\b(?:\\s*\\([^)]*\\))*\\s+([A-Za-z_]\\w*)\\s*\\{",
+          "begin": "(?x)^([ \\t]*)(?:(export)\\s+)?(?:\\b(?:public|protected|private|readonly|mut|static|final|accessor|default|abstract|override|declare)\\s+)*(?:(newtype)\\s+)?(enum|union)\\b(?:\\s*\\([^)]*\\))*\\s+([A-Za-z_]\\w*)\\s*\\{",
           "beginCaptures": {
             "2": {
-              "name": "keyword.declaration.type.ds"
+              "name": "keyword.declaration.import.ds"
             },
             "3": {
               "name": "keyword.declaration.type.ds"
             },
             "4": {
+              "name": "keyword.declaration.type.ds"
+            },
+            "5": {
               "name": "entity.name.type.definition.ds"
             }
           },
