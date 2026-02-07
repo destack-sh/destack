@@ -1,0 +1,4 @@
+export declare namespace display {}
+
+export * from "./monitor.ds";
+export * from "./window.ds";

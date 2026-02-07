@@ -1,0 +1,192 @@
+import type { PlatformError } from "../error/index.ds";
+import { DisplayHandle, WindowHandle } from "../resource/index.ds";
+
+/// Window creation options.
+export struct WindowOptions {
+    /// Initial window width in pixels.
+    width: uint32,
+    /// Initial window height in pixels.
+    height: uint32,
+    /// Initial window x position.
+    x: int32,
+    /// Initial window y position.
+    y: int32,
+    /// Window option flags.
+    flags: uint32,
+    /// Window title string.
+    title: string,
+}
+
+/// Window event payload.
+export struct WindowEvent {
+    /// Event kind selector.
+    kind: uint32,
+    /// Primary event payload field.
+    a: int64,
+    /// Secondary event payload field.
+    b: int64,
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64,
+}
+
+/// Window bindings.
+declare namespace display {
+    /// Open one window on a display.
+    ///
+    /// Create one host window bound to the specified display endpoint.
+    /// Window lifecycle and compositor integration follow host window-system semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses Wayland or X11 window creation on Unix-like hosts and CreateWindowExW on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.open", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["display.window"],
+        scope: "hybrid",
+        blocking: "sometimes",
+    })
+    export function windowOpen(
+        display: DisplayHandle,
+        options: WindowOptions,
+    ): Result<WindowHandle, PlatformError>;
+
+    /// Close one window.
+    ///
+    /// Close one host window and release associated compositor or window-system resources.
+    /// Close behavior follows host event-loop and teardown semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific window close and destroy operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.close", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["display.window"],
+        scope: "hybrid",
+        blocking: "sometimes",
+    })
+    export function windowClose(window: WindowHandle): Result<void, PlatformError>;
+
+    /// Poll one window event.
+    ///
+    /// Poll one pending event from the host window event queue without blocking.
+    /// Empty queue state is reported through ioWouldBlock.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses nonblocking host event queue polling on both platforms.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.tryEvent", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["display.window"],
+        scope: "hybrid",
+        blocking: "never",
+    })
+    export function windowTryEvent(window: WindowHandle): Result<WindowEvent, PlatformError>;
+
+    /// Wait for one window event.
+    ///
+    /// Wait for one event from the host window queue and return it as a normalized payload.
+    /// Event ordering follows host event-loop delivery behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host event queue wait operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.event", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["display.window"],
+        scope: "hybrid",
+        blocking: "sometimes",
+    })
+    export function windowEvent(window: WindowHandle): Result<WindowEvent, PlatformError>;
+
+    /// Set one window title string.
+    ///
+    /// Update one host window title using host window-system APIs.
+    /// Encoding and truncation semantics follow host platform behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific title update operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.setTitle", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["display.window"],
+        scope: "hybrid",
+        blocking: "sometimes",
+    })
+    export function windowSetTitle(window: WindowHandle, title: string): Result<void, PlatformError>;
+
+    /// Present one frame interval marker.
+    ///
+    /// Block until the next present interval for one window when host backends support vsync synchronization.
+    /// Wake timing follows host compositor and swap-chain behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses compositor frame callbacks or swap-chain present fences.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.vsync`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.vsyncWait", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["display.vsync"],
+        scope: "hybrid",
+        blocking: "sometimes",
+    })
+    export function windowVsyncWait(window: WindowHandle, timeoutNs: uint64): Result<void, PlatformError>;
+}

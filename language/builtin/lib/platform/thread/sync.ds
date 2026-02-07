@@ -1,0 +1,579 @@
+import type { PlatformError } from "../error/index.ds";
+import {
+    BarrierHandle,
+    CondVarHandle,
+    MutexHandle,
+    RwLockHandle,
+    ThreadSemaphoreHandle,
+} from "../resource/index.ds";
+
+/// Thread synchronization bindings.
+declare namespace thread {
+    /// Create one mutex.
+    ///
+    /// Create one host mutex with runtime-selected attributes.
+    /// Mutex ownership and recursion behavior follow host primitive configuration.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses pthread mutexes on Unix, SRW or critical section primitives on Windows, and wasi mutex support where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `thread.sync`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.thread.sync.mutexCreate",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["thread.sync"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function mutexCreate(flags: uint32): Result<MutexHandle, PlatformError>;
+
+    /// Lock one mutex.
+    ///
+    /// Acquire one mutex, waiting until ownership is available.
+    /// Wait ordering and fairness follow host synchronization semantics.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses host mutex wait primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioTimedOut, notSupported.
+    ///
+    /// # Security
+    /// Requires `thread.sync`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.thread.sync.mutexLock",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["thread.sync"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function mutexLock(handle: MutexHandle, timeoutNs: uint64): Result<void, PlatformError>;
+
+    /// Unlock one mutex.
+    ///
+    /// Release ownership of one mutex.
+    /// Wakeup behavior for waiters follows host synchronization semantics.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses host mutex unlock primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `thread.sync`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.thread.sync.mutexUnlock",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["thread.sync"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function mutexUnlock(handle: MutexHandle): Result<void, PlatformError>;
+
+    /// Create one read-write lock.
+    ///
+    /// Create one read-write lock for shared and exclusive access control.
+    /// Reader and writer preference is host-primitive defined.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses pthread rwlock on Unix and SRW lock abstractions on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `thread.sync`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.thread.sync.rwlockCreate",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["thread.sync"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function rwlockCreate(flags: uint32): Result<RwLockHandle, PlatformError>;
+
+    /// Lock one read-write lock for read access.
+    ///
+    /// Acquire shared read access for one read-write lock.
+    /// Read acquisition ordering follows host synchronization semantics.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses host rwlock read-lock primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioTimedOut, notSupported.
+    ///
+    /// # Security
+    /// Requires `thread.sync`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.thread.sync.rwlockReadLock",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["thread.sync"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function rwlockReadLock(handle: RwLockHandle, timeoutNs: uint64): Result<void, PlatformError>;
+
+    /// Lock one read-write lock for write access.
+    ///
+    /// Acquire exclusive write access for one read-write lock.
+    /// Write acquisition ordering follows host synchronization semantics.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses host rwlock write-lock primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioTimedOut, notSupported.
+    ///
+    /// # Security
+    /// Requires `thread.sync`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.thread.sync.rwlockWriteLock",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["thread.sync"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function rwlockWriteLock(handle: RwLockHandle, timeoutNs: uint64): Result<void, PlatformError>;
+
+    /// Unlock one read-write lock.
+    ///
+    /// Release one read or write ownership slot on a read-write lock.
+    /// Wakeup behavior for waiters follows host synchronization semantics.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses host rwlock unlock primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `thread.sync`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.thread.sync.rwlockUnlock",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["thread.sync"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function rwlockUnlock(handle: RwLockHandle): Result<void, PlatformError>;
+
+    /// Create one condition variable.
+    ///
+    /// Create one condition variable for wait-notify synchronization.
+    /// Condition variable association with mutexes is validated on wait calls.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses pthread condition variables on Unix and condition variable APIs on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `thread.sync`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.thread.sync.condVarCreate",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["thread.sync"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function condVarCreate(flags: uint32): Result<CondVarHandle, PlatformError>;
+
+    /// Wait on one condition variable.
+    ///
+    /// Atomically release one mutex and wait for one condition-variable notification.
+    /// Mutex is reacquired before returning from wait according to host semantics.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses host condition-variable wait primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioTimedOut, notSupported.
+    ///
+    /// # Security
+    /// Requires `thread.sync`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.thread.sync.condVarWait",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["thread.sync"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function condVarWait(condVar: CondVarHandle, mutex: MutexHandle, timeoutNs: uint64): Result<void, PlatformError>;
+
+    /// Notify one condition-variable waiter.
+    ///
+    /// Wake one waiter blocked on a condition variable.
+    /// Waiter selection order follows host synchronization semantics.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses host condition-variable notify primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `thread.sync`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.thread.sync.condVarNotifyOne",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["thread.sync"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function condVarNotifyOne(condVar: CondVarHandle): Result<void, PlatformError>;
+
+    /// Notify all condition-variable waiters.
+    ///
+    /// Wake all waiters blocked on a condition variable.
+    /// Wake ordering and runnable scheduling follow host synchronization semantics.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses host condition-variable broadcast primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `thread.sync`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.thread.sync.condVarNotifyAll",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["thread.sync"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function condVarNotifyAll(condVar: CondVarHandle): Result<void, PlatformError>;
+
+    /// Create one thread-scoped semaphore.
+    ///
+    /// Create one semaphore for in-process thread synchronization.
+    /// Semaphore bounds and fairness follow host primitive semantics.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses semaphores or equivalent host synchronization primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `thread.sync`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.thread.sync.semaphoreCreate",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["thread.sync"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function semaphoreCreate(
+        initial: uint32,
+        maximum: uint32,
+        flags: uint32,
+    ): Result<ThreadSemaphoreHandle, PlatformError>;
+
+    /// Wait one semaphore count for thread synchronization.
+    ///
+    /// Decrement one semaphore count, waiting up to the timeout when needed.
+    /// Wake ordering follows host scheduler behavior.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses host semaphore wait primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioTimedOut, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `thread.sync`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.thread.sync.semaphoreWait",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["thread.sync"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function semaphoreWait(
+        handle: ThreadSemaphoreHandle,
+        timeoutNs: uint64,
+    ): Result<void, PlatformError>;
+
+    /// Post one semaphore count for thread synchronization.
+    ///
+    /// Increment one semaphore by count and wake eligible waiters.
+    /// Wake behavior follows host semaphore primitives.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses host semaphore post primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `thread.sync`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.thread.sync.semaphorePost",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["thread.sync"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function semaphorePost(
+        handle: ThreadSemaphoreHandle,
+        count: uint32,
+    ): Result<void, PlatformError>;
+
+    /// Create one thread barrier.
+    ///
+    /// Create one reusable barrier for a fixed participant count.
+    /// Participant-count semantics follow host barrier primitives.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses pthread barriers on Unix and runtime-host barrier emulation on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `thread.sync`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.thread.sync.barrierCreate",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["thread.sync"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function barrierCreate(
+        participants: uint32,
+        flags: uint32,
+    ): Result<BarrierHandle, PlatformError>;
+
+    /// Wait for barrier rendezvous.
+    ///
+    /// Block until all participants reach one barrier phase.
+    /// Return value marks whether the caller became phase leader.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses pthread barriers on Unix and runtime-host barrier emulation on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioTimedOut, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `thread.sync`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.thread.sync.barrierWait",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["thread.sync"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function barrierWait(handle: BarrierHandle, timeoutNs: uint64): Result<boolean, PlatformError>;
+
+    /// Wait on one memory address value.
+    ///
+    /// Wait while the target memory word matches the expected value.
+    /// Address wait semantics follow host futex or WaitOnAddress primitives.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses futex wait on Linux and WaitOnAddress on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioTimedOut, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `thread.wait`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.thread.sync.addressWait",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["thread.wait"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function addressWait(
+        address: uint64,
+        expected: uint32,
+        timeoutNs: uint64,
+    ): Result<void, PlatformError>;
+
+    /// Wake one waiter on a memory address.
+    ///
+    /// Wake one waiter blocked on the target memory address.
+    /// Wake ordering follows host wait-address primitive behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses futex wake on Linux and WakeByAddressSingle on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `thread.wait`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.thread.sync.addressWakeOne",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["thread.wait"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function addressWakeOne(address: uint64): Result<void, PlatformError>;
+
+    /// Wake all waiters on a memory address.
+    ///
+    /// Wake all waiters blocked on the target memory address.
+    /// Wake ordering follows host wait-address primitive behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses futex wake on Linux and WakeByAddressAll on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `thread.wait`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.thread.sync.addressWakeAll",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["thread.wait"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function addressWakeAll(address: uint64): Result<void, PlatformError>;
+}

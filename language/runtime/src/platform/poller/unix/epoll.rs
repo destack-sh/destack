@@ -1,0 +1,525 @@
+use std::collections::HashMap;
+use std::os::unix::io::RawFd;
+
+use libc::{c_int, epoll_create1, epoll_ctl, epoll_event, epoll_wait};
+
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::diagnostic::{
+    PlatformErrorContext, PlatformErrorContextKind, io_error_code_from_errno,
+};
+use crate::platform::poller::{
+    PlatformEvent, PlatformEventFlags, PlatformEventMask, PlatformEventPayload,
+    PlatformEventSource, PlatformHandle, PlatformInterest, PlatformPoller, PlatformPollerFlags,
+    PollerToken,
+};
+use crate::platform::{PlatformError, ResourceId, core as core_platform};
+
+/// Epoll backed poller for Linux targets.
+#[derive(Debug)]
+pub struct EpollPoller {
+    /// Registered resource entries.
+    registrations: HashMap<ResourceId, PollRegistration>,
+    /// Token to resource mapping for event lookup.
+    tokens: HashMap<PollerToken, ResourceId>,
+    /// Epoll file descriptor.
+    epoll_fd: RawFd,
+    /// Wake eventfd descriptor.
+    wake_fd: RawFd,
+    /// Event buffer reused across polls.
+    events: Vec<epoll_event>,
+}
+
+/// Epoll registration state for a resource.
+#[derive(Debug, Clone, Copy)]
+struct PollRegistration {
+    /// Raw file descriptor to poll.
+    fd: RawFd,
+    /// Opaque token associated with the registration.
+    token: PollerToken,
+    /// Interest mask for readiness.
+    interests: PlatformInterest,
+    /// Poller configuration flags.
+    flags: PlatformPollerFlags,
+}
+
+impl EpollPoller {
+    /// Create a new epoll poller instance.
+    pub fn new() -> RuntimeResult<Self> {
+        // open the epoll descriptor
+        let epoll_fd = unsafe { epoll_create1(libc::EPOLL_CLOEXEC) };
+        if epoll_fd < 0 {
+            return Err(io_error("poller.epoll_create1", None));
+        }
+
+        // allocate the wake eventfd used to interrupt polls
+        let wake_fd = create_wake_eventfd()?;
+
+        // register the wake pipe for readability
+        let mut event = epoll_event {
+            events: libc::EPOLLIN as u32,
+            u64: PollerToken::WAKE.0,
+        };
+        let result = unsafe { epoll_ctl(epoll_fd, libc::EPOLL_CTL_ADD, wake_fd, &mut event) };
+        if result < 0 {
+            unsafe {
+                libc::close(epoll_fd);
+            }
+            return Err(io_error("poller.epoll_ctl", Some(wake_fd)));
+        }
+
+        Ok(Self {
+            registrations: HashMap::new(),
+            tokens: HashMap::new(),
+            epoll_fd,
+            wake_fd,
+            events: Vec::new(),
+        })
+    }
+}
+
+impl Drop for EpollPoller {
+    fn drop(&mut self) {
+        // close wake and epoll descriptors
+        unsafe {
+            libc::close(self.wake_fd);
+            libc::close(self.epoll_fd);
+        }
+    }
+}
+
+impl PlatformPoller for EpollPoller {
+    fn register(
+        &mut self,
+        resource_id: ResourceId,
+        handle: PlatformHandle,
+        token: PollerToken,
+        interests: PlatformInterest,
+        flags: PlatformPollerFlags,
+    ) -> RuntimeResult<()> {
+        // reject reserved tokens
+        if token.is_reserved() {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "token",
+                "token reserved for poller internals",
+            ))
+            .boxed());
+        }
+
+        // update existing registrations in place
+        if self.registrations.contains_key(&resource_id) {
+            return self.update(resource_id, token, interests, flags);
+        }
+
+        // reject tokens already in use
+        if self.tokens.contains_key(&token) {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "token",
+                "token already registered",
+            ))
+            .boxed());
+        }
+
+        // add the epoll registration
+        let fd = handle.as_raw_fd();
+        let mut event = epoll_event {
+            events: epoll_events_for_interest(interests, flags),
+            u64: token.0,
+        };
+        let result = unsafe { epoll_ctl(self.epoll_fd, libc::EPOLL_CTL_ADD, fd, &mut event) };
+        if result < 0 {
+            return Err(io_error("poller.epoll_ctl", Some(fd)));
+        }
+
+        // store the registration entry
+        self.registrations.insert(
+            resource_id,
+            PollRegistration {
+                fd,
+                token,
+                interests,
+                flags,
+            },
+        );
+        self.tokens.insert(token, resource_id);
+
+        Ok(())
+    }
+
+    fn update(
+        &mut self,
+        resource_id: ResourceId,
+        token: PollerToken,
+        interests: PlatformInterest,
+        flags: PlatformPollerFlags,
+    ) -> RuntimeResult<()> {
+        // reject reserved tokens
+        if token.is_reserved() {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "token",
+                "token reserved for poller internals",
+            ))
+            .boxed());
+        }
+
+        // resolve the existing registration
+        let entry = self.registrations.get_mut(&resource_id).ok_or_else(|| {
+            RuntimeError::ResourceNotFound {
+                resource_id: resource_id.0,
+                resource_kind: None,
+            }
+            .boxed()
+        })?;
+
+        // update the registration in epoll
+        let mut event = epoll_event {
+            events: epoll_events_for_interest(interests, flags),
+            u64: token.0,
+        };
+        let result = unsafe { epoll_ctl(self.epoll_fd, libc::EPOLL_CTL_MOD, entry.fd, &mut event) };
+        if result < 0 {
+            return Err(io_error("poller.epoll_ctl", Some(entry.fd)));
+        }
+
+        // update cached fields
+        if entry.token != token {
+            self.tokens.remove(&entry.token);
+            if self.tokens.contains_key(&token) {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "token",
+                    "token already registered",
+                ))
+                .boxed());
+            }
+            self.tokens.insert(token, resource_id);
+            entry.token = token;
+        }
+        entry.interests = interests;
+        entry.flags = flags;
+
+        Ok(())
+    }
+
+    fn deregister(&mut self, resource_id: ResourceId) -> RuntimeResult<()> {
+        // drop the registration entry
+        let Some(entry) = self.registrations.remove(&resource_id) else {
+            return Ok(());
+        };
+        self.tokens.remove(&entry.token);
+
+        // remove the epoll registration
+        let result = unsafe {
+            epoll_ctl(
+                self.epoll_fd,
+                libc::EPOLL_CTL_DEL,
+                entry.fd,
+                std::ptr::null_mut(),
+            )
+        };
+        if result < 0 {
+            return Err(io_error("poller.epoll_ctl", Some(entry.fd)));
+        }
+
+        Ok(())
+    }
+
+    fn wake(&mut self) -> RuntimeResult<()> {
+        // write a value to the wake eventfd
+        let value: u64 = 1;
+        let result = unsafe {
+            libc::write(
+                self.wake_fd,
+                &value as *const u64 as *const _,
+                std::mem::size_of::<u64>(),
+            )
+        };
+        if result < 0 {
+            let errno = core_platform::get_errno();
+            if errno != libc::EWOULDBLOCK && errno != libc::EAGAIN {
+                return Err(io_error("poller.wake", None));
+            }
+        }
+
+        Ok(())
+    }
+
+    fn poll(&mut self, timeout_nanos: Option<u64>) -> RuntimeResult<Vec<PlatformEvent>> {
+        // ensure the event buffer can hold all registrations
+        let max_events = self.registrations.len() + 1;
+        if self.events.len() < max_events {
+            self.events
+                .resize_with(max_events, || epoll_event { events: 0, u64: 0 });
+        }
+
+        // resolve the timeout in milliseconds
+        let timeout_ms = timeout_nanos.map(nanos_to_timeout_ms).unwrap_or(-1);
+
+        // call into epoll
+        let result = loop {
+            let result = unsafe {
+                epoll_wait(
+                    self.epoll_fd,
+                    self.events.as_mut_ptr(),
+                    max_events as c_int,
+                    timeout_ms,
+                )
+            };
+            if result >= 0 {
+                break result;
+            }
+
+            let errno = core_platform::get_errno();
+            if errno != libc::EINTR {
+                return Err(io_error("poller.epoll_wait", None));
+            }
+        };
+
+        // collect emitted events
+        let mut output = Vec::with_capacity(result as usize);
+        let mut oneshot = Vec::new();
+        for event in self.events.iter().take(result as usize) {
+            if event.u64 == PollerToken::WAKE.0 {
+                drain_wake(self.wake_fd);
+                continue;
+            }
+
+            let token = PollerToken(event.u64);
+            let Some(resource_id) = self.tokens.get(&token).copied() else {
+                continue;
+            };
+            let Some(registration) = self.registrations.get(&resource_id) else {
+                continue;
+            };
+
+            let mask = event_mask_from_epoll(event.events);
+            if mask.is_empty() {
+                continue;
+            }
+
+            let flags = event_flags_from_registration(registration.flags);
+            output.push(PlatformEvent {
+                resource_id,
+                source: PlatformEventSource::Io,
+                mask,
+                flags,
+                token: registration.token,
+                payload: PlatformEventPayload::Io {
+                    data: event.events as u64,
+                },
+            });
+
+            if registration.flags.contains(PlatformPollerFlags::ONESHOT) {
+                oneshot.push(resource_id);
+            }
+        }
+
+        // drop any oneshot registrations
+        if !oneshot.is_empty() {
+            for resource_id in oneshot {
+                if let Some(entry) = self.registrations.remove(&resource_id) {
+                    self.tokens.remove(&entry.token);
+                    let result = unsafe {
+                        epoll_ctl(
+                            self.epoll_fd,
+                            libc::EPOLL_CTL_DEL,
+                            entry.fd,
+                            std::ptr::null_mut(),
+                        )
+                    };
+                    if result < 0 {
+                        return Err(io_error("poller.epoll_ctl", Some(entry.fd)));
+                    }
+                }
+            }
+        }
+
+        Ok(output)
+    }
+}
+
+/// Convert interests and flags into epoll events.
+fn epoll_events_for_interest(interests: PlatformInterest, flags: PlatformPollerFlags) -> u32 {
+    // build the epoll event mask
+    let mut events: u32 = 0;
+    if interests.contains(PlatformInterest::READABLE) {
+        events |= libc::EPOLLIN as u32;
+    }
+    if interests.contains(PlatformInterest::WRITABLE) {
+        events |= libc::EPOLLOUT as u32;
+    }
+    if flags.contains(PlatformPollerFlags::PRIORITY) {
+        events |= libc::EPOLLPRI as u32;
+    }
+    if flags.contains(PlatformPollerFlags::EDGE) {
+        events |= libc::EPOLLET as u32;
+    }
+    if flags.contains(PlatformPollerFlags::ONESHOT) {
+        events |= libc::EPOLLONESHOT as u32;
+    }
+
+    events
+}
+
+/// Build event flags from registration flags.
+fn event_flags_from_registration(flags: PlatformPollerFlags) -> PlatformEventFlags {
+    // expose edge and oneshot flags to consumers
+    let mut out = PlatformEventFlags::NONE;
+    if flags.contains(PlatformPollerFlags::EDGE) {
+        out |= PlatformEventFlags::EDGE;
+    }
+    if flags.contains(PlatformPollerFlags::ONESHOT) {
+        out |= PlatformEventFlags::ONESHOT;
+    }
+
+    out
+}
+
+/// Build event mask from epoll events.
+fn event_mask_from_epoll(events: u32) -> PlatformEventMask {
+    // translate epoll event bits into the runtime mask
+    let mut mask = PlatformEventMask::NONE;
+
+    if (events & libc::EPOLLIN as u32) != 0 {
+        mask |= PlatformEventMask::READABLE;
+    }
+    if (events & libc::EPOLLOUT as u32) != 0 {
+        mask |= PlatformEventMask::WRITABLE;
+    }
+    if (events & libc::EPOLLERR as u32) != 0 {
+        mask |= PlatformEventMask::ERROR;
+    }
+    if (events & libc::EPOLLHUP as u32) != 0 || (events & libc::EPOLLRDHUP as u32) != 0 {
+        mask |= PlatformEventMask::HANGUP;
+    }
+    if (events & libc::EPOLLPRI as u32) != 0 {
+        mask |= PlatformEventMask::PRIORITY;
+    }
+
+    mask
+}
+
+/// Create the wake eventfd used to interrupt polls.
+fn create_wake_eventfd() -> RuntimeResult<RawFd> {
+    // allocate an eventfd for wakeup signaling
+    let fd = unsafe { libc::eventfd(0, libc::EFD_NONBLOCK | libc::EFD_CLOEXEC) };
+    if fd < 0 {
+        return Err(io_error("poller.eventfd", None));
+    }
+
+    Ok(fd)
+}
+
+/// Drain the wake eventfd so it stops signaling readiness.
+fn drain_wake(fd: RawFd) {
+    // read until the eventfd is drained
+    let mut buffer = 0u64;
+    loop {
+        let read_bytes = unsafe {
+            libc::read(
+                fd,
+                &mut buffer as *mut u64 as *mut _,
+                std::mem::size_of::<u64>(),
+            )
+        };
+        if read_bytes > 0 {
+            continue;
+        }
+        if read_bytes == 0 {
+            break;
+        }
+
+        let errno = core_platform::get_errno();
+        if errno == libc::EWOULDBLOCK || errno == libc::EAGAIN {
+            break;
+        }
+        break;
+    }
+}
+
+/// Convert a nanosecond timeout to milliseconds for epoll.
+fn nanos_to_timeout_ms(nanos: u64) -> c_int {
+    // map zero directly to immediate polls
+    if nanos == 0 {
+        return 0;
+    }
+
+    // round up to the nearest millisecond
+    let ms = (nanos + 999_999) / 1_000_000;
+    if ms > i32::MAX as u64 {
+        i32::MAX
+    } else {
+        ms as c_int
+    }
+}
+
+/// Convert the last OS error into a runtime error.
+fn io_error(context: &str, fd: Option<RawFd>) -> Box<RuntimeError> {
+    // capture the last OS error
+    let errno = core_platform::get_errno();
+    let message = format!("{context} failed: errno {errno}");
+
+    // map the error into platform diagnostics
+    let code = io_error_code_from_errno(errno);
+    let error = PlatformError::io_with(
+        code,
+        None,
+        Some(errno),
+        Some(context.to_string()),
+        None,
+        message,
+    );
+    let mut error = error;
+    if let Some(fd) = fd {
+        let mut context = error
+            .context
+            .unwrap_or_else(|| PlatformErrorContext::with_kind(PlatformErrorContextKind::Io));
+        context.fd = Some(fd);
+        error.context = Some(context);
+    }
+
+    RuntimeError::from(error).boxed()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::EpollPoller;
+    use crate::platform::{
+        PlatformHandle, PlatformInterest, PlatformPoller, PlatformPollerFlags, PollerToken,
+        ResourceId,
+    };
+
+    /// Ensures epoll emits a readable event when data is available.
+    #[test]
+    fn test_poll_readable_event() {
+        let mut poller = EpollPoller::new().expect("poller should initialize");
+
+        let mut fds = [0; 2];
+        let result = unsafe { libc::pipe(fds.as_mut_ptr()) };
+        assert!(result == 0);
+
+        let read_fd = fds[0];
+        let write_fd = fds[1];
+
+        let handle = PlatformHandle::from_raw_fd(read_fd);
+        poller
+            .register(
+                ResourceId(1),
+                handle,
+                PollerToken(1),
+                PlatformInterest::READABLE,
+                PlatformPollerFlags::NONE,
+            )
+            .expect("register should succeed");
+
+        let payload = [1u8];
+        let wrote = unsafe { libc::write(write_fd, payload.as_ptr() as *const _, payload.len()) };
+        assert!(wrote >= 0);
+
+        let events = poller.poll(Some(0)).expect("poll should return events");
+        assert!(!events.is_empty());
+
+        unsafe {
+            libc::close(read_fd);
+            libc::close(write_fd);
+        }
+    }
+}

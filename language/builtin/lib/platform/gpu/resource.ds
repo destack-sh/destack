@@ -1,0 +1,343 @@
+import { Slice } from "native";
+import type { PlatformError } from "../error/index.ds";
+import {
+    GpuBufferHandle,
+    GpuDeviceHandle,
+    GpuMemoryHandle,
+    GpuSamplerHandle,
+    GpuTextureHandle,
+} from "../resource/index.ds";
+
+/// GPU buffer creation options.
+export struct GpuBufferOptions {
+    /// Buffer size in bytes.
+    size: uint64,
+    /// Buffer usage bitset.
+    usage: uint64,
+    /// Buffer option flags.
+    flags: uint32,
+}
+
+/// GPU texture creation options.
+export struct GpuTextureOptions {
+    /// Texture width in texels.
+    width: uint32,
+    /// Texture height in texels.
+    height: uint32,
+    /// Texture depth or layer count.
+    depthOrLayers: uint32,
+    /// Texture mip level count.
+    mipLevels: uint32,
+    /// Texture sample count.
+    samples: uint32,
+    /// Texture format identifier.
+    format: uint32,
+    /// Texture usage bitset.
+    usage: uint64,
+}
+
+/// GPU sampler creation options.
+export struct GpuSamplerOptions {
+    /// Minification filter selector.
+    minFilter: uint32,
+    /// Magnification filter selector.
+    magFilter: uint32,
+    /// Address mode u selector.
+    addressU: uint32,
+    /// Address mode v selector.
+    addressV: uint32,
+    /// Address mode w selector.
+    addressW: uint32,
+}
+
+/// GPU memory map result.
+export struct GpuMappedMemory {
+    /// Host-visible pointer address represented as integer.
+    address: uint64,
+    /// Mapped byte length.
+    length: uint64,
+}
+
+/// GPU resource bindings.
+declare namespace gpu {
+    /// Create one GPU buffer.
+    ///
+    /// Create one buffer resource on one logical device with explicit size and usage flags.
+    /// Allocation placement and memory domain are host backend decisions.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend buffer creation operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.memory`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.resource.bufferCreate", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.memory"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function bufferCreate(
+        device: GpuDeviceHandle,
+        options: GpuBufferOptions,
+    ): Result<GpuBufferHandle, PlatformError>;
+
+    /// Destroy one GPU buffer.
+    ///
+    /// Destroy one buffer resource and release host backend memory references.
+    /// Outstanding use of the buffer is host-undefined and should be synchronized by callers.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend buffer destroy operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.memory`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.resource.bufferDestroy", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.memory"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function bufferDestroy(handle: GpuBufferHandle): Result<void, PlatformError>;
+
+    /// Write one byte range to a GPU buffer.
+    ///
+    /// Write one byte range into one buffer resource from host memory.
+    /// Host staging and synchronization behavior follow backend upload semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend upload or mapped-write paths.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.memory`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.resource.bufferWrite", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.memory"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function bufferWrite(
+        handle: GpuBufferHandle,
+        offset: uint64,
+        bytes: Slice<uint8>,
+    ): Result<void, PlatformError>;
+
+    /// Read one byte range from a GPU buffer.
+    ///
+    /// Read one byte range from one buffer resource into host-visible memory.
+    /// Readback can stall based on backend synchronization and transfer state.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend readback or mapped-read paths.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.memory`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.resource.bufferRead", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.memory"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function bufferRead(
+        handle: GpuBufferHandle,
+        offset: uint64,
+        length: uint64,
+    ): Result<Slice<uint8>, PlatformError>;
+
+    /// Map one memory allocation.
+    ///
+    /// Map one host-visible memory allocation for direct CPU access.
+    /// Mapping coherence and cache behavior follow host backend memory rules.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend memory map operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.memory`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.resource.memoryMap", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.memory"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function memoryMap(
+        handle: GpuMemoryHandle,
+        offset: uint64,
+        length: uint64,
+    ): Result<GpuMappedMemory, PlatformError>;
+
+    /// Unmap one memory allocation.
+    ///
+    /// Unmap one previously mapped memory allocation and flush host synchronization as required.
+    /// Visibility of writes follows backend memory model semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend memory unmap operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.memory`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.resource.memoryUnmap", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.memory"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function memoryUnmap(handle: GpuMemoryHandle): Result<void, PlatformError>;
+
+    /// Create one texture resource.
+    ///
+    /// Create one texture resource with explicit dimensions, format, and usage flags.
+    /// Allocation placement and tiling are host backend decisions.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend texture creation operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.memory`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.resource.textureCreate", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.memory"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function textureCreate(
+        device: GpuDeviceHandle,
+        options: GpuTextureOptions,
+    ): Result<GpuTextureHandle, PlatformError>;
+
+    /// Destroy one texture resource.
+    ///
+    /// Destroy one texture resource and release host backend memory references.
+    /// Outstanding use of the texture should be synchronized by callers.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend texture destroy operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.memory`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.resource.textureDestroy", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.memory"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function textureDestroy(handle: GpuTextureHandle): Result<void, PlatformError>;
+
+    /// Create one sampler resource.
+    ///
+    /// Create one sampler resource with explicit filter and address mode selections.
+    /// Sampler state maps to host backend sampler descriptors.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend sampler creation operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.memory`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.resource.samplerCreate", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.memory"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function samplerCreate(
+        device: GpuDeviceHandle,
+        options: GpuSamplerOptions,
+    ): Result<GpuSamplerHandle, PlatformError>;
+
+    /// Destroy one sampler resource.
+    ///
+    /// Destroy one sampler resource and release host backend references.
+    /// The sampler handle becomes invalid after destroy.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend sampler destroy operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.memory`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.resource.samplerDestroy", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.memory"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function samplerDestroy(handle: GpuSamplerHandle): Result<void, PlatformError>;
+}

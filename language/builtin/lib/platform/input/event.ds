@@ -1,0 +1,123 @@
+import type { PlatformError } from "../error/index.ds";
+import { InputDeviceHandle } from "../resource/index.ds";
+
+/// Input event kind.
+export enum InputEventKind {
+    /// Key event.
+    Key = 1,
+    /// Pointer motion event.
+    PointerMotion = 2,
+    /// Pointer button event.
+    PointerButton = 3,
+    /// Scroll wheel event.
+    Scroll = 4,
+    /// Touch event.
+    Touch = 5,
+    /// Gamepad axis or button event.
+    Gamepad = 6,
+    /// Text input event.
+    Text = 7,
+    /// Device connection state event.
+    Device = 8,
+}
+
+/// Input event payload.
+export struct InputEvent {
+    /// Event kind selector.
+    kind: InputEventKind,
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64,
+    /// Event source device handle.
+    device: InputDeviceHandle,
+    /// Event code value.
+    code: uint32,
+    /// Event value payload.
+    value: int64,
+    /// Event x coordinate when applicable.
+    x: float64,
+    /// Event y coordinate when applicable.
+    y: float64,
+    /// Event modifiers bitset.
+    modifiers: uint32,
+}
+
+/// Input event bindings.
+declare namespace input {
+    /// Read one input event.
+    ///
+    /// Read one pending input event from the runtime input queue.
+    /// Event ordering follows host event queue delivery semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host input queue reads via evdev or window-system event queues and raw input APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.input.event.read", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["input.read"],
+        scope: "hybrid",
+        blocking: "sometimes",
+    })
+    export function read(handle: InputDeviceHandle): Result<InputEvent, PlatformError>;
+
+    /// Poll one input event without blocking.
+    ///
+    /// Poll one pending input event and return immediately when no event is queued.
+    /// Empty queue state is reported through ioWouldBlock.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses nonblocking host input queue reads.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.input.event.tryRead", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["input.read"],
+        scope: "hybrid",
+        blocking: "never",
+    })
+    export function tryRead(handle: InputDeviceHandle): Result<InputEvent, PlatformError>;
+
+    /// Enable or disable exclusive device grab.
+    ///
+    /// Toggle exclusive-grab mode for one input device when the host backend supports it.
+    /// Grabs can prevent event delivery to other clients.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses EVIOCGRAB on Linux and raw-input capture equivalents on Windows where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.input.event.setGrab", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["input.control"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function setGrab(handle: InputDeviceHandle, enable: boolean): Result<void, PlatformError>;
+}

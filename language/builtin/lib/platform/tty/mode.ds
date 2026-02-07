@@ -1,0 +1,75 @@
+import type { PlatformError } from "../error/index.ds";
+import { TtyHandle } from "../resource/index.ds";
+
+/// TTY mode snapshot.
+export struct TtyMode {
+    /// Input-mode bit flags.
+    inputFlags: uint64,
+    /// Output-mode bit flags.
+    outputFlags: uint64,
+    /// Control-mode bit flags.
+    controlFlags: uint64,
+    /// Local-mode bit flags.
+    localFlags: uint64,
+}
+
+/// TTY mode bindings.
+declare namespace tty {
+    /// Read terminal mode flags.
+    ///
+    /// Read one terminal mode snapshot for one terminal handle.
+    /// Mode mapping is normalized across host terminal APIs.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses termios get attributes on Unix and GetConsoleMode on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `tty.mode`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.tty.mode.getMode",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["tty.mode"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function getMode(handle: TtyHandle): Result<TtyMode, PlatformError>;
+
+    /// Apply terminal mode flags.
+    ///
+    /// Apply one terminal mode snapshot to one terminal handle.
+    /// Mode transition timing and unsupported bits follow host API behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses termios set attributes on Unix and SetConsoleMode on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `tty.mode`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.tty.mode.setMode",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["tty.mode"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function setMode(handle: TtyHandle, mode: TtyMode): Result<void, PlatformError>;
+}

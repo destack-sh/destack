@@ -1,0 +1,114 @@
+import { Slice } from "native";
+import type { PlatformError } from "../error/index.ds";
+import { GpuAdapterHandle } from "../resource/index.ds";
+
+/// GPU backend selector.
+export enum GpuBackend {
+    /// Vulkan backend.
+    Vulkan = 1,
+    /// Metal backend.
+    Metal = 2,
+    /// Direct3D 12 backend.
+    D3D12 = 3,
+    /// OpenGL backend.
+    OpenGL = 4,
+    /// Null backend for testing.
+    Null = 255,
+}
+
+/// GPU adapter information.
+export struct GpuAdapterInfo {
+    /// Stable runtime adapter identifier.
+    id: string,
+    /// Host adapter name.
+    name: string,
+    /// Backend API kind.
+    backend: GpuBackend,
+    /// Vendor identifier when available.
+    vendorId: uint32,
+    /// Device identifier when available.
+    deviceId: uint32,
+    /// Whether this adapter is integrated.
+    integrated: boolean,
+}
+
+/// GPU adapter bindings.
+declare namespace gpu {
+    /// List available GPU adapters.
+    ///
+    /// Enumerate host GPU adapters and return stable identifiers with backend and vendor metadata.
+    /// Adapter visibility and ordering follow host graphics API enumeration behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses Vulkan, Metal, D3D12, or backend discovery APIs.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.adapter`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.adapter.list", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.adapter"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function adapterList(): Result<Slice<GpuAdapterInfo>, PlatformError>;
+
+    /// Open one GPU adapter.
+    ///
+    /// Open one host GPU adapter endpoint for device creation and capability queries.
+    /// Handle lifetime follows host backend object ownership semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific adapter open or retain operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.adapter`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.adapter.open", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.adapter"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function adapterOpen(id: string): Result<GpuAdapterHandle, PlatformError>;
+
+    /// Close one GPU adapter.
+    ///
+    /// Close one opened adapter endpoint and release host backend references.
+    /// The adapter handle becomes invalid after close.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific release or destroy operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.adapter`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.adapter.close", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.adapter"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function adapterClose(handle: GpuAdapterHandle): Result<void, PlatformError>;
+}

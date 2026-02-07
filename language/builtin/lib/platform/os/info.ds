@@ -1,0 +1,45 @@
+import type { PlatformError } from "../error/index.ds";
+
+/// System topology and capacity snapshot.
+export struct SystemInfo {
+    /// Logical CPU count.
+    cpuCount: uint32,
+    /// Total physical memory bytes.
+    memoryTotal: uint64,
+    /// Available memory bytes.
+    memoryAvailable: uint64,
+    /// Virtual-memory page size bytes.
+    pageSize: uint64,
+}
+
+/// System information bindings.
+declare namespace os {
+    /// Read host system information.
+    ///
+    /// Return one normalized system-information payload.
+    /// Topology and capacity fields are sampled from host APIs at call time.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses sysconf/sysinfo-style APIs on Unix, GlobalMemoryStatusEx and processor APIs on Windows, and wasi sysinfo support.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.sysinfo`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.os.info.systemInfo",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["os.sysinfo"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function systemInfo(): Result<SystemInfo, PlatformError>;
+}

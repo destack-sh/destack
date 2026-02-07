@@ -1,0 +1,140 @@
+import { Array } from "native";
+import type { PlatformError } from "../error/index.ds";
+import { DirectoryHandle, WatchHandle } from "../resource/index.ds";
+import { OsPath } from "./path.ds";
+
+/// Filesystem watch event kind.
+export enum WatchEventKind {
+    /// A path was created.
+    Create = 1,
+    /// A path was removed.
+    Remove = 2,
+    /// A path was modified.
+    Modify = 3,
+    /// A path was renamed.
+    Rename = 4,
+    /// Metadata changed without content writes.
+    Metadata = 5,
+    /// Backend queue overflowed and events were dropped.
+    Overflow = 6,
+}
+
+/// Filesystem watch mask.
+export newtype WatchMask = uint32;
+
+/// Filesystem watch options.
+export struct WatchOptions {
+    /// Event mask to subscribe to.
+    mask: WatchMask,
+    /// Whether recursive watching is requested.
+    recursive: boolean,
+    /// Whether to follow symlinks.
+    followSymlinks: boolean,
+}
+
+/// Filesystem watch event payload.
+export struct WatchEvent {
+    /// Event kind.
+    kind: WatchEventKind,
+    /// Watched path.
+    path: OsPath,
+    /// Optional related path for rename pairs.
+    relatedPath: OsPath,
+    /// Backend event cookie when available.
+    cookie: uint64,
+}
+
+/// Batch of filesystem watch events.
+export struct WatchBatch {
+    /// Event records returned by the backend.
+    events: Array<WatchEvent>,
+    /// Whether the backend reported overflow.
+    overflowed: boolean,
+}
+
+/// Filesystem watch bindings for the native runtime.
+declare namespace fs {
+    /// Start watching a path and return a watch handle.
+    ///
+    /// Registers the path with the native watch backend and starts event delivery for the selected mask.
+    /// Event ordering and coalescing behavior are backend defined.
+    ///
+    /// # Platform
+    /// Linux, BSD, macOS, and Windows.
+    /// Uses inotify on Linux, kqueue on BSD, FSEvents on macOS, and ReadDirectoryChangesW on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.watch`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.watch", { effect: "external", replay: "recordable", requires: ["fs.watch"], scope: "os", blocking: "sometimes" })
+    export function watch(path: OsPath, options: WatchOptions): Result<WatchHandle, PlatformError>;
+
+    /// Start watching a path relative to a directory handle.
+    ///
+    /// Resolves the path relative to the supplied directory and registers the resulting entry with the backend watcher.
+    /// Event ordering and coalescing behavior are backend defined.
+    ///
+    /// # Platform
+    /// Linux, BSD, macOS, and Windows.
+    /// Uses inotify on Linux, kqueue on BSD, FSEvents on macOS, and ReadDirectoryChangesW on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.watch`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.watchat", { effect: "external", replay: "recordable", requires: ["fs.watch"], scope: "os", blocking: "sometimes" })
+    export function watchat(
+        directory: DirectoryHandle,
+        path: OsPath,
+        options: WatchOptions,
+    ): Result<WatchHandle, PlatformError>;
+
+    /// Read a batch of events from a watch handle.
+    ///
+    /// Reads available watch records from the backend queue and reports overflow explicitly when events were dropped.
+    /// Callers should treat `overflowed` as a signal to resynchronize state.
+    ///
+    /// # Platform
+    /// Linux, BSD, macOS, and Windows.
+    /// Uses inotify event reads on Linux, kevent on BSD, FSEvents stream reads on macOS, and ReadDirectoryChangesW reads on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.watch`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.watchRead", { effect: "external", replay: "recordable", requires: ["fs.watch"], scope: "os", blocking: "sometimes" })
+    export function watchRead(handle: WatchHandle): Result<WatchBatch, PlatformError>;
+
+    /// Close a watch handle.
+    ///
+    /// Unregisters the watch from the backend and releases associated runtime resources.
+    /// No further events are delivered after close succeeds.
+    ///
+    /// # Platform
+    /// Linux, BSD, macOS, and Windows.
+    /// Uses backend specific handle close and unregister operations.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.watch`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.fs.watchClose", { effect: "external", replay: "recordable", requires: ["fs.watch"], scope: "os", blocking: "sometimes" })
+    export function watchClose(handle: WatchHandle): Result<void, PlatformError>;
+}

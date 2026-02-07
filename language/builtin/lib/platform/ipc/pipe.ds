@@ -1,0 +1,130 @@
+import { Slice } from "native";
+import type { PlatformError } from "../error/index.ds";
+import { PipeHandle } from "../resource/index.ds";
+
+/// Pair of pipe handles.
+export struct PipePair {
+    /// Read endpoint.
+    read: PipeHandle,
+    /// Write endpoint.
+    write: PipeHandle,
+}
+
+/// Pipe bindings.
+declare namespace ipc {
+    /// Create one unnamed pipe pair.
+    ///
+    /// Create one local pipe with read and write endpoints.
+    /// Endpoint inheritance and blocking mode follow host pipe semantics.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses pipe2 or pipe on Unix, CreatePipe on Windows, and wasi pipe primitives where available.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `ipc.pipe`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.ipc.pipe.open",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["ipc.pipe"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function pipeOpen(flags: uint32): Result<PipePair, PlatformError>;
+
+    /// Close one pipe endpoint.
+    ///
+    /// Close one endpoint of a pipe pair.
+    /// Pending readers and writers observe host close semantics.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses close(2) on Unix and Wasi and CloseHandle on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `ipc.pipe`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.ipc.pipe.close",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["ipc.pipe"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function pipeClose(handle: PipeHandle): Result<void, PlatformError>;
+
+    /// Read bytes from a pipe endpoint.
+    ///
+    /// Read bytes into caller-provided memory from one pipe endpoint.
+    /// Partial reads are preserved exactly as reported by the host.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses read(2) on Unix and Wasi and ReadFile on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `ipc.pipe`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.ipc.pipe.read",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["ipc.pipe"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function pipeRead(handle: PipeHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>;
+
+    /// Write bytes to a pipe endpoint.
+    ///
+    /// Write bytes from caller-provided memory to one pipe endpoint.
+    /// Partial writes are preserved exactly as reported by the host.
+    ///
+    /// # Platform
+    /// Unix, Windows, and Wasi.
+    /// Uses write(2) on Unix and Wasi and WriteFile on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `ipc.pipe`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.ipc.pipe.write",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["ipc.pipe"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
+    export function pipeWrite(handle: PipeHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>;
+}

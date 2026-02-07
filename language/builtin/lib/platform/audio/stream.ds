@@ -1,0 +1,216 @@
+import { Slice } from "native";
+import type { PlatformError } from "../error/index.ds";
+import { AudioDeviceHandle, AudioStreamHandle } from "../resource/index.ds";
+import { AudioSampleFormat } from "./device.ds";
+
+/// Audio stream configuration.
+export struct AudioStreamConfig {
+    /// Sample rate in hertz.
+    sampleRate: uint32,
+    /// Channel count.
+    channels: uint16,
+    /// Audio sample format.
+    format: AudioSampleFormat,
+    /// Target period size in frames.
+    periodFrames: uint32,
+    /// Host stream option flags.
+    flags: uint32,
+}
+
+/// Audio stream state snapshot.
+export struct AudioStreamState {
+    /// Whether the stream is currently running.
+    running: boolean,
+    /// Frames buffered by the host backend.
+    bufferedFrames: uint64,
+    /// Host latency estimate in nanoseconds.
+    latencyNs: uint64,
+}
+
+/// Audio stream bindings.
+declare namespace audio {
+    /// Open one audio stream on a device.
+    ///
+    /// Create one host audio stream with explicit sample format, channel, and period configuration.
+    /// Buffering and latency behavior follow host backend contracts.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA or PulseAudio or CoreAudio stream creation on Unix-like hosts and WASAPI stream creation on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.playback`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.audio.stream.open", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["audio.playback"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function streamOpen(
+        device: AudioDeviceHandle,
+        config: AudioStreamConfig,
+    ): Result<AudioStreamHandle, PlatformError>;
+
+    /// Close one audio stream.
+    ///
+    /// Close one host audio stream and release backend buffers and synchronization state.
+    /// Stream handle becomes invalid after close completes.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific stream close operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.playback`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.audio.stream.close", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["audio.playback"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function streamClose(handle: AudioStreamHandle): Result<void, PlatformError>;
+
+    /// Start one audio stream.
+    ///
+    /// Transition one opened stream to running state and begin host callback or DMA processing.
+    /// Start timing follows host backend scheduling semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific stream start operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.playback`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.audio.stream.start", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["audio.playback"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function streamStart(handle: AudioStreamHandle): Result<void, PlatformError>;
+
+    /// Stop one audio stream.
+    ///
+    /// Transition one running stream to stopped state and flush host backend scheduling.
+    /// Buffered frames may be discarded based on host backend semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific stream stop operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.playback`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.audio.stream.stop", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["audio.playback"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function streamStop(handle: AudioStreamHandle): Result<void, PlatformError>;
+
+    /// Read one stream state snapshot.
+    ///
+    /// Read one point-in-time snapshot of stream run state and backend buffering metrics.
+    /// Snapshot values are advisory and can change immediately after read.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific stream query primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.audio.stream.state", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["audio.control"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function streamState(handle: AudioStreamHandle): Result<AudioStreamState, PlatformError>;
+
+    /// Write one packet of audio frames.
+    ///
+    /// Submit one packet of interleaved audio frames to the playback stream.
+    /// Short writes can occur when host buffers are near capacity.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend stream write or render client operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.playback`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.audio.stream.write", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["audio.playback"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function streamWrite(handle: AudioStreamHandle, data: Slice<uint8>): Result<uint64, PlatformError>;
+
+    /// Read one packet of captured audio frames.
+    ///
+    /// Read one packet of captured interleaved audio frames from the capture stream.
+    /// Packet sizing and buffering follow host backend capture contracts.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend stream read or capture client operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.capture`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.audio.stream.read", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["audio.capture"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function streamRead(handle: AudioStreamHandle, maxBytes: uint32): Result<Slice<uint8>, PlatformError>;
+}

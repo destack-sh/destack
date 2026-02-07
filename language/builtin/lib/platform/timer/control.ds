@@ -4,6 +4,205 @@ import type { PlatformError } from "../error/index.ds";
 /// Timer control bindings for the native runtime.
 declare namespace timer {
     /// Cancel a scheduled timer.
-    @binding("destack.timer.cancel", { effect: "external", replay: "recordable" })
+    ///
+    /// Remove one timer from the runtime scheduler.
+    /// Cancellation is idempotent when supported by the runtime implementation.
+    ///
+    /// # Platform
+    /// Runtime-level operation available on all native runtime targets.
+    /// Uses runtime scheduler timer queues.
+    ///
+    /// # Errors
+    /// Returns timeUnavailable, invalidArgument, notSupported.
+    ///
+    /// # Security
+    /// Requires `time.timer`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.timer.control.cancel",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["time.timer"],
+            scope: "runtime",
+            blocking: "never",
+        },
+    )
     export function cancel(handle: TimerHandle): Result<void, PlatformError>;
+
+    /// Pause a running timer.
+    ///
+    /// Suspend one timer without discarding its scheduling state.
+    /// Resume behavior and retained delay follow the active runtime timer policy.
+    ///
+    /// # Platform
+    /// Runtime-level operation available on all native runtime targets.
+    /// Uses runtime scheduler timer queues.
+    ///
+    /// # Errors
+    /// Returns timeUnavailable, invalidArgument, notSupported.
+    ///
+    /// # Security
+    /// Requires `time.timer`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.timer.control.pause",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["time.timer"],
+            scope: "runtime",
+            blocking: "never",
+        },
+    )
+    export function pause(handle: TimerHandle): Result<void, PlatformError>;
+
+    /// Resume a paused timer.
+    ///
+    /// Reactivate one paused timer in the runtime scheduler.
+    /// Resume timing semantics follow runtime timer policy.
+    ///
+    /// # Platform
+    /// Runtime-level operation available on all native runtime targets.
+    /// Uses runtime scheduler timer queues.
+    ///
+    /// # Errors
+    /// Returns timeUnavailable, invalidArgument, notSupported.
+    ///
+    /// # Security
+    /// Requires `time.timer`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.timer.control.resume",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["time.timer"],
+            scope: "runtime",
+            blocking: "never",
+        },
+    )
+    export function resume(handle: TimerHandle): Result<void, PlatformError>;
+
+    /// Return whether a timer is currently active.
+    ///
+    /// Read active-state metadata for one timer handle.
+    /// Active state reflects runtime scheduler ownership and cancellation state.
+    ///
+    /// # Platform
+    /// Runtime-level operation available on all native runtime targets.
+    /// Uses runtime scheduler timer queues.
+    ///
+    /// # Errors
+    /// Returns timeUnavailable, invalidArgument, notSupported.
+    ///
+    /// # Security
+    /// Requires `time.timer`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.timer.control.isActive",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["time.timer"],
+            scope: "runtime",
+            blocking: "never",
+        },
+    )
+    export function isActive(handle: TimerHandle): Result<boolean, PlatformError>;
+
+    /// Return remaining timer delay in nanoseconds.
+    ///
+    /// Read remaining delay for one timer relative to its configured clock domain.
+    /// Remaining delay is zero when timer has fired or is inactive.
+    ///
+    /// # Platform
+    /// Runtime-level operation available on all native runtime targets.
+    /// Uses runtime scheduler timer queues.
+    ///
+    /// # Errors
+    /// Returns timeUnavailable, invalidArgument, notSupported.
+    ///
+    /// # Security
+    /// Requires `time.timer`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.timer.control.remainingNs",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["time.timer"],
+            scope: "runtime",
+            blocking: "never",
+        },
+    )
+    export function remainingNs(handle: TimerHandle): Result<uint64, PlatformError>;
+
+    /// Reset one timer with a new relative delay.
+    ///
+    /// Replace one timer schedule with a new relative delay.
+    /// Reset semantics preserve timer identity and replay ordering.
+    ///
+    /// # Platform
+    /// Runtime-level operation available on all native runtime targets.
+    /// Uses runtime scheduler timer queues.
+    ///
+    /// # Errors
+    /// Returns timeUnavailable, invalidArgument, notSupported.
+    ///
+    /// # Security
+    /// Requires `time.timer`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.timer.control.reset",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["time.timer"],
+            scope: "runtime",
+            blocking: "never",
+        },
+    )
+    export function reset(handle: TimerHandle, delayNs: uint64): Result<void, PlatformError>;
+
+    /// Update one timer interval period.
+    ///
+    /// Replace one interval timer period while preserving timer identity.
+    /// Update semantics are runtime-defined for already-expired intervals.
+    ///
+    /// # Platform
+    /// Runtime-level operation available on all native runtime targets.
+    /// Uses runtime scheduler timer queues.
+    ///
+    /// # Errors
+    /// Returns timeUnavailable, invalidArgument, notSupported.
+    ///
+    /// # Security
+    /// Requires `time.timer`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.timer.control.updateInterval",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["time.timer"],
+            scope: "runtime",
+            blocking: "never",
+        },
+    )
+    export function updateInterval(handle: TimerHandle, periodNs: uint64): Result<void, PlatformError>;
 }

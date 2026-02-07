@@ -1,16 +1,207 @@
 import { TimerHandle } from "../resource/index.ds";
 import type { PlatformError } from "../error/index.ds";
 
+/// Flags for timer scheduling behavior.
+export newtype TimerFlags = uint32;
+
 /// Timer scheduling bindings for the native runtime.
 declare namespace timer {
+    /// Timer clock domain.
+    export enum TimerClock {
+        /// Wall-clock timer domain.
+        Wall = 1,
+        /// Monotonic timer domain.
+        Monotonic = 2,
+    }
+
+    /// Timer scheduling options.
+    export struct TimerOptions {
+        /// Timer clock domain.
+        clock: TimerClock,
+        /// Timer behavior flags.
+        flags: TimerFlags,
+    }
+
     /// Schedule a one-shot timer.
-    @binding("destack.timer.once", { effect: "external", replay: "recordable" })
+    ///
+    /// Register one timer that fires once after a relative delay.
+    /// Timer firing order follows runtime scheduler ordering rules.
+    ///
+    /// # Platform
+    /// Runtime-level operation available on all native runtime targets.
+    /// Uses runtime scheduler timer queues.
+    ///
+    /// # Errors
+    /// Returns timeUnavailable, invalidArgument, notSupported.
+    ///
+    /// # Security
+    /// Requires `time.timer`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.timer.schedule.once",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["time.timer"],
+            scope: "runtime",
+            blocking: "never",
+        },
+    )
     export function once(delayNs: uint64): Result<TimerHandle, PlatformError>;
 
     /// Schedule a repeating timer.
+    ///
+    /// Register one timer that fires repeatedly at a fixed period.
+    /// Drift and catch-up behavior follow runtime timer policy.
+    ///
+    /// # Platform
+    /// Runtime-level operation available on all native runtime targets.
+    /// Uses runtime scheduler timer queues.
+    ///
+    /// # Errors
+    /// Returns timeUnavailable, invalidArgument, notSupported.
+    ///
+    /// # Security
+    /// Requires `time.timer`.
+    ///
+    /// # Replay
+    /// External, recordable.
     @binding(
-        "destack.timer.interval",
-        { effect: "external", replay: "recordable" },
+        "destack.timer.schedule.interval",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["time.timer"],
+            scope: "runtime",
+            blocking: "never",
+        },
     )
     export function interval(periodNs: uint64): Result<TimerHandle, PlatformError>;
+
+    /// Schedule a timer for an absolute wall-clock deadline.
+    ///
+    /// Register one timer that fires at a specific deadline in nanoseconds.
+    /// Deadline interpretation follows runtime wall-clock policy.
+    ///
+    /// # Platform
+    /// Runtime-level operation available on all native runtime targets.
+    /// Uses runtime scheduler timer queues.
+    ///
+    /// # Errors
+    /// Returns timeUnavailable, invalidArgument, notSupported.
+    ///
+    /// # Security
+    /// Requires `time.timer`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.timer.schedule.at",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["time.timer"],
+            scope: "runtime",
+            blocking: "never",
+        },
+    )
+    export function at(deadlineNs: uint64): Result<TimerHandle, PlatformError>;
+
+    /// Schedule a one-shot timer with explicit options.
+    ///
+    /// Register one timer that fires once after a relative delay using explicit timer options.
+    /// Timer firing order follows runtime scheduler ordering rules.
+    ///
+    /// # Platform
+    /// Runtime-level operation available on all native runtime targets.
+    /// Uses runtime scheduler timer queues.
+    ///
+    /// # Errors
+    /// Returns timeUnavailable, invalidArgument, notSupported.
+    ///
+    /// # Security
+    /// Requires `time.timer`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.timer.schedule.onceWithOptions",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["time.timer"],
+            scope: "runtime",
+            blocking: "never",
+        },
+    )
+    export function onceWithOptions(
+        delayNs: uint64,
+        options: TimerOptions,
+    ): Result<TimerHandle, PlatformError>;
+
+    /// Schedule a repeating timer with explicit options.
+    ///
+    /// Register one timer that fires repeatedly at a fixed period using explicit timer options.
+    /// Drift and catch-up behavior follow runtime timer policy.
+    ///
+    /// # Platform
+    /// Runtime-level operation available on all native runtime targets.
+    /// Uses runtime scheduler timer queues.
+    ///
+    /// # Errors
+    /// Returns timeUnavailable, invalidArgument, notSupported.
+    ///
+    /// # Security
+    /// Requires `time.timer`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.timer.schedule.intervalWithOptions",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["time.timer"],
+            scope: "runtime",
+            blocking: "never",
+        },
+    )
+    export function intervalWithOptions(
+        periodNs: uint64,
+        options: TimerOptions,
+    ): Result<TimerHandle, PlatformError>;
+
+    /// Schedule a deadline timer with explicit options.
+    ///
+    /// Register one timer that fires at a specific deadline using explicit timer options.
+    /// Deadline interpretation follows runtime wall-clock and monotonic policy.
+    ///
+    /// # Platform
+    /// Runtime-level operation available on all native runtime targets.
+    /// Uses runtime scheduler timer queues.
+    ///
+    /// # Errors
+    /// Returns timeUnavailable, invalidArgument, notSupported.
+    ///
+    /// # Security
+    /// Requires `time.timer`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.timer.schedule.atWithOptions",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["time.timer"],
+            scope: "runtime",
+            blocking: "never",
+        },
+    )
+    export function atWithOptions(
+        deadlineNs: uint64,
+        options: TimerOptions,
+    ): Result<TimerHandle, PlatformError>;
 }
