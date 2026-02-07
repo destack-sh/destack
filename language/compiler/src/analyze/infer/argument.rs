@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::analyze::common::{
-    CanonicalSymbolMode, ContextualTypingMode, MaterializationMode, REWRITER_TAG_STATIC_ARGUMENT,
-    TypeRewriteCache, TypeWalkContext, rewrite_type_with_cache,
+    AnalyzeReadStage, CanonicalSymbolMode, ContextualTypingMode, MaterializationMode,
+    REWRITER_TAG_STATIC_ARGUMENT, TypeRewriteCache, TypeWalkContext, rewrite_type_with_cache,
 };
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
@@ -685,7 +685,7 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-    ) -> Option<HashMap<GlobalSymbolId, StaticArgument>> {
+    ) -> AnalyzeResult<Option<HashMap<GlobalSymbolId, StaticArgument>>> {
         // unwrap type value wrappers
         let return_type = self.unwrap_type_value(return_type, types);
         let expected_return_type = self.unwrap_type_value(expected_return_type, types);
@@ -696,33 +696,30 @@ impl Compiler {
                 symbol,
                 static_arguments,
             } => (*symbol, static_arguments.clone()),
-            _ => return None,
+            _ => return Ok(None),
         };
         let (expected_symbol, mut expected_arguments) = match types.get_type(expected_return_type) {
             Type::Reference {
                 symbol,
                 static_arguments: Some(arguments),
             } => (*symbol, arguments.clone()),
-            _ => return None,
+            _ => return Ok(None),
         };
 
         // resolve return arguments when possible
         if let Some(arguments) = return_arguments.as_deref() {
-            let resolved = self
-                .resolve_type_reference_static_arguments(
-                    module,
-                    profile,
-                    types.get_type_source(return_type),
-                    return_symbol,
-                    Some(arguments),
-                    false,
-                    options,
-                    tree,
-                    symbols,
-                    types,
-                )
-                .ok()
-                .flatten();
+            let resolved = self.resolve_type_reference_static_arguments(
+                module,
+                profile,
+                types.get_type_source(return_type),
+                return_symbol,
+                Some(arguments),
+                false,
+                options,
+                tree,
+                symbols,
+                types,
+            )?;
             if let Some(resolved) = resolved {
                 return_arguments = Some(resolved);
             }
@@ -730,21 +727,18 @@ impl Compiler {
 
         // resolve expected arguments when possible
         if !expected_arguments.is_empty() {
-            let resolved = self
-                .resolve_type_reference_static_arguments(
-                    module,
-                    profile,
-                    types.get_type_source(expected_return_type),
-                    expected_symbol,
-                    Some(expected_arguments.as_slice()),
-                    false,
-                    options,
-                    tree,
-                    symbols,
-                    types,
-                )
-                .ok()
-                .flatten();
+            let resolved = self.resolve_type_reference_static_arguments(
+                module,
+                profile,
+                types.get_type_source(expected_return_type),
+                expected_symbol,
+                Some(expected_arguments.as_slice()),
+                false,
+                options,
+                tree,
+                symbols,
+                types,
+            )?;
             if let Some(resolved) = resolved {
                 expected_arguments = resolved;
             }
@@ -766,7 +760,7 @@ impl Compiler {
             CanonicalSymbolMode::FollowAliases,
         );
         if canonical_return != canonical_expected {
-            return None;
+            return Ok(None);
         }
 
         let mut mapping = HashMap::new();
@@ -776,7 +770,7 @@ impl Compiler {
         {
             // require a one to one argument mapping
             if return_arguments.len() != expected_arguments.len() {
-                return None;
+                return Ok(None);
             }
 
             for (return_argument, expected_argument) in
@@ -815,16 +809,18 @@ impl Compiler {
         } else {
             // fall back to parameter order when return arguments are absent
             let tree = module.dir(profile).tree.read();
-            let parameter_symbols = self.collect_static_parameter_symbols(
+            let Some(parameter_symbols) = self.collect_static_parameter_symbols(
                 module,
                 return_symbol,
                 profile,
                 &tree,
                 symbols,
                 types,
-            )?;
+            ) else {
+                return Ok(None);
+            };
             if parameter_symbols.len() != expected_arguments.len() {
-                return None;
+                return Ok(None);
             }
 
             for (parameter_symbol, expected_argument) in
@@ -838,11 +834,11 @@ impl Compiler {
 
         // bail when the return type does not expose parameters
         if mapping.is_empty() {
-            return None;
+            return Ok(None);
         }
 
         // return the inferred mapping
-        Some(mapping)
+        Ok(Some(mapping))
     }
 
     /// Extract a reference symbol from receiver types that preserve static arguments.
@@ -1440,16 +1436,17 @@ impl Compiler {
 
         // select the module context for the enum
         let matches = if enum_symbol.module_id == module.id {
-            let _ = self.enum_backing_type_for_symbol(module, profile, enum_symbol, types);
+            let _ = self.enum_backing_type_for_symbol(module, profile, enum_symbol, types)?;
             self.enum_literal_matches_symbol(enum_symbol, literal, tree, symbols, types)
         } else {
-            self.with_module_tree_symbols(
+            self.with_module_tree_symbols_for_stage(
                 module,
                 profile,
                 enum_symbol.module_id,
+                AnalyzeReadStage::Declare,
                 |owner_module, owner_tree, owner_symbols| {
                     let mut owner_types = owner_module.dir(profile).types.write();
-                    let _ = self.enum_backing_type_for_symbol(
+                    let _ = self.enum_backing_type_for_symbol_in_tables(
                         owner_module,
                         profile,
                         enum_symbol,
@@ -1464,6 +1461,7 @@ impl Compiler {
                     )
                 },
             )
+            .map_err(AnalyzeError::from)?
         };
 
         Ok(matches)
@@ -3031,7 +3029,7 @@ impl Compiler {
         }
 
         if self
-            .enum_field_symbol_for_name(module, profile, enum_symbol, *name, tree, symbols)
+            .enum_field_symbol_for_name(module, profile, enum_symbol, *name, tree, symbols)?
             .is_some()
         {
             Ok(Some(enum_symbol))

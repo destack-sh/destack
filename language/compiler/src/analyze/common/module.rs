@@ -3,11 +3,165 @@ use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
 use indexmap::IndexMap;
 
-use crate::Compiler;
+use crate::{Compiler, TaskDependencyError};
+
+/// Stage contract for cross-module analyze table reads.
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum AnalyzeReadStage {
+    /// Read data owned by declare.
+    Declare,
+    /// Read data owned by export.
+    Export,
+    /// Read data owned by infer.
+    Infer,
+    /// Read data owned by validate.
+    Validate,
+}
 
 // allow staging helpers before full adoption
-#[allow(dead_code)]
+#[allow(dead_code, clippy::too_many_arguments)]
 impl Compiler {
+    /// Ensure a module has completed the stage required for one cross-module read.
+    fn require_module_stage_for_read(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+        stage: AnalyzeReadStage,
+    ) -> Result<(), TaskDependencyError> {
+        // gate reads by stage ownership
+        match stage {
+            AnalyzeReadStage::Declare => self.require_analyze_module_declare(module_id, profile),
+            AnalyzeReadStage::Export => self.require_analyze_module_export(module_id, profile),
+            AnalyzeReadStage::Infer => self.require_analyze_module_infer(module_id, profile),
+            AnalyzeReadStage::Validate => self.require_analyze_module_validate(module_id, profile),
+        }
+    }
+
+    /// Provide the symbol table for a module with stage-gated cross-module reads.
+    pub(crate) fn with_module_symbols_for_stage<R>(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        module_id: ModuleId,
+        stage: AnalyzeReadStage,
+        handle: impl FnOnce(&Module, &SymbolTable) -> R,
+    ) -> Result<R, TaskDependencyError> {
+        // remote reads must satisfy the stage gate
+        if module_id != module.id {
+            self.require_module_stage_for_read(module_id, profile, stage)?;
+        }
+
+        Ok(self.with_module_symbols(module, profile, module_id, handle))
+    }
+
+    /// Provide symbol tables with stage-gated cross-module reads and local reuse.
+    pub(crate) fn with_module_symbols_or_local_for_stage<R>(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        module_id: ModuleId,
+        symbols: &SymbolTable,
+        stage: AnalyzeReadStage,
+        handle: impl FnOnce(&Module, &SymbolTable) -> R,
+    ) -> Result<R, TaskDependencyError> {
+        // remote reads must satisfy the stage gate
+        if module_id != module.id {
+            self.require_module_stage_for_read(module_id, profile, stage)?;
+        }
+
+        Ok(self.with_module_symbols_or_local(module, profile, module_id, symbols, handle))
+    }
+
+    /// Provide tree and symbol tables for a module with stage-gated cross-module reads.
+    pub(crate) fn with_module_tree_symbols_for_stage<R>(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        module_id: ModuleId,
+        stage: AnalyzeReadStage,
+        handle: impl FnOnce(&Module, &NodeTree, &SymbolTable) -> R,
+    ) -> Result<R, TaskDependencyError> {
+        // remote reads must satisfy the stage gate
+        if module_id != module.id {
+            self.require_module_stage_for_read(module_id, profile, stage)?;
+        }
+
+        Ok(self.with_module_tree_symbols(module, profile, module_id, handle))
+    }
+
+    /// Provide tree and symbol tables with stage-gated cross-module reads and local reuse.
+    pub(crate) fn with_module_tree_symbols_or_local_for_stage<R>(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        module_id: ModuleId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        stage: AnalyzeReadStage,
+        handle: impl FnOnce(&Module, &NodeTree, &SymbolTable) -> R,
+    ) -> Result<R, TaskDependencyError> {
+        // remote reads must satisfy the stage gate
+        if module_id != module.id {
+            self.require_module_stage_for_read(module_id, profile, stage)?;
+        }
+
+        Ok(self
+            .with_module_tree_symbols_or_local(module, profile, module_id, tree, symbols, handle))
+    }
+
+    /// Provide type tables for a module with stage-gated cross-module reads.
+    pub(crate) fn with_module_types_for_stage<R>(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        module_id: ModuleId,
+        stage: AnalyzeReadStage,
+        handle: impl FnOnce(&Module, &TypeTable) -> R,
+    ) -> Result<R, TaskDependencyError> {
+        // remote reads must satisfy the stage gate
+        if module_id != module.id {
+            self.require_module_stage_for_read(module_id, profile, stage)?;
+        }
+
+        Ok(self.with_module_types(module, profile, module_id, handle))
+    }
+
+    /// Provide type tables with stage-gated cross-module reads and local reuse.
+    pub(crate) fn with_module_types_or_local_for_stage<R>(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        module_id: ModuleId,
+        types: &TypeTable,
+        stage: AnalyzeReadStage,
+        handle: impl FnOnce(&Module, &TypeTable) -> R,
+    ) -> Result<R, TaskDependencyError> {
+        // remote reads must satisfy the stage gate
+        if module_id != module.id {
+            self.require_module_stage_for_read(module_id, profile, stage)?;
+        }
+
+        Ok(self.with_module_types_or_local(module, profile, module_id, types, handle))
+    }
+
+    /// Provide a type table by module id with a stage gate.
+    pub(crate) fn with_module_types_by_id_for_stage<R>(
+        &self,
+        profile: ProfileId,
+        module_id: ModuleId,
+        stage: AnalyzeReadStage,
+        handle: impl FnOnce(&Module, &TypeTable) -> R,
+    ) -> Result<R, TaskDependencyError> {
+        // by-id reads are always cross-module, so always gate
+        self.require_module_stage_for_read(module_id, profile, stage)?;
+
+        let remote_module = self.program.modules.get(module_id);
+        let remote_module = remote_module.read();
+        let remote_types = remote_module.dir(profile).types.read();
+        Ok(handle(&remote_module, &remote_types))
+    }
+
     /// Provide the symbol table for a module in the given profile.
     pub(crate) fn with_module_symbols<R>(
         &self,
@@ -121,6 +275,20 @@ impl Compiler {
         handle(&remote_module, &remote_tree, &remote_symbols)
     }
 
+    /// Provide tree and symbol tables by module id with a stage gate.
+    pub(crate) fn with_module_tree_symbols_by_id_for_stage<R>(
+        &self,
+        profile: ProfileId,
+        module_id: ModuleId,
+        stage: AnalyzeReadStage,
+        handle: impl FnOnce(&Module, &NodeTree, &SymbolTable) -> R,
+    ) -> Result<R, TaskDependencyError> {
+        // by-id reads are always cross-module, so always gate
+        self.require_module_stage_for_read(module_id, profile, stage)?;
+
+        Ok(self.with_module_tree_symbols_by_id(profile, module_id, handle))
+    }
+
     /// Provide a tree and symbol table, reusing local references when possible.
     pub(crate) fn with_module_tree_symbols_or_local<R>(
         &self,
@@ -198,6 +366,23 @@ impl Compiler {
         handle(&remote_module, &mut remote_types)
     }
 
+    /// Provide mutable type tables with stage-gated cross-module reads.
+    pub(crate) fn with_module_types_mut_for_stage<R>(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        module_id: ModuleId,
+        stage: AnalyzeReadStage,
+        handle: impl FnOnce(&Module, &mut TypeTable) -> R,
+    ) -> Result<R, TaskDependencyError> {
+        // remote reads must satisfy the stage gate
+        if module_id != module.id {
+            self.require_module_stage_for_read(module_id, profile, stage)?;
+        }
+
+        Ok(self.with_module_types_mut(module, profile, module_id, handle))
+    }
+
     /// Provide a mutable type table, reusing local references when possible.
     pub(crate) fn with_module_types_mut_or_local<R>(
         &self,
@@ -213,6 +398,24 @@ impl Compiler {
         }
 
         self.with_module_types_mut(module, profile, module_id, handle)
+    }
+
+    /// Provide mutable type tables with stage-gated reads and local reuse.
+    pub(crate) fn with_module_types_mut_or_local_for_stage<R>(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        module_id: ModuleId,
+        types: &mut TypeTable,
+        stage: AnalyzeReadStage,
+        handle: impl FnOnce(&Module, &mut TypeTable) -> R,
+    ) -> Result<R, TaskDependencyError> {
+        // remote reads must satisfy the stage gate
+        if module_id != module.id {
+            self.require_module_stage_for_read(module_id, profile, stage)?;
+        }
+
+        Ok(self.with_module_types_mut_or_local(module, profile, module_id, types, handle))
     }
 
     /// Provide exported symbols for a module in the given profile.

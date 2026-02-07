@@ -2620,7 +2620,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                )
+                )?
             } else {
                 None
             }

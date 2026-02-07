@@ -1009,3 +1009,90 @@ import { Box } from "./box";
 declare const value: Box<int32>.Item<string, 3>;
 value satisfies [int32, string, 3];
 ```
+
+### interface associated defaults resolve through namespace imports
+
+> Namespace imports preserve interface associated defaults in type positions.
+
+```ds:factory.ds
+export interface Factory<T> {
+    type Item = T;
+}
+```
+
+```ds:box.ds
+import type { Factory } from "./factory";
+
+export class Box<T> implements Factory<T> {
+    value: T;
+
+    constructor(value: T) {
+        this.value = value;
+    }
+}
+```
+
+```ds:main.ds
+import * as api from "./box";
+
+declare const value: api.Box<int32>.Item;
+value satisfies int32;
+```
+
+### interface associated defaults can use conditional type operators
+
+> Interface associated defaults evaluate conditional type operators after implementor substitution.
+
+```ds
+interface Select<T> {
+    type Item = T extends string ? int32 : int16;
+}
+
+class TextSelect implements Select<string> {}
+class NumberSelect implements Select<float64> {}
+
+declare const text: TextSelect.Item;
+text satisfies int32;
+
+declare const number: NumberSelect.Item;
+number satisfies int16;
+```
+
+### interface associated defaults can use mapped type operators
+
+> Interface associated defaults evaluate mapped type operators after implementor substitution.
+
+```ds
+interface Project<T> {
+    type Shape = { [K in keyof T]: T[K] };
+}
+
+class UserProject implements Project<{ id: int32, name: string }> {}
+
+declare const shape: UserProject.Shape;
+shape satisfies { id: int32, name: string };
+```
+
+### interface associated defaults are not static expressions for comptime value arguments
+
+> Projected interface associated defaults are not yet valid static value expressions.
+
+```ds
+type Bytes<comptime n: number> = uint8[n];
+
+interface BufferShape<T> {
+    type Length = T extends string ? 8 : 12;
+    type Buffer = Bytes<Length>;
+}
+
+class TextBuffer implements BufferShape<string> {}
+class NumberBuffer implements BufferShape<float64> {}
+
+declare const short: TextBuffer.Buffer;
+short satisfies uint8[8];
+
+declare const wide: NumberBuffer.Buffer;
+wide satisfies uint8[12];
+```
+
+- contains: static argument must be a static expression

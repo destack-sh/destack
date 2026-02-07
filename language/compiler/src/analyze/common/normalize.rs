@@ -857,7 +857,7 @@ impl Compiler {
                 qualifier,
                 static_arguments,
             } => {
-                let resolved = self.resolve_import_type_reference(
+                let resolved = self.resolve_import_type_reference_best_effort(
                     module,
                     profile,
                     source_id,

@@ -1,3 +1,4 @@
+use crate::analyze::common::AnalyzeReadStage;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Declaration, EnumBackingType, EnumField, EnumFieldValue, Expression, GlobalSymbolId, IntType,
@@ -67,7 +68,7 @@ impl Compiler {
                 match value {
                     EnumFieldValue::Int(_) => {
                         let int_type = self
-                            .enum_int_type_for_expression(module, profile, value_id, types)
+                            .enum_int_type_for_expression(module, profile, value_id, types)?
                             .unwrap_or(default_int_type);
                         EnumBackingType::Int(int_type)
                     }
@@ -217,27 +218,24 @@ impl Compiler {
         target_symbol: GlobalSymbolId,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-    ) -> Option<EnumFieldValue> {
+    ) -> AnalyzeResult<Option<EnumFieldValue>> {
         // prefer local symbol tables when possible
         if target_symbol.module_id == module.id {
-            return self.enum_field_value_for_symbol_reference_in_tables(
+            return Ok(self.enum_field_value_for_symbol_reference_in_tables(
                 module,
                 profile,
                 enum_symbol,
                 target_symbol,
                 symbols,
                 types,
-            );
+            ));
         }
 
-        // load remote module data for enum field values
-        self.require_analyze_module_declare(target_symbol.module_id, profile)
-            .map_err(AnalyzeError::from)
-            .ok()?;
-        self.with_module_symbols(
+        self.with_module_symbols_for_stage(
             module,
             profile,
             target_symbol.module_id,
+            AnalyzeReadStage::Declare,
             |owner_module, owner_symbols| {
                 let mut owner_types = owner_module.dir(profile).types.write();
                 self.enum_field_value_for_symbol_reference_in_tables(
@@ -250,6 +248,7 @@ impl Compiler {
                 )
             },
         )
+        .map_err(AnalyzeError::from)
     }
 
     /// Resolve an enum field value from symbol tables and type tables.
@@ -300,25 +299,22 @@ impl Compiler {
         profile: ProfileId,
         enum_symbol: GlobalSymbolId,
         types: &mut TypeTable,
-    ) -> Option<EnumBackingType> {
+    ) -> AnalyzeResult<Option<EnumBackingType>> {
         // prefer local type tables when possible
         if enum_symbol.module_id == module.id {
-            return self.enum_backing_type_for_symbol_in_tables(
+            return Ok(self.enum_backing_type_for_symbol_in_tables(
                 module,
                 profile,
                 enum_symbol,
                 types,
-            );
+            ));
         }
 
-        // load remote module data for backing types
-        self.require_analyze_module_declare(enum_symbol.module_id, profile)
-            .map_err(AnalyzeError::from)
-            .ok()?;
-        self.with_module_types_mut(
+        self.with_module_types_mut_for_stage(
             module,
             profile,
             enum_symbol.module_id,
+            AnalyzeReadStage::Declare,
             |owner_module, owner_types| {
                 self.enum_backing_type_for_symbol_in_tables(
                     owner_module,
@@ -328,10 +324,24 @@ impl Compiler {
                 )
             },
         )
+        .map_err(AnalyzeError::from)
+    }
+
+    /// Resolve enum backing types without yielding in non-AnalyzeResult paths.
+    pub(super) fn enum_backing_type_for_symbol_best_effort(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        enum_symbol: GlobalSymbolId,
+        types: &mut TypeTable,
+    ) -> Option<EnumBackingType> {
+        self.enum_backing_type_for_symbol(module, profile, enum_symbol, types)
+            .ok()
+            .flatten()
     }
 
     /// Resolve the enum backing type for a local symbol using available tables.
-    fn enum_backing_type_for_symbol_in_tables(
+    pub(super) fn enum_backing_type_for_symbol_in_tables(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -389,25 +399,26 @@ impl Compiler {
 
         // resolve backing types in remote modules when needed
         if enum_symbol.module_id != module.id {
-            self.require_analyze_module_declare(enum_symbol.module_id, profile)
-                .map_err(AnalyzeError::from)?;
-            return self.with_module_types_mut(
-                module,
-                profile,
-                enum_symbol.module_id,
-                |owner_module, owner_types| {
-                    if let Some(backing) = owner_types.get_enum_backing_type(enum_symbol) {
-                        return Ok(Some(backing));
-                    }
+            return self
+                .with_module_types_mut_for_stage(
+                    module,
+                    profile,
+                    enum_symbol.module_id,
+                    AnalyzeReadStage::Declare,
+                    |owner_module, owner_types| {
+                        if let Some(backing) = owner_types.get_enum_backing_type(enum_symbol) {
+                            return Ok(Some(backing));
+                        }
 
-                    self.ensure_enum_backing_type_for_symbol(
-                        owner_module,
-                        profile,
-                        enum_symbol,
-                        owner_types,
-                    )
-                },
-            );
+                        self.ensure_enum_backing_type_for_symbol(
+                            owner_module,
+                            profile,
+                            enum_symbol,
+                            owner_types,
+                        )
+                    },
+                )
+                .map_err(AnalyzeError::from)?;
         }
 
         // resolve backing types in local modules
@@ -512,23 +523,20 @@ impl Compiler {
     fn enum_int_type_for_expression(
         &self,
         module: &Module,
-        profile: ProfileId,
+        _profile: ProfileId,
         expression_id: LocalNodeId<Expression>,
         types: &TypeTable,
-    ) -> Option<IntType> {
-        // resolve the enum member value type
-        let value_type_id = types
-            .get_declared_or_inferred_type_id(expression_id.into_global_any(module.id))
-            .ok_or(AnalyzeError::MissingType {
-                node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile)),
-            })
-            .ok()?;
+    ) -> AnalyzeResult<Option<IntType>> {
+        // this inference pass can run before expression types are committed
+        let Some(value_type_id) =
+            types.get_declared_or_inferred_type_id(expression_id.into_global_any(module.id))
+        else {
+            return Ok(None);
+        };
         let value_type = types.get_type(value_type_id);
 
         // map the value type to a backing integer type
-        match value_type {
+        let resolved = match value_type {
             Type::TypeLiteral {
                 value: TypeLiteral::Primitive(PrimitiveType::Int(int_type)),
             } => Some(int_type.simplify()),
@@ -542,7 +550,9 @@ impl Compiler {
                 .simplify(),
             ),
             _ => None,
-        }
+        };
+
+        Ok(resolved)
     }
 
     /// Check whether an integer backing type is signed.
@@ -572,29 +582,50 @@ impl Compiler {
         field_name: StringId,
         tree: &NodeTree,
         symbols: &SymbolTable,
-    ) -> Option<GlobalSymbolId> {
+    ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         // resolve fields in remote modules when needed
         if enum_symbol.module_id != module.id {
-            self.require_analyze_module_declare(enum_symbol.module_id, profile)
-                .map_err(AnalyzeError::from)
-                .ok()?;
-            return self.with_module_tree_symbols(
-                module,
-                profile,
-                enum_symbol.module_id,
-                |owner_module, owner_tree, owner_symbols| {
-                    self.enum_field_symbol_for_name_in_tree(
-                        enum_symbol,
-                        field_name,
-                        owner_tree,
-                        owner_symbols,
-                        owner_module.id,
-                    )
-                },
-            );
+            return self
+                .with_module_tree_symbols_for_stage(
+                    module,
+                    profile,
+                    enum_symbol.module_id,
+                    AnalyzeReadStage::Declare,
+                    |owner_module, owner_tree, owner_symbols| {
+                        self.enum_field_symbol_for_name_in_tree(
+                            enum_symbol,
+                            field_name,
+                            owner_tree,
+                            owner_symbols,
+                            owner_module.id,
+                        )
+                    },
+                )
+                .map_err(AnalyzeError::from);
         }
 
-        self.enum_field_symbol_for_name_in_tree(enum_symbol, field_name, tree, symbols, module.id)
+        Ok(self.enum_field_symbol_for_name_in_tree(
+            enum_symbol,
+            field_name,
+            tree,
+            symbols,
+            module.id,
+        ))
+    }
+
+    /// Resolve enum field symbols without yielding in non-AnalyzeResult paths.
+    pub(crate) fn enum_field_symbol_for_name_best_effort(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        enum_symbol: GlobalSymbolId,
+        field_name: StringId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> Option<GlobalSymbolId> {
+        self.enum_field_symbol_for_name(module, profile, enum_symbol, field_name, tree, symbols)
+            .ok()
+            .flatten()
     }
 
     /// Scan enum declarations in a single tree for a field symbol.

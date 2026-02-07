@@ -1,6 +1,6 @@
 use super::SignatureResolutionMode;
 use super::argument::InheritedStaticArguments;
-use crate::analyze::common::RelationMode;
+use crate::analyze::common::{AnalyzeReadStage, RelationMode};
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Compiler, InferContext};
 use destack_base::StringId;
@@ -976,14 +976,11 @@ impl Compiler {
             ));
         }
 
-        // ensure remote declarations are available
-        self.require_analyze_module_declare(enum_symbol.module_id, profile)
-            .map_err(AnalyzeError::from)?;
-
-        Ok(self.with_module_tree_symbols(
+        self.with_module_tree_symbols_for_stage(
             module,
             profile,
             enum_symbol.module_id,
+            AnalyzeReadStage::Declare,
             |_, owner_tree, owner_symbols| {
                 self.enum_field_symbol_for_member_key_in_tree(
                     enum_symbol,
@@ -992,7 +989,8 @@ impl Compiler {
                     owner_symbols,
                 )
             },
-        ))
+        )
+        .map_err(AnalyzeError::from)
     }
 
     /// Resolve enum declarations for a matching field key.
@@ -1960,31 +1958,31 @@ impl Compiler {
             return Ok(None);
         }
 
-        // ensure the remote module is declared before reading its DIR
-        self.require_analyze_module_declare(symbol.module_id, profile)
+        let resolved = self
+            .with_module_tree_symbols_for_stage(
+                module,
+                profile,
+                symbol.module_id,
+                AnalyzeReadStage::Declare,
+                |owner_module, owner_tree, owner_symbols| {
+                    let owner_types = owner_module.dir(profile).types.read();
+                    let allow_merge = owner_module.language_type.supports_declaration_merging();
+                    self.resolve_member_symbol_in_module(
+                        module,
+                        symbol,
+                        member_key,
+                        lookup_mode,
+                        profile,
+                        owner_tree,
+                        owner_symbols,
+                        &owner_types,
+                        allow_merge,
+                        visited,
+                    )
+                },
+            )
             .map_err(AnalyzeError::from)?;
-
-        let resolved = self.with_module_tree_symbols(
-            module,
-            profile,
-            symbol.module_id,
-            |owner_module, owner_tree, owner_symbols| {
-                let owner_types = owner_module.dir(profile).types.read();
-                let allow_merge = owner_module.language_type.supports_declaration_merging();
-                self.resolve_member_symbol_in_module(
-                    module,
-                    symbol,
-                    member_key,
-                    lookup_mode,
-                    profile,
-                    owner_tree,
-                    owner_symbols,
-                    &owner_types,
-                    allow_merge,
-                    visited,
-                )
-            },
-        )?;
+        let resolved = resolved?;
         if resolved.is_some() {
             return Ok(resolved);
         }
@@ -2222,14 +2220,11 @@ impl Compiler {
             ));
         }
 
-        // ensure the extension module is declared before reading it
-        self.require_analyze_module_declare(extension_symbol.module_id, profile)
-            .map_err(AnalyzeError::from)?;
-
-        Ok(self.with_module_tree_symbols(
+        self.with_module_tree_symbols_for_stage(
             module,
             profile,
             extension_symbol.module_id,
+            AnalyzeReadStage::Declare,
             |owner_module, owner_tree, owner_symbols| {
                 let owner_types = owner_module.dir(profile).types.read();
                 self.find_member_symbol_in_declaration(
@@ -2243,7 +2238,8 @@ impl Compiler {
                     &owner_types,
                 )
             },
-        ))
+        )
+        .map_err(AnalyzeError::from)
     }
 
     /// Find a member symbol inside a declaration for a key.

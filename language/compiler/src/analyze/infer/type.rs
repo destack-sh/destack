@@ -5,14 +5,11 @@ use super::{
     index_key_kind_for_member, index_key_kind_for_type, index_key_kinds_compatible_for_access,
 };
 use crate::analyze::common::{
-    CanonicalSymbolMode, ConstContext, REWRITER_TAG_LITERAL_WIDENING, ReadonlyMaterializer,
-    RelationMode, TypeRewriteCache, TypeWalkContext, TypeWalkKey, WideningMode,
-    rewrite_type_with_cache,
+    AnalyzeReadStage, CanonicalSymbolMode, ConstContext, REWRITER_TAG_LITERAL_WIDENING,
+    ReadonlyMaterializer, RelationMode, TypeRewriteCache, TypeWalkContext, TypeWalkKey,
+    WideningMode, rewrite_type_with_cache,
 };
-use crate::{
-    AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext,
-    TaskDependencyError,
-};
+use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
     Asynchrony, BinaryOperator, Declaration, DependencyItem, EnumBackingType, Expression,
@@ -770,19 +767,10 @@ impl Compiler {
         symbol: GlobalSymbolId,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
-        // ensure the remote module is declared before reading its types
-        self.require_analyze_module_declare(symbol.module_id, profile)
-            .map_err(|error| match error {
-                TaskDependencyError::NotReady { dependency } => AnalyzeError::Yield { dependency },
-                TaskDependencyError::Failed { dependency } => {
-                    AnalyzeError::UnsatisfiedDependency { dependency }
-                }
-            })?;
-
-        // load remote tables for the instance type
-        self.with_module_tree_symbols_by_id(
+        self.with_module_tree_symbols_by_id_for_stage(
             profile,
             symbol.module_id,
+            AnalyzeReadStage::Declare,
             |remote_module, remote_tree, remote_symbols| {
                 let remote_dir = remote_module.dir(profile);
                 let mut remote_types = remote_dir.types.write();
@@ -810,6 +798,7 @@ impl Compiler {
                 Ok(Some(local_instance_id))
             },
         )
+        .map_err(AnalyzeError::from)?
     }
 
     /// Infer the result type of a scalar literal.
@@ -2668,29 +2657,11 @@ impl Compiler {
             return Ok(types.insert_type_from_any(ty, node_id));
         }
 
-        // ensure the remote module export inference is ready (may yield)
-        // require remote export inference before reading value types
-        if let Err(error) = self.require_analyze_module_export(remote_module_id, profile) {
-            // only reject when we have an explicit export inference cycle
-            if is_surface_inference
-                && !self.remote_symbol_has_declared_value_type(profile, target_symbol)
-            {
-                let has_cycle =
-                    self.export_inference_has_cycle(module.id, profile, remote_module_id)?;
-                if has_cycle {
-                    return Err(AnalyzeError::ExportInferenceRequiresAnnotation {
-                        node: error_node,
-                    });
-                }
-            }
-            return Err(AnalyzeError::from(error));
-        }
-
-        // load remote tables for the value type
-        self.with_module_tree_symbols(
+        self.with_module_tree_symbols_for_stage(
             module,
             profile,
             remote_module_id,
+            AnalyzeReadStage::Export,
             |remote_module, remote_tree, remote_symbols| {
                 let remote_dir = remote_module.dir(profile);
                 let mut remote_types = remote_dir.types.write();
@@ -2746,6 +2717,18 @@ impl Compiler {
                 }
             },
         )
+        .map_err(|error| {
+            // only reject when we have an explicit export inference cycle
+            if is_surface_inference
+                && !self.remote_symbol_has_declared_value_type(profile, target_symbol)
+                && let Ok(has_cycle) =
+                    self.export_inference_has_cycle(module.id, profile, remote_module_id)
+                && has_cycle
+            {
+                return AnalyzeError::ExportInferenceRequiresAnnotation { node: error_node };
+            }
+            AnalyzeError::from(error)
+        })?
     }
 
     /// Check whether a remote symbol has an explicit value type annotation.
@@ -5279,7 +5262,7 @@ impl Compiler {
         match ty {
             // read backing types directly from enum references
             Type::Reference { symbol, .. } => {
-                self.enum_backing_type_for_symbol(module, profile, *symbol, types)
+                self.enum_backing_type_for_symbol_best_effort(module, profile, *symbol, types)
             }
             // unwrap value containers to reach enum references
             Type::Value { value } => {

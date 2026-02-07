@@ -2,13 +2,13 @@ use std::sync::Arc;
 
 use crate::timing::tags;
 use crate::{
-    AnalyzeError, AnalyzeResult, Compiler, FlowContext, InferContext, TaskDependencyError,
+    AnalyzeError, AnalyzeResult, Compiler, FlowContext, InferSession, TaskDependencyError,
     TaskResultCollector,
 };
 use destack_builtin::BuiltinLibKind;
 use destack_dir::{
-    Declaration, Expression, FlowGraphBuilder, InferTable, IntType, LocalNodeId, NodeTree,
-    PrimitiveType, Type, TypeLiteral,
+    Declaration, Expression, FlowGraphBuilder, IntType, LocalNodeId, NodeTree, PrimitiveType, Type,
+    TypeLiteral,
 };
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{
@@ -128,9 +128,8 @@ impl Compiler {
         // require builtins for inference
         self.require_resolve_builtins(profile)?;
 
-        // analyze all expressions
-        let mut infer = InferTable::default();
-        let mut ctx = InferContext::new(profile, options);
+        // initialize infer session state
+        let mut session = InferSession::new(profile, options);
 
         // build a module level flow graph and flow table when needed
         let flow_roots = {
@@ -148,11 +147,18 @@ impl Compiler {
             };
             let flow = {
                 let _timing = self.timing_scope(tags::ANALYZE_FLOW_TABLE_COMPUTE);
+                let (infer_table, context) = session.parts_mut();
                 self.compute_flow_table_for_graph(
-                    &module, &graph, &tree, &symbols, &mut types, &mut infer, &ctx,
+                    &module,
+                    &graph,
+                    &tree,
+                    &symbols,
+                    &mut types,
+                    infer_table,
+                    context,
                 )?
             };
-            ctx.flow = Some(FlowContext {
+            session.context_mut().flow = Some(FlowContext {
                 module_id: module.id,
                 graph: Arc::new(graph),
                 table: Arc::new(flow),
@@ -163,10 +169,17 @@ impl Compiler {
         {
             let _timing = self.timing_scope(tags::ANALYZE_EXPRESSION_INFER);
             for root_id in infer_roots.iter() {
+                let (infer_table, context) = session.parts_mut();
                 self.collect(
                     &mut collector,
                     self.infer_expression(
-                        &module, *root_id, &tree, &symbols, &mut types, &mut infer, &mut ctx,
+                        &module,
+                        *root_id,
+                        &tree,
+                        &symbols,
+                        &mut types,
+                        infer_table,
+                        context,
                     ),
                 );
             }
@@ -195,9 +208,16 @@ impl Compiler {
         }
 
         // solve constraints (and commit inferred types)
-        if !infer.vars.is_empty() || !infer.constraints.is_empty() {
+        if !session.table().vars.is_empty() || !session.table().constraints.is_empty() {
             let _timing = self.timing_scope(tags::ANALYZE_INFER_SOLVE_CONSTRAINTS);
-            self.solve_infer_table(&module, profile, &symbols, &infer, &mut types, &ctx.options);
+            self.solve_infer_table(
+                &module,
+                profile,
+                &symbols,
+                session.table(),
+                &mut types,
+                &session.context().options,
+            );
         }
 
         Ok(())

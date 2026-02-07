@@ -1,14 +1,14 @@
-use crate::analyze::common::CanonicalSymbolMode;
+use crate::analyze::common::{AnalyzeReadStage, CanonicalSymbolMode};
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
-    Argument, BinaryOperator, BindingKind, Declaration, DependencyItem, DynamicKey, EnumFieldValue,
-    Expression, FunctionMode, FunctionSignature, GlobalSymbolId, IntrinsicType, LocalNodeId,
-    LocalNodeIdAny, LocalTypeId, Mutability, NodeTree, NodeType, NodeVisitor, NodeVisitorOptions,
-    Parameter, Path, PrimitiveType, Property, Resolution, ScalarLiteral, StaticArgument,
-    StaticExpression, StaticKey, StaticParameterKind, StaticProperty, SymbolKind, SymbolSpace,
-    SymbolSpaceOrder, SymbolTable, Type, TypeElement, TypeField, TypeIndexSignature, TypeLiteral,
-    TypeMappedParameter, TypeTable, TypeUnaryOperator, UnaryOperator, walk_expression,
+    Argument, BinaryOperator, BindingKind, Declaration, DependencyItem, DependencyMode, DynamicKey,
+    EnumFieldValue, Expression, FunctionMode, FunctionSignature, GlobalSymbolId, IntrinsicType,
+    LocalNodeId, LocalNodeIdAny, LocalTypeId, Mutability, NodeTree, NodeType, NodeVisitor,
+    NodeVisitorOptions, Parameter, Path, PrimitiveType, Property, Resolution, ScalarLiteral,
+    StaticArgument, StaticExpression, StaticKey, StaticParameterKind, StaticProperty, SymbolKind,
+    SymbolSpace, SymbolSpaceOrder, SymbolTable, Type, TypeElement, TypeField, TypeIndexSignature,
+    TypeLiteral, TypeMappedParameter, TypeTable, TypeUnaryOperator, UnaryOperator, walk_expression,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 use std::collections::HashSet;
@@ -1536,7 +1536,7 @@ impl Compiler {
                     *target_symbol,
                     symbols,
                     types,
-                );
+                )?;
                 let Some(value) = value else {
                     return Ok(None);
                 };
@@ -1575,7 +1575,8 @@ impl Compiler {
                         *name,
                         tree,
                         symbols,
-                    ) else {
+                    )?
+                    else {
                         return Ok(None);
                     };
 
@@ -1589,7 +1590,7 @@ impl Compiler {
                     target_symbol,
                     symbols,
                     types,
-                );
+                )?;
                 let Some(value) = value else {
                     return Ok(None);
                 };
@@ -1776,26 +1777,26 @@ impl Compiler {
     ) -> AnalyzeResult<Option<StaticExpression>> {
         // evaluate using the owning module context
         if symbol.module_id != module.id {
-            self.require_analyze_module_infer(symbol.module_id, profile)
+            return self
+                .with_module_tree_symbols_for_stage(
+                    module,
+                    profile,
+                    symbol.module_id,
+                    AnalyzeReadStage::Infer,
+                    |owner_module, owner_tree, owner_symbols| {
+                        let mut owner_types = owner_module.dir(profile).types.write();
+                        self.static_expression_from_constant_reference(
+                            owner_module,
+                            profile,
+                            symbol,
+                            owner_tree,
+                            owner_symbols,
+                            &mut owner_types,
+                            visited,
+                        )
+                    },
+                )
                 .map_err(AnalyzeError::from)?;
-
-            return self.with_module_tree_symbols(
-                module,
-                profile,
-                symbol.module_id,
-                |owner_module, owner_tree, owner_symbols| {
-                    let mut owner_types = owner_module.dir(profile).types.write();
-                    self.static_expression_from_constant_reference(
-                        owner_module,
-                        profile,
-                        symbol,
-                        owner_tree,
-                        owner_symbols,
-                        &mut owner_types,
-                        visited,
-                    )
-                },
-            );
         }
 
         // avoid recursive constant evaluation
@@ -1945,6 +1946,129 @@ impl Compiler {
         Ok(value)
     }
 
+    /// Select a namespace-imported member for type evaluation.
+    fn select_namespace_import_member_symbol_for_type_evaluation(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        left: LocalNodeId<Expression>,
+        member_key: StaticKey,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> Option<GlobalSymbolId> {
+        // require a reference expression on the left side
+        let (Expression::LocalReference { target_symbol, .. }
+        | Expression::ModuleReference { target_symbol, .. }
+        | Expression::GlobalReference { target_symbol, .. }) = tree.get(left)
+        else {
+            return None;
+        };
+
+        // namespace imports are local dependency items
+        if target_symbol.module_id != module.id {
+            return None;
+        }
+
+        // require a dependency declaration
+        let symbol_entry = symbols.get_symbol(target_symbol.local_id);
+        let primary_declaration = symbol_entry.primary_declaration?;
+        if primary_declaration.local_id.ty != NodeType::DependencyItem {
+            return None;
+        }
+
+        // select dependency mode and target module
+        let dependency_id = primary_declaration.local_id.into_typed::<DependencyItem>();
+        let dependency = tree.get(dependency_id);
+        let (mode, target_module) = match dependency {
+            DependencyItem::Remote {
+                mode,
+                target_module,
+                ..
+            } => (*mode, Some(*target_module)),
+            DependencyItem::UnresolvedRemote {
+                mode,
+                target_module,
+                ..
+            } => (*mode, *target_module),
+            _ => (DependencyMode::Item, None),
+        };
+
+        // only namespace imports can project members
+        if mode != DependencyMode::Namespace {
+            return None;
+        }
+
+        // select type space first, then value space
+        let target_module = target_module?;
+        let target_module = target_module.ty.or(target_module.value)?;
+        self.resolve_export_symbol_for_target(
+            module.id,
+            expression_id.into_global_any(module.id),
+            target_module,
+            profile,
+            SymbolSpaceOrder::TypeThenValue,
+            member_key,
+        )
+        .ok()
+        .flatten()
+    }
+
+    /// Select a type member symbol for one member expression.
+    #[allow(clippy::type_complexity)]
+    fn select_type_member_symbol_for_type_evaluation(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        left: LocalNodeId<Expression>,
+        member_key: StaticKey,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        validate_static_argument_bounds: bool,
+        enforce_implicit_managed: bool,
+    ) -> AnalyzeResult<Option<(GlobalSymbolId, Option<GlobalSymbolId>, Vec<StaticArgument>)>> {
+        // select namespace imports before projection lookups
+        if let Some(namespace_symbol) = self
+            .select_namespace_import_member_symbol_for_type_evaluation(
+                module,
+                profile,
+                expression_id,
+                left,
+                member_key,
+                tree,
+                symbols,
+            )
+        {
+            return Ok(Some((namespace_symbol, None, Vec::new())));
+        }
+
+        // select projected members through nominal receivers
+        let Some((target_symbol, receiver_symbol, receiver_arguments)) = self
+            .select_associated_projection_member_symbol(
+                module,
+                profile,
+                expression_id,
+                left,
+                member_key,
+                tree,
+                symbols,
+                types,
+                validate_static_argument_bounds,
+                enforce_implicit_managed,
+            )?
+        else {
+            return Ok(None);
+        };
+
+        Ok(Some((
+            target_symbol,
+            Some(receiver_symbol),
+            receiver_arguments,
+        )))
+    }
+
     /// Evaluate an Expression into a Type with validation controls.
     fn evaluate_expression_to_type(
         &self,
@@ -1973,23 +2097,22 @@ impl Compiler {
             } => {
                 let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_REFERENCE);
                 let member_key = StaticKey::Name(name);
-
-                let Some(member_resolution) = self.select_type_member_symbol(
-                    module,
-                    profile,
-                    expression_id,
-                    left,
-                    member_key,
-                    tree,
-                    symbols,
-                    types,
-                    validate_static_argument_bounds,
-                    enforce_implicit_managed,
-                )?
+                let Some((target_symbol, receiver_symbol, receiver_arguments)) = self
+                    .select_type_member_symbol_for_type_evaluation(
+                        module,
+                        profile,
+                        expression_id,
+                        left,
+                        member_key,
+                        tree,
+                        symbols,
+                        types,
+                        validate_static_argument_bounds,
+                        enforce_implicit_managed,
+                    )?
                 else {
                     return Ok(None);
                 };
-                let target_symbol = member_resolution.target_symbol;
 
                 // require explicit arguments for generic associated type projections
                 let has_explicit_static_arguments = static_arguments
@@ -2041,8 +2164,8 @@ impl Compiler {
                     profile,
                     expression_id.into_any(),
                     target_symbol,
-                    member_resolution.receiver_symbol,
-                    &member_resolution.receiver_arguments,
+                    receiver_symbol,
+                    &receiver_arguments,
                     static_arguments.as_deref(),
                     member_ty,
                     tree,

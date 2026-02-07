@@ -405,7 +405,7 @@ impl Compiler {
                             return true;
                         };
                         if self
-                            .enum_field_symbol_for_name(
+                            .enum_field_symbol_for_name_best_effort(
                                 module,
                                 profile,
                                 enum_symbol,
@@ -1509,7 +1509,7 @@ impl Compiler {
                     symbols,
                 ),
                 None => {
-                    if let Some(field_symbol) = self.enum_field_symbol_for_name(
+                    if let Some(field_symbol) = self.enum_field_symbol_for_name_best_effort(
                         module,
                         profile,
                         enum_symbol,
@@ -1993,7 +1993,7 @@ impl Compiler {
                 if left_symbol != enum_symbol {
                     return None;
                 }
-                let field_symbol = self.enum_field_symbol_for_name(
+                let field_symbol = self.enum_field_symbol_for_name_best_effort(
                     module,
                     profile,
                     enum_symbol,

@@ -651,6 +651,28 @@ declare const value: Leaf.Item;
 value satisfies int32;
 ```
 
+### class associated projections resolve through namespace imports
+
+> Namespace imports preserve class associated projections in type positions.
+
+```ds:box.ds
+export class Box<T> {
+    type Item = T;
+    value: Item;
+
+    constructor(value: Item) {
+        this.value = value;
+    }
+}
+```
+
+```ds:main.ds
+import * as models from "./box";
+
+declare const value: models.Box<string>.Item;
+value satisfies string;
+```
+
 ### class associated types are not runtime members
 
 > Associated type aliases are type only and cannot be accessed as runtime values.
@@ -664,3 +686,98 @@ const value = Box.Item;
 ```
 
 - contains: does not exist
+
+### class associated types can use conditional type operators
+
+> Class associated type aliases can evaluate conditional type operators with outer substitutions.
+
+```ds
+class Box<T> {
+    type Item = T extends string ? int32 : int16;
+}
+
+declare const text: Box<string>.Item;
+text satisfies int32;
+
+declare const flag: Box<boolean>.Item;
+flag satisfies int16;
+```
+
+### class associated types can use mapped type operators
+
+> Class associated type aliases can evaluate mapped type operators over outer substitutions.
+
+```ds
+class Project<T> {
+    type Shape = { [K in keyof T]: T[K] };
+}
+
+declare const shape: Project<{ left: int32, right: string }>.Shape;
+shape satisfies { left: int32, right: string };
+```
+
+### class associated types are not static expressions for comptime value arguments
+
+> Projected associated types are not yet valid static value expressions.
+
+```ds
+type Bytes<comptime n: number> = uint8[n];
+
+class BufferShape<T> {
+    type Length = T extends string ? 8 : 12;
+    type Buffer = Bytes<Length>;
+}
+
+declare const short: BufferShape<string>.Buffer;
+short satisfies uint8[8];
+
+declare const wide: BufferShape<boolean>.Buffer;
+wide satisfies uint8[12];
+```
+
+- contains: static argument must be a static expression
+
+### class conditional associated projections resolve across module boundaries
+
+> Imported class associated type projections preserve conditional substitutions.
+
+```ds:box.ds
+export class Box<T> {
+    type Item = T extends string ? int32 : int16;
+}
+```
+
+```ds:main.ds
+import { Box } from "./box";
+
+declare const text: Box<string>.Item;
+text satisfies int32;
+
+declare const count: Box<float64>.Item;
+count satisfies int16;
+```
+
+### class associated projections remain non static expressions across module boundaries
+
+> Imported associated projections are not yet valid static value expressions.
+
+```ds:box.ds
+export type Bytes<comptime n: number> = uint8[n];
+
+export class BufferShape<T> {
+    type Length = T extends string ? 8 : 12;
+    type Buffer = Bytes<Length>;
+}
+```
+
+```ds:main.ds
+import { BufferShape } from "./box";
+
+declare const short: BufferShape<string>.Buffer;
+short satisfies uint8[8];
+
+declare const wide: BufferShape<float64>.Buffer;
+wide satisfies uint8[12];
+```
+
+- contains: static argument must be a static expression

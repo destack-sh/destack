@@ -10,8 +10,8 @@ use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
 
 use super::{
-    CanonicalSymbolMode, NormalizationMode, RelationMode, TypeCollector, TypeWalkContext,
-    TypeWalkKey,
+    AnalyzeReadStage, CanonicalSymbolMode, NormalizationMode, RelationMode, TypeCollector,
+    TypeWalkContext, TypeWalkKey,
 };
 use crate::{AnalyzeOptions, AnalyzeResult, Compiler, ElaborateError, ElaborateResult};
 
@@ -1114,13 +1114,11 @@ impl Compiler {
             }
 
             // import the alias target when the symbol is remote
-            if current.module_id != module.id {
-                let _ = self.require_analyze_module_declare(current.module_id, profile);
-            }
-            let (resolved, next) = self.with_module_tree_symbols(
+            let (resolved, next) = match self.with_module_tree_symbols_for_stage(
                 module,
                 profile,
                 current.module_id,
+                AnalyzeReadStage::Declare,
                 |owner_module, owner_tree, owner_symbols| {
                     let symbol_entry = owner_symbols.get_symbol(current.local_id);
                     if !matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
@@ -1193,7 +1191,13 @@ impl Compiler {
                     types.set_alias_target_type_id(typed_symbol, local_alias_target_id);
                     (Some(local_alias_target_id), None)
                 },
-            );
+            ) {
+                Ok(value) => value,
+                Err(error) => {
+                    let _ = error;
+                    return None;
+                }
+            };
             if let Some(resolved) = resolved {
                 return Some(resolved);
             }
@@ -1677,12 +1681,13 @@ impl Compiler {
             let kind = parameter_symbols
                 .get(index)
                 .map(|parameter_symbol| {
-                    self.with_module_tree_symbols_or_local(
+                    self.with_module_tree_symbols_or_local_for_stage(
                         module,
                         profile,
                         parameter_symbol.module_id,
                         tree,
                         symbols,
+                        AnalyzeReadStage::Declare,
                         |_, owner_tree, owner_symbols| {
                             self.static_parameter_kind_for_symbol_in_module(
                                 *parameter_symbol,
@@ -1691,6 +1696,10 @@ impl Compiler {
                             )
                         },
                     )
+                    .unwrap_or_else(|error| {
+                        let _ = error;
+                        StaticParameterKind::Type
+                    })
                 })
                 .unwrap_or(StaticParameterKind::Type);
 
