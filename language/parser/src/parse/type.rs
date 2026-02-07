@@ -1052,6 +1052,11 @@ impl Parser {
                     parser.eat_expression()
                 })?;
 
+                // class heritage cannot start with unary expressions
+                if self.super_type_has_unparenthesized_unary_head(ty) {
+                    return Err(ParseError::unexpected(self.tree.get_span(ty)));
+                }
+
                 // record the full type span for super types
                 self.tree
                     .set_side_span(ty, NodeSpanType::Type, self.get_span_from(&type_start));
@@ -1063,6 +1068,14 @@ impl Parser {
         }
 
         Ok(types)
+    }
+
+    /// Return true when a super type starts with an unparenthesized unary expression.
+    fn super_type_has_unparenthesized_unary_head(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        matches!(self.tree.get(expression_id), Expression::Unary { .. })
     }
 }
 

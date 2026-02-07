@@ -92,7 +92,7 @@ impl Parser {
             let keyword = parser.peek_any_keyword().ok();
             if matches!(keyword, Some(Keyword::Let)) || parser.peek_mutability().is_ok() {
                 let (kind, mutability) = parser.eat_let_kind()?;
-                let declarator = parser.eat_declarator(true)?;
+                let declarator = parser.eat_declarator(true, true)?;
                 Ok(IfCondition::Let {
                     kind,
                     mutability,

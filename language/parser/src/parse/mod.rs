@@ -22,6 +22,7 @@ mod path;
 mod pattern;
 mod prelude;
 mod property;
+mod regex;
 mod seperator;
 mod stop;
 mod r#struct;

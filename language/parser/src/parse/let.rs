@@ -125,7 +125,7 @@ impl Parser {
         // parse declarators (comma-separated list)
         let mut declarators = Vec::new();
         loop {
-            let declarator_id = self.eat_declarator(false)?;
+            let declarator_id = self.eat_declarator(false, false)?;
             declarators.push(declarator_id);
 
             // Check for comma to continue parsing more declarators
@@ -133,6 +133,10 @@ impl Parser {
                 self.bump(); // eat comma
                 self.eat_newlines_maybe()?;
             } else {
+                // declarations require statement boundaries after declarators
+                if !self.declarator_has_statement_boundary() {
+                    return Err(ParseError::unexpected(self.peek()?.span));
+                }
                 break;
             }
         }
@@ -177,7 +181,7 @@ impl Parser {
         // parse declarators (comma-separated list)
         let mut declarators = Vec::new();
         loop {
-            let declarator_id = self.eat_declarator(true)?;
+            let declarator_id = self.eat_declarator(true, false)?;
             declarators.push(declarator_id);
 
             // check for comma to continue parsing more declarators
@@ -204,6 +208,7 @@ impl Parser {
     pub(super) fn eat_declarator(
         &mut self,
         require_value: bool,
+        allow_match_pattern: bool,
     ) -> ParseResult<LocalNodeId<Declarator>> {
         let _timing = self.timing_scope(tags::PARSE_DECLARATOR);
         let start = self.mark();
@@ -235,10 +240,13 @@ impl Parser {
                     keyword,
                     Some(Keyword::Var | Keyword::Const | Keyword::Readonly | Keyword::Let)
                 );
+                let is_underscore_identifier =
+                    self.identifier_for_index(self.pos_index()) == Some(self.underscore_identifier);
+                let allow_underscore_binding =
+                    self.language.is_javascript() || self.language.is_typescript();
                 if !is_mutability_keyword
                     && !has_active_split
-                    && self.identifier_for_index(self.pos_index())
-                        != Some(self.underscore_identifier)
+                    && (!is_underscore_identifier || allow_underscore_binding)
                 {
                     let (name, name_span) = self.eat_binding_identifier_with_span()?;
                     let pattern_id = self.tree.insert(
@@ -278,6 +286,11 @@ impl Parser {
                 |parser| parser.eat_pattern(),
             )?
         };
+
+        // declaration declarators must use binding patterns
+        if !allow_match_pattern && !self.declarator_pattern_is_valid_binding(pattern_id) {
+            return Err(ParseError::unexpected(self.tree.get_span(pattern_id)));
+        }
 
         // type
         let (ty, ty_span) = if self.peek_colon().is_ok() {
@@ -328,6 +341,35 @@ impl Parser {
         }
 
         Ok(declarator_id)
+    }
+
+    /// Return true when the current token can terminate a declaration statement.
+    fn declarator_has_statement_boundary(&mut self) -> bool {
+        self.is_statement_stop()
+            || self.peek_is(TokenType::CloseBrace)
+            || self.peek_is(TokenType::CloseParenthesis)
+    }
+
+    /// Return true when a declarator pattern is a valid binding.
+    fn declarator_pattern_is_valid_binding(&self, pattern_id: LocalNodeId<Pattern>) -> bool {
+        match self.tree.get(pattern_id) {
+            Pattern::Expression { value } => self.declarator_expression_is_valid_binding(*value),
+            _ => true,
+        }
+    }
+
+    /// Return true when an expression is a valid declarator binding.
+    fn declarator_expression_is_valid_binding(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        match self.tree.get(expression_id) {
+            Expression::Path {
+                path,
+                static_arguments: None,
+            } => path.segments.len() == 1,
+            _ => false,
+        }
     }
 }
 
@@ -772,5 +814,19 @@ const registry: Map<
                 assert!(value.is_some());
             });
         });
+    }
+
+    #[test]
+    fn test_reject_js_indexed_declarator_target() {
+        // source: var a[0]=0;
+        let mut test = TestParser::new_with_options("var a[0]=0;", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let start = parser.mark();
+        let error = parser
+            .eat_let(&start, DeclarationDescriptor::default())
+            .unwrap_err();
+
+        // [
+        assert_eq!(parser.get_span_str(error.leaf_span()), "[");
     }
 }

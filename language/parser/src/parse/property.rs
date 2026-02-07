@@ -245,6 +245,17 @@ impl Parser {
             return Err(ParseError::unexpected(self.peek()?.span));
         }
 
+        // object fields cannot start with an unkeyed call signature
+        if !self.options.in_type
+            && key.is_none()
+            && mode.is_none()
+            && !is_async
+            && !is_generator
+            && self.peek_is(TokenType::OpenParenthesis)
+        {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
+
         // method
         let is_method = is_async
             || is_generator

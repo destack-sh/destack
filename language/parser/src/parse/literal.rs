@@ -123,6 +123,15 @@ impl Parser {
                     ));
                 }
 
+                // reject legacy octal literals without an explicit 0o/0O prefix
+                if self.int_literal_is_legacy_octal(literal_str, base, is_bigint) {
+                    return Err(ParseError::expected_for(
+                        literal_span.span,
+                        TokenType::Literal,
+                        NodeType::Expression,
+                    ));
+                }
+
                 // JS/TS reject invalid digits for binary, octal, and hexadecimal literals
                 if (self.language.is_javascript() || self.language.is_typescript())
                     && self.int_literal_has_invalid_digits(literal_str, base, is_bigint)
@@ -473,6 +482,26 @@ impl Parser {
         second.is_ascii_digit() || second == '_'
     }
 
+    /// Return true when an int literal uses a legacy octal form.
+    fn int_literal_is_legacy_octal(
+        &self,
+        literal: &str,
+        base: NumberBase,
+        is_bigint: bool,
+    ) -> bool {
+        if base != NumberBase::Octal {
+            return false;
+        }
+
+        let body = if is_bigint {
+            literal.trim_end_matches('n')
+        } else {
+            literal
+        };
+
+        body.starts_with('0') && !body.starts_with("0o") && !body.starts_with("0O")
+    }
+
     /// Return true when an int literal contains digits that are invalid for its base.
     fn int_literal_has_invalid_digits(
         &self,
@@ -535,161 +564,6 @@ impl Parser {
         }
 
         next.span.start == literal.span.end
-    }
-
-    /// Return true when content contains a js line terminator code point.
-    ///
-    /// Regex literal bodies cannot contain raw line terminators.
-    /// This stays in parser validation because the lexer intentionally tokenizes
-    /// regex literals broadly and defers syntax-specific checks to parse.
-    fn contains_js_line_terminator(&self, content: &str) -> bool {
-        content
-            .chars()
-            .any(|character| matches!(character, '\n' | '\r' | '\u{2028}' | '\u{2029}'))
-    }
-
-    /// Return true when regex flags are valid for modern js and ts.
-    fn regex_flags_are_valid(&self, flags: &str) -> bool {
-        let mut seen_d = false;
-        let mut seen_g = false;
-        let mut seen_i = false;
-        let mut seen_m = false;
-        let mut seen_s = false;
-        let mut seen_u = false;
-        let mut seen_v = false;
-        let mut seen_y = false;
-
-        for flag in flags.chars() {
-            match flag {
-                'd' => {
-                    if seen_d {
-                        return false;
-                    }
-                    seen_d = true;
-                }
-                'g' => {
-                    if seen_g {
-                        return false;
-                    }
-                    seen_g = true;
-                }
-                'i' => {
-                    if seen_i {
-                        return false;
-                    }
-                    seen_i = true;
-                }
-                'm' => {
-                    if seen_m {
-                        return false;
-                    }
-                    seen_m = true;
-                }
-                's' => {
-                    if seen_s {
-                        return false;
-                    }
-                    seen_s = true;
-                }
-                'u' => {
-                    if seen_u {
-                        return false;
-                    }
-                    seen_u = true;
-                }
-                'v' => {
-                    if seen_v {
-                        return false;
-                    }
-                    seen_v = true;
-                }
-                'y' => {
-                    if seen_y {
-                        return false;
-                    }
-                    seen_y = true;
-                }
-                _ => return false,
-            }
-        }
-
-        // unicode and unicode-sets are mutually exclusive
-        if seen_u && seen_v {
-            return false;
-        }
-
-        true
-    }
-
-    /// Return true when regex unicode escapes are valid for the provided flags.
-    fn regex_unicode_escapes_are_valid(&self, pattern: &str, flags: &str) -> bool {
-        // unicode escape validation only applies in unicode regex modes
-        let has_unicode_mode = flags.chars().any(|flag| flag == 'u' || flag == 'v');
-        if !has_unicode_mode {
-            return true;
-        }
-
-        // scan escaped unicode code point forms like \u{1F600}
-        let mut characters = pattern.chars().peekable();
-        while let Some(character) = characters.next() {
-            if character != '\\' {
-                continue;
-            }
-
-            let Some(next) = characters.next() else {
-                break;
-            };
-            if next != 'u' {
-                continue;
-            }
-
-            if !matches!(characters.peek(), Some('{')) {
-                continue;
-            }
-            characters.next();
-
-            let mut digits = 0_usize;
-            let mut significant_digits = 0_usize;
-            let mut value: u32 = 0;
-            while let Some(next_character) = characters.peek().copied() {
-                if next_character == '}' {
-                    break;
-                }
-
-                let Some(digit) = next_character.to_digit(16) else {
-                    return false;
-                };
-                digits += 1;
-
-                if digit != 0 || significant_digits > 0 {
-                    significant_digits += 1;
-                    if significant_digits > 6 {
-                        return false;
-                    }
-
-                    value = match value
-                        .checked_mul(16)
-                        .and_then(|value| value.checked_add(digit))
-                    {
-                        Some(value) => value,
-                        None => return false,
-                    };
-                }
-                characters.next();
-            }
-
-            if digits == 0 {
-                return false;
-            }
-            if characters.next() != Some('}') {
-                return false;
-            }
-            if value > 0x10FFFF {
-                return false;
-            }
-        }
-
-        true
     }
 
     /// Peek a template literal.

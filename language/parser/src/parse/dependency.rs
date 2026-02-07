@@ -490,7 +490,10 @@ impl Parser {
             for item_id in &items {
                 let item = self.tree.get(*item_id);
                 if item.mode == DependencyMode::Default && item.name.is_none() {
-                    let span = self.tree.get_span(*item_id);
+                    let span = self
+                        .tree
+                        .get_main_span(*item_id)
+                        .unwrap_or(self.tree.get_span(*item_id));
                     return Err(ParseError::unexpected(span));
                 }
             }
@@ -1499,18 +1502,148 @@ export type { CreateUIMessage, UIMessage }
 
     #[test]
     fn test_reject_export_type_without_binding() {
+        // source: export type
+        let source = "export type";
         let mut test = TestParser::new_with_options("export type", LanguageType::TypeScript);
         let mut parser = test.prepare();
-        let result = parser.eat_export();
-        assert!(result.is_err());
+        let error = parser.eat_export().unwrap_err();
+
+        // eof
+        assert_eq!(parser.get_span_str(error.leaf_span()), "");
+        assert_eq!(error.leaf_span().start, source.len() as u32);
     }
 
     #[test]
     fn test_reject_export_default_enum() {
+        // source: export default enum A { X, Y, Z }
         let mut test = TestParser::new("export default enum A { X, Y, Z }");
         let mut parser = test.prepare();
-        let result = parser.eat_export();
-        assert!(result.is_err());
+        let error = parser.eat_export().unwrap_err();
+
+        // enum
+        assert_eq!(parser.get_span_str(error.leaf_span()), "enum");
+    }
+
+    #[test]
+    fn test_parse_export_keyword_name_without_target() {
+        // source: export { if }
+        let mut test = TestParser::new("export { if }");
+        let mut parser = test.prepare();
+        let export_id = parser.eat_export().unwrap();
+
+        assert_node!(parser.tree, export_id, Expression::Export { kind, target, items, .. } => {
+            assert_eq!(*kind, DependencyKind::Value);
+            assert!(target.is_none());
+            assert_eq!(items.len(), 1);
+            assert_node!(parser.tree, items[0], DependencyItem { mode, kind, name: Some(name), alias, .. } => {
+                assert_eq!(*mode, DependencyMode::Item);
+                assert_eq!(*kind, None);
+                assert_string!(parser, name.string(), "if");
+                assert!(alias.is_none());
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_export_keyword_alias_without_target() {
+        // source: export { if as foo }
+        let mut test = TestParser::new("export { if as foo }");
+        let mut parser = test.prepare();
+        let export_id = parser.eat_export().unwrap();
+
+        assert_node!(parser.tree, export_id, Expression::Export { kind, target, items, .. } => {
+            assert_eq!(*kind, DependencyKind::Value);
+            assert!(target.is_none());
+            assert_eq!(items.len(), 1);
+            assert_node!(parser.tree, items[0], DependencyItem { mode, kind, name: Some(name), alias: Some(alias), .. } => {
+                assert_eq!(*mode, DependencyMode::Item);
+                assert_eq!(*kind, None);
+                assert_string!(parser, name.string(), "if");
+                assert_string!(parser, *alias, "foo");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_export_as_identifier_without_target() {
+        // source: export { as }
+        let mut test = TestParser::new("export { as }");
+        let mut parser = test.prepare();
+        let export_id = parser.eat_export().unwrap();
+
+        assert_node!(parser.tree, export_id, Expression::Export { kind, target, items, .. } => {
+            assert_eq!(*kind, DependencyKind::Value);
+            assert!(target.is_none());
+            assert_eq!(items.len(), 1);
+            assert_node!(parser.tree, items[0], DependencyItem { mode, kind, name: Some(name), alias, .. } => {
+                assert_eq!(*mode, DependencyMode::Item);
+                assert_eq!(*kind, None);
+                assert_string!(parser, name.string(), "as");
+                assert!(alias.is_none());
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_export_type_identifier_without_target() {
+        // source: export { type }
+        let mut test = TestParser::new_with_options("export { type }", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let export_id = parser.eat_export().unwrap();
+
+        assert_node!(parser.tree, export_id, Expression::Export { kind, target, items, .. } => {
+            assert_eq!(*kind, DependencyKind::Value);
+            assert!(target.is_none());
+            assert_eq!(items.len(), 1);
+            assert_node!(parser.tree, items[0], DependencyItem { mode, kind, name: Some(name), alias, .. } => {
+                assert_eq!(*mode, DependencyMode::Item);
+                assert_eq!(*kind, None);
+                assert_string!(parser, name.string(), "type");
+                assert!(alias.is_none());
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_export_named_type_with_keyword_alias_without_target() {
+        // source: export { type as if }
+        let mut test =
+            TestParser::new_with_options("export { type as if }", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let export_id = parser.eat_export().unwrap();
+
+        assert_node!(parser.tree, export_id, Expression::Export { kind, target, items, .. } => {
+            assert_eq!(*kind, DependencyKind::Value);
+            assert!(target.is_none());
+            assert_eq!(items.len(), 1);
+            assert_node!(parser.tree, items[0], DependencyItem { mode, kind, name: Some(name), alias: Some(alias), .. } => {
+                assert_eq!(*mode, DependencyMode::Item);
+                assert_eq!(*kind, None);
+                assert_string!(parser, name.string(), "type");
+                assert_string!(parser, *alias, "if");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_export_type_only_as_as_keyword_alias_without_target() {
+        // source: export { type as as if }
+        let mut test =
+            TestParser::new_with_options("export { type as as if }", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let export_id = parser.eat_export().unwrap();
+
+        assert_node!(parser.tree, export_id, Expression::Export { kind, target, items, .. } => {
+            assert_eq!(*kind, DependencyKind::Value);
+            assert!(target.is_none());
+            assert_eq!(items.len(), 1);
+            assert_node!(parser.tree, items[0], DependencyItem { mode, kind, name: Some(name), alias: Some(alias), .. } => {
+                assert_eq!(*mode, DependencyMode::Item);
+                assert_eq!(*kind, Some(DependencyKind::Type));
+                assert_string!(parser, name.string(), "as");
+                assert_string!(parser, *alias, "if");
+            });
+        });
     }
 
     #[test]

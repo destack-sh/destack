@@ -217,20 +217,8 @@ impl Parser {
             }
         };
 
-        // body
-        if self.peek_block().is_ok() {
-            let block_id = self.eat_block()?;
-            let match_case_id = self.tree.insert(
-                MatchCase::Block {
-                    selector,
-                    body: block_id,
-                },
-                self.get_span_from(&start),
-            );
-            Ok(match_case_id)
-        }
-        // implicit case block/expression
-        else if kind == MatchKind::Switch {
+        // switch case body: consume statements until break or next case boundary
+        if kind == MatchKind::Switch {
             // eat expressions until we hit a break (inclusive) or case / default (exclusive)
             self.eat_newlines_maybe()?;
             // empty case body before the next case, default, or closing brace
@@ -271,7 +259,13 @@ impl Parser {
                 {
                     break;
                 }
-                let expression_id = self.try_eat_expression(TokenType::Newline)?;
+                let expression_id = self.try_eat_statement_expression()?;
+                let expression_id =
+                    if let Expression::Statement(statement_id) = self.tree.get(expression_id) {
+                        *statement_id
+                    } else {
+                        expression_id
+                    };
                 expressions.push(expression_id);
                 if self.is_any_stop() {
                     self.eat_any_stop_with_newlines()?;
@@ -307,6 +301,18 @@ impl Parser {
                     self.get_span_from(&start),
                 )
             };
+            Ok(match_case_id)
+        }
+        // block body
+        else if self.peek_block().is_ok() {
+            let block_id = self.eat_block()?;
+            let match_case_id = self.tree.insert(
+                MatchCase::Block {
+                    selector,
+                    body: block_id,
+                },
+                self.get_span_from(&start),
+            );
             Ok(match_case_id)
         }
         // single expression
@@ -557,6 +563,32 @@ switch (left.type) {
                 // body
                 assert_node!(parser.tree, *body, Block { format: _, expressions } => {
                     assert_eq!(expressions.len(), 2);
+                });
+            });
+        });
+    }
+
+    /// Parse a switch case with a block statement followed by a regex expression statement.
+    #[test]
+    fn test_parse_switch_case_block_then_regex_expression_statement() {
+        let mut test = TestParser::new(
+            r###"
+switch(a) { case 1: {}
+/foo/ }
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        // switch(a) { case 1: {} /foo/ }
+        let switch_id = parser.eat_match().unwrap();
+        assert_node!(parser.tree, switch_id, Expression::Match { kind: MatchKind::Switch, cases, .. } => {
+            assert_eq!(cases.len(), 1);
+            assert_node!(parser.tree, cases[0], MatchCase::Block { body, .. } => {
+                assert_node!(parser.tree, *body, Block { format: _, expressions } => {
+                    assert_eq!(expressions.len(), 2);
+                    assert_node!(parser.tree, expressions[0], Expression::Block(_));
+                    assert_node!(parser.tree, expressions[1], Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
                 });
             });
         });
