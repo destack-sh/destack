@@ -1437,6 +1437,10 @@ fn is_type_context(context: &DestackFormatContext<'_>, node_id: LocalNodeId<Expr
                         ty.is_some_and(|ty| ty.id == current_id)
                             || value.is_some_and(|value| value.id == current_id)
                     }
+                    Member::ComptimeConst { ty, value, .. } => {
+                        ty.is_some_and(|ty| ty.id == current_id)
+                            || value.is_some_and(|value| value.id == current_id)
+                    }
                     Member::Field { value, .. } => {
                         value.is_some_and(|value| value.id == current_id)
                     }

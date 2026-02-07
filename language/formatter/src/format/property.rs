@@ -199,14 +199,16 @@ pub(crate) fn format_block_of_members<'ast>(
         if is_typescript {
             let needs_semicolon = matches!(
                 member,
-                Member::Field { .. } | Member::Method { body: None, .. }
+                Member::Field { .. }
+                    | Member::ComptimeConst { .. }
+                    | Member::Method { body: None, .. }
             );
             if needs_semicolon {
                 write!(f, [token(";")])?;
             }
         } else {
             // comma after field members
-            if matches!(member, Member::Field { .. }) {
+            if matches!(member, Member::Field { .. } | Member::ComptimeConst { .. }) {
                 write!(f, [token(",")])?;
             }
         }
@@ -540,6 +542,35 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                     write!(f, [token(":"), space(), ty])?;
                 }
                 // value
+                if let Some(value) = value {
+                    write!(f, [space(), token("="), space(), value])?;
+                }
+            }
+            Member::ComptimeConst {
+                modifiers,
+                name,
+                ty,
+                value,
+            } => {
+                // keep non-comptime modifiers before the associated keyword pair
+                if let Some(mut modifiers) = *modifiers {
+                    modifiers.timing = None;
+                    modifiers.operator = None;
+                    format_binding_modifiers_prefix(f, modifiers)?;
+                }
+
+                // associated comptime constants are always emitted in canonical order
+                write!(
+                    f,
+                    [Keyword::Comptime, space(), Keyword::Const, space(), name]
+                )?;
+
+                // optional type annotation
+                if let Some(ty) = ty {
+                    write!(f, [token(":"), space(), ty])?;
+                }
+
+                // optional initializer
                 if let Some(value) = value {
                     write!(f, [space(), token("="), space(), value])?;
                 }

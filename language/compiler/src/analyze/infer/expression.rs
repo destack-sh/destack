@@ -143,7 +143,10 @@ impl Compiler {
                     Member::StaticBlock { .. } => {
                         return Some(SuperHomeObjectKind::ClassStaticBlock);
                     }
-                    Member::Type { .. } | Member::Embed { .. } | Member::ComptimeBlock { .. } => {
+                    Member::Type { .. }
+                    | Member::ComptimeConst { .. }
+                    | Member::Embed { .. }
+                    | Member::ComptimeBlock { .. } => {
                         return None;
                     }
                 }

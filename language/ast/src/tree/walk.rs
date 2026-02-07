@@ -1090,6 +1090,21 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *value, value_expr);
             }
         }
+        Member::ComptimeConst {
+            modifiers: _,
+            name: _,
+            ty,
+            value,
+        } => {
+            if let Some(ty) = ty {
+                let ty_expr = tree.get(*ty);
+                visitor.visit_expression(tree, *ty, ty_expr);
+            }
+            if let Some(value) = value {
+                let value_expr = tree.get(*value);
+                visitor.visit_expression(tree, *value, value_expr);
+            }
+        }
         Member::Field {
             modifiers: _,
             key,

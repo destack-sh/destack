@@ -97,6 +97,13 @@ pub fn format_member_hover(
                 format!("(type member) {qualified_name}")
             }
         }
+        dir::Member::ComptimeConst { .. } => {
+            if let Some(ty) = type_str {
+                format!("(comptime const) {qualified_name}: {ty}")
+            } else {
+                format!("(comptime const) {qualified_name}")
+            }
+        }
         dir::Member::Field { .. } => {
             if let Some(ty) = type_str {
                 format!("(property) {qualified_name}: {ty}")

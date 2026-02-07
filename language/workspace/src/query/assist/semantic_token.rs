@@ -407,6 +407,12 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
                 let mods = modifiers_from_binding(modifiers, true);
                 (SemanticTokenType::Type, mods)
             }
+            dir::Member::ComptimeConst { modifiers, .. } => {
+                let mut mods = modifiers_from_binding(modifiers, true);
+                mods = mods.union(SemanticTokenModifiers::READONLY);
+                mods = mods.union(SemanticTokenModifiers::STATIC);
+                (SemanticTokenType::Property, mods)
+            }
             dir::Member::Field { modifiers, .. } => {
                 let mods = modifiers_from_binding(modifiers, true);
                 (SemanticTokenType::Property, mods)

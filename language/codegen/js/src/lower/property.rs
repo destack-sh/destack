@@ -149,6 +149,14 @@ impl ModuleLowerer<'_> {
                     message: Some("associated type members are compile-time only".to_string()),
                 });
             }
+            dir::Member::ComptimeConst { .. } => {
+                return Err(CodegenJsError::UnsupportedConstruct {
+                    node: member_id.into_global_any(self.module.id),
+                    message: Some(
+                        "associated comptime constants are compile-time only".to_string(),
+                    ),
+                });
+            }
             dir::Member::Field {
                 modifiers,
                 key,

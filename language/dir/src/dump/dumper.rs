@@ -1663,6 +1663,18 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("symbol", symbol)
                     .end();
             }
+            Member::ComptimeConst {
+                modifiers,
+                name: _,
+                ty: _,
+                value: _,
+                symbol,
+            } => {
+                self.node("Member::ComptimeConst", id.id)
+                    .field_optional("modifiers", modifiers)
+                    .field("symbol", symbol)
+                    .end();
+            }
             Member::Field {
                 modifiers,
                 key,

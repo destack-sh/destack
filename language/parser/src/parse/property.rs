@@ -1,9 +1,9 @@
 #![allow(clippy::type_complexity)]
 
 use destack_ast::{
-    AbstractionModifier, Asynchrony, BindingKind, BindingModifier, Expression, FunctionAbstraction,
-    FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature, Generics, Key, Keyword,
-    LocalNodeId, Member, Name, NodeType, Property, TokenType,
+    AbstractionModifier, Asynchrony, BindingKind, BindingModifier, BindingOperator, Expression,
+    FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature,
+    Generics, Key, Keyword, LocalNodeId, Member, Name, NodeType, Property, Timing, TokenType,
 };
 use destack_source::NodeSpanType;
 
@@ -256,6 +256,18 @@ impl Parser {
             return Err(ParseError::unexpected(self.peek()?.span));
         }
 
+        // associated comptime constants are field-like members with explicit names
+        let associated_comptime_name = if modifiers.as_ref().is_some_and(|modifiers| {
+            modifiers.timing == Some(Timing::Comptime)
+                && modifiers.operator == Some(BindingOperator::AsConst)
+        }) {
+            match key.as_ref() {
+                Some(Key::Name(Name::Identifier(name))) => Some(*name),
+                _ => return Err(ParseError::unexpected(self.peek()?.span)),
+            }
+        } else {
+            None
+        };
         // method
         let is_method = is_async
             || is_generator
@@ -274,6 +286,11 @@ impl Parser {
         }
 
         if is_method {
+            // associated comptime constants cannot use method syntax
+            if associated_comptime_name.is_some() {
+                return Err(ParseError::unexpected(self.peek()?.span));
+            }
+
             // abstraction
             let abstraction = modifiers
                 .and_then(|modifiers| modifiers.abstraction)
@@ -431,10 +448,17 @@ impl Parser {
             let default = if self.peek_is(TokenType::Assign) {
                 self.bump(); // eat assign
                 self.eat_newlines_maybe()?;
-                let default = self.with_options(
-                    self.options.not_in_position().not_in_sequence_expression(),
-                    |parser| parser.eat_expression(),
-                )?;
+                // keep associated comptime defaults in expression mode
+                let default_options = if associated_comptime_name.is_some() {
+                    self.options
+                        .nested()
+                        .not_in_position()
+                        .not_in_sequence_expression()
+                } else {
+                    self.options.not_in_position().not_in_sequence_expression()
+                };
+                let default =
+                    self.with_options(default_options, |parser| parser.eat_expression())?;
                 Some(default)
             } else {
                 None
@@ -834,6 +858,19 @@ impl Parser {
             return Err(ParseError::unexpected(self.peek()?.span));
         }
 
+        // associated comptime constants are field-like members with explicit names
+        let associated_comptime_name = if modifiers.as_ref().is_some_and(|modifiers| {
+            modifiers.timing == Some(Timing::Comptime)
+                && modifiers.operator == Some(BindingOperator::AsConst)
+        }) {
+            match key.as_ref() {
+                Some(Key::Name(Name::Identifier(name))) => Some(*name),
+                _ => return Err(ParseError::unexpected(self.peek()?.span)),
+            }
+        } else {
+            None
+        };
+
         // method
         let is_method = is_async
             || is_generator
@@ -847,6 +884,11 @@ impl Parser {
         }
 
         if is_method {
+            // associated comptime constants cannot use method syntax
+            if associated_comptime_name.is_some() {
+                return Err(ParseError::unexpected(self.peek()?.span));
+            }
+
             // abstraction
             let abstraction = modifiers
                 .and_then(|modifiers| modifiers.abstraction)
@@ -980,8 +1022,13 @@ impl Parser {
                 let type_start = self.mark();
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;
+                // parse associated comptime annotations in type mode so `= ...` remains a default
+                let parse_as_type = self.options.in_variant
+                    || self.options.in_type
+                    || associated_comptime_name.is_some();
+
                 // keep in type / in variant (for `type x = { .. }` expressions)
-                let value = if self.options.in_variant || self.options.in_type {
+                let value = if parse_as_type {
                     self.with_options(
                         self.options
                             .not_in_position()
@@ -1033,11 +1080,20 @@ impl Parser {
             {
                 return Err(ParseError::unexpected(self.peek()?.span));
             }
-            let member = Member::Field {
-                modifiers,
-                key,
-                value,
-                default,
+            let member = if let Some(name) = associated_comptime_name {
+                Member::ComptimeConst {
+                    modifiers,
+                    name,
+                    ty: value,
+                    value: default,
+                }
+            } else {
+                Member::Field {
+                    modifiers,
+                    key,
+                    value,
+                    default,
+                }
             };
             let member_id = self.tree.insert(member, self.get_span_from(&start));
 
@@ -1097,9 +1153,9 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        AbstractionModifier, Asynchrony, BindingAnchor, BindingKind, Declaration, Expression,
-        FunctionAbstraction, FunctionKind, FunctionMode, IntType, Key, Member, Name, Parameter,
-        Property, ScalarLiteral, TypeLiteral, Visibility,
+        AbstractionModifier, Asynchrony, BinaryOperator, BindingAnchor, BindingKind, Declaration,
+        Expression, FunctionAbstraction, FunctionKind, FunctionMode, IntType, Key, Member, Name,
+        Parameter, Property, ScalarLiteral, TypeLiteral, Visibility,
     };
     use destack_source::LanguageType;
 
@@ -1488,6 +1544,34 @@ foo(): string;"#,
             assert_eq!(static_parameters.len(), 1);
             assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, .. } => {
                 assert_string!(parser, *name, "U");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_member_associated_comptime_const() {
+        let mut test = TestParser::new("comptime const Rows: number = 128");
+        let mut parser = test.prepare();
+        let member_id = parser.eat_member().unwrap();
+        assert_node!(parser.tree, member_id, Member::ComptimeConst { modifiers: Some(modifiers), name, ty: Some(ty), value: Some(value) } => {
+            assert_eq!(modifiers.timing, Some(destack_ast::Timing::Comptime));
+            assert_eq!(modifiers.operator, Some(destack_ast::BindingOperator::AsConst));
+            assert_string!(parser, *name, "Rows");
+            assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Number));
+            assert_node!(parser.tree, *value, Expression::ScalarLiteral(value) => {
+                assert_eq!(*value, ScalarLiteral::Integer(128));
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_member_associated_comptime_const_binary_default() {
+        let mut test = TestParser::new("comptime const LaneWidth: number = WidthHint * 2");
+        let mut parser = test.prepare();
+        let member_id = parser.eat_member().unwrap();
+        assert_node!(parser.tree, member_id, Member::ComptimeConst { value: Some(value), .. } => {
+            assert_node!(parser.tree, *value, Expression::Binary { operator, .. } => {
+                assert_eq!(*operator, BinaryOperator::Multiply);
             });
         });
     }

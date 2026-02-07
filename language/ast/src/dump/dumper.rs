@@ -1357,6 +1357,16 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("modifiers", modifiers)
                     .end();
             }
+            Member::ComptimeConst {
+                modifiers,
+                name: _,
+                ty: _,
+                value: _,
+            } => {
+                self.node("Member::ComptimeConst", id.id)
+                    .field_optional("modifiers", modifiers)
+                    .end();
+            }
             Member::Field {
                 modifiers,
                 key,

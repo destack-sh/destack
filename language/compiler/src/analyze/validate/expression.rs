@@ -698,6 +698,24 @@ impl Compiler {
             // direct instantiation receivers are invalid for member-like access
             Expression::Instantiation { .. } => true,
 
+            // references with static arguments are instantiation receivers too
+            Expression::UnresolvedPath {
+                static_arguments: Some(_),
+                ..
+            }
+            | Expression::LocalReference {
+                static_arguments: Some(_),
+                ..
+            }
+            | Expression::ModuleReference {
+                static_arguments: Some(_),
+                ..
+            }
+            | Expression::GlobalReference {
+                static_arguments: Some(_),
+                ..
+            } => true,
+
             // optional-chain wrappers preserve the original receiver shape
             Expression::Maybe { left } => {
                 self.expression_is_unparenthesized_instantiation_receiver(tree, *left)

@@ -135,6 +135,27 @@ impl Parser {
                     self.get_span_from(&start),
                 )
             }
+            // null and undefined literals
+            else if self.peek_identifier_str("null").is_ok()
+                || self.peek_identifier_str("undefined").is_ok()
+            {
+                let literal = if self.peek_identifier_str("null").is_ok() {
+                    TypeLiteral::Null
+                } else {
+                    TypeLiteral::Undefined
+                };
+                self.bump(); // eat literal identifier
+
+                let expression_id = self
+                    .tree
+                    .insert(Expression::TypeLiteral(literal), self.get_span_from(&start));
+                self.tree.insert(
+                    Pattern::Expression {
+                        value: expression_id,
+                    },
+                    self.get_span_from(&start),
+                )
+            }
             // binding with expression or pattern
             else if !self.options.in_before_type
                 && self.peek_identifier().is_ok()
