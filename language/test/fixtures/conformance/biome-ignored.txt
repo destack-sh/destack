@@ -23,11 +23,9 @@ error/decorator_export_default_expression_clause.ts
 error/decorator_function_export_default_declaration_clause.ts
 error/decorator_interface_export_default_declaration_clause.ts
 error/ts_decorator_object.ts
-error/ts_decorator_on_arrow_function.ts
 error/ts_decorator_on_class_method.ts
 error/ts_decorator_on_class_setter.ts
 error/ts_decorator_on_function_declaration.ts
-error/ts_decorator_on_function_expression.ts
 error/ts_decorator_this_parameter.ts
 error/ts_decorator_this_parameter_option.ts
 error/ts_formal_parameter_decorator.ts
