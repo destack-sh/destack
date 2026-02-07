@@ -233,17 +233,16 @@ impl Parser {
                     let expression = self.tree.get(expression_id);
                     let is_statement = matches!(expression, Expression::Statement(_))
                         || expression.is_top_level_statement();
+                    let has_separator = matches!(
+                        self.peek_token_type(),
+                        TokenType::Newline
+                            | TokenType::Semicolon
+                            | TokenType::CloseBrace
+                            | TokenType::End
+                    ) || self.has_line_terminator_before_current_token();
 
                     // require statement separators after expressions to avoid token glue
-                    if !is_statement
-                        && !matches!(
-                            self.peek_token_type(),
-                            TokenType::Newline
-                                | TokenType::Semicolon
-                                | TokenType::CloseBrace
-                                | TokenType::End
-                        )
-                    {
+                    if !is_statement && !has_separator {
                         return Err(ParseError::unexpected(self.peek()?.span));
                     }
                     Ok((expression_id, is_statement))
@@ -646,6 +645,23 @@ mod tests {
         let block_id = parser.eat_block().unwrap();
         let block = parser.tree.get(block_id);
         assert!(block.expressions.is_empty());
+    }
+
+    #[test]
+    fn test_statement_expression_separator_with_comment_newline() {
+        let mut test = TestParser::new_with_options(
+            "'use strict' /**/ \n nextValue",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let (directive_id, is_statement) = parser.try_eat_statement_expression_with_flag().unwrap();
+        assert!(!is_statement);
+        assert_node!(parser.tree, directive_id, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+            assert_string!(parser, *string_id, "use strict");
+        });
+
+        let next_id = parser.try_eat_statement_expression().unwrap();
+        assert_expression_path!(parser, parser.tree.get(next_id), "nextValue");
     }
 
     #[test]
