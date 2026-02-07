@@ -435,13 +435,27 @@ struct Cache<K, V> {
 }
 ```
 
-Associated types are resolved at compile time and can reference static parameters.
-Associated types can declare their own static parameters (generic associated types, like GATs in Rust land).
-`type View<U> = SliceView<T, U>`.
-Associated types can also use comptime static value parameters.
-`type View<comptime n: uint> = Window<T, n>`.
-Interfaces may leave associated types abstract or supply defaults, and implementors provide concrete definitions.
-Associated types are type-only and are accessed through the containing type like `Cache<int, string>.Entry`.
+Associated types are compile-time members of class-shaped declarations, carrying type-level contracts on the owner that compose with generic specialization.
+Interfaces can declare required or default associated aliases, and implementors provide concrete definitions.
+Associated types can also be generic (GAT-style), including mixed type and comptime value parameters.
+Exact projection, inheritance, and compatibility rules are specified in `SPECIFICATION.md`.
+
+#### Associated Comptime Constants
+
+Class-shaped declarations can also expose compile-time associated values with `comptime const`, orthogonal to runtime `static const`.
+ - `comptime const` is for compile-time association and specialization.
+ - `static const` is for runtime class or struct members.
+
+```
+interface LogStore<Record> {
+    comptime const SegmentRows: number = 1024;
+    type Segment = Record[this.SegmentRows];
+}
+
+class AuditLog implements LogStore<string> {
+    comptime const SegmentRows: number = 2048;
+}
+```
 
 ### Constraints
 

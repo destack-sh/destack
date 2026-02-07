@@ -1267,6 +1267,17 @@ class Config {
 A `static` block runs at class initialization time (runtime). 
 A `comptime` expression runs during compilation (no runtime exists yet). 
 
+`static const` and `comptime const` also serve different roles:
+
+| Member form | Phase | Runtime slot | Typical usage |
+|-------------|-------|--------------|---------------|
+| `static const` | runtime/value | yes | runtime class metadata and constants |
+| `comptime const` | Analyze static evaluation | no | associated compile-time values used by types and static projections |
+
+`static const` initializers cannot depend directly on type-only operators like `T extends U`.
+Use `comptime const` when a value depends on type-level relations or static parameter substitution.
+`static comptime const` is invalid and rejected as redundant because `comptime const` is already static by ownership.
+
 ### Comptime Type Conditions
 
 When an `if (comptime ...)` condition is a type relation (`T extends U`):
@@ -1840,6 +1851,50 @@ Projection forms are `TypeName.Associated` or `TypeName.Associated<Args>` for ge
 type Item = Container<string>.Item;
 type View = Buffer<int>.View<float64>;
 ```
+
+##### Associated Comptime Constants
+
+Class-shaped declarations can also declare associated compile-time values with `comptime const`.
+Associated comptime constants are declaration members in static space, not instance fields.
+Associated comptime constants are allowed on classes, structs, interfaces, and extensions implementing interfaces.
+Type aliases cannot declare associated comptime constants.
+
+```ds
+interface LogStore<Record> {
+    comptime const SegmentRows: number = 1024;
+    type Segment = Record[this.SegmentRows];
+}
+
+class AuditLog implements LogStore<string> {
+    comptime const SegmentRows: number = 2048;
+}
+```
+
+`comptime const` initializers must be statically evaluable expressions.
+In classes and structs, associated comptime constants must have initializers.
+In interfaces, associated comptime constants may be abstract (`;`) or defaulted (`= ...`).
+(Implementors must provide definitions for inherited abstract associated comptime constants that satisfy the declared type and constraints from the implemented interface.)
+
+Associated comptime constant projections are allowed in static and type-level contexts.
+Value-level usage is allowed when the projection is fully resolvable during Analyze and can be folded.
+If a value-level projection is not fully resolvable in the current context, we emit an error.
+Projection in value-level expressions does not imply runtime field storage: the owner member remains compile-time only (and thus never emitted as a runtime slot).
+
+```ds
+class SegmentPlan<Row> {
+    comptime const SegmentBytes: number = Row extends string ? 4096 : 1024;
+}
+
+const ok = SegmentPlan<string>.SegmentBytes + 1;
+
+function unresolved<Row>(): number {
+    return SegmentPlan<Row>.SegmentBytes;
+}
+```
+
+For `unresolved<Row>`, the compiler reports that the associated comptime projection is not resolvable.
+Associated comptime constants are compile-time members and thus do not have runtime storage slots.
+Inside associated type and associated comptime declarations, `this` refers to the containing owner with outer substitutions applied (as you would expect).
 
 ### Enum
 

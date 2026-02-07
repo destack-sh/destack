@@ -13,3 +13,56 @@ destack_test::specification::types/operators/import.md/import-type-queries/impor
 destack_test::specification::types/ownership/managed.md/owned-mutability/readonly-owned-values-forbid-mutation
 destack_test::specification::types/ownership/borrows.md/borrow-modes/hint-mode-emits-warnings-for-conflicts
 destack_test::specification::types/ownership/borrows.md/borrow-modes/strict-mode-reports-conflicts-as-errors
+    destack_test::specification::declarations/associated-comptime/classes.md/classes/abstract-classes-can-declare-abstract-associated-comptime-constants
+    destack_test::specification::declarations/associated-comptime/classes.md/classes/class-associated-comptime-constants-can-coexist-with-runtime-static-constants
+    destack_test::specification::declarations/associated-comptime/classes.md/classes/class-associated-comptime-constants-can-use-outer-type-substitutions
+    destack_test::specification::declarations/associated-comptime/classes.md/classes/class-associated-comptime-constants-enforce-annotation-compatibility
+    destack_test::specification::declarations/associated-comptime/classes.md/classes/class-associated-comptime-constants-require-initializer
+    destack_test::specification::declarations/associated-comptime/classes.md/classes/class-associated-comptime-constants-require-static-initializers
+    destack_test::specification::declarations/associated-comptime/classes.md/classes/class-can-declare-associated-comptime-constants
+    destack_test::specification::declarations/associated-comptime/classes.md/classes/class-static-const-remains-runtime-member-not-associated-comptime-member
+    destack_test::specification::declarations/associated-comptime/classes.md/classes/concrete-subclasses-must-implement-abstract-associated-comptime-constants
+    destack_test::specification::declarations/associated-comptime/interfaces.md/interfaces/class-implementor-can-override-interface-associated-comptime-constants
+    destack_test::specification::declarations/associated-comptime/interfaces.md/interfaces/implementor-must-define-abstract-associated-comptime-constants
+    destack_test::specification::declarations/associated-comptime/interfaces.md/interfaces/implementor-override-must-satisfy-interface-associated-comptime-constant-type
+    destack_test::specification::declarations/associated-comptime/interfaces.md/interfaces/interface-associated-comptime-constants-can-describe-fixed-tensor-layouts
+    destack_test::specification::declarations/associated-comptime/interfaces.md/interfaces/interface-associated-comptime-constants-can-drive-vector-lane-aliases
+    destack_test::specification::declarations/associated-comptime/interfaces.md/interfaces/interface-can-declare-abstract-associated-comptime-constants
+    destack_test::specification::declarations/associated-comptime/interfaces.md/interfaces/interface-can-declare-default-associated-comptime-constants
+    destack_test::specification::declarations/associated-comptime/interfaces.md/interfaces/interface-default-can-reference-sibling-associated-comptime-constants
+    destack_test::specification::declarations/associated-comptime/modules.md/modules/associated-comptime-constants-resolve-across-module-boundaries
+    destack_test::specification::declarations/associated-comptime/modules.md/modules/associated-comptime-constants-resolve-through-re-export-chains
+    destack_test::specification::declarations/associated-comptime/modules.md/modules/associated-comptime-constants-support-tensor-style-shape-specialization-across-modules
+    destack_test::specification::declarations/associated-comptime/modules.md/modules/associated-comptime-projections-reject-unresolved-imported-generic-value-usage
+    destack_test::specification::declarations/associated-comptime/modules.md/modules/interface-abstract-associated-comptime-requirements-survive-imports
+    destack_test::specification::declarations/associated-comptime/projections.md/projections/associated-comptime-projections-can-parameterize-vector-width-aliases
+    destack_test::specification::declarations/associated-comptime/projections.md/projections/associated-comptime-projections-compose-with-associated-types
+    destack_test::specification::declarations/associated-comptime/projections.md/projections/associated-comptime-projections-detect-cycles
+    destack_test::specification::declarations/associated-comptime/projections.md/projections/associated-comptime-projections-reject-dynamic-instance-access
+    destack_test::specification::declarations/associated-comptime/projections.md/projections/associated-comptime-projections-reject-runtime-only-operations-in-initializer-flow
+    destack_test::specification::declarations/associated-comptime/projections.md/projections/type-level-projections-can-use-associated-comptime-constants
+    destack_test::specification::declarations/associated-comptime/projections.md/projections/value-level-projections-can-be-used-when-fully-resolvable
+    destack_test::specification::declarations/associated-comptime/projections.md/projections/value-level-projections-reject-unresolved-generic-substitutions
+    destack_test::specification::declarations/associated-comptime/structs.md/structs/struct-associated-comptime-constants-can-drive-sibling-associated-types
+    destack_test::specification::declarations/associated-comptime/structs.md/structs/struct-associated-comptime-constants-can-use-static-value-parameters
+    destack_test::specification::declarations/associated-comptime/structs.md/structs/struct-associated-comptime-constants-reject-declaration-without-initializer
+    destack_test::specification::declarations/associated-comptime/structs.md/structs/struct-associated-comptime-constants-reject-non-static-initializers
+    destack_test::specification::declarations/associated-comptime/structs.md/structs/struct-can-declare-associated-comptime-constants
+    destack_test::specification::declarations/associated-comptime/classes.md/classes/class-static-comptime-const-is-rejected-as-redundant
+    destack_test::specification::declarations/associated-comptime/interfaces.md/interfaces/implementing-multiple-interfaces-can-share-compatible-associated-comptime-constants
+    destack_test::specification::declarations/associated-comptime/interfaces.md/interfaces/implementing-multiple-interfaces-rejects-incompatible-associated-comptime-defaults
+    destack_test::specification::declarations/associated-comptime/modules.md/modules/associated-comptime-projections-resolve-through-namespace-imports
+    destack_test::specification::declarations/associated-comptime/modules.md/modules/cross-module-codec-layout-composes-associated-comptime-and-associated-types
+    destack_test::specification::declarations/associated-comptime/layouts.md/layouts/kernel-profile-composes-lane-width-with-tensor-tile-aliases
+    destack_test::specification::declarations/associated-comptime/layouts.md/layouts/layout-aliases-can-compose-arithmetic-across-sibling-associated-constants
+    destack_test::specification::declarations/associated-comptime/layouts.md/layouts/generic-value-parameters-can-feed-associated-layout-constants
+    destack_test::specification::declarations/associated-comptime/composition.md/composition/service-profile-composes-batching-with-mapped-envelopes
+    destack_test::specification::declarations/associated-comptime/composition.md/composition/policy-defaults-can-combine-conditional-and-mapped-associated-aliases
+    destack_test::specification::declarations/associated-comptime/composition.md/composition/inferred-element-aliases-can-drive-associated-comptime-widths
+    destack_test::specification::declarations/associated-comptime/composition.md/composition/unresolved-value-projection-still-rejects-generic-runtime-paths
+    destack_test::specification::declarations/associated-comptime/contracts.md/contracts/class-owner-can-satisfy-abstract-base-and-interface-associated-comptime-contracts
+    destack_test::specification::declarations/associated-comptime/contracts.md/contracts/class-owner-rejects-incompatible-associated-comptime-contract-overrides
+    destack_test::specification::declarations/associated-comptime/contracts.md/contracts/owner-contracts-require-implementation-through-cross-module-abstract-chains
+    destack_test::specification::declarations/associated-comptime/projections.md/projections/associated-comptime-constants-cannot-be-declared-in-type-aliases
+destack_test::specification::declarations/associated-types/interfaces.md/interfaces/associated-type-projection-on-constrained-type-parameters
+destack_test::specification::declarations/associated-types/classes.md/classes/class-associated-type-names-can-coexist-with-associated-comptime-constants
