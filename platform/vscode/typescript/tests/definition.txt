@@ -3,6 +3,11 @@
 struct Foo {}
 //      ^ entity.name.type.definition.ds
 
+export struct ExportedStruct {}
+// <- keyword.declaration.import.ds
+//     ^^^^^^ keyword.declaration.type.ds
+//            ^^^^^^^^^^^^^^ entity.name.type.definition.ds
+
 struct Point {
     x: float32
 //  ^ variable.other.property.ds
@@ -26,8 +31,19 @@ class Widget {
 interface Bar {}
 //         ^ entity.name.type.definition.ds
 
+export interface ExportedInterface {
+// <- keyword.declaration.import.ds
+//     ^^^^^^^^^ keyword.declaration.type.ds
+    value: int32
+}
+
 enum(flags) MyEnum {}
 //             ^ entity.name.type.definition.ds
+
+export enum ExportedEnum { A }
+// <- keyword.declaration.import.ds
+//     ^^^^ keyword.declaration.type.ds
+//          ^^^^^^^^^^^^ entity.name.type.definition.ds
 
 namespace MyNs {}
 //          ^ entity.name.type.definition.ds
@@ -49,6 +65,12 @@ union Result {
 //  ^^ variable.other.enummember.ds
     Err(Error)
 //  ^^^ variable.other.enummember.ds
+}
+
+export union ExportedUnion {
+// <- keyword.declaration.import.ds
+//     ^^^^^ keyword.declaration.type.ds
+    Item
 }
 
 type Alias = Foo
