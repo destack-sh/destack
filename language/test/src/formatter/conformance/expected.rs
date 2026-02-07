@@ -1,6 +1,18 @@
 use std::path::Path;
 
+use destack_source::{IndentStyle, LineEnding};
+use destack_workspace::{
+    ArrowParentheses, FormatterOptions, QuoteProperty, QuoteStyle, TrailingComma,
+};
+
 use super::runner::ExpectedOutput;
+
+/// Parsed oxfmt expectation data.
+#[derive(Debug, Clone)]
+pub(super) struct OxfmtExpectedCase {
+    pub output: String,
+    pub formatter_options: FormatterOptions,
+}
 
 /// Load expected output content for a test case.
 pub(super) fn load_expected_output(
@@ -21,44 +33,285 @@ pub(super) fn load_expected_output(
     }
 }
 
+/// Load expected output and formatter options from an oxfmt snapshot.
+pub(super) fn load_oxfmt_expected_case(
+    root: &Path,
+    path: &Path,
+    default_options: FormatterOptions,
+) -> Option<OxfmtExpectedCase> {
+    let absolute_path = root.join(path);
+    let snapshot = std::fs::read_to_string(absolute_path).ok()?;
+    let (output, options_line) = parse_oxfmt_snapshot_variant(&snapshot)?;
+
+    let mut formatter_options = default_options;
+    if let Some(options_line) = options_line {
+        apply_oxfmt_options_line(&options_line, &mut formatter_options);
+    }
+
+    Some(OxfmtExpectedCase {
+        output,
+        formatter_options,
+    })
+}
+
 /// Parse the output section from an oxfmt snapshot fixture.
 fn parse_oxfmt_snapshot_output(snapshot: &str) -> Option<String> {
-    let marker = "==================== Output ====================";
-    let marker_index = snapshot.find(marker)?;
-    let output = snapshot[marker_index + marker.len()..].trim_start_matches('\n');
-    let mut lines = output.lines().peekable();
+    let (output, _) = parse_oxfmt_snapshot_variant(snapshot)?;
+    Some(output)
+}
 
-    // optional options block between dashed separators
-    if let Some(first_line) = lines.peek()
-        && is_separator_line(first_line)
-    {
-        lines.next();
-        for line in lines.by_ref() {
-            if is_separator_line(line) {
-                break;
-            }
+#[derive(Debug, Clone)]
+struct OxfmtSnapshotVariant {
+    output: String,
+    options_line: Option<String>,
+}
+
+/// Parse the selected output variant and its option line from an oxfmt snapshot fixture.
+fn parse_oxfmt_snapshot_variant(snapshot: &str) -> Option<(String, Option<String>)> {
+    let variants = parse_oxfmt_snapshot_variants(snapshot);
+    let mut first_variant: Option<OxfmtSnapshotVariant> = None;
+
+    for variant in variants {
+        if first_variant.is_none() {
+            first_variant = Some(variant.clone());
+        }
+        let unsupported = variant
+            .options_line
+            .as_deref()
+            .is_some_and(has_unsupported_options);
+        if !unsupported {
+            return Some((variant.output, variant.options_line));
         }
     }
 
-    // capture first output variant only
-    let mut output_lines = Vec::new();
-    for line in lines {
-        if line.starts_with("=====================") || is_separator_line(line) {
+    first_variant.map(|variant| (variant.output, variant.options_line))
+}
+
+/// Parse all output variants and option lines from an oxfmt snapshot fixture.
+fn parse_oxfmt_snapshot_variants(snapshot: &str) -> Vec<OxfmtSnapshotVariant> {
+    let marker = "==================== Output ====================";
+    let Some(marker_index) = snapshot.find(marker) else {
+        return Vec::new();
+    };
+    let output = snapshot[marker_index + marker.len()..].trim_start_matches('\n');
+    let lines: Vec<&str> = output.lines().collect();
+    let mut index = 0;
+    let mut variants = Vec::new();
+
+    while index < lines.len() {
+        while index < lines.len() && lines[index].trim().is_empty() {
+            index += 1;
+        }
+
+        if index >= lines.len() || lines[index].starts_with("=====================") {
             break;
         }
-        output_lines.push(line);
+
+        let mut options_line = None;
+
+        // options block between dashed separators
+        if is_separator_line(lines[index]) {
+            index += 1;
+            let mut option_lines = Vec::new();
+            while index < lines.len() && !is_separator_line(lines[index]) {
+                if !lines[index].trim().is_empty() {
+                    option_lines.push(lines[index].trim());
+                }
+                index += 1;
+            }
+            if index < lines.len() && is_separator_line(lines[index]) {
+                index += 1;
+            }
+            if !option_lines.is_empty() {
+                options_line = Some(option_lines.join(" "));
+            }
+        }
+
+        let output_start = index;
+        while index < lines.len()
+            && !lines[index].starts_with("=====================")
+            && !is_separator_line(lines[index])
+        {
+            index += 1;
+        }
+
+        let mut output_lines = lines[output_start..index].to_vec();
+        while output_lines.last().is_some_and(|line| line.is_empty()) {
+            output_lines.pop();
+        }
+
+        let mut variant_output = output_lines.join("\n");
+        if !variant_output.is_empty() {
+            variant_output.push('\n');
+            variants.push(OxfmtSnapshotVariant {
+                output: variant_output,
+                options_line,
+            });
+        }
     }
 
-    while output_lines.last().is_some_and(|line| line.is_empty()) {
-        output_lines.pop();
+    variants
+}
+
+/// Apply a single oxfmt options object line to formatter options.
+fn apply_oxfmt_options_line(options_line: &str, options: &mut FormatterOptions) {
+    let options_line = options_line.trim();
+    let Some(inner) = options_line
+        .strip_prefix('{')
+        .and_then(|value| value.strip_suffix('}'))
+    else {
+        return;
+    };
+
+    for entry in inner.split(',') {
+        let entry = entry.trim();
+        if entry.is_empty() {
+            continue;
+        }
+        let Some((raw_key, raw_value)) = entry.split_once(':') else {
+            continue;
+        };
+
+        let key = raw_key.trim();
+        let value = raw_value.trim();
+        let value_string = strip_quotes(value);
+
+        match key {
+            "printWidth" => {
+                if let Ok(width) = value.parse::<u16>() {
+                    options.line_width = width;
+                }
+            }
+            "tabWidth" => {
+                if let Ok(width) = value.parse::<u8>() {
+                    options.indent_width = width;
+                }
+            }
+            "useTabs" => {
+                if let Some(use_tabs) = parse_bool(value) {
+                    options.indent_style = if use_tabs {
+                        IndentStyle::Tab
+                    } else {
+                        IndentStyle::Space
+                    };
+                }
+            }
+            "singleQuote" => {
+                if let Some(single_quote) = parse_bool(value) {
+                    options.quote_style = if single_quote {
+                        QuoteStyle::Single
+                    } else {
+                        QuoteStyle::Double
+                    };
+                }
+            }
+            "trailingComma" => {
+                options.trailing_comma = match value_string {
+                    "all" => TrailingComma::All,
+                    "es5" => TrailingComma::Es5,
+                    "none" => TrailingComma::None,
+                    _ => options.trailing_comma,
+                };
+            }
+            "bracketSpacing" => {
+                if let Some(bracket_spacing) = parse_bool(value) {
+                    options.bracket_spacing = bracket_spacing;
+                }
+            }
+            "arrowParens" => {
+                options.arrow_parentheses = match value_string {
+                    "always" => ArrowParentheses::Always,
+                    "avoid" => ArrowParentheses::Avoid,
+                    _ => options.arrow_parentheses,
+                };
+            }
+            "quoteProps" => {
+                options.quote_property = match value_string {
+                    "as-needed" => QuoteProperty::AsNeeded,
+                    "consistent" => QuoteProperty::Consistent,
+                    "preserve" => QuoteProperty::Preserve,
+                    _ => options.quote_property,
+                };
+            }
+            "endOfLine" => {
+                options.line_ending = match value_string {
+                    "lf" => LineEnding::LineFeed,
+                    "crlf" => LineEnding::CarriageReturnLineFeed,
+                    "cr" => LineEnding::CarriageReturn,
+                    _ => options.line_ending,
+                };
+            }
+            "bracketSameLine" => {
+                if let Some(bracket_same_line) = parse_bool(value) {
+                    options.bracket_same_line = bracket_same_line;
+                }
+            }
+            "singleAttributePerLine" => {
+                if let Some(single_attribute_per_line) = parse_bool(value) {
+                    options.single_attribute_per_line = single_attribute_per_line;
+                }
+            }
+            "semi" => {}
+            _ => {}
+        }
+    }
+}
+
+/// Return whether an oxfmt options line uses unsupported formatter behavior.
+fn has_unsupported_options(options_line: &str) -> bool {
+    let options_line = options_line.trim();
+    let Some(inner) = options_line
+        .strip_prefix('{')
+        .and_then(|value| value.strip_suffix('}'))
+    else {
+        return false;
+    };
+
+    for entry in inner.split(',') {
+        let entry = entry.trim();
+        if entry.is_empty() {
+            continue;
+        }
+
+        let Some((raw_key, raw_value)) = entry.split_once(':') else {
+            continue;
+        };
+
+        let key = raw_key.trim();
+        let value = raw_value.trim();
+        if key == "semi" && parse_bool(value) == Some(false) {
+            return true;
+        }
     }
 
-    let mut output = output_lines.join("\n");
-    if !output.is_empty() {
-        output.push('\n');
-    }
+    false
+}
 
-    Some(output)
+/// Parse a boolean option value.
+fn parse_bool(value: &str) -> Option<bool> {
+    match value.trim() {
+        "true" => Some(true),
+        "false" => Some(false),
+        _ => None,
+    }
+}
+
+/// Strip single or double quotes around an option value.
+fn strip_quotes(value: &str) -> &str {
+    let value = value.trim();
+    if let Some(stripped) = value
+        .strip_prefix('"')
+        .and_then(|inner| inner.strip_suffix('"'))
+    {
+        return stripped;
+    }
+    if let Some(stripped) = value
+        .strip_prefix('\'')
+        .and_then(|inner| inner.strip_suffix('\''))
+    {
+        return stripped;
+    }
+    value
 }
 
 /// Return whether a line is a dashed separator.
@@ -68,7 +321,11 @@ fn is_separator_line(line: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::parse_oxfmt_snapshot_output;
+    use super::{
+        apply_oxfmt_options_line, parse_oxfmt_snapshot_output, parse_oxfmt_snapshot_variant,
+    };
+    use destack_source::IndentStyle;
+    use destack_workspace::{ArrowParentheses, FormatterOptions, QuoteProperty, QuoteStyle};
 
     #[test]
     fn test_parse_oxfmt_snapshot_output_with_options_block() {
@@ -89,5 +346,45 @@ mod tests {
         let snapshot = "==================== Output ====================\n------------------\n{ printWidth: 80 }\n------------------\nconst answer = 42;\n\n-------------------\n{ printWidth: 100 }\n-------------------\nconst answer = 42;\n\n===================== End =====================\n";
         let output = parse_oxfmt_snapshot_output(snapshot).expect("output should parse");
         assert_eq!(output, "const answer = 42;\n");
+    }
+
+    #[test]
+    fn test_parse_oxfmt_snapshot_variant_extracts_option_line() {
+        let snapshot = "==================== Output ====================\n------------------\n{ printWidth: 80, singleQuote: true }\n------------------\nconst answer = 42;\n";
+        let (_, options_line) =
+            parse_oxfmt_snapshot_variant(snapshot).expect("output should parse");
+        assert_eq!(
+            options_line.as_deref(),
+            Some("{ printWidth: 80, singleQuote: true }")
+        );
+    }
+
+    #[test]
+    fn test_apply_oxfmt_options_line() {
+        let mut options = FormatterOptions::default();
+        apply_oxfmt_options_line(
+            "{ printWidth: 120, tabWidth: 3, useTabs: true, singleQuote: true, trailingComma: 'none', bracketSpacing: false, arrowParens: 'avoid', quoteProps: 'consistent' }",
+            &mut options,
+        );
+
+        assert_eq!(options.line_width, 120);
+        assert_eq!(options.indent_width, 3);
+        assert_eq!(options.indent_style, IndentStyle::Tab);
+        assert_eq!(options.quote_style, QuoteStyle::Single);
+        assert_eq!(options.bracket_spacing, false);
+        assert_eq!(options.arrow_parentheses, ArrowParentheses::Avoid);
+        assert_eq!(options.quote_property, QuoteProperty::Consistent);
+    }
+
+    #[test]
+    fn test_parse_oxfmt_snapshot_variant_skips_unsupported_semi_false_variant() {
+        let snapshot = "==================== Output ====================\n-------------------------------\n{ printWidth: 80, semi: false }\n-------------------------------\nconst x = 1\n\n------------------------------\n{ printWidth: 80, semi: true }\n------------------------------\nconst x = 1;\n";
+        let (output, options_line) =
+            parse_oxfmt_snapshot_variant(snapshot).expect("output should parse");
+        assert_eq!(output, "const x = 1;\n");
+        assert_eq!(
+            options_line.as_deref(),
+            Some("{ printWidth: 80, semi: true }")
+        );
     }
 }

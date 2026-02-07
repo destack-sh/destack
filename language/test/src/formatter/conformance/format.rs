@@ -4,12 +4,14 @@ use std::sync::Arc;
 use destack_ast::{NodeParentIndex, TokenSpan};
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
-use destack_parser::Parser;
+use destack_parser::{Parser, source_colorizer};
 use destack_source::{
-    DiffOptions, File, FileRegistry, FileSystem, FileType, LanguageType, MemoryFileSystem, Uri,
-    print_diff,
+    DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileRegistry, FileSystem,
+    FileType, LanguageType, MemoryFileSystem, PrintOptions, Uri, print_diff,
 };
-use destack_workspace::{FormatterOptions, LinterOptions, Program};
+use destack_workspace::{FormatterOptions, LinterOptions, Program, QuoteStyle};
+
+use crate::harness::format_diagnostics;
 
 use super::runner::TestOutcome;
 
@@ -18,29 +20,30 @@ pub(super) fn run_formatter_case(
     path: &Path,
     file_type: FileType,
     expected_output: Option<&str>,
+    formatter_options: FormatterOptions,
     expect_error: bool,
     show_diff: bool,
 ) -> TestOutcome {
     // read source content
     let source = match std::fs::read_to_string(path) {
         Ok(source) => source,
-        Err(_) => return TestOutcome::Failed,
+        Err(_) => return TestOutcome::FailedRead,
     };
 
     // format the source once
-    let first_pass = match format_once(path, &source, file_type) {
+    let first_pass = match format_once(path, &source, file_type, formatter_options, show_diff) {
         Ok(formatted) => formatted,
         Err(_) => {
             if expect_error {
                 return TestOutcome::Passed;
             }
-            return TestOutcome::Failed;
+            return TestOutcome::FailedParse;
         }
     };
 
     // fail when error was expected but parsing succeeded
     if expect_error {
-        return TestOutcome::Failed;
+        return TestOutcome::FailedParse;
     }
 
     // compare with expected output when available
@@ -54,14 +57,15 @@ pub(super) fn run_formatter_case(
                 println!("diff for {}", path.display());
                 print_diff(&expected_output, &first_pass, &DiffOptions::new());
             }
-            TestOutcome::Failed
+            TestOutcome::FailedOutput
         };
     }
 
     // otherwise require idempotence
-    let second_pass = match format_once(path, &first_pass, file_type) {
+    let second_pass = match format_once(path, &first_pass, file_type, formatter_options, show_diff)
+    {
         Ok(formatted) => formatted,
-        Err(_) => return TestOutcome::Failed,
+        Err(_) => return TestOutcome::FailedParse,
     };
 
     let first_pass = normalize_output(&first_pass);
@@ -73,12 +77,18 @@ pub(super) fn run_formatter_case(
             println!("idempotence diff for {}", path.display());
             print_diff(&first_pass, &second_pass, &DiffOptions::new());
         }
-        TestOutcome::Failed
+        TestOutcome::FailedIdempotence
     }
 }
 
 /// Format one source string as if it came from a file.
-fn format_once(path: &Path, source: &str, file_type: FileType) -> Result<String, ()> {
+fn format_once(
+    path: &Path,
+    source: &str,
+    file_type: FileType,
+    formatter_options: FormatterOptions,
+    show_diff: bool,
+) -> Result<String, ()> {
     // set up a minimal program for parser and formatter execution
     let cwd = path
         .parent()
@@ -86,7 +96,7 @@ fn format_once(path: &Path, source: &str, file_type: FileType) -> Result<String,
     let files = Arc::new(FileRegistry::new());
     let fs: Arc<dyn FileSystem> = Arc::new(MemoryFileSystem::new());
     let program = Arc::new(Program::from_options(
-        FormatterOptions::default(),
+        formatter_options,
         LinterOptions::default(),
         cwd,
         fs,
@@ -121,8 +131,17 @@ fn format_once(path: &Path, source: &str, file_type: FileType) -> Result<String,
         .diagnostics
         .iter()
         .into_iter()
-        .any(|diagnostic| diagnostic.severity == destack_source::DiagnosticSeverity::Error);
+        .any(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error);
     if has_errors {
+        if show_diff {
+            let mut diagnostics = DiagnosticCollection::new();
+            for diagnostic in parser.diagnostics.iter() {
+                diagnostics.insert(diagnostic);
+            }
+            let options = PrintOptions::new().with_colorizer(source_colorizer());
+            let rendered = format_diagnostics(&program.files, &diagnostics, options);
+            println!("parse diagnostics for {}:\n{rendered}", path.display());
+        }
         return Err(());
     }
 
@@ -137,6 +156,14 @@ fn format_once(path: &Path, source: &str, file_type: FileType) -> Result<String,
         language_type,
         program.formatter,
     ))
+}
+
+/// Build formatter options for JS and TS conformance baselines.
+pub(super) fn default_conformance_formatter_options() -> FormatterOptions {
+    FormatterOptions::default()
+        .with_indent_width(2)
+        .with_line_width(80)
+        .with_quote_style(QuoteStyle::Double)
 }
 
 /// Format parsed expressions into source output.

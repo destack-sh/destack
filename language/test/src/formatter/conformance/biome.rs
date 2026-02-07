@@ -7,7 +7,7 @@ use super::fixtures::{
     expect_error_from_path, is_formattable_file_type, should_skip_directory,
     should_skip_fixture_file, sibling_with_suffix,
 };
-use super::format::run_formatter_case;
+use super::format::{default_conformance_formatter_options, run_formatter_case};
 use super::runner::{
     ConformanceSuite, ExpectedOutput, SuiteResult, Test, TestOutcome, run_conformance_suite,
 };
@@ -126,6 +126,7 @@ impl ConformanceSuite for BiomeSuite {
             &path,
             test.file_type,
             expected_output.as_deref(),
+            default_conformance_formatter_options(),
             test.expect_error,
             show_diff,
         )
