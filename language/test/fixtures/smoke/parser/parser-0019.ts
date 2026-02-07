@@ -380,7 +380,7 @@ async function genScriptCode(
 
   const script = resolveScript(descriptor, options, ssr, customElement)
   if (script) {
-    // If the script is js/ts and has no external src, it can be directly placed
+    // If the script is JS/TS and has no external src, it can be directly placed
     // in the main module.
     if (canInlineMain(descriptor, options)) {
       if (!options.compiler.version) {

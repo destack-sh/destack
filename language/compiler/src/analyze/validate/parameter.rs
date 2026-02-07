@@ -155,8 +155,19 @@ impl Compiler {
             }
         }
 
+        // JS/TS parameter patterns must only contain assignment targets
+        if module.language_type.is_javascript() || module.language_type.is_typescript() {
+            match parameter {
+                Parameter::Pattern { pattern, .. } | Parameter::VariadicPattern { pattern, .. } => {
+                    self.validate_for_each_assignment_pattern(
+                        module, profile, tree, *pattern, true,
+                    );
+                }
+                Parameter::Named { .. } | Parameter::VariadicNamed { .. } => {}
+            }
+        }
         // variadic destructuring bindings must contain assignment targets
-        if let Parameter::VariadicPattern { pattern, .. } = parameter {
+        else if let Parameter::VariadicPattern { pattern, .. } = parameter {
             self.validate_for_each_assignment_pattern(module, profile, tree, *pattern, true);
         }
 

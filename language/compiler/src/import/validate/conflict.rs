@@ -139,7 +139,7 @@ impl Compiler {
 
     /// Return true when local redeclarations should report conflicts.
     fn no_redeclared_locals_enabled(&self, module: &Module) -> bool {
-        // js and ts modes always enforce ecmascript redeclaration rules
+        // JS/TS modes always enforce ecmascript redeclaration rules
         if !module.language_type.is_destack() {
             return true;
         }

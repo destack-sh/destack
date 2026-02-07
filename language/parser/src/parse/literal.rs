@@ -112,7 +112,7 @@ impl Parser {
                     ));
                 }
 
-                // js and ts reject legacy leading-zero decimal forms
+                // JS/TS reject legacy leading-zero decimal forms
                 if (self.language.is_javascript() || self.language.is_typescript())
                     && self.int_literal_is_invalid_js_ts(literal_str, base, is_bigint)
                 {
@@ -123,7 +123,7 @@ impl Parser {
                     ));
                 }
 
-                // js and ts reject invalid digits for binary, octal, and hexadecimal literals
+                // JS/TS reject invalid digits for binary, octal, and hexadecimal literals
                 if (self.language.is_javascript() || self.language.is_typescript())
                     && self.int_literal_has_invalid_digits(literal_str, base, is_bigint)
                 {
@@ -134,7 +134,7 @@ impl Parser {
                     ));
                 }
 
-                // js and ts require a separator after numeric literals before identifier starts
+                // JS/TS require a separator after numeric literals before identifier starts
                 if has_invalid_numeric_suffix {
                     return Err(ParseError::expected_for(
                         literal_span.span,
@@ -195,7 +195,7 @@ impl Parser {
                     ));
                 }
 
-                // js and ts reject legacy leading-zero decimal forms
+                // JS/TS reject legacy leading-zero decimal forms
                 if (self.language.is_javascript() || self.language.is_typescript())
                     && self.float_literal_is_invalid_js_ts(literal_str)
                 {
@@ -206,7 +206,7 @@ impl Parser {
                     ));
                 }
 
-                // js and ts require a separator after numeric literals before identifier starts
+                // JS/TS require a separator after numeric literals before identifier starts
                 if has_invalid_numeric_suffix {
                     return Err(ParseError::expected_for(
                         literal_span.span,
@@ -447,7 +447,7 @@ impl Parser {
         }
     }
 
-    /// Return true when an int literal uses legacy js and ts leading-zero syntax.
+    /// Return true when an int literal uses legacy JS/TS leading-zero syntax.
     fn int_literal_is_invalid_js_ts(
         &self,
         literal: &str,
@@ -510,7 +510,7 @@ impl Parser {
         false
     }
 
-    /// Return true when a float literal uses legacy js and ts leading-zero syntax.
+    /// Return true when a float literal uses legacy JS/TS leading-zero syntax.
     fn float_literal_is_invalid_js_ts(&self, literal: &str) -> bool {
         let bytes = literal.as_bytes();
         if bytes.len() < 2 || bytes[0] != b'0' {
@@ -928,7 +928,7 @@ impl Parser {
         self.eat_newlines_maybe()?;
         let properties = self.eat_properties()?;
 
-        // js and ts object shorthand only supports identifier names
+        // JS/TS object shorthand only supports identifier names
         if (self.language.is_javascript() || self.language.is_typescript()) && !self.options.in_type
         {
             self.validate_object_literal_shorthand_keys(&properties)?;

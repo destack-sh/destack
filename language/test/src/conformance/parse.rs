@@ -318,7 +318,7 @@ fn parse_file_with_compiler(
     let uri = Uri::from_path(&file_path);
     let module_id = program.register_inline_module(uri, content.to_string(), file_type);
 
-    // ensure conformance runs check js and ts analyze errors
+    // ensure conformance runs check JS/TS analyze errors
     apply_default_dsconfig(&program, module_id, &root);
 
     // create compiler and compile the module
