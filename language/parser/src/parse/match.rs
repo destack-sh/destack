@@ -77,6 +77,7 @@ impl Parser {
         kind: MatchKind,
     ) -> ParseResult<Vec<LocalNodeId<MatchCase>>> {
         let mut cases: Vec<LocalNodeId<MatchCase>> = Vec::new();
+        let mut has_default_case = false;
         while self.has_more_tokens() {
             // stop on closing brace
             if self.peek_is(TokenType::CloseBrace) {
@@ -88,9 +89,29 @@ impl Parser {
             }
             // case
             else {
+                // reject duplicate default selectors in switch blocks
+                if kind == MatchKind::Switch
+                    && has_default_case
+                    && self.peek_keyword(Keyword::Default).is_ok()
+                {
+                    return Err(ParseError::unexpected(self.peek()?.span));
+                }
+
                 let case = self
                     .eat_match_case(kind)
                     .for_node_type(NodeType::MatchCase)?;
+
+                // track default selectors for duplicate checks
+                if kind == MatchKind::Switch {
+                    let selector = match self.tree.get(case) {
+                        MatchCase::Expression { selector, .. }
+                        | MatchCase::Block { selector, .. } => selector,
+                    };
+                    if matches!(selector, MatchSelector::Default) {
+                        has_default_case = true;
+                    }
+                }
+
                 cases.push(case);
             }
         }
