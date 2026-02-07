@@ -171,7 +171,7 @@ mod tests {
     fn test_detects_useless_catch_throw() {
         let test = TestProgram::for_rule_without_prelude(NoUselessCatch);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_catch/test_detects_useless_catch_throw.ds",
             r#"
 try {
     foo()
@@ -187,7 +187,7 @@ try {
     fn test_detects_useless_catch_block_throw() {
         let test = TestProgram::for_rule_without_prelude(NoUselessCatch);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_catch/test_detects_useless_catch_block_throw.ds",
             r#"
 try {
     foo()
@@ -203,7 +203,7 @@ try {
     fn test_allows_catch_with_logging() {
         let test = TestProgram::for_rule_without_prelude(NoUselessCatch);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_catch/test_allows_catch_with_logging.ds",
             r#"
 try {
     riskyOperation();
@@ -220,7 +220,7 @@ try {
     fn test_allows_catch_with_different_throw() {
         let test = TestProgram::for_rule_without_prelude(NoUselessCatch);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_catch/test_allows_catch_with_different_throw.ds",
             r#"
 try {
     riskyOperation();
@@ -237,7 +237,7 @@ try {
         // catch + finally might be useful for cleanup ordering
         let test = TestProgram::for_rule_without_prelude(NoUselessCatch);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_catch/test_allows_catch_with_finally.ds",
             r#"
 try {
     riskyOperation();
@@ -255,7 +255,7 @@ try {
     fn test_fix_useless_catch() {
         let test = TestProgram::for_rule_without_prelude(NoUselessCatch);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_catch/test_fix_useless_catch.ds",
             r#"
 try {
     foo()

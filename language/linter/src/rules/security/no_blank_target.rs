@@ -171,7 +171,7 @@ mod tests {
     fn test_detects_blank_target_without_rel() {
         let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
         let result = test.lint_ast(
-            "test.ds",
+            "no_blank_target/test_detects_blank_target_without_rel.ds",
             r#"
 let link = <a href="https://example.com" target="_blank">Click</a>
 "#,
@@ -183,7 +183,7 @@ let link = <a href="https://example.com" target="_blank">Click</a>
     fn test_allows_blank_target_with_noopener() {
         let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
         let result = test.lint_ast(
-            "test.ds",
+            "no_blank_target/test_allows_blank_target_with_noopener.ds",
             r#"
 let link = <a href="https://example.com" target="_blank" rel="noopener">Click</a>
 "#,
@@ -195,7 +195,7 @@ let link = <a href="https://example.com" target="_blank" rel="noopener">Click</a
     fn test_allows_blank_target_with_noreferrer() {
         let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
         let result = test.lint_ast(
-            "test.ds",
+            "no_blank_target/test_allows_blank_target_with_noreferrer.ds",
             r#"
 let link = <a href="https://example.com" target="_blank" rel="noreferrer">Click</a>
 "#,
@@ -207,7 +207,7 @@ let link = <a href="https://example.com" target="_blank" rel="noreferrer">Click<
     fn test_allows_blank_target_with_both() {
         let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
         let result = test.lint_ast(
-            "test.ds",
+            "no_blank_target/test_allows_blank_target_with_both.ds",
             r#"
 let link = <a href="https://example.com" target="_blank" rel="noopener noreferrer">Click</a>
 "#,
@@ -219,7 +219,7 @@ let link = <a href="https://example.com" target="_blank" rel="noopener noreferre
     fn test_allows_no_target() {
         let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
         let result = test.lint_ast(
-            "test.ds",
+            "no_blank_target/test_allows_no_target.ds",
             r#"
 let link = <a href="https://example.com">Click</a>
 "#,
@@ -231,7 +231,7 @@ let link = <a href="https://example.com">Click</a>
     fn test_allows_other_target() {
         let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
         let result = test.lint_ast(
-            "test.ds",
+            "no_blank_target/test_allows_other_target.ds",
             r#"
 let link = <a href="https://example.com" target="_self">Click</a>
 "#,
@@ -243,7 +243,7 @@ let link = <a href="https://example.com" target="_self">Click</a>
     fn test_allows_non_anchor_element() {
         let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
         let result = test.lint_ast(
-            "test.ds",
+            "no_blank_target/test_allows_non_anchor_element.ds",
             r#"
 let elem = <div target="_blank">Content</div>
 "#,

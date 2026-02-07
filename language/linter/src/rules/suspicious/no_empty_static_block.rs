@@ -83,7 +83,7 @@ mod tests {
     fn test_detects_empty_static_block() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyStaticBlock);
         let result = test.lint_ast(
-            "test.ts",
+            "no_empty_static_block/test_detects_empty_static_block.ts",
             r#"
 class Foo {
     static {}
@@ -97,7 +97,7 @@ class Foo {
     fn test_allows_static_block_with_code() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyStaticBlock);
         let result = test.lint_ast(
-            "test.ts",
+            "no_empty_static_block/test_allows_static_block_with_code.ts",
             r#"
 class Foo {
     static {
@@ -113,7 +113,7 @@ class Foo {
     fn test_allows_static_block_with_comment() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyStaticBlock);
         let result = test.lint_ast(
-            "test.ts",
+            "no_empty_static_block/test_allows_static_block_with_comment.ts",
             r#"
 class Foo {
     static { /* intentionally empty */ }
@@ -127,7 +127,7 @@ class Foo {
     fn test_fix_removes_empty_static_block() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyStaticBlock);
         let result = test.lint_ast(
-            "test.ts",
+            "no_empty_static_block/test_fix_removes_empty_static_block.ts",
             r#"
 class Foo {
     static {}

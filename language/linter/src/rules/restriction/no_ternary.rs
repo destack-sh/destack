@@ -69,7 +69,7 @@ mod tests {
     #[test]
     fn test_detects_ternary() {
         let test = TestProgram::for_rule_without_prelude(NoTernary);
-        let result = test.lint_ast("test.ts", "let x = a ? b : c;");
+        let result = test.lint_ast("no_ternary/test_detects_ternary.ts", "let x = a ? b : c;");
         test.result(result).assert_lint("no-ternary");
     }
 
@@ -77,7 +77,7 @@ mod tests {
     fn test_allows_if_else() {
         let test = TestProgram::for_rule_without_prelude(NoTernary);
         let result = test.lint_ast(
-            "test.ts",
+            "no_ternary/test_allows_if_else.ts",
             r#"
 let x;
 if (a) {

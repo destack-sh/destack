@@ -181,7 +181,7 @@ mod tests {
     fn test_detects_compare_neg_zero_equality() {
         let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
         let result = test.lint_ast(
-            "test.ds",
+            "no_compare_neg_zero/test_detects_compare_neg_zero_equality.ds",
             r#"
 let x = 0;
 x == -0;
@@ -194,7 +194,7 @@ x == -0;
     fn test_detects_compare_neg_zero_strict_equality() {
         let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
         let result = test.lint_ast(
-            "test.ds",
+            "no_compare_neg_zero/test_detects_compare_neg_zero_strict_equality.ds",
             r#"
 let x = 0;
 x === -0;
@@ -207,7 +207,7 @@ x === -0;
     fn test_detects_compare_neg_zero_inequality() {
         let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
         let result = test.lint_ast(
-            "test.ds",
+            "no_compare_neg_zero/test_detects_compare_neg_zero_inequality.ds",
             r#"
 let x = 0;
 x != -0;
@@ -220,7 +220,7 @@ x != -0;
     fn test_detects_neg_zero_on_left() {
         let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
         let result = test.lint_ast(
-            "test.ds",
+            "no_compare_neg_zero/test_detects_neg_zero_on_left.ds",
             r#"
 let x = 0;
 -0 === x;
@@ -233,7 +233,7 @@ let x = 0;
     fn test_detects_compare_neg_zero_float() {
         let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
         let result = test.lint_ast(
-            "test.ds",
+            "no_compare_neg_zero/test_detects_compare_neg_zero_float.ds",
             r#"
 let x = 0.0;
 x === -0.0;
@@ -246,7 +246,7 @@ x === -0.0;
     fn test_allows_compare_regular_zero() {
         let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
         let result = test.lint_ast(
-            "test.ds",
+            "no_compare_neg_zero/test_allows_compare_regular_zero.ds",
             r#"
 let x = 0;
 x === 0;
@@ -259,7 +259,7 @@ x === 0;
     fn test_allows_compare_positive_numbers() {
         let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
         let result = test.lint_ast(
-            "test.ds",
+            "no_compare_neg_zero/test_allows_compare_positive_numbers.ds",
             r#"
 let x = 1;
 x === 1;
@@ -272,7 +272,7 @@ x === 1;
     fn test_allows_negation_of_variable() {
         let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
         let result = test.lint_ast(
-            "test.ds",
+            "no_compare_neg_zero/test_allows_negation_of_variable.ds",
             r#"
 let x = 1;
 let y = 2;
@@ -286,7 +286,7 @@ x === -y;
     fn test_fix_strict_equal() {
         let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
         let result = test.lint_ast(
-            "test.ds",
+            "no_compare_neg_zero/test_fix_strict_equal.ds",
             r#"
 let x = 0
 if (x === -0) {}
@@ -306,7 +306,7 @@ if (Object.is(x, -0)) { }
     fn test_fix_not_equal() {
         let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
         let result = test.lint_ast(
-            "test.ds",
+            "no_compare_neg_zero/test_fix_not_equal.ds",
             r#"
 let x = 0
 if (x !== -0) {}
@@ -326,7 +326,7 @@ if (!Object.is(x, -0)) { }
     fn test_fix_neg_zero_on_left() {
         let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
         let result = test.lint_ast(
-            "test.ds",
+            "no_compare_neg_zero/test_fix_neg_zero_on_left.ds",
             r#"
 let x = 0
 if (-0 === x) {}
@@ -346,7 +346,7 @@ if (Object.is(x, -0)) { }
     fn test_fix_complex_expression() {
         let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
         let result = test.lint_ast(
-            "test.ds",
+            "no_compare_neg_zero/test_fix_complex_expression.ds",
             r#"
 let y = 0
 let x = (y + 1) === -0
@@ -366,7 +366,7 @@ let x = Object.is((y + 1), -0);
     fn test_no_fix_for_relational() {
         let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
         let result = test.lint_ast(
-            "test.ds",
+            "no_compare_neg_zero/test_no_fix_for_relational.ds",
             r#"
 let x = 0
 if (x < -0) {}

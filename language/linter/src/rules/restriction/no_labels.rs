@@ -67,7 +67,7 @@ mod tests {
     fn test_detects_labeled_statement() {
         let test = TestProgram::for_rule_without_prelude(NoLabels);
         let result = test.lint_ast(
-            "test.ts",
+            "no_labels/test_detects_labeled_statement.ts",
             r#"
 outer: for (let i = 0; i < 10; i++) {
     break outer;
@@ -81,7 +81,7 @@ outer: for (let i = 0; i < 10; i++) {
     fn test_allows_unlabeled_loop() {
         let test = TestProgram::for_rule_without_prelude(NoLabels);
         let result = test.lint_ast(
-            "test.ts",
+            "no_labels/test_allows_unlabeled_loop.ts",
             r#"
 for (let i = 0; i < 10; i++) {
     break;

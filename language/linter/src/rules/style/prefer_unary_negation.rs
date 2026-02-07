@@ -150,7 +150,7 @@ mod tests {
     fn test_multiply_by_negative_one_right_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferUnaryNegation);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_unary_negation/test_multiply_by_negative_one_right_detected.ds",
             r#"
 const result = x * -1;
 "#,
@@ -162,7 +162,7 @@ const result = x * -1;
     fn test_multiply_by_negative_one_left_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferUnaryNegation);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_unary_negation/test_multiply_by_negative_one_left_detected.ds",
             r#"
 const result = -1 * x;
 "#,
@@ -174,7 +174,7 @@ const result = -1 * x;
     fn test_multiply_by_negative_one_parenthesized_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferUnaryNegation);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_unary_negation/test_multiply_by_negative_one_parenthesized_detected.ds",
             r#"
 const result = x * (-1);
 "#,
@@ -186,7 +186,7 @@ const result = x * (-1);
     fn test_wrapping_multiply_by_negative_one_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferUnaryNegation);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_unary_negation/test_wrapping_multiply_by_negative_one_detected.ds",
             r#"
 const result = x *% -1;
 "#,
@@ -198,7 +198,7 @@ const result = x *% -1;
     fn test_saturating_multiply_by_negative_one_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferUnaryNegation);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_unary_negation/test_saturating_multiply_by_negative_one_detected.ds",
             r#"
 const result = x *| -1;
 "#,
@@ -210,7 +210,7 @@ const result = x *| -1;
     fn test_multiply_by_other_number_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferUnaryNegation);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_unary_negation/test_multiply_by_other_number_allowed.ds",
             r#"
 const result = x * 2;
 "#,
@@ -222,7 +222,7 @@ const result = x * 2;
     fn test_multiply_by_negative_two_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferUnaryNegation);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_unary_negation/test_multiply_by_negative_two_allowed.ds",
             r#"
 const result = x * -2;
 "#,
@@ -234,7 +234,7 @@ const result = x * -2;
     fn test_multiply_two_variables_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferUnaryNegation);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_unary_negation/test_multiply_two_variables_allowed.ds",
             r#"
 const result = x * y;
 "#,
@@ -246,7 +246,7 @@ const result = x * y;
     fn test_unary_negation_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferUnaryNegation);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_unary_negation/test_unary_negation_allowed.ds",
             r#"
 const result = -x;
 "#,
@@ -258,7 +258,7 @@ const result = -x;
     fn test_multiply_by_one_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferUnaryNegation);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_unary_negation/test_multiply_by_one_allowed.ds",
             r#"
 const result = x * 1;
 "#,
@@ -270,7 +270,7 @@ const result = x * 1;
     fn test_fix_multiply_by_negative_one_right() {
         let test = TestProgram::for_rule_without_prelude(PreferUnaryNegation);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_unary_negation/test_fix_multiply_by_negative_one_right.ds",
             r#"
 const result = x * -1
 "#,
@@ -288,7 +288,7 @@ const result = -x;
     fn test_fix_multiply_by_negative_one_left() {
         let test = TestProgram::for_rule_without_prelude(PreferUnaryNegation);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_unary_negation/test_fix_multiply_by_negative_one_left.ds",
             r#"
 const result = -1 * x
 "#,

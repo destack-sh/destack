@@ -143,7 +143,7 @@ mod tests {
     fn test_multiple_indexed_accesses_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferTupleDestructure);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_tuple_destructure/test_multiple_indexed_accesses_detected.ds",
             r#"
 function foo(tuple: (int32, int32)) {
     const first = tuple[0]
@@ -158,7 +158,7 @@ function foo(tuple: (int32, int32)) {
     fn test_tuple_destructure_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferTupleDestructure);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_tuple_destructure/test_tuple_destructure_allowed.ds",
             r#"
 function foo(tuple: (int32, int32)) {
     const (first, second) = tuple
@@ -173,7 +173,7 @@ function foo(tuple: (int32, int32)) {
     fn test_single_access_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferTupleDestructure);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_tuple_destructure/test_single_access_allowed.ds",
             r#"
 function foo(tuple: (int32, int32)) {
     const first = tuple[0]
@@ -189,7 +189,7 @@ function foo(tuple: (int32, int32)) {
     fn test_different_sources_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferTupleDestructure);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_tuple_destructure/test_different_sources_allowed.ds",
             r#"
 function foo(a: (int32, int32), b: (int32, int32)) {
     const x = a[0]
@@ -206,7 +206,7 @@ function foo(a: (int32, int32), b: (int32, int32)) {
     fn test_three_accesses_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferTupleDestructure);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_tuple_destructure/test_three_accesses_detected.ds",
             r#"
 function foo(tuple: (int32, int32, int32)) {
     const a = tuple[0]
@@ -222,7 +222,7 @@ function foo(tuple: (int32, int32, int32)) {
     fn test_array_access_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferTupleDestructure);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_tuple_destructure/test_array_access_allowed.ds",
             r#"
 function foo(arr: int32[]) {
     const first = arr[0]

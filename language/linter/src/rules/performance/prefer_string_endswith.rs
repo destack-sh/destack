@@ -318,7 +318,7 @@ mod tests {
     fn test_flags_slice_suffix_length_check() {
         let test = TestProgram::for_rule_without_prelude(PreferStringEndsWith);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_string_endswith/test_flags_slice_suffix_length_check.ds",
             r#"
 let text = "hello";
 let suffix = "lo";
@@ -333,7 +333,7 @@ let ends = text.slice(-suffix.length) === suffix;
     fn test_flags_literal_suffix_check() {
         let test = TestProgram::for_rule_without_prelude(PreferStringEndsWith);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_string_endswith/test_flags_literal_suffix_check.ds",
             r#"
 let text = "hello";
 let ends = text.slice(-2) === "lo";
@@ -347,7 +347,7 @@ let ends = text.slice(-2) === "lo";
     fn test_allows_unrelated_slice_check() {
         let test = TestProgram::for_rule_without_prelude(PreferStringEndsWith);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_string_endswith/test_allows_unrelated_slice_check.ds",
             r#"
 let text = "hello";
 let ends = text.slice(0) === "hello";

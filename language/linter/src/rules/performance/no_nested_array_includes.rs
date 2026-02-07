@@ -308,7 +308,7 @@ mod tests {
     fn test_flags_includes_in_for_of() {
         let test = TestProgram::for_rule_without_prelude(NoNestedArrayIncludes);
         let result = test.lint_dir(
-            "test.ds",
+            "no_nested_array_includes/test_flags_includes_in_for_of.ds",
             r#"
 let items = [1, 2, 3];
 let lookup = [2, 4, 6];
@@ -327,7 +327,7 @@ for (const item of items) {
     fn test_flags_index_of_in_for() {
         let test = TestProgram::for_rule_without_prelude(NoNestedArrayIncludes);
         let result = test.lint_dir(
-            "test.ds",
+            "no_nested_array_includes/test_flags_index_of_in_for.ds",
             r#"
 let items = [1, 2, 3];
 let lookup = [2, 4, 6];
@@ -346,7 +346,7 @@ for (let i = 0; i < items.length; i += 1) {
     fn test_flags_includes_in_while() {
         let test = TestProgram::for_rule_without_prelude(NoNestedArrayIncludes);
         let result = test.lint_dir(
-            "test.ds",
+            "no_nested_array_includes/test_flags_includes_in_while.ds",
             r#"
 let items = [1, 2, 3];
 let lookup = [2, 4, 6];
@@ -367,7 +367,7 @@ while (i < items.length) {
     fn test_allows_includes_outside_loop() {
         let test = TestProgram::for_rule_without_prelude(NoNestedArrayIncludes);
         let result = test.lint_dir(
-            "test.ds",
+            "no_nested_array_includes/test_allows_includes_outside_loop.ds",
             r#"
 let items = [1, 2, 3];
 let hasTwo = items.includes(2);
@@ -382,7 +382,7 @@ let hasTwo = items.includes(2);
     fn test_allows_set_has_in_loop() {
         let test = TestProgram::for_rule_without_prelude(NoNestedArrayIncludes);
         let result = test.lint_dir(
-            "test.ds",
+            "no_nested_array_includes/test_allows_set_has_in_loop.ds",
             r#"
 let items = [1, 2, 3];
 let lookup = new Set([2, 4, 6]);

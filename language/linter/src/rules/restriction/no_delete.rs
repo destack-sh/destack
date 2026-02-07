@@ -78,7 +78,7 @@ mod tests {
     fn test_detects_delete_expression() {
         let test = TestProgram::for_rule_without_prelude(NoDelete);
         let result = test.lint_ast(
-            "test.ts",
+            "no_delete/test_detects_delete_expression.ts",
             r#"
 let item = { value: 1 };
 delete item.value;
@@ -92,7 +92,7 @@ delete item.value;
     fn test_allows_without_delete() {
         let test = TestProgram::for_rule_without_prelude(NoDelete);
         let result = test.lint_ast(
-            "test.ts",
+            "no_delete/test_allows_without_delete.ts",
             r#"
 let item = { value: 1 };
 item.value = 2;

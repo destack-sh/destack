@@ -86,7 +86,7 @@ mod tests {
     fn test_detects_debugger_statement() {
         let test = TestProgram::for_rule_without_prelude(NoDebugger);
         let result = test.lint_ast(
-            "test.ds",
+            "no_debugger/test_detects_debugger_statement.ds",
             r#"
 debugger;
 "#,
@@ -98,7 +98,7 @@ debugger;
     fn test_detects_debugger_expression() {
         let test = TestProgram::for_rule_without_prelude(NoDebugger);
         let result = test.lint_ast(
-            "test.ds",
+            "no_debugger/test_detects_debugger_expression.ds",
             r#"
 let x = debugger;
 "#,
@@ -110,7 +110,7 @@ let x = debugger;
     fn test_detects_multiple_debuggers() {
         let test = TestProgram::for_rule_without_prelude(NoDebugger);
         let result = test.lint_ast(
-            "test.ds",
+            "no_debugger/test_detects_multiple_debuggers.ds",
             r#"
 debugger;
 function foo() {
@@ -126,7 +126,7 @@ debugger;
     fn test_no_debugger_clean_code() {
         let test = TestProgram::for_rule_without_prelude(NoDebugger);
         let result = test.lint_ast(
-            "test.ds",
+            "no_debugger/test_no_debugger_clean_code.ds",
             r#"
 let x = 1;
 function foo() {
@@ -141,7 +141,7 @@ function foo() {
     fn test_fix_removes_debugger_statement() {
         let test = TestProgram::for_rule_without_prelude(NoDebugger);
         let result = test.lint_ast(
-            "test.ds",
+            "no_debugger/test_fix_removes_debugger_statement.ds",
             r#"
 debugger;
 "#,
@@ -156,7 +156,7 @@ debugger;
     fn test_fix_preserves_surrounding_code() {
         let test = TestProgram::for_rule_without_prelude(NoDebugger);
         let result = test.lint_ast(
-            "test.ds",
+            "no_debugger/test_fix_preserves_surrounding_code.ds",
             r#"
 let x = 1;
 debugger;
@@ -178,7 +178,7 @@ let y = 2;
     fn test_fix_without_semicolon() {
         let test = TestProgram::for_rule_without_prelude(NoDebugger);
         let result = test.lint_ast(
-            "test.ds",
+            "no_debugger/test_fix_without_semicolon.ds",
             r#"
 let x = debugger;
 "#,

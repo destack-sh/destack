@@ -100,7 +100,7 @@ mod tests {
     fn test_detects_self_equal() {
         let test = TestProgram::for_rule_without_prelude(NoSelfCompare);
         let result = test.lint_dir(
-            "test.ds",
+            "no_self_compare/test_detects_self_equal.ds",
             r#"
 let x = 1;
 x == x;
@@ -114,7 +114,7 @@ x == x;
     fn test_detects_self_not_equal() {
         let test = TestProgram::for_rule_without_prelude(NoSelfCompare);
         let result = test.lint_dir(
-            "test.ds",
+            "no_self_compare/test_detects_self_not_equal.ds",
             r#"
 let x = 1;
 x != x;
@@ -128,7 +128,7 @@ x != x;
     fn test_detects_self_less() {
         let test = TestProgram::for_rule_without_prelude(NoSelfCompare);
         let result = test.lint_dir(
-            "test.ds",
+            "no_self_compare/test_detects_self_less.ds",
             r#"
 let x = 1;
 x < x;
@@ -142,7 +142,7 @@ x < x;
     fn test_no_self_compare_different_vars() {
         let test = TestProgram::for_rule_without_prelude(NoSelfCompare);
         let result = test.lint_dir(
-            "test.ds",
+            "no_self_compare/test_no_self_compare_different_vars.ds",
             r#"
 let x = 1;
 let y = 2;
@@ -157,7 +157,7 @@ x == y;
     fn test_no_self_compare_arithmetic() {
         let test = TestProgram::for_rule_without_prelude(NoSelfCompare);
         let result = test.lint_dir(
-            "test.ds",
+            "no_self_compare/test_no_self_compare_arithmetic.ds",
             r#"
 let x = 1;
 x + x;

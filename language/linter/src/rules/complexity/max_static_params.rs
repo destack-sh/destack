@@ -79,7 +79,7 @@ mod tests {
     fn test_flags_many_static_params_on_function() {
         let test = TestProgram::for_rule_without_prelude(MaxStaticParams);
         let result = test.lint_ast(
-            "test.ds",
+            "max_static_params/test_flags_many_static_params_on_function.ds",
             r#"
 function combine<A, B, C, D, E>(a: A, b: B, c: C, d: D, e: E) {
     return [a, b, c, d, e];
@@ -93,7 +93,7 @@ function combine<A, B, C, D, E>(a: A, b: B, c: C, d: D, e: E) {
     fn test_flags_many_static_params_on_class() {
         let test = TestProgram::for_rule_without_prelude(MaxStaticParams);
         let result = test.lint_ast(
-            "test.ds",
+            "max_static_params/test_flags_many_static_params_on_class.ds",
             r#"
 class Container<A, B, C, D, E> {
     a: A;
@@ -111,7 +111,7 @@ class Container<A, B, C, D, E> {
     fn test_flags_many_static_params_on_interface() {
         let test = TestProgram::for_rule_without_prelude(MaxStaticParams);
         let result = test.lint_ast(
-            "test.ds",
+            "max_static_params/test_flags_many_static_params_on_interface.ds",
             r#"
 interface Handler<A, B, C, D, E> {
     handle(a: A, b: B, c: C, d: D, e: E): void;
@@ -125,7 +125,7 @@ interface Handler<A, B, C, D, E> {
     fn test_allows_few_static_params() {
         let test = TestProgram::for_rule_without_prelude(MaxStaticParams);
         let result = test.lint_ast(
-            "test.ds",
+            "max_static_params/test_allows_few_static_params.ds",
             r#"
 function pair<A, B>(a: A, b: B) {
     return [a, b];
@@ -139,7 +139,7 @@ function pair<A, B>(a: A, b: B) {
     fn test_allows_exactly_at_limit() {
         let test = TestProgram::for_rule_without_prelude(MaxStaticParams);
         let result = test.lint_ast(
-            "test.ds",
+            "max_static_params/test_allows_exactly_at_limit.ds",
             r#"
 function quad<A, B, C, D>(a: A, b: B, c: C, d: D) {
     return [a, b, c, d];
@@ -153,7 +153,7 @@ function quad<A, B, C, D>(a: A, b: B, c: C, d: D) {
     fn test_allows_no_static_params() {
         let test = TestProgram::for_rule_without_prelude(MaxStaticParams);
         let result = test.lint_ast(
-            "test.ds",
+            "max_static_params/test_allows_no_static_params.ds",
             r#"
 function identity(x: int32) {
     return x;

@@ -73,7 +73,7 @@ mod tests {
     fn test_detects_too_many_params() {
         let test = TestProgram::for_rule_without_prelude(MaxParams);
         let result = test.lint_ast(
-            "test.ds",
+            "max_params/test_detects_too_many_params.ds",
             r#"
 function tooMany(a: int32, b: int32, c: int32, d: int32, e: int32) {
     return a + b + c + d + e;
@@ -87,7 +87,7 @@ function tooMany(a: int32, b: int32, c: int32, d: int32, e: int32) {
     fn test_detects_exactly_over_limit() {
         let test = TestProgram::for_rule_without_prelude(MaxParams);
         let result = test.lint_ast(
-            "test.ds",
+            "max_params/test_detects_exactly_over_limit.ds",
             r#"
 function fiveParams(a: int32, b: int32, c: int32, d: int32, e: int32) {}
 "#,
@@ -99,7 +99,7 @@ function fiveParams(a: int32, b: int32, c: int32, d: int32, e: int32) {}
     fn test_allows_four_params() {
         let test = TestProgram::for_rule_without_prelude(MaxParams);
         let result = test.lint_ast(
-            "test.ds",
+            "max_params/test_allows_four_params.ds",
             r#"
 function fourParams(a: int32, b: int32, c: int32, d: int32) {
     return a + b + c + d;
@@ -113,7 +113,7 @@ function fourParams(a: int32, b: int32, c: int32, d: int32) {
     fn test_allows_few_params() {
         let test = TestProgram::for_rule_without_prelude(MaxParams);
         let result = test.lint_ast(
-            "test.ds",
+            "max_params/test_allows_few_params.ds",
             r#"
 function add(a: int32, b: int32) {
     return a + b;
@@ -127,7 +127,7 @@ function add(a: int32, b: int32) {
     fn test_allows_no_params() {
         let test = TestProgram::for_rule_without_prelude(MaxParams);
         let result = test.lint_ast(
-            "test.ds",
+            "max_params/test_allows_no_params.ds",
             r#"
 function noParams() {
     return 42;
@@ -141,7 +141,7 @@ function noParams() {
     fn test_detects_lambda_too_many_params() {
         let test = TestProgram::for_rule_without_prelude(MaxParams);
         let result = test.lint_ast(
-            "test.ds",
+            "max_params/test_detects_lambda_too_many_params.ds",
             r#"
 const fn = (a: int32, b: int32, c: int32, d: int32, e: int32) => a + b + c + d + e;
 "#,

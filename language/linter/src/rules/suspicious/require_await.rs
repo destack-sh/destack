@@ -185,7 +185,7 @@ mod tests {
     fn test_async_without_await_detected() {
         let test = TestProgram::for_rule_without_prelude(RequireAwait);
         let result = test.lint_ast(
-            "test.ds",
+            "require_await/test_async_without_await_detected.ds",
             r#"
 async function foo() {
     return 42
@@ -199,7 +199,7 @@ async function foo() {
     fn test_async_with_await_allowed() {
         let test = TestProgram::for_rule_without_prelude(RequireAwait);
         let result = test.lint_ast(
-            "test.ds",
+            "require_await/test_async_with_await_allowed.ds",
             r#"
 async function foo() {
     let result = await fetch()
@@ -214,7 +214,7 @@ async function foo() {
     fn test_non_async_function_allowed() {
         let test = TestProgram::for_rule_without_prelude(RequireAwait);
         let result = test.lint_ast(
-            "test.ds",
+            "require_await/test_non_async_function_allowed.ds",
             r#"
 function foo() {
     return 42
@@ -228,7 +228,7 @@ function foo() {
     fn test_fix_removes_async() {
         let test = TestProgram::for_rule_without_prelude(RequireAwait);
         let result = test.lint_ast(
-            "test.ds",
+            "require_await/test_fix_removes_async.ds",
             r#"
 async function foo() {
     return 42

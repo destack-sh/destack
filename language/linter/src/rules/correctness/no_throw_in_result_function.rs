@@ -214,7 +214,7 @@ mod tests {
     fn test_flags_throw_in_result_function() {
         let test = TestProgram::for_rule_with_prelude(NoThrowInResultFunction);
         let result = test.lint_dir(
-            "test.ds",
+            "no_throw_in_result_function/test_flags_throw_in_result_function.ds",
             r#"
 function parse(input: string): Result<number, string> {
     if (input == "") {
@@ -233,7 +233,7 @@ function parse(input: string): Result<number, string> {
     fn test_allows_result_err() {
         let test = TestProgram::for_rule_with_prelude(NoThrowInResultFunction);
         let result = test.lint_dir(
-            "test.ds",
+            "no_throw_in_result_function/test_allows_result_err.ds",
             r#"
 function parse(input: string): Result<number, string> {
     if (input == "") {
@@ -252,7 +252,7 @@ function parse(input: string): Result<number, string> {
     fn test_allows_throw_in_void_function() {
         let test = TestProgram::for_rule_with_prelude(NoThrowInResultFunction);
         let result = test.lint_dir(
-            "test.ds",
+            "no_throw_in_result_function/test_allows_throw_in_void_function.ds",
             r#"
 function fail(msg: string) {
     throw msg;
@@ -268,7 +268,7 @@ function fail(msg: string) {
     fn test_allows_throw_in_nested_function() {
         let test = TestProgram::for_rule_with_prelude(NoThrowInResultFunction);
         let result = test.lint_dir(
-            "test.ds",
+            "no_throw_in_result_function/test_allows_throw_in_nested_function.ds",
             r#"
 function outer(): Result<number, string> {
     const inner = () => {

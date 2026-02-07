@@ -276,7 +276,7 @@ mod tests {
     fn test_flags_overwritten_assignment() {
         let test = TestProgram::for_rule_without_prelude(NoUselessAssignment);
         let result = test.lint_dir(
-            "test.ds",
+            "no_useless_assignment/test_flags_overwritten_assignment.ds",
             r#"
 function test(): void {
     let x = 1;
@@ -293,7 +293,7 @@ function test(): void {
     fn test_allows_used_assignment() {
         let test = TestProgram::for_rule_without_prelude(NoUselessAssignment);
         let result = test.lint_dir(
-            "test.ds",
+            "no_useless_assignment/test_allows_used_assignment.ds",
             r#"
 function test(): void {
     let x = 1;
@@ -310,7 +310,7 @@ function test(): void {
     fn test_allows_different_variables() {
         let test = TestProgram::for_rule_without_prelude(NoUselessAssignment);
         let result = test.lint_dir(
-            "test.ds",
+            "no_useless_assignment/test_allows_different_variables.ds",
             r#"
 function test(): void {
     let x = 1;

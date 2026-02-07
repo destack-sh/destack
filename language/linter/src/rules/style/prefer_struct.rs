@@ -104,7 +104,7 @@ mod tests {
     fn test_data_only_class_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferStruct);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_struct/test_data_only_class_detected.ds",
             r#"
 class Point {
     x: int32
@@ -119,7 +119,7 @@ class Point {
     fn test_class_with_method_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferStruct);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_struct/test_class_with_method_allowed.ds",
             r#"
 class Point {
     x: int32
@@ -138,7 +138,7 @@ class Point {
     fn test_class_with_extends_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferStruct);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_struct/test_class_with_extends_allowed.ds",
             r#"
 class Point3D extends Point {
     z: int32
@@ -152,7 +152,7 @@ class Point3D extends Point {
     fn test_struct_not_affected() {
         let test = TestProgram::for_rule_without_prelude(PreferStruct);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_struct/test_struct_not_affected.ds",
             r#"
 struct Point {
     x: int32
@@ -167,7 +167,7 @@ struct Point {
     fn test_empty_class_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferStruct);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_struct/test_empty_class_allowed.ds",
             r#"
 class Empty {}
 "#,

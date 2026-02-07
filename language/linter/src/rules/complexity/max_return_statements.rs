@@ -149,7 +149,7 @@ mod tests {
     fn test_detects_too_many_returns() {
         let test = TestProgram::for_rule_without_prelude(MaxReturnStatements);
         let result = test.lint_ast(
-            "test.ds",
+            "max_return_statements/test_detects_too_many_returns.ds",
             r#"
 function tooManyReturns(x: int32): int32 {
     if (x < 0) { return -1; }
@@ -173,7 +173,7 @@ function tooManyReturns(x: int32): int32 {
     fn test_allows_few_returns() {
         let test = TestProgram::for_rule_without_prelude(MaxReturnStatements);
         let result = test.lint_ast(
-            "test.ds",
+            "max_return_statements/test_allows_few_returns.ds",
             r#"
 function fewReturns(x: int32): int32 {
     if (x < 0) { return -1; }
@@ -190,7 +190,7 @@ function fewReturns(x: int32): int32 {
         let test = TestProgram::for_rule_without_prelude(MaxReturnStatements);
         // 10 returns is at the limit (default max is 10)
         let result = test.lint_ast(
-            "test.ds",
+            "max_return_statements/test_allows_exactly_at_limit.ds",
             r#"
 function atLimit(x: int32): int32 {
     if (x == 0) { return 0; }
@@ -213,7 +213,7 @@ function atLimit(x: int32): int32 {
     fn test_counts_returns_in_match() {
         let test = TestProgram::for_rule_without_prelude(MaxReturnStatements);
         let result = test.lint_ast(
-            "test.ds",
+            "max_return_statements/test_counts_returns_in_match.ds",
             r#"
 function matchReturns(x: int32): int32 {
     match (x) {
@@ -239,7 +239,7 @@ function matchReturns(x: int32): int32 {
     fn test_does_not_count_nested_function() {
         let test = TestProgram::for_rule_without_prelude(MaxReturnStatements);
         let result = test.lint_ast(
-            "test.ds",
+            "max_return_statements/test_does_not_count_nested_function.ds",
             r#"
 function outer(x: int32): int32 {
     function inner(y: int32): int32 {

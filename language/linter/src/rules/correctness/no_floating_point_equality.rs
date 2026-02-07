@@ -152,7 +152,7 @@ mod tests {
     fn test_flags_float_equality() {
         let test = TestProgram::for_rule_without_prelude(NoFloatingPointEquality);
         let result = test.lint_dir(
-            "test.ds",
+            "no_floating_point_equality/test_flags_float_equality.ds",
             r#"
 let a: float64 = 0.1 + 0.2;
 let b: float64 = 0.3;
@@ -167,7 +167,7 @@ let equal = a == b;
     fn test_flags_float_not_equal() {
         let test = TestProgram::for_rule_without_prelude(NoFloatingPointEquality);
         let result = test.lint_dir(
-            "test.ds",
+            "no_floating_point_equality/test_flags_float_not_equal.ds",
             r#"
 let a: float64 = 1.0;
 let b: float64 = 2.0;
@@ -182,7 +182,7 @@ let notEqual = a != b;
     fn test_flags_number_equality() {
         let test = TestProgram::for_rule_without_prelude(NoFloatingPointEquality);
         let result = test.lint_dir(
-            "test.ds",
+            "no_floating_point_equality/test_flags_number_equality.ds",
             r#"
 let a: number = 0.1 + 0.2;
 let b: number = 0.3;
@@ -197,7 +197,7 @@ let equal = a == b;
     fn test_allows_integer_equality() {
         let test = TestProgram::for_rule_without_prelude(NoFloatingPointEquality);
         let result = test.lint_dir(
-            "test.ds",
+            "no_floating_point_equality/test_allows_integer_equality.ds",
             r#"
 let a: int32 = 1;
 let b: int32 = 2;
@@ -212,7 +212,7 @@ let equal = a == b;
     fn test_allows_string_equality() {
         let test = TestProgram::for_rule_without_prelude(NoFloatingPointEquality);
         let result = test.lint_dir(
-            "test.ds",
+            "no_floating_point_equality/test_allows_string_equality.ds",
             r#"
 let a = "hello";
 let b = "world";
@@ -227,7 +227,7 @@ let equal = a == b;
     fn test_allows_float_less_than() {
         let test = TestProgram::for_rule_without_prelude(NoFloatingPointEquality);
         let result = test.lint_dir(
-            "test.ds",
+            "no_floating_point_equality/test_allows_float_less_than.ds",
             r#"
 let a: float64 = 1.0;
 let b: float64 = 2.0;

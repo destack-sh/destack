@@ -153,7 +153,7 @@ mod tests {
     fn test_flags_array_foreach() {
         let test = TestProgram::for_rule_without_prelude(NoArrayForEach);
         let result = test.lint_dir(
-            "test.ds",
+            "no_array_for_each/test_flags_array_foreach.ds",
             r#"
 let items = [1, 2, 3];
 items.forEach((item) => {
@@ -169,7 +169,7 @@ items.forEach((item) => {
     fn test_flags_foreach_with_index() {
         let test = TestProgram::for_rule_without_prelude(NoArrayForEach);
         let result = test.lint_dir(
-            "test.ds",
+            "no_array_for_each/test_flags_foreach_with_index.ds",
             r#"
 let items = ["a", "b", "c"];
 items.forEach((item, index) => {
@@ -185,7 +185,7 @@ items.forEach((item, index) => {
     fn test_flags_typed_array_foreach() {
         let test = TestProgram::for_rule_without_prelude(NoArrayForEach);
         let result = test.lint_dir(
-            "test.ds",
+            "no_array_for_each/test_flags_typed_array_foreach.ds",
             r#"
 let items: number[] = [1, 2, 3];
 items.forEach((item) => console.log(item));
@@ -199,7 +199,7 @@ items.forEach((item) => console.log(item));
     fn test_allows_for_of() {
         let test = TestProgram::for_rule_without_prelude(NoArrayForEach);
         let result = test.lint_dir(
-            "test.ds",
+            "no_array_for_each/test_allows_for_of.ds",
             r#"
 let items = [1, 2, 3];
 for (const item of items) {
@@ -215,7 +215,7 @@ for (const item of items) {
     fn test_allows_map() {
         let test = TestProgram::for_rule_without_prelude(NoArrayForEach);
         let result = test.lint_dir(
-            "test.ds",
+            "no_array_for_each/test_allows_map.ds",
             r#"
 let items = [1, 2, 3];
 let doubled = items.map((item) => item * 2);

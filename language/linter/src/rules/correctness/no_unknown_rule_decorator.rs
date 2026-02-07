@@ -129,7 +129,7 @@ mod tests {
     fn test_detects_unknown_rule_id() {
         let test = TestProgram::for_rule_without_prelude(NoUnknownRuleDecorator);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unknown_rule_decorator/test_detects_unknown_rule_id.ds",
             r#"
 @allow("not-a-real-rule")
 function foo() {}
@@ -142,7 +142,7 @@ function foo() {}
     fn test_detects_unknown_rule_code() {
         let test = TestProgram::for_rule_without_prelude(NoUnknownRuleDecorator);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unknown_rule_decorator/test_detects_unknown_rule_code.ds",
             r#"
 @deny("ZZ999")
 function foo() {}
@@ -155,7 +155,7 @@ function foo() {}
     fn test_allows_valid_rule_id() {
         let test = TestProgram::for_rule_without_prelude(NoUnknownRuleDecorator);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unknown_rule_decorator/test_allows_valid_rule_id.ds",
             r#"
 @allow("no-empty")
 function foo() {}
@@ -169,7 +169,7 @@ function foo() {}
     fn test_allows_valid_rule_code() {
         let test = TestProgram::for_rule_without_prelude(NoUnknownRuleDecorator);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unknown_rule_decorator/test_allows_valid_rule_code.ds",
             r#"
 @warn("LU014")
 function foo() {}
@@ -183,7 +183,7 @@ function foo() {}
     fn test_checks_all_decorator_types() {
         let test = TestProgram::for_rule_without_prelude(NoUnknownRuleDecorator);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unknown_rule_decorator/test_checks_all_decorator_types.ds",
             r#"
 @forbid("fake-rule")
 function foo() {}
@@ -196,7 +196,7 @@ function foo() {}
     fn test_ignores_other_decorators() {
         let test = TestProgram::for_rule_without_prelude(NoUnknownRuleDecorator);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unknown_rule_decorator/test_ignores_other_decorators.ds",
             r#"
 @deprecated("use bar instead")
 function foo() {}

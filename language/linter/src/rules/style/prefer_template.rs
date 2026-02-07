@@ -150,7 +150,7 @@ mod tests {
     fn test_detects_string_concat() {
         let test = TestProgram::for_rule_without_prelude(PreferTemplate);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_template/test_detects_string_concat.ds",
             r#"
 const greeting = "Hello " + name
 "#,
@@ -162,7 +162,7 @@ const greeting = "Hello " + name
     fn test_detects_concat_with_string_on_right() {
         let test = TestProgram::for_rule_without_prelude(PreferTemplate);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_template/test_detects_concat_with_string_on_right.ds",
             r#"
 const greeting = name + " says hi"
 "#,
@@ -174,7 +174,7 @@ const greeting = name + " says hi"
     fn test_allows_template_literal() {
         let test = TestProgram::for_rule_without_prelude(PreferTemplate);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_template/test_allows_template_literal.ds",
             r#"
 const greeting = `Hello ${name}`
 "#,
@@ -186,7 +186,7 @@ const greeting = `Hello ${name}`
     fn test_allows_number_addition() {
         let test = TestProgram::for_rule_without_prelude(PreferTemplate);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_template/test_allows_number_addition.ds",
             r#"
 const sum = a + b
 "#,
@@ -199,7 +199,7 @@ const sum = a + b
         let test = TestProgram::for_rule_without_prelude(PreferTemplate);
         // two string literals should be caught by no-useless-concat
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_template/test_allows_two_strings.ds",
             r#"
 const x = "hello" + "world"
 "#,
@@ -211,7 +211,7 @@ const x = "hello" + "world"
     fn test_fix_string_on_left() {
         let test = TestProgram::for_rule_without_prelude(PreferTemplate);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_template/test_fix_string_on_left.ds",
             r#"
 const greeting = "Hello " + name
 "#,
@@ -229,7 +229,7 @@ const greeting = `Hello ${name}`;
     fn test_fix_string_on_right() {
         let test = TestProgram::for_rule_without_prelude(PreferTemplate);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_template/test_fix_string_on_right.ds",
             r#"
 const greeting = name + " says hi"
 "#,

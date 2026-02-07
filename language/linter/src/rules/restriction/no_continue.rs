@@ -67,7 +67,7 @@ mod tests {
     fn test_detects_continue() {
         let test = TestProgram::for_rule_without_prelude(NoContinue);
         let result = test.lint_ast(
-            "test.ts",
+            "no_continue/test_detects_continue.ts",
             r#"
 for (let i = 0; i < 10; i++) {
     if (i === 5) continue;
@@ -82,7 +82,7 @@ for (let i = 0; i < 10; i++) {
     fn test_detects_labeled_continue() {
         let test = TestProgram::for_rule_without_prelude(NoContinue);
         let result = test.lint_ast(
-            "test.ts",
+            "no_continue/test_detects_labeled_continue.ts",
             r#"
 outer: for (let i = 0; i < 10; i++) {
     for (let j = 0; j < 10; j++) {
@@ -98,7 +98,7 @@ outer: for (let i = 0; i < 10; i++) {
     fn test_allows_break() {
         let test = TestProgram::for_rule_without_prelude(NoContinue);
         let result = test.lint_ast(
-            "test.ts",
+            "no_continue/test_allows_break.ts",
             r#"
 for (let i = 0; i < 10; i++) {
     if (i === 5) break;

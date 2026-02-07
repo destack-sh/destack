@@ -180,7 +180,7 @@ mod tests {
     fn test_detects_heterogeneous_array() {
         let test = TestProgram::for_rule_without_prelude(PreferTuple);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_tuple/test_detects_heterogeneous_array.ds",
             r#"
 let data = ["hello", 42, true]
 "#,
@@ -192,7 +192,7 @@ let data = ["hello", 42, true]
     fn test_detects_string_number_array() {
         let test = TestProgram::for_rule_without_prelude(PreferTuple);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_tuple/test_detects_string_number_array.ds",
             r#"
 let pair = ["name", 123]
 "#,
@@ -204,7 +204,7 @@ let pair = ["name", 123]
     fn test_allows_homogeneous_string_array() {
         let test = TestProgram::for_rule_without_prelude(PreferTuple);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_tuple/test_allows_homogeneous_string_array.ds",
             r#"
 let names = ["alice", "bob", "charlie"]
 "#,
@@ -216,7 +216,7 @@ let names = ["alice", "bob", "charlie"]
     fn test_allows_homogeneous_number_array() {
         let test = TestProgram::for_rule_without_prelude(PreferTuple);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_tuple/test_allows_homogeneous_number_array.ds",
             r#"
 let nums = [1, 2, 3]
 "#,
@@ -228,7 +228,7 @@ let nums = [1, 2, 3]
     fn test_allows_single_element_array() {
         let test = TestProgram::for_rule_without_prelude(PreferTuple);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_tuple/test_allows_single_element_array.ds",
             r#"
 let single = [42]
 "#,
@@ -240,7 +240,7 @@ let single = [42]
     fn test_allows_empty_array() {
         let test = TestProgram::for_rule_without_prelude(PreferTuple);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_tuple/test_allows_empty_array.ds",
             r#"
 let empty = []
 "#,
@@ -252,7 +252,7 @@ let empty = []
     fn test_allows_non_literal_array() {
         let test = TestProgram::for_rule_without_prelude(PreferTuple);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_tuple/test_allows_non_literal_array.ds",
             r#"
 let data = [x, y, z]
 "#,
@@ -264,7 +264,7 @@ let data = [x, y, z]
     fn test_fix_converts_to_tuple() {
         let test = TestProgram::for_rule_without_prelude(PreferTuple);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_tuple/test_fix_converts_to_tuple.ds",
             r#"
 let data = ["hello", 42];
 "#,
@@ -282,7 +282,7 @@ let data = ("hello", 42,);
     fn test_ignores_typescript_files() {
         let test = TestProgram::for_rule_without_prelude(PreferTuple);
         let result = test.lint_ast(
-            "test.ts",
+            "prefer_tuple/test_ignores_typescript_files.ts",
             r#"
 let data = ["hello", 42, true]
 "#,

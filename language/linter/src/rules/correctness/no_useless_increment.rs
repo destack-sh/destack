@@ -148,7 +148,7 @@ mod tests {
     fn test_flags_postfix_increment_in_return() {
         let test = TestProgram::for_rule_without_prelude(NoUselessIncrement);
         let result = test.lint_dir(
-            "test.ds",
+            "no_useless_increment/test_flags_postfix_increment_in_return.ds",
             r#"
 function getAndIncrement(): int32 {
     let x = 0;
@@ -164,7 +164,7 @@ function getAndIncrement(): int32 {
     fn test_flags_postfix_decrement_in_return() {
         let test = TestProgram::for_rule_without_prelude(NoUselessIncrement);
         let result = test.lint_dir(
-            "test.ds",
+            "no_useless_increment/test_flags_postfix_decrement_in_return.ds",
             r#"
 function getAndDecrement(): int32 {
     let x = 10;
@@ -180,7 +180,7 @@ function getAndDecrement(): int32 {
     fn test_allows_prefix_increment() {
         let test = TestProgram::for_rule_without_prelude(NoUselessIncrement);
         let result = test.lint_dir(
-            "test.ds",
+            "no_useless_increment/test_allows_prefix_increment.ds",
             r#"
 function incrementAndGet(): int32 {
     let x = 0;
@@ -196,7 +196,7 @@ function incrementAndGet(): int32 {
     fn test_allows_postfix_not_in_return() {
         let test = TestProgram::for_rule_without_prelude(NoUselessIncrement);
         let result = test.lint_dir(
-            "test.ds",
+            "no_useless_increment/test_allows_postfix_not_in_return.ds",
             r#"
 function count(): int32 {
     let x = 0;

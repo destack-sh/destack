@@ -135,7 +135,7 @@ mod tests {
     fn test_match_bool_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferIfElseOverMatchBool);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_if_else_over_match_bool/test_match_bool_detected.ds",
             r#"
 function foo(condition: bool) {
     match condition {
@@ -153,7 +153,7 @@ function foo(condition: bool) {
     fn test_match_bool_false_first_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferIfElseOverMatchBool);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_if_else_over_match_bool/test_match_bool_false_first_detected.ds",
             r#"
 function foo(condition: bool) {
     match condition {
@@ -171,7 +171,7 @@ function foo(condition: bool) {
     fn test_if_else_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferIfElseOverMatchBool);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_if_else_over_match_bool/test_if_else_allowed.ds",
             r#"
 function foo(condition: bool) {
     if condition {
@@ -190,7 +190,7 @@ function foo(condition: bool) {
     fn test_match_non_bool_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferIfElseOverMatchBool);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_if_else_over_match_bool/test_match_non_bool_allowed.ds",
             r#"
 function foo(x: int32) {
     match x {
@@ -208,7 +208,7 @@ function foo(x: int32) {
     fn test_match_enum_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferIfElseOverMatchBool);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_if_else_over_match_bool/test_match_enum_allowed.ds",
             r#"
 function foo(x: int32?) {
     match x {
@@ -226,7 +226,7 @@ function foo(x: int32?) {
     fn test_match_bool_with_wildcard_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferIfElseOverMatchBool);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_if_else_over_match_bool/test_match_bool_with_wildcard_allowed.ds",
             r#"
 function foo(condition: bool) {
     match condition {
@@ -245,7 +245,7 @@ function foo(condition: bool) {
     fn test_match_more_than_two_arms_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferIfElseOverMatchBool);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_if_else_over_match_bool/test_match_more_than_two_arms_allowed.ds",
             r#"
 function foo(x: int32) {
     match x {
@@ -264,7 +264,7 @@ function foo(x: int32) {
     fn test_match_bool_same_value_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferIfElseOverMatchBool);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_if_else_over_match_bool/test_match_bool_same_value_allowed.ds",
             r#"
 function foo(condition: bool) {
     match condition {

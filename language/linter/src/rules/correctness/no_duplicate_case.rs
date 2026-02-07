@@ -112,7 +112,7 @@ mod tests {
     fn test_detects_duplicate_integer_case() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateCase);
         let result = test.lint_ast(
-            "test.ds",
+            "no_duplicate_case/test_detects_duplicate_integer_case.ds",
             r#"
 let x = 1;
 switch (x) {
@@ -129,7 +129,7 @@ switch (x) {
     fn test_detects_duplicate_string_case() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateCase);
         let result = test.lint_ast(
-            "test.ds",
+            "no_duplicate_case/test_detects_duplicate_string_case.ds",
             r#"
 let x = "a";
 switch (x) {
@@ -146,7 +146,7 @@ switch (x) {
     fn test_detects_duplicate_boolean_case() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateCase);
         let result = test.lint_ast(
-            "test.ds",
+            "no_duplicate_case/test_detects_duplicate_boolean_case.ds",
             r#"
 let x = true;
 switch (x) {
@@ -163,7 +163,7 @@ switch (x) {
     fn test_allows_unique_cases() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateCase);
         let result = test.lint_ast(
-            "test.ds",
+            "no_duplicate_case/test_allows_unique_cases.ds",
             r#"
 let x = 1;
 switch (x) {
@@ -180,7 +180,7 @@ switch (x) {
     fn test_ignores_match_expression() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateCase);
         let result = test.lint_ast(
-            "test.ds",
+            "no_duplicate_case/test_ignores_match_expression.ds",
             r#"
 let x = 1;
 match (x) {

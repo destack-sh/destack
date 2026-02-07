@@ -96,7 +96,7 @@ mod tests {
     fn test_unguarded_for_in_detected() {
         let test = TestProgram::for_rule_without_prelude(GuardForIn);
         let result = test.lint_ast(
-            "test.ds",
+            "guard_for_in/test_unguarded_for_in_detected.ds",
             r#"
 function foo(obj: object) {
     for (const key in obj) {
@@ -112,7 +112,7 @@ function foo(obj: object) {
     fn test_guarded_for_in_allowed() {
         let test = TestProgram::for_rule_without_prelude(GuardForIn);
         let result = test.lint_ast(
-            "test.ds",
+            "guard_for_in/test_guarded_for_in_allowed.ds",
             r#"
 function foo(obj: object) {
     for (const key in obj) {
@@ -130,7 +130,7 @@ function foo(obj: object) {
     fn test_for_of_not_affected() {
         let test = TestProgram::for_rule_without_prelude(GuardForIn);
         let result = test.lint_ast(
-            "test.ds",
+            "guard_for_in/test_for_of_not_affected.ds",
             r#"
 function foo(arr: int32[]) {
     for (const item of arr) {
@@ -146,7 +146,7 @@ function foo(arr: int32[]) {
     fn test_empty_for_in_allowed() {
         let test = TestProgram::for_rule_without_prelude(GuardForIn);
         let result = test.lint_ast(
-            "test.ds",
+            "guard_for_in/test_empty_for_in_allowed.ds",
             r#"
 function foo(obj: object) {
     for (const key in obj) {}

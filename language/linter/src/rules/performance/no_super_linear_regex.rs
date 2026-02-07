@@ -211,7 +211,7 @@ mod tests {
     fn test_detects_nested_plus() {
         let test = TestProgram::for_rule_without_prelude(NoSuperLinearRegex);
         let result = test.lint_ast(
-            "test.ds",
+            "no_super_linear_regex/test_detects_nested_plus.ds",
             r#"
 let re = /(a+)+/
 "#,
@@ -223,7 +223,7 @@ let re = /(a+)+/
     fn test_detects_nested_star() {
         let test = TestProgram::for_rule_without_prelude(NoSuperLinearRegex);
         let result = test.lint_ast(
-            "test.ds",
+            "no_super_linear_regex/test_detects_nested_star.ds",
             r#"
 let re = /(a*)*b/
 "#,
@@ -235,7 +235,7 @@ let re = /(a*)*b/
     fn test_detects_star_plus() {
         let test = TestProgram::for_rule_without_prelude(NoSuperLinearRegex);
         let result = test.lint_ast(
-            "test.ds",
+            "no_super_linear_regex/test_detects_star_plus.ds",
             r#"
 let re = /(a+)*/
 "#,
@@ -247,7 +247,7 @@ let re = /(a+)*/
     fn test_detects_deeply_nested() {
         let test = TestProgram::for_rule_without_prelude(NoSuperLinearRegex);
         let result = test.lint_ast(
-            "test.ds",
+            "no_super_linear_regex/test_detects_deeply_nested.ds",
             r#"
 let re = /((a+)+)+/
 "#,
@@ -259,7 +259,7 @@ let re = /((a+)+)+/
     fn test_allows_simple_quantifier() {
         let test = TestProgram::for_rule_without_prelude(NoSuperLinearRegex);
         let result = test.lint_ast(
-            "test.ds",
+            "no_super_linear_regex/test_allows_simple_quantifier.ds",
             r#"
 let re = /a+/
 "#,
@@ -271,7 +271,7 @@ let re = /a+/
     fn test_allows_group_with_quantifier() {
         let test = TestProgram::for_rule_without_prelude(NoSuperLinearRegex);
         let result = test.lint_ast(
-            "test.ds",
+            "no_super_linear_regex/test_allows_group_with_quantifier.ds",
             r#"
 let re = /(ab)+/
 "#,
@@ -283,7 +283,7 @@ let re = /(ab)+/
     fn test_allows_bounded_repetition() {
         let test = TestProgram::for_rule_without_prelude(NoSuperLinearRegex);
         let result = test.lint_ast(
-            "test.ds",
+            "no_super_linear_regex/test_allows_bounded_repetition.ds",
             r#"
 let re = /(a{1,3}){1,3}/
 "#,
@@ -296,7 +296,7 @@ let re = /(a{1,3}){1,3}/
     fn test_allows_optional_in_quantifier() {
         let test = TestProgram::for_rule_without_prelude(NoSuperLinearRegex);
         let result = test.lint_ast(
-            "test.ds",
+            "no_super_linear_regex/test_allows_optional_in_quantifier.ds",
             r#"
 let re = /(ab?)+/
 "#,
@@ -309,7 +309,7 @@ let re = /(ab?)+/
     fn test_allows_simple_regex() {
         let test = TestProgram::for_rule_without_prelude(NoSuperLinearRegex);
         let result = test.lint_ast(
-            "test.ds",
+            "no_super_linear_regex/test_allows_simple_regex.ds",
             r#"
 let re = /^[a-z]+@[a-z]+\.[a-z]+$/
 "#,
@@ -321,7 +321,7 @@ let re = /^[a-z]+@[a-z]+\.[a-z]+$/
     fn test_allows_non_nested_alternation() {
         let test = TestProgram::for_rule_without_prelude(NoSuperLinearRegex);
         let result = test.lint_ast(
-            "test.ds",
+            "no_super_linear_regex/test_allows_non_nested_alternation.ds",
             r#"
 let re = /(foo|bar)+/
 "#,

@@ -73,7 +73,7 @@ mod tests {
     fn test_detects_multiple_declarators_with_let() {
         let test = TestProgram::for_rule_without_prelude(NoMultiDeclarators);
         let result = test.lint_ast(
-            "test.ds",
+            "no_multi_declarators/test_detects_multiple_declarators_with_let.ds",
             r#"
 let a = 1, b = 2;
 "#,
@@ -85,7 +85,7 @@ let a = 1, b = 2;
     fn test_detects_multiple_declarators_with_const() {
         let test = TestProgram::for_rule_without_prelude(NoMultiDeclarators);
         let result = test.lint_ast(
-            "test.ds",
+            "no_multi_declarators/test_detects_multiple_declarators_with_const.ds",
             r#"
 const a = 1, b = 2, c = 3;
 "#,
@@ -97,7 +97,7 @@ const a = 1, b = 2, c = 3;
     fn test_detects_multiple_declarators_with_var() {
         let test = TestProgram::for_rule_without_prelude(NoMultiDeclarators);
         let result = test.lint_ast(
-            "test.ds",
+            "no_multi_declarators/test_detects_multiple_declarators_with_var.ds",
             r#"
 var x = 1, y = 2;
 "#,
@@ -109,7 +109,7 @@ var x = 1, y = 2;
     fn test_detects_multiple_declarators_without_values() {
         let test = TestProgram::for_rule_without_prelude(NoMultiDeclarators);
         let result = test.lint_ast(
-            "test.ds",
+            "no_multi_declarators/test_detects_multiple_declarators_without_values.ds",
             r#"
 let a: int32, b: int32;
 "#,
@@ -121,7 +121,7 @@ let a: int32, b: int32;
     fn test_allows_single_declarator_with_let() {
         let test = TestProgram::for_rule_without_prelude(NoMultiDeclarators);
         let result = test.lint_ast(
-            "test.ds",
+            "no_multi_declarators/test_allows_single_declarator_with_let.ds",
             r#"
 let a = 1;
 "#,
@@ -133,7 +133,7 @@ let a = 1;
     fn test_allows_single_declarator_with_const() {
         let test = TestProgram::for_rule_without_prelude(NoMultiDeclarators);
         let result = test.lint_ast(
-            "test.ds",
+            "no_multi_declarators/test_allows_single_declarator_with_const.ds",
             r#"
 const x = 42;
 "#,
@@ -145,7 +145,7 @@ const x = 42;
     fn test_allows_multiple_separate_statements() {
         let test = TestProgram::for_rule_without_prelude(NoMultiDeclarators);
         let result = test.lint_ast(
-            "test.ds",
+            "no_multi_declarators/test_allows_multiple_separate_statements.ds",
             r#"
 let a = 1;
 let b = 2;
@@ -159,7 +159,7 @@ let c = 3;
     fn test_allows_single_declarator_without_value() {
         let test = TestProgram::for_rule_without_prelude(NoMultiDeclarators);
         let result = test.lint_ast(
-            "test.ds",
+            "no_multi_declarators/test_allows_single_declarator_without_value.ds",
             r#"
 let x: int32;
 "#,

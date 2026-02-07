@@ -100,7 +100,7 @@ mod tests {
     fn test_detects_empty_constructor() {
         let test = TestProgram::for_rule_without_prelude(NoUselessConstructor);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_constructor/test_detects_empty_constructor.ds",
             r#"
 class Foo {
     constructor() {}
@@ -114,7 +114,7 @@ class Foo {
     fn test_allows_constructor_with_initialization() {
         let test = TestProgram::for_rule_without_prelude(NoUselessConstructor);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_constructor/test_allows_constructor_with_initialization.ds",
             r#"
 class Foo {
     constructor() {
@@ -130,7 +130,7 @@ class Foo {
     fn test_allows_constructor_with_params() {
         let test = TestProgram::for_rule_without_prelude(NoUselessConstructor);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_constructor/test_allows_constructor_with_params.ds",
             r#"
 class Foo {
     constructor(x: int32) {}

@@ -228,7 +228,7 @@ mod tests {
     fn test_flags_object_prototype_assignment() {
         let test = TestProgram::for_rule_with_prelude(NoPrototypePollution);
         let result = test.lint_dir(
-            "test.ds",
+            "no_prototype_pollution/test_flags_object_prototype_assignment.ds",
             r#"
 Object.prototype.foo = "bar";
 "#,
@@ -241,7 +241,7 @@ Object.prototype.foo = "bar";
     fn test_flags_proto_access() {
         let test = TestProgram::for_rule_with_prelude(NoPrototypePollution);
         let result = test.lint_dir(
-            "test.ds",
+            "no_prototype_pollution/test_flags_proto_access.ds",
             r#"
 let obj = {};
 obj.__proto__.foo = "bar";
@@ -255,7 +255,7 @@ obj.__proto__.foo = "bar";
     fn test_flags_string_proto_index() {
         let test = TestProgram::for_rule_with_prelude(NoPrototypePollution);
         let result = test.lint_dir(
-            "test.ds",
+            "no_prototype_pollution/test_flags_string_proto_index.ds",
             r#"
 let obj = {};
 let x = obj["__proto__"];
@@ -269,7 +269,7 @@ let x = obj["__proto__"];
     fn test_allows_normal_property_access() {
         let test = TestProgram::for_rule_with_prelude(NoPrototypePollution);
         let result = test.lint_dir(
-            "test.ds",
+            "no_prototype_pollution/test_allows_normal_property_access.ds",
             r#"
 let obj = {};
 obj.foo = "bar";
@@ -283,7 +283,7 @@ obj.foo = "bar";
     fn test_allows_normal_index_access() {
         let test = TestProgram::for_rule_with_prelude(NoPrototypePollution);
         let result = test.lint_dir(
-            "test.ds",
+            "no_prototype_pollution/test_allows_normal_index_access.ds",
             r#"
 let obj = {};
 let x = obj["foo"];

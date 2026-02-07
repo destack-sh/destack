@@ -221,7 +221,7 @@ mod tests {
     fn test_flags_json_clone() {
         let test = TestProgram::for_rule_with_prelude(NoJsonClone);
         let result = test.lint_dir(
-            "test.ds",
+            "no_json_clone/test_flags_json_clone.ds",
             r#"
 const next = JSON.parse(JSON.stringify(value));
 "#,
@@ -234,7 +234,7 @@ const next = JSON.parse(JSON.stringify(value));
     fn test_flags_global_json_clone() {
         let test = TestProgram::for_rule_with_prelude(NoJsonClone);
         let result = test.lint_dir(
-            "test.ds",
+            "no_json_clone/test_flags_global_json_clone.ds",
             r#"
 const next = globalThis.JSON.parse(globalThis.JSON.stringify(value));
 "#,
@@ -247,7 +247,7 @@ const next = globalThis.JSON.parse(globalThis.JSON.stringify(value));
     fn test_allows_json_parse() {
         let test = TestProgram::for_rule_with_prelude(NoJsonClone);
         let result = test.lint_dir(
-            "test.ds",
+            "no_json_clone/test_allows_json_parse.ds",
             r#"
 const parsed = JSON.parse(text);
 "#,

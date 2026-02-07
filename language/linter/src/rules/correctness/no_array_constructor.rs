@@ -159,7 +159,7 @@ mod tests {
     fn test_flags_array_constructor_call() {
         let test = TestProgram::for_rule_with_prelude(NoArrayConstructor);
         let result = test.lint_dir(
-            "test.ds",
+            "no_array_constructor/test_flags_array_constructor_call.ds",
             r#"
 let items = Array(1, 2);
 "#,
@@ -171,7 +171,7 @@ let items = Array(1, 2);
     fn test_flags_array_constructor_new() {
         let test = TestProgram::for_rule_with_prelude(NoArrayConstructor);
         let result = test.lint_dir(
-            "test.ds",
+            "no_array_constructor/test_flags_array_constructor_new.ds",
             r#"
 let items = new Array(1);
 "#,
@@ -183,7 +183,7 @@ let items = new Array(1);
     fn test_allows_array_literal() {
         let test = TestProgram::for_rule_with_prelude(NoArrayConstructor);
         let result = test.lint_dir(
-            "test.ds",
+            "no_array_constructor/test_allows_array_literal.ds",
             r#"
 let items = [1, 2];
 "#,
@@ -195,7 +195,7 @@ let items = [1, 2];
     fn test_allows_shadowed_array() {
         let test = TestProgram::for_rule_with_prelude(NoArrayConstructor);
         let result = test.lint_dir(
-            "test.ds",
+            "no_array_constructor/test_allows_shadowed_array.ds",
             r#"
 let Array = (value: number): number => value;
 let item = Array(1);
@@ -208,7 +208,7 @@ let item = Array(1);
     fn test_allows_shadowed_array_in_function() {
         let test = TestProgram::for_rule_with_prelude(NoArrayConstructor);
         let result = test.lint_dir(
-            "test.ds",
+            "no_array_constructor/test_allows_shadowed_array_in_function.ds",
             r#"
 let build = (Array: (value: number) => number): number => {
     return Array(1);

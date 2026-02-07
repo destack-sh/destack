@@ -149,7 +149,7 @@ mod tests {
     fn test_flags_throw() {
         let test = TestProgram::for_rule_with_prelude(NoExceptions);
         let result = test.lint_dir(
-            "test.ds",
+            "no_exceptions/test_flags_throw.ds",
             r#"
 function fail(): never {
     throw new Error("failed");
@@ -164,7 +164,7 @@ function fail(): never {
     fn test_flags_try_catch() {
         let test = TestProgram::for_rule_with_prelude(NoExceptions);
         let result = test.lint_dir(
-            "test.ds",
+            "no_exceptions/test_flags_try_catch.ds",
             r#"
 function risky(): number {
     try {
@@ -183,7 +183,7 @@ function risky(): number {
     fn test_flags_try_finally() {
         let test = TestProgram::for_rule_with_prelude(NoExceptions);
         let result = test.lint_dir(
-            "test.ds",
+            "no_exceptions/test_flags_try_finally.ds",
             r#"
 function cleanup(): void {
     try {
@@ -204,7 +204,7 @@ function cleanupResources(): void {}
     fn test_allows_result_type() {
         let test = TestProgram::for_rule_with_prelude(NoExceptions);
         let result = test.lint_dir(
-            "test.ds",
+            "no_exceptions/test_allows_result_type.ds",
             r#"
 function divide(a: number, b: number): Result<number, string> {
     if (b === 0) {
@@ -222,7 +222,7 @@ function divide(a: number, b: number): Result<number, string> {
     fn test_allows_normal_code() {
         let test = TestProgram::for_rule_with_prelude(NoExceptions);
         let result = test.lint_dir(
-            "test.ds",
+            "no_exceptions/test_allows_normal_code.ds",
             r#"
 function add(a: number, b: number): number {
     return a + b;
@@ -238,7 +238,7 @@ let sum = add(1, 2);
     fn test_flags_throw_in_nested_scope() {
         let test = TestProgram::for_rule_with_prelude(NoExceptions);
         let result = test.lint_dir(
-            "test.ds",
+            "no_exceptions/test_flags_throw_in_nested_scope.ds",
             r#"
 function check(value: number): void {
     if (value < 0) {
@@ -255,7 +255,7 @@ function check(value: number): void {
     fn test_flags_try_catch_finally() {
         let test = TestProgram::for_rule_with_prelude(NoExceptions);
         let result = test.lint_dir(
-            "test.ds",
+            "no_exceptions/test_flags_try_catch_finally.ds",
             r#"
 function process(): number {
     try {
@@ -277,7 +277,7 @@ function cleanup(): void {}
     fn test_flags_multiple_throws() {
         let test = TestProgram::for_rule_with_prelude(NoExceptions);
         let result = test.lint_dir(
-            "test.ds",
+            "no_exceptions/test_flags_multiple_throws.ds",
             r#"
 function validate(a: number, b: number): void {
     if (a < 0) {

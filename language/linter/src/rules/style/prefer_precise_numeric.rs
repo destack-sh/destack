@@ -69,7 +69,7 @@ mod tests {
     fn test_number_type_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferPreciseNumeric);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_precise_numeric/test_number_type_detected.ds",
             r#"
 function foo(x: number): number {
     return x
@@ -83,7 +83,7 @@ function foo(x: number): number {
     fn test_int32_type_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferPreciseNumeric);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_precise_numeric/test_int32_type_allowed.ds",
             r#"
 function foo(x: int32): int32 {
     return x
@@ -97,7 +97,7 @@ function foo(x: int32): int32 {
     fn test_float64_type_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferPreciseNumeric);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_precise_numeric/test_float64_type_allowed.ds",
             r#"
 function foo(x: float64): float64 {
     return x

@@ -253,7 +253,7 @@ mod tests {
     fn test_flags_filter_length_equal_length() {
         let test = TestProgram::for_rule_without_prelude(PreferArrayEvery);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_array_every/test_flags_filter_length_equal_length.ds",
             r#"
 let items = [1, 2, 3];
 let all = items.filter(item => item > 1).length === items.length;
@@ -267,7 +267,7 @@ let all = items.filter(item => item > 1).length === items.length;
     fn test_flags_reversed_filter_length() {
         let test = TestProgram::for_rule_without_prelude(PreferArrayEvery);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_array_every/test_flags_reversed_filter_length.ds",
             r#"
 let items = [1, 2, 3];
 let all = items.length === items.filter(item => item > 1).length;
@@ -281,7 +281,7 @@ let all = items.length === items.filter(item => item > 1).length;
     fn test_allows_mismatched_arrays() {
         let test = TestProgram::for_rule_without_prelude(PreferArrayEvery);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_array_every/test_allows_mismatched_arrays.ds",
             r#"
 let items = [1, 2, 3];
 let other = [1, 2, 3];

@@ -368,7 +368,7 @@ mod tests {
     fn test_flags_filter_length_non_empty_check() {
         let test = TestProgram::for_rule_with_prelude(PreferArraySome);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_array_some/test_flags_filter_length_non_empty_check.ds",
             r#"
 let items = [1, 2, 3];
 let has = items.filter(item => item > 1).length > 0;
@@ -382,7 +382,7 @@ let has = items.filter(item => item > 1).length > 0;
     fn test_flags_filter_length_empty_check() {
         let test = TestProgram::for_rule_with_prelude(PreferArraySome);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_array_some/test_flags_filter_length_empty_check.ds",
             r#"
 let items = [1, 2, 3];
 let empty = items.filter(item => item > 1).length == 0;
@@ -396,7 +396,7 @@ let empty = items.filter(item => item > 1).length == 0;
     fn test_flags_find_index_comparison() {
         let test = TestProgram::for_rule_with_prelude(PreferArraySome);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_array_some/test_flags_find_index_comparison.ds",
             r#"
 let items = [1, 2, 3];
 let has = items.findIndex(item => item > 1) !== -1;
@@ -410,7 +410,7 @@ let has = items.findIndex(item => item > 1) !== -1;
     fn test_allows_filter_length_thresholds() {
         let test = TestProgram::for_rule_with_prelude(PreferArraySome);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_array_some/test_allows_filter_length_thresholds.ds",
             r#"
 let items = [1, 2, 3];
 let many = items.filter(item => item > 1).length > 1;

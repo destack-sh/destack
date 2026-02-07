@@ -114,7 +114,7 @@ mod tests {
     fn test_allows_type_when_type_preferred() {
         let test = TestProgram::for_rule_without_prelude(ConsistentTypeDefinitions);
         let result = test.lint_ast(
-            "test.ds",
+            "consistent_type_definitions/test_allows_type_when_type_preferred.ds",
             r#"
 type Point = { x: int32, y: int32 }
 "#,
@@ -127,7 +127,7 @@ type Point = { x: int32, y: int32 }
     fn test_detects_interface_when_type_preferred() {
         let test = TestProgram::for_rule_without_prelude(ConsistentTypeDefinitions);
         let result = test.lint_ast(
-            "test.ds",
+            "consistent_type_definitions/test_detects_interface_when_type_preferred.ds",
             r#"
 interface Point {
     x: int32
@@ -144,7 +144,7 @@ interface Point {
         let test = TestProgram::for_rule_without_prelude(ConsistentTypeDefinitions);
         // newtype interfaces are not flagged (they have different semantics)
         let result = test.lint_ast(
-            "test.ds",
+            "consistent_type_definitions/test_allows_newtype_interface.ds",
             r#"
 newtype interface Serializable {
     serialize(): string
@@ -160,7 +160,7 @@ newtype interface Serializable {
         let test = TestProgram::for_rule_without_prelude(ConsistentTypeDefinitions);
         // type aliases to non-object types are not flagged
         let result = test.lint_ast(
-            "test.ds",
+            "consistent_type_definitions/test_allows_type_alias_non_object.ds",
             r#"
 type ID = string
 type Handler = (event: Event) => void

@@ -130,7 +130,7 @@ mod tests {
     fn test_detects_lonely_if() {
         let test = TestProgram::for_rule_without_prelude(NoLonelyIf);
         let result = test.lint_ast(
-            "test.ds",
+            "no_lonely_if/test_detects_lonely_if.ds",
             r#"
 if (a) {
     foo()
@@ -148,7 +148,7 @@ if (a) {
     fn test_allows_else_if() {
         let test = TestProgram::for_rule_without_prelude(NoLonelyIf);
         let result = test.lint_ast(
-            "test.ds",
+            "no_lonely_if/test_allows_else_if.ds",
             r#"
 if (a) {
     foo()
@@ -164,7 +164,7 @@ if (a) {
     fn test_allows_else_with_multiple_statements() {
         let test = TestProgram::for_rule_without_prelude(NoLonelyIf);
         let result = test.lint_ast(
-            "test.ds",
+            "no_lonely_if/test_allows_else_with_multiple_statements.ds",
             r#"
 if (a) {
     foo()
@@ -183,7 +183,7 @@ if (a) {
     fn test_fix_lonely_if() {
         let test = TestProgram::for_rule_without_prelude(NoLonelyIf);
         let result = test.lint_ast(
-            "test.ds",
+            "no_lonely_if/test_fix_lonely_if.ds",
             r#"
 if (a) {
     foo()

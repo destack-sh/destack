@@ -82,7 +82,7 @@ mod tests {
     fn test_allows_import_type() {
         let test = TestProgram::for_rule_without_prelude(ConsistentTypeImports);
         let result = test.lint_ast(
-            "test.ds",
+            "consistent_type_imports/test_allows_import_type.ds",
             r#"
 import type { Foo, Bar } from "foo"
 "#,
@@ -95,7 +95,7 @@ import type { Foo, Bar } from "foo"
     fn test_detects_inline_type_imports() {
         let test = TestProgram::for_rule_without_prelude(ConsistentTypeImports);
         let result = test.lint_ast(
-            "test.ds",
+            "consistent_type_imports/test_detects_inline_type_imports.ds",
             r#"
 import { type Foo, type Bar } from "foo"
 "#,
@@ -108,7 +108,7 @@ import { type Foo, type Bar } from "foo"
         let test = TestProgram::for_rule_without_prelude(ConsistentTypeImports);
         // mixed imports are allowed (can't use `import type` for these)
         let result = test.lint_ast(
-            "test.ds",
+            "consistent_type_imports/test_allows_mixed_imports.ds",
             r#"
 import { Foo, type Bar } from "foo"
 "#,
@@ -121,7 +121,7 @@ import { Foo, type Bar } from "foo"
     fn test_allows_value_imports() {
         let test = TestProgram::for_rule_without_prelude(ConsistentTypeImports);
         let result = test.lint_ast(
-            "test.ds",
+            "consistent_type_imports/test_allows_value_imports.ds",
             r#"
 import { foo, bar } from "foo"
 "#,
@@ -134,7 +134,7 @@ import { foo, bar } from "foo"
     fn test_allows_namespace_import() {
         let test = TestProgram::for_rule_without_prelude(ConsistentTypeImports);
         let result = test.lint_ast(
-            "test.ds",
+            "consistent_type_imports/test_allows_namespace_import.ds",
             r#"
 import * as foo from "foo"
 "#,

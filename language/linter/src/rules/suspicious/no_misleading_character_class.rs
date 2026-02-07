@@ -73,7 +73,10 @@ mod tests {
     fn test_detects_combining_character() {
         let test = TestProgram::for_rule_without_prelude(NoMisleadingCharacterClass);
         // ñ as n + combining tilde
-        let result = test.lint_ast("test.ds", "/[n\u{0303}]/");
+        let result = test.lint_ast(
+            "no_misleading_character_class/test_detects_combining_character.ds",
+            "/[n\u{0303}]/",
+        );
         test.result(result)
             .assert_lint("no-misleading-character-class");
     }
@@ -82,7 +85,7 @@ mod tests {
     fn test_allows_simple_character_class() {
         let test = TestProgram::for_rule_without_prelude(NoMisleadingCharacterClass);
         let result = test.lint_ast(
-            "test.ds",
+            "no_misleading_character_class/test_allows_simple_character_class.ds",
             r#"
 const re = /[abc]/
 "#,
@@ -95,7 +98,7 @@ const re = /[abc]/
     fn test_allows_regex_without_character_class() {
         let test = TestProgram::for_rule_without_prelude(NoMisleadingCharacterClass);
         let result = test.lint_ast(
-            "test.ds",
+            "no_misleading_character_class/test_allows_regex_without_character_class.ds",
             r#"
 const re = /hello/
 "#,
@@ -108,7 +111,7 @@ const re = /hello/
     fn test_allows_escaped_bracket() {
         let test = TestProgram::for_rule_without_prelude(NoMisleadingCharacterClass);
         let result = test.lint_ast(
-            "test.ds",
+            "no_misleading_character_class/test_allows_escaped_bracket.ds",
             r#"
 const re = /\[abc\]/
 "#,

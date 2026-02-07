@@ -100,7 +100,7 @@ mod tests {
     fn test_detects_function_in_if() {
         let test = TestProgram::for_rule_without_prelude(NoInnerDeclarations);
         let result = test.lint_ast(
-            "test.ts",
+            "no_inner_declarations/test_detects_function_in_if.ts",
             r#"
 if (true) {
     function foo() {}
@@ -114,7 +114,7 @@ if (true) {
     fn test_detects_function_in_while() {
         let test = TestProgram::for_rule_without_prelude(NoInnerDeclarations);
         let result = test.lint_ast(
-            "test.ts",
+            "no_inner_declarations/test_detects_function_in_while.ts",
             r#"
 while (true) {
     function bar() {}
@@ -127,7 +127,10 @@ while (true) {
     #[test]
     fn test_allows_top_level_function() {
         let test = TestProgram::for_rule_without_prelude(NoInnerDeclarations);
-        let result = test.lint_ast("test.ts", "function foo() {}");
+        let result = test.lint_ast(
+            "no_inner_declarations/test_allows_top_level_function.ts",
+            "function foo() {}",
+        );
         test.result(result).assert_no_lint("no-inner-declarations");
     }
 
@@ -135,7 +138,7 @@ while (true) {
     fn test_allows_function_inside_function() {
         let test = TestProgram::for_rule_without_prelude(NoInnerDeclarations);
         let result = test.lint_ast(
-            "test.ts",
+            "no_inner_declarations/test_allows_function_inside_function.ts",
             r#"
 function outer() {
     function inner() {}

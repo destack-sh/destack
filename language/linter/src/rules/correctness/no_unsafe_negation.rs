@@ -119,7 +119,7 @@ mod tests {
     fn test_detects_negation_in_in() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeNegation);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unsafe_negation/test_detects_negation_in_in.ds",
             r#"
 let obj = { a: 1 };
 let key = "a";
@@ -133,7 +133,7 @@ let key = "a";
     fn test_detects_negation_in_instanceof() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeNegation);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unsafe_negation/test_detects_negation_in_instanceof.ds",
             r#"
 class Foo {}
 let x = new Foo();
@@ -147,7 +147,7 @@ let x = new Foo();
     fn test_allows_negation_outside_parens() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeNegation);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unsafe_negation/test_allows_negation_outside_parens.ds",
             r#"
 let obj = { a: 1 };
 let key = "a";
@@ -162,7 +162,7 @@ let key = "a";
     fn test_allows_non_negated_in() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeNegation);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unsafe_negation/test_allows_non_negated_in.ds",
             r#"
 let obj = { a: 1 };
 let key = "a";
@@ -176,7 +176,7 @@ key in obj;
     fn test_allows_non_negated_instanceof() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeNegation);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unsafe_negation/test_allows_non_negated_instanceof.ds",
             r#"
 class Foo {}
 let x = new Foo();
@@ -190,7 +190,7 @@ x instanceof Foo;
     fn test_fix_in_operator() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeNegation);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unsafe_negation/test_fix_in_operator.ds",
             r#"
 let obj = { a: 1 }
 let result = !key in obj
@@ -210,7 +210,7 @@ let result = !(key in obj);
     fn test_fix_instanceof_operator() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeNegation);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unsafe_negation/test_fix_instanceof_operator.ds",
             r#"
 class Foo {}
 let x = new Foo()

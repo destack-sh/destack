@@ -85,7 +85,7 @@ mod tests {
     fn test_detects_regex_without_unicode_flag() {
         let test = TestProgram::for_rule_without_prelude(RequireUnicodeRegexp);
         let result = test.lint_ast(
-            "test.ds",
+            "require_unicode_regexp/test_detects_regex_without_unicode_flag.ds",
             r#"
 let re = /foo/
 "#,
@@ -97,7 +97,7 @@ let re = /foo/
     fn test_detects_regex_with_other_flags() {
         let test = TestProgram::for_rule_without_prelude(RequireUnicodeRegexp);
         let result = test.lint_ast(
-            "test.ds",
+            "require_unicode_regexp/test_detects_regex_with_other_flags.ds",
             r#"
 let re = /foo/gi
 "#,
@@ -109,7 +109,7 @@ let re = /foo/gi
     fn test_allows_regex_with_u_flag() {
         let test = TestProgram::for_rule_without_prelude(RequireUnicodeRegexp);
         let result = test.lint_ast(
-            "test.ds",
+            "require_unicode_regexp/test_allows_regex_with_u_flag.ds",
             r#"
 let re = /foo/u
 "#,
@@ -121,7 +121,7 @@ let re = /foo/u
     fn test_allows_regex_with_u_and_other_flags() {
         let test = TestProgram::for_rule_without_prelude(RequireUnicodeRegexp);
         let result = test.lint_ast(
-            "test.ds",
+            "require_unicode_regexp/test_allows_regex_with_u_and_other_flags.ds",
             r#"
 let re = /foo/giu
 "#,
@@ -133,7 +133,7 @@ let re = /foo/giu
     fn test_allows_regex_with_v_flag() {
         let test = TestProgram::for_rule_without_prelude(RequireUnicodeRegexp);
         let result = test.lint_ast(
-            "test.ds",
+            "require_unicode_regexp/test_allows_regex_with_v_flag.ds",
             r#"
 let re = /foo/v
 "#,

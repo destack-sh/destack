@@ -64,7 +64,7 @@ mod tests {
     fn test_detects_enum() {
         let test = TestProgram::for_rule_without_prelude(NoEnum);
         let result = test.lint_ast(
-            "test.ts",
+            "no_enum/test_detects_enum.ts",
             r#"
 enum Color {
     Red,
@@ -80,7 +80,7 @@ enum Color {
     fn test_detects_const_enum() {
         let test = TestProgram::for_rule_without_prelude(NoEnum);
         let result = test.lint_ast(
-            "test.ts",
+            "no_enum/test_detects_const_enum.ts",
             r#"
 const enum Direction {
     Up,
@@ -94,7 +94,10 @@ const enum Direction {
     #[test]
     fn test_allows_union_type() {
         let test = TestProgram::for_rule_without_prelude(NoEnum);
-        let result = test.lint_ast("test.ts", r#"type Color = "red" | "green" | "blue";"#);
+        let result = test.lint_ast(
+            "no_enum/test_allows_union_type.ts",
+            r#"type Color = "red" | "green" | "blue";"#,
+        );
         test.result(result).assert_no_lint("no-enum");
     }
 
@@ -102,7 +105,7 @@ const enum Direction {
     fn test_allows_const_object() {
         let test = TestProgram::for_rule_without_prelude(NoEnum);
         let result = test.lint_ast(
-            "test.ts",
+            "no_enum/test_allows_const_object.ts",
             r#"
 const Color = {
     Red: "red",

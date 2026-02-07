@@ -183,7 +183,7 @@ mod tests {
     fn test_flags_math_pow() {
         let test = TestProgram::for_rule_with_prelude(PreferExponentiationOperator);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_exponentiation_operator/test_flags_math_pow.ds",
             r#"
 let value = Math.pow(2, 3);
 "#,
@@ -196,7 +196,7 @@ let value = Math.pow(2, 3);
     fn test_flags_global_math_pow() {
         let test = TestProgram::for_rule_with_prelude(PreferExponentiationOperator);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_exponentiation_operator/test_flags_global_math_pow.ds",
             r#"
 let value = globalThis.Math.pow(2, 3);
 "#,
@@ -209,7 +209,7 @@ let value = globalThis.Math.pow(2, 3);
     fn test_allows_exponentiation_operator() {
         let test = TestProgram::for_rule_with_prelude(PreferExponentiationOperator);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_exponentiation_operator/test_allows_exponentiation_operator.ds",
             r#"
 let value = 2 ** 3;
 "#,
@@ -222,7 +222,7 @@ let value = 2 ** 3;
     fn test_allows_other_math_call() {
         let test = TestProgram::for_rule_with_prelude(PreferExponentiationOperator);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_exponentiation_operator/test_allows_other_math_call.ds",
             r#"
 let value = Math.max(1, 2);
 "#,

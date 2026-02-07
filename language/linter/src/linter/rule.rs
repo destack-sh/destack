@@ -1,5 +1,5 @@
 use destack_dir::WellKnownSymbol;
-use destack_source::DiagnosticSeverity;
+use destack_source::{DiagnosticSeverity, FileType};
 use destack_workspace::{LintCategory, LintSeverity};
 
 use super::{LintModuleAstContext, LintModuleDirContext, LintProgramContext};
@@ -65,6 +65,17 @@ pub enum Stability {
     Experimental,
 }
 
+/// How a lint should run on declaration files.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum DeclarationMode {
+    /// Run on both declaration and non declaration files.
+    Include,
+    /// Skip declaration files.
+    Exclude,
+    /// Run only on declaration files.
+    Only,
+}
+
 /// Static metadata about a lint rule.
 #[derive(Debug, Clone, Copy)]
 pub struct LintMeta {
@@ -96,6 +107,8 @@ pub struct LintMeta {
     pub requires_all: &'static [LintRequirement],
     /// Symbols where at least one must be available for this lint to run.
     pub requires_any: &'static [LintRequirement],
+    /// Declaration file policy for this lint.
+    pub declarations: DeclarationMode,
 }
 
 impl LintMeta {
@@ -122,6 +135,20 @@ impl LintMeta {
     /// Check if this lint is stable.
     pub fn is_stable(&self) -> bool {
         matches!(self.stability, Stability::Stable)
+    }
+
+    /// Check whether this lint should run on the given file type.
+    pub fn supports_file_type(&self, file_type: FileType) -> bool {
+        let is_declaration = matches!(
+            file_type,
+            FileType::TypeScriptDeclaration | FileType::DestackDeclaration
+        );
+
+        match self.declarations {
+            DeclarationMode::Include => true,
+            DeclarationMode::Exclude => !is_declaration,
+            DeclarationMode::Only => is_declaration,
+        }
     }
 }
 

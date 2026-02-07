@@ -99,7 +99,7 @@ mod tests {
     fn test_detects_approx_pi() {
         let test = TestProgram::for_rule_without_prelude(NoApproxConstant);
         let result = test.lint_ast(
-            "test.ds",
+            "no_approx_constant/test_detects_approx_pi.ds",
             r#"
 let pi = 3.14
 "#,
@@ -111,7 +111,7 @@ let pi = 3.14
     fn test_detects_approx_pi_more_digits() {
         let test = TestProgram::for_rule_without_prelude(NoApproxConstant);
         let result = test.lint_ast(
-            "test.ds",
+            "no_approx_constant/test_detects_approx_pi_more_digits.ds",
             r#"
 let pi = 3.14159
 "#,
@@ -123,7 +123,7 @@ let pi = 3.14159
     fn test_detects_approx_e() {
         let test = TestProgram::for_rule_without_prelude(NoApproxConstant);
         let result = test.lint_ast(
-            "test.ds",
+            "no_approx_constant/test_detects_approx_e.ds",
             r#"
 let e = 2.71828
 "#,
@@ -135,7 +135,7 @@ let e = 2.71828
     fn test_detects_approx_sqrt2() {
         let test = TestProgram::for_rule_without_prelude(NoApproxConstant);
         let result = test.lint_ast(
-            "test.ds",
+            "no_approx_constant/test_detects_approx_sqrt2.ds",
             r#"
 let sqrt2 = 1.414
 "#,
@@ -147,7 +147,7 @@ let sqrt2 = 1.414
     fn test_allows_unrelated_floats() {
         let test = TestProgram::for_rule_without_prelude(NoApproxConstant);
         let result = test.lint_ast(
-            "test.ds",
+            "no_approx_constant/test_allows_unrelated_floats.ds",
             r#"
 let x = 1.5
 let y = 2.0
@@ -161,7 +161,7 @@ let z = 0.5
     fn test_allows_small_integers_as_floats() {
         let test = TestProgram::for_rule_without_prelude(NoApproxConstant);
         let result = test.lint_ast(
-            "test.ds",
+            "no_approx_constant/test_allows_small_integers_as_floats.ds",
             r#"
 let x = 3.0
 let y = 2.0

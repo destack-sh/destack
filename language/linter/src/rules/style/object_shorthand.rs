@@ -101,7 +101,7 @@ mod tests {
     fn test_detects_redundant_property() {
         let test = TestProgram::for_rule_without_prelude(ObjectShorthand);
         let result = test.lint_ast(
-            "test.ds",
+            "object_shorthand/test_detects_redundant_property.ds",
             r#"
 const x = 1
 const obj = { x: x }
@@ -114,7 +114,7 @@ const obj = { x: x }
     fn test_allows_shorthand() {
         let test = TestProgram::for_rule_without_prelude(ObjectShorthand);
         let result = test.lint_ast(
-            "test.ds",
+            "object_shorthand/test_allows_shorthand.ds",
             r#"
 const x = 1
 const obj = { x }
@@ -127,7 +127,7 @@ const obj = { x }
     fn test_allows_different_names() {
         let test = TestProgram::for_rule_without_prelude(ObjectShorthand);
         let result = test.lint_ast(
-            "test.ds",
+            "object_shorthand/test_allows_different_names.ds",
             r#"
 const x = 1
 const obj = { y: x }
@@ -140,7 +140,7 @@ const obj = { y: x }
     fn test_allows_computed_value() {
         let test = TestProgram::for_rule_without_prelude(ObjectShorthand);
         let result = test.lint_ast(
-            "test.ds",
+            "object_shorthand/test_allows_computed_value.ds",
             r#"
 const x = 1
 const obj = { x: x + 1 }
@@ -153,7 +153,7 @@ const obj = { x: x + 1 }
     fn test_fix_shorthand() {
         let test = TestProgram::for_rule_without_prelude(ObjectShorthand);
         let result = test.lint_ast(
-            "test.ds",
+            "object_shorthand/test_fix_shorthand.ds",
             r#"
 const x = 1
 const obj = { x: x }

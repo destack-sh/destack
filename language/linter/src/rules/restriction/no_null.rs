@@ -66,28 +66,34 @@ mod tests {
     #[test]
     fn test_detects_null_literal() {
         let test = TestProgram::for_rule_without_prelude(NoNull);
-        let result = test.lint_ast("test.ts", "const x = null;");
+        let result = test.lint_ast("no_null/test_detects_null_literal.ts", "const x = null;");
         test.result(result).assert_lint("no-null");
     }
 
     #[test]
     fn test_detects_null_comparison() {
         let test = TestProgram::for_rule_without_prelude(NoNull);
-        let result = test.lint_ast("test.ts", "if (x === null) {}");
+        let result = test.lint_ast(
+            "no_null/test_detects_null_comparison.ts",
+            "if (x === null) {}",
+        );
         test.result(result).assert_lint("no-null");
     }
 
     #[test]
     fn test_allows_undefined() {
         let test = TestProgram::for_rule_without_prelude(NoNull);
-        let result = test.lint_ast("test.ts", "const x = undefined;");
+        let result = test.lint_ast("no_null/test_allows_undefined.ts", "const x = undefined;");
         test.result(result).assert_no_lint("no-null");
     }
 
     #[test]
     fn test_allows_optional() {
         let test = TestProgram::for_rule_without_prelude(NoNull);
-        let result = test.lint_ast("test.ts", "const x: string | undefined = undefined;");
+        let result = test.lint_ast(
+            "no_null/test_allows_optional.ts",
+            "const x: string | undefined = undefined;",
+        );
         test.result(result).assert_no_lint("no-null");
     }
 }

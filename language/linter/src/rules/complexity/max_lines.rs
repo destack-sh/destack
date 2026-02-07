@@ -74,7 +74,7 @@ mod tests {
         for i in 0..501 {
             source.push_str(&format!("let x{i} = {i};\n"));
         }
-        let result = test.lint_ast("test.ds", &source);
+        let result = test.lint_ast("max_lines/test_detects_too_many_lines.ds", &source);
         test.result(result).assert_lint("max-lines");
     }
 
@@ -82,7 +82,7 @@ mod tests {
     fn test_allows_small_file() {
         let test = TestProgram::for_rule_without_prelude(MaxLines);
         let result = test.lint_ast(
-            "test.ds",
+            "max_lines/test_allows_small_file.ds",
             r#"
 let x = 1;
 let y = 2;
@@ -102,7 +102,7 @@ let z = 3;
         }
         // last line without trailing newline to get exactly 500 lines
         source.push_str("let x499 = 499;");
-        let result = test.lint_ast("test.ds", &source);
+        let result = test.lint_ast("max_lines/test_allows_exactly_at_limit.ds", &source);
         test.result(result).assert_no_lint("max-lines");
     }
 }

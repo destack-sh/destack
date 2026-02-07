@@ -85,35 +85,50 @@ mod tests {
     #[test]
     fn test_detects_return_assignment() {
         let test = TestProgram::for_rule_without_prelude(NoReturnAssign);
-        let result = test.lint_ast("test.ts", "function foo() { return x = 1; }");
+        let result = test.lint_ast(
+            "no_return_assign/test_detects_return_assignment.ts",
+            "function foo() { return x = 1; }",
+        );
         test.result(result).assert_lint("no-return-assign");
     }
 
     #[test]
     fn test_detects_parenthesized_assignment() {
         let test = TestProgram::for_rule_without_prelude(NoReturnAssign);
-        let result = test.lint_ast("test.ts", "function foo() { return (x = 1); }");
+        let result = test.lint_ast(
+            "no_return_assign/test_detects_parenthesized_assignment.ts",
+            "function foo() { return (x = 1); }",
+        );
         test.result(result).assert_lint("no-return-assign");
     }
 
     #[test]
     fn test_allows_normal_return() {
         let test = TestProgram::for_rule_without_prelude(NoReturnAssign);
-        let result = test.lint_ast("test.ts", "function foo() { return x; }");
+        let result = test.lint_ast(
+            "no_return_assign/test_allows_normal_return.ts",
+            "function foo() { return x; }",
+        );
         test.result(result).assert_no_lint("no-return-assign");
     }
 
     #[test]
     fn test_allows_comparison_in_return() {
         let test = TestProgram::for_rule_without_prelude(NoReturnAssign);
-        let result = test.lint_ast("test.ts", "function foo() { return x == 1; }");
+        let result = test.lint_ast(
+            "no_return_assign/test_allows_comparison_in_return.ts",
+            "function foo() { return x == 1; }",
+        );
         test.result(result).assert_no_lint("no-return-assign");
     }
 
     #[test]
     fn test_allows_empty_return() {
         let test = TestProgram::for_rule_without_prelude(NoReturnAssign);
-        let result = test.lint_ast("test.ts", "function foo() { return; }");
+        let result = test.lint_ast(
+            "no_return_assign/test_allows_empty_return.ts",
+            "function foo() { return; }",
+        );
         test.result(result).assert_no_lint("no-return-assign");
     }
 }

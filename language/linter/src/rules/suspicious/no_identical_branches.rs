@@ -75,7 +75,7 @@ mod tests {
     fn test_detects_identical_branches() {
         let test = TestProgram::for_rule_without_prelude(NoIdenticalBranches);
         let result = test.lint_ast(
-            "test.ds",
+            "no_identical_branches/test_detects_identical_branches.ds",
             r#"
 if (x) {
     doSomething();
@@ -91,7 +91,7 @@ if (x) {
     fn test_allows_different_branches() {
         let test = TestProgram::for_rule_without_prelude(NoIdenticalBranches);
         let result = test.lint_ast(
-            "test.ds",
+            "no_identical_branches/test_allows_different_branches.ds",
             r#"
 if (x) {
     doA();
@@ -107,7 +107,7 @@ if (x) {
     fn test_allows_if_without_else() {
         let test = TestProgram::for_rule_without_prelude(NoIdenticalBranches);
         let result = test.lint_ast(
-            "test.ds",
+            "no_identical_branches/test_allows_if_without_else.ds",
             r#"
 if (x) {
     doSomething();
@@ -121,7 +121,7 @@ if (x) {
     fn test_detects_identical_ternary() {
         let test = TestProgram::for_rule_without_prelude(NoIdenticalBranches);
         let result = test.lint_ast(
-            "test.ds",
+            "no_identical_branches/test_detects_identical_ternary.ds",
             r#"
 let x = cond ? value : value;
 "#,

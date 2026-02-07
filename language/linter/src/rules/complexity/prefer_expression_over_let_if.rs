@@ -192,7 +192,7 @@ mod tests {
     fn test_let_if_sequence_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferExpressionOverLetIf);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_expression_over_let_if/test_let_if_sequence_detected.ds",
             r#"
 function foo(cond: bool) {
     let result: int32
@@ -212,7 +212,7 @@ function foo(cond: bool) {
     fn test_direct_expression_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferExpressionOverLetIf);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_expression_over_let_if/test_direct_expression_allowed.ds",
             r#"
 function foo(cond: bool) {
     let result = cond ? 1 : 2
@@ -227,7 +227,7 @@ function foo(cond: bool) {
     fn test_let_with_initializer_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferExpressionOverLetIf);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_expression_over_let_if/test_let_with_initializer_allowed.ds",
             r#"
 function foo(cond: bool) {
     let result = 0
@@ -245,7 +245,7 @@ function foo(cond: bool) {
     fn test_if_without_else_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferExpressionOverLetIf);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_expression_over_let_if/test_if_without_else_allowed.ds",
             r#"
 function foo(cond: bool) {
     let result: int32

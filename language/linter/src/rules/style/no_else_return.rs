@@ -135,7 +135,7 @@ mod tests {
     fn test_detects_else_after_return() {
         let test = TestProgram::for_rule_without_prelude(NoElseReturn);
         let result = test.lint_ast(
-            "test.ds",
+            "no_else_return/test_detects_else_after_return.ds",
             r#"
 function foo(x: boolean) {
     if (x) {
@@ -153,7 +153,7 @@ function foo(x: boolean) {
     fn test_allows_no_else() {
         let test = TestProgram::for_rule_without_prelude(NoElseReturn);
         let result = test.lint_ast(
-            "test.ds",
+            "no_else_return/test_allows_no_else.ds",
             r#"
 function foo(x: boolean) {
     if (x) {
@@ -170,7 +170,7 @@ function foo(x: boolean) {
     fn test_allows_else_without_return_in_if() {
         let test = TestProgram::for_rule_without_prelude(NoElseReturn);
         let result = test.lint_ast(
-            "test.ds",
+            "no_else_return/test_allows_else_without_return_in_if.ds",
             r#"
 function foo(x: boolean) {
     if (x) {
@@ -188,7 +188,7 @@ function foo(x: boolean) {
     fn test_fix_else_after_return() {
         let test = TestProgram::for_rule_without_prelude(NoElseReturn);
         let result = test.lint_ast(
-            "test.ds",
+            "no_else_return/test_fix_else_after_return.ds",
             r#"
 function foo(x: bool): int32 {
     if (x) {

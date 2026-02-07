@@ -148,7 +148,7 @@ mod tests {
     fn test_detects_excessive_boolean_params() {
         let test = TestProgram::for_rule_without_prelude(NoExcessiveBooleans);
         let result = test.lint_ast(
-            "test.ds",
+            "no_excessive_booleans/test_detects_excessive_boolean_params.ds",
             r#"
 function process(a: boolean, b: boolean, c: boolean, d: boolean) {
     // four bools is too many
@@ -162,7 +162,7 @@ function process(a: boolean, b: boolean, c: boolean, d: boolean) {
     fn test_allows_few_boolean_params() {
         let test = TestProgram::for_rule_without_prelude(NoExcessiveBooleans);
         let result = test.lint_ast(
-            "test.ds",
+            "no_excessive_booleans/test_allows_few_boolean_params.ds",
             r#"
 function process(a: boolean, b: boolean, c: boolean) {
     // three bools is ok
@@ -176,7 +176,7 @@ function process(a: boolean, b: boolean, c: boolean) {
     fn test_detects_excessive_boolean_fields() {
         let test = TestProgram::for_rule_without_prelude(NoExcessiveBooleans);
         let result = test.lint_ast(
-            "test.ds",
+            "no_excessive_booleans/test_detects_excessive_boolean_fields.ds",
             r#"
 struct Options {
     enabled: boolean,
@@ -193,7 +193,7 @@ struct Options {
     fn test_allows_few_boolean_fields() {
         let test = TestProgram::for_rule_without_prelude(NoExcessiveBooleans);
         let result = test.lint_ast(
-            "test.ds",
+            "no_excessive_booleans/test_allows_few_boolean_fields.ds",
             r#"
 struct Options {
     enabled: boolean,
@@ -209,7 +209,7 @@ struct Options {
     fn test_allows_non_boolean_params() {
         let test = TestProgram::for_rule_without_prelude(NoExcessiveBooleans);
         let result = test.lint_ast(
-            "test.ds",
+            "no_excessive_booleans/test_allows_non_boolean_params.ds",
             r#"
 function process(a: int32, b: string, c: float64, d: int32) {
     // many params but not booleans

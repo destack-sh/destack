@@ -3,7 +3,11 @@ use destack_ast as ast;
 use destack_base::StringId;
 use destack_workspace::LintSeverity;
 use indexmap::IndexMap;
-use regex::bytes::{Regex as BytesRegex, RegexBuilder as BytesRegexBuilder};
+use regex::bytes::{
+    Regex as BytesRegex, RegexBuilder as BytesRegexBuilder, RegexSet as BytesRegexSet,
+    RegexSetBuilder as BytesRegexSetBuilder,
+};
+use std::collections::HashMap;
 use std::sync::LazyLock;
 
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
@@ -20,6 +24,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
+        declarations = Exclude,
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -108,6 +113,8 @@ struct SecretKeywordIndex {
     pattern_indexes: Vec<Vec<usize>>,
     /// Patterns that cannot be prefiltered by keywords.
     fallback_pattern_indexes: Vec<usize>,
+    /// Optional matcher for fallback patterns.
+    fallback_matcher: Option<BytesRegexSet>,
 }
 
 /// Compiled secret patterns with optional keyword prefilter index.
@@ -128,6 +135,7 @@ static SECRET_PATTERNS: LazyLock<SecretPatternSet> = LazyLock::new(|| {
     let mut patterns = Vec::with_capacity(rules.len());
     let mut keyword_to_pattern_indexes: IndexMap<String, Vec<usize>> = IndexMap::new();
     let mut fallback_pattern_indexes = Vec::new();
+    let mut fallback_pattern_regexes = Vec::new();
     for rule in &rules {
         match SecretPattern::try_from(rule) {
             Ok(pattern) => {
@@ -152,6 +160,7 @@ static SECRET_PATTERNS: LazyLock<SecretPatternSet> = LazyLock::new(|| {
                 // rules without keywords still need direct regex checks
                 if !has_keyword {
                     fallback_pattern_indexes.push(pattern_index);
+                    fallback_pattern_regexes.push(rule.regex.clone());
                 }
             }
             Err(e) => eprintln!("warning: skipping rule '{}': {e}", rule.id),
@@ -170,6 +179,22 @@ static SECRET_PATTERNS: LazyLock<SecretPatternSet> = LazyLock::new(|| {
             keyword_patterns.push(pattern_indexes);
         }
 
+        let fallback_matcher = if fallback_pattern_regexes.is_empty() {
+            None
+        } else {
+            match BytesRegexSetBuilder::new(fallback_pattern_regexes)
+                // keep fallback set aligned with individual regex behavior
+                .unicode(false)
+                .build()
+            {
+                Ok(matcher) => Some(matcher),
+                Err(e) => {
+                    eprintln!("warning: disabling no-secrets fallback regex set: {e}");
+                    None
+                }
+            }
+        };
+
         match AhoCorasick::builder()
             .ascii_case_insensitive(true)
             .match_kind(MatchKind::Standard)
@@ -179,6 +204,7 @@ static SECRET_PATTERNS: LazyLock<SecretPatternSet> = LazyLock::new(|| {
                 matcher,
                 pattern_indexes: keyword_patterns,
                 fallback_pattern_indexes,
+                fallback_matcher,
             }),
             Err(e) => {
                 eprintln!("warning: disabling no-secrets keyword prefilter: {e}");
@@ -270,26 +296,42 @@ fn detect_secret(value: &str) -> Option<SecretMatch> {
     // check against known secret patterns from gitleaks
     let value_bytes = value.as_bytes();
     if let Some(keyword_matcher) = &SECRET_PATTERNS.keyword_index {
-        let mut matched_keyword_indexes = Vec::new();
+        let mut candidate_pattern_indexes = Vec::new();
+
         for keyword_match in keyword_matcher.matcher.find_overlapping_iter(value_bytes) {
             let keyword_match_index = keyword_match.pattern().as_usize();
-            if matched_keyword_indexes.contains(&keyword_match_index) {
-                continue;
-            }
-            matched_keyword_indexes.push(keyword_match_index);
 
             for pattern_index in &keyword_matcher.pattern_indexes[keyword_match_index] {
+                candidate_pattern_indexes.push(*pattern_index);
+            }
+        }
+
+        // dedupe candidate regex checks without allocating a full bool table
+        if candidate_pattern_indexes.len() > 1 {
+            candidate_pattern_indexes.sort_unstable();
+            candidate_pattern_indexes.dedup();
+        }
+
+        for pattern_index in candidate_pattern_indexes {
+            let pattern = &SECRET_PATTERNS.patterns[pattern_index];
+            if pattern.regex.is_match(value_bytes) {
+                return Some(SecretMatch::KnownPattern(&pattern.description));
+            }
+        }
+
+        if let Some(fallback_matcher) = &keyword_matcher.fallback_matcher {
+            if let Some(fallback_match_index) = fallback_matcher.matches(value_bytes).iter().next()
+            {
+                let pattern_index = keyword_matcher.fallback_pattern_indexes[fallback_match_index];
+                let pattern = &SECRET_PATTERNS.patterns[pattern_index];
+                return Some(SecretMatch::KnownPattern(&pattern.description));
+            }
+        } else {
+            for pattern_index in &keyword_matcher.fallback_pattern_indexes {
                 let pattern = &SECRET_PATTERNS.patterns[*pattern_index];
                 if pattern.regex.is_match(value_bytes) {
                     return Some(SecretMatch::KnownPattern(&pattern.description));
                 }
-            }
-        }
-
-        for pattern_index in &keyword_matcher.fallback_pattern_indexes {
-            let pattern = &SECRET_PATTERNS.patterns[*pattern_index];
-            if pattern.regex.is_match(value_bytes) {
-                return Some(SecretMatch::KnownPattern(&pattern.description));
             }
         }
     } else {
@@ -309,11 +351,13 @@ fn detect_secret(value: &str) -> Option<SecretMatch> {
         let entropy = calculate_entropy(value);
         if entropy >= ENTROPY_THRESHOLD {
             // only flag alphanumeric-heavy strings (looks random)
-            let alnum_count = value
-                .chars()
-                .filter(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '-')
-                .count();
-            let alnum_ratio = alnum_count as f64 / value.len() as f64;
+            let mut alnum_count = 0usize;
+            for byte in value_bytes {
+                if byte.is_ascii_alphanumeric() || *byte == b'_' || *byte == b'-' {
+                    alnum_count += 1;
+                }
+            }
+            let alnum_ratio = alnum_count as f64 / value_bytes.len() as f64;
             if alnum_ratio > 0.8 {
                 return Some(SecretMatch::HighEntropy);
             }
@@ -410,7 +454,7 @@ impl LintRule for NoSecrets {
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
-        let mut secret_match_cache: IndexMap<StringId, Option<SecretMatch>> = IndexMap::new();
+        let mut secret_match_cache: HashMap<StringId, Option<SecretMatch>> = HashMap::new();
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
@@ -521,7 +565,10 @@ mod tests {
     fn test_detects_aws_access_key() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
         // AWS access key: AKIA + 16 uppercase alphanumeric chars (20 total)
-        let result = test.lint_ast("test.ts", r#"const key = "AKIAIOSFODNN7REALKEY";"#);
+        let result = test.lint_ast(
+            "no_secrets/test_detects_aws_access_key.ts",
+            r#"const key = "AKIAIOSFODNN7REALKEY";"#,
+        );
         test.result(result).assert_lint("no-secrets");
     }
 
@@ -530,7 +577,7 @@ mod tests {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
         // GitHub PAT: ghp_ + 36 alphanumeric chars
         let result = test.lint_ast(
-            "test.ts",
+            "no_secrets/test_detects_github_pat.ts",
             r#"const token = "ghp_aB1cD2eF3gH4iJ5kL6mN7oP8qR9sT0uV1wX2";"#,
         );
         test.result(result).assert_lint("no-secrets");
@@ -540,7 +587,7 @@ mod tests {
     fn test_detects_stripe_live_key() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
         let result = test.lint_ast(
-            "test.ts",
+            "no_secrets/test_detects_stripe_live_key.ts",
             r#"const key = "sk_live_abcdefghijklmnopqrstuvwx";"#,
         );
         test.result(result).assert_lint("no-secrets");
@@ -550,7 +597,7 @@ mod tests {
     fn test_detects_slack_token() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
         let result = test.lint_ast(
-            "test.ts",
+            "no_secrets/test_detects_slack_token.ts",
             r#"const token = "xoxb-123456789012-1234567890123-abcdefghijklmnopqrstuvwx";"#,
         );
         test.result(result).assert_lint("no-secrets");
@@ -561,7 +608,7 @@ mod tests {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
         // OpenAI: sk- + 48 alphanumeric chars
         let result = test.lint_ast(
-            "test.ts",
+            "no_secrets/test_detects_openai_key.ts",
             r#"const key = "sk-aB1cD2eF3gH4iJ5kL6mN7oP8qR9sT0uV1wX2yZ3aB4cD5eF6g";"#,
         );
         test.result(result).assert_lint("no-secrets");
@@ -572,7 +619,7 @@ mod tests {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
         // Gitleaks requires full key block with BEGIN, content (64+ chars), and END markers
         let result = test.lint_ast(
-            "test.ts",
+            "no_secrets/test_detects_private_key.ts",
             r#"const key = "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA0Z3VS5JJcds3xfn/ygWyF8PbnGy0AHB7MxszR8GxfRzPCfuK\n-----END RSA PRIVATE KEY-----";"#,
         );
         test.result(result).assert_lint("no-secrets");
@@ -582,7 +629,7 @@ mod tests {
     fn test_detects_jwt() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
         let result = test.lint_ast(
-            "test.ts",
+            "no_secrets/test_detects_jwt.ts",
             r#"const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U";"#,
         );
         test.result(result).assert_lint("no-secrets");
@@ -593,7 +640,7 @@ mod tests {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
         // SendGrid: SG. + 22 chars + . + 43 chars
         let result = test.lint_ast(
-            "test.ts",
+            "no_secrets/test_detects_sendgrid_key.ts",
             r#"const key = "SG.aB1cD2eF3gH4iJ5kL6mN7o.P8qR9sT0uV1wX2yZ3aB4cD5eF6gH7iJ8kL9mN0oP1q";"#,
         );
         test.result(result).assert_lint("no-secrets");
@@ -603,7 +650,7 @@ mod tests {
     fn test_detects_google_api_key() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
         let result = test.lint_ast(
-            "test.ts",
+            "no_secrets/test_detects_google_api_key.ts",
             r#"const key = "AIzaSyDaGmWKa4JsXZ-HjGw7ISLn_3namBGewQe";"#,
         );
         test.result(result).assert_lint("no-secrets");
@@ -612,7 +659,10 @@ mod tests {
     #[test]
     fn test_detects_generic_api_key_pattern() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
-        let result = test.lint_ast("test.ts", r#"const key = "key=aaaaaaaaaa";"#);
+        let result = test.lint_ast(
+            "no_secrets/test_detects_generic_api_key_pattern.ts",
+            r#"const key = "key=aaaaaaaaaa";"#,
+        );
         test.result(result).assert_lint("no-secrets");
     }
 
@@ -622,7 +672,7 @@ mod tests {
         let suffix = "a".repeat(50);
         let token = format!("pypi-AgEIcHlwaS5vcmc{suffix}");
         let source = format!("const token = \"{token}\";");
-        let result = test.lint_ast("test.ts", &source);
+        let result = test.lint_ast("no_secrets/test_detects_pypi_upload_token.ts", &source);
         test.result(result).assert_lint("no-secrets");
     }
 
@@ -632,7 +682,7 @@ mod tests {
         let suffix = "a".repeat(138);
         let token = format!("hvb.{suffix}");
         let source = format!("const token = \"{token}\";");
-        let result = test.lint_ast("test.ts", &source);
+        let result = test.lint_ast("no_secrets/test_detects_vault_batch_token.ts", &source);
         test.result(result).assert_lint("no-secrets");
     }
 
@@ -642,7 +692,7 @@ mod tests {
         let suffix = "a".repeat(43);
         let url = format!("https://hooks.slack.com/services/{suffix}");
         let source = format!("const url = \"{url}\";");
-        let result = test.lint_ast("test.ts", &source);
+        let result = test.lint_ast("no_secrets/test_detects_slack_webhook_url.ts", &source);
         test.result(result).assert_lint("no-secrets");
     }
 
@@ -651,21 +701,30 @@ mod tests {
     #[test]
     fn test_detects_hardcoded_password() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
-        let result = test.lint_ast("test.ts", r#"const password = "supersecretpassword123";"#);
+        let result = test.lint_ast(
+            "no_secrets/test_detects_hardcoded_password.ts",
+            r#"const password = "supersecretpassword123";"#,
+        );
         test.result(result).assert_lint("no-secrets");
     }
 
     #[test]
     fn test_detects_hardcoded_api_key_by_name() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
-        let result = test.lint_ast("test.ts", r#"const apiKey = "some_long_api_key_value";"#);
+        let result = test.lint_ast(
+            "no_secrets/test_detects_hardcoded_api_key_by_name.ts",
+            r#"const apiKey = "some_long_api_key_value";"#,
+        );
         test.result(result).assert_lint("no-secrets");
     }
 
     #[test]
     fn test_detects_hardcoded_secret() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
-        let result = test.lint_ast("test.ts", r#"const clientSecret = "verysecretvalue1234";"#);
+        let result = test.lint_ast(
+            "no_secrets/test_detects_hardcoded_secret.ts",
+            r#"const clientSecret = "verysecretvalue1234";"#,
+        );
         test.result(result).assert_lint("no-secrets");
     }
 
@@ -676,7 +735,7 @@ mod tests {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
         // random-looking string with high entropy
         let result = test.lint_ast(
-            "test.ts",
+            "no_secrets/test_detects_high_entropy_string.ts",
             r#"const config = "Kj8mNpQrStUvWxYz1234AbCdEfGhIjKl";"#,
         );
         test.result(result).assert_lint("no-secrets");
@@ -687,28 +746,40 @@ mod tests {
     #[test]
     fn test_allows_env_variable() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
-        let result = test.lint_ast("test.ts", r#"const password = process.env.PASSWORD;"#);
+        let result = test.lint_ast(
+            "no_secrets/test_allows_env_variable.ts",
+            r#"const password = process.env.PASSWORD;"#,
+        );
         test.result(result).assert_no_lint("no-secrets");
     }
 
     #[test]
     fn test_allows_short_password() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
-        let result = test.lint_ast("test.ts", r#"const password = "short";"#);
+        let result = test.lint_ast(
+            "no_secrets/test_allows_short_password.ts",
+            r#"const password = "short";"#,
+        );
         test.result(result).assert_no_lint("no-secrets");
     }
 
     #[test]
     fn test_allows_placeholder_password() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
-        let result = test.lint_ast("test.ts", r#"const password = "your_password_here";"#);
+        let result = test.lint_ast(
+            "no_secrets/test_allows_placeholder_password.ts",
+            r#"const password = "your_password_here";"#,
+        );
         test.result(result).assert_no_lint("no-secrets");
     }
 
     #[test]
     fn test_allows_example_value() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
-        let result = test.lint_ast("test.ts", r#"const apiKey = "example_api_key_here";"#);
+        let result = test.lint_ast(
+            "no_secrets/test_allows_example_value.ts",
+            r#"const apiKey = "example_api_key_here";"#,
+        );
         test.result(result).assert_no_lint("no-secrets");
     }
 
@@ -717,7 +788,7 @@ mod tests {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
         // Stripe test keys are generally safe
         let result = test.lint_ast(
-            "test.ts",
+            "no_secrets/test_allows_test_key.ts",
             r#"const key = "sk_test_abcdefghijklmnopqrstuvwx";"#,
         );
         // we do flag test keys since they're still credentials
@@ -727,7 +798,10 @@ mod tests {
     #[test]
     fn test_allows_non_secret_names() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
-        let result = test.lint_ast("test.ts", r#"const username = "john_doe_123";"#);
+        let result = test.lint_ast(
+            "no_secrets/test_allows_non_secret_names.ts",
+            r#"const username = "john_doe_123";"#,
+        );
         test.result(result).assert_no_lint("no-secrets");
     }
 
@@ -735,7 +809,7 @@ mod tests {
     fn test_allows_urls_without_credentials() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
         let result = test.lint_ast(
-            "test.ts",
+            "no_secrets/test_allows_urls_without_credentials.ts",
             r#"const url = "https://api.example.com/v1/users";"#,
         );
         test.result(result).assert_no_lint("no-secrets");
@@ -745,7 +819,7 @@ mod tests {
     fn test_allows_file_paths() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
         let result = test.lint_ast(
-            "test.ts",
+            "no_secrets/test_allows_file_paths.ts",
             r#"const path = "/etc/ssl/certs/ca-certificates.crt";"#,
         );
         test.result(result).assert_no_lint("no-secrets");
@@ -755,7 +829,10 @@ mod tests {
     fn test_allows_low_entropy_strings() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
         // repetitive string has low entropy
-        let result = test.lint_ast("test.ts", r#"const data = "aaaaaaaaaaaaaaaaaaaaaaaaaaaa";"#);
+        let result = test.lint_ast(
+            "no_secrets/test_allows_low_entropy_strings.ts",
+            r#"const data = "aaaaaaaaaaaaaaaaaaaaaaaaaaaa";"#,
+        );
         test.result(result).assert_no_lint("no-secrets");
     }
 

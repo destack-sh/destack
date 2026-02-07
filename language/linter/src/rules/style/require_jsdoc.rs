@@ -94,7 +94,7 @@ mod tests {
     fn test_exported_function_without_doc_detected() {
         let test = TestProgram::for_rule_without_prelude(RequireJsdoc);
         let result = test.lint_ast(
-            "test.ds",
+            "require_jsdoc/test_exported_function_without_doc_detected.ds",
             r#"
 export function foo() {}
 "#,
@@ -106,7 +106,7 @@ export function foo() {}
     fn test_exported_function_with_doc_allowed() {
         let test = TestProgram::for_rule_without_prelude(RequireJsdoc);
         let result = test.lint_ast(
-            "test.ds",
+            "require_jsdoc/test_exported_function_with_doc_allowed.ds",
             r#"
 /// Does something important.
 export function foo() {}
@@ -119,7 +119,7 @@ export function foo() {}
     fn test_private_function_without_doc_allowed() {
         let test = TestProgram::for_rule_without_prelude(RequireJsdoc);
         let result = test.lint_ast(
-            "test.ds",
+            "require_jsdoc/test_private_function_without_doc_allowed.ds",
             r#"
 function foo() {}
 "#,

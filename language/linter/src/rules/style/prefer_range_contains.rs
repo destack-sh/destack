@@ -201,7 +201,7 @@ mod tests {
     fn test_range_check_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferRangeContains);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_range_contains/test_range_check_detected.ds",
             r#"
 function foo(x: int32) {
     if x >= 0 && x < 10 {
@@ -217,7 +217,7 @@ function foo(x: int32) {
     fn test_range_check_greater_less_or_equal() {
         let test = TestProgram::for_rule_without_prelude(PreferRangeContains);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_range_contains/test_range_check_greater_less_or_equal.ds",
             r#"
 function foo(x: int32) {
     if x > 0 && x <= 10 {
@@ -233,7 +233,7 @@ function foo(x: int32) {
     fn test_range_in_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferRangeContains);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_range_contains/test_range_in_allowed.ds",
             r#"
 function foo(x: int32) {
     if x in 0..10 {
@@ -249,7 +249,7 @@ function foo(x: int32) {
     fn test_different_variables_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferRangeContains);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_range_contains/test_different_variables_allowed.ds",
             r#"
 function foo(x: int32, y: int32) {
     if x >= 0 && y < 10 {
@@ -266,7 +266,7 @@ function foo(x: int32, y: int32) {
     fn test_single_comparison_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferRangeContains);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_range_contains/test_single_comparison_allowed.ds",
             r#"
 function foo(x: int32) {
     if x >= 0 {
@@ -282,7 +282,7 @@ function foo(x: int32) {
     fn test_two_lower_bounds_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferRangeContains);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_range_contains/test_two_lower_bounds_allowed.ds",
             r#"
 function foo(x: int32) {
     if x >= 0 && x >= 5 {
@@ -299,7 +299,7 @@ function foo(x: int32) {
     fn test_two_upper_bounds_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferRangeContains);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_range_contains/test_two_upper_bounds_allowed.ds",
             r#"
 function foo(x: int32) {
     if x < 10 && x < 20 {
@@ -316,7 +316,7 @@ function foo(x: int32) {
     fn test_or_expression_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferRangeContains);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_range_contains/test_or_expression_allowed.ds",
             r#"
 function foo(x: int32) {
     if x >= 0 || x < 10 {

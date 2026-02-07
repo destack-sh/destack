@@ -182,7 +182,7 @@ mod tests {
     fn test_flags_direct_recursion() {
         let test = TestProgram::for_rule_without_prelude(NoInfiniteRecursion);
         let result = test.lint_dir(
-            "test.ds",
+            "no_infinite_recursion/test_flags_direct_recursion.ds",
             r#"
 function infinite() {
     infinite();
@@ -198,7 +198,7 @@ function infinite() {
     fn test_flags_recursion_with_args() {
         let test = TestProgram::for_rule_without_prelude(NoInfiniteRecursion);
         let result = test.lint_dir(
-            "test.ds",
+            "no_infinite_recursion/test_flags_recursion_with_args.ds",
             r#"
 function process(x: number) {
     process(x + 1);
@@ -214,7 +214,7 @@ function process(x: number) {
     fn test_allows_conditional_recursion() {
         let test = TestProgram::for_rule_without_prelude(NoInfiniteRecursion);
         let result = test.lint_dir(
-            "test.ds",
+            "no_infinite_recursion/test_allows_conditional_recursion.ds",
             r#"
 function factorial(n: number): number {
     if (n <= 1) {
@@ -233,7 +233,7 @@ function factorial(n: number): number {
     fn test_allows_match_recursion() {
         let test = TestProgram::for_rule_without_prelude(NoInfiniteRecursion);
         let result = test.lint_dir(
-            "test.ds",
+            "no_infinite_recursion/test_allows_match_recursion.ds",
             r#"
 function count(n: number): number {
     match (n) {
@@ -252,7 +252,7 @@ function count(n: number): number {
     fn test_allows_different_function() {
         let test = TestProgram::for_rule_without_prelude(NoInfiniteRecursion);
         let result = test.lint_dir(
-            "test.ds",
+            "no_infinite_recursion/test_allows_different_function.ds",
             r#"
 function helper(x: number): number {
     return x * 2;
@@ -272,7 +272,7 @@ function process(x: number): number {
     fn test_allows_non_recursive() {
         let test = TestProgram::for_rule_without_prelude(NoInfiniteRecursion);
         let result = test.lint_dir(
-            "test.ds",
+            "no_infinite_recursion/test_allows_non_recursive.ds",
             r#"
 function add(a: number, b: number): number {
     return a + b;

@@ -133,7 +133,7 @@ mod tests {
     fn test_detects_non_null_before_optional_chain() {
         let test = TestProgram::for_rule_without_prelude(NoConfusingNonNullAssertion);
         let result = test.lint_ast(
-            "test.ds",
+            "no_confusing_non_null_assertion/test_detects_non_null_before_optional_chain.ds",
             r#"
 const x = foo!.?bar
 "#,
@@ -146,7 +146,7 @@ const x = foo!.?bar
     fn test_detects_non_null_after_optional_chain() {
         let test = TestProgram::for_rule_without_prelude(NoConfusingNonNullAssertion);
         let result = test.lint_ast(
-            "test.ds",
+            "no_confusing_non_null_assertion/test_detects_non_null_after_optional_chain.ds",
             r#"
 const x = foo?.bar!
 "#,
@@ -159,7 +159,7 @@ const x = foo?.bar!
     fn test_allows_separate_non_null_and_optional() {
         let test = TestProgram::for_rule_without_prelude(NoConfusingNonNullAssertion);
         let result = test.lint_ast(
-            "test.ds",
+            "no_confusing_non_null_assertion/test_allows_separate_non_null_and_optional.ds",
             r#"
 const x = foo!.bar
 const y = baz?.qux
@@ -173,7 +173,7 @@ const y = baz?.qux
     fn test_allows_simple_non_null() {
         let test = TestProgram::for_rule_without_prelude(NoConfusingNonNullAssertion);
         let result = test.lint_ast(
-            "test.ds",
+            "no_confusing_non_null_assertion/test_allows_simple_non_null.ds",
             r#"
 const x = getValue()!
 "#,

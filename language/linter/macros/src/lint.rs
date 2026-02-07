@@ -35,6 +35,8 @@ struct LintAttr {
     requires_all: ExprArray,
     /// Symbols where at least one must be available for the lint to run.
     requires_any: ExprArray,
+    /// Declaration file policy for the lint.
+    declarations: Option<Ident>,
     /// Whether the rule can provide fixes (Always, Sometimes, No).
     fixable: Ident,
     /// Whether the rule is recommended (Always, Strict, Off).
@@ -95,6 +97,7 @@ fn parse_lint_attr(attrs: &[Attribute]) -> Result<LintAttr> {
     let mut scope = None;
     let mut requires_all = None;
     let mut requires_any = None;
+    let mut declarations = None;
     let mut fixable = None;
     let mut recommended = None;
     let mut stability = None;
@@ -129,6 +132,10 @@ fn parse_lint_attr(attrs: &[Attribute]) -> Result<LintAttr> {
             meta.input.parse::<Token![=]>()?;
             let expr: ExprArray = meta.input.parse()?;
             requires_any = Some(expr);
+        } else if meta.path.is_ident("declarations") {
+            meta.input.parse::<Token![=]>()?;
+            let ident: Ident = meta.input.parse()?;
+            declarations = Some(ident);
         } else if meta.path.is_ident("fixable") {
             meta.input.parse::<Token![=]>()?;
             let ident: Ident = meta.input.parse()?;
@@ -179,6 +186,7 @@ fn parse_lint_attr(attrs: &[Attribute]) -> Result<LintAttr> {
         scope,
         requires_all,
         requires_any,
+        declarations,
         fixable,
         recommended,
         stability,
@@ -226,6 +234,7 @@ pub(crate) fn declare_lint_impl(input: TokenStream) -> TokenStream {
         scope,
         requires_all,
         requires_any,
+        declarations,
         fixable,
         recommended,
         stability,
@@ -237,6 +246,8 @@ pub(crate) fn declare_lint_impl(input: TokenStream) -> TokenStream {
 
     // scope defaults to Module
     let scope = scope.unwrap_or_else(|| format_ident!("Module"));
+    // declaration mode defaults to Include
+    let declarations = declarations.unwrap_or_else(|| format_ident!("Include"));
 
     // docs_url
     let docs_url_tokens = match docs_url {
@@ -273,6 +284,7 @@ pub(crate) fn declare_lint_impl(input: TokenStream) -> TokenStream {
             scope: crate::linter::LintScope::#scope,
             requires_all: &#requires_all,
             requires_any: &#requires_any,
+            declarations: crate::linter::DeclarationMode::#declarations,
         };
 
         impl #name {

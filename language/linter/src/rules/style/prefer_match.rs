@@ -217,7 +217,7 @@ mod tests {
     fn test_detects_long_if_else_chain() {
         let test = TestProgram::for_rule_without_prelude(PreferMatch);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_match/test_detects_long_if_else_chain.ds",
             r#"
 if (x == 1) {
     a()
@@ -235,7 +235,7 @@ if (x == 1) {
     fn test_detects_with_else_block() {
         let test = TestProgram::for_rule_without_prelude(PreferMatch);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_match/test_detects_with_else_block.ds",
             r#"
 if (x == 1) {
     a()
@@ -253,7 +253,7 @@ if (x == 1) {
     fn test_allows_short_if_else() {
         let test = TestProgram::for_rule_without_prelude(PreferMatch);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_match/test_allows_short_if_else.ds",
             r#"
 if (x == 1) {
     a()
@@ -269,7 +269,7 @@ if (x == 1) {
     fn test_allows_different_variables() {
         let test = TestProgram::for_rule_without_prelude(PreferMatch);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_match/test_allows_different_variables.ds",
             r#"
 if (x == 1) {
     a()
@@ -287,7 +287,7 @@ if (x == 1) {
     fn test_allows_non_equality_conditions() {
         let test = TestProgram::for_rule_without_prelude(PreferMatch);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_match/test_allows_non_equality_conditions.ds",
             r#"
 if (x > 1) {
     a()

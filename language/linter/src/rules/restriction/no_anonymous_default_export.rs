@@ -114,7 +114,7 @@ mod tests {
     fn test_detects_anonymous_function() {
         let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
         let result = test.lint_ast(
-            "test.ts",
+            "no_anonymous_default_export/test_detects_anonymous_function.ts",
             r#"
 export default function() {
     return 42;
@@ -129,7 +129,7 @@ export default function() {
     fn test_detects_anonymous_class() {
         let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
         let result = test.lint_ast(
-            "test.ts",
+            "no_anonymous_default_export/test_detects_anonymous_class.ts",
             r#"
 export default class {
     foo() {}
@@ -144,7 +144,7 @@ export default class {
     fn test_detects_object_literal() {
         let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
         let result = test.lint_ast(
-            "test.ts",
+            "no_anonymous_default_export/test_detects_object_literal.ts",
             r#"
 export default { foo: 1 }
 "#,
@@ -157,7 +157,7 @@ export default { foo: 1 }
     fn test_detects_literal() {
         let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
         let result = test.lint_ast(
-            "test.ts",
+            "no_anonymous_default_export/test_detects_literal.ts",
             r#"
 export default 42
 "#,
@@ -170,7 +170,7 @@ export default 42
     fn test_detects_arrow_function() {
         let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
         let result = test.lint_ast(
-            "test.ts",
+            "no_anonymous_default_export/test_detects_arrow_function.ts",
             r#"
 export default (x) => x * 2
 "#,
@@ -183,7 +183,7 @@ export default (x) => x * 2
     fn test_allows_named_function() {
         let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
         let result = test.lint_ast(
-            "test.ts",
+            "no_anonymous_default_export/test_allows_named_function.ts",
             r#"
 export default function myFunction() {
     return 42;
@@ -198,7 +198,7 @@ export default function myFunction() {
     fn test_allows_named_class() {
         let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
         let result = test.lint_ast(
-            "test.ts",
+            "no_anonymous_default_export/test_allows_named_class.ts",
             r#"
 export default class MyClass {
     foo() {}
@@ -213,7 +213,7 @@ export default class MyClass {
     fn test_allows_identifier_export() {
         let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
         let result = test.lint_ast(
-            "test.ts",
+            "no_anonymous_default_export/test_allows_identifier_export.ts",
             r#"
 const myValue = 42;
 export default myValue;
@@ -227,7 +227,7 @@ export default myValue;
     fn test_allows_named_exports() {
         let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
         let result = test.lint_ast(
-            "test.ts",
+            "no_anonymous_default_export/test_allows_named_exports.ts",
             r#"
 export const foo = 1;
 export function bar() {}

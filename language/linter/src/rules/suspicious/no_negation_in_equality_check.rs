@@ -118,7 +118,7 @@ mod tests {
     fn test_detects_negation_on_left() {
         let test = TestProgram::for_rule_without_prelude(NoNegationInEqualityCheck);
         let result = test.lint_ast(
-            "test.ds",
+            "no_negation_in_equality_check/test_detects_negation_on_left.ds",
             r#"
 const x = !a == b
 "#,
@@ -131,7 +131,7 @@ const x = !a == b
     fn test_detects_negation_on_right() {
         let test = TestProgram::for_rule_without_prelude(NoNegationInEqualityCheck);
         let result = test.lint_ast(
-            "test.ds",
+            "no_negation_in_equality_check/test_detects_negation_on_right.ds",
             r#"
 const x = a == !b
 "#,
@@ -144,7 +144,7 @@ const x = a == !b
     fn test_detects_with_strict_equality() {
         let test = TestProgram::for_rule_without_prelude(NoNegationInEqualityCheck);
         let result = test.lint_ast(
-            "test.ds",
+            "no_negation_in_equality_check/test_detects_with_strict_equality.ds",
             r#"
 const x = !a === b
 "#,
@@ -157,7 +157,7 @@ const x = !a === b
     fn test_allows_not_equal() {
         let test = TestProgram::for_rule_without_prelude(NoNegationInEqualityCheck);
         let result = test.lint_ast(
-            "test.ds",
+            "no_negation_in_equality_check/test_allows_not_equal.ds",
             r#"
 const x = a != b
 "#,
@@ -170,7 +170,7 @@ const x = a != b
     fn test_allows_negation_of_whole_expression() {
         let test = TestProgram::for_rule_without_prelude(NoNegationInEqualityCheck);
         let result = test.lint_ast(
-            "test.ds",
+            "no_negation_in_equality_check/test_allows_negation_of_whole_expression.ds",
             r#"
 const x = !(a == b)
 "#,
@@ -183,7 +183,7 @@ const x = !(a == b)
     fn test_allows_normal_equality() {
         let test = TestProgram::for_rule_without_prelude(NoNegationInEqualityCheck);
         let result = test.lint_ast(
-            "test.ds",
+            "no_negation_in_equality_check/test_allows_normal_equality.ds",
             r#"
 const x = a == b
 "#,

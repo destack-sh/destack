@@ -80,7 +80,7 @@ mod tests {
     fn test_detects_empty_object_pattern() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyPattern);
         let result = test.lint_ast(
-            "test.ds",
+            "no_empty_pattern/test_detects_empty_object_pattern.ds",
             r#"
 const {} = obj
 "#,
@@ -92,7 +92,7 @@ const {} = obj
     fn test_detects_empty_array_pattern() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyPattern);
         let result = test.lint_ast(
-            "test.ds",
+            "no_empty_pattern/test_detects_empty_array_pattern.ds",
             r#"
 const [] = arr
 "#,
@@ -104,7 +104,7 @@ const [] = arr
     fn test_detects_empty_tuple_pattern() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyPattern);
         let result = test.lint_ast(
-            "test.ds",
+            "no_empty_pattern/test_detects_empty_tuple_pattern.ds",
             r#"
 const () = tuple
 "#,
@@ -116,7 +116,7 @@ const () = tuple
     fn test_detects_empty_pattern_in_function_param() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyPattern);
         let result = test.lint_ast(
-            "test.ds",
+            "no_empty_pattern/test_detects_empty_pattern_in_function_param.ds",
             r#"
 function foo({}) {}
 "#,
@@ -128,7 +128,7 @@ function foo({}) {}
     fn test_allows_non_empty_object_pattern() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyPattern);
         let result = test.lint_ast(
-            "test.ds",
+            "no_empty_pattern/test_allows_non_empty_object_pattern.ds",
             r#"
 const { x } = obj
 "#,
@@ -140,7 +140,7 @@ const { x } = obj
     fn test_allows_non_empty_array_pattern() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyPattern);
         let result = test.lint_ast(
-            "test.ds",
+            "no_empty_pattern/test_allows_non_empty_array_pattern.ds",
             r#"
 const [x] = arr
 "#,

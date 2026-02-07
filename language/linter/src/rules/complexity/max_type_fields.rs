@@ -124,7 +124,7 @@ mod tests {
         let test = TestProgram::for_rule_without_prelude(MaxTypeFields)
             .with_options(|options| options.max_type_fields = 3);
         let result = test.lint_ast(
-            "test.ds",
+            "max_type_fields/test_detects_too_many_struct_fields.ds",
             r#"
 struct TooMany {
     a: int32,
@@ -142,7 +142,7 @@ struct TooMany {
         let test = TestProgram::for_rule_without_prelude(MaxTypeFields)
             .with_options(|options| options.max_type_fields = 3);
         let result = test.lint_ast(
-            "test.ds",
+            "max_type_fields/test_detects_too_many_class_fields.ds",
             r#"
 class TooMany {
     a: int32;
@@ -160,7 +160,7 @@ class TooMany {
         let test = TestProgram::for_rule_without_prelude(MaxTypeFields)
             .with_options(|options| options.max_type_fields = 3);
         let result = test.lint_ast(
-            "test.ds",
+            "max_type_fields/test_detects_too_many_interface_fields.ds",
             r#"
 interface TooMany {
     a: int32;
@@ -178,7 +178,7 @@ interface TooMany {
         let test = TestProgram::for_rule_without_prelude(MaxTypeFields)
             .with_options(|options| options.max_type_fields = 5);
         let result = test.lint_ast(
-            "test.ds",
+            "max_type_fields/test_allows_few_fields.ds",
             r#"
 struct Point {
     x: int32,
@@ -194,7 +194,7 @@ struct Point {
         let test = TestProgram::for_rule_without_prelude(MaxTypeFields)
             .with_options(|options| options.max_type_fields = 3);
         let result = test.lint_ast(
-            "test.ds",
+            "max_type_fields/test_allows_exactly_at_limit.ds",
             r#"
 struct AtLimit {
     a: int32,
@@ -211,7 +211,7 @@ struct AtLimit {
         let test = TestProgram::for_rule_without_prelude(MaxTypeFields)
             .with_options(|options| options.max_type_fields = 2);
         let result = test.lint_ast(
-            "test.ds",
+            "max_type_fields/test_ignores_methods.ds",
             r#"
 struct WithMethods {
     a: int32,
@@ -231,7 +231,7 @@ struct WithMethods {
         let test = TestProgram::for_rule_without_prelude(MaxTypeFields);
         // default is 30, so this should pass
         let result = test.lint_ast(
-            "test.ds",
+            "max_type_fields/test_uses_default_limit.ds",
             r#"
 struct ManyFields {
     a: int32, b: int32, c: int32, d: int32, e: int32,
@@ -247,7 +247,7 @@ struct ManyFields {
         let test = TestProgram::for_rule_without_prelude(MaxTypeFields)
             .with_options(|options| options.max_type_fields = 3);
         let result = test.lint_ast(
-            "test.ds",
+            "max_type_fields/test_detects_too_many_object_type_fields.ds",
             r#"
 type TooMany = { a: int32, b: int32, c: int32, d: int32 }
 "#,
@@ -260,7 +260,7 @@ type TooMany = { a: int32, b: int32, c: int32, d: int32 }
         let test = TestProgram::for_rule_without_prelude(MaxTypeFields)
             .with_options(|options| options.max_type_fields = 5);
         let result = test.lint_ast(
-            "test.ds",
+            "max_type_fields/test_allows_few_object_type_fields.ds",
             r#"
 type Point = { x: int32, y: int32 }
 "#,

@@ -203,7 +203,7 @@ mod tests {
     fn test_detects_unnecessary_single_param_lambda() {
         let test = TestProgram::for_rule_without_prelude(NoUnnecessaryLambda);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unnecessary_lambda/test_detects_unnecessary_single_param_lambda.ds",
             r#"
 items.map(x => foo(x))
 "#,
@@ -215,7 +215,7 @@ items.map(x => foo(x))
     fn test_detects_unnecessary_multi_param_lambda() {
         let test = TestProgram::for_rule_without_prelude(NoUnnecessaryLambda);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unnecessary_lambda/test_detects_unnecessary_multi_param_lambda.ds",
             r#"
 items.reduce((a, b) => add(a, b))
 "#,
@@ -227,7 +227,7 @@ items.reduce((a, b) => add(a, b))
     fn test_allows_lambda_with_extra_arg() {
         let test = TestProgram::for_rule_without_prelude(NoUnnecessaryLambda);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unnecessary_lambda/test_allows_lambda_with_extra_arg.ds",
             r#"
 items.map(x => foo(x, 1))
 "#,
@@ -239,7 +239,7 @@ items.map(x => foo(x, 1))
     fn test_allows_lambda_with_different_order() {
         let test = TestProgram::for_rule_without_prelude(NoUnnecessaryLambda);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unnecessary_lambda/test_allows_lambda_with_different_order.ds",
             r#"
 items.reduce((a, b) => sub(b, a))
 "#,
@@ -251,7 +251,7 @@ items.reduce((a, b) => sub(b, a))
     fn test_allows_lambda_with_method_call() {
         let test = TestProgram::for_rule_without_prelude(NoUnnecessaryLambda);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unnecessary_lambda/test_allows_lambda_with_method_call.ds",
             r#"
 items.map(x => x.toString())
 "#,
@@ -263,7 +263,7 @@ items.map(x => x.toString())
     fn test_allows_zero_param_lambda() {
         let test = TestProgram::for_rule_without_prelude(NoUnnecessaryLambda);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unnecessary_lambda/test_allows_zero_param_lambda.ds",
             r#"
 defer(() => cleanup())
 "#,
@@ -275,7 +275,7 @@ defer(() => cleanup())
     fn test_allows_lambda_with_expression_body() {
         let test = TestProgram::for_rule_without_prelude(NoUnnecessaryLambda);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unnecessary_lambda/test_allows_lambda_with_expression_body.ds",
             r#"
 items.map(x => x + 1)
 "#,
@@ -287,7 +287,7 @@ items.map(x => x + 1)
     fn test_allows_lambda_param_used_twice() {
         let test = TestProgram::for_rule_without_prelude(NoUnnecessaryLambda);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unnecessary_lambda/test_allows_lambda_param_used_twice.ds",
             r#"
 items.map(x => foo(x, x))
 "#,
@@ -299,7 +299,7 @@ items.map(x => foo(x, x))
     fn test_fix_removes_lambda() {
         let test = TestProgram::for_rule_without_prelude(NoUnnecessaryLambda);
         let result = test.lint_ast(
-            "test.ds",
+            "no_unnecessary_lambda/test_fix_removes_lambda.ds",
             r#"
 items.map(x => foo(x));
 "#,

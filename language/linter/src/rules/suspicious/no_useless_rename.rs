@@ -83,7 +83,7 @@ mod tests {
     fn test_detects_useless_rename_destructure() {
         let test = TestProgram::for_rule_without_prelude(NoUselessRename);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_rename/test_detects_useless_rename_destructure.ds",
             r#"
 const { x: x } = obj
 "#,
@@ -95,7 +95,7 @@ const { x: x } = obj
     fn test_allows_actual_rename() {
         let test = TestProgram::for_rule_without_prelude(NoUselessRename);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_rename/test_allows_actual_rename.ds",
             r#"
 const { x: y } = obj
 "#,
@@ -107,7 +107,7 @@ const { x: y } = obj
     fn test_allows_simple_destructure() {
         let test = TestProgram::for_rule_without_prelude(NoUselessRename);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_rename/test_allows_simple_destructure.ds",
             r#"
 const { x } = obj
 "#,
@@ -119,7 +119,7 @@ const { x } = obj
     fn test_detects_useless_rename_in_function_param() {
         let test = TestProgram::for_rule_without_prelude(NoUselessRename);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_rename/test_detects_useless_rename_in_function_param.ds",
             r#"
 function foo({ a: a }) {}
 "#,
@@ -131,7 +131,7 @@ function foo({ a: a }) {}
     fn test_fix_useless_rename() {
         let test = TestProgram::for_rule_without_prelude(NoUselessRename);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_rename/test_fix_useless_rename.ds",
             r#"
 const { x: x } = obj;
 "#,

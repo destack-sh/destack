@@ -148,7 +148,7 @@ mod tests {
     fn test_gte_plus_one_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferSimplifiedComparison);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_simplified_comparison/test_gte_plus_one_detected.ds",
             r#"
 function foo(x: int32, y: int32): bool {
     return x >= y + 1
@@ -163,7 +163,7 @@ function foo(x: int32, y: int32): bool {
     fn test_gt_comparison_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferSimplifiedComparison);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_simplified_comparison/test_gt_comparison_allowed.ds",
             r#"
 function foo(x: int32, y: int32): bool {
     return x > y
@@ -178,7 +178,7 @@ function foo(x: int32, y: int32): bool {
     fn test_lte_minus_one_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferSimplifiedComparison);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_simplified_comparison/test_lte_minus_one_detected.ds",
             r#"
 function foo(x: int32, y: int32): bool {
     return x <= y - 1
@@ -193,7 +193,7 @@ function foo(x: int32, y: int32): bool {
     fn test_normal_comparison_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferSimplifiedComparison);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_simplified_comparison/test_normal_comparison_allowed.ds",
             r#"
 function foo(x: int32, y: int32): bool {
     return x >= y

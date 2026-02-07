@@ -164,7 +164,7 @@ mod tests {
     fn test_reports_redundant_const_borrow() {
         let test = TestProgram::for_rule_without_prelude(RedundantConstReference);
         let result = test.lint_ast(
-            "test.ds",
+            "redundant_const_reference/test_reports_redundant_const_borrow.ds",
             r#"
 type T = &const Foo
 "#,
@@ -184,7 +184,7 @@ type T = &Foo;
     fn test_reports_redundant_const_pointer() {
         let test = TestProgram::for_rule_without_prelude(RedundantConstReference);
         let result = test.lint_ast(
-            "test.ds",
+            "redundant_const_reference/test_reports_redundant_const_pointer.ds",
             r#"
 type T = *const Foo
 "#,
@@ -204,7 +204,7 @@ type T = *Foo;
     fn test_allows_plain_borrow() {
         let test = TestProgram::for_rule_without_prelude(RedundantConstReference);
         let result = test.lint_ast(
-            "test.ds",
+            "redundant_const_reference/test_allows_plain_borrow.ds",
             r#"
 type T = &Foo
 "#,
@@ -219,7 +219,7 @@ type T = &Foo
     fn test_allows_plain_pointer() {
         let test = TestProgram::for_rule_without_prelude(RedundantConstReference);
         let result = test.lint_ast(
-            "test.ds",
+            "redundant_const_reference/test_allows_plain_pointer.ds",
             r#"
 type T = *Foo
 "#,
@@ -234,7 +234,7 @@ type T = *Foo
     fn test_allows_mutable_reference_forms() {
         let test = TestProgram::for_rule_without_prelude(RedundantConstReference);
         let result = test.lint_ast(
-            "test.ds",
+            "redundant_const_reference/test_allows_mutable_reference_forms.ds",
             r#"
 type T = &mut Foo
 type U = *mut Foo

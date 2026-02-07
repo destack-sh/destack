@@ -3,10 +3,27 @@ use destack_linter::{LintLevel, LintRunner};
 use destack_source::{
     ModuleId, ModuleStamp, ModuleVersion, PackageId, PackageStamp, ProfileStamp, ProfileVersion,
 };
-use destack_workspace::ProfileId;
+use destack_workspace::{LintPreset, ProfileId};
+use std::sync::LazyLock;
 
 use crate::timing::tags;
 use crate::{Compiler, LintError, LintResult, TaskDependencyError, TaskResultCollector};
+
+/// Reuse immutable lint runners by preset to avoid per-module rule allocation.
+fn cached_runner_for_preset(preset: LintPreset) -> &'static LintRunner {
+    static NONE: LazyLock<LintRunner> =
+        LazyLock::new(|| LintRunner::from_preset(LintPreset::None).with_fixes(false));
+    static RECOMMENDED: LazyLock<LintRunner> =
+        LazyLock::new(|| LintRunner::from_preset(LintPreset::Recommended).with_fixes(false));
+    static ALL: LazyLock<LintRunner> =
+        LazyLock::new(|| LintRunner::from_preset(LintPreset::All).with_fixes(false));
+
+    match preset {
+        LintPreset::None => &NONE,
+        LintPreset::Recommended => &RECOMMENDED,
+        LintPreset::All => &ALL,
+    }
+}
 
 /// Task to lint something.
 #[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
@@ -94,7 +111,7 @@ impl Compiler {
         }
 
         let module = self.program.modules.get(module_id);
-        let runner = LintRunner::from_options(&options).with_fixes(false);
+        let runner = cached_runner_for_preset(options.preset);
 
         // run at each IR level
         let ast_diagnostics = runner.lint_module(

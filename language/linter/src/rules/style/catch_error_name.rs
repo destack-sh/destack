@@ -90,7 +90,7 @@ mod tests {
     fn test_detects_wrong_error_name() {
         let test = TestProgram::for_rule_without_prelude(CatchErrorName);
         let result = test.lint_ast(
-            "test.ds",
+            "catch_error_name/test_detects_wrong_error_name.ds",
             r#"
 try {
     doSomething()
@@ -106,7 +106,7 @@ try {
     fn test_allows_correct_name() {
         let test = TestProgram::for_rule_without_prelude(CatchErrorName);
         let result = test.lint_ast(
-            "test.ds",
+            "catch_error_name/test_allows_correct_name.ds",
             r#"
 try {
     doSomething()
@@ -122,7 +122,7 @@ try {
     fn test_allows_try_without_catch() {
         let test = TestProgram::for_rule_without_prelude(CatchErrorName);
         let result = test.lint_ast(
-            "test.ds",
+            "catch_error_name/test_allows_try_without_catch.ds",
             r#"
 try {
     doSomething()
@@ -138,7 +138,7 @@ try {
     fn test_detects_err_name() {
         let test = TestProgram::for_rule_without_prelude(CatchErrorName);
         let result = test.lint_ast(
-            "test.ds",
+            "catch_error_name/test_detects_err_name.ds",
             r#"
 try {
     fetch()

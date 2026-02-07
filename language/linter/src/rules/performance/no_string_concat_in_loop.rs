@@ -396,7 +396,7 @@ mod tests {
     fn test_flags_add_assign_in_loop() {
         let test = TestProgram::for_rule_without_prelude(NoStringConcatInLoop);
         let result = test.lint_dir(
-            "test.ds",
+            "no_string_concat_in_loop/test_flags_add_assign_in_loop.ds",
             r#"
 let items = ["a", "b"];
 let result = "";
@@ -413,7 +413,7 @@ for (let i = 0; i < items.length; i += 1) {
     fn test_flags_self_add_assign_in_loop() {
         let test = TestProgram::for_rule_without_prelude(NoStringConcatInLoop);
         let result = test.lint_dir(
-            "test.ds",
+            "no_string_concat_in_loop/test_flags_self_add_assign_in_loop.ds",
             r#"
 let items = ["a", "b"];
 let result = "";
@@ -430,7 +430,7 @@ for (const item of items) {
     fn test_flags_reversed_concat_in_loop() {
         let test = TestProgram::for_rule_without_prelude(NoStringConcatInLoop);
         let result = test.lint_dir(
-            "test.ds",
+            "no_string_concat_in_loop/test_flags_reversed_concat_in_loop.ds",
             r#"
 let items = ["a", "b"];
 let result = "";
@@ -447,7 +447,7 @@ for (const item of items) {
     fn test_allows_numeric_add_assign() {
         let test = TestProgram::for_rule_without_prelude(NoStringConcatInLoop);
         let result = test.lint_dir(
-            "test.ds",
+            "no_string_concat_in_loop/test_allows_numeric_add_assign.ds",
             r#"
 let items = [1, 2];
 let total = 0;

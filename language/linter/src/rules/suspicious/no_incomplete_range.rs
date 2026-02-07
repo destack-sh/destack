@@ -168,7 +168,7 @@ mod tests {
     fn test_char_range_a_to_z_detected() {
         let test = TestProgram::for_rule_without_prelude(NoIncompleteRange);
         let result = test.lint_ast(
-            "test.ds",
+            "no_incomplete_range/test_char_range_a_to_z_detected.ds",
             r#"
 const range = 'a'..'z'
 "#,
@@ -180,7 +180,7 @@ const range = 'a'..'z'
     fn test_char_range_uppercase_detected() {
         let test = TestProgram::for_rule_without_prelude(NoIncompleteRange);
         let result = test.lint_ast(
-            "test.ds",
+            "no_incomplete_range/test_char_range_uppercase_detected.ds",
             r#"
 const range = 'A'..'Z'
 "#,
@@ -192,7 +192,7 @@ const range = 'A'..'Z'
     fn test_char_range_digits_detected() {
         let test = TestProgram::for_rule_without_prelude(NoIncompleteRange);
         let result = test.lint_ast(
-            "test.ds",
+            "no_incomplete_range/test_char_range_digits_detected.ds",
             r#"
 const range = '0'..'9'
 "#,
@@ -204,7 +204,7 @@ const range = '0'..'9'
     fn test_char_range_hex_detected() {
         let test = TestProgram::for_rule_without_prelude(NoIncompleteRange);
         let result = test.lint_ast(
-            "test.ds",
+            "no_incomplete_range/test_char_range_hex_detected.ds",
             r#"
 const range = 'a'..'f'
 "#,
@@ -216,7 +216,7 @@ const range = 'a'..'f'
     fn test_subtraction_at_end_detected() {
         let test = TestProgram::for_rule_without_prelude(NoIncompleteRange);
         let result = test.lint_ast(
-            "test.ds",
+            "no_incomplete_range/test_subtraction_at_end_detected.ds",
             r#"
 const range = 0..n - 1
 "#,
@@ -228,7 +228,7 @@ const range = 0..n - 1
     fn test_inclusive_char_range_allowed() {
         let test = TestProgram::for_rule_without_prelude(NoIncompleteRange);
         let result = test.lint_ast(
-            "test.ds",
+            "no_incomplete_range/test_inclusive_char_range_allowed.ds",
             r#"
 const range = 'a'..='z'
 "#,
@@ -240,7 +240,7 @@ const range = 'a'..='z'
     fn test_inclusive_with_subtraction_allowed() {
         let test = TestProgram::for_rule_without_prelude(NoIncompleteRange);
         let result = test.lint_ast(
-            "test.ds",
+            "no_incomplete_range/test_inclusive_with_subtraction_allowed.ds",
             r#"
 const range = 0..=n - 1
 "#,
@@ -252,7 +252,7 @@ const range = 0..=n - 1
     fn test_numeric_range_without_subtraction_allowed() {
         let test = TestProgram::for_rule_without_prelude(NoIncompleteRange);
         let result = test.lint_ast(
-            "test.ds",
+            "no_incomplete_range/test_numeric_range_without_subtraction_allowed.ds",
             r#"
 const range = 0..10
 "#,
@@ -264,7 +264,7 @@ const range = 0..10
     fn test_random_char_range_allowed() {
         let test = TestProgram::for_rule_without_prelude(NoIncompleteRange);
         let result = test.lint_ast(
-            "test.ds",
+            "no_incomplete_range/test_random_char_range_allowed.ds",
             r#"
 const range = 'b'..'y'
 "#,
@@ -276,7 +276,7 @@ const range = 'b'..'y'
     fn test_for_loop_char_range_detected() {
         let test = TestProgram::for_rule_without_prelude(NoIncompleteRange);
         let result = test.lint_ast(
-            "test.ds",
+            "no_incomplete_range/test_for_loop_char_range_detected.ds",
             r#"
 function foo() {
     for (const c of 'a'..'z') {
@@ -292,7 +292,7 @@ function foo() {
     fn test_for_loop_length_minus_one_detected() {
         let test = TestProgram::for_rule_without_prelude(NoIncompleteRange);
         let result = test.lint_ast(
-            "test.ds",
+            "no_incomplete_range/test_for_loop_length_minus_one_detected.ds",
             r#"
 function foo(arr: int[]) {
     for (const i of 0..arr.length - 1) {
@@ -308,7 +308,7 @@ function foo(arr: int[]) {
     fn test_standard_length_pattern_allowed() {
         let test = TestProgram::for_rule_without_prelude(NoIncompleteRange);
         let result = test.lint_ast(
-            "test.ds",
+            "no_incomplete_range/test_standard_length_pattern_allowed.ds",
             r#"
 function foo(arr: int[]) {
     for (const i of 0..arr.length) {

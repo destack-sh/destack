@@ -100,7 +100,10 @@ mod tests {
     #[test]
     fn test_detects_default_export_function() {
         let test = TestProgram::for_rule_without_prelude(NoDefaultExport);
-        let result = test.lint_dir("test.ds", "export default function foo() {}");
+        let result = test.lint_dir(
+            "no_default_export/test_detects_default_export_function.ds",
+            "export default function foo() {}",
+        );
         test.check_clean();
         test.result(result).assert_lint("no-default-export");
     }
@@ -108,7 +111,10 @@ mod tests {
     #[test]
     fn test_detects_default_export_class() {
         let test = TestProgram::for_rule_without_prelude(NoDefaultExport);
-        let result = test.lint_dir("test.ds", "export default class Foo {}");
+        let result = test.lint_dir(
+            "no_default_export/test_detects_default_export_class.ds",
+            "export default class Foo {}",
+        );
         test.check_clean();
         test.result(result).assert_lint("no-default-export");
     }
@@ -116,7 +122,10 @@ mod tests {
     #[test]
     fn test_allows_named_export_function() {
         let test = TestProgram::for_rule_without_prelude(NoDefaultExport);
-        let result = test.lint_dir("test.ds", "export function foo() {}");
+        let result = test.lint_dir(
+            "no_default_export/test_allows_named_export_function.ds",
+            "export function foo() {}",
+        );
         test.check_clean();
         test.result(result).assert_no_lint("no-default-export");
     }
@@ -124,7 +133,10 @@ mod tests {
     #[test]
     fn test_allows_named_export_class() {
         let test = TestProgram::for_rule_without_prelude(NoDefaultExport);
-        let result = test.lint_dir("test.ds", "export class Foo {}");
+        let result = test.lint_dir(
+            "no_default_export/test_allows_named_export_class.ds",
+            "export class Foo {}",
+        );
         test.check_clean();
         test.result(result).assert_no_lint("no-default-export");
     }
@@ -132,7 +144,10 @@ mod tests {
     #[test]
     fn test_detects_default_export_identifier() {
         let test = TestProgram::for_rule_without_prelude(NoDefaultExport);
-        let result = test.lint_dir("test.ds", "const foo = 1;\nexport default foo;");
+        let result = test.lint_dir(
+            "no_default_export/test_detects_default_export_identifier.ds",
+            "const foo = 1;\nexport default foo;",
+        );
         test.check_clean();
         test.result(result).assert_lint("no-default-export");
     }

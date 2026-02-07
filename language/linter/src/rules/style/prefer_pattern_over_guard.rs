@@ -172,7 +172,7 @@ mod tests {
     fn test_equality_guard_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferPatternOverGuard);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_pattern_over_guard/test_equality_guard_detected.ds",
             r#"
 function foo(x: int32) {
     match x {
@@ -189,7 +189,7 @@ function foo(x: int32) {
     fn test_strict_equality_guard_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferPatternOverGuard);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_pattern_over_guard/test_strict_equality_guard_detected.ds",
             r#"
 function foo(x: int32) {
     match x {
@@ -206,7 +206,7 @@ function foo(x: int32) {
     fn test_reversed_equality_guard_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferPatternOverGuard);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_pattern_over_guard/test_reversed_equality_guard_detected.ds",
             r#"
 function foo(x: int32) {
     match x {
@@ -223,7 +223,7 @@ function foo(x: int32) {
     fn test_literal_pattern_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferPatternOverGuard);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_pattern_over_guard/test_literal_pattern_allowed.ds",
             r#"
 function foo(x: int32) {
     match x {
@@ -241,7 +241,7 @@ function foo(x: int32) {
     fn test_complex_guard_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferPatternOverGuard);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_pattern_over_guard/test_complex_guard_allowed.ds",
             r#"
 function foo(x: int32) {
     match x {
@@ -260,7 +260,7 @@ function foo(x: int32) {
     fn test_guard_with_different_var_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferPatternOverGuard);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_pattern_over_guard/test_guard_with_different_var_allowed.ds",
             r#"
 function foo(x: int32, y: int32) {
     match x {
@@ -279,7 +279,7 @@ function foo(x: int32, y: int32) {
     fn test_guard_with_method_call_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferPatternOverGuard);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_pattern_over_guard/test_guard_with_method_call_allowed.ds",
             r#"
 function foo(x: string) {
     match x {
@@ -298,7 +298,7 @@ function foo(x: string) {
     fn test_no_guard_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferPatternOverGuard);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_pattern_over_guard/test_no_guard_allowed.ds",
             r#"
 function foo(x: int32) {
     match x {
@@ -317,7 +317,7 @@ function foo(x: int32) {
     fn test_inequality_guard_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferPatternOverGuard);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_pattern_over_guard/test_inequality_guard_allowed.ds",
             r#"
 function foo(x: int32) {
     match x {

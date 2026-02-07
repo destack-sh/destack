@@ -100,7 +100,7 @@ mod tests {
     fn test_detects_bracket_notation() {
         let test = TestProgram::for_rule_without_prelude(DotNotation);
         let result = test.lint_ast(
-            "test.ds",
+            "dot_notation/test_detects_bracket_notation.ds",
             r#"
 const x = obj["foo"]
 "#,
@@ -112,7 +112,7 @@ const x = obj["foo"]
     fn test_allows_dot_notation() {
         let test = TestProgram::for_rule_without_prelude(DotNotation);
         let result = test.lint_ast(
-            "test.ds",
+            "dot_notation/test_allows_dot_notation.ds",
             r#"
 const x = obj.foo
 "#,
@@ -124,7 +124,7 @@ const x = obj.foo
     fn test_allows_non_identifier_bracket() {
         let test = TestProgram::for_rule_without_prelude(DotNotation);
         let result = test.lint_ast(
-            "test.ds",
+            "dot_notation/test_allows_non_identifier_bracket.ds",
             r#"
 const x = obj["foo-bar"]
 "#,
@@ -136,7 +136,7 @@ const x = obj["foo-bar"]
     fn test_allows_numeric_index() {
         let test = TestProgram::for_rule_without_prelude(DotNotation);
         let result = test.lint_ast(
-            "test.ds",
+            "dot_notation/test_allows_numeric_index.ds",
             r#"
 const x = arr[0]
 "#,
@@ -148,7 +148,7 @@ const x = arr[0]
     fn test_allows_variable_index() {
         let test = TestProgram::for_rule_without_prelude(DotNotation);
         let result = test.lint_ast(
-            "test.ds",
+            "dot_notation/test_allows_variable_index.ds",
             r#"
 const x = obj[key]
 "#,
@@ -160,7 +160,7 @@ const x = obj[key]
     fn test_detects_underscore_property() {
         let test = TestProgram::for_rule_without_prelude(DotNotation);
         let result = test.lint_ast(
-            "test.ds",
+            "dot_notation/test_detects_underscore_property.ds",
             r#"
 const x = obj["_private"]
 "#,
@@ -172,7 +172,7 @@ const x = obj["_private"]
     fn test_fix_bracket_to_dot() {
         let test = TestProgram::for_rule_without_prelude(DotNotation);
         let result = test.lint_ast(
-            "test.ds",
+            "dot_notation/test_fix_bracket_to_dot.ds",
             r#"
 const x = obj["foo"]
 "#,
@@ -190,7 +190,7 @@ const x = obj.foo;
     fn test_fix_chained_bracket() {
         let test = TestProgram::for_rule_without_prelude(DotNotation);
         let result = test.lint_ast(
-            "test.ds",
+            "dot_notation/test_fix_chained_bracket.ds",
             r#"
 const x = obj["foo"]["bar"]
 "#,

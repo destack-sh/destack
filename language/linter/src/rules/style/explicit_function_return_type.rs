@@ -77,7 +77,7 @@ mod tests {
     fn test_detects_missing_return_type() {
         let test = TestProgram::for_rule_without_prelude(ExplicitFunctionReturnType);
         let result = test.lint_ast(
-            "test.ts",
+            "explicit_function_return_type/test_detects_missing_return_type.ts",
             r#"
 function foo() {
     return 42;
@@ -92,7 +92,7 @@ function foo() {
     fn test_allows_explicit_return_type() {
         let test = TestProgram::for_rule_without_prelude(ExplicitFunctionReturnType);
         let result = test.lint_ast(
-            "test.ts",
+            "explicit_function_return_type/test_allows_explicit_return_type.ts",
             r#"
 function foo(): number {
     return 42;
@@ -107,7 +107,7 @@ function foo(): number {
     fn test_allows_void_return_type() {
         let test = TestProgram::for_rule_without_prelude(ExplicitFunctionReturnType);
         let result = test.lint_ast(
-            "test.ts",
+            "explicit_function_return_type/test_allows_void_return_type.ts",
             r#"
 function foo(): void {
     console.log("hello");
@@ -122,7 +122,7 @@ function foo(): void {
     fn test_allows_arrow_functions() {
         let test = TestProgram::for_rule_without_prelude(ExplicitFunctionReturnType);
         let result = test.lint_ast(
-            "test.ts",
+            "explicit_function_return_type/test_allows_arrow_functions.ts",
             r#"
 const foo = () => 42;
 "#,

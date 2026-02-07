@@ -184,7 +184,7 @@ mod tests {
     fn test_detects_c_style_for() {
         let test = TestProgram::for_rule_without_prelude(PreferRangeLiteral);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_range_literal/test_detects_c_style_for.ds",
             r#"
 for (let i = 0; i < 10; i++) {
     print(i)
@@ -198,7 +198,7 @@ for (let i = 0; i < 10; i++) {
     fn test_detects_c_style_for_increment_assign() {
         let test = TestProgram::for_rule_without_prelude(PreferRangeLiteral);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_range_literal/test_detects_c_style_for_increment_assign.ds",
             r#"
 for (let i = 0; i < n; i += 1) {
     print(i)
@@ -212,7 +212,7 @@ for (let i = 0; i < n; i += 1) {
     fn test_allows_range_literal() {
         let test = TestProgram::for_rule_without_prelude(PreferRangeLiteral);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_range_literal/test_allows_range_literal.ds",
             r#"
 for (i in 0..10) {
     print(i)
@@ -226,7 +226,7 @@ for (i in 0..10) {
     fn test_allows_for_each() {
         let test = TestProgram::for_rule_without_prelude(PreferRangeLiteral);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_range_literal/test_allows_for_each.ds",
             r#"
 for (item in items) {
     print(item)
@@ -241,7 +241,7 @@ for (item in items) {
         let test = TestProgram::for_rule_without_prelude(PreferRangeLiteral);
         // non-standard increment shouldn't trigger
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_range_literal/test_allows_complex_for.ds",
             r#"
 for (let i = 0; i < 10; i += 2) {
     print(i)

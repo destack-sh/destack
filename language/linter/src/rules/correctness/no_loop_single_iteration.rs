@@ -157,7 +157,7 @@ mod tests {
     fn test_detects_for_with_unconditional_return() {
         let test = TestProgram::for_rule_without_prelude(NoLoopSingleIteration);
         let result = test.lint_ast(
-            "test.ds",
+            "no_loop_single_iteration/test_detects_for_with_unconditional_return.ds",
             r#"
 for (let i = 0; i < 10; i++) {
     return i;
@@ -171,7 +171,7 @@ for (let i = 0; i < 10; i++) {
     fn test_detects_foreach_with_unconditional_return() {
         let test = TestProgram::for_rule_without_prelude(NoLoopSingleIteration);
         let result = test.lint_ast(
-            "test.ds",
+            "no_loop_single_iteration/test_detects_foreach_with_unconditional_return.ds",
             r#"
 for (item in items) {
     return item;
@@ -185,7 +185,7 @@ for (item in items) {
     fn test_detects_while_with_unconditional_break() {
         let test = TestProgram::for_rule_without_prelude(NoLoopSingleIteration);
         let result = test.lint_ast(
-            "test.ds",
+            "no_loop_single_iteration/test_detects_while_with_unconditional_break.ds",
             r#"
 while (true) {
     break;
@@ -199,7 +199,7 @@ while (true) {
     fn test_detects_loop_with_unconditional_throw() {
         let test = TestProgram::for_rule_without_prelude(NoLoopSingleIteration);
         let result = test.lint_ast(
-            "test.ds",
+            "no_loop_single_iteration/test_detects_loop_with_unconditional_throw.ds",
             r#"
 loop {
     throw Error("oops");
@@ -213,7 +213,7 @@ loop {
     fn test_allows_conditional_return() {
         let test = TestProgram::for_rule_without_prelude(NoLoopSingleIteration);
         let result = test.lint_ast(
-            "test.ds",
+            "no_loop_single_iteration/test_allows_conditional_return.ds",
             r#"
 for (item in items) {
     if (item.matches) {
@@ -230,7 +230,7 @@ for (item in items) {
     fn test_allows_conditional_break() {
         let test = TestProgram::for_rule_without_prelude(NoLoopSingleIteration);
         let result = test.lint_ast(
-            "test.ds",
+            "no_loop_single_iteration/test_allows_conditional_break.ds",
             r#"
 while (true) {
     if (done) {
@@ -247,7 +247,7 @@ while (true) {
     fn test_allows_normal_loop() {
         let test = TestProgram::for_rule_without_prelude(NoLoopSingleIteration);
         let result = test.lint_ast(
-            "test.ds",
+            "no_loop_single_iteration/test_allows_normal_loop.ds",
             r#"
 for (item in items) {
     process(item);
@@ -262,7 +262,7 @@ for (item in items) {
     fn test_allows_empty_loop() {
         let test = TestProgram::for_rule_without_prelude(NoLoopSingleIteration);
         let result = test.lint_ast(
-            "test.ds",
+            "no_loop_single_iteration/test_allows_empty_loop.ds",
             r#"
 while (getNext()) {
     // something

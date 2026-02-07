@@ -153,7 +153,7 @@ mod tests {
     fn test_flags_symbol_without_description() {
         let test = TestProgram::for_rule_with_prelude(SymbolDescription);
         let result = test.lint_dir(
-            "test.ds",
+            "symbol_description/test_flags_symbol_without_description.ds",
             r#"
 let sym = Symbol();
 "#,
@@ -166,7 +166,7 @@ let sym = Symbol();
     fn test_allows_symbol_with_description() {
         let test = TestProgram::for_rule_with_prelude(SymbolDescription);
         let result = test.lint_dir(
-            "test.ds",
+            "symbol_description/test_allows_symbol_with_description.ds",
             r#"
 let sym = Symbol("mySymbol");
 "#,
@@ -179,7 +179,7 @@ let sym = Symbol("mySymbol");
     fn test_allows_symbol_for() {
         let test = TestProgram::for_rule_with_prelude(SymbolDescription);
         let result = test.lint_dir(
-            "test.ds",
+            "symbol_description/test_allows_symbol_for.ds",
             r#"
 let sym = Symbol.for("mySymbol");
 "#,
@@ -192,7 +192,7 @@ let sym = Symbol.for("mySymbol");
     fn test_allows_shadowed_symbol() {
         let test = TestProgram::for_rule_with_prelude(SymbolDescription);
         let result = test.lint_dir(
-            "test.ds",
+            "symbol_description/test_allows_shadowed_symbol.ds",
             r#"
 let Symbol = (): number => 42;
 let value = Symbol();

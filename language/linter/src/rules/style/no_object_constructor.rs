@@ -177,7 +177,7 @@ mod tests {
     fn test_flags_object_constructor_call() {
         let test = TestProgram::for_rule_with_prelude(NoObjectConstructor);
         let result = test.lint_dir(
-            "test.ds",
+            "no_object_constructor/test_flags_object_constructor_call.ds",
             r#"
 let value = Object();
 "#,
@@ -189,7 +189,7 @@ let value = Object();
     fn test_flags_object_constructor_new() {
         let test = TestProgram::for_rule_with_prelude(NoObjectConstructor);
         let result = test.lint_dir(
-            "test.ds",
+            "no_object_constructor/test_flags_object_constructor_new.ds",
             r#"
 let value = new Object();
 "#,
@@ -202,7 +202,7 @@ let value = new Object();
     fn test_flags_global_object_constructor() {
         let test = TestProgram::for_rule_with_prelude(NoObjectConstructor);
         let result = test.lint_dir(
-            "test.ds",
+            "no_object_constructor/test_flags_global_object_constructor.ds",
             r#"
 let value = globalThis.Object();
 "#,
@@ -214,7 +214,7 @@ let value = globalThis.Object();
     fn test_allows_object_literal() {
         let test = TestProgram::for_rule_with_prelude(NoObjectConstructor);
         let result = test.lint_dir(
-            "test.ds",
+            "no_object_constructor/test_allows_object_literal.ds",
             r#"
 let value = { key: "value" };
 "#,

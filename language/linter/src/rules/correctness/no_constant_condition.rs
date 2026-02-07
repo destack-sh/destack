@@ -71,7 +71,7 @@ mod tests {
     fn test_detects_if_true() {
         let test = TestProgram::for_rule_without_prelude(NoConstantCondition);
         let result = test.lint_ast(
-            "test.ds",
+            "no_constant_condition/test_detects_if_true.ds",
             r#"
 if (true) { foo(); }
 "#,
@@ -83,7 +83,7 @@ if (true) { foo(); }
     fn test_detects_if_false() {
         let test = TestProgram::for_rule_without_prelude(NoConstantCondition);
         let result = test.lint_ast(
-            "test.ds",
+            "no_constant_condition/test_detects_if_false.ds",
             r#"
 if (false) { foo(); }
 "#,
@@ -95,7 +95,7 @@ if (false) { foo(); }
     fn test_detects_while_true() {
         let test = TestProgram::for_rule_without_prelude(NoConstantCondition);
         let result = test.lint_ast(
-            "test.ds",
+            "no_constant_condition/test_detects_while_true.ds",
             r#"
 while (true) { foo(); }
 "#,
@@ -107,7 +107,7 @@ while (true) { foo(); }
     fn test_detects_if_number() {
         let test = TestProgram::for_rule_without_prelude(NoConstantCondition);
         let result = test.lint_ast(
-            "test.ds",
+            "no_constant_condition/test_detects_if_number.ds",
             r#"
 if (1) { foo(); }
 "#,
@@ -119,7 +119,7 @@ if (1) { foo(); }
     fn test_no_constant_with_variable() {
         let test = TestProgram::for_rule_without_prelude(NoConstantCondition);
         let result = test.lint_ast(
-            "test.ds",
+            "no_constant_condition/test_no_constant_with_variable.ds",
             r#"
 if (x) { foo(); }
 "#,
@@ -131,7 +131,7 @@ if (x) { foo(); }
     fn test_no_constant_with_comparison() {
         let test = TestProgram::for_rule_without_prelude(NoConstantCondition);
         let result = test.lint_ast(
-            "test.ds",
+            "no_constant_condition/test_no_constant_with_comparison.ds",
             r#"
 if (x > 0) { foo(); }
 "#,

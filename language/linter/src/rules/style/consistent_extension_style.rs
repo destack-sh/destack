@@ -71,7 +71,7 @@ mod tests {
     fn test_allows_named_extension() {
         let test = TestProgram::for_rule_without_prelude(ConsistentExtensionStyle);
         let result = test.lint_ast(
-            "test.ds",
+            "consistent_extension_style/test_allows_named_extension.ds",
             r#"
 extension StringUtils for string {
     function capitalize(): string {
@@ -88,7 +88,7 @@ extension StringUtils for string {
     fn test_detects_anonymous_extension() {
         let test = TestProgram::for_rule_without_prelude(ConsistentExtensionStyle);
         let result = test.lint_ast(
-            "test.ds",
+            "consistent_extension_style/test_detects_anonymous_extension.ds",
             r#"
 extension for string {
     function capitalize(): string {
@@ -105,7 +105,7 @@ extension for string {
     fn test_allows_named_generic_extension() {
         let test = TestProgram::for_rule_without_prelude(ConsistentExtensionStyle);
         let result = test.lint_ast(
-            "test.ds",
+            "consistent_extension_style/test_allows_named_generic_extension.ds",
             r#"
 extension ArrayUtils<T> for Array<T> {
     function first(): T | undefined {

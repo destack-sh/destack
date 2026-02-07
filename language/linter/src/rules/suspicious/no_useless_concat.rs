@@ -131,7 +131,7 @@ mod tests {
     fn test_detects_string_concat() {
         let test = TestProgram::for_rule_without_prelude(NoUselessConcat);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_concat/test_detects_string_concat.ds",
             r#"
 const x = "hello" + "world";
 "#,
@@ -143,7 +143,7 @@ const x = "hello" + "world";
     fn test_detects_string_concat_empty() {
         let test = TestProgram::for_rule_without_prelude(NoUselessConcat);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_concat/test_detects_string_concat_empty.ds",
             r#"
 const x = "" + "hello";
 "#,
@@ -155,7 +155,7 @@ const x = "" + "hello";
     fn test_allows_variable_concat() {
         let test = TestProgram::for_rule_without_prelude(NoUselessConcat);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_concat/test_allows_variable_concat.ds",
             r#"
 const a = "hello";
 const x = a + "world";
@@ -168,7 +168,7 @@ const x = a + "world";
     fn test_allows_number_addition() {
         let test = TestProgram::for_rule_without_prelude(NoUselessConcat);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_concat/test_allows_number_addition.ds",
             r#"
 const x = 1 + 2;
 "#,
@@ -180,7 +180,7 @@ const x = 1 + 2;
     fn test_allows_mixed_concat() {
         let test = TestProgram::for_rule_without_prelude(NoUselessConcat);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_concat/test_allows_mixed_concat.ds",
             r#"
 const x = "hello" + 42;
 "#,
@@ -192,7 +192,7 @@ const x = "hello" + 42;
     fn test_fix_string_concat() {
         let test = TestProgram::for_rule_without_prelude(NoUselessConcat);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_concat/test_fix_string_concat.ds",
             r#"
 const x = "hello" + "world";
 "#,
@@ -210,7 +210,7 @@ const x = "helloworld";
     fn test_fix_empty_string() {
         let test = TestProgram::for_rule_without_prelude(NoUselessConcat);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_concat/test_fix_empty_string.ds",
             r#"
 const x = "" + "hello";
 "#,

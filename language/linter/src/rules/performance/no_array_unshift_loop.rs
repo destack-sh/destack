@@ -299,7 +299,7 @@ mod tests {
     fn test_flags_unshift_in_for_of() {
         let test = TestProgram::for_rule_without_prelude(NoArrayUnshiftLoop);
         let result = test.lint_dir(
-            "test.ds",
+            "no_array_unshift_loop/test_flags_unshift_in_for_of.ds",
             r#"
 let items = [1, 2, 3];
 let result: number[] = [];
@@ -316,7 +316,7 @@ for (const item of items) {
     fn test_flags_unshift_in_for() {
         let test = TestProgram::for_rule_without_prelude(NoArrayUnshiftLoop);
         let result = test.lint_dir(
-            "test.ds",
+            "no_array_unshift_loop/test_flags_unshift_in_for.ds",
             r#"
 let items = [1, 2, 3];
 let result: number[] = [];
@@ -333,7 +333,7 @@ for (let i = 0; i < items.length; i += 1) {
     fn test_flags_unshift_in_while() {
         let test = TestProgram::for_rule_without_prelude(NoArrayUnshiftLoop);
         let result = test.lint_dir(
-            "test.ds",
+            "no_array_unshift_loop/test_flags_unshift_in_while.ds",
             r#"
 let items = [1, 2, 3];
 let result: number[] = [];
@@ -352,7 +352,7 @@ while (i < items.length) {
     fn test_allows_unshift_outside_loop() {
         let test = TestProgram::for_rule_without_prelude(NoArrayUnshiftLoop);
         let result = test.lint_dir(
-            "test.ds",
+            "no_array_unshift_loop/test_allows_unshift_outside_loop.ds",
             r#"
 let items: number[] = [1, 2, 3];
 items.unshift(0);
@@ -366,7 +366,7 @@ items.unshift(0);
     fn test_allows_push_in_loop() {
         let test = TestProgram::for_rule_without_prelude(NoArrayUnshiftLoop);
         let result = test.lint_dir(
-            "test.ds",
+            "no_array_unshift_loop/test_allows_push_in_loop.ds",
             r#"
 let items = [1, 2, 3];
 let result: number[] = [];

@@ -248,7 +248,7 @@ mod tests {
     fn test_flags_never_reassigned_let() {
         let test = TestProgram::for_rule_with_prelude(PreferConst);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_const/test_flags_never_reassigned_let.ds",
             r#"
 let x = 1;
 let y = x + 1;
@@ -262,7 +262,7 @@ let y = x + 1;
     fn test_allows_reassigned_let() {
         let test = TestProgram::for_rule_with_prelude(PreferConst);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_const/test_allows_reassigned_let.ds",
             r#"
 let x = 1;
 x = 2;
@@ -276,7 +276,7 @@ x = 2;
     fn test_allows_compound_assignment() {
         let test = TestProgram::for_rule_with_prelude(PreferConst);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_const/test_allows_compound_assignment.ds",
             r#"
 let x = 1;
 x += 1;
@@ -290,7 +290,7 @@ x += 1;
     fn test_allows_increment() {
         let test = TestProgram::for_rule_with_prelude(PreferConst);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_const/test_allows_increment.ds",
             r#"
 let x = 1;
 x++;
@@ -304,7 +304,7 @@ x++;
     fn test_allows_pre_increment() {
         let test = TestProgram::for_rule_with_prelude(PreferConst);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_const/test_allows_pre_increment.ds",
             r#"
 let x = 1;
 ++x;
@@ -318,7 +318,7 @@ let x = 1;
     fn test_allows_const() {
         let test = TestProgram::for_rule_with_prelude(PreferConst);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_const/test_allows_const.ds",
             r#"
 const x = 1;
 const y = x + 1;
@@ -332,7 +332,7 @@ const y = x + 1;
     fn test_mixed_declarations() {
         let test = TestProgram::for_rule_with_prelude(PreferConst);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_const/test_mixed_declarations.ds",
             r#"
 let x = 1;
 let y = 2;
@@ -349,7 +349,7 @@ const z = x + y;
     fn test_allows_decrement() {
         let test = TestProgram::for_rule_with_prelude(PreferConst);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_const/test_allows_decrement.ds",
             r#"
 let x = 10;
 x--;
@@ -363,7 +363,7 @@ x--;
     fn test_allows_reassigned_in_nested_scope() {
         let test = TestProgram::for_rule_with_prelude(PreferConst);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_const/test_allows_reassigned_in_nested_scope.ds",
             r#"
 let x = 1;
 if (true) {
@@ -379,7 +379,7 @@ if (true) {
     fn test_flags_let_in_function() {
         let test = TestProgram::for_rule_with_prelude(PreferConst);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_const/test_flags_let_in_function.ds",
             r#"
 function foo(): number {
     let x = 1;
@@ -395,7 +395,7 @@ function foo(): number {
     fn test_allows_other_compound_operators() {
         let test = TestProgram::for_rule_with_prelude(PreferConst);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_const/test_allows_other_compound_operators.ds",
             r#"
 let a = 10;
 let b = 20;

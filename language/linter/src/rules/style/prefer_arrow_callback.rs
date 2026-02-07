@@ -143,7 +143,7 @@ mod tests {
     fn test_allows_arrow_callback() {
         let test = TestProgram::for_rule_without_prelude(PreferArrowCallback);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_arrow_callback/test_allows_arrow_callback.ds",
             r#"
 items.map((x) => x + 1)
 "#,
@@ -155,7 +155,7 @@ items.map((x) => x + 1)
     fn test_detects_function_callback() {
         let test = TestProgram::for_rule_without_prelude(PreferArrowCallback);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_arrow_callback/test_detects_function_callback.ds",
             r#"
 items.map(function(x) { return x + 1 })
 "#,
@@ -168,7 +168,7 @@ items.map(function(x) { return x + 1 })
         let test = TestProgram::for_rule_without_prelude(PreferArrowCallback);
         // named functions are intentional, don't flag
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_arrow_callback/test_allows_named_function.ds",
             r#"
 items.map(function increment(x) { return x + 1 })
 "#,
@@ -181,7 +181,7 @@ items.map(function increment(x) { return x + 1 })
         let test = TestProgram::for_rule_without_prelude(PreferArrowCallback);
         // function declarations not used as callbacks
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_arrow_callback/test_allows_non_callback_function.ds",
             r#"
 function foo() {
     return 42
@@ -195,7 +195,7 @@ function foo() {
     fn test_fix_function_to_arrow() {
         let test = TestProgram::for_rule_without_prelude(PreferArrowCallback);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_arrow_callback/test_fix_function_to_arrow.ds",
             r#"
 items.map(function(x) { return x + 1 });
 "#,

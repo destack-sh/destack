@@ -97,7 +97,7 @@ mod tests {
     fn test_detects_nested_ternary_in_then() {
         let test = TestProgram::for_rule_without_prelude(NoNestedTernary);
         let result = test.lint_ast(
-            "test.ds",
+            "no_nested_ternary/test_detects_nested_ternary_in_then.ds",
             r#"
 const x = a ? b ? 1 : 2 : 3;
 "#,
@@ -109,7 +109,7 @@ const x = a ? b ? 1 : 2 : 3;
     fn test_detects_nested_ternary_in_else() {
         let test = TestProgram::for_rule_without_prelude(NoNestedTernary);
         let result = test.lint_ast(
-            "test.ds",
+            "no_nested_ternary/test_detects_nested_ternary_in_else.ds",
             r#"
 const x = a ? 1 : b ? 2 : 3;
 "#,
@@ -121,7 +121,7 @@ const x = a ? 1 : b ? 2 : 3;
     fn test_detects_nested_ternary_in_condition() {
         let test = TestProgram::for_rule_without_prelude(NoNestedTernary);
         let result = test.lint_ast(
-            "test.ds",
+            "no_nested_ternary/test_detects_nested_ternary_in_condition.ds",
             r#"
 const x = (a ? true : false) ? 1 : 2;
 "#,
@@ -133,7 +133,7 @@ const x = (a ? true : false) ? 1 : 2;
     fn test_allows_simple_ternary() {
         let test = TestProgram::for_rule_without_prelude(NoNestedTernary);
         let result = test.lint_ast(
-            "test.ds",
+            "no_nested_ternary/test_allows_simple_ternary.ds",
             r#"
 const x = condition ? 1 : 2;
 "#,
@@ -145,7 +145,7 @@ const x = condition ? 1 : 2;
     fn test_allows_if_else() {
         let test = TestProgram::for_rule_without_prelude(NoNestedTernary);
         let result = test.lint_ast(
-            "test.ds",
+            "no_nested_ternary/test_allows_if_else.ds",
             r#"
 const x = if (a) {
     if (b) { 1 } else { 2 }
@@ -161,7 +161,7 @@ const x = if (a) {
     fn test_allows_separate_ternaries() {
         let test = TestProgram::for_rule_without_prelude(NoNestedTernary);
         let result = test.lint_ast(
-            "test.ds",
+            "no_nested_ternary/test_allows_separate_ternaries.ds",
             r#"
 const x = a ? 1 : 2;
 const y = b ? 3 : 4;

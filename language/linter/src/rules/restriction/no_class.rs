@@ -68,7 +68,7 @@ mod tests {
     fn test_detects_class() {
         let test = TestProgram::for_rule_without_prelude(NoClass);
         let result = test.lint_ast(
-            "test.ts",
+            "no_class/test_detects_class.ts",
             r#"
 class MyClass {
     foo() {}
@@ -82,7 +82,7 @@ class MyClass {
     fn test_detects_exported_class() {
         let test = TestProgram::for_rule_without_prelude(NoClass);
         let result = test.lint_ast(
-            "test.ts",
+            "no_class/test_detects_exported_class.ts",
             r#"
 export class MyClass {
     foo() {}
@@ -96,7 +96,7 @@ export class MyClass {
     fn test_detects_abstract_class() {
         let test = TestProgram::for_rule_without_prelude(NoClass);
         let result = test.lint_ast(
-            "test.ts",
+            "no_class/test_detects_abstract_class.ts",
             r#"
 abstract class BaseClass {
     abstract foo(): void;
@@ -110,7 +110,7 @@ abstract class BaseClass {
     fn test_allows_struct() {
         let test = TestProgram::for_rule_without_prelude(NoClass);
         let result = test.lint_ast(
-            "test.ds",
+            "no_class/test_allows_struct.ds",
             r#"
 struct MyStruct {
     x: int32;
@@ -124,7 +124,7 @@ struct MyStruct {
     fn test_allows_interface() {
         let test = TestProgram::for_rule_without_prelude(NoClass);
         let result = test.lint_ast(
-            "test.ts",
+            "no_class/test_allows_interface.ts",
             r#"
 interface MyInterface {
     foo(): void;
@@ -138,7 +138,7 @@ interface MyInterface {
     fn test_allows_function() {
         let test = TestProgram::for_rule_without_prelude(NoClass);
         let result = test.lint_ast(
-            "test.ts",
+            "no_class/test_allows_function.ts",
             r#"
 function myFunction() {}
 "#,

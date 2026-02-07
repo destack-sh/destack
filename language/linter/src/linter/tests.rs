@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::env::current_dir;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock};
@@ -16,6 +17,7 @@ use destack_workspace::{
     EnvSnapshot, LintCategory, LintSeverity, LinterOptions, MemoryCacheStore, OutputFormat,
     Platform, ProfileFlags, ProfileId, ProfileKey, Program, Runtime, Session,
 };
+use parking_lot::Mutex;
 
 use crate::{
     BoxedLintRule, Fixability, LintDiagnostic, LintLevel, LintModuleReport, LintRequirement,
@@ -25,6 +27,10 @@ use crate::{
 /// Shared memory cache store for linter tests.
 static TEST_CACHE_STORE: LazyLock<Arc<MemoryCacheStore>> =
     LazyLock::new(|| Arc::new(MemoryCacheStore::new()));
+
+/// Process wide cache of warmed prelude profile lib-sets.
+static PRELUDE_WARMED_LIBS: LazyLock<Mutex<HashSet<Vec<String>>>> =
+    LazyLock::new(|| Mutex::new(HashSet::new()));
 
 /// Test wrapper for linting.
 #[allow(unused)]
@@ -64,10 +70,46 @@ fn test_linter_options() -> LinterOptions {
     options
 }
 
+/// Return the default libs for linter tests.
+fn default_test_libs() -> Vec<String> {
+    vec!["es2024".to_string()]
+}
+
+/// Extend a lib list with any libs required by lint requirements.
+fn extend_libs_from_requirements(libs: &mut Vec<String>, requirements: &[LintRequirement]) {
+    for requirement in requirements {
+        if let LintRequirement::RequireLibSymbol(_, rule_libs) = requirement {
+            // choose a single lib per requirement: this avoids conflicting ambient sets
+            let Some(lib_name) = rule_libs.first().copied() else {
+                continue;
+            };
+            let lib_name = lib_name.to_string();
+            if !libs.contains(&lib_name) {
+                libs.push(lib_name);
+            }
+        }
+    }
+}
+
+/// Collect required libs from a set of lint rules.
+fn collect_required_libs_from_rules(rules: &[BoxedLintRule]) -> Vec<String> {
+    let mut libs = default_test_libs();
+    for rule in rules {
+        let meta = rule.meta();
+        extend_libs_from_requirements(&mut libs, meta.requires_all);
+        extend_libs_from_requirements(&mut libs, meta.requires_any);
+    }
+    libs
+}
+
 #[allow(dead_code)]
 impl TestProgram {
     /// Create a new test program with the given rules and options.
-    fn new(rules: Vec<BoxedLintRule>, inject_prelude: bool) -> Self {
+    fn new(
+        rules: Vec<BoxedLintRule>,
+        inject_prelude: bool,
+        explicit_libs: Option<Vec<String>>,
+    ) -> Self {
         let fs = Arc::new(MemoryFileSystem::new());
         let cwd = current_dir().unwrap();
 
@@ -79,20 +121,7 @@ impl TestProgram {
         let program = session.add_root(cwd);
 
         // libs
-        let mut libs = vec!["es2024".to_string()]; // should we even include this by default..?
-        for rule in &rules {
-            let meta = rule.meta();
-            for req in meta.requires_all.iter().chain(meta.requires_any.iter()) {
-                if let LintRequirement::RequireLibSymbol(_, rule_libs) = req {
-                    for lib in *rule_libs {
-                        let lib_str = (*lib).to_string();
-                        if !libs.contains(&lib_str) {
-                            libs.push(lib_str);
-                        }
-                    }
-                }
-            }
-        }
+        let libs = explicit_libs.unwrap_or_else(|| collect_required_libs_from_rules(&rules));
 
         // profile
         let profile_key = ProfileKey::new(
@@ -133,12 +162,17 @@ impl TestProgram {
 
     /// Create a test program without prelude injection.
     pub(crate) fn new_without_prelude(rules: Vec<BoxedLintRule>) -> Self {
-        Self::new(rules, false)
+        Self::new(rules, false, None)
     }
 
     /// Create a test program with prelude injection.
     pub(crate) fn new_with_prelude(rules: Vec<BoxedLintRule>) -> Self {
-        Self::new(rules, true)
+        Self::new(rules, true, None)
+    }
+
+    /// Create a prelude test program with explicit libs.
+    fn new_with_prelude_libs(libs: Vec<String>) -> Self {
+        Self::new(Vec::new(), true, Some(libs))
     }
 
     /// Create a test with a single rule (without prelude).
@@ -148,7 +182,24 @@ impl TestProgram {
 
     /// Create a test with a single rule (with prelude).
     pub(crate) fn for_rule_with_prelude<R: crate::LintRule + 'static>(rule: R) -> Self {
-        Self::new_with_prelude(vec![crate::boxed(rule)])
+        let rule = crate::boxed(rule);
+        let libs = collect_required_libs_from_rules(std::slice::from_ref(&rule));
+        Self::warm_prelude_profile(&libs);
+        Self::new(vec![rule], true, Some(libs))
+    }
+
+    /// Warm a prelude profile for a specific lib-set once per process.
+    fn warm_prelude_profile(libs: &[String]) {
+        let mut warmed_libs = PRELUDE_WARMED_LIBS.lock();
+        if warmed_libs.contains(libs) {
+            return;
+        }
+
+        let warm_program = Self::new_with_prelude_libs(libs.to_vec());
+        warm_program.enqueue_profile_resolution_once();
+        warm_program.compile();
+
+        warmed_libs.insert(libs.to_vec());
     }
 
     /// Modify linter options.

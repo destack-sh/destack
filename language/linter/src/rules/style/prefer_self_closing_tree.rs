@@ -115,7 +115,7 @@ mod tests {
     fn test_empty_element_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferSelfClosingTree);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_self_closing_tree/test_empty_element_detected.ds",
             r#"
 let elem = <Component></Component>
 "#,
@@ -127,7 +127,7 @@ let elem = <Component></Component>
     fn test_empty_element_with_attrs_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferSelfClosingTree);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_self_closing_tree/test_empty_element_with_attrs_detected.ds",
             r#"
 let elem = <Component name="foo"></Component>
 "#,
@@ -139,7 +139,7 @@ let elem = <Component name="foo"></Component>
     fn test_self_closing_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferSelfClosingTree);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_self_closing_tree/test_self_closing_allowed.ds",
             r#"
 let elem = <Component />
 "#,
@@ -152,7 +152,7 @@ let elem = <Component />
     fn test_element_with_children_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferSelfClosingTree);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_self_closing_tree/test_element_with_children_allowed.ds",
             r#"
 let elem = <Component><Child /></Component>
 "#,
@@ -165,7 +165,7 @@ let elem = <Component><Child /></Component>
     fn test_element_with_text_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferSelfClosingTree);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_self_closing_tree/test_element_with_text_allowed.ds",
             r#"
 let elem = <Component>"Hello"</Component>
 "#,
@@ -178,7 +178,7 @@ let elem = <Component>"Hello"</Component>
     fn test_fragment_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferSelfClosingTree);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_self_closing_tree/test_fragment_allowed.ds",
             r#"
 let elem = <></>
 "#,
@@ -192,7 +192,7 @@ let elem = <></>
     fn test_html_element_empty_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferSelfClosingTree);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_self_closing_tree/test_html_element_empty_detected.ds",
             r#"
 let elem = <div></div>
 "#,
@@ -204,7 +204,7 @@ let elem = <div></div>
     fn test_nested_empty_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferSelfClosingTree);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_self_closing_tree/test_nested_empty_detected.ds",
             r#"
 let elem = <Parent><Child></Child></Parent>
 "#,
@@ -217,7 +217,7 @@ let elem = <Parent><Child></Child></Parent>
     fn test_fix_to_self_closing() {
         let test = TestProgram::for_rule_without_prelude(PreferSelfClosingTree);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_self_closing_tree/test_fix_to_self_closing.ds",
             r#"
 let elem = <Component></Component>;
 "#,
@@ -235,7 +235,7 @@ let elem = <Component />;
     fn test_fix_with_attrs() {
         let test = TestProgram::for_rule_without_prelude(PreferSelfClosingTree);
         let result = test.lint_ast(
-            "test.ds",
+            "prefer_self_closing_tree/test_fix_with_attrs.ds",
             r#"
 let elem = <Component name="foo"></Component>;
 "#,

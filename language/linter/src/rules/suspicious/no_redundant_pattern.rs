@@ -167,7 +167,7 @@ mod tests {
     fn test_detects_all_wildcards_object() {
         let test = TestProgram::for_rule_without_prelude(NoRedundantPattern);
         let result = test.lint_ast(
-            "test.ds",
+            "no_redundant_pattern/test_detects_all_wildcards_object.ds",
             r#"
 const { a: _, b: _ } = obj
 "#,
@@ -179,7 +179,7 @@ const { a: _, b: _ } = obj
     fn test_detects_all_wildcards_array() {
         let test = TestProgram::for_rule_without_prelude(NoRedundantPattern);
         let result = test.lint_ast(
-            "test.ds",
+            "no_redundant_pattern/test_detects_all_wildcards_array.ds",
             r#"
 const [_, _] = arr
 "#,
@@ -191,7 +191,7 @@ const [_, _] = arr
     fn test_allows_binding_pattern() {
         let test = TestProgram::for_rule_without_prelude(NoRedundantPattern);
         let result = test.lint_ast(
-            "test.ds",
+            "no_redundant_pattern/test_allows_binding_pattern.ds",
             r#"
 const { a, b } = obj
 "#,
@@ -203,7 +203,7 @@ const { a, b } = obj
     fn test_allows_mixed_pattern() {
         let test = TestProgram::for_rule_without_prelude(NoRedundantPattern);
         let result = test.lint_ast(
-            "test.ds",
+            "no_redundant_pattern/test_allows_mixed_pattern.ds",
             r#"
 const { a, _b } = obj
 "#,
@@ -215,7 +215,7 @@ const { a, _b } = obj
     fn test_allows_array_with_binding() {
         let test = TestProgram::for_rule_without_prelude(NoRedundantPattern);
         let result = test.lint_ast(
-            "test.ds",
+            "no_redundant_pattern/test_allows_array_with_binding.ds",
             r#"
 const [_, x] = arr
 "#,
@@ -227,7 +227,7 @@ const [_, x] = arr
     fn test_allows_simple_binding() {
         let test = TestProgram::for_rule_without_prelude(NoRedundantPattern);
         let result = test.lint_ast(
-            "test.ds",
+            "no_redundant_pattern/test_allows_simple_binding.ds",
             r#"
 const x = getValue()
 "#,

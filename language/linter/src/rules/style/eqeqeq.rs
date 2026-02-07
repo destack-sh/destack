@@ -96,7 +96,7 @@ mod tests {
     fn test_detects_loose_equality() {
         let test = TestProgram::for_rule_without_prelude(Eqeqeq);
         let result = test.lint_ast(
-            "test.ds",
+            "eqeqeq/test_detects_loose_equality.ds",
             r#"
 if (a == b) {
     doSomething()
@@ -110,7 +110,7 @@ if (a == b) {
     fn test_detects_loose_inequality() {
         let test = TestProgram::for_rule_without_prelude(Eqeqeq);
         let result = test.lint_ast(
-            "test.ds",
+            "eqeqeq/test_detects_loose_inequality.ds",
             r#"
 if (a != b) {
     doSomething()
@@ -124,7 +124,7 @@ if (a != b) {
     fn test_allows_strict_equality() {
         let test = TestProgram::for_rule_without_prelude(Eqeqeq);
         let result = test.lint_ast(
-            "test.ds",
+            "eqeqeq/test_allows_strict_equality.ds",
             r#"
 if (a === b) {
     doSomething()
@@ -138,7 +138,7 @@ if (a === b) {
     fn test_allows_strict_inequality() {
         let test = TestProgram::for_rule_without_prelude(Eqeqeq);
         let result = test.lint_ast(
-            "test.ds",
+            "eqeqeq/test_allows_strict_inequality.ds",
             r#"
 if (a !== b) {
     doSomething()
@@ -152,7 +152,7 @@ if (a !== b) {
     fn test_allows_other_operators() {
         let test = TestProgram::for_rule_without_prelude(Eqeqeq);
         let result = test.lint_ast(
-            "test.ds",
+            "eqeqeq/test_allows_other_operators.ds",
             r#"
 if (a < b && c > d) {
     doSomething()
@@ -166,7 +166,7 @@ if (a < b && c > d) {
     fn test_fix_loose_equality() {
         let test = TestProgram::for_rule_without_prelude(Eqeqeq);
         let result = test.lint_ast(
-            "test.ds",
+            "eqeqeq/test_fix_loose_equality.ds",
             r#"
 if (a == b) { x() }
 "#,
@@ -182,7 +182,7 @@ if (a === b) { x() }
     fn test_fix_loose_inequality() {
         let test = TestProgram::for_rule_without_prelude(Eqeqeq);
         let result = test.lint_ast(
-            "test.ds",
+            "eqeqeq/test_fix_loose_inequality.ds",
             r#"
 if (a != b) { x() }
 "#,

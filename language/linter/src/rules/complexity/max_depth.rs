@@ -159,7 +159,7 @@ mod tests {
     fn test_detects_deep_nesting() {
         let test = TestProgram::for_rule_without_prelude(MaxDepth);
         let result = test.lint_ast(
-            "test.ds",
+            "max_depth/test_detects_deep_nesting.ds",
             r#"
 function foo() {
     if (a) {
@@ -183,7 +183,7 @@ function foo() {
     fn test_allows_shallow_nesting() {
         let test = TestProgram::for_rule_without_prelude(MaxDepth);
         let result = test.lint_ast(
-            "test.ds",
+            "max_depth/test_allows_shallow_nesting.ds",
             r#"
 function foo() {
     if (a) {
@@ -201,7 +201,7 @@ function foo() {
     fn test_else_if_does_not_increase_depth() {
         let test = TestProgram::for_rule_without_prelude(MaxDepth);
         let result = test.lint_ast(
-            "test.ds",
+            "max_depth/test_else_if_does_not_increase_depth.ds",
             r#"
 function foo() {
     if (a) {
@@ -225,7 +225,7 @@ function foo() {
     fn test_counts_loop_nesting() {
         let test = TestProgram::for_rule_without_prelude(MaxDepth);
         let result = test.lint_ast(
-            "test.ds",
+            "max_depth/test_counts_loop_nesting.ds",
             r#"
 function foo() {
     for (let i = 0; i < 10; i++) {
@@ -249,7 +249,7 @@ function foo() {
     fn test_function_resets_depth() {
         let test = TestProgram::for_rule_without_prelude(MaxDepth);
         let result = test.lint_ast(
-            "test.ds",
+            "max_depth/test_function_resets_depth.ds",
             r#"
 function outer() {
     if (a) {
@@ -278,7 +278,7 @@ function outer() {
     fn test_at_exact_limit() {
         let test = TestProgram::for_rule_without_prelude(MaxDepth);
         let result = test.lint_ast(
-            "test.ds",
+            "max_depth/test_at_exact_limit.ds",
             r#"
 function foo() {
     if (a) {

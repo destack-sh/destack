@@ -208,7 +208,7 @@ mod tests {
     fn test_flags_object_to_string() {
         let test = TestProgram::for_rule_without_prelude(NoBaseToString);
         let result = test.lint_dir(
-            "test.ds",
+            "no_base_to_string/test_flags_object_to_string.ds",
             r#"
 let obj = { x: 1, y: 2 };
 let str = obj.toString();
@@ -222,7 +222,7 @@ let str = obj.toString();
     fn test_allows_string_to_string() {
         let test = TestProgram::for_rule_without_prelude(NoBaseToString);
         let result = test.lint_dir(
-            "test.ds",
+            "no_base_to_string/test_allows_string_to_string.ds",
             r#"
 let str = "hello";
 let result = str.toString();
@@ -236,7 +236,7 @@ let result = str.toString();
     fn test_allows_number_to_string() {
         let test = TestProgram::for_rule_without_prelude(NoBaseToString);
         let result = test.lint_dir(
-            "test.ds",
+            "no_base_to_string/test_allows_number_to_string.ds",
             r#"
 let num: int32 = 42;
 let str = num.toString();
@@ -250,7 +250,7 @@ let str = num.toString();
     fn test_allows_array_to_string() {
         let test = TestProgram::for_rule_without_prelude(NoBaseToString);
         let result = test.lint_dir(
-            "test.ds",
+            "no_base_to_string/test_allows_array_to_string.ds",
             r#"
 let arr = [1, 2, 3];
 let str = arr.toString();

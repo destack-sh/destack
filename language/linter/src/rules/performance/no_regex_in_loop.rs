@@ -290,7 +290,7 @@ mod tests {
     fn test_flags_regexp_in_for_of() {
         let test = TestProgram::for_rule_with_prelude(NoRegexInLoop);
         let result = test.lint_dir(
-            "test.ds",
+            "no_regex_in_loop/test_flags_regexp_in_for_of.ds",
             r#"
 let patterns = ["a", "b", "c"];
 for (const p of patterns) {
@@ -307,7 +307,7 @@ for (const p of patterns) {
     fn test_flags_regexp_in_for() {
         let test = TestProgram::for_rule_with_prelude(NoRegexInLoop);
         let result = test.lint_dir(
-            "test.ds",
+            "no_regex_in_loop/test_flags_regexp_in_for.ds",
             r#"
 let patterns = ["a", "b", "c"];
 for (let i = 0; i < patterns.length; i += 1) {
@@ -324,7 +324,7 @@ for (let i = 0; i < patterns.length; i += 1) {
     fn test_flags_regexp_in_while() {
         let test = TestProgram::for_rule_with_prelude(NoRegexInLoop);
         let result = test.lint_dir(
-            "test.ds",
+            "no_regex_in_loop/test_flags_regexp_in_while.ds",
             r#"
 let i = 0;
 while (i < 10) {
@@ -341,7 +341,7 @@ while (i < 10) {
     fn test_allows_regexp_outside_loop() {
         let test = TestProgram::for_rule_with_prelude(NoRegexInLoop);
         let result = test.lint_dir(
-            "test.ds",
+            "no_regex_in_loop/test_allows_regexp_outside_loop.ds",
             r#"
 let re = new RegExp("test");
 for (const item of [1, 2, 3]) {
@@ -357,7 +357,7 @@ for (const item of [1, 2, 3]) {
     fn test_allows_regex_literal_in_loop() {
         let test = TestProgram::for_rule_with_prelude(NoRegexInLoop);
         let result = test.lint_dir(
-            "test.ds",
+            "no_regex_in_loop/test_allows_regex_literal_in_loop.ds",
             r#"
 for (const item of ["a", "b", "c"]) {
     if (/test/.test(item)) {

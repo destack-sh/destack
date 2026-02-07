@@ -92,7 +92,7 @@ mod tests {
         let test = TestProgram::for_rule_without_prelude(NoLargeTryBlock)
             .with_options(|options| options.max_try_block_statements = 3);
         let result = test.lint_ast(
-            "test.ds",
+            "no_large_try_block/test_detects_large_try_block.ds",
             r#"
 try {
     doA();
@@ -112,7 +112,7 @@ try {
         let test = TestProgram::for_rule_without_prelude(NoLargeTryBlock)
             .with_options(|options| options.max_try_block_statements = 5);
         let result = test.lint_ast(
-            "test.ds",
+            "no_large_try_block/test_allows_small_try_block.ds",
             r#"
 try {
     doA();
@@ -130,7 +130,7 @@ try {
         let test = TestProgram::for_rule_without_prelude(NoLargeTryBlock)
             .with_options(|options| options.max_try_block_statements = 3);
         let result = test.lint_ast(
-            "test.ds",
+            "no_large_try_block/test_allows_exactly_at_limit.ds",
             r#"
 try {
     doA();

@@ -67,7 +67,7 @@ mod tests {
     fn test_detects_namespace() {
         let test = TestProgram::for_rule_without_prelude(NoNamespace);
         let result = test.lint_ast(
-            "test.ts",
+            "no_namespace/test_detects_namespace.ts",
             r#"
 namespace MyNamespace {
     export const foo = 1;
@@ -81,7 +81,7 @@ namespace MyNamespace {
     fn test_allows_module_exports() {
         let test = TestProgram::for_rule_without_prelude(NoNamespace);
         let result = test.lint_ast(
-            "test.ts",
+            "no_namespace/test_allows_module_exports.ts",
             r#"
 export const foo = 1;
 export function bar() {}

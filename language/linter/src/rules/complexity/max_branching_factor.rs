@@ -128,7 +128,7 @@ mod tests {
     fn test_flags_many_if_branches() {
         let test = TestProgram::for_rule_without_prelude(MaxBranchingFactor);
         let result = test.lint_ast(
-            "test.ds",
+            "max_branching_factor/test_flags_many_if_branches.ds",
             r#"
 function check(x: int32) {
     if (x == 1) {
@@ -164,7 +164,7 @@ function check(x: int32) {
     fn test_flags_many_match_arms() {
         let test = TestProgram::for_rule_without_prelude(MaxBranchingFactor);
         let result = test.lint_ast(
-            "test.ds",
+            "max_branching_factor/test_flags_many_match_arms.ds",
             r#"
 function check(x: int32) {
     match (x) {
@@ -190,7 +190,7 @@ function check(x: int32) {
     fn test_allows_few_if_branches() {
         let test = TestProgram::for_rule_without_prelude(MaxBranchingFactor);
         let result = test.lint_ast(
-            "test.ds",
+            "max_branching_factor/test_allows_few_if_branches.ds",
             r#"
 function check(x: int32) {
     if (x == 1) {
@@ -210,7 +210,7 @@ function check(x: int32) {
     fn test_allows_few_match_arms() {
         let test = TestProgram::for_rule_without_prelude(MaxBranchingFactor);
         let result = test.lint_ast(
-            "test.ds",
+            "max_branching_factor/test_allows_few_match_arms.ds",
             r#"
 function check(x: int32) {
     match (x) {
@@ -228,7 +228,7 @@ function check(x: int32) {
     fn test_allows_simple_if() {
         let test = TestProgram::for_rule_without_prelude(MaxBranchingFactor);
         let result = test.lint_ast(
-            "test.ds",
+            "max_branching_factor/test_allows_simple_if.ds",
             r#"
 function check(x: boolean) {
     if (x) {

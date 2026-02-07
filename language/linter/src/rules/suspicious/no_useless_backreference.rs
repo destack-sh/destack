@@ -72,7 +72,7 @@ mod tests {
     fn test_detects_nonexistent_backreference() {
         let test = TestProgram::for_rule_without_prelude(NoUselessBackreference);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_backreference/test_detects_nonexistent_backreference.ds",
             r#"
 const re = /(a)\2/
 "#,
@@ -84,7 +84,7 @@ const re = /(a)\2/
     fn test_detects_forward_reference() {
         let test = TestProgram::for_rule_without_prelude(NoUselessBackreference);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_backreference/test_detects_forward_reference.ds",
             r#"
 const re = /\1(a)/
 "#,
@@ -96,7 +96,7 @@ const re = /\1(a)/
     fn test_allows_valid_backreference() {
         let test = TestProgram::for_rule_without_prelude(NoUselessBackreference);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_backreference/test_allows_valid_backreference.ds",
             r#"
 const re = /(a)\1/
 "#,
@@ -109,7 +109,7 @@ const re = /(a)\1/
     fn test_allows_multiple_valid_backreferences() {
         let test = TestProgram::for_rule_without_prelude(NoUselessBackreference);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_backreference/test_allows_multiple_valid_backreferences.ds",
             r#"
 const re = /(a)(b)\1\2/
 "#,
@@ -122,7 +122,7 @@ const re = /(a)(b)\1\2/
     fn test_allows_regex_without_backreference() {
         let test = TestProgram::for_rule_without_prelude(NoUselessBackreference);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_backreference/test_allows_regex_without_backreference.ds",
             r#"
 const re = /hello/
 "#,
@@ -135,7 +135,7 @@ const re = /hello/
     fn test_allows_escaped_digit_in_char_class() {
         let test = TestProgram::for_rule_without_prelude(NoUselessBackreference);
         let result = test.lint_ast(
-            "test.ds",
+            "no_useless_backreference/test_allows_escaped_digit_in_char_class.ds",
             r#"
 const re = /[\1]/
 "#,

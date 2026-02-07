@@ -112,7 +112,7 @@ mod tests {
     fn test_detects_empty_exclusive_range() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyRange);
         let result = test.lint_ast(
-            "test.ds",
+            "no_empty_range/test_detects_empty_exclusive_range.ds",
             r#"
 let range = 10..5
 "#,
@@ -124,7 +124,7 @@ let range = 10..5
     fn test_detects_empty_equal_exclusive_range() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyRange);
         let result = test.lint_ast(
-            "test.ds",
+            "no_empty_range/test_detects_empty_equal_exclusive_range.ds",
             r#"
 let range = 5..5
 "#,
@@ -136,7 +136,7 @@ let range = 5..5
     fn test_detects_empty_inclusive_range() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyRange);
         let result = test.lint_ast(
-            "test.ds",
+            "no_empty_range/test_detects_empty_inclusive_range.ds",
             r#"
 let range = 10..=5
 "#,
@@ -148,7 +148,7 @@ let range = 10..=5
     fn test_allows_valid_exclusive_range() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyRange);
         let result = test.lint_ast(
-            "test.ds",
+            "no_empty_range/test_allows_valid_exclusive_range.ds",
             r#"
 let range = 1..10
 "#,
@@ -160,7 +160,7 @@ let range = 1..10
     fn test_allows_valid_inclusive_range() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyRange);
         let result = test.lint_ast(
-            "test.ds",
+            "no_empty_range/test_allows_valid_inclusive_range.ds",
             r#"
 let range = 1..=10
 "#,
@@ -172,7 +172,7 @@ let range = 1..=10
     fn test_allows_single_element_inclusive_range() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyRange);
         let result = test.lint_ast(
-            "test.ds",
+            "no_empty_range/test_allows_single_element_inclusive_range.ds",
             r#"
 let range = 5..=5
 "#,
@@ -184,7 +184,7 @@ let range = 5..=5
     fn test_detects_negative_empty_range() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyRange);
         let result = test.lint_ast(
-            "test.ds",
+            "no_empty_range/test_detects_negative_empty_range.ds",
             r#"
 let range = -5..-10
 "#,

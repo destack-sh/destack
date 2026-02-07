@@ -206,7 +206,7 @@ mod tests {
     fn test_flags_push_in_for_of() {
         let test = TestProgram::for_rule_with_prelude(NoIteratorInvalidation);
         let result = test.lint_dir(
-            "test.ds",
+            "no_iterator_invalidation/test_flags_push_in_for_of.ds",
             r#"
 let arr = [1, 2, 3];
 for (const x of arr) {
@@ -222,7 +222,7 @@ for (const x of arr) {
     fn test_flags_pop_in_for_of() {
         let test = TestProgram::for_rule_with_prelude(NoIteratorInvalidation);
         let result = test.lint_dir(
-            "test.ds",
+            "no_iterator_invalidation/test_flags_pop_in_for_of.ds",
             r#"
 let arr = [1, 2, 3];
 for (const x of arr) {
@@ -238,7 +238,7 @@ for (const x of arr) {
     fn test_flags_splice_in_for_of() {
         let test = TestProgram::for_rule_with_prelude(NoIteratorInvalidation);
         let result = test.lint_dir(
-            "test.ds",
+            "no_iterator_invalidation/test_flags_splice_in_for_of.ds",
             r#"
 let arr = [1, 2, 3];
 for (const x of arr) {
@@ -254,7 +254,7 @@ for (const x of arr) {
     fn test_allows_read_in_for_of() {
         let test = TestProgram::for_rule_with_prelude(NoIteratorInvalidation);
         let result = test.lint_dir(
-            "test.ds",
+            "no_iterator_invalidation/test_allows_read_in_for_of.ds",
             r#"
 let arr = [1, 2, 3];
 let sum = 0;
@@ -272,7 +272,7 @@ for (const x of arr) {
     fn test_allows_mutating_different_collection() {
         let test = TestProgram::for_rule_with_prelude(NoIteratorInvalidation);
         let result = test.lint_dir(
-            "test.ds",
+            "no_iterator_invalidation/test_allows_mutating_different_collection.ds",
             r#"
 let source = [1, 2, 3];
 let dest: number[] = [];
@@ -290,7 +290,7 @@ for (const x of source) {
     fn test_allows_mutation_outside_loop() {
         let test = TestProgram::for_rule_with_prelude(NoIteratorInvalidation);
         let result = test.lint_dir(
-            "test.ds",
+            "no_iterator_invalidation/test_allows_mutation_outside_loop.ds",
             r#"
 let arr = [1, 2, 3];
 for (const x of arr) {

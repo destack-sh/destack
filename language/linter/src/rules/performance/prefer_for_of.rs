@@ -384,7 +384,7 @@ mod tests {
     fn test_flags_simple_index_loop() {
         let test = TestProgram::for_rule_with_prelude(PreferForOf);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_for_of/test_flags_simple_index_loop.ds",
             r#"
 let items = [1, 2, 3];
 for (let i = 0; i < items.length; i += 1) {
@@ -400,7 +400,7 @@ for (let i = 0; i < items.length; i += 1) {
     fn test_flags_with_postincrement() {
         let test = TestProgram::for_rule_with_prelude(PreferForOf);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_for_of/test_flags_with_postincrement.ds",
             r#"
 let items = ["a", "b", "c"];
 for (let i = 0; i < items.length; i++) {
@@ -416,7 +416,7 @@ for (let i = 0; i < items.length; i++) {
     fn test_allows_index_used_otherwise() {
         let test = TestProgram::for_rule_with_prelude(PreferForOf);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_for_of/test_allows_index_used_otherwise.ds",
             r#"
 let items = [1, 2, 3];
 for (let i = 0; i < items.length; i += 1) {
@@ -432,7 +432,7 @@ for (let i = 0; i < items.length; i += 1) {
     fn test_allows_index_arithmetic() {
         let test = TestProgram::for_rule_with_prelude(PreferForOf);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_for_of/test_allows_index_arithmetic.ds",
             r#"
 let items = [1, 2, 3];
 for (let i = 0; i < items.length; i += 1) {
@@ -448,7 +448,7 @@ for (let i = 0; i < items.length; i += 1) {
     fn test_allows_for_of() {
         let test = TestProgram::for_rule_with_prelude(PreferForOf);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_for_of/test_allows_for_of.ds",
             r#"
 let items = [1, 2, 3];
 for (const item of items) {
@@ -464,7 +464,7 @@ for (const item of items) {
     fn test_allows_non_zero_start() {
         let test = TestProgram::for_rule_with_prelude(PreferForOf);
         let result = test.lint_dir(
-            "test.ds",
+            "prefer_for_of/test_allows_non_zero_start.ds",
             r#"
 let items = [1, 2, 3];
 for (let i = 1; i < items.length; i += 1) {
