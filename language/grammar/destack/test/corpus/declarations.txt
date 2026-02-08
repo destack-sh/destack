@@ -1,5 +1,6 @@
 ==================================
 Ambient declarations
+:language(typescript)
 ==================================
 
 declare class Error {
@@ -211,6 +212,7 @@ declare module Foo {
 
 ==================================================
 Exception handling
+:language(typescript)
 ==================================================
 
 try {}
@@ -232,6 +234,7 @@ finally {}
 
 ==================================================
 Flow-style ambient class declarations with commas
+:language(typescript)
 ==================================================
 
 declare interface IFoo {
@@ -278,6 +281,7 @@ declare class Foo {
 
 ==================================
 Flow module.exports declarations
+:language(typescript)
 ==================================
 
 declare module.exports: {
@@ -297,6 +301,7 @@ declare module.exports: {
 
 ==================================
 Ambient exports
+:language(typescript)
 ==================================
 
 export default function point(x: number, y: number) {
@@ -350,6 +355,7 @@ export async function readFile(filename: string): Promise<Buffer>
 
 ==================================
 Typeof types
+:language(typescript)
 ==================================
 
 declare class Linter {
@@ -371,6 +377,7 @@ declare class Linter {
 
 ==================================
 Export assignments
+:language(typescript)
 ==================================
 
 export = Linter;
@@ -386,6 +393,7 @@ export = {};
 
 ==================================
 Import aliases
+:language(typescript)
 ==================================
 
 import r = X.N;
@@ -401,6 +409,7 @@ import r = X.N;
 
 ==================================
 Import aliases in modules
+:language(typescript)
 ==================================
 
 module C {
@@ -421,6 +430,7 @@ module C {
 
 ==================================
 Export import aliases
+:language(typescript)
 ==================================
 
 module M {
@@ -446,6 +456,7 @@ module M {
 
 ==================================
 Property signatures with accessibility modifiers
+:language(typescript)
 ==================================
 
 export interface IAppState {
@@ -484,6 +495,7 @@ export class CloningRepository {
 
 ==================================
 Ambient type declarations
+:language(typescript)
 ==================================
 
 declare type IndexableType = string | number | Date | Array<string | number | Date>;
@@ -511,6 +523,7 @@ declare type IndexableType = string | number | Date | Array<string | number | Da
 
 ==================================
 Ambient module declarations
+:language(typescript)
 ==================================
 
 module Promise {
@@ -564,6 +577,7 @@ declare module "example" { }
 
 =================================
 Accessibility modifiers as pair keywords
+:language(typescript)
 =================================
 
 x = { name, description, private: private_ }
@@ -583,6 +597,7 @@ x = { name, description, private: private_ }
 
 =================================
 Type casts
+:language(typescript)
 =================================
 
 foo as any as Array<number>
@@ -613,6 +628,7 @@ bar satisfies number[]
 
 =================================
 Ambient export function declarations
+:language(typescript)
 =================================
 
 export interface Foo {
@@ -654,6 +670,7 @@ export interface Foo {
 
 =================================
 Ambient type alias declarations in namespaces
+:language(typescript)
 =================================
 
 declare namespace moment {
@@ -705,6 +722,7 @@ declare namespace moment {
 
 =================================
 Export interfaces in namespaces
+:language(typescript)
 =================================
 
 declare namespace Foo {
@@ -726,6 +744,7 @@ declare namespace Foo {
 
 =================================
 Namespaces as internal modules
+:language(typescript)
 =================================
 
 namespace Foo {
@@ -752,6 +771,7 @@ namespace Bar {
 
 ===========================================
 Method declarations with keywords as names
+:language(typescript)
 ===========================================
 
 class Foo {
@@ -787,6 +807,7 @@ class Foo {
 
 =======================================
 Classes with method signatures
+:language(typescript)
 =======================================
 
 class Foo {
@@ -872,6 +893,7 @@ class Foo {
 
 =======================================
 Classes with property names as strings or numbers
+:language(typescript)
 =======================================
 
 class Foo {
@@ -924,6 +946,7 @@ class Foo {
 
 ===========================================================
 Classes with decorator calls that have type arguments
+:language(typescript)
 ===========================================================
 
 class Foo {
@@ -951,6 +974,7 @@ class Foo {
 
 =======================================
 Classes with decorators
+:language(typescript)
 =======================================
 
 @baz @bam class Foo {
@@ -1021,6 +1045,7 @@ Classes with decorators
 
 =======================================
 Classes with methods with and without trailing semicolons on one line
+:language(typescript)
 =======================================
 
 class Foo<Bar> extends Baz { bar = 5; static one(a) { return a; }; two(b) { return b; } three(c) { return c; } }
@@ -1067,6 +1092,7 @@ class Foo<Bar> extends Baz { bar = 5; static one(a) { return a; }; two(b) { retu
 
 =======================================
 Classes with static blocks
+:language(typescript)
 =======================================
 
 class Foo {
@@ -1103,6 +1129,7 @@ class Foo {
 
 =======================================
 Global namespace declarations
+:language(typescript)
 =======================================
 
 declare global {
@@ -1116,6 +1143,7 @@ declare global {
 
 =======================================
 Abstract classes
+:language(typescript)
 =======================================
 
 abstract class Foo {
@@ -1191,6 +1219,7 @@ abstract class Foo {
 
 =======================================
 Decorator with parenthesized expression
+:language(typescript)
 =======================================
 
 class C {
@@ -1216,6 +1245,7 @@ class C {
 
 ==================================
 Index type queries
+:language(typescript)
 ==================================
 
 export type Extracted = keyof Pick<Base, "id">
@@ -1237,6 +1267,7 @@ export type Extracted = keyof Pick<Base, "id">
 
 ==================================
 Definite assignment assertions
+:language(typescript)
 ==================================
 
 var a!: b;
@@ -1258,6 +1289,7 @@ let a!: b;
 
 ====================================
 Top-level exports
+:language(typescript)
 ====================================
 
 export default abstract class C { }
@@ -1292,6 +1324,7 @@ export interface I { }
 
 =======================================
 Classes with generic parameters
+:language(typescript)
 =======================================
 
 class A<
@@ -1327,6 +1360,7 @@ class D extends A<
 
 =======================================
 Classes with extensions
+:language(typescript)
 =======================================
 
 class A extends B<C>(D) implements C {}
@@ -1413,6 +1447,7 @@ export class A extends B<C, D> implements C {}
 
 ==========================================================================
 Semicolon is not automatically inserted for method definitions with a body
+:language(typescript)
 ==========================================================================
 
 class Foo {
@@ -1435,6 +1470,7 @@ class Foo {
 
 =====================
 Override modifier
+:language(typescript)
 =====================
 
 abstract class Foo {

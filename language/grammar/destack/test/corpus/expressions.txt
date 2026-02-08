@@ -1,5 +1,6 @@
 ==================================
 As expressions
+:language(typescript)
 ==================================
 
 h as `hello`
@@ -46,6 +47,7 @@ T as {} & { [t: T]: T } & { [g: G]: G }
 
 ==================================
 Satisfies expressions
+:language(typescript)
 ==================================
 
 h satisfies `hello`
@@ -92,6 +94,7 @@ T satisfies {} & { [t: T]: T } & { [g: G]: G }
 
 ==================================
 Typeof expressions
+:language(typescript)
 ==================================
 
 typeof class {} === "function";
@@ -125,6 +128,7 @@ typeof module === "object" && typeof module.exports === "object"
 
 ==================================
 Array with empty elements
+:language(typescript)
 ==================================
 
 [, a, , b, , , , s, , , ]
@@ -140,6 +144,7 @@ Array with empty elements
 
 ==================================
 Variable named 'module'
+:language(typescript)
 ==================================
 
 var module;
@@ -156,6 +161,7 @@ module;
 
 ==================================
 Multi-line variable declarations
+:language(typescript)
 ==================================
 
 var a = b
@@ -178,6 +184,7 @@ var a = b
 
 =====================================
 The 'less than' operator
+:language(typescript)
 =====================================
 
 i < foo.length;
@@ -208,6 +215,7 @@ i < string.length;
 
 =====================================
 Subscript expressions in if statements
+:language(typescript)
 =====================================
 
 if ( foo ) {
@@ -232,6 +240,7 @@ if ( foo ) {
 
 ====================================
 Objects with reserved words as keys
+:language(typescript)
 ====================================
 
 {
@@ -274,6 +283,7 @@ Objects with reserved words as keys
 
 ====================================
 Assignment to non-null LHS
+:language(typescript)
 ====================================
 
 foo! = bar;
@@ -309,6 +319,7 @@ foo! += bar;
 
 ==================================
 Generic calls
+:language(typescript)
 ==================================
 
 f<T>(x)
@@ -326,6 +337,7 @@ f<T>(x)
 
 ==================================
 Instantiation expressions
+:language(typescript)
 ==================================
 
 const makeHammerBox = makeBox<Hammer>;
@@ -408,6 +420,7 @@ Type arguments in JSX
 
 ==================================
 Ternary expression
+:language(typescript)
 ==================================
 
 a ? function(){ return true } : b;

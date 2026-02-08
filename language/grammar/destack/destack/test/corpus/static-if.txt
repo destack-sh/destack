@@ -633,12 +633,11 @@ box.get() satisfies number;
             (member_expression
               (this)
               (property_identifier)))))))
-  (ambient_declaration
-    (function_signature
-      (identifier)
-      (formal_parameters)
-      (type_annotation
-        (type_identifier))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (type_identifier)))
   (lexical_declaration
     (variable_declarator
       (identifier)
@@ -702,12 +701,11 @@ box.get() satisfies number;
             (member_expression
               (this)
               (property_identifier)))))))
-  (ambient_declaration
-    (function_signature
-      (identifier)
-      (formal_parameters)
-      (type_annotation
-        (type_identifier))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (type_identifier)))
   (lexical_declaration
     (variable_declarator
       (identifier)
