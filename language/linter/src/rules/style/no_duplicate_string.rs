@@ -67,8 +67,9 @@ impl LintRule for NoDuplicateString {
                 }
 
                 let string_value = ctx.strings.get(string_id);
-                let display_value = if string_value.len() > 30 {
-                    format!("\"{}...\"", &string_value[..27])
+                let display_value = if string_value.chars().count() > 30 {
+                    let truncated = string_value.chars().take(27).collect::<String>();
+                    format!("\"{truncated}...\"")
                 } else {
                     format!("\"{}\"", &*string_value)
                 };
@@ -165,5 +166,19 @@ let d = "world";
 "#,
         );
         test.result(result).assert_no_lint("no-duplicate-string");
+    }
+
+    #[test]
+    fn test_handles_unicode_display_truncation() {
+        let test = TestProgram::for_rule_without_prelude(NoDuplicateString)
+            .with_options(|options| options.max_duplicate_string_occurrences = 1);
+        let result = test.lint_ast(
+            "no_duplicate_string/test_handles_unicode_display_truncation.ds",
+            r#"
+let a = "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀";
+let b = "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀";
+"#,
+        );
+        test.result(result).assert_lint("no-duplicate-string");
     }
 }

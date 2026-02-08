@@ -297,6 +297,7 @@ fn run_lint_phase(
     let mut diagnostics = 0;
     let mut performance = LintPerformanceReport::default();
 
+    // module scope runs
     for module_id in modules {
         let module = program.modules.get(*module_id);
         if include_ast {
@@ -322,6 +323,20 @@ fn run_lint_phase(
             diagnostics += report.diagnostics.len();
             performance.merge(&report.performance);
         }
+    }
+
+    // program scope ast run
+    if include_ast {
+        let report = runner.lint_program_ast_profiled(program.clone(), options);
+        diagnostics += report.diagnostics.len();
+        performance.merge(&report.performance);
+    }
+
+    // program scope dir run
+    if include_dir {
+        let report = runner.lint_program_dir_profiled(program, profile_id, options);
+        diagnostics += report.diagnostics.len();
+        performance.merge(&report.performance);
     }
 
     (diagnostics, performance)

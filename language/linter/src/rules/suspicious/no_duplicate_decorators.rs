@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_is_equal;
+use crate::rules::common::ExpressionDuplicateTracker;
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -35,29 +35,22 @@ impl LintRule for NoDuplicateDecorators {
         // check each annotated node
         for annotations in ctx.tree.get_all_annotations().values() {
             // collect decorator annotation ids for comparison
-            let mut seen: Vec<ast::LocalNodeId<ast::Annotation>> = Vec::new();
+            let mut seen = ExpressionDuplicateTracker::new();
 
             for annotation_id in annotations {
                 let annotation = ctx.tree.get(*annotation_id);
                 let ast::Annotation::Decorator { node, .. } = annotation else {
                     continue;
                 };
+                let decorator = ctx.tree.get(*node);
 
                 // check against all previously seen decorators
-                let duplicate = seen.iter().find(|seen_id| {
-                    let seen_annotation = ctx.tree.get(**seen_id);
-                    let ast::Annotation::Decorator {
-                        node: seen_node, ..
-                    } = seen_annotation
-                    else {
-                        return false;
-                    };
-                    decorators_equal(ctx, *node, *seen_node)
-                });
-
                 // report if we found a duplicate
-                if let Some(first_id) = duplicate {
-                    let severity = ctx.get_effective_severity(meta, *first_id);
+                if seen
+                    .find_duplicate_or_insert(ctx, decorator.expression)
+                    .is_some()
+                {
+                    let severity = ctx.get_effective_severity(meta, *node);
                     if !severity.is_enabled() {
                         continue;
                     }
@@ -84,24 +77,10 @@ impl LintRule for NoDuplicateDecorators {
                         .with_label("this decorator is already applied with identical arguments")
                         .with_fix(fix),
                     );
-                } else {
-                    seen.push(*annotation_id);
                 }
             }
         }
     }
-}
-
-/// Compare two decorators for structural equality.
-fn decorators_equal(
-    ctx: &LintModuleAstContext<'_>,
-    left_id: ast::LocalNodeId<ast::Decorator>,
-    right_id: ast::LocalNodeId<ast::Decorator>,
-) -> bool {
-    let left = ctx.tree.get(left_id);
-    let right = ctx.tree.get(right_id);
-
-    expression_is_equal(ctx, left.expression, right.expression)
 }
 
 #[cfg(test)]

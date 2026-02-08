@@ -3418,6 +3418,13 @@ pub struct DsConfigLinterJson {
     pub max_type_complexity: Option<usize>,
     /// Maximum occurrences of the same string literal before warning.
     pub max_duplicate_string_occurrences: Option<usize>,
+    /// Minimum lines required to consider a block for duplicate code checks.
+    pub min_duplicate_code_lines: Option<usize>,
+    /// Minimum tokens required to consider a block for duplicate code checks.
+    pub min_duplicate_code_tokens: Option<usize>,
+    /// Minimum similarity percent for near duplicate code matching (0-100).
+    /// A value of 0 disables near duplicate matching.
+    pub min_duplicate_code_near_similarity: Option<u8>,
     /// Maximum statements in a try block.
     pub max_try_block_statements: Option<usize>,
 
@@ -3495,6 +3502,16 @@ impl DsConfigLinterJson {
         }
         if let Some(max_duplicate_string_occurrences) = self.max_duplicate_string_occurrences {
             options.max_duplicate_string_occurrences = max_duplicate_string_occurrences;
+        }
+        if let Some(min_duplicate_code_lines) = self.min_duplicate_code_lines {
+            options.min_duplicate_code_lines = min_duplicate_code_lines;
+        }
+        if let Some(min_duplicate_code_tokens) = self.min_duplicate_code_tokens {
+            options.min_duplicate_code_tokens = min_duplicate_code_tokens;
+        }
+        if let Some(min_duplicate_code_near_similarity) = self.min_duplicate_code_near_similarity {
+            options.min_duplicate_code_near_similarity =
+                min_duplicate_code_near_similarity.clamp(0, 100);
         }
         if let Some(max_try_block_statements) = self.max_try_block_statements {
             options.max_try_block_statements = max_try_block_statements;

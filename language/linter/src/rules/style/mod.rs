@@ -58,7 +58,6 @@ mod prefer_tuple;
 mod prefer_tuple_destructure;
 mod prefer_tuple_swap;
 mod prefer_unary_negation;
-mod redundant_const_reference;
 mod require_jsdoc;
 mod require_returns_doc;
 mod sort_imports;
@@ -127,7 +126,6 @@ pub use prefer_tuple::*;
 pub use prefer_tuple_destructure::*;
 pub use prefer_tuple_swap::*;
 pub use prefer_unary_negation::*;
-pub use redundant_const_reference::*;
 pub use require_jsdoc::*;
 pub use require_returns_doc::*;
 pub use sort_imports::*;
@@ -197,7 +195,6 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(PreferRangeLiteral),
         boxed(PreferTemplate),
         boxed(PreferUnaryNegation),
-        boxed(RedundantConstReference),
         boxed(RequireJsdoc),
         boxed(RequireReturnsDoc),
         boxed(SortImports),

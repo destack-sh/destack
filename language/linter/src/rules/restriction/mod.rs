@@ -3,6 +3,7 @@ use crate::BoxedLintRule;
 mod no_alert;
 mod no_anonymous_default_export;
 mod no_bitwise;
+mod no_circular_dependency;
 mod no_class;
 mod no_console;
 mod no_continue;
@@ -31,6 +32,7 @@ mod strict_boolean_expressions;
 pub use no_alert::*;
 pub use no_anonymous_default_export::*;
 pub use no_bitwise::*;
+pub use no_circular_dependency::*;
 pub use no_class::*;
 pub use no_console::*;
 pub use no_continue::*;
@@ -64,6 +66,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         Box::new(NoExplicitAny),
         Box::new(NoBitwise),
         Box::new(NoClass),
+        Box::new(NoCircularDependency),
         Box::new(NoConsole),
         Box::new(NoContinue),
         Box::new(NoDefaultExport),

@@ -14,6 +14,7 @@ mod max_type_fields;
 mod max_type_variants;
 mod no_complex_boolean_expression;
 mod no_complex_type;
+mod no_duplicate_code;
 mod no_excessive_booleans;
 mod no_multi_assign;
 mod no_multi_declarators;
@@ -42,6 +43,7 @@ pub use max_type_fields::*;
 pub use max_type_variants::*;
 pub use no_complex_boolean_expression::*;
 pub use no_complex_type::*;
+pub use no_duplicate_code::*;
 pub use no_excessive_booleans::*;
 pub use no_multi_assign::*;
 pub use no_multi_declarators::*;
@@ -71,6 +73,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(MaxTypeVariants),
         boxed(NoComplexBooleanExpression),
         boxed(NoComplexType),
+        boxed(NoDuplicateCode),
         boxed(NoExcessiveBooleans),
         boxed(NoNestedSwitch),
         boxed(NoMultiAssign),

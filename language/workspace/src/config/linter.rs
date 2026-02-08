@@ -237,6 +237,13 @@ pub struct LinterOptions {
     pub max_type_complexity: usize,
     /// Maximum occurrences of the same string literal before warning.
     pub max_duplicate_string_occurrences: usize,
+    /// Minimum lines required to consider a block for duplicate code checks.
+    pub min_duplicate_code_lines: usize,
+    /// Minimum tokens required to consider a block for duplicate code checks.
+    pub min_duplicate_code_tokens: usize,
+    /// Minimum similarity percent for near duplicate code matching (0-100).
+    /// A value of 0 disables near duplicate matching.
+    pub min_duplicate_code_near_similarity: u8,
     /// Maximum statements in a try block.
     pub max_try_block_statements: usize,
 
@@ -287,6 +294,9 @@ impl Default for LinterOptions {
             max_type_fields: 30,
             max_type_complexity: 10,
             max_duplicate_string_occurrences: 6,
+            min_duplicate_code_lines: 6,
+            min_duplicate_code_tokens: 32,
+            min_duplicate_code_near_similarity: 100,
             max_try_block_statements: 20,
             // style
             array_type: ArrayTypeStyle::default(),
