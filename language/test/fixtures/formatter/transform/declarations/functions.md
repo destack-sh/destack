@@ -15,7 +15,7 @@ function   foo  (  )   {   }
 Empty function bodies stay on one line with a space inside the braces.
 
 ```ds expected
-function foo() { }
+function foo() {}
 ```
 
 ### function with parameters
@@ -27,7 +27,7 @@ function   foo  (  x  :  number  ,  y  :  string  )   {   }
 ```
 
 ```ds expected
-function foo(x: number, y: string) { }
+function foo(x: number, y: string) {}
 ```
 
 ### function with return type
@@ -40,7 +40,7 @@ function   foo  (  )  :  number   {  return 1  }
 
 ```ds expected
 function foo(): number {
-    return 1
+    return 1;
 }
 ```
 
@@ -54,7 +54,7 @@ function add(a: number, b: number): number { return a + b }
 
 ```ds expected
 function add(a: number, b: number): number {
-    return a + b
+    return a + b;
 }
 ```
 
@@ -85,7 +85,7 @@ async   function   foo  (  )   {   }
 ```
 
 ```ds expected
-async function foo() { }
+async function foo() {}
 ```
 
 ### async function with await
@@ -99,7 +99,7 @@ async function fetch(url: string) { const res = await request(url); return res }
 ```ds expected
 async function fetch(url: string) {
     const res = await request(url);
-    return res
+    return res;
 }
 ```
 
@@ -113,7 +113,7 @@ async function getData(): Promise<Data> { return await fetchData() }
 
 ```ds expected
 async function getData(): Promise<Data> {
-    return await fetchData()
+    return await fetchData();
 }
 ```
 
@@ -128,7 +128,7 @@ function  *  foo  (  )   {   }
 ```
 
 ```ds expected
-function* foo() { }
+function* foo() {}
 ```
 
 ### generator with yield
@@ -184,7 +184,7 @@ const   foo   =   (  x  )   =>   {   return  x  +  1   }
 
 ```ds expected
 const foo = (x) => {
-    return x + 1
+    return x + 1;
 };
 ```
 
@@ -200,6 +200,30 @@ const foo: (x: number) => number = (x) => x + 1
 const foo: (x: number) => number = (x) => x + 1;
 ```
 
+### module ts arrow generic keeps trailing comma in mts
+
+Single generic arrow type parameters in `.mts` keep a trailing comma.
+
+```ts:main.mts
+const fn = <T>() => {}
+```
+
+```ts expected
+const fn = <T,>() => {};
+```
+
+### module ts arrow generic keeps trailing comma in cts
+
+Single generic arrow type parameters in `.cts` keep a trailing comma.
+
+```ts:main.cts
+const fn = <T>() => {}
+```
+
+```ts expected
+const fn = <T,>() => {};
+```
+
 ## Generic Functions
 
 ### generic function
@@ -212,7 +236,7 @@ function identity<T>(x: T): T { return x }
 
 ```ds expected
 function identity<T>(x: T): T {
-    return x
+    return x;
 }
 ```
 
@@ -226,7 +250,7 @@ function process<T: Comparable>(a: T, b: T): boolean { return a < b }
 
 ```ds expected
 function process<T: Comparable>(a: T, b: T): boolean {
-    return a < b
+    return a < b;
 }
 ```
 
@@ -240,7 +264,7 @@ function merge<T, U>(a: T, b: U): T & U { return { ...a, ...b } }
 
 ```ds expected
 function merge<T, U>(a: T, b: U): T & U {
-    return { ...a, ...b }
+    return { ...a, ...b };
 }
 ```
 
@@ -254,7 +278,7 @@ function create<T = any>(): T[] { return [] }
 
 ```ds expected
 function create<T = any>(): T[] {
-    return []
+    return [];
 }
 ```
 
@@ -268,7 +292,7 @@ function repeat<comptime N: int>(value: string): string { return value }
 
 ```ds expected
 function repeat<comptime N: int>(value: string): string {
-    return value
+    return value;
 }
 ```
 
@@ -284,7 +308,7 @@ function greet(name?: string) { return `Hello, ${name ?? "world"}` }
 
 ```ds expected
 function greet(name?: string) {
-    return `Hello, ${name ?? "world"}`
+    return `Hello, ${name ?? "world"}`;
 }
 ```
 
@@ -298,7 +322,7 @@ function greet(name: string = "world") { return `Hello, ${name}` }
 
 ```ds expected
 function greet(name: string = "world") {
-    return `Hello, ${name}`
+    return `Hello, ${name}`;
 }
 ```
 
@@ -312,7 +336,7 @@ function sum(...numbers: number[]): number { return numbers.reduce((a, b) => a +
 
 ```ds expected
 function sum(...numbers: number[]): number {
-    return numbers.reduce((a, b) => a + b, 0)
+    return numbers.reduce((a, b) => a + b, 0);
 }
 ```
 
@@ -340,7 +364,7 @@ function point({ x, y }: Point): string { return `(${x}, ${y})` }
 
 ```ds expected
 function point({ x, y }: Point): string {
-    return `(${x}, ${y})`
+    return `(${x}, ${y})`;
 }
 ```
 
@@ -354,7 +378,7 @@ function first([head]: number[]): number { return head }
 
 ```ds expected
 function first([head]: number[]): number {
-    return head
+    return head;
 }
 ```
 
@@ -368,10 +392,9 @@ function process(@nonempty input: string) { return input }
 
 ```ds expected
 function process(
-    @nonempty
-    input: string,
-) {
-    return input
+@nonempty
+input: string) {
+    return input;
 }
 ```
 
@@ -390,7 +413,7 @@ function foo(
     veryLongParam: string,
     anotherLongParam: number,
     thirdParam: boolean,
-) { }
+) {}
 ```
 
 ### generic function with many type params breaks
@@ -406,7 +429,7 @@ function foo<
     VeryLongType,
     AnotherLongType,
     ThirdType,
->(x: VeryLongType): void { }
+>(x: VeryLongType): void {}
 ```
 
 ### function with where clause
@@ -419,7 +442,7 @@ function process<T>(x: T): T where T: Copy { return x }
 
 ```ds expected
 function process<T>(x: T): T where T: Copy {
-    return x
+    return x;
 }
 ```
 
@@ -435,7 +458,7 @@ When the signature is too long, the where clause breaks to its own line.
 
 ```ds expected
 function process<T, U>(a: T, b: U): void
-where (T: Copy, U: Clone) { }
+where (T: Copy, U: Clone) {}
 ```
 
 ## Export and Visibility
@@ -449,7 +472,7 @@ export function foo() { }
 ```
 
 ```ds expected
-export function foo() { }
+export function foo() {}
 ```
 
 ### export default function
@@ -461,7 +484,7 @@ export default function handler() { }
 ```
 
 ```ds expected
-export default function handler() { }
+export default function handler() {}
 ```
 
 ## Decorators
@@ -477,7 +500,7 @@ function oldFoo() { }
 
 ```ds expected
 @deprecated("use newFoo")
-function oldFoo() { }
+function oldFoo() {}
 ```
 
 ### multiple decorators
@@ -494,7 +517,7 @@ function compute(x: number): number { return x * 2 }
 @log
 @memoize
 function compute(x: number): number {
-    return x * 2
+    return x * 2;
 }
 ```
 
@@ -509,7 +532,7 @@ async function getUsers() { }
 
 ```ds expected
 @route("/api/users", { method: "GET" })
-async function getUsers() { }
+async function getUsers() {}
 ```
 
 ## Overloads
@@ -528,7 +551,7 @@ function parse(x: string | number): number { return typeof x === "string" ? pars
 function parse(x: string): number
 function parse(x: number): number
 function parse(x: string | number): number {
-    return typeof x === "string" ? parseInt(x) : x
+    return typeof x === "string" ? parseInt(x) : x;
 }
 ```
 
@@ -544,7 +567,7 @@ function isFoo(value: unknown): value is Foo { return value instanceof Foo }
 
 ```ts expected
 function isFoo(value: unknown): value is Foo {
-    return value instanceof Foo
+    return value instanceof Foo;
 }
 ```
 
@@ -558,7 +581,7 @@ function assertFoo(value: Foo): asserts value is Foo { return value !== null }
 
 ```ts expected
 function assertFoo(value: Foo): asserts value is Foo {
-    return value !== null
+    return value !== null;
 }
 ```
 
@@ -572,7 +595,7 @@ function assertDefined(value: Foo | null): asserts value { if (value === null) t
 
 ```ts expected
 function assertDefined(value: Foo | null): asserts value {
-    if (value === null) { throw new Error() }
+    if (value === null) throw new Error();
 }
 ```
 
@@ -590,7 +613,7 @@ function add(a: number, b: number): number { return a + b }
 ```ds expected
 /// Adds two numbers together.
 function add(a: number, b: number): number {
-    return a + b
+    return a + b;
 }
 ```
 
@@ -607,6 +630,6 @@ function foo() { // inline comment
 ```ds expected
 function foo() {
     // inline comment
-    return 1
+    return 1;
 }
 ```

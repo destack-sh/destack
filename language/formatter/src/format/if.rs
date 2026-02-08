@@ -6,7 +6,7 @@ mod tests {
     fn test_format_if_with_body() {
         assert_format!(
             "if (cond) { const X = 1 } else { const Y = 2 }",
-            "if (cond) {\n\tconst X = 1\n} else {\n\tconst Y = 2\n}",
+            "if (cond) {\n\tconst X = 1;\n} else {\n\tconst Y = 2;\n}",
             |p| p.eat_if(),
             DestackFormatOptions::default_tab()
         );
@@ -46,6 +46,17 @@ else {
         assert_format!(
             source,
             source,
+            |p| p.eat_if(),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Empty if and else blocks should stay expanded.
+    #[test]
+    fn test_format_if_empty_blocks_stay_expanded() {
+        assert_format!(
+            "if (true) {} else {}",
+            "if (true) {\n} else {\n}",
             |p| p.eat_if(),
             DestackFormatOptions::default()
         );

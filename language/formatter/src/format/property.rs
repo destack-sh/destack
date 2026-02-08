@@ -5,18 +5,19 @@ use crate::directive::{
     FormatterDirectiveKind, FormatterDirectivePosition, collect_comment_tokens, directive_for_node,
     ignore_range_for_node, ignored_node_source, write_ignored_span,
 };
+use crate::format::block::format_block_of_statements;
 use crate::key::{format_key_with_quote_policy, is_identifier_for_quotes};
 use crate::r#where::format_where_clause_with_break;
-use crate::{DestackFormatter, FormatNode};
+use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    AbstractionModifier, AccessorKind, Asynchrony, BindingAnchor, BindingKind, BindingModifier,
-    BindingOperator, Declaration, Expression, FunctionAbstraction, FunctionCardinality,
-    FunctionMode, Key, Keyword, LocalNodeId, Member, Mutability, Name, NodeType, Property, Timing,
-    VarianceModifier,
+    AbstractionModifier, AccessorKind, Annotation, AnnotationPosition, Asynchrony, BindingAnchor,
+    BindingKind, BindingModifier, BindingOperator, Comment, CommentStyle, Declaration, Expression,
+    FunctionAbstraction, FunctionCardinality, FunctionMode, Key, Keyword, LocalNodeId, Member,
+    Mutability, Name, NodeType, Parameter, Property, Timing, VarianceModifier,
 };
 use destack_fir::format::{FormatResult, text};
 use destack_fir::prelude::*;
-use destack_fir::write;
+use destack_fir::{format_args, write};
 use destack_source::Span;
 use destack_workspace::QuoteProperty;
 
@@ -90,7 +91,11 @@ pub(crate) fn format_binding_modifiers_postfix<'ast>(
     modifiers: BindingModifier,
 ) -> FormatResult<()> {
     // kind
-    if modifiers.kind == Some(BindingKind::Maybe) {
+    if modifiers.kind == Some(BindingKind::Must)
+        && modifiers.accessor != Some(AccessorKind::Accessor)
+    {
+        write!(f, [token("!")])?;
+    } else if modifiers.kind == Some(BindingKind::Maybe) {
         write!(f, [token("?")])?;
     }
     Ok(())
@@ -105,6 +110,269 @@ pub(crate) fn format_binding_modifiers_postfix_maybe<'ast>(
         format_binding_modifiers_postfix(f, modifiers)?;
     }
     Ok(())
+}
+
+/// Return whether a parameter declares any modifiers.
+fn parameter_has_modifier(
+    context: &DestackFormatContext<'_>,
+    parameter_id: LocalNodeId<Parameter>,
+) -> bool {
+    match context.tree.get(parameter_id) {
+        Parameter::Named { modifiers, .. }
+        | Parameter::Pattern { modifiers, .. }
+        | Parameter::VariadicNamed { modifiers, .. }
+        | Parameter::VariadicPattern { modifiers, .. } => modifiers.is_some(),
+    }
+}
+
+/// Return whether constructor parameter lists should break by default.
+fn constructor_parameters_should_expand(
+    context: &DestackFormatContext<'_>,
+    mode: Option<FunctionMode>,
+    parameters: &[LocalNodeId<Parameter>],
+) -> bool {
+    matches!(mode, Some(FunctionMode::Constructor | FunctionMode::New))
+        && parameters.len() > 1
+        && parameters
+            .iter()
+            .any(|parameter_id| parameter_has_modifier(context, *parameter_id))
+}
+
+/// Return whether this parameter is variadic.
+fn parameter_is_variadic(
+    context: &DestackFormatContext<'_>,
+    parameter_id: LocalNodeId<Parameter>,
+) -> bool {
+    matches!(
+        context.tree.get(parameter_id),
+        Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. }
+    )
+}
+
+/// Return whether a single parameter should keep compact outer parentheses.
+fn single_parameter_should_hug(
+    context: &DestackFormatContext<'_>,
+    parameter_id: LocalNodeId<Parameter>,
+) -> bool {
+    if parameter_is_variadic(context, parameter_id) {
+        return false;
+    }
+
+    let has_multiline_collection_default = match context.tree.get(parameter_id) {
+        Parameter::Named { default, .. } | Parameter::Pattern { default, .. } => default
+            .is_some_and(|default_id| {
+                matches!(
+                    context.tree.get(default_id),
+                    Expression::ObjectExpression { .. } | Expression::ArrayExpression { .. }
+                ) && context.has_newline(context.get_span(default_id))
+            }),
+        Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } => false,
+    };
+    if has_multiline_collection_default {
+        return false;
+    }
+
+    let has_newline = context.has_newline(context.get_span(parameter_id));
+    match context.tree.get(parameter_id) {
+        Parameter::Named { default, .. } => !(has_newline && default.is_some()),
+        Parameter::VariadicNamed { .. } => !has_newline,
+        Parameter::Pattern { .. } | Parameter::VariadicPattern { .. } => true,
+    }
+}
+
+/// Return whether spacing before a function body should be emitted by annotations.
+fn should_elide_space_before_body(
+    context: &DestackFormatContext<'_>,
+    return_type: Option<LocalNodeId<Expression>>,
+) -> bool {
+    return_type.is_some_and(|return_type| context.has_postfix_annotation(return_type))
+}
+
+/// Return whether a signature return type is already multiline in source.
+fn return_type_is_multiline(
+    context: &DestackFormatContext<'_>,
+    return_type: Option<LocalNodeId<Expression>>,
+) -> bool {
+    return_type.is_some_and(|return_type| context.has_newline(context.get_span(return_type)))
+}
+
+/// Return whether property method signature source spans multiple lines before the body.
+fn property_method_signature_source_is_multiline(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Property>,
+    body: Option<LocalNodeId<Expression>>,
+) -> bool {
+    let Some(body_id) = body else {
+        return false;
+    };
+
+    let node_span = context.get_span(node_id);
+    let body_span = context.get_span(body_id);
+    if node_span.file != body_span.file || node_span.start >= body_span.start {
+        return false;
+    }
+
+    let signature_span = Span::new(node_span.file, node_span.start, body_span.start);
+    context.get_span_str(signature_span).contains('\n')
+}
+
+/// Return whether member method signature source spans multiple lines before the body.
+fn member_method_signature_source_is_multiline(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Member>,
+    body: Option<LocalNodeId<Expression>>,
+) -> bool {
+    let Some(body_id) = body else {
+        return false;
+    };
+
+    let node_span = context.get_span(node_id);
+    let body_span = context.get_span(body_id);
+    if node_span.file != body_span.file || node_span.start >= body_span.start {
+        return false;
+    }
+
+    let signature_span = Span::new(node_span.file, node_span.start, body_span.start);
+    context.get_span_str(signature_span).contains('\n')
+}
+
+/// Return the first non-whitespace character after an annotation span.
+fn next_non_whitespace_after_annotation(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> Option<char> {
+    let span = context.get_span::<Annotation>(annotation_id);
+    if span.end >= context.file.len {
+        return None;
+    }
+
+    let tail_span = Span::new(span.file, span.end, context.file.len);
+    let tail_source = context.file.get_span_str(tail_span)?;
+    tail_source
+        .chars()
+        .find(|character: &char| !character.is_whitespace())
+}
+
+/// Collect deferred method boundary line comments from return type and body.
+fn collect_deferred_method_boundary_line_comments(
+    context: &DestackFormatContext<'_>,
+    return_type: Option<LocalNodeId<Expression>>,
+    body: LocalNodeId<Expression>,
+) -> Vec<String> {
+    let mut comments: Vec<(u32, String)> = Vec::new();
+
+    if let Some(return_type) = return_type
+        && let Some(annotations) = context.get_annotations(return_type)
+    {
+        for annotation_id in annotations {
+            let Annotation::Comment { node, position } = context.tree.get(annotation_id) else {
+                continue;
+            };
+            if *position != AnnotationPosition::LinePostfixBoundary {
+                continue;
+            }
+            let comment = context.tree.get::<Comment>(*node);
+            if comment.style != CommentStyle::Slash {
+                continue;
+            }
+            if next_non_whitespace_after_annotation(context, annotation_id) != Some('{') {
+                continue;
+            }
+
+            let annotation_span = context.get_span::<Annotation>(annotation_id);
+            let annotation_source = context.get_span_str(annotation_span).trim().to_string();
+            comments.push((annotation_span.start, annotation_source));
+        }
+    }
+
+    if let Some(annotations) = context.get_annotations(body) {
+        for annotation_id in annotations {
+            let Annotation::Comment { node, position } = context.tree.get(annotation_id) else {
+                continue;
+            };
+            if *position != AnnotationPosition::BlockPrefix {
+                continue;
+            }
+            let comment = context.tree.get::<Comment>(*node);
+            if comment.style != CommentStyle::Slash {
+                continue;
+            }
+
+            let annotation_span = context.get_span::<Annotation>(annotation_id);
+            let annotation_source = context.get_span_str(annotation_span).trim().to_string();
+            comments.push((annotation_span.start, annotation_source));
+        }
+    }
+
+    comments.sort_by_key(|(start, _)| *start);
+    comments
+        .into_iter()
+        .map(|(_, comment)| comment)
+        .collect::<Vec<_>>()
+}
+
+/// Return whether a method body has deferred boundary line comments.
+fn method_body_has_deferred_boundary_line_comments(
+    context: &DestackFormatContext<'_>,
+    return_type: Option<LocalNodeId<Expression>>,
+    body: Option<LocalNodeId<Expression>>,
+) -> bool {
+    let Some(body) = body else {
+        return false;
+    };
+    matches!(context.tree.get(body), Expression::Block(_))
+        && !collect_deferred_method_boundary_line_comments(context, return_type, body).is_empty()
+}
+
+/// Format a method body block with deferred boundary line comments inside braces.
+fn format_method_body_block_with_deferred_boundary_line_comments<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    body: LocalNodeId<Expression>,
+    comments: &[String],
+) -> FormatResult<()> {
+    let Expression::Block(block_id) = f.context().tree.get(body) else {
+        return write!(f, [body]);
+    };
+
+    let block = f.context().tree.get(*block_id);
+    let has_block_infix_annotations = f.context().has_infix_annotation(*block_id);
+    write!(
+        f,
+        [
+            token("{"),
+            hard_line_break(),
+            soft_block_indent(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                let mut has_content = false;
+                for (index, comment) in comments.iter().enumerate() {
+                    if index > 0 {
+                        write!(f, [hard_line_break()])?;
+                    }
+                    write!(f, [text(comment.as_str())])?;
+                    has_content = true;
+                }
+
+                if !comments.is_empty() && !block.expressions.is_empty() {
+                    write!(f, [hard_line_break()])?;
+                }
+
+                if !block.expressions.is_empty() {
+                    format_block_of_statements(f, &block.expressions)?;
+                    has_content = true;
+                }
+
+                if has_block_infix_annotations {
+                    if has_content {
+                        write!(f, [hard_line_break()])?;
+                    }
+                    write!(f, [f.context().block_infix_annotations(*block_id)])?;
+                }
+
+                Ok(())
+            })),
+            hard_line_break(),
+            token("}")
+        ]
+    )
 }
 
 /// Format a block of properties with appropriate empty annotations.
@@ -163,7 +431,6 @@ pub(crate) fn format_block_of_members<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     members: &[LocalNodeId<Member>],
 ) -> FormatResult<()> {
-    let is_typescript = f.context().options.language_type.is_typescript();
     let comment_tokens = collect_comment_tokens(f.context());
     let mut ignore_ranges: HashMap<u32, Span> = HashMap::new();
     for &member_id in members {
@@ -174,7 +441,6 @@ pub(crate) fn format_block_of_members<'ast>(
 
     let mut skip_until: Option<u32> = None;
     for (i, &member_id) in members.iter().enumerate() {
-        let member = f.context().tree.get(member_id);
         let member_span = f.context().get_span(member_id);
 
         if let Some(skip_end) = skip_until {
@@ -196,22 +462,6 @@ pub(crate) fn format_block_of_members<'ast>(
         }
 
         member_id.format(f)?;
-        if is_typescript {
-            let needs_semicolon = matches!(
-                member,
-                Member::Field { .. }
-                    | Member::ComptimeConst { .. }
-                    | Member::Method { body: None, .. }
-            );
-            if needs_semicolon {
-                write!(f, [token(";")])?;
-            }
-        } else {
-            // comma after field members
-            if matches!(member, Member::Field { .. } | Member::ComptimeConst { .. }) {
-                write!(f, [token(",")])?;
-            }
-        }
     }
     Ok(())
 }
@@ -323,6 +573,52 @@ fn should_force_quote_keys_for_member<'ast>(
     force_quote_keys_for_members(f, members)
 }
 
+/// Decide whether a field default should stay inline after `=`.
+fn should_keep_field_default_inline<'ast>(
+    f: &DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    if f.context().has_prefix_annotation(expression_id) {
+        return false;
+    }
+
+    let is_call_like = matches!(
+        f.context().tree.get(expression_id),
+        Expression::Call { .. } | Expression::New { .. } | Expression::Instantiation { .. }
+    );
+    if !is_call_like {
+        return false;
+    }
+
+    // preserve inline `= <expr>` when source already uses multiline rhs structure
+    if f.context().has_newline(f.context().get_span(expression_id)) {
+        return true;
+    }
+
+    // single-line call-like defaults should only stay inline when short
+    let line_width = usize::from(f.context().options.line_width);
+    let expression_len = f
+        .context()
+        .get_span_str(f.context().get_span(expression_id))
+        .chars()
+        .count();
+
+    expression_len <= line_width / 2
+}
+
+/// Write a field-like type annotation after `:`.
+#[inline]
+fn write_field_type_annotation<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    value: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    if f.context().has_prefix_annotation(value) {
+        write!(f, [token(":"), indent(&format_args![space(), value])])
+    } else {
+        write!(f, [token(":"), space(), value])
+    }
+}
+
 impl<'ast> FormatNode<'ast, Property> for Property {
     fn format_node(
         &self,
@@ -371,11 +667,25 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // value
                 if let Some(value) = value {
-                    write!(f, [token(":"), space(), value])?;
+                    write_field_type_annotation(f, *value)?;
                 }
                 // default
                 if let Some(default) = default {
-                    write!(f, [space(), token("="), space(), default])?;
+                    if should_keep_field_default_inline(f, *default) {
+                        write!(
+                            f,
+                            [group(&format_args![space(), token("="), space(), default])]
+                        )?;
+                    } else {
+                        write!(
+                            f,
+                            [group(&format_args![
+                                space(),
+                                token("="),
+                                indent(&format_args![soft_line_break_or_space(), default]),
+                            ])]
+                        )?;
+                    }
                 }
             }
             Property::Method {
@@ -438,7 +748,36 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                 }
 
                 // dynamic parameters
-                write!(f, [list_like("(", ")", ",", &signature.dynamic_parameters)])?;
+                let signature_source_is_multiline_at_80 =
+                    usize::from(f.context().options.line_width) <= 80
+                        && property_method_signature_source_is_multiline(
+                            f.context(),
+                            node_id,
+                            *body,
+                        );
+                if signature.dynamic_parameters.len() == 1
+                    && single_parameter_should_hug(f.context(), signature.dynamic_parameters[0])
+                    && !return_type_is_multiline(f.context(), signature.return_type)
+                    && !signature_source_is_multiline_at_80
+                {
+                    write!(f, [token("("), signature.dynamic_parameters[0], token(")")])?;
+                } else {
+                    let should_break_constructor_parameters = constructor_parameters_should_expand(
+                        f.context(),
+                        signature.mode,
+                        &signature.dynamic_parameters,
+                    );
+                    let should_expand_single_for_multiline_return_type =
+                        signature.dynamic_parameters.len() == 1
+                            && !parameter_is_variadic(f.context(), signature.dynamic_parameters[0])
+                            && return_type_is_multiline(f.context(), signature.return_type);
+                    let should_expand_parameters = should_break_constructor_parameters
+                        || should_expand_single_for_multiline_return_type;
+                    let mut dynamic_parameters_list =
+                        list_like("(", ")", ",", &signature.dynamic_parameters);
+                    dynamic_parameters_list.should_expand(should_expand_parameters);
+                    write!(f, [dynamic_parameters_list])?;
+                }
 
                 // modifiers
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
@@ -458,7 +797,25 @@ impl<'ast> FormatNode<'ast, Property> for Property {
 
                 // body
                 if let Some(body) = body {
-                    write!(f, [space(), body])?;
+                    if method_body_has_deferred_boundary_line_comments(
+                        f.context(),
+                        signature.return_type,
+                        Some(*body),
+                    ) {
+                        let comments = collect_deferred_method_boundary_line_comments(
+                            f.context(),
+                            signature.return_type,
+                            *body,
+                        );
+                        write!(f, [space()])?;
+                        format_method_body_block_with_deferred_boundary_line_comments(
+                            f, *body, &comments,
+                        )?;
+                    } else if should_elide_space_before_body(f.context(), signature.return_type) {
+                        write!(f, [body])?;
+                    } else {
+                        write!(f, [space(), body])?;
+                    }
                 }
             }
             Property::Spread { modifiers, value } => {
@@ -593,11 +950,25 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // value
                 if let Some(value) = value {
-                    write!(f, [token(":"), space(), value])?;
+                    write_field_type_annotation(f, *value)?;
                 }
                 // default
                 if let Some(default) = default {
-                    write!(f, [space(), token("="), space(), default])?;
+                    if should_keep_field_default_inline(f, *default) {
+                        write!(
+                            f,
+                            [group(&format_args![space(), token("="), space(), default])]
+                        )?;
+                    } else {
+                        write!(
+                            f,
+                            [group(&format_args![
+                                space(),
+                                token("="),
+                                indent(&format_args![soft_line_break_or_space(), default]),
+                            ])]
+                        )?;
+                    }
                 }
             }
             Member::Method {
@@ -661,7 +1032,32 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                 }
 
                 // dynamic parameters
-                write!(f, [list_like("(", ")", ",", &signature.dynamic_parameters)])?;
+                let signature_source_is_multiline_at_80 =
+                    usize::from(f.context().options.line_width) <= 80
+                        && member_method_signature_source_is_multiline(f.context(), node_id, *body);
+                if signature.dynamic_parameters.len() == 1
+                    && single_parameter_should_hug(f.context(), signature.dynamic_parameters[0])
+                    && !return_type_is_multiline(f.context(), signature.return_type)
+                    && !signature_source_is_multiline_at_80
+                {
+                    write!(f, [token("("), signature.dynamic_parameters[0], token(")")])?;
+                } else {
+                    let should_break_constructor_parameters = constructor_parameters_should_expand(
+                        f.context(),
+                        signature.mode,
+                        &signature.dynamic_parameters,
+                    );
+                    let should_expand_single_for_multiline_return_type =
+                        signature.dynamic_parameters.len() == 1
+                            && !parameter_is_variadic(f.context(), signature.dynamic_parameters[0])
+                            && return_type_is_multiline(f.context(), signature.return_type);
+                    let should_expand_parameters = should_break_constructor_parameters
+                        || should_expand_single_for_multiline_return_type;
+                    let mut dynamic_parameters_list =
+                        list_like("(", ")", ",", &signature.dynamic_parameters);
+                    dynamic_parameters_list.should_expand(should_expand_parameters);
+                    write!(f, [dynamic_parameters_list])?;
+                }
 
                 // modifiers
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
@@ -681,7 +1077,25 @@ impl<'ast> FormatNode<'ast, Member> for Member {
 
                 // body
                 if let Some(body) = body {
-                    write!(f, [space(), body])?;
+                    if method_body_has_deferred_boundary_line_comments(
+                        f.context(),
+                        signature.return_type,
+                        Some(*body),
+                    ) {
+                        let comments = collect_deferred_method_boundary_line_comments(
+                            f.context(),
+                            signature.return_type,
+                            *body,
+                        );
+                        write!(f, [space()])?;
+                        format_method_body_block_with_deferred_boundary_line_comments(
+                            f, *body, &comments,
+                        )?;
+                    } else if should_elide_space_before_body(f.context(), signature.return_type) {
+                        write!(f, [body])?;
+                    } else {
+                        write!(f, [space(), body])?;
+                    }
                 }
             }
             Member::Embed { modifiers, value } => {
@@ -713,6 +1127,14 @@ impl<'ast> FormatNode<'ast, Member> for Member {
             }
         }
 
+        let needs_semicolon = matches!(
+            self,
+            Member::Field { .. } | Member::Method { body: None, .. }
+        );
+        if needs_semicolon {
+            write!(f, [token(";")])?;
+        }
+
         // postfix annotations
         write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
@@ -730,7 +1152,7 @@ mod tests {
     fn test_format_struct_empty() {
         assert_format!(
             "struct Foo { }",
-            "struct Foo { }",
+            "struct Foo {}",
             |p| p.eat_struct_or_class(&p.mark(), DeclarationDescriptor::default(), false),
             DestackFormatOptions::default()
         );
@@ -740,7 +1162,7 @@ mod tests {
     fn test_format_struct_with_fields() {
         assert_format!(
             "struct Foo { a: int32, b: boolean }",
-            "struct Foo {\n\ta: int32,\n\tb: boolean,\n}",
+            "struct Foo {\n\ta: int32;\n\tb: boolean;\n}",
             |p| p.eat_struct_or_class(&p.mark(), DeclarationDescriptor::default(), false),
             DestackFormatOptions::default_tab()
         );
@@ -750,7 +1172,7 @@ mod tests {
     fn test_format_struct_with_modified_fields() {
         assert_format!(
             "struct Foo { readonly a: int32, private b: boolean }",
-            "struct Foo {\n\treadonly a: int32,\n\tprivate b: boolean,\n}",
+            "struct Foo {\n\treadonly a: int32;\n\tprivate b: boolean;\n}",
             |p| p.eat_struct_or_class(&p.mark(), DeclarationDescriptor::default(), false),
             DestackFormatOptions::default_tab()
         );
@@ -760,7 +1182,7 @@ mod tests {
     fn test_format_struct_with_name() {
         assert_format!(
             "struct Foo { a: int32 }",
-            "struct Foo {\n\ta: int32,\n}",
+            "struct Foo {\n\ta: int32;\n}",
             |p| p.eat_struct_or_class(&p.mark(), DeclarationDescriptor::default(), false),
             DestackFormatOptions::default_tab()
         );
@@ -770,7 +1192,7 @@ mod tests {
     fn test_format_struct_with_fields_and_defaults() {
         assert_format!(
             "struct Foo { a?: int32 = 42, b: boolean }",
-            "struct Foo {\n\ta?: int32 = 42,\n\tb: boolean,\n}",
+            "struct Foo {\n\ta?: int32 = 42;\n\tb: boolean;\n}",
             |p| p.eat_struct_or_class(&p.mark(), DeclarationDescriptor::default(), false),
             DestackFormatOptions::default_tab()
         );
@@ -793,7 +1215,7 @@ mod tests {
     fn test_format_struct_with_static_parameters_and_inheritance() {
         assert_format!(
             "struct Foo<T: Numeric> extends Bar implements Baz { }",
-            "struct Foo<T: Numeric> extends Bar implements Baz { }",
+            "struct Foo<T: Numeric> extends Bar implements Baz {}",
             |p| p.eat_struct_or_class(&p.mark(), DeclarationDescriptor::default(), false),
             DestackFormatOptions::default()
         );

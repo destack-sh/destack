@@ -33,7 +33,7 @@ function foo() { }
 
 ```ds expected
 /// This is a doc comment
-function foo() { }
+function foo() {}
 ```
 
 ## Comment Preservation

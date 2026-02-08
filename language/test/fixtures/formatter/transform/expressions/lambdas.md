@@ -114,7 +114,7 @@ const f = (x) => { return x * 2 }
 
 ```ds expected
 const f = (x) => {
-    return x * 2
+    return x * 2;
 };
 ```
 
@@ -129,7 +129,7 @@ const f = (x) => { const y = x * 2; return y + 1 }
 ```ds expected
 const f = (x) => {
     const y = x * 2;
-    return y + 1
+    return y + 1;
 };
 ```
 
@@ -142,7 +142,7 @@ const f = () => { }
 ```
 
 ```ds expected
-const f = () => { };
+const f = () => {};
 ```
 
 ## Async Arrow Functions
@@ -182,7 +182,7 @@ const f = async (url) => { const res = await fetch(url); return res.json() }
 ```ds expected
 const f = async (url) => {
     const res = await fetch(url);
-    return res.json()
+    return res.json();
 };
 ```
 

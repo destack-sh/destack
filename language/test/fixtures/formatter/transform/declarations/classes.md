@@ -15,7 +15,7 @@ class   Foo   {   }
 Empty class bodies stay on one line with internal spacing.
 
 ```ds expected
-class Foo { }
+class Foo {}
 ```
 
 ### class with extends
@@ -27,7 +27,7 @@ class   Foo   extends   Bar   {   }
 ```
 
 ```ds expected
-class Foo extends Bar { }
+class Foo extends Bar {}
 ```
 
 ### class with implements
@@ -39,7 +39,7 @@ class   Foo   implements   Bar  ,  Baz   {   }
 ```
 
 ```ds expected
-class Foo implements Bar, Baz { }
+class Foo implements Bar, Baz {}
 ```
 
 ### class with generic
@@ -51,7 +51,7 @@ class   Foo  <  T  >   {   }
 ```
 
 ```ds expected
-class Foo<T> { }
+class Foo<T> {}
 ```
 
 ### class with field
@@ -64,7 +64,7 @@ class Foo { x: number }
 
 ```ds expected
 class Foo {
-    x: number,
+    x: number;
 }
 ```
 
@@ -78,9 +78,9 @@ class Foo { x: number; y: string; z: boolean }
 
 ```ds expected
 class Foo {
-    x: number,
-    y: string,
-    z: boolean,
+    x: number;
+    y: string;
+    z: boolean;
 }
 ```
 
@@ -95,7 +95,7 @@ class Foo { bar() { return 1 } }
 ```ds expected
 class Foo {
     bar() {
-        return 1
+        return 1;
     }
 }
 ```
@@ -126,7 +126,10 @@ class Foo { constructor(public x: number, private readonly y: string) { } }
 
 ```ts expected
 class Foo {
-    constructor(public x: number, private readonly y: string) { }
+    constructor(
+        public x: number,
+        private readonly y: string,
+    ) {}
 }
 ```
 
@@ -142,7 +145,7 @@ class Foo { public x: number }
 
 ```ds expected
 class Foo {
-    public x: number,
+    public x: number;
 }
 ```
 
@@ -156,7 +159,7 @@ class Foo { private x: number }
 
 ```ds expected
 class Foo {
-    private x: number,
+    private x: number;
 }
 ```
 
@@ -170,7 +173,7 @@ class Foo { protected x: number }
 
 ```ds expected
 class Foo {
-    protected x: number,
+    protected x: number;
 }
 ```
 
@@ -184,7 +187,7 @@ class Counter { #value: int32 = 0 }
 
 ```ds expected
 class Counter {
-    #value: int32 = 0,
+    #value: int32 = 0;
 }
 ```
 
@@ -198,9 +201,9 @@ class Counter { #value: int32 = 0; get(): int32 { return this.#value } }
 
 ```ds expected
 class Counter {
-    #value: int32 = 0,
+    #value: int32 = 0;
     get(): int32 {
-        return this.#value
+        return this.#value;
     }
 }
 ```
@@ -216,10 +219,10 @@ class Counter { #next(): int32 { return 1 } get(): int32 { return this.#next() }
 ```ds expected
 class Counter {
     #next(): int32 {
-        return 1
+        return 1;
     }
     get(): int32 {
-        return this.#next()
+        return this.#next();
     }
 }
 ```
@@ -234,7 +237,7 @@ class Foo { readonly x: number }
 
 ```ds expected
 class Foo {
-    readonly x: number,
+    readonly x: number;
 }
 ```
 
@@ -248,7 +251,7 @@ class Foo { static count: number = 0 }
 
 ```ds expected
 class Foo {
-    static count: number = 0,
+    static count: number = 0;
 }
 ```
 
@@ -262,7 +265,7 @@ class Foo { x: number = 42 }
 
 ```ds expected
 class Foo {
-    x: number = 42,
+    x: number = 42;
 }
 ```
 
@@ -308,7 +311,7 @@ class Foo { #count: number; #reset() { } static #value = 1 }
 ```ts expected
 class Foo {
     #count: number;
-    #reset() { }
+    #reset() {}
     static #value = 1;
 }
 ```
@@ -325,7 +328,7 @@ class Config { "normal" = 1; "data-id" = 2; "default"() { } }
 class Config {
     normal = 1;
     "data-id" = 2;
-    default() { }
+    default() {}
 }
 ```
 
@@ -341,7 +344,7 @@ class Options { normal = 1; "data-id" = 2; "default"() { } }
 class Options {
     "normal" = 1;
     "data-id" = 2;
-    "default"() { }
+    "default"() {}
 }
 ```
 
@@ -355,8 +358,8 @@ class A { 'x・'() {} 'x･'() {} }
 
 ```ts expected
 class A {
-    "x・"() { }
-    "x･"() { }
+    "x・"() {}
+    "x･"() {}
 }
 ```
 
@@ -385,11 +388,10 @@ class Child extends Base { override greet(): void { } }
 
 ```ts expected
 class Base {
-    greet(): void { }
+    greet(): void {}
 }
-
 class Child extends Base {
-    override greet(): void { }
+    override greet(): void {}
 }
 ```
 
@@ -406,7 +408,6 @@ abstract class Child extends Base { abstract override greet(): void }
 abstract class Base {
     abstract greet(): void;
 }
-
 abstract class Child extends Base {
     abstract override greet(): void;
 }
@@ -453,7 +454,7 @@ class Foo { add(a: number, b: number): number { return a + b } }
 ```ds expected
 class Foo {
     add(a: number, b: number): number {
-        return a + b
+        return a + b;
     }
 }
 ```
@@ -469,7 +470,7 @@ class Foo { async fetch(): Promise<Data> { return await getData() } }
 ```ds expected
 class Foo {
     async fetch(): Promise<Data> {
-        return await getData()
+        return await getData();
     }
 }
 ```
@@ -485,7 +486,7 @@ class Foo { static create(): Foo { return new Foo() } }
 ```ds expected
 class Foo {
     static create(): Foo {
-        return new Foo()
+        return new Foo();
     }
 }
 ```
@@ -501,7 +502,7 @@ class Foo { get value(): number { return this._value } }
 ```ds expected
 class Foo {
     get value(): number {
-        return this._value
+        return this._value;
     }
 }
 ```
@@ -533,7 +534,7 @@ class Foo { get x(): number { return this._x } set x(v: number) { this._x = v } 
 ```ds expected
 class Foo {
     get x(): number {
-        return this._x
+        return this._x;
     }
     set x(v: number) {
         this._x = v
@@ -553,7 +554,7 @@ class Container<T> { value: T }
 
 ```ds expected
 class Container<T> {
-    value: T,
+    value: T;
 }
 ```
 
@@ -567,7 +568,7 @@ class Container<T: Comparable> { value: T }
 
 ```ds expected
 class Container<T: Comparable> {
-    value: T,
+    value: T;
 }
 ```
 
@@ -581,8 +582,8 @@ class Pair<K, V> { key: K; value: V }
 
 ```ds expected
 class Pair<K, V> {
-    key: K,
-    value: V,
+    key: K;
+    value: V;
 }
 ```
 
@@ -598,7 +599,7 @@ class Dog extends Animal { bark() { } }
 
 ```ds expected
 class Dog extends Animal {
-    bark() { }
+    bark() {}
 }
 ```
 
@@ -612,7 +613,7 @@ class Dog implements Animal { makeSound() { } }
 
 ```ds expected
 class Dog implements Animal {
-    makeSound() { }
+    makeSound() {}
 }
 ```
 
@@ -626,7 +627,7 @@ class Dog extends Pet implements Animal, Named { name: string }
 
 ```ds expected
 class Dog extends Pet implements Animal, Named {
-    name: string,
+    name: string;
 }
 ```
 
@@ -657,7 +658,7 @@ class MyComponent { }
 
 ```ds expected
 @Component
-class MyComponent { }
+class MyComponent {}
 ```
 
 ### decorator with arguments
@@ -671,7 +672,7 @@ class MyComponent { }
 
 ```ds expected
 @Component({ selector: "my-component" })
-class MyComponent { }
+class MyComponent {}
 ```
 
 ### multiple decorators
@@ -687,7 +688,7 @@ class Service { }
 ```ds expected
 @Injectable()
 @Singleton
-class Service { }
+class Service {}
 ```
 
 ### decorator expressions with calls
@@ -707,7 +708,7 @@ class Service { }
 @(factory().decorator())
 @(decorator().member)
 @(decorator().member())
-class Service { }
+class Service {}
 ```
 
 ### decorator instantiation expressions
@@ -721,7 +722,7 @@ class Service { }
 
 ```ds expected
 @(decorator<T>)
-class Service { }
+class Service {}
 ```
 
 ### decorated field
@@ -735,7 +736,7 @@ class Foo { @observable x: number }
 ```ds expected
 class Foo {
     @observable
-    x: number,
+    x: number;
 }
 ```
 
@@ -751,7 +752,7 @@ class Foo { @memoize compute(): number { return 42 } }
 class Foo {
     @memoize
     compute(): number {
-        return 42
+        return 42;
     }
 }
 ```
@@ -767,7 +768,7 @@ export class Foo { }
 ```
 
 ```ds expected
-export class Foo { }
+export class Foo {}
 ```
 
 ### export default class
@@ -779,7 +780,7 @@ export default class Handler { }
 ```
 
 ```ds expected
-export default class Handler { }
+export default class Handler {}
 ```
 
 ## Line Breaking
@@ -799,23 +800,22 @@ class Container<
     VeryLongType,
     AnotherType,
     ThirdType,
-> { }
+> {}
 ```
 
 ### class with long implements breaks
 
-Destack uses parentheses for multi-line implements clauses.
+Long `implements` clauses break across lines without wrapper parentheses.
 
 ```ds line-width=50
 class MyClass implements FirstInterface, SecondInterface, ThirdInterface { }
 ```
 
 ```ds expected
-class MyClass implements (
-    FirstInterface,
+class MyClass
+    implements FirstInterface,
     SecondInterface,
-    ThirdInterface,
-) { }
+    ThirdInterface {}
 ```
 
 ## Complex Classes
@@ -830,12 +830,12 @@ class Person { name: string; constructor(name: string) { this.name = name } gree
 
 ```ds expected
 class Person {
-    name: string,
+    name: string;
     constructor(name: string) {
         this.name = name
     }
     greet(): string {
-        return `Hello, ${this.name}`
+        return `Hello, ${this.name}`;
     }
 }
 ```
@@ -851,7 +851,7 @@ class Config { static { Config.init() } static init() { } }
 ```ds expected
 class Config {
     static { Config.init() }
-    static init() { }
+    static init() {}
 }
 ```
 
@@ -869,8 +869,8 @@ class Point { x: number; y: number }
 ```ds expected
 /// A point in 2D space.
 class Point {
-    x: number,
-    y: number,
+    x: number;
+    y: number;
 }
 ```
 
@@ -888,6 +888,6 @@ class Point {
 ```ds expected
 class Point {
     /// The x coordinate.
-    x: number,
+    x: number;
 }
 ```

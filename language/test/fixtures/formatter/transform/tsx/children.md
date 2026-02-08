@@ -51,15 +51,15 @@ const node = <p>Current usage for X is ${(() => {
 ```
 
 ```tsx expected
-const node = <p>
-    Current usage for X is $
-    {
-        (() => {
+const node = (
+    <p>
+        Current usage for X is $
+        {(() => {
             // comment
-        })()
-    }
-    .
-</p>;
+        })()}
+        .
+    </p>
+);
 ```
 
 ### multiline children break
@@ -71,11 +71,13 @@ const node = <section><Header /><Body /><Footer /></section>
 ```
 
 ```tsx expected
-const node = <section>
-    <Header />
-    <Body />
-    <Footer />
-</section>;
+const node = (
+    <section>
+        <Header />
+        <Body />
+        <Footer />
+    </section>
+);
 ```
 
 ### mixed children break when tree literals appear
@@ -87,9 +89,13 @@ const node = <div>{label}<Icon />{suffix}</div>
 ```
 
 ```tsx expected
-const node = <div>
-    {label}<Icon />{suffix}
-</div>;
+const node = (
+    <div>
+        {label}
+        <Icon />
+        {suffix}
+    </div>
+);
 ```
 
 ### mixed text with spaced expressions
@@ -105,9 +111,13 @@ const node = <T>
 ```
 
 ```tsx expected
-const node = <T>
-    Pro tip: See more{" "}<Link href="https://example.com">Docs</Link>{" "}for details.
-</T>;
+const node = (
+    <T>
+        Pro tip: See more{" "}
+        <Link href="https://example.com">Docs</Link>{" "}
+        for details.
+    </T>
+);
 ```
 
 ### text with inline elements breaks into lines
@@ -132,9 +142,10 @@ export default function ProTip() {
 export default function ProTip() {
     return (
         <T>
-            <X /> Pro tip: See more <Link href="https://mui.com/getting-started/templates/">
-                BREAK THIS
-            </Link> on the MUI documentation.
+            <X />
+            Pro tip: See more
+            <Link href="https://mui.com/getting-started/templates/">BREAK THIS</Link>
+             on the MUI documentation.
         </T>
     );
 }
@@ -151,11 +162,13 @@ const node = <ul>{items.map((item) => <li key={item.id}>{item.name}</li>)}</ul>
 ```
 
 ```tsx expected
-const node = <ul>
-    {items.map((item) => (
-        <li key={item.id}>{item.name}</li>
-    ))}
-</ul>;
+const node = (
+    <ul>
+        {items.map((item) => (
+            <li key={item.id}>{item.name}</li>
+        ))}
+    </ul>
+);
 ```
 
 ### conditional expression child
@@ -167,13 +180,11 @@ const node = <div>{ready ? <Ready /> : <Pending />}</div>
 ```
 
 ```tsx expected
-const node = <div>
-    {
-        ready
-            ? <Ready />
-            : <Pending />
-    }
-</div>;
+const node = (
+    <div>
+        {ready ? <Ready /> : <Pending />}
+    </div>
+);
 ```
 
 ### logical expression with jsx child
@@ -205,9 +216,11 @@ const node = <><A /><B /><C /></>
 ```
 
 ```tsx expected
-const node = <>
-    <A />
-    <B />
-    <C />
-</>;
+const node = (
+    <>
+        <A />
+        <B />
+        <C />
+    </>
+);
 ```

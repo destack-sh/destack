@@ -13,9 +13,11 @@ const node = <div>{/* TODO: add content */}</div>
 ```
 
 ```tsx expected
-const node = <div>
-    {/* TODO: add content */}
-</div>;
+const node = (
+    <div>
+        {/* TODO: add content */}
+    </div>
+);
 ```
 
 ### comment between children
@@ -27,11 +29,13 @@ const node = <div>{/* header */}<Header /><Body /></div>
 ```
 
 ```tsx expected
-const node = <div>
-    {/* header */}
-    <Header />
-    <Body />
-</div>;
+const node = (
+    <div>
+        {/* header */}
+        <Header />
+        <Body />
+    </div>
+);
 ```
 
 ### comment inside expression child
@@ -43,15 +47,13 @@ const node = <div>{items /* keep */ .map((item) => <Item key={item.id} />)}</div
 ```
 
 ```tsx expected
-const node = <div>
-    {
-        items.map
-        /* keep */
-        ((item) => (
+const node = (
+    <div>
+        {items.map /* keep */((item) => (
             <Item key={item.id} />
-        ))
-    }
-</div>;
+        ))}
+    </div>
+);
 ```
 
 ## Dangling Comments
@@ -70,12 +72,14 @@ const node = (<>
 ```
 
 ```tsx expected
-const node = (<>
+const node = (
+    <>
         {
             value
             // this comment should stay here
         }
-    </>);
+    </>
+);
 ```
 
 ### fragment expression without comments stays inline
@@ -107,16 +111,18 @@ const node = <>
 ```
 
 ```tsx expected
-const node = <>
-    <div>
-        {
-            () =>
-                function A() {
-                    A();
-                } /* comment */
-        }
-    </div>
-</>;
+const node = (
+    <>
+        <div>
+            {
+                () =>
+                    function A() {
+                        A();
+                    } /* comment */
+            }
+        </div>
+    </>
+);
 ```
 
 ### ternary with trailing comment
@@ -129,11 +135,11 @@ const node = <div>{isVideo ? <Video /> : <Image /> // eslint-disable-line
 ```
 
 ```tsx expected
-const node = <div>
-    {
-        isVideo
-            ? <Video />
-            : <Image /> // eslint-disable-line
-    }
-</div>;
+const node = (
+    <div>
+        {
+            isVideo ? <Video /> : <Image /> // eslint-disable-line
+        }
+    </div>
+);
 ```

@@ -152,7 +152,7 @@ export function foo() { }
 ```
 
 ```ds expected
-export function foo() { }
+export function foo() {}
 ```
 
 ### export class
@@ -164,7 +164,7 @@ export class Foo { }
 ```
 
 ```ds expected
-export class Foo { }
+export class Foo {}
 ```
 
 ### export interface
@@ -177,7 +177,7 @@ export interface Foo { x: number }
 
 ```ds expected
 export interface Foo {
-    x: number,
+    x: number;
 }
 ```
 
@@ -203,8 +203,8 @@ export struct Point { x: number; y: number }
 
 ```ds expected
 export struct Point {
-    x: number,
-    y: number,
+    x: number;
+    y: number;
 }
 ```
 
@@ -234,7 +234,7 @@ export default function handler() { }
 ```
 
 ```ds expected
-export default function handler() { }
+export default function handler() {}
 ```
 
 ### export default class
@@ -246,7 +246,7 @@ export default class Handler { }
 ```
 
 ```ds expected
-export default class Handler { }
+export default class Handler {}
 ```
 
 ### export default expression

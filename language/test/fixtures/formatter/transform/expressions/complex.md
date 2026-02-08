@@ -64,7 +64,7 @@ items.map((item) => { return item.value }).filter((v) => v > 0)
 ```ds expected
 items
     .map((item) => {
-        return item.value
+        return item.value;
     })
     .filter((v) => v > 0);
 ```
@@ -96,10 +96,8 @@ const result = someVeryLongChain().a().b().c()
 ```
 
 ```ds expected
-const result = someVeryLongChain()
-    .a()
-    .b()
-    .c();
+const result =
+    someVeryLongChain().a().b().c();
 ```
 
 ### assignment with long left hand side still breaks at the chain
@@ -111,10 +109,8 @@ const veryLongResultName = someVeryLongChain().a().b().c().d()
 ```
 
 ```ds expected
-const veryLongResultName = someVeryLongChain().a()
-    .b()
-    .c()
-    .d();
+const veryLongResultName =
+    someVeryLongChain().a().b().c().d();
 ```
 
 ## Complex Function Calls
@@ -511,8 +507,9 @@ const json = await fetch(url).then((r) => r.json())
 ```
 
 ```ds expected
-const json = await fetch(url)
-    .then((r) => r.json());
+const json = await fetch(url).then((r) =>
+    r.json(),
+);
 ```
 
 ### multiple awaits in expression
@@ -550,7 +547,7 @@ Async immediately invoked function expression.
 ```ds expected
 (async () => {
     const data = await fetch(url);
-    return data
+    return data;
 })();
 ```
 
@@ -750,7 +747,8 @@ obj.items[0].getValue().transform()
 ```
 
 ```ds expected
-obj.items[0]
+obj
+    .items[0]
     .getValue()
     .transform();
 ```
@@ -771,7 +769,7 @@ curry(a)(b)(c);
 
 ### long curried call breaks
 
-Long curried calls break with each call on its own line.
+Long curried calls keep direct tail calls together when possible.
 
 ```ds line-width=30
 curriedFunction(firstArg)(secondArg)(thirdArg)
@@ -779,13 +777,12 @@ curriedFunction(firstArg)(secondArg)(thirdArg)
 
 ```ds expected
 curriedFunction(firstArg)
-    (secondArg)
-    (thirdArg);
+    (secondArg)(thirdArg);
 ```
 
 ### curried call with objects
 
-Curried calls with object arguments break similarly.
+Curried calls keep simple tails together and break object tails.
 
 ```ds line-width=40
 configure({ mode: "dev" })({ debug: true })({ verbose: false })
@@ -793,8 +790,9 @@ configure({ mode: "dev" })({ debug: true })({ verbose: false })
 
 ```ds expected
 configure({ mode: "dev" })
-    ({ debug: true })
-    ({ verbose: false });
+    ({ debug: true })({
+        verbose: false,
+    });
 ```
 
 ## Long Binary Expression Patterns
@@ -826,7 +824,8 @@ const ok = a && b || c && d || e && f
 ```
 
 ```ds expected
-const ok = a && b || c && d || e && f;
+const ok = a && b || (c && d) || (e
+    && f);
 ```
 
 ### nullish chain
@@ -922,16 +921,17 @@ const {
 
 ### destructuring in function parameters
 
-Destructuring in arrow function parameters. Assignment breaks when too long.
+Destructuring in arrow function parameters. The parameter stays hugged while fields break.
 
 ```ds line-width=50
 const handler = ({ event: { target, type }, timestamp }) => process(target, type)
 ```
 
 ```ds expected
-const handler = (
-    { event: { target, type }, timestamp },
-) => process(target, type);
+const handler = ({
+    event: { target, type },
+    timestamp,
+}) => process(target, type);
 ```
 
 ### rest in nested destructuring

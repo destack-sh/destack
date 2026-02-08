@@ -4,6 +4,7 @@ use std::marker::PhantomData;
 use destack_fir::format::{BestFittingMode, FormatResult, GroupId};
 use destack_workspace::TrailingComma;
 
+use crate::annotation::parameter_type_separator_prefix_annotations;
 use crate::directive::{
     collect_comment_tokens, ignore_range_for_node, ignored_span_source, write_ignored_span,
 };
@@ -12,8 +13,8 @@ use crate::property::{
 };
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    Annotation, AnnotationPosition, Argument, Declaration, Expression, Keyword, LocalNodeId, Node,
-    NodeTree, NodeTreeImpl, NodeType, Parameter,
+    Annotation, AnnotationPosition, Argument, CommentStyle, Declaration, Expression, FunctionKind,
+    Keyword, LocalNodeId, Member, Node, NodeTree, NodeTreeImpl, NodeType, Parameter, Property,
 };
 use destack_fir::prelude::*;
 use destack_fir::{best_fitting, format_args, write};
@@ -113,9 +114,10 @@ where
     fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'ast>>) -> FormatResult<()> {
         let options = &f.context().options;
         let trailing_comma_option = options.trailing_comma;
-        let should_add_trailing = self.allow_trailing_separator
-            && self.kind.should_add_trailing_comma(trailing_comma_option);
         let has_elements = !self.elements.is_empty();
+        let should_add_trailing = has_elements
+            && self.allow_trailing_separator
+            && self.kind.should_add_trailing_comma(trailing_comma_option);
         let should_add_space = self.include_space && options.bracket_spacing && has_elements;
 
         let mut ignore_ranges_by_id = HashMap::new();
@@ -154,7 +156,8 @@ where
             }
 
             // trailing separator
-            if self.force_trailing_separator
+            if has_elements
+                && self.force_trailing_separator
                 && self.allow_trailing_separator
                 && (!has_ignore_ranges || needs_trailing_separator)
             {
@@ -351,6 +354,7 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // type
                 if let Some(ty) = ty {
+                    format_deferred_parameter_type_separator_annotations(f, node_id)?;
                     if parameter_is_static {
                         write!(f, [space(), Keyword::Extends, space(), ty])?;
                     } else {
@@ -376,6 +380,7 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // type
                 if let Some(ty) = ty {
+                    format_deferred_parameter_type_separator_annotations(f, node_id)?;
                     if parameter_is_static {
                         write!(f, [space(), Keyword::Extends, space(), ty])?;
                     } else {
@@ -400,6 +405,7 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
                 write!(f, [name])?;
                 // type
                 if let Some(ty) = ty {
+                    format_deferred_parameter_type_separator_annotations(f, node_id)?;
                     if parameter_is_static {
                         write!(f, [space(), Keyword::Extends, space(), ty])?;
                     } else {
@@ -420,6 +426,7 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
                 write!(f, [pattern])?;
                 // type
                 if let Some(ty) = ty {
+                    format_deferred_parameter_type_separator_annotations(f, node_id)?;
                     if parameter_is_static {
                         write!(f, [space(), Keyword::Extends, space(), ty])?;
                     } else {
@@ -443,14 +450,66 @@ fn parameter_is_static(
     let Some((parent_id, parent_type)) = context.get_parent(parameter_id) else {
         return false;
     };
-    if parent_type != NodeType::Declaration {
-        return false;
+    match parent_type {
+        NodeType::Declaration => {
+            let declaration = context.tree.get(LocalNodeId::<Declaration>::new(parent_id));
+            declaration
+                .static_parameters()
+                .is_some_and(|parameters| parameters.contains(&parameter_id))
+        }
+        NodeType::Property => {
+            let property = context.tree.get(LocalNodeId::<Property>::new(parent_id));
+            let Property::Method { signature, .. } = property else {
+                return false;
+            };
+
+            signature
+                .generics
+                .as_ref()
+                .and_then(|generics| generics.static_parameters.as_ref())
+                .is_some_and(|parameters| parameters.contains(&parameter_id))
+        }
+        NodeType::Member => {
+            let member = context.tree.get(LocalNodeId::<Member>::new(parent_id));
+            match member {
+                Member::Type {
+                    static_parameters, ..
+                } => static_parameters
+                    .as_ref()
+                    .is_some_and(|parameters| parameters.contains(&parameter_id)),
+                Member::Method { signature, .. } => signature
+                    .generics
+                    .as_ref()
+                    .and_then(|generics| generics.static_parameters.as_ref())
+                    .is_some_and(|parameters| parameters.contains(&parameter_id)),
+                Member::Field { .. }
+                | Member::Embed { .. }
+                | Member::StaticBlock { .. }
+                | Member::ComptimeBlock { .. } => false,
+            }
+        }
+        _ => false,
+    }
+}
+
+/// Format deferred prefix annotations that belong between parameter names and type separators.
+fn format_deferred_parameter_type_separator_annotations<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    parameter_id: LocalNodeId<Parameter>,
+) -> FormatResult<()> {
+    let annotations = parameter_type_separator_prefix_annotations(f.context(), parameter_id);
+    if annotations.is_empty() {
+        return Ok(());
     }
 
-    let declaration = context.tree.get(LocalNodeId::<Declaration>::new(parent_id));
-    declaration
-        .static_parameters()
-        .is_some_and(|parameters| parameters.contains(&parameter_id))
+    write!(f, [space()])?;
+    let joiner_separator = space();
+    let mut joiner = f.join_with(&joiner_separator);
+    joiner.entries(&annotations);
+    joiner.finish()?;
+    write!(f, [space()])?;
+
+    Ok(())
 }
 
 /// Return whether an argument should emit its prefix annotations.
@@ -462,11 +521,15 @@ fn argument_should_emit_prefix_annotations(
         return true;
     }
 
-    if !argument_is_first_in_call_or_new(context, argument_id) {
+    if argument_has_non_blank_prefix_annotation(context, argument_id) {
         return true;
     }
 
-    if argument_has_non_blank_prefix_annotation(context, argument_id) {
+    if argument_has_blank_prefix_annotation_before_separator(context, argument_id) {
+        return false;
+    }
+
+    if !argument_is_first_in_call_or_new(context, argument_id) {
         return true;
     }
 
@@ -557,13 +620,192 @@ fn argument_has_blank_prefix_annotation(
     })
 }
 
+/// Return whether an argument has a blank prefix annotation before a separator.
+fn argument_has_blank_prefix_annotation_before_separator(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let Some(annotations) = context.get_annotations(argument_id) else {
+        return false;
+    };
+
+    annotations.iter().any(|annotation_id| {
+        let Annotation::Blank {
+            position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
+            ..
+        } = context.tree.get::<Annotation>(*annotation_id)
+        else {
+            return false;
+        };
+
+        let annotation_span = context.get_span::<Annotation>(*annotation_id);
+        if annotation_span.end >= context.file.len {
+            return false;
+        }
+
+        let after_annotation = context.get_span_str(Span::new(
+            annotation_span.file,
+            annotation_span.end,
+            context.file.len,
+        ));
+        let Some(next_non_whitespace) = after_annotation
+            .chars()
+            .find(|character| !character.is_whitespace())
+        else {
+            return false;
+        };
+
+        next_non_whitespace == ','
+    })
+}
+
+/// Return whether this argument is the last dynamic argument in a call or new expression.
+fn argument_is_last_in_call_or_new(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let Some((parent_id, parent_type)) = context.get_parent(argument_id) else {
+        return false;
+    };
+    if parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let expression = context.tree.get(LocalNodeId::<Expression>::new(parent_id));
+    match expression {
+        Expression::Call {
+            dynamic_arguments, ..
+        }
+        | Expression::New {
+            dynamic_arguments, ..
+        } => dynamic_arguments
+            .last()
+            .is_some_and(|last| *last == argument_id),
+        _ => false,
+    }
+}
+
+/// Return whether this argument should emit a trailing comma before postfix annotations.
+fn argument_should_emit_trailing_comma(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    context.current_argument_group_id.is_some()
+        && context.options.trailing_comma == TrailingComma::All
+        && argument_is_last_in_call_or_new(context, argument_id)
+        && argument_has_trailing_line_comment_annotation(context, argument_id)
+}
+
+/// Return whether this argument has trailing slash comments at the argument boundary.
+fn argument_has_trailing_line_comment_annotation(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let Some(annotations) = context.get_annotations(argument_id) else {
+        return false;
+    };
+    let argument_span = context.get_span(argument_id);
+
+    annotations.iter().any(|annotation_id| {
+        let Annotation::Comment { node, .. } = context.tree.get::<Annotation>(*annotation_id)
+        else {
+            return false;
+        };
+        let comment = context.tree.get::<destack_ast::Comment>(*node);
+        if comment.style != CommentStyle::Slash {
+            return false;
+        }
+
+        let annotation_span = context.get_span::<Annotation>(*annotation_id);
+        annotation_span.start >= argument_span.end
+    })
+}
+
+/// Return the previous non whitespace character before an annotation span.
+fn previous_non_whitespace_before_annotation(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> Option<char> {
+    let span = context.get_span(annotation_id);
+    if span.start == 0 {
+        return None;
+    }
+
+    let source = context.get_span_str(Span::new(span.file, 0, span.start));
+    source
+        .chars()
+        .rev()
+        .find(|character: &char| !character.is_whitespace())
+}
+
+/// Return the next non whitespace character after an annotation span.
+fn next_non_whitespace_after_annotation(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> Option<char> {
+    let span = context.get_span(annotation_id);
+    if span.end >= context.file.len {
+        return None;
+    }
+
+    let source = context.get_span_str(Span::new(span.file, span.end, context.file.len));
+    source
+        .chars()
+        .find(|character: &char| !character.is_whitespace())
+}
+
+/// Return whether a lambda argument has an inline prefix comment that must break.
+fn argument_prefix_lambda_comment_needs_forced_break(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let Some(annotations) = context.get_annotations(argument_id) else {
+        return false;
+    };
+
+    annotations.iter().any(|annotation_id| {
+        let Annotation::Comment { node, position } = context.tree.get::<Annotation>(*annotation_id)
+        else {
+            return false;
+        };
+        if *position != AnnotationPosition::BlockPrefix {
+            return false;
+        }
+
+        let comment = context.tree.get::<destack_ast::Comment>(*node);
+        if comment.style != CommentStyle::Star {
+            return false;
+        }
+
+        let previous_character = previous_non_whitespace_before_annotation(context, *annotation_id);
+        let next_character = next_non_whitespace_after_annotation(context, *annotation_id);
+        matches!(previous_character, Some('(' | '[' | '{' | '<')) && next_character == Some('(')
+    })
+}
+
 impl<'ast> FormatNode<'ast, Argument> for Argument {
     fn format_node(
         &self,
         node_id: LocalNodeId<Argument>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        if argument_should_emit_prefix_annotations(f.context(), node_id) {
+        // lambda argument comments are deferred to the lambda arrow site
+        let should_emit_prefix_annotations =
+            argument_should_emit_prefix_annotations(f.context(), node_id);
+        let should_preserve_blank_line_before_prefix_comment =
+            argument_prefix_comment_has_leading_blank_line_after_separator(f.context(), node_id);
+        let has_argument_prefix_comment =
+            argument_has_prefix_comment_annotation(f.context(), node_id);
+        let has_lambda_value = argument_contains_lambda_value(f.context(), self);
+        let force_break_after_lambda_prefix_comment = has_lambda_value
+            && argument_prefix_lambda_comment_needs_forced_break(f.context(), node_id);
+
+        if has_lambda_value {
+            write!(f, [f.context().block_prefix_annotations(node_id)])?;
+        } else if should_emit_prefix_annotations {
+            if should_preserve_blank_line_before_prefix_comment && has_argument_prefix_comment {
+                write!(f, [hard_line_break()])?;
+            }
             write!(f, [f.context().any_prefix_annotations(node_id)])?;
         }
 
@@ -580,6 +822,10 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
                 // modifiers
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // value
+                if should_preserve_blank_line_before_prefix_comment && !has_argument_prefix_comment
+                {
+                    write!(f, [hard_line_break()])?;
+                }
                 write!(f, [token(":"), space(), value])?;
             }
             Argument::Labeled {
@@ -594,12 +840,23 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
                 // modifiers
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // value
+                if should_preserve_blank_line_before_prefix_comment && !has_argument_prefix_comment
+                {
+                    write!(f, [hard_line_break()])?;
+                }
                 write!(f, [token(":"), space(), value])?;
             }
             Argument::Positional { modifiers, value } => {
                 // modifiers
                 format_binding_modifiers_prefix_maybe(f, *modifiers)?;
                 // value
+                if force_break_after_lambda_prefix_comment {
+                    write!(f, [hard_line_break()])?;
+                }
+                if should_preserve_blank_line_before_prefix_comment && !has_argument_prefix_comment
+                {
+                    write!(f, [hard_line_break()])?;
+                }
                 write!(f, [value])?;
                 // modifiers
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
@@ -616,18 +873,199 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
                 if let Some(label) = label {
                     write!(f, [label])?;
                     format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+                    if should_preserve_blank_line_before_prefix_comment
+                        && !has_argument_prefix_comment
+                    {
+                        write!(f, [hard_line_break()])?;
+                    }
                     write!(f, [token(":"), space(), value])?;
                 } else {
+                    if force_break_after_lambda_prefix_comment {
+                        write!(f, [hard_line_break()])?;
+                    }
+                    if should_preserve_blank_line_before_prefix_comment
+                        && !has_argument_prefix_comment
+                    {
+                        write!(f, [hard_line_break()])?;
+                    }
                     write!(f, [value])?;
                     format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 }
             }
         }
 
+        // preserve js and ts trailing comma placement before trailing line comments
+        if argument_should_emit_trailing_comma(f.context(), node_id) {
+            write!(f, [if_group_breaks(&token(","))])?;
+        }
+
         write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())
     }
+}
+
+/// Return whether the argument itself has a prefix comment annotation.
+fn argument_has_prefix_comment_annotation(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let Some(annotations) = context.get_annotations(argument_id) else {
+        return false;
+    };
+
+    annotations.iter().any(|annotation_id| {
+        matches!(
+            context.tree.get::<Annotation>(*annotation_id),
+            Annotation::Comment {
+                position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
+                ..
+            }
+        )
+    })
+}
+
+/// Return whether an argument has a prefix comment separated by a blank line after a comma.
+fn argument_prefix_comment_has_leading_blank_line_after_separator(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    if !argument_is_call_or_new(context, argument_id) {
+        return false;
+    }
+    let Some(prefix_comment_start) =
+        first_prefix_comment_annotation_start_for_argument(context, argument_id)
+    else {
+        return false;
+    };
+    let Some(previous_argument_id) = previous_dynamic_argument_in_call_or_new(context, argument_id)
+    else {
+        return false;
+    };
+
+    let previous_span = context.get_span(previous_argument_id);
+    if previous_span.end >= prefix_comment_start {
+        return false;
+    }
+
+    let between = context.get_span_str(Span::new(
+        previous_span.file,
+        previous_span.end,
+        prefix_comment_start,
+    ));
+    between
+        .chars()
+        .filter(|character| *character == '\n')
+        .count()
+        >= 2
+}
+
+/// Return the start offset of the first prefix comment on an argument or its value.
+fn first_prefix_comment_annotation_start_for_argument(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> Option<u32> {
+    let argument_annotation_start = context
+        .get_annotations(argument_id)
+        .and_then(|annotations| {
+            annotations.iter().find_map(|annotation_id| {
+                let annotation = context.tree.get::<Annotation>(*annotation_id);
+                let is_prefix_comment = matches!(
+                    annotation,
+                    Annotation::Comment {
+                        position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
+                        ..
+                    }
+                );
+                if is_prefix_comment {
+                    Some(context.get_span::<Annotation>(*annotation_id).start)
+                } else {
+                    None
+                }
+            })
+        });
+
+    let argument = context.tree.get(argument_id);
+    let value_id = match argument {
+        Argument::Named { value, .. }
+        | Argument::Labeled { value, .. }
+        | Argument::Positional { value, .. }
+        | Argument::Spread { value, .. } => *value,
+    };
+    let value_annotation_start = context.get_annotations(value_id).and_then(|annotations| {
+        annotations.iter().find_map(|annotation_id| {
+            let annotation = context.tree.get::<Annotation>(*annotation_id);
+            let is_prefix_comment = matches!(
+                annotation,
+                Annotation::Comment {
+                    position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
+                    ..
+                }
+            );
+            if is_prefix_comment {
+                Some(context.get_span::<Annotation>(*annotation_id).start)
+            } else {
+                None
+            }
+        })
+    });
+
+    match (argument_annotation_start, value_annotation_start) {
+        (Some(argument_start), Some(value_start)) => Some(argument_start.min(value_start)),
+        (Some(argument_start), None) => Some(argument_start),
+        (None, Some(value_start)) => Some(value_start),
+        (None, None) => None,
+    }
+}
+
+/// Return the previous dynamic argument in a call or new expression.
+fn previous_dynamic_argument_in_call_or_new(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> Option<LocalNodeId<Argument>> {
+    let Some((parent_id, parent_type)) = context.get_parent(argument_id) else {
+        return None;
+    };
+    if parent_type != NodeType::Expression {
+        return None;
+    }
+
+    let expression = context.tree.get(LocalNodeId::<Expression>::new(parent_id));
+    let arguments = match expression {
+        Expression::Call {
+            dynamic_arguments, ..
+        }
+        | Expression::New {
+            dynamic_arguments, ..
+        } => dynamic_arguments,
+        _ => return None,
+    };
+
+    let index = arguments
+        .iter()
+        .position(|argument| *argument == argument_id)?;
+    index
+        .checked_sub(1)
+        .and_then(|index| arguments.get(index).copied())
+}
+
+/// Return whether this argument wraps a lambda declaration expression.
+fn argument_contains_lambda_value(context: &DestackFormatContext<'_>, argument: &Argument) -> bool {
+    let value_id = match argument {
+        Argument::Named { value, .. }
+        | Argument::Labeled { value, .. }
+        | Argument::Positional { value, .. }
+        | Argument::Spread { value, .. } => *value,
+    };
+
+    let Expression::Declaration(declaration_id) = context.tree.get(value_id) else {
+        return false;
+    };
+
+    matches!(
+        context.tree.get(*declaration_id),
+        Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
+    )
 }
 
 #[cfg(test)]
@@ -649,6 +1087,36 @@ mod tests {
         assert_format!(
             "x: int32 = 1",
             "x: int32 = 1",
+            |p| p.eat_parameter(),
+            DestackFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_parameter_comment_between_name_and_type() {
+        assert_format!(
+            "x /* a */ : number",
+            "x /* a */ : number",
+            |p| p.eat_parameter(),
+            DestackFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_optional_parameter_comment_between_name_and_type() {
+        assert_format!(
+            "x? /* a */ : number",
+            "x? /* a */ : number",
+            |p| p.eat_parameter(),
+            DestackFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_parameter_comment_before_name() {
+        assert_format!(
+            "/* a */ x: number",
+            "/* a */ x: number",
             |p| p.eat_parameter(),
             DestackFormatOptions::default()
         );

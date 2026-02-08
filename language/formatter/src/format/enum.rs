@@ -38,7 +38,7 @@ mod tests {
     fn test_format_enum_empty() {
         assert_format!(
             "enum { }",
-            "enum { }",
+            "enum {}",
             |p| p.eat_enum(&p.mark(), EnumKind::Enum, DeclarationDescriptor::default()),
             DestackFormatOptions::default()
         );

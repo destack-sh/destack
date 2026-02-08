@@ -104,7 +104,7 @@ const x = { a, method() { return 1 } }
 const x = {
     a,
     method() {
-        return 1
+        return 1;
     },
 };
 ```
@@ -222,7 +222,7 @@ const x = { foo() { return 1 } }
 ```ds expected
 const x = {
     foo() {
-        return 1
+        return 1;
     },
 };
 ```
@@ -238,7 +238,7 @@ const x = { add(a, b) { return a + b } }
 ```ds expected
 const x = {
     add(a, b) {
-        return a + b
+        return a + b;
     },
 };
 ```
@@ -254,7 +254,7 @@ const x = { async fetch() { return await data } }
 ```ds expected
 const x = {
     async fetch() {
-        return await data
+        return await data;
     },
 };
 ```
@@ -287,7 +287,7 @@ const x = { get value() { return this._value } }
 ```ds expected
 const x = {
     get value() {
-        return this._value
+        return this._value;
     },
 };
 ```
@@ -428,7 +428,7 @@ const x = {
     name: "test",
     items: [1, 2],
     handler() {
-        return this.name
+        return this.name;
     },
 };
 ```

@@ -149,7 +149,9 @@ Elements can have mixed content types. Content stays on one line if it fits.
 
 ```ds expected
 <Paragraph>
-    Hello <Strong>World</Strong>!
+    Hello
+    <Strong>World</Strong>
+    !
 </Paragraph>;
 ```
 
@@ -282,16 +284,14 @@ Map with block body breaks appropriately. Return JSX gets parens when multi-line
 
 ```ds expected
 <List>
-    {
-        items.map((item) => {
-            return (
-                <Item
-                    key={item.id}
-                    name={item.name}
-                />
-            )
-        })
-    }
+    {items.map((item) => {
+        return (
+            <Item
+                key={item.id}
+                name={item.name}
+            />
+        );
+    })}
 </List>;
 ```
 
@@ -317,11 +317,9 @@ Ternary with multi-attribute JSX in branches.
 
 ```ds expected
 <div>
-    {
-        loading
-            ? <Spinner size="large" />
-            : <Content data={data} />
-    }
+    {loading ? <Spinner size="large" /> : <Content
+        data={data}
+    />}
 </div>;
 ```
 

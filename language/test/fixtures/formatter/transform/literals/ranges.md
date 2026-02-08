@@ -39,5 +39,5 @@ for ( const i of 0 .. 10 ) { }
 ```
 
 ```ds expected
-for (const i of 0..10) { }
+for (const i of 0..10) {}
 ```

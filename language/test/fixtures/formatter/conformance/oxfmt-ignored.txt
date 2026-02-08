@@ -1,2 +1,10 @@
 # oxfmt formatter conformance ignored tests
 # entries are relative test names inside the suite root
+# legacy TypeScript angle assertions (`<T>expr`) are intentionally unsupported
+# TODO #Broken: support import-call target expressions in AST/DIR
+js/comments/import-expression.js
+js/import-expressions/grouped.mjs
+ts/parenthesis/type-assertion.ts
+ts/semicolons/assignment.ts
+ts/static-members/non-null-expression.ts
+ts/union/issue-16902.ts

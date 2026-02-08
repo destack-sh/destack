@@ -399,3 +399,15 @@ import styles from "styles.css" with { type: "css", scope: "local" }
 ```ds expected
 import styles from "styles.css" with { type: "css", scope: "local" };
 ```
+
+### re-export with attributes
+
+Re-exports can include module attributes.
+
+```ds
+export { foo } from "data.json" with { type: "json" }
+```
+
+```ds expected
+export { foo } from "data.json" with { type: "json" };
+```

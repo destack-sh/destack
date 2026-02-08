@@ -14,7 +14,7 @@ namespace   Foo{const x=1}
 
 ```ts expected
 namespace Foo {
-    const x = 1
+    const x = 1;
 }
 ```
 
@@ -27,7 +27,7 @@ export   namespace  Foo { }
 ```
 
 ```ts expected
-export namespace Foo { }
+export namespace Foo {}
 ```
 
 ### declared namespace
@@ -42,7 +42,7 @@ declare namespace Foo {
 
 ```ts expected
 declare namespace Foo {
-    export const version: string
+    export const version: string;
 }
 ```
 
@@ -58,7 +58,7 @@ module   "Bar" { export const value:number }
 
 ```ts expected
 namespace "Bar" {
-    export const value: number
+    export const value: number;
 }
 ```
 
@@ -74,6 +74,6 @@ namespace Foo where Guard: Limit { const x = 1 }
 
 ```ds expected
 namespace Foo where Guard: Limit {
-    const x = 1
+    const x = 1;
 }
 ```

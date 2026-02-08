@@ -180,7 +180,7 @@ a && /* keep */ b && /* keep */ c
 ```
 
 ```ds expected
-a
-    && /* keep */ b
-    && /* keep */ c;
+a &&
+    /* keep */ b &&
+    /* keep */ c;
 ```

@@ -71,9 +71,8 @@ type templateLiteralType = `${
 ```
 
 ```ts expected
-type templateLiteralType = `${TStringConvertedSoFar extends Capitalize<TStringConvertedSoFar>
-    ? "_"
-    : ""}`;
+type templateLiteralType =
+    `${TStringConvertedSoFar extends Capitalize<TStringConvertedSoFar> ? "_" : ""}`;
 ```
 
 ### typescript template literal type with nested conditionals
@@ -93,8 +92,8 @@ type CamelToSnakeCase<TCamelCaseString extends string> =
 type CamelToSnakeCase<TCamelCaseString extends string> =
     TCamelCaseString extends `${infer TStringConvertedSoFar}${infer TStringYetToConvert}`
         ? `${TStringConvertedSoFar extends Capitalize<TStringConvertedSoFar>
-            ? "_"
-            : ""}${Lowercase<TStringConvertedSoFar>}${CamelToSnakeCase<TStringYetToConvert>}`
+                ? "_"
+                : ""}${Lowercase<TStringConvertedSoFar>}${CamelToSnakeCase<TStringYetToConvert>}`
         : TCamelCaseString;
 ```
 
@@ -227,7 +226,6 @@ type Mutable<T> = { -readonly [K in keyof T]-?: T[K] }
 
 ```ts expected
 type ReadonlyPartial<T> = { readonly [K in keyof T]?: T[K] };
-
 type Mutable<T> = { -readonly [K in keyof T]-?: T[K] };
 ```
 

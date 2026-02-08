@@ -1,11 +1,14 @@
 use destack_fir::format::{Format, FormatResult, hard_line_break};
 use destack_fir::prelude::*;
 use destack_fir::write;
+use destack_source::Span;
 
+use crate::directive::is_ignore_directive_comment;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator, Doc, DocStyle,
-    Expression, LocalNodeId, Node, NodeTree, NodeTreeImpl, NodeType,
+    Annotation, AnnotationPosition, Argument, Blank, Comment, CommentStyle, Declaration, Decorator,
+    Doc, DocStyle, Expression, IfCondition, IfKind, LocalNodeId, Member, Node, NodeTree,
+    NodeTreeImpl, NodeType, Parameter, PostfixPosition, Property,
 };
 
 impl<'ast> DestackFormatContext<'ast> {
@@ -97,6 +100,922 @@ impl<'ast> DestackFormatContext<'ast> {
     }
 }
 
+/// Return the first non whitespace character after an annotation span.
+fn next_non_whitespace_after_annotation<'ast>(
+    context: &DestackFormatContext<'ast>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> Option<char> {
+    let span = context.get_span::<Annotation>(annotation_id);
+    if span.end >= context.file.len {
+        return None;
+    }
+
+    let tail_span = Span::new(span.file, span.end, context.file.len);
+    let tail_source = context.file.get_span_str(tail_span)?;
+    tail_source
+        .chars()
+        .find(|character: &char| !character.is_whitespace())
+}
+
+/// Return whether an annotation is followed by an `else` keyword.
+fn annotation_followed_by_else_keyword<'ast>(
+    context: &DestackFormatContext<'ast>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    let span = context.get_span::<Annotation>(annotation_id);
+    if span.end >= context.file.len {
+        return false;
+    }
+
+    let tail_span = Span::new(span.file, span.end, context.file.len);
+    let Some(tail_source) = context.file.get_span_str(tail_span) else {
+        return false;
+    };
+    tail_source.trim_start().starts_with("else")
+}
+
+/// Return whether the character can terminate a parameter name or pattern.
+fn is_parameter_prefix_annotation_left_anchor(character: char) -> bool {
+    character.is_ascii_alphanumeric() || matches!(character, '_' | '$' | '?' | ']' | '}' | ')')
+}
+
+/// Return whether this prefix annotation belongs between parameter name and type separator.
+fn is_parameter_type_separator_prefix_annotation<T: Node>(
+    context: &DestackFormatContext<'_>,
+    _node_id: LocalNodeId<T>,
+    annotation_id: LocalNodeId<Annotation>,
+    position: AnnotationPosition,
+) -> bool
+where
+    NodeTree: NodeTreeImpl<T>,
+{
+    if T::TYPE != NodeType::Parameter {
+        return false;
+    }
+
+    if !matches!(
+        position,
+        AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+    ) {
+        return false;
+    }
+
+    if !matches!(
+        context.tree.get::<Annotation>(annotation_id),
+        Annotation::Comment { .. } | Annotation::Doc { .. }
+    ) {
+        return false;
+    }
+
+    if next_non_whitespace_after_annotation(context, annotation_id) != Some(':') {
+        return false;
+    }
+
+    previous_non_whitespace_before_annotation(context, annotation_id)
+        .is_some_and(is_parameter_prefix_annotation_left_anchor)
+}
+
+/// Collect deferred prefix annotations that belong between parameter names and type separators.
+pub(crate) fn parameter_type_separator_prefix_annotations<'ast>(
+    context: &DestackFormatContext<'ast>,
+    parameter_id: LocalNodeId<Parameter>,
+) -> Vec<LocalNodeId<Annotation>> {
+    let Some(annotations) = context.get_annotations(parameter_id) else {
+        return Vec::new();
+    };
+
+    annotations
+        .into_iter()
+        .filter(|annotation_id| {
+            let annotation = context.tree.get::<Annotation>(*annotation_id);
+            is_parameter_type_separator_prefix_annotation(
+                context,
+                parameter_id,
+                *annotation_id,
+                annotation.position(),
+            )
+        })
+        .collect()
+}
+
+/// Return whether this prefix annotation belongs between lambda parameters and arrow token.
+pub(crate) fn is_lambda_arrow_prefix_annotation<T: Node>(
+    context: &DestackFormatContext<'_>,
+    _node_id: LocalNodeId<T>,
+    annotation_id: LocalNodeId<Annotation>,
+    position: AnnotationPosition,
+) -> bool
+where
+    NodeTree: NodeTreeImpl<T>,
+{
+    if !matches!(
+        position,
+        AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+    ) {
+        return false;
+    }
+
+    if !matches!(
+        context.tree.get::<Annotation>(annotation_id),
+        Annotation::Comment { .. } | Annotation::Doc { .. }
+    ) {
+        return false;
+    }
+
+    let span = context.get_span::<Annotation>(annotation_id);
+    if span.end >= context.file.len {
+        return false;
+    }
+
+    let tail_span = Span::new(span.file, span.end, context.file.len);
+    let Some(tail_source) = context.file.get_span_str(tail_span) else {
+        return false;
+    };
+    if !tail_source.trim_start().starts_with("=>") {
+        return false;
+    }
+
+    previous_non_whitespace_before_annotation(context, annotation_id)
+        .is_some_and(is_parameter_prefix_annotation_left_anchor)
+}
+
+/// Return whether this argument belongs to call-like dynamic argument lists.
+fn argument_is_call_like_dynamic_argument(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let Some((parent_id, parent_type)) = context.get_parent(argument_id) else {
+        return false;
+    };
+    if parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
+    match context.tree.get(parent_expression_id) {
+        Expression::Call {
+            dynamic_arguments, ..
+        } => dynamic_arguments.contains(&argument_id),
+        Expression::New {
+            dynamic_arguments, ..
+        } => dynamic_arguments.contains(&argument_id),
+        _ => false,
+    }
+}
+
+/// Return whether this prefix slash comment should be deferred to call argument separators.
+fn is_call_argument_inline_boundary_prefix_annotation<T: Node>(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+    annotation_id: LocalNodeId<Annotation>,
+    position: AnnotationPosition,
+) -> bool
+where
+    NodeTree: NodeTreeImpl<T>,
+{
+    if T::TYPE != NodeType::Argument {
+        return false;
+    }
+
+    if !matches!(
+        position,
+        AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+    ) {
+        return false;
+    }
+
+    let Annotation::Comment { node, .. } = context.tree.get::<Annotation>(annotation_id) else {
+        return false;
+    };
+    let comment = context.tree.get::<Comment>(*node);
+    if comment.style != CommentStyle::Slash {
+        return false;
+    }
+
+    if annotation_starts_on_own_line(context, annotation_id) {
+        return false;
+    }
+
+    if previous_non_whitespace_before_annotation(context, annotation_id) != Some(',') {
+        return false;
+    }
+
+    let argument_id = LocalNodeId::<Argument>::new(node_id.id);
+    argument_is_call_like_dynamic_argument(context, argument_id)
+}
+
+/// Collect deferred inline boundary prefix comments for a call-like argument.
+pub(crate) fn call_argument_inline_boundary_prefix_annotations<'ast>(
+    context: &DestackFormatContext<'ast>,
+    argument_id: LocalNodeId<Argument>,
+) -> Vec<LocalNodeId<Annotation>> {
+    let Some(annotations) = context.get_annotations(argument_id) else {
+        return Vec::new();
+    };
+
+    annotations
+        .into_iter()
+        .filter(|annotation_id| {
+            let annotation = context.tree.get::<Annotation>(*annotation_id);
+            is_call_argument_inline_boundary_prefix_annotation(
+                context,
+                argument_id,
+                *annotation_id,
+                annotation.position(),
+            )
+        })
+        .collect()
+}
+
+/// Return whether this declaration has a braced body after its header.
+fn declaration_has_braced_body(
+    context: &DestackFormatContext<'_>,
+    declaration_id: LocalNodeId<Declaration>,
+) -> bool {
+    matches!(
+        context.tree.get(declaration_id),
+        Declaration::Global { .. }
+            | Declaration::Struct { .. }
+            | Declaration::Class { .. }
+            | Declaration::Enum { .. }
+            | Declaration::Interface { .. }
+            | Declaration::Extension { .. }
+    )
+}
+
+/// Return whether this annotation belongs between declaration headers and `{`.
+fn is_declaration_body_boundary_prefix_annotation<T: Node>(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+    annotation_id: LocalNodeId<Annotation>,
+    position: AnnotationPosition,
+) -> bool
+where
+    NodeTree: NodeTreeImpl<T>,
+{
+    if !matches!(
+        position,
+        AnnotationPosition::BlockPrefix
+            | AnnotationPosition::LinePrefix
+            | AnnotationPosition::BlockInfix
+    ) {
+        return false;
+    }
+
+    if !matches!(
+        context.tree.get::<Annotation>(annotation_id),
+        Annotation::Comment { .. } | Annotation::Doc { .. }
+    ) {
+        return false;
+    }
+
+    let declaration_id = if T::TYPE == NodeType::Declaration {
+        LocalNodeId::<Declaration>::new(node_id.id)
+    } else if T::TYPE == NodeType::Expression {
+        let expression_id = LocalNodeId::<Expression>::new(node_id.id);
+        let Expression::Declaration(declaration_id) = context.tree.get::<Expression>(expression_id)
+        else {
+            return false;
+        };
+        *declaration_id
+    } else {
+        return false;
+    };
+
+    declaration_has_braced_body(context, declaration_id)
+        && next_non_whitespace_after_annotation(context, annotation_id) == Some('{')
+}
+
+/// Collect deferred prefix annotations between declaration headers and `{`.
+pub(crate) fn declaration_body_boundary_prefix_annotations<'ast>(
+    context: &DestackFormatContext<'ast>,
+    declaration_id: LocalNodeId<Declaration>,
+) -> Vec<LocalNodeId<Annotation>> {
+    let Some(annotations) = context.get_annotations(declaration_id) else {
+        return Vec::new();
+    };
+
+    annotations
+        .into_iter()
+        .filter(|annotation_id| {
+            let annotation = context.tree.get::<Annotation>(*annotation_id);
+            is_declaration_body_boundary_prefix_annotation(
+                context,
+                declaration_id,
+                *annotation_id,
+                annotation.position(),
+            )
+        })
+        .collect()
+}
+
+/// Collect deferred annotations between declaration expression headers and `{`.
+pub(crate) fn declaration_expression_body_boundary_prefix_annotations<'ast>(
+    context: &DestackFormatContext<'ast>,
+    expression_id: LocalNodeId<Expression>,
+) -> Vec<LocalNodeId<Annotation>> {
+    let Some(annotations) = context.get_annotations(expression_id) else {
+        return Vec::new();
+    };
+
+    annotations
+        .into_iter()
+        .filter(|annotation_id| {
+            let annotation = context.tree.get::<Annotation>(*annotation_id);
+            is_declaration_body_boundary_prefix_annotation(
+                context,
+                expression_id,
+                *annotation_id,
+                annotation.position(),
+            )
+        })
+        .collect()
+}
+
+/// Return whether parameter type separator prefix annotations should be deferred to parameter output.
+fn should_defer_parameter_type_separator_prefix_annotation<T: Node>(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+    annotation_id: LocalNodeId<Annotation>,
+    position: AnnotationPosition,
+) -> bool
+where
+    NodeTree: NodeTreeImpl<T>,
+{
+    is_parameter_type_separator_prefix_annotation(context, node_id, annotation_id, position)
+}
+
+/// Return whether lambda arrow boundary prefix annotations should be deferred to lambda output.
+fn should_defer_lambda_arrow_prefix_annotation<T: Node>(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+    annotation_id: LocalNodeId<Annotation>,
+    position: AnnotationPosition,
+) -> bool
+where
+    NodeTree: NodeTreeImpl<T>,
+{
+    is_lambda_arrow_prefix_annotation(context, node_id, annotation_id, position)
+}
+
+/// Return whether call argument separator comments should be deferred to call rendering.
+fn should_defer_call_argument_inline_boundary_prefix_annotation<T: Node>(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+    annotation_id: LocalNodeId<Annotation>,
+    position: AnnotationPosition,
+) -> bool
+where
+    NodeTree: NodeTreeImpl<T>,
+{
+    is_call_argument_inline_boundary_prefix_annotation(context, node_id, annotation_id, position)
+}
+
+/// Return whether declaration body boundary prefix annotations should be deferred.
+fn should_defer_declaration_body_boundary_prefix_annotation<T: Node>(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+    annotation_id: LocalNodeId<Annotation>,
+    position: AnnotationPosition,
+) -> bool
+where
+    NodeTree: NodeTreeImpl<T>,
+{
+    is_declaration_body_boundary_prefix_annotation(context, node_id, annotation_id, position)
+}
+
+/// Return whether a separator punctuation immediately follows an annotation.
+fn annotation_precedes_separator<'ast>(
+    context: &DestackFormatContext<'ast>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    matches!(
+        next_non_whitespace_after_annotation(context, annotation_id),
+        Some(',' | ';' | ')' | ']' | '}' | '>' | '(' | '?' | '.' | ':')
+    )
+}
+
+/// Return the raw annotation line text including its leading indentation.
+fn annotation_line_with_indentation<'ast>(
+    context: &DestackFormatContext<'ast>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> Option<String> {
+    let span = context.get_span(annotation_id);
+    let head_span = Span::new(span.file, 0, span.start);
+    let head_source = context.file.get_span_str(head_span)?;
+    let line_start = head_source.rfind('\n').map_or(0, |index| index + 1);
+
+    let line_span = Span::new(span.file, line_start as u32, span.end);
+    let line_source = context.file.get_span_str(line_span)?;
+    Some(line_source.trim_end().to_string())
+}
+
+/// Write an annotation line while preserving explicit leading indentation.
+fn write_annotation_line_with_indentation<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    raw_line: &str,
+) -> FormatResult<()> {
+    let mut content_start = raw_line.len();
+    for (index, character) in raw_line.char_indices() {
+        if character == ' ' || character == '\t' {
+            continue;
+        }
+        content_start = index;
+        break;
+    }
+
+    let leading = &raw_line[..content_start];
+    let content = &raw_line[content_start..];
+
+    write!(f, [hard_line_break()])?;
+    for character in leading.chars() {
+        if character == '\t' {
+            write!(f, [token("\t")])?;
+        } else {
+            write!(f, [space()])?;
+        }
+    }
+    write!(f, [text(content)])?;
+    Ok(())
+}
+
+/// Return whether the first non-whitespace token after an annotation starts on the same line.
+fn annotation_next_token_is_on_same_line(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    let span = context.get_span::<Annotation>(annotation_id);
+    if span.end >= context.file.len {
+        return false;
+    }
+
+    let tail_span = Span::new(span.file, span.end, context.file.len);
+    let Some(tail_source) = context.file.get_span_str(tail_span) else {
+        return false;
+    };
+
+    for character in tail_source.chars() {
+        if character.is_whitespace() {
+            if character == '\n' {
+                return false;
+            }
+            continue;
+        }
+
+        return true;
+    }
+
+    false
+}
+
+/// Return the first non whitespace character before an annotation span.
+fn previous_non_whitespace_before_annotation<'ast>(
+    context: &DestackFormatContext<'ast>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> Option<char> {
+    let span = context.get_span(annotation_id);
+    if span.start == 0 {
+        return None;
+    }
+
+    let head_span = Span::new(span.file, 0, span.start);
+    let head_source = context.file.get_span_str(head_span)?;
+    head_source
+        .chars()
+        .rev()
+        .find(|character: &char| !character.is_whitespace())
+}
+
+/// Return whether an annotation directly follows a colon in source.
+fn annotation_follows_colon<'ast>(
+    context: &DestackFormatContext<'ast>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    previous_non_whitespace_before_annotation(context, annotation_id) == Some(':')
+}
+
+/// Return whether an annotation directly follows an opening delimiter in source.
+fn annotation_follows_opening_delimiter<'ast>(
+    context: &DestackFormatContext<'ast>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    matches!(
+        previous_non_whitespace_before_annotation(context, annotation_id),
+        Some('(' | '[' | '{' | '<')
+    )
+}
+
+/// Return whether an annotation starts on a line with only leading whitespace.
+fn annotation_starts_on_own_line<'ast>(
+    context: &DestackFormatContext<'ast>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    let span = context.get_span(annotation_id);
+    let head_span = Span::new(span.file, 0, span.start);
+    let head_source = context.file.get_span_str(head_span).unwrap_or_default();
+    let line_start = head_source.rfind('\n').map(|index| index + 1).unwrap_or(0);
+    let line_prefix = &head_source[line_start..];
+    line_prefix.trim().is_empty()
+}
+
+/// Return whether annotation source begins after at least one newline.
+fn annotation_has_leading_newline<'ast>(
+    context: &DestackFormatContext<'ast>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    let span = context.get_span(annotation_id);
+    let source = context.get_span_str(span);
+    source
+        .chars()
+        .take_while(|character| character.is_whitespace())
+        .any(|character| character == '\n')
+}
+
+/// Return whether a span falls on a ternary separator boundary.
+fn ternary_contains_boundary_annotation_span(
+    context: &DestackFormatContext<'_>,
+    ternary_id: LocalNodeId<Expression>,
+    annotation_span: Span,
+) -> bool {
+    let Expression::If {
+        kind: IfKind::Ternary,
+        condition,
+        then_expression,
+        else_expression,
+        ..
+    } = context.tree.get(ternary_id)
+    else {
+        return false;
+    };
+
+    let IfCondition::Expression { condition } = condition else {
+        return false;
+    };
+
+    let condition_span = context.get_span(*condition);
+    let then_span = context.get_span(*then_expression);
+
+    if annotation_span.start >= condition_span.end && annotation_span.end <= then_span.start {
+        return true;
+    }
+
+    let Some(else_id) = else_expression else {
+        return false;
+    };
+    let else_span = context.get_span(*else_id);
+    if annotation_span.start >= then_span.end && annotation_span.end <= else_span.start {
+        return true;
+    }
+
+    matches!(
+        context.tree.get(*else_id),
+        Expression::If {
+            kind: IfKind::Ternary,
+            ..
+        }
+    ) && ternary_contains_boundary_annotation_span(context, *else_id, annotation_span)
+}
+
+/// Return whether a statement-level line-prefix star comment should be deferred to ternary output.
+fn should_defer_statement_ternary_boundary_prefix_annotation<T>(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+    annotation_id: LocalNodeId<Annotation>,
+    position: AnnotationPosition,
+) -> bool
+where
+    T: Node,
+    NodeTree: NodeTreeImpl<T>,
+{
+    if T::TYPE != NodeType::Expression || position != AnnotationPosition::LinePrefix {
+        return false;
+    }
+
+    let Annotation::Comment { node, .. } = context.tree.get::<Annotation>(annotation_id) else {
+        return false;
+    };
+    let comment = context.tree.get::<Comment>(*node);
+    if comment.style != CommentStyle::Star {
+        return false;
+    }
+
+    let expression_id = LocalNodeId::<Expression>::new(node_id.id);
+    let Expression::Statement(inner_expression_id) = context.tree.get::<Expression>(expression_id)
+    else {
+        return false;
+    };
+    if !matches!(
+        context.tree.get::<Expression>(*inner_expression_id),
+        Expression::If {
+            kind: IfKind::Ternary,
+            ..
+        }
+    ) {
+        return false;
+    }
+
+    let annotation_span = context.get_span::<Annotation>(annotation_id);
+    let inner_span = context.get_span::<Expression>(*inner_expression_id);
+    if annotation_span.start <= inner_span.start || annotation_span.end >= inner_span.end {
+        return false;
+    }
+
+    ternary_contains_boundary_annotation_span(context, *inner_expression_id, annotation_span)
+}
+
+/// Return whether a postfix star comment should be deferred after a parenthesized close.
+fn should_defer_parenthesized_boundary_annotation<T>(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+    annotation_id: LocalNodeId<Annotation>,
+    position: AnnotationPosition,
+) -> bool
+where
+    T: Node,
+    NodeTree: NodeTreeImpl<T>,
+{
+    if T::TYPE != NodeType::Expression {
+        return false;
+    }
+    if !matches!(
+        position,
+        AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary
+    ) {
+        return false;
+    }
+
+    let Annotation::Comment { node, .. } = context.tree.get::<Annotation>(annotation_id) else {
+        return false;
+    };
+    let comment = context.tree.get::<Comment>(*node);
+    if comment.style != CommentStyle::Star {
+        return false;
+    }
+
+    if next_non_whitespace_after_annotation(context, annotation_id) != Some(')') {
+        return false;
+    }
+
+    let expression_id = LocalNodeId::<Expression>::new(node_id.id);
+    let Some((parent_id, parent_type)) = context.get_parent_by_id(node_id.id) else {
+        return false;
+    };
+    if parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let parent_id = LocalNodeId::<Expression>::new(parent_id);
+    if matches!(
+        context.tree.get::<Expression>(parent_id),
+        Expression::Parenthesized { expression } if *expression == expression_id
+    ) {
+        return true;
+    }
+
+    let Expression::Binary { right, .. } = context.tree.get::<Expression>(parent_id) else {
+        return false;
+    };
+    if *right != expression_id {
+        return false;
+    }
+
+    let annotation_span = context.get_span::<Annotation>(annotation_id);
+    let binary_span = context.get_span::<Expression>(parent_id);
+    if annotation_span.start < binary_span.end {
+        return false;
+    }
+
+    let Some((grand_parent_id, grand_parent_type)) = context.get_parent_by_id(parent_id.id) else {
+        return false;
+    };
+    if grand_parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let grand_parent_id = LocalNodeId::<Expression>::new(grand_parent_id);
+    matches!(
+        context.tree.get::<Expression>(grand_parent_id),
+        Expression::Parenthesized { expression } if *expression == parent_id
+    )
+}
+
+/// Return whether a callee boundary comment should be deferred to call rendering.
+fn should_defer_call_boundary_annotation<T>(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+    annotation_id: LocalNodeId<Annotation>,
+    position: AnnotationPosition,
+) -> bool
+where
+    T: Node,
+    NodeTree: NodeTreeImpl<T>,
+{
+    if T::TYPE != NodeType::Expression {
+        return false;
+    }
+
+    let expression_id = LocalNodeId::<Expression>::new(node_id.id);
+    let Some(call_position) = enclosing_empty_call_position_for_callee(context, expression_id)
+    else {
+        return false;
+    };
+
+    let Annotation::Comment { node, .. } = context.tree.get::<Annotation>(annotation_id) else {
+        return false;
+    };
+    let comment = context.tree.get::<Comment>(*node);
+
+    if comment.style == CommentStyle::Star
+        && position == AnnotationPosition::BlockPostfix
+        && previous_non_whitespace_before_annotation(context, annotation_id) == Some('(')
+        && next_non_whitespace_after_annotation(context, annotation_id) == Some(')')
+    {
+        return true;
+    }
+
+    if comment.style != CommentStyle::Slash {
+        return false;
+    }
+
+    let has_line_postfix_position = matches!(
+        position,
+        AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary
+    );
+    let has_block_postfix_position = position == AnnotationPosition::BlockPostfix;
+
+    // keep empty call argument line comments inside `()`
+    if (has_line_postfix_position || has_block_postfix_position)
+        && previous_non_whitespace_before_annotation(context, annotation_id) == Some('(')
+        && next_non_whitespace_after_annotation(context, annotation_id) == Some(')')
+    {
+        return true;
+    }
+
+    // keep optional call boundary comments at the call expression level
+    has_line_postfix_position
+        && (call_position == PostfixPosition::Indirect
+            || next_non_whitespace_after_annotation(context, annotation_id) == Some('?'))
+        && next_non_whitespace_after_annotation(context, annotation_id) == Some('?')
+}
+
+/// Return the method body expression when `expression_id` is a method return type node.
+fn method_body_for_signature_return_type_expression(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> Option<LocalNodeId<Expression>> {
+    let (parent_id, parent_type) = context.get_parent_by_id(expression_id.id)?;
+    match parent_type {
+        NodeType::Member => {
+            let member_id = LocalNodeId::<Member>::new(parent_id);
+            let Member::Method {
+                signature, body, ..
+            } = context.tree.get(member_id)
+            else {
+                return None;
+            };
+            if signature.return_type == Some(expression_id) {
+                *body
+            } else {
+                None
+            }
+        }
+        NodeType::Property => {
+            let property_id = LocalNodeId::<Property>::new(parent_id);
+            let Property::Method {
+                signature, body, ..
+            } = context.tree.get(property_id)
+            else {
+                return None;
+            };
+            if signature.return_type == Some(expression_id) {
+                *body
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+/// Return whether expression is the body of a method member/property.
+fn expression_is_method_body(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some((parent_id, parent_type)) = context.get_parent_by_id(expression_id.id) else {
+        return false;
+    };
+
+    match parent_type {
+        NodeType::Member => {
+            let member_id = LocalNodeId::<Member>::new(parent_id);
+            let Member::Method { body, .. } = context.tree.get(member_id) else {
+                return false;
+            };
+            *body == Some(expression_id)
+        }
+        NodeType::Property => {
+            let property_id = LocalNodeId::<Property>::new(parent_id);
+            let Property::Method { body, .. } = context.tree.get(property_id) else {
+                return false;
+            };
+            *body == Some(expression_id)
+        }
+        _ => false,
+    }
+}
+
+/// Return whether a method boundary slash comment should be deferred to method body rendering.
+fn should_defer_method_body_boundary_annotation<T>(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+    annotation_id: LocalNodeId<Annotation>,
+    position: AnnotationPosition,
+) -> bool
+where
+    T: Node,
+    NodeTree: NodeTreeImpl<T>,
+{
+    if T::TYPE != NodeType::Expression {
+        return false;
+    }
+
+    let Annotation::Comment { node, .. } = context.tree.get::<Annotation>(annotation_id) else {
+        return false;
+    };
+    let comment = context.tree.get::<Comment>(*node);
+    if comment.style != CommentStyle::Slash {
+        return false;
+    }
+
+    let expression_id = LocalNodeId::<Expression>::new(node_id.id);
+    let expression = context.tree.get::<Expression>(expression_id);
+
+    if position == AnnotationPosition::LinePostfixBoundary
+        && method_body_for_signature_return_type_expression(context, expression_id).is_some_and(
+            |body_id| {
+                matches!(
+                    context.tree.get::<Expression>(body_id),
+                    Expression::Block(_)
+                )
+            },
+        )
+        && next_non_whitespace_after_annotation(context, annotation_id) == Some('{')
+    {
+        return true;
+    }
+
+    position == AnnotationPosition::BlockPrefix
+        && matches!(expression, Expression::Block(_))
+        && expression_is_method_body(context, expression_id)
+}
+
+/// Return the enclosing empty call position when expression belongs to call callee wrappers.
+fn enclosing_empty_call_position_for_callee(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> Option<PostfixPosition> {
+    let mut current_id = expression_id;
+
+    loop {
+        let (parent_id, parent_type) = context.get_parent_by_id(current_id.id)?;
+        if parent_type != NodeType::Expression {
+            return None;
+        }
+
+        let parent_id = LocalNodeId::<Expression>::new(parent_id);
+        match context.tree.get::<Expression>(parent_id) {
+            Expression::Call {
+                left,
+                position,
+                dynamic_arguments,
+                ..
+            } => {
+                if *left != current_id || !dynamic_arguments.is_empty() {
+                    return None;
+                }
+
+                return Some(*position);
+            }
+            Expression::Maybe { left, .. } | Expression::Must { left, .. } => {
+                if *left != current_id {
+                    return None;
+                }
+
+                current_id = parent_id;
+            }
+            Expression::Parenthesized { expression } => {
+                if *expression != current_id {
+                    return None;
+                }
+
+                current_id = parent_id;
+            }
+            _ => return None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AnnotationCapture {
     BlockInfix,
@@ -139,6 +1058,71 @@ where
                 Annotation::Comment { position, .. } => (NodeType::Comment, *position),
                 Annotation::Decorator { position, .. } => (NodeType::Decorator, *position),
             };
+            // defer statement-level ternary boundary comments to the ternary formatter
+            if should_defer_statement_ternary_boundary_prefix_annotation(
+                f.context(),
+                self.node_id,
+                annotation_id,
+                position,
+            ) {
+                continue;
+            }
+            if should_defer_parenthesized_boundary_annotation(
+                f.context(),
+                self.node_id,
+                annotation_id,
+                position,
+            ) {
+                continue;
+            }
+            if should_defer_call_boundary_annotation(
+                f.context(),
+                self.node_id,
+                annotation_id,
+                position,
+            ) {
+                continue;
+            }
+            if should_defer_parameter_type_separator_prefix_annotation(
+                f.context(),
+                self.node_id,
+                annotation_id,
+                position,
+            ) {
+                continue;
+            }
+            if should_defer_lambda_arrow_prefix_annotation(
+                f.context(),
+                self.node_id,
+                annotation_id,
+                position,
+            ) {
+                continue;
+            }
+            if should_defer_call_argument_inline_boundary_prefix_annotation(
+                f.context(),
+                self.node_id,
+                annotation_id,
+                position,
+            ) {
+                continue;
+            }
+            if should_defer_declaration_body_boundary_prefix_annotation(
+                f.context(),
+                self.node_id,
+                annotation_id,
+                position,
+            ) {
+                continue;
+            }
+            if should_defer_method_body_boundary_annotation(
+                f.context(),
+                self.node_id,
+                annotation_id,
+                position,
+            ) {
+                continue;
+            }
 
             // filter annotation
             let is_included = match position {
@@ -185,12 +1169,180 @@ where
             } else {
                 false
             };
+            let is_star_comment = if let Annotation::Comment {
+                node: comment_id, ..
+            } = annotation
+            {
+                let comment = f.context().tree.get::<Comment>(*comment_id);
+                comment.style == CommentStyle::Star
+            } else {
+                false
+            };
+            let is_ignore_directive_postfix_comment = is_slash_comment
+                && matches!(
+                    position,
+                    AnnotationPosition::LinePostfix
+                        | AnnotationPosition::LinePostfixBoundary
+                        | AnnotationPosition::BlockPostfix
+                )
+                && {
+                    let annotation_span = f.context().get_span::<Annotation>(annotation_id);
+                    let annotation_source = f.context().get_span_str(annotation_span);
+                    is_ignore_directive_comment(annotation_source)
+                };
+            let is_inline_decorator_prefix = matches!(annotation, Annotation::Decorator { .. })
+                && position == AnnotationPosition::BlockPrefix
+                && f.context().options.language_type.is_typescript()
+                && annotation_next_token_is_on_same_line(f.context(), annotation_id);
+
+            let has_if_ancestor = f.context().get_ancestors(self.node_id).into_iter().any(
+                |(ancestor_id, node_type)| {
+                    if node_type != NodeType::Expression {
+                        return false;
+                    }
+                    matches!(
+                        f.context()
+                            .tree
+                            .get::<Expression>(LocalNodeId::<Expression>::new(ancestor_id)),
+                        Expression::If { .. }
+                    )
+                },
+            );
+            let has_member_ancestor = f
+                .context()
+                .get_ancestors(self.node_id)
+                .into_iter()
+                .any(|(_, node_type)| node_type == NodeType::Member);
+            let has_member_context = has_member_ancestor
+                || (T::TYPE == NodeType::Expression
+                    && matches!(
+                        f.context()
+                            .tree
+                            .get::<Expression>(LocalNodeId::<Expression>::new(self.node_id.id)),
+                        Expression::Member { .. } | Expression::PrivateMember { .. }
+                    ));
+            let is_blank_prefix_annotation = matches!(
+                annotation,
+                Annotation::Blank {
+                    position: AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix,
+                    ..
+                }
+            );
+            if is_blank_prefix_annotation
+                && has_if_ancestor
+                && annotation_followed_by_else_keyword(f.context(), annotation_id)
+            {
+                continue;
+            }
+            // keep formatter directives attached to the ignored next node
+            if is_ignore_directive_postfix_comment {
+                continue;
+            }
+            let is_inline_block_star_comment = matches!(
+                position,
+                AnnotationPosition::BlockPrefix | AnnotationPosition::BlockInfix
+            ) && is_star_comment
+                && !annotation_starts_on_own_line(f.context(), annotation_id)
+                && !annotation_follows_colon(f.context(), annotation_id);
+            let is_inline_delimited_block_postfix_star_comment = position
+                == AnnotationPosition::BlockPostfix
+                && is_star_comment
+                && annotation_follows_opening_delimiter(f.context(), annotation_id)
+                && annotation_precedes_separator(f.context(), annotation_id);
+            let inline_block_comment_follows_opening_delimiter = is_inline_block_star_comment
+                && annotation_follows_opening_delimiter(f.context(), annotation_id);
+
             if is_slash_comment
                 && matches!(
                     position,
                     AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary
                 )
+                && !has_member_context
             {
+                let starts_on_own_line = annotation_starts_on_own_line(f.context(), annotation_id)
+                    || annotation_has_leading_newline(f.context(), annotation_id);
+                let next_character =
+                    next_non_whitespace_after_annotation(f.context(), annotation_id);
+                let should_preserve_own_line_indentation = starts_on_own_line
+                    && (!annotation_precedes_separator(f.context(), annotation_id)
+                        || matches!(next_character, Some(';' | '(')));
+                if should_preserve_own_line_indentation {
+                    let raw_line = annotation_line_with_indentation(f.context(), annotation_id)
+                        .unwrap_or_else(|| {
+                            let annotation_span = f.context().get_span::<Annotation>(annotation_id);
+                            let annotation_source = f.context().get_span_str(annotation_span);
+                            annotation_source.trim_end().to_string()
+                        });
+                    write_annotation_line_with_indentation(f, raw_line.as_str())?;
+                    continue;
+                }
+
+                let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                    write!(f, [space()])?;
+                    if has_if_ancestor {
+                        let annotation_span = f.context().get_span::<Annotation>(annotation_id);
+                        let annotation_source = f.context().get_span_str(annotation_span);
+                        write!(f, [text(annotation_source.trim())])
+                    } else {
+                        annotation.format_node(annotation_id, f)
+                    }
+                });
+                write!(f, [line_postfix(&content, 0)])?;
+                continue;
+            }
+
+            if is_slash_comment
+                && position == AnnotationPosition::BlockPostfix
+                && !has_member_context
+            {
+                let starts_on_own_line = annotation_starts_on_own_line(f.context(), annotation_id)
+                    || annotation_has_leading_newline(f.context(), annotation_id);
+                let next_character =
+                    next_non_whitespace_after_annotation(f.context(), annotation_id);
+                let should_preserve_own_line_indentation = starts_on_own_line
+                    && (!annotation_precedes_separator(f.context(), annotation_id)
+                        || matches!(next_character, Some(';' | '(')));
+                if should_preserve_own_line_indentation {
+                    let raw_line = annotation_line_with_indentation(f.context(), annotation_id)
+                        .unwrap_or_else(|| {
+                            let annotation_span = f.context().get_span::<Annotation>(annotation_id);
+                            let annotation_source = f.context().get_span_str(annotation_span);
+                            annotation_source.trim_end().to_string()
+                        });
+                    write_annotation_line_with_indentation(f, raw_line.as_str())?;
+                    continue;
+                }
+            }
+
+            if is_slash_comment && position == AnnotationPosition::BlockPrefix {
+                let annotation_span = f.context().get_span::<Annotation>(annotation_id);
+                let annotation_source = f.context().get_span_str(annotation_span);
+                let should_preserve_alignment_marker_indentation =
+                    annotation_starts_on_own_line(f.context(), annotation_id)
+                        && annotation_source.trim_start().starts_with("//<-");
+                if should_preserve_alignment_marker_indentation {
+                    let raw_line = annotation_line_with_indentation(f.context(), annotation_id)
+                        .unwrap_or_else(|| annotation_source.trim_end().to_string());
+                    write_annotation_line_with_indentation(f, raw_line.as_str())?;
+                    write!(f, [hard_line_break()])?;
+                    continue;
+                }
+            }
+
+            // keep boundary block comments after member terminators
+            let is_member_boundary_comment = if let Annotation::Comment {
+                node: comment_id, ..
+            } = annotation
+            {
+                let comment = f.context().tree.get::<Comment>(*comment_id);
+                comment.style == CommentStyle::Star
+                    && position == AnnotationPosition::LinePostfixBoundary
+                    && has_member_context
+            } else {
+                false
+            };
+
+            if is_member_boundary_comment {
                 let content = format_with(|f| {
                     write!(f, [space()])?;
                     annotation.format_node(annotation_id, f)
@@ -199,16 +1351,72 @@ where
                 continue;
             }
 
+            // keep if boundary block comments inline between then and else
+            let is_if_boundary_block_comment = if let Annotation::Comment {
+                node: comment_id, ..
+            } = annotation
+            {
+                let comment = f.context().tree.get::<Comment>(*comment_id);
+                comment.style == CommentStyle::Star
+                    && position == AnnotationPosition::LinePostfixBoundary
+                    && has_if_ancestor
+                    && !annotation_starts_on_own_line(f.context(), annotation_id)
+            } else {
+                false
+            };
+
+            if is_if_boundary_block_comment {
+                if first_node_type.is_none() {
+                    first_node_type = Some(node_type);
+                    write!(f, [space()])?;
+                }
+
+                let annotation_span = f.context().get_span::<Annotation>(annotation_id);
+                let annotation_source = f.context().get_span_str(annotation_span);
+                write!(f, [text(annotation_source.trim())])?;
+                if !annotation_precedes_separator(f.context(), annotation_id) {
+                    write!(f, [space()])?;
+                }
+                continue;
+            }
+
             // insert space/newline for first annotation in group
             if first_node_type.is_none() {
                 first_node_type = Some(node_type);
+                let is_block_prefix_after_colon = position == AnnotationPosition::BlockPrefix
+                    && is_star_comment
+                    && annotation_follows_colon(f.context(), annotation_id);
 
                 // insert space / newline
                 match position {
-                    AnnotationPosition::BlockInfix
-                    | AnnotationPosition::BlockPrefix
-                    | AnnotationPosition::BlockPostfix => {
-                        write!(f, [hard_line_break()])?;
+                    AnnotationPosition::BlockInfix => {
+                        if is_inline_block_star_comment {
+                            if !inline_block_comment_follows_opening_delimiter {
+                                write!(f, [space()])?;
+                            }
+                        } else {
+                            write!(f, [hard_line_break()])?;
+                        }
+                    }
+                    AnnotationPosition::BlockPostfix => {
+                        if is_inline_delimited_block_postfix_star_comment {
+                            if !annotation_follows_opening_delimiter(f.context(), annotation_id) {
+                                write!(f, [space()])?;
+                            }
+                        } else {
+                            write!(f, [hard_line_break()])?;
+                        }
+                    }
+                    AnnotationPosition::BlockPrefix => {
+                        if is_inline_block_star_comment {
+                            if !inline_block_comment_follows_opening_delimiter {
+                                write!(f, [space()])?;
+                            }
+                        } else if is_inline_decorator_prefix {
+                            write!(f, [space()])?;
+                        } else if !is_block_prefix_after_colon {
+                            write!(f, [hard_line_break()])?;
+                        }
                     }
                     AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary => {
                         // block comments in line postfix still need spacing (slash handled above)
@@ -225,16 +1433,51 @@ where
 
             // insert space / newline
             match position {
-                AnnotationPosition::LinePrefix | AnnotationPosition::LinePostfix => {
+                AnnotationPosition::LinePrefix => {
                     write!(f, [space()])?;
                 }
-                AnnotationPosition::BlockInfix
-                | AnnotationPosition::BlockPrefix
-                | AnnotationPosition::BlockPostfix => {
-                    write!(f, [hard_line_break()])?;
+                AnnotationPosition::LinePostfix => {
+                    if !(is_star_comment
+                        && annotation_precedes_separator(f.context(), annotation_id))
+                    {
+                        write!(f, [space()])?;
+                    }
+                }
+                AnnotationPosition::BlockInfix => {
+                    if is_inline_block_star_comment {
+                        if !annotation_precedes_separator(f.context(), annotation_id) {
+                            write!(f, [space()])?;
+                        }
+                    } else {
+                        write!(f, [hard_line_break()])?;
+                    }
+                }
+                AnnotationPosition::BlockPostfix => {
+                    if is_inline_delimited_block_postfix_star_comment {
+                        if !annotation_precedes_separator(f.context(), annotation_id) {
+                            write!(f, [space()])?;
+                        }
+                    } else {
+                        write!(f, [hard_line_break()])?;
+                    }
+                }
+                AnnotationPosition::BlockPrefix => {
+                    if is_inline_block_star_comment {
+                        if !annotation_precedes_separator(f.context(), annotation_id) {
+                            write!(f, [space()])?;
+                        }
+                    } else if is_inline_decorator_prefix {
+                        write!(f, [space()])?;
+                    } else {
+                        write!(f, [hard_line_break()])?;
+                    }
                 }
                 AnnotationPosition::LinePostfixBoundary => {
-                    write!(f, [soft_line_break()])?;
+                    if !(is_star_comment
+                        && annotation_precedes_separator(f.context(), annotation_id))
+                    {
+                        write!(f, [soft_line_break()])?;
+                    }
                 }
             }
         }
@@ -316,20 +1559,19 @@ impl<'ast> FormatNode<'ast, Doc> for Doc {
                     }
                     write!(f, [token(" */")])?;
                 } else {
-                    write!(
-                        f,
-                        [token("/**"), space(), self.string, space(), token("*/")]
-                    )?;
+                    let content = normalize_inline_block_comment_content(string);
+                    if content.is_empty() {
+                        write!(f, [token("/**/")])?;
+                    } else {
+                        write!(
+                            f,
+                            [token("/**"), space(), text(content), space(), token("*/")]
+                        )?;
+                    }
                 }
             }
             DocStyle::Slash => {
-                let mut lines = string.lines().peekable();
-                while let Some(line) = lines.next() {
-                    write!(f, [token("///"), space(), text(line)])?;
-                    if lines.peek().is_some() {
-                        write!(f, [hard_line_break()])?;
-                    }
-                }
+                format_line_comment_lines(f, "///", string)?;
             }
         }
         Ok(())
@@ -339,7 +1581,7 @@ impl<'ast> FormatNode<'ast, Doc> for Doc {
 impl<'ast> FormatNode<'ast, Comment> for Comment {
     fn format_node(
         &self,
-        _node_id: LocalNodeId<Comment>,
+        node_id: LocalNodeId<Comment>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         let string = f.context().strings.get(self.string);
@@ -347,39 +1589,128 @@ impl<'ast> FormatNode<'ast, Comment> for Comment {
         match self.style {
             CommentStyle::Star => {
                 if is_multi_line {
-                    for (i, line) in string.lines().enumerate() {
-                        if i == 0 {
-                            write!(f, [token("/*")])?;
-                        } else {
-                            write!(f, [token(" *")])?;
+                    let lines: Vec<&str> = string.lines().collect();
+                    let aligns_with_stars = lines
+                        .iter()
+                        .skip(1)
+                        .filter(|line| !line.trim().is_empty())
+                        .all(|line| line.trim_start().starts_with('*'));
+
+                    if aligns_with_stars {
+                        for (i, line) in lines.iter().enumerate() {
+                            if i == 0 {
+                                write!(f, [token("/*")])?;
+                            } else {
+                                write!(f, [token(" *")])?;
+                            }
+                            if !line.is_empty() {
+                                write!(f, [space(), text(line.trim_end_matches('\r'))])?;
+                            }
+                            if i != lines.len() - 1 {
+                                write!(f, [hard_line_break()])?;
+                            }
                         }
-                        if !line.is_empty() {
-                            write!(f, [space(), text(line)])?;
-                        }
-                        if i != string.lines().count() - 1 {
+                        if string.ends_with('\n') {
                             write!(f, [hard_line_break()])?;
                         }
+                        write!(f, [token(" */")])?;
+                    } else {
+                        let source = f.context().get_span_str(f.context().get_span(node_id));
+                        let source = source.replace("\r\n", "\n");
+                        write!(f, [text(source.trim_end_matches('\n'))])?;
                     }
-                    if string.ends_with('\n') {
-                        write!(f, [hard_line_break()])?;
-                    }
-                    write!(f, [token(" */")])?;
                 } else {
-                    write!(f, [token("/*"), space(), self.string, space(), token("*/")])?;
+                    let content = normalize_inline_block_comment_content(string);
+                    if is_compact_hint_comment(content) {
+                        write!(f, [token("/*"), text(content), token("*/")])?;
+                    } else if is_all_asterisks_comment(content) {
+                        let source = f.context().get_span_str(f.context().get_span(node_id));
+                        write!(f, [text(source.trim())])?;
+                    } else if content.is_empty() {
+                        let source = f.context().get_span_str(f.context().get_span(node_id));
+                        if source.contains("/**/") {
+                            write!(f, [token("/**/")])?;
+                        } else {
+                            write!(f, [token("/* */")])?;
+                        }
+                    } else {
+                        write!(
+                            f,
+                            [token("/*"), space(), text(content), space(), token("*/")]
+                        )?;
+                    }
                 }
             }
             CommentStyle::Slash => {
-                let mut lines = string.lines().peekable();
-                while let Some(line) = lines.next() {
-                    write!(f, [token("//"), space(), text(line)])?;
-                    if lines.peek().is_some() {
-                        write!(f, [hard_line_break()])?;
-                    }
-                }
+                format_line_comment_lines(f, "//", string)?;
             }
         }
         Ok(())
     }
+}
+
+/// Format slash style comment lines, preserving empty comment lines.
+fn format_line_comment_lines<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    prefix: &'static str,
+    content: &str,
+) -> FormatResult<()> {
+    if content.is_empty() {
+        write!(f, [token(prefix)])?;
+        return Ok(());
+    }
+
+    let mut lines = content.split('\n').peekable();
+    while let Some(line) = lines.next() {
+        if line.is_empty() {
+            write!(f, [token(prefix)])?;
+        } else {
+            let first_character = line.chars().next();
+            let should_insert_space = first_character
+                .is_some_and(|character| !character.is_ascii_digit() && !line.starts_with("<-"));
+            if should_insert_space {
+                write!(f, [token(prefix), space(), text(line)])?;
+            } else {
+                write!(f, [token(prefix), text(line)])?;
+            }
+        }
+
+        if lines.peek().is_some() {
+            write!(f, [hard_line_break()])?;
+        }
+    }
+
+    Ok(())
+}
+
+fn normalize_inline_block_comment_content(content: &str) -> &str {
+    let content = content.trim();
+
+    if let Some(stripped_doc) = content.strip_prefix("/**")
+        && let Some(inner) = stripped_doc.strip_suffix("*/")
+    {
+        return inner.trim();
+    }
+
+    if let Some(stripped_comment) = content.strip_prefix("/*")
+        && let Some(inner) = stripped_comment.strip_suffix("*/")
+    {
+        return inner.trim();
+    }
+
+    content
+}
+
+fn is_compact_hint_comment(content: &str) -> bool {
+    matches!(
+        content,
+        "#__PURE__" | "@__PURE__" | "#__NO_SIDE_EFFECTS__" | "@__NO_SIDE_EFFECTS__"
+    )
+}
+
+/// Return whether a block comment body is a run of asterisks.
+fn is_all_asterisks_comment(content: &str) -> bool {
+    !content.is_empty() && content.chars().all(|character| character == '*')
 }
 
 impl<'ast> FormatNode<'ast, Decorator> for Decorator {
@@ -389,6 +1720,15 @@ impl<'ast> FormatNode<'ast, Decorator> for Decorator {
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         let tree = f.context().tree;
+        let expression_span = f.context().get_span(self.expression);
+        let expression_source = f.context().get_span_str(expression_span);
+        let expression_contains_inline_comment =
+            expression_source.contains("//") || expression_source.contains("/*");
+        if expression_contains_inline_comment {
+            write!(f, [token("@"), text(expression_source.trim())])?;
+            return Ok(());
+        }
+
         let needs_parentheses = decorator_needs_parentheses(tree, self.expression);
         write!(f, [token("@")])?;
         if needs_parentheses {
@@ -474,7 +1814,7 @@ mod tests {
     // comment before foo
     @foo(1, 2, 3)
     // comment after foo
-    struct Entity { }
+    struct Entity {}
 }"#;
         assert_format!(
             source,
@@ -489,7 +1829,7 @@ mod tests {
     fn test_format_decorator_parentheses_are_stable() {
         let source = r#"{
     @(chain.first().second())
-    function chained() { }
+    function chained() {}
 }"#;
         assert_format!(
             source,
@@ -573,7 +1913,7 @@ mod tests {
     /** some multiline
      * doc comment
      * over multiple lines */
-    const X = 1
+    const X = 1;
 }",
             |p| p.eat_block(),
             DestackFormatOptions::default()
@@ -589,9 +1929,9 @@ mod tests {
     * over multiple lines yo       */
 }",
             "{
-    const X = 1
+    const X = 1;
     /* some comment
-     * over multiple lines yo */
+    * over multiple lines yo       */
 }",
             |p| p.eat_block(),
             DestackFormatOptions::default()
@@ -622,10 +1962,7 @@ mod tests {
     fn test_format_comment_in_call_arguments() {
         assert_format!(
             "foo(/* first */ a, /* second */ b)",
-            "foo(
-    /* first */ a,
-    /* second */ b,
-)",
+            "foo(/* first */ a, /* second */ b)",
             |p| p.eat_expression(),
             DestackFormatOptions::default()
         );
@@ -669,14 +2006,14 @@ mod tests {
         1,
         2,
         3, // last element
-    ]
+    ];
 }",
             "{
     const arr = [
         1,
         2,
         3, // last element
-    ]
+    ];
 }",
             |p| p.eat_block(),
             DestackFormatOptions::default()
@@ -690,6 +2027,28 @@ mod tests {
             "function foo() { /* empty */ }",
             "function foo() {\n    /* empty */\n}",
             |p| p.eat_function(&p.mark(), DeclarationDescriptor::default(), false, false),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Empty slash star doc comments should stay stable on arrows.
+    #[test]
+    fn test_format_empty_doc_comment_on_arrow() {
+        assert_format!(
+            "() /**/ => 1",
+            "() /**/ => 1",
+            |p| p.eat_expression(),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Pure hint comments should keep compact style.
+    #[test]
+    fn test_format_compact_pure_hint_comment() {
+        assert_format!(
+            "/*#__PURE__*/factory()",
+            "/*#__PURE__*/ factory()",
+            |p| p.eat_expression(),
             DestackFormatOptions::default()
         );
     }

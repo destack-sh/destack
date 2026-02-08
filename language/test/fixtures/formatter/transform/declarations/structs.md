@@ -14,8 +14,8 @@ struct Point { x: number; y: number }
 
 ```ds expected
 struct Point {
-    x: number,
-    y: number,
+    x: number;
+    y: number;
 }
 ```
 
@@ -28,7 +28,7 @@ struct Empty { }
 ```
 
 ```ds expected
-struct Empty { }
+struct Empty {}
 ```
 
 ### struct with field defaults
@@ -41,8 +41,8 @@ struct Settings { retries: int = 3; verbose: boolean = false }
 
 ```ds expected
 struct Settings {
-    retries: int = 3,
-    verbose: boolean = false,
+    retries: int = 3;
+    verbose: boolean = false;
 }
 ```
 
@@ -59,7 +59,7 @@ struct Vec2 { length(): float { return 0 } }
 ```ds expected
 struct Vec2 {
     length(): float {
-        return 0
+        return 0;
     }
 }
 ```
@@ -74,7 +74,7 @@ struct Versioned { static version: string = "1" }
 
 ```ds expected
 struct Versioned {
-    static version: string = '1',
+    static version: string = '1';
 }
 ```
 
@@ -91,7 +91,7 @@ struct Buffer<comptime N: number> {
 ```ds expected
 struct Buffer<comptime N: number> {
     comptime {
-        const size = N
+        const size = N;
     }
 }
 ```
@@ -108,7 +108,7 @@ struct Box<T> implements Iterable<T> { value: T }
 
 ```ds expected
 struct Box<T> implements Iterable<T> {
-    value: T,
+    value: T;
 }
 ```
 
@@ -122,7 +122,7 @@ struct Pair<T, U> where (T: Copy, U: Clone) { left: T; right: U }
 
 ```ds expected
 struct Pair<T, U> where (T: Copy, U: Clone) {
-    left: T,
-    right: U,
+    left: T;
+    right: U;
 }
 ```

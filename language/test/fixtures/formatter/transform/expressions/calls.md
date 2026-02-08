@@ -161,7 +161,7 @@ array.map((item) => { return item.value })
 
 ```ds expected
 array.map((item) => {
-    return item.value
+    return item.value;
 });
 ```
 
@@ -263,6 +263,62 @@ expect(genCode(createVNodeCall(null, "`div`", mockProps)))
 ```ts expected
 expect(genCode(createVNodeCall(null, "`div`", mockProps))).toMatchInlineSnapshot(`
   `);
+```
+
+### optional call boundary line comment
+
+Line comments between a callee and optional call stay on the full call expression.
+
+```ts:main.ts
+call // C4
+?.()
+```
+
+```ts expected
+call?.(); // C4
+```
+
+### optional call with inline comment argument
+
+Inline block comments in empty optional call arguments stay inside `()`.
+
+```ts:main.ts
+call?.(/* argument comment */)
+```
+
+```ts expected
+call?.(/* argument comment */);
+```
+
+### empty call with line comment argument
+
+Line comments in empty call arguments stay inside multiline `()`.
+
+```ts:main.ts
+call(
+  // argument line comment
+)
+```
+
+```ts expected
+call(
+    // argument line comment
+);
+```
+
+### empty optional call with line comment argument
+
+Line comments in empty optional call arguments stay inside multiline `()`.
+
+```ts:main.ts
+call?.( // argument line comment
+)
+```
+
+```ts expected
+call?.(
+    // argument line comment
+);
 ```
 
 ### multiple function expressions break

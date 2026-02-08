@@ -39,7 +39,7 @@ const buffer: @addrspace("shared") &Buffer = value
 ```
 
 ```ds expected
-const buffer:
+const buffer: 
 @addrspace("shared")
 &Buffer = value;
 ```
