@@ -1,4 +1,4 @@
-import { Slice } from "native";
+import { Array } from "native";
 import type { PlatformError } from "../error/index.ds";
 import { GpuAdapterHandle } from "../resource/index.ds";
 
@@ -12,8 +12,42 @@ export enum GpuBackend {
     D3D12 = 3,
     /// OpenGL backend.
     OpenGL = 4,
-    /// Null backend for testing.
+    /// WebGPU backend.
+    WebGpu = 5,
+    /// Null backend for tests and simulation.
     Null = 255,
+}
+
+/// GPU adapter category.
+export enum GpuAdapterType {
+    /// Integrated GPU.
+    Integrated = 1,
+    /// Discrete GPU.
+    Discrete = 2,
+    /// Software or CPU adapter.
+    Cpu = 3,
+    /// Unknown adapter type.
+    Unknown = 255,
+}
+
+/// Power preference for adapter selection.
+export enum GpuPowerPreference {
+    /// Prefer lower power adapters.
+    LowPower = 1,
+    /// Prefer higher performance adapters.
+    HighPerformance = 2,
+    /// Do not request a specific preference.
+    None = 3,
+}
+
+/// Adapter discovery options.
+export struct GpuAdapterRequest {
+    /// Preferred backend. Zero means backend agnostic.
+    backend: uint32,
+    /// Preferred power profile.
+    powerPreference: GpuPowerPreference,
+    /// Whether software fallback adapters are allowed.
+    allowFallback: boolean,
 }
 
 /// GPU adapter information.
@@ -24,24 +58,32 @@ export struct GpuAdapterInfo {
     name: string,
     /// Backend API kind.
     backend: GpuBackend,
+    /// Adapter category.
+    adapterType: GpuAdapterType,
     /// Vendor identifier when available.
     vendorId: uint32,
     /// Device identifier when available.
     deviceId: uint32,
-    /// Whether this adapter is integrated.
-    integrated: boolean,
+    /// Supported feature bitset.
+    featureMask: uint64,
+    /// Maximum bind groups supported by this adapter.
+    maxBindGroups: uint32,
+    /// Maximum 2D texture dimension.
+    maxTextureDimension2D: uint32,
+    /// Maximum storage buffer binding size.
+    maxStorageBufferBindingSize: uint64,
 }
 
 /// GPU adapter bindings.
 declare namespace gpu {
     /// List available GPU adapters.
     ///
-    /// Enumerate host GPU adapters and return stable identifiers with backend and vendor metadata.
+    /// Enumerate host GPU adapters and return stable identifiers with normalized capability metadata.
     /// Adapter visibility and ordering follow host graphics API enumeration behavior.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses Vulkan, Metal, D3D12, or backend discovery APIs.
+    /// Uses Vulkan, Metal, D3D12, OpenGL, and backend discovery APIs.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -58,7 +100,7 @@ declare namespace gpu {
         scope: "os",
         blocking: "sometimes",
     })
-    export function adapterList(): Result<Slice<GpuAdapterInfo>, PlatformError>;
+    export function adapterList(request: GpuAdapterRequest): Result<Array<GpuAdapterInfo>, PlatformError>;
 
     /// Open one GPU adapter.
     ///
@@ -85,6 +127,32 @@ declare namespace gpu {
         blocking: "sometimes",
     })
     export function adapterOpen(id: string): Result<GpuAdapterHandle, PlatformError>;
+
+    /// Read metadata for one opened adapter.
+    ///
+    /// Query the current normalized adapter metadata through an opened adapter handle.
+    /// Returned values reflect host backend limits and feature reporting.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend adapter property and feature query operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.adapter`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.adapter.info", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.adapter"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function adapterInfo(handle: GpuAdapterHandle): Result<GpuAdapterInfo, PlatformError>;
 
     /// Close one GPU adapter.
     ///

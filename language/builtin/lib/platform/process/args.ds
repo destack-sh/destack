@@ -15,16 +15,16 @@ declare namespace process {
     /// Returns ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `process.run`.
+    /// Requires `process.self`.
     ///
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.process.args.args",
+        "destack.process.args.list",
         {
             effect: "external",
             replay: "recordable",
-            requires: ["process.run"],
+            requires: ["process.self"],
             scope: "runtime",
             blocking: "never",
         },

@@ -1,5 +1,19 @@
 import type { PlatformError } from "../error/index.ds";
-import { GpuQueueHandle, WindowHandle } from "../resource/index.ds";
+import { GpuDeviceHandle, GpuQueueHandle, WindowHandle } from "../resource/index.ds";
+
+/// Surface configuration options.
+export struct GpuSurfaceOptions {
+    /// Surface width in pixels.
+    width: uint32,
+    /// Surface height in pixels.
+    height: uint32,
+    /// Surface texture format identifier.
+    format: uint32,
+    /// Present mode selector.
+    presentMode: uint32,
+    /// Alpha mode selector.
+    alphaMode: uint32,
+}
 
 /// Present options.
 export struct GpuPresentOptions {
@@ -11,9 +25,39 @@ export struct GpuPresentOptions {
 
 /// Present bindings.
 declare namespace gpu {
+    /// Configure one window surface for one device.
+    ///
+    /// Configure one presentable window surface with explicit dimensions and swap behavior.
+    /// Surface configuration must precede frame presentation for that window.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses swapchain or layer configuration APIs on Vulkan, Metal, and DXGI.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.present`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.gpu.present.surfaceConfigure", {
+        effect: "external",
+        replay: "nonrecordable",
+        requires: ["gpu.present"],
+        scope: "hybrid",
+        blocking: "sometimes",
+    })
+    export function surfaceConfigure(
+        device: GpuDeviceHandle,
+        window: WindowHandle,
+        options: GpuSurfaceOptions,
+    ): Result<void, PlatformError>;
+
     /// Present one frame to one window surface.
     ///
-    /// Present one rendered frame from one queue to one window surface.
+    /// Present one rendered frame from one queue to one configured window surface.
     /// Swap behavior and presentation latency follow host compositor and backend contracts.
     ///
     /// # Platform

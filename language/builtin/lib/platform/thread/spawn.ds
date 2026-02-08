@@ -29,7 +29,7 @@ declare namespace thread {
     /// # Replay
     /// External, nonrecordable.
     @binding(
-        "destack.thread.spawn.spawn",
+        "destack.thread.spawn.start",
         {
             effect: "external",
             replay: "nonrecordable",

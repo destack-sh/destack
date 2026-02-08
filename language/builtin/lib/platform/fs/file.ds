@@ -549,11 +549,11 @@ export struct OpenOptions {
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `io.zeroCopy`.
+    /// Requires `io.zero.copy`.
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.splice", { effect: "external", replay: "recordable", requires: ["io.zeroCopy"], scope: "os", blocking: "sometimes" })
+    @binding("destack.fs.file.splice", { effect: "external", replay: "recordable", requires: ["io.zero.copy"], scope: "os", blocking: "sometimes" })
     export function splice(
         source: ResourceId,
         sourceCursor: SpliceCursor,
@@ -576,11 +576,11 @@ export struct OpenOptions {
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `io.zeroCopy`.
+    /// Requires `io.zero.copy`.
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.tee", { effect: "external", replay: "recordable", requires: ["io.zeroCopy"], scope: "os", blocking: "sometimes" })
+    @binding("destack.fs.file.tee", { effect: "external", replay: "recordable", requires: ["io.zero.copy"], scope: "os", blocking: "sometimes" })
     export function tee(
         sourcePipe: PipeHandle,
         targetPipe: PipeHandle,
@@ -601,11 +601,11 @@ export struct OpenOptions {
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `io.zeroCopy`.
+    /// Requires `io.zero.copy`.
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.vmsplice", { effect: "external", replay: "recordable", requires: ["io.zeroCopy"], scope: "os", blocking: "sometimes" })
+    @binding("destack.fs.file.vmsplice", { effect: "external", replay: "recordable", requires: ["io.zero.copy"], scope: "os", blocking: "sometimes" })
     export function vmsplice(
         pipe: PipeHandle,
         buffers: Slice<Slice<uint8>>,

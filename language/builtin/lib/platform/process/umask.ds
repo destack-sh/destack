@@ -20,7 +20,7 @@ declare namespace process {
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.process.umask.umask",
+        "destack.process.umask.set",
         {
             effect: "external",
             replay: "recordable",

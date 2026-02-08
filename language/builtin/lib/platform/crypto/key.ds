@@ -218,7 +218,7 @@ declare namespace crypto {
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `crypto.key.verify`.
+    /// Requires `crypto.key.sign`.
     ///
     /// # Replay
     /// External, nonrecordable.
@@ -227,7 +227,7 @@ declare namespace crypto {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["crypto.key.verify"],
+            requires: ["crypto.key.sign"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -251,7 +251,7 @@ declare namespace crypto {
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `crypto.key.sign`.
+    /// Requires `crypto.key.verify`.
     ///
     /// # Replay
     /// External, nonrecordable.
@@ -260,7 +260,7 @@ declare namespace crypto {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["crypto.key.sign"],
+            requires: ["crypto.key.verify"],
             scope: "os",
             blocking: "sometimes",
         },

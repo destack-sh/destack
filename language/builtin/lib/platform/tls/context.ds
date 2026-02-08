@@ -32,12 +32,34 @@ export struct TlsContextOptions {
     alpnProtocols: Slice<string>,
 }
 
+/// Tls hostname verification mode.
+export enum TlsHostnameVerificationMode {
+    /// Enforce strict hostname verification against the expected server name.
+    Strict = 0,
+    /// Permit hostname mismatch while still validating certificate trust.
+    AllowMismatch = 1,
+    /// Disable hostname verification checks.
+    Disabled = 2,
+}
+
+/// Tls session resumption policy.
+export enum TlsSessionResumptionMode {
+    /// Disable session resumption.
+    Disabled = 0,
+    /// Enable stateful session cache based resumption.
+    Stateful = 1,
+    /// Enable stateless ticket based resumption.
+    Stateless = 2,
+    /// Enable both stateful and stateless resumption modes.
+    StatefulAndStateless = 3,
+}
+
 /// Tls context bindings for the platform runtime boundary.
 declare namespace tls {
     /// Open one tls context object.
     ///
-    /// Create one provider-backed tls context with explicit role and version bounds.
-    /// Cipher suite policy and provider defaults follow host tls backend semantics.
+    /// Create one backend-backed tls context with explicit role and version bounds.
+    /// Cipher suite policy and backend defaults follow host tls backend semantics.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -57,7 +79,7 @@ declare namespace tls {
             effect: "external",
             replay: "recordable",
             requires: ["tls.context"],
-            scope: "os",
+            scope: "hybrid",
             blocking: "sometimes",
         },
     )
@@ -65,8 +87,8 @@ declare namespace tls {
 
     /// Close one tls context object.
     ///
-    /// Release one provider-backed tls context and associated host resources.
-    /// Existing sessions created from this context remain provider-defined.
+    /// Release one backend-backed tls context and associated host resources.
+    /// Existing sessions created from this context remain backend-defined.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -86,15 +108,15 @@ declare namespace tls {
             effect: "external",
             replay: "recordable",
             requires: ["tls.context"],
-            scope: "os",
+            scope: "hybrid",
             blocking: "sometimes",
         },
     )
     export function contextClose(handle: TlsContextHandle): Result<void, PlatformError>;
 
-    /// Set one server certificate chain and private key on a tls context.
+    /// Set one local certificate chain and private key on a tls context.
     ///
-    /// Install one PEM-encoded certificate chain and one PEM-encoded private key for server handshakes.
+    /// Install one PEM-encoded certificate chain and one PEM-encoded private key for local endpoint authentication.
     /// Key parsing and supported key formats follow host provider behavior.
     ///
     /// # Platform
@@ -105,7 +127,7 @@ declare namespace tls {
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `tls.identity.use`, `tls.certificate.write`.
+    /// Requires `tls.identity.use`, `tls.identity.write`.
     ///
     /// # Replay
     /// External, nonrecordable.
@@ -114,8 +136,8 @@ declare namespace tls {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["tls.identity.use", "tls.certificate.write"],
-            scope: "os",
+            requires: ["tls.context", "tls.identity.use", "tls.identity.write"],
+            scope: "hybrid",
             blocking: "sometimes",
         },
     )
@@ -138,7 +160,7 @@ declare namespace tls {
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `tls.certificate.write`.
+    /// Requires `tls.trust.write`.
     ///
     /// # Replay
     /// External, nonrecordable.
@@ -147,13 +169,205 @@ declare namespace tls {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["tls.certificate.write"],
-            scope: "os",
+            requires: ["tls.context", "tls.trust.write"],
+            scope: "hybrid",
             blocking: "sometimes",
         },
     )
     export function contextSetTrustAnchorsPem(
         handle: TlsContextHandle,
         trustAnchorsPem: Slice<uint8>,
+    ): Result<void, PlatformError>;
+
+    /// Set allowed tls cipher suites for one context.
+    ///
+    /// Apply one ordered list of cipher-suite names to one context policy.
+    /// Name parsing and provider-specific filtering follow backend rules.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses SSL_CTX_set_ciphersuites style APIs in OpenSSL or BoringSSL and equivalent provider policy APIs in Schannel or SecureTransport.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `tls.context`, `tls.policy`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.tls.context.setCipherSuites",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["tls.context", "tls.policy"],
+            scope: "hybrid",
+            blocking: "sometimes",
+        },
+    )
+    export function contextSetCipherSuites(
+        handle: TlsContextHandle,
+        suites: Slice<string>,
+    ): Result<void, PlatformError>;
+
+    /// Set allowed tls key exchange groups for one context.
+    ///
+    /// Apply one ordered list of key exchange groups to one context policy.
+    /// Group parsing and provider-specific filtering follow backend rules.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses SSL_CTX_set1_groups_list style APIs in OpenSSL or BoringSSL and equivalent provider policy APIs in Schannel or SecureTransport.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `tls.context`, `tls.policy`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.tls.context.setGroups",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["tls.context", "tls.policy"],
+            scope: "hybrid",
+            blocking: "sometimes",
+        },
+    )
+    export function contextSetGroups(
+        handle: TlsContextHandle,
+        groups: Slice<string>,
+    ): Result<void, PlatformError>;
+
+    /// Set allowed tls signature algorithms for one context.
+    ///
+    /// Apply one ordered list of signature algorithms to one context policy.
+    /// Algorithm parsing and provider-specific filtering follow backend rules.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses SSL_CTX_set1_sigalgs_list style APIs in OpenSSL or BoringSSL and equivalent provider policy APIs in Schannel or SecureTransport.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `tls.context`, `tls.policy`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.tls.context.setSignatureAlgorithms",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["tls.context", "tls.policy"],
+            scope: "hybrid",
+            blocking: "sometimes",
+        },
+    )
+    export function contextSetSignatureAlgorithms(
+        handle: TlsContextHandle,
+        algorithms: Slice<string>,
+    ): Result<void, PlatformError>;
+
+    /// Set hostname verification mode for one context.
+    ///
+    /// Configure hostname verification behavior for sessions created by this context.
+    /// Verification defaults match strict hostname checks unless explicitly overridden.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses X509_VERIFY_PARAM_set_hostflags style APIs in OpenSSL or BoringSSL and equivalent provider verification controls in Schannel or SecureTransport.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `tls.context`, `tls.hostname.verify`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.tls.context.setHostnameVerificationMode",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["tls.context", "tls.hostname.verify"],
+            scope: "hybrid",
+            blocking: "sometimes",
+        },
+    )
+    export function contextSetHostnameVerificationMode(
+        handle: TlsContextHandle,
+        mode: TlsHostnameVerificationMode,
+    ): Result<void, PlatformError>;
+
+    /// Set session resumption policy for one context.
+    ///
+    /// Configure whether sessions use stateful cache, stateless tickets, or both.
+    /// Cache size, lifetime, and ticket semantics follow backend policy.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses SSL_CTX_set_session_cache_mode and SSL_CTX_set_options style APIs in OpenSSL or BoringSSL and equivalent provider controls in Schannel or SecureTransport.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `tls.context`, `tls.resumption`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.tls.context.setSessionResumption",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["tls.context", "tls.resumption"],
+            scope: "hybrid",
+            blocking: "sometimes",
+        },
+    )
+    export function contextSetSessionResumption(
+        handle: TlsContextHandle,
+        mode: TlsSessionResumptionMode,
+    ): Result<void, PlatformError>;
+
+    /// Set keylog emission for one context.
+    ///
+    /// Enable or disable NSS keylog line emission for sessions from this context.
+    /// Output destination routing is controlled by runtime telemetry or debug sinks.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses SSL_CTX_set_keylog_callback style APIs in OpenSSL or BoringSSL and equivalent hooks in rustls-backed providers.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `tls.context`, `tls.keylog`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.tls.context.setKeylogEnabled",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["tls.context", "tls.keylog"],
+            scope: "hybrid",
+            blocking: "sometimes",
+        },
+    )
+    export function contextSetKeylogEnabled(
+        handle: TlsContextHandle,
+        enabled: boolean,
     ): Result<void, PlatformError>;
 }

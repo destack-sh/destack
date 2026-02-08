@@ -238,6 +238,12 @@ builtin_lib_sources_targeted!(
             "platform/io",
             "completion.ds"
         ),
+        (
+            LIB_PLATFORM_IO_CONTROL_DS,
+            "lib",
+            "platform/io",
+            "control.ds"
+        ),
         (LIB_PLATFORM_IO_EVENT_DS, "lib", "platform/io", "event.ds"),
         (LIB_PLATFORM_IO_INDEX_DS, "lib", "platform/io", "index.ds"),
         (LIB_PLATFORM_IO_POLL_DS, "lib", "platform/io", "poll.ds"),
@@ -644,6 +650,7 @@ pub const LIB_PLATFORM: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_PLATFORM_INPUT_EVENT_DS,
         LIB_PLATFORM_INPUT_INDEX_DS,
         LIB_PLATFORM_IO_COMPLETION_DS,
+        LIB_PLATFORM_IO_CONTROL_DS,
         LIB_PLATFORM_IO_EVENT_DS,
         LIB_PLATFORM_IO_INDEX_DS,
         LIB_PLATFORM_IO_POLL_DS,

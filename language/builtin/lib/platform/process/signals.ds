@@ -306,7 +306,7 @@ declare namespace process {
     /// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `process.signal.signalfd`.
+    /// Requires `process.signal.fd`.
     ///
     /// # Replay
     /// External, recordable.
@@ -315,7 +315,7 @@ declare namespace process {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["process.signal.signalfd"],
+            requires: ["process.signal.fd"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -338,7 +338,7 @@ declare namespace process {
     /// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `process.signal.signalfd`.
+    /// Requires `process.signal.fd`.
     ///
     /// # Replay
     /// External, recordable.
@@ -347,7 +347,7 @@ declare namespace process {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["process.signal.signalfd"],
+            requires: ["process.signal.fd"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -370,7 +370,7 @@ declare namespace process {
     /// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `process.signal.signalfd`.
+    /// Requires `process.signal.fd`.
     ///
     /// # Replay
     /// External, recordable.
@@ -379,7 +379,7 @@ declare namespace process {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["process.signal.signalfd"],
+            requires: ["process.signal.fd"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -399,7 +399,7 @@ declare namespace process {
     /// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `process.signal.signalfd`.
+    /// Requires `process.signal.fd`.
     ///
     /// # Replay
     /// External, recordable.
@@ -408,7 +408,7 @@ declare namespace process {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["process.signal.signalfd"],
+            requires: ["process.signal.fd"],
             scope: "os",
             blocking: "never",
         },
@@ -428,7 +428,7 @@ declare namespace process {
     /// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `process.signal.signalfd`.
+    /// Requires `process.signal.fd`.
     ///
     /// # Replay
     /// External, recordable.
@@ -437,7 +437,7 @@ declare namespace process {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["process.signal.signalfd"],
+            requires: ["process.signal.fd"],
             scope: "os",
             blocking: "sometimes",
         },
