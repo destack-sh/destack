@@ -159,6 +159,10 @@ test-resolver:
 test-specification:
     cargo test --release --test specification
 
+# validate tree sitter overlay coverage
+test-grammar-overlay:
+    node grammar/scripts/check-overlay.mjs
+
 # run query tests (IDE/LSP queries)
 test-query:
     cargo test --release --test query
