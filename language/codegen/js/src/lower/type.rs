@@ -132,6 +132,7 @@ impl ModuleLowerer<'_> {
             dir::TypeUnaryOperator::Readonly => TypeUnaryOperator::Readonly,
             dir::TypeUnaryOperator::Typeof => TypeUnaryOperator::Typeof,
             dir::TypeUnaryOperator::Keyof => TypeUnaryOperator::Keyof,
+            dir::TypeUnaryOperator::AsComptime => TypeUnaryOperator::AsComptime,
             dir::TypeUnaryOperator::AsConst => TypeUnaryOperator::AsConst,
         };
         Ok(operator)

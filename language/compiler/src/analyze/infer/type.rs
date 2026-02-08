@@ -1328,6 +1328,11 @@ impl Compiler {
                 );
                 types.get_type(readonly_id).clone()
             }
+            TypeUnaryOperator::AsComptime => {
+                // as comptime only changes type-index interpretation
+                let right_ty_id = self.unwrap_type_value(right_ty_id, types);
+                types.get_type(right_ty_id).clone()
+            }
             TypeUnaryOperator::Keyof => {
                 // resolve keys for keyof expressions
                 let right_ty_id = self.unwrap_type_value(right_ty_id, types);

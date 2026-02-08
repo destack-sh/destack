@@ -7,13 +7,13 @@ Class associated comptime constant tests live here.
 ### class can declare associated comptime constants
 
 > Classes can declare associated compile time constants.
-> Declares an owner-scoped `comptime const` on a class and uses it in a sibling field type.
+> Declares an owner-scoped `comptime const` on a class and uses it in a sibling associated type.
 > The projection `MessagePage.Rows` must resolve to a folded compile-time literal.
 
 ```ds
 class MessagePage {
     comptime const Rows: number = 128;
-    data: uint8[Rows];
+    type Frame = uint8[Rows];
 }
 
 declare const rows: MessagePage.Rows;
@@ -44,8 +44,12 @@ metricSegment satisfies 1024;
 > The declaration must fail in Analyze static evaluation.
 
 ```ds
+function runtimeBytes(): number {
+    1024
+}
+
 class BadConfig {
-    comptime const SegmentBytes: number = Date.now();
+    comptime const SegmentBytes: number = runtimeBytes();
 }
 ```
 
@@ -82,13 +86,15 @@ class BadConfig {
 ### class static const remains runtime member not associated comptime member
 
 > Runtime static constants remain runtime members and cannot use type only relations.
-> Uses `static const` with a type-dependent expression that requires type-space evaluation.
-> The fixture locks the runtime/type-space boundary between `static const` and `comptime const`.
+> Declares `static const` on a generic class and then tries to project it through type-only member access.
+> This verifies runtime static constants are not available as associated type members.
 
 ```ds
 class SegmentPlan<Row> {
-    static const SegmentBytes: number = Row extends string ? 4096 : 1024;
+    static const SegmentBytes: number = 1024;
 }
+
+declare const bytes: SegmentPlan<string>.SegmentBytes;
 ```
 
 - contains: type
@@ -123,7 +129,10 @@ class StorageProfile<Row> {
     }
 }
 
-const version = StorageProfile<string>.currentVersion();
+declare const segmentBytes: StorageProfile<string>.SegmentBytes;
+segmentBytes satisfies 4096;
+
+const version = StorageProfile.currentVersion();
 version satisfies number;
 ```
 
@@ -131,7 +140,28 @@ version satisfies number;
 
 > Abstract classes can defer associated comptime constants to concrete subclasses.
 > Declares an abstract associated comptime requirement in a base class and fulfills it in a concrete subclass.
-> The subclass projection must type-check through inherited aliases after override selection.
+> Projects an inherited alias that references the associated comptime member to verify override selection.
+
+```ds
+abstract class BatchPlan<Row> {
+    abstract comptime const SegmentRows: number;
+    type SegmentRowsType = SegmentRows;
+}
+
+class LogBatch extends BatchPlan<string> {
+    comptime const SegmentRows: number = 256;
+}
+
+// inherited owner contracts should resolve through the concrete subclass
+declare const segmentRows: LogBatch.SegmentRowsType;
+segmentRows satisfies 256;
+```
+
+### abstract associated comptime constants in array-sized aliases remain pending
+
+> Associated comptime constants referenced by inherited array-sized aliases should fold in projected subclasses.
+> This case tracks remaining materialization work for expression-backed array counts in inherited aliases.
+> Once implemented, `LogBatch.Segment` should resolve to `string[256]` without `<unevaluated>`.
 
 ```ds
 abstract class BatchPlan<Row> {
@@ -143,10 +173,11 @@ class LogBatch extends BatchPlan<string> {
     comptime const SegmentRows: number = 256;
 }
 
-// inherited owner contracts should be selected before projection
 declare const segment: LogBatch.Segment;
 segment satisfies string[256];
 ```
+
+- contains: not assignable
 
 ### concrete subclasses must implement abstract associated comptime constants
 

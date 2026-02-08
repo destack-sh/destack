@@ -555,6 +555,41 @@ readonly int32[]           // readonly array
 readonly (int32, boolean)  // readonly tuple
 ```
 
+`T[N]` has two meanings in Destack: indexed access and fixed-size arrays.
+The compiler resolves this with explicit rules so behavior is predictable:
+- In `.ts` and `.d.ts`, `T[N]` always uses TypeScript indexed-access semantics.
+- In `.ds`, classification happens after substitution and static argument materialization.
+- If `N` is type-space, `T[N]` is indexed access.
+- If `N` is value-space and resolves to a static integer expression, `T[N]` is a fixed-size array.
+- If `N` is ambiguous (in `.ds`), use `as comptime` to force fixed-size array interpretation.
+- `T[N as comptime]` requires `N` to resolve as a static integer expression.
+
+In TypeScript files, numeric index forms stay indexed-access types.
+```ts
+// .ts
+type Element<T> = T[number]; // indexed access
+```
+
+In Destack files, type-parameter keys also use indexed-access semantics.
+```ds
+// .ds
+type Field<T, K: keyof T> = T[K]; // indexed access
+```
+
+In Destack files, comptime value parameters produce fixed-size arrays.
+```ds
+// .ds
+struct Block<comptime Lanes: number> {
+    type Row = float32[Lanes]; // fixed-size array
+}
+```
+
+When intent is ambiguous, `as comptime` forces fixed-size-array interpretation.
+```ds
+// .ds
+type Row<T, comptime N: number> = T[N as comptime]; // force fixed-size array interpretation
+```
+
 The rules for arrays and tuples center around correctness and performance:
 - Array literals are dense and do not permit holes.
 - Index access `a[i]` returns the element type and is bounds checked.
@@ -3160,7 +3195,7 @@ Type-level operators (not overloadable):
 
 | Operator | Description | Interface |
 |----------|-------------|-----------|
-| `as` | Type cast | — |
+| `as` | Type cast, plus `as comptime` disambiguation in type indexes | — |
 | `in` | Key membership check | — |
 | `is` | Type guard | — |
 | `instanceof` | Class identity check | — |

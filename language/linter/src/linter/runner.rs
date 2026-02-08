@@ -58,6 +58,7 @@ pub struct LintPerformanceReport {
     pub rules: Vec<LintRulePerformance>,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl LintPerformanceReport {
     /// Record one rule execution sample.
     pub fn record(

@@ -2944,6 +2944,29 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_type_unary_postfix_as_comptime_operator_span() {
+        let mut test = TestParser::new("type T = Value as comptime");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                let unary_id = *value;
+                assert_node!(parser.tree, *value, Expression::TypeUnary { operator, right } => {
+                    assert_eq!(*operator, TypeUnaryOperator::AsComptime);
+                    assert_expression_path!(parser, parser.tree.get(*right), "Value");
+                });
+
+                let main_span = parser
+                    .tree
+                    .get_main_span(unary_id)
+                    .expect("expected type unary postfix operator span");
+                assert_eq!(parser.get_span_str(main_span), "as comptime");
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_type_binary_operator_span() {
         let mut test = TestParser::new("type T = Value as Other");
         let mut parser = test.prepare();

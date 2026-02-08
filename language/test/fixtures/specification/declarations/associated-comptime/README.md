@@ -12,6 +12,7 @@ Associated comptime constant tests live here.
 - **Module boundaries**: Imported associated comptime projections and inherited contracts.
 - **Shape modeling**: Vector and tensor style layout composition through associated values and aliases.
 - **Type composition**: Conditional and mapped type interactions with associated projections.
+- **Type index disambiguation**: Value-space indexes like `T[this.Width]` and `T[Rows]` resolve as fixed-size arrays.
 
 ## Files
 

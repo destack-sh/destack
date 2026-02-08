@@ -319,6 +319,18 @@ type NameType = Person["name"]
 type NameType = Person["name"];
 ```
 
+### as comptime operator
+
+The `as comptime` operator preserves an explicit comptime index interpretation.
+
+```ds
+type Block<T, N: number> = T[N as comptime]
+```
+
+```ds expected
+type Block<T, N: number> = T[N as comptime];
+```
+
 ### template literal type
 
 Template literal types create string literal unions. Destack uses `: Type` for type parameter constraints (not `extends Type` like TypeScript).

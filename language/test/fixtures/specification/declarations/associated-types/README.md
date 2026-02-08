@@ -10,6 +10,7 @@ Associated types are static type members on class-shaped declarations.
 - **Mixed generics**: Type and static value parameters on generic associated type members.
 - **Module boundaries**: Cross module projections and inherited associated defaults.
 - **Runtime model**: Associated type members stay type only and are not runtime values.
+- **Type index semantics**: Type-space index forms like `T[K]` stay indexed-access types.
 
 ## Files
 

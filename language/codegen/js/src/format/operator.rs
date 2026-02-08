@@ -76,6 +76,7 @@ impl<'ast> Format<CodegenJsFormatContext<'ast>> for TypeUnaryOperator {
             TypeUnaryOperator::Readonly => token("readonly"),
             TypeUnaryOperator::Typeof => token("typeof"),
             TypeUnaryOperator::Keyof => token("keyof"),
+            TypeUnaryOperator::AsComptime => token("as comptime"),
             TypeUnaryOperator::AsConst => token("as const"),
             TypeUnaryOperator::Not => token("!"),
             TypeUnaryOperator::Must => token("!"),
