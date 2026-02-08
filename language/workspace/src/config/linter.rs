@@ -201,6 +201,12 @@ pub struct LinterOptions {
     pub overrides: IndexMap<String, LintSeverity>,
     /// Include declaration files when evaluating declaration-gated rules.
     pub include_declaration_files: bool,
+    /// Allow explicit `void` to intentionally discard Promise results.
+    pub allow_void_discard: bool,
+    /// Check callback positions in `no-misused-promises`.
+    pub check_misused_promises_in_callbacks: bool,
+    /// Check conditionals in `no-misused-promises`.
+    pub check_misused_promises_in_conditionals: bool,
 
     // complexity thresholds
     /// Maximum boolean parameters or fields.
@@ -276,6 +282,9 @@ impl Default for LinterOptions {
             categories: IndexMap::new(),
             overrides: IndexMap::new(),
             include_declaration_files: false,
+            allow_void_discard: true,
+            check_misused_promises_in_callbacks: true,
+            check_misused_promises_in_conditionals: true,
             // complexity
             max_booleans: 3,
             max_branching_factor: 10,

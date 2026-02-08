@@ -96,6 +96,7 @@ High-confidence issues that are almost always wrong.
 | `LC007` | `no-async-promise-executor` | ESLint | DIR | ✓ | Unsafe | Disallow async functions as Promise executor |
 | `LC008` | `no-base-to-string` | TS-ESLint | DIR | ✓ | Suggestion | Disallow `.toString()` on objects without useful representation |
 | `LC011` | `no-compare-neg-zero` | ESLint | AST | ✓ | Safe | Disallow comparing against negative zero |
+| `LC068` | `no-confusing-void-expression` | TS-ESLint | DIR |  | Suggestion | Disallow `void` expressions in positions where values are expected |
 | `LC013` | `no-constant-binary-expression` | ESLint | AST | ✓ | Unsafe | Disallow expressions where the operation doesn't affect the value |
 | `LC014` | `no-constant-condition` | ESLint | AST | ✓ | None | Disallow constant expressions in conditions |
 | `LC015` | `no-control-regex` | ESLint | AST | ✓ | None | Disallow control characters in regular expressions |
@@ -105,7 +106,7 @@ High-confidence issues that are almost always wrong.
 | `LC020` | `no-empty-range` | Destack | AST | ✓ | None | Disallow empty ranges where start > end |
 | `LC021` | `no-fallthrough` | ESLint | AST | ✓ | Suggestion | Disallow fallthrough of case statements |
 | `LC058` | `no-fast-math-sensitive-ops` | Destack | DIR |  | Suggestion | Warn when float math semantics require NaN, inf, or signed zero |
-| `LC022` | `no-floating-promises` | TS-ESLint | DIR |  | Suggestion | Require Promises to be awaited or returned |
+| `LC022` | `no-floating-promises` | TS-ESLint | DIR | ✓ | Suggestion | Require Promises to be awaited or returned |
 | `LC023` | `no-for-in-array` | TS-ESLint | DIR | ✓ | None | Disallow iterating over arrays with for-in |
 | `LC061` | `no-implicit-any` | TypeScript | DIR |  | Suggestion | Disallow implicit `any` types |
 | `LC025` | `no-implicit-any-in-export` | Destack | DIR |  | Suggestion | Disallow implicit `any` in public APIs |
@@ -113,11 +114,11 @@ High-confidence issues that are almost always wrong.
 | `LC027` | `no-infinite-iterator` | Destack | DIR |  | None | Disallow using methods that produce infinite iterators |
 | `LC028` | `no-infinite-recursion` | ErrorProne | DIR | ✓ | None | Disallow functions that unconditionally call themselves |
 | `LC029` | `no-invalid-regexp` | ESLint | AST | ✓ | None | Disallow invalid regular expression strings |
+| `LC069` | `no-invalid-void-type` | TS-ESLint | DIR |  | Safe | Disallow `void` in invalid type positions |
 | `LC030` | `no-iterator-invalidation` | Destack | DIR | ✓ | None | Disallow modifying a collection while iterating over it |
 | `LC031` | `no-loop-single-iteration` | SonarQube | AST | ✓ | Suggestion | Disallow loops that execute at most once |
 | `LC059` | `no-lossy-numeric-cast` | Clippy | DIR |  | Suggestion | Disallow numeric casts that lose precision or sign |
-| `LC032` | `no-misused-promises` | TS-ESLint | DIR |  | None | Disallow Promises in places not designed to handle them |
-| `LC033` | `no-misused-spread` | TS-ESLint | DIR | ✓ | None | Disallow spread syntax in contexts where it's incorrect |
+| `LC032` | `no-misused-promises` | TS-ESLint | DIR | ✓ | None | Disallow Promises in places not designed to handle them |
 | `LC036` | `no-overlapping-match-arms` | Destack | DIR |  | Safe | Disallow match patterns that subsume later arms |
 | `LC037` | `no-promise-executor-return` | ESLint | DIR | ✓ | Safe | Disallow returning values from Promise executor |
 | `LC038` | `no-self-compare` | ESLint | DIR | ✓ | None | Disallow comparisons where both sides are exactly the same |
@@ -128,19 +129,20 @@ High-confidence issues that are almost always wrong.
 | `LC043` | `no-unchecked-overflow` | Destack | DIR |  | Suggestion | Disallow arithmetic that may overflow without explicit handling |
 | `LC044` | `no-unchecked-pointer-deref` | Destack | DIR |  | None | Disallow dereferencing pointers without a proven non-null guard |
 | `LC063` | `no-unsafe-argument` | TS-ESLint | DIR |  | None | Disallow passing values of `any` to typed parameters |
-| `LC064` | `no-unsafe-assignment` | TS-ESLint | DIR |  | None | Disallow assigning `any` values to typed variables |
-| `LC065` | `no-unsafe-call` | TS-ESLint | DIR |  | None | Disallow calling values of type `any` |
+| `LC070` | `no-unsafe-enum-comparison` | TS-ESLint | DIR |  | None | Disallow comparing enum values from incompatible enum types |
 | `LC047` | `no-unsafe-finally` | ESLint | AST | ✓ | Safe | Disallow control flow statements in finally blocks |
-| `LC066` | `no-unsafe-member-access` | TS-ESLint | DIR |  | None | Disallow member access on values of type `any` |
 | `LC048` | `no-unsafe-negation` | ESLint | AST | ✓ | Safe | Disallow negating the left operand of relational operators |
 | `LC067` | `no-unsafe-return` | TS-ESLint | DIR |  | None | Disallow returning values of type `any` from typed functions |
 | `LC049` | `no-unknown-rule-decorator` | Destack | AST | ✓ | None | Disallow unknown rule decorators |
+| `LC071` | `no-unnecessary-condition` | TS-ESLint | DIR |  | Suggestion | Disallow conditions that are always truthy, always falsy, or never nullish |
 | `LC051` | `no-useless-assignment` | ESLint | DIR | ✓ | Safe | Disallow assignments that are immediately overwritten |
 | `LC052` | `no-useless-increment` | SonarQube | DIR | ✓ | Safe | Disallow incrementing a value that is never used afterward |
 | `LC053` | `require-array-sort-compare` | TS-ESLint | DIR | ✓ | Suggestion | Require comparison function for `.sort()` |
+| `LC072` | `switch-exhaustiveness-check` | TS-ESLint | DIR |  | Suggestion | Require exhaustive switch statements over union like domains |
 | `LC055` | `unbound-method` | TS-ESLint | DIR |  | Safe | Disallow unbound methods as callbacks |
 | `LC056` | `unused-must-use` | Destack | DIR |  | Suggestion | Disallow ignoring return values of `@mustUse` functions |
 | `LC057` | `use-isnan` | ESLint | AST | ✓ | Safe | Require `Number.isNaN()` instead of comparisons with `NaN` |
+| `LC073` | `use-unknown-in-catch-callback-variable` | TS-ESLint | DIR |  | Safe | Require `unknown` for catch callback variables instead of `any` |
 
 ## Suspicious (U)
 
@@ -216,15 +218,21 @@ Patterns that may expose the application to attacks.
 | Code | Rule | Source | Level | Status | Fixability | Description |
 |------|------|--------|-------|--------|------------|-------------|
 | `LS001` | `no-blank-target` | Biome | AST | ✓ | Safe | Disallow `target="_blank"` without `rel="noopener"` |
+| `LS018` | `no-command-injection` | Semgrep | DIR |  | None | Disallow command execution using untrusted input |
 | `LS016` | `no-ffi-abi-mismatch` | Rust | DIR |  | None | Disallow FFI calls with ABI-unsafe layouts |
 | `LS002` | `no-hardcoded-ip` | SonarQube | AST | ✓ | None | Disallow hardcoded IP addresses |
 | `LS003` | `no-implied-eval` | ESLint | DIR | ✓ | Safe | Disallow `setTimeout` and `setInterval` with string arguments |
+| `LS019` | `no-insecure-deserialization` | Semgrep | DIR |  | None | Disallow deserialization of untrusted data without validation |
 | `LS004` | `no-insecure-random` | Semgrep | DIR | ✓ | None | Disallow insecure random number generators |
 | `LS005` | `no-open-redirect` | Semgrep | DIR | ✓ | None | Disallow redirects using user-controlled URLs |
+| `LS020` | `no-path-traversal` | Semgrep | DIR |  | None | Disallow file system path construction from untrusted input |
 | `LS007` | `no-prototype-pollution` | Semgrep | DIR | ✓ | None | Disallow patterns that may pollute Object.prototype |
 | `LS008` | `no-regex-injection` | Destack | DIR | ✓ | None | Disallow tainted data in regular expression patterns |
 | `LS009` | `no-script-url` | ESLint | AST | ✓ | None | Disallow `javascript:` URLs |
 | `LS010` | `no-secrets` | Biome | AST | ✓ | None | Disallow hardcoded secrets and credentials |
+| `LS021` | `no-sql-injection` | Semgrep | DIR |  | None | Disallow query construction that interpolates untrusted input |
+| `LS022` | `no-ssrf` | Semgrep | DIR |  | None | Disallow network requests to attacker controlled destinations |
+| `LS023` | `no-template-injection` | Semgrep | DIR |  | None | Disallow rendering templates with untrusted template text |
 | `LS017` | `no-unsafe-decorator` | Destack | DIR |  | Suggestion | Disallow decorators with unsafe side effects |
 | `LS015` | `no-weak-crypto` | Semgrep | DIR | ✓ | None | Disallow weak cryptographic algorithms |
 
@@ -418,23 +426,30 @@ Opt-in rules that ban certain patterns by project choice. These rules may confli
 | `LR012` | `no-re-export-all` | Biome | AST | ✓ | None | Disallow `export * from` (hurts tree-shaking) |
 | `LR013` | `no-enum` | Biome | AST | ✓ | Unsafe | Disallow TypeScript enums (prefer union types) |
 | `LR014` | `no-explicit-any` | TS-ESLint | AST | ✓ | Suggestion | Disallow the `any` type |
+| `LR038` | `no-extraneous-dependencies` | Import | DIR |  | None | Disallow imports from dependencies not declared for the current package |
 | `LR015` | `no-implicit-return` | Destack | AST | ✓ | Safe | Require explicit `return` statements |
+| `LR039` | `no-internal-modules` | Import | DIR |  | None | Disallow importing deep internal module paths |
 | `LR016` | `no-labels` | ESLint | AST | ✓ | None | Disallow labeled statements |
 | `LR017` | `no-layer-violation` | SonarQube | DIR |  | None | Disallow imports that cross architectural layer boundaries |
 | `LR018` | `no-magic-numbers` | ESLint | AST | ✓ | Suggestion | Disallow magic numbers |
 | `LR019` | `no-namespace` | TS-ESLint | AST | ✓ | None | Disallow TypeScript namespaces |
 | `LR020` | `no-non-null-assertion` | TS-ESLint | AST | ✓ | Suggestion | Disallow non-null assertions using the `!` postfix |
 | `LR021` | `no-null` | Unicorn | AST | ✓ | Safe | Disallow `null` (prefer `undefined`) |
+| `LR040` | `no-orphans` | dependency-cruiser | DIR |  | None | Disallow modules that are not reachable from configured entry points |
 | `LR022` | `no-parameter-reassignment` | SonarQube | DIR |  | None | Disallow reassigning function parameters |
 | `LR023` | `no-placeholder-implementation` | ESLint | AST | ✓ | None | Disallow placeholder implementations (throw "not implemented", etc.) |
 | `LR024` | `no-plusplus` | ESLint | AST | ✓ | Safe | Disallow `++` and `--` operators |
+| `LR041` | `no-private-api-import` | Destack | DIR |  | None | Disallow importing package private internal APIs from outside their scope |
 | `LR025` | `no-process-exit` | Unicorn | DIR | ✓ | None | Disallow `process.exit()` |
+| `LR042` | `no-profile-incompatible-import` | Destack | DIR |  | None | Disallow imports that are not available in the active profile libraries |
+| `LR043` | `no-relative-parent-imports` | Import | DIR |  | None | Disallow relative parent path imports |
 | `LR026` | `no-require-imports` | TS-ESLint | DIR |  | Safe | Disallow `require()` imports |
 | `LR027` | `no-runtime-reflection` | Destack | DIR |  | None | Disallow runtime reflection (ban RTTI) |
 | `LR028` | `no-sequences` | ESLint | AST | ✓ | None | Disallow comma operators |
 | `LR029` | `no-shadow` | Destack | DIR |  | Suggestion | Disallow shadowing by rebinding a value |
 | `LR030` | `no-struct` | Destack | AST | ✓ | Unsafe | Disallow struct declarations (prefer classes) |
 | `LR031` | `no-ternary` | ESLint | AST | ✓ | Unsafe | Disallow ternary operators |
+| `LR044` | `no-unused-modules` | Import | DIR |  | None | Disallow exports that are never imported by any module |
 | `LR033` | `no-warning-comments` | ESLint | AST | ✓ | None | Disallow specified warning terms in comments (TODO, FIXME, etc.) |
 | `LR034` | `no-wildcard-imports` | Destack | AST | ✓ | Unsafe | Disallow wildcard imports |
 | `LR035` | `strict-boolean-expressions` | TS-ESLint | DIR | ✓ | Unsafe | Disallow truthy/falsy coercion in conditions |

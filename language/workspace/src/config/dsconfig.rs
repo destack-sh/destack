@@ -3383,6 +3383,12 @@ impl DsConfigFormatterJson {
 pub struct DsConfigLinterJson {
     /// Whether linting is enabled. Default: true.
     pub enabled: Option<bool>,
+    /// Allow explicit `void` to intentionally discard Promise results.
+    pub allow_void_discard: Option<bool>,
+    /// Check callback positions in `no-misused-promises`.
+    pub check_misused_promises_in_callbacks: Option<bool>,
+    /// Check conditionals in `no-misused-promises`.
+    pub check_misused_promises_in_conditionals: Option<bool>,
     /// Rule configuration.
     #[serde(default)]
     pub rules: DsConfigLinterRulesJson,
@@ -3454,6 +3460,18 @@ impl DsConfigLinterJson {
     pub fn apply(&self, options: &mut LinterOptions) {
         if let Some(enabled) = self.enabled {
             options.enabled = enabled;
+        }
+        if let Some(allow_void_discard) = self.allow_void_discard {
+            options.allow_void_discard = allow_void_discard;
+        }
+        if let Some(check_misused_promises_in_callbacks) = self.check_misused_promises_in_callbacks
+        {
+            options.check_misused_promises_in_callbacks = check_misused_promises_in_callbacks;
+        }
+        if let Some(check_misused_promises_in_conditionals) =
+            self.check_misused_promises_in_conditionals
+        {
+            options.check_misused_promises_in_conditionals = check_misused_promises_in_conditionals;
         }
         self.rules.apply(options);
 
