@@ -12,12 +12,13 @@ mod no_duplicate_case;
 mod no_empty_range;
 mod no_fallthrough;
 mod no_floating_point_equality;
+mod no_floating_promises;
 mod no_for_in_array;
 mod no_infinite_recursion;
 mod no_invalid_regexp;
 mod no_iterator_invalidation;
 mod no_loop_single_iteration;
-mod no_misused_spread;
+mod no_misused_promises;
 mod no_promise_executor_return;
 mod no_self_compare;
 mod no_sparse_arrays;
@@ -47,12 +48,13 @@ pub use no_duplicate_case::*;
 pub use no_empty_range::*;
 pub use no_fallthrough::*;
 pub use no_floating_point_equality::*;
+pub use no_floating_promises::*;
 pub use no_for_in_array::*;
 pub use no_infinite_recursion::*;
 pub use no_invalid_regexp::*;
 pub use no_iterator_invalidation::*;
 pub use no_loop_single_iteration::*;
-pub use no_misused_spread::*;
+pub use no_misused_promises::*;
 pub use no_promise_executor_return::*;
 pub use no_self_compare::*;
 pub use no_sparse_arrays::*;
@@ -82,13 +84,14 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoDuplicateCase),
         boxed(NoEmptyRange),
         boxed(NoFallthrough),
+        boxed(NoFloatingPromises),
         boxed(NoFloatingPointEquality),
         boxed(NoForInArray),
         boxed(NoInfiniteRecursion),
         boxed(NoInvalidRegexp),
         boxed(NoIteratorInvalidation),
         boxed(NoLoopSingleIteration),
-        boxed(NoMisusedSpread),
+        boxed(NoMisusedPromises),
         boxed(NoPromiseExecutorReturn),
         boxed(NoSelfCompare),
         boxed(NoSparseArrays),
