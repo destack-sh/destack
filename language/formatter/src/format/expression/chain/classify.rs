@@ -133,7 +133,7 @@ pub(crate) fn is_poorly_breakable_chain(
                 }
             }
             Expression::Index { index, .. } => {
-                // indexes with non-trivial expressions are breakable
+                // indexes with nontrivial expressions are breakable
                 if let Some(index_id) = index {
                     let index_expr = tree.get(*index_id);
                     if !is_trivial_expression(tree, index_expr) || context.has_annotation(*index_id)
@@ -426,7 +426,7 @@ pub(crate) fn lambda_expression_should_break(
             return true;
         }
 
-        // tree-returning callbacks in tree literals should break for readability
+        // tree returning callbacks in tree literals should break for readability
         if let Some((parent_id, parent_type)) = context.get_parent(declaration_id)
             && parent_type == NodeType::Expression
         {
@@ -510,7 +510,7 @@ pub(crate) fn is_simple_chain_argument(
 
     let value_id = argument_value_id(context.tree, argument_id);
 
-    // function-like arguments make the call complex
+    // function like arguments make the call complex
     if is_lambda_expression(context, value_id) || context.has_annotation(value_id) {
         return false;
     }
@@ -566,7 +566,7 @@ pub(crate) fn is_numeric_index_expression(
     context: &DestackFormatContext<'_>,
     index_id: LocalNodeId<Expression>,
 ) -> bool {
-    // annotated indexes are never numeric-simple
+    // annotated indexes are never numeric simple
     if context.has_annotation(index_id) {
         return false;
     }

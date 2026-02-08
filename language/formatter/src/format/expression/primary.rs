@@ -352,6 +352,11 @@ pub(super) fn format_primary_expression<'ast>(
         } => {
             // try hugged format for single object/array elements
             if !format_hugged(f, elements_ids, HugOptions::ARRAY, None, false)? {
+                if array_has_sparse_holes(f.context(), elements_ids) {
+                    format_sparse_array_literal(f, elements_ids)?;
+                    return Ok(true);
+                }
+
                 let span = f.context().get_span(node_id);
                 let elements = elements_ids
                     .iter()
@@ -429,7 +434,7 @@ pub(super) fn format_primary_expression<'ast>(
             if elements_ids.is_empty() {
                 write!(f, [token("()")])?;
             } else if !format_hugged(f, elements_ids, HugOptions::TUPLE, None, false)? {
-                // not a single huggable element - use regular formatting
+                // not a single huggable element: use regular formatting
                 let span = f.context().get_span(node_id);
                 let elements = elements_ids
                     .iter()
@@ -524,13 +529,14 @@ pub(super) fn format_primary_expression<'ast>(
                 && parent_type == NodeType::Expression
             {
                 let parent_id = LocalNodeId::<Expression>::new(parent_id);
+                let parent_expression = f.context().tree.get(parent_id);
                 let should_drop_assignment_must =
                     matches!(
-                        f.context().tree.get(parent_id),
+                        parent_expression,
                         Expression::Assign { left, .. } if *left == node_id
                     ) && matches!(inner_expression, Expression::Must { .. });
                 let should_drop_statement_lambda = matches!(
-                    f.context().tree.get(parent_id),
+                    parent_expression,
                     Expression::Statement(inner_id) if inner_id.id == node_id.id
                 ) && matches!(
                     inner_expression,
@@ -679,4 +685,65 @@ pub(super) fn format_primary_expression<'ast>(
     }
 
     Ok(true)
+}
+
+/// Return whether an array literal contains sparse elision slots.
+fn array_has_sparse_holes(
+    context: &DestackFormatContext<'_>,
+    elements: &[LocalNodeId<Argument>],
+) -> bool {
+    elements
+        .iter()
+        .copied()
+        .any(|argument_id| argument_is_sparse_hole(context, argument_id))
+}
+
+/// Return whether an array element argument is a sparse hole.
+fn argument_is_sparse_hole(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let Argument::Positional { value, .. } = context.tree.get(argument_id) else {
+        return false;
+    };
+    let value_id = transparent_inner_expression(context, *value);
+    matches!(context.tree.get(value_id), Expression::Stub)
+}
+
+/// Format sparse arrays while preserving elision comma count.
+fn format_sparse_array_literal<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    elements: &[LocalNodeId<Argument>],
+) -> FormatResult<()> {
+    write!(f, [token("[")])?;
+
+    let mut expects_element = true;
+    for (index, argument_id) in elements.iter().copied().enumerate() {
+        let is_hole = argument_is_sparse_hole(f.context(), argument_id);
+
+        if !expects_element {
+            write!(f, [token(",")])?;
+            if !is_hole {
+                write!(f, [space()])?;
+            }
+            expects_element = true;
+        }
+
+        if is_hole {
+            write!(f, [token(",")])?;
+            let next_is_non_hole = elements
+                .get(index + 1)
+                .is_some_and(|next_id| !argument_is_sparse_hole(f.context(), *next_id));
+            if next_is_non_hole {
+                write!(f, [space()])?;
+            }
+            continue;
+        }
+
+        write!(f, [argument_id])?;
+        expects_element = false;
+    }
+
+    write!(f, [token("]")])?;
+    Ok(())
 }

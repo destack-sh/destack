@@ -178,6 +178,46 @@ fn test_format_new_expression_wraps_call_member_callee() {
     );
 }
 
+/// Sparse arrays should preserve elision slots.
+#[test]
+fn test_format_array_expression_sparse_elisions() {
+    assert_format!(
+        "[,,]",
+        "[,,]",
+        |p| p.eat_expression(),
+        DestackFormatOptions::default()
+    );
+    assert_format!(
+        "[,]",
+        "[,]",
+        |p| p.eat_expression(),
+        DestackFormatOptions::default()
+    );
+    assert_format!(
+        "[1,,]",
+        "[1,,]",
+        |p| p.eat_expression(),
+        DestackFormatOptions::default()
+    );
+    assert_format!(
+        "[1,,3]",
+        "[1,, 3]",
+        |p| p.eat_expression(),
+        DestackFormatOptions::default()
+    );
+}
+
+/// Empty new arguments should keep boundary comments inside parentheses.
+#[test]
+fn test_format_new_expression_empty_argument_comment() {
+    assert_format!(
+        "new require(/* comment */)",
+        "new require(/* comment */)",
+        |p| p.eat_expression(),
+        DestackFormatOptions::default()
+    );
+}
+
 /// Member expressions should unwrap redundant call object parentheses.
 #[test]
 fn test_format_member_expression_unwraps_parenthesized_call_object() {
@@ -834,6 +874,42 @@ fn test_format_export_const_chain_rhs_does_not_break_after_operator() {
     );
 }
 
+/// Breaks after `=` for long generic call rhs values.
+#[test]
+fn test_format_const_generic_call_rhs_breaks_after_operator() {
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+    assert_format!(
+        "const result = configurationService.getValue<Record<string, boolean>>(enalementSetting)",
+        "const result =\n  configurationService.getValue<Record<string, boolean>>(enalementSetting)",
+        |p| p.eat_expression(),
+        options
+    );
+}
+
+/// Preserves break-after-operator for multiline generic call rhs values.
+#[test]
+fn test_format_const_generic_call_rhs_preserves_source_operator_break() {
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+    assert_format!(
+        "const result =\n  configurationService.getValue<Record<string, boolean>>(\n  enalementSetting\n)",
+        "const result =\n  configurationService.getValue<Record<string, boolean>>(enalementSetting)",
+        |p| p.eat_expression(),
+        options
+    );
+}
+
+/// Keeps `=` inline for multiline object-like generic call rhs values.
+#[test]
+fn test_format_const_generic_call_with_multiline_type_argument_keeps_operator_inline() {
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+    assert_format!(
+        "const emitter = createGlobalEmitter<{\n  key: Extract<Event, { type: key }>\n}>()",
+        "const emitter = createGlobalEmitter<{\n  key: Extract<Event, { type: key }>,\n}>()",
+        |p| p.eat_expression(),
+        options
+    );
+}
+
 #[test]
 fn test_format_jsx_bracket_same_line_true() {
     let mut options = DestackFormatOptions::default_with_line_width(30);
@@ -877,6 +953,16 @@ fn test_format_unary_inside_maybe_gets_parenthesized() {
     assert_format!(
         "(-x)?",
         "(-x)?",
+        |p| p.eat_expression(),
+        DestackFormatOptions::default()
+    );
+}
+
+#[test]
+fn test_format_unary_await_expression_parenthesizes_operand() {
+    assert_format!(
+        "async () => !await foo()",
+        "async () => !(await foo())",
         |p| p.eat_expression(),
         DestackFormatOptions::default()
     );

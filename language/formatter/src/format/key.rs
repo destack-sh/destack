@@ -35,6 +35,7 @@ impl<'ast> Format<DestackFormatContext<'ast>> for Keyword {
     }
 }
 
+/// Format a key with quote policy controls.
 pub(crate) fn format_key_with_quote_policy<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     key: Key,
@@ -80,6 +81,7 @@ fn contains_katakana_middle_dot(content: &str) -> bool {
         .any(|c| matches!(c, '\u{30FB}' | '\u{FF65}'))
 }
 
+/// Format a name key while applying quote policy.
 fn format_name_with_quote_policy<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     name: Name,
@@ -138,6 +140,7 @@ fn format_name_with_quote_policy<'ast>(
     Ok(())
 }
 
+/// Format a quoted key using the preferred quote character.
 fn format_quoted_name<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     string_id: StringId,

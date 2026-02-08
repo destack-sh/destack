@@ -19,10 +19,11 @@ pub fn is_trivial_expression(tree: &NodeTree, expression: &Expression) -> bool {
                     .all(|property| is_trivial_property(tree, tree.get(*property)))
         }
         Expression::Unary { operator: _, right } => is_trivial_expression(tree, tree.get(*right)),
-        Expression::Index { left, index, .. } => {
-            is_trivial_expression(tree, tree.get(*left)) && index.is_none()
-                || is_trivial_expression(tree, tree.get(*index.as_ref().unwrap()))
-        }
+        Expression::Index { left, index, .. } => index
+            .as_ref()
+            .map_or(is_trivial_expression(tree, tree.get(*left)), |index_id| {
+                is_trivial_expression(tree, tree.get(*index_id))
+            }),
         Expression::ReferenceOf {
             mutability: _,
             variance: _,

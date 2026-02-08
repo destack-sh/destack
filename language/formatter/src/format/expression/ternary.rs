@@ -1,6 +1,7 @@
 use super::*;
 use destack_fir::{format_args, write};
 
+/// Return the value expression for an argument.
 pub(super) fn get_argument_value(
     tree: &NodeTree,
     argument_id: LocalNodeId<Argument>,
@@ -12,6 +13,7 @@ pub(super) fn get_argument_value(
 }
 
 /// Collect ternary chain into a flat list of (condition, then) pairs plus final else.
+/// Collect nested ternary branches into a linear chain.
 #[allow(clippy::type_complexity)]
 pub(super) fn collect_ternary_chain(
     tree: &NodeTree,

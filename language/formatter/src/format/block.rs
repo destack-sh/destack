@@ -82,7 +82,7 @@ where
 
 /// Format an empty block with infix annotations.
 ///
-/// Example:
+/// Example.
 /// ```
 /// {
 ///     // infix comment
@@ -106,7 +106,7 @@ fn expressions_have_blank_line_between(
         return false;
     }
 
-    // only preserve blank lines when the inter-span gap is pure trivia
+    // only preserve blank lines when the inter span gap is pure trivia
     // expression spans can occasionally include trailing syntax, which should not count
     let has_non_trivia_token_between = context
         .tokens
@@ -198,6 +198,7 @@ fn expression_prefix_start(
 }
 
 /// Format a block inline with zero or one expression (including label and infix annotations).
+/// Format block contents with compact inner spacing.
 #[inline]
 pub(crate) fn format_block_body_narrow<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -228,6 +229,7 @@ pub(crate) fn format_block_body_narrow<'ast>(
 }
 
 /// Format a block multiline with multiple expressions (including label and infix annotations).
+/// Format block contents with expanded inner spacing.
 #[inline]
 pub(crate) fn format_block_body_wide<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -252,6 +254,7 @@ pub(crate) fn format_block_body_wide<'ast>(
 }
 
 /// Format a block of expression statements (with appropriate empty annotations).
+/// Format a block statement body.
 pub(crate) fn format_block_of_statements<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expressions: &[LocalNodeId<Expression>],
@@ -430,7 +433,7 @@ pub(crate) fn format_block_of_statements<'ast>(
         let directive = directive_for_node(f.context(), expression_id);
 
         // expression itself (with prefix annotations)
-        // lambda declaration line-prefix comments are deferred to declaration formatting
+        // lambda declaration line prefix comments are deferred to declaration formatting
         let is_lambda_declaration_expression = matches!(
             expression,
             Expression::Declaration(declaration_id)
@@ -447,7 +450,7 @@ pub(crate) fn format_block_of_statements<'ast>(
         }
         format_expression(f, expression_id, expression, directive)?;
 
-        // add statement terminators for declaration-like expression forms
+        // add statement terminators for declaration like expression forms
         let needs_statement_terminator = matches!(
             expression,
             Expression::Import { .. } | Expression::Let { .. } | Expression::Using { .. }
@@ -491,6 +494,7 @@ pub(crate) fn format_block_of_statements<'ast>(
     Ok(())
 }
 
+/// Return whether a block should stay inline.
 #[inline]
 pub(crate) fn should_inline_block<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -581,6 +585,7 @@ fn empty_block_prefers_multiline<'ast>(
 }
 
 /// Format a block (without a nested group!).
+/// Format a block with opening and closing braces.
 pub fn format_block<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Block>,

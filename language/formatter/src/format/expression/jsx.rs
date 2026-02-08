@@ -1,6 +1,7 @@
 use super::*;
 use destack_fir::{format_args, write};
 
+/// Return whether JSX argument formatting should force multiline mode.
 pub(super) fn has_multiline_jsx_argument(
     tree: &NodeTree,
     arguments: &[LocalNodeId<Argument>],
@@ -27,6 +28,7 @@ pub(super) struct TreeExpressionArgument {
     pub(super) argument_id: LocalNodeId<Argument>,
 }
 
+/// Format an inline stub comment.
 pub(super) fn format_inline_stub_comment<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     value_id: LocalNodeId<Expression>,
@@ -333,6 +335,7 @@ pub(super) fn should_force_break_tree_attributes(
 }
 
 /// Check if an expression is huggable with the given configuration.
+/// Return whether an expression is huggable in JSX position.
 #[inline]
 pub(super) fn is_huggable_expression(
     tree: &NodeTree,
@@ -723,6 +726,7 @@ pub(super) fn format_tree_attribute_value<'ast>(
     Ok(())
 }
 
+/// Return source text for a tree-related span.
 pub(super) fn tree_text_span_str(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
@@ -1369,6 +1373,7 @@ pub(super) fn format_tree_literal_expression<'ast>(
 }
 
 /// Format a tree literal.
+/// Format a tree literal expression.
 #[inline]
 pub(crate) fn format_tree_literal<'ast>(
     f: &mut DestackFormatter<'ast, '_>,

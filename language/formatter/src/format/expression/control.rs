@@ -1,6 +1,7 @@
 use super::*;
 use destack_fir::{format_args, write};
 
+/// Format a statement body block, preserving wrapper semantics.
 pub(super) fn format_statement_body_block<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     block_id: LocalNodeId<Block>,
@@ -360,6 +361,7 @@ pub(crate) fn format_if_else_chain<'ast>(
     }
     Ok(())
 }
+/// Format a match expression.
 pub(crate) fn format_match<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
@@ -417,6 +419,7 @@ pub(crate) fn format_match<'ast>(
 ///
 /// For `match`, uses arrow syntax: `pattern => body`
 /// For `switch`, uses colon syntax: `case pattern:` or `default:`
+/// Format one match case.
 #[allow(clippy::type_complexity)]
 fn format_match_case<'ast>(
     f: &mut DestackFormatter<'ast, '_>,

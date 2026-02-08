@@ -1050,7 +1050,7 @@ where
                 Annotation::Comment { position, .. } => (NodeType::Comment, *position),
                 Annotation::Decorator { position, .. } => (NodeType::Decorator, *position),
             };
-            // defer statement-level ternary boundary comments to the ternary formatter
+            // defer statement level ternary boundary comments to the ternary formatter
             if should_defer_statement_ternary_boundary_prefix_annotation(
                 f.context(),
                 self.node_id,
@@ -1746,6 +1746,7 @@ fn format_line_comment_lines<'ast>(
     Ok(())
 }
 
+/// Normalize inline block comment content for stable output.
 fn normalize_inline_block_comment_content(content: &str) -> &str {
     let content = content.trim();
 
@@ -1764,6 +1765,7 @@ fn normalize_inline_block_comment_content(content: &str) -> &str {
     content
 }
 
+/// Return whether a comment is a compact formatting hint.
 fn is_compact_hint_comment(content: &str) -> bool {
     matches!(
         content,
@@ -1805,6 +1807,7 @@ impl<'ast> FormatNode<'ast, Decorator> for Decorator {
     }
 }
 
+/// Return whether a decorator expression requires parentheses.
 fn decorator_needs_parentheses(tree: &NodeTree, expression_id: LocalNodeId<Expression>) -> bool {
     match tree.get(expression_id) {
         Expression::Parenthesized { .. } => false,
@@ -1821,6 +1824,7 @@ fn decorator_needs_parentheses(tree: &NodeTree, expression_id: LocalNodeId<Expre
     }
 }
 
+/// Return whether an expression is an identifier or static-member-only path.
 fn is_identifier_or_static_member_only(
     tree: &NodeTree,
     expression_id: LocalNodeId<Expression>,

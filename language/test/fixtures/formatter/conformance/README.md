@@ -14,11 +14,14 @@ Fetched upstream suites are stored under:
 
 ## Suggested suite sources
 
-Use Biome and Prettier as primary external corpus sources for JS, TS, and TSX behavior.
+Use oxfmt as the hard external baseline for JS and TS behavior.
 
-Add oxfmt cases as targeted imports for formatting choices that match our intended style direction.
+Use Biome and Prettier as advisory corpora for broader gap discovery.
 
 Keep TS++ and annotation behavior in Destack owned fixtures under `transform` and `roundtrip`.
+
+Treat Flow and `flow-repo` fixture trees as out of scope for Destack.
+Keep those entries in `*-ignored.txt` rather than `*-known-failures.txt`.
 
 See `SOURCES.md` for import priority and fixture mode policy.
 

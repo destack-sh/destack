@@ -85,7 +85,7 @@ pub fn sort_imports(
     tree: &NodeTree,
     strings: &ImmutableStringPool,
 ) -> Vec<LocalNodeId<Expression>> {
-    // separate side-effect imports (preserve order) from regular imports
+    // separate side effect imports, preserve order, from regular imports
     let mut side_effects: Vec<LocalNodeId<Expression>> = Vec::new();
     let mut regular: Vec<(ImportGroup, &str, LocalNodeId<Expression>)> = Vec::new();
 
@@ -94,7 +94,7 @@ pub fn sort_imports(
         {
             let target_str = strings.get(*target);
             if items.is_empty() {
-                // side-effect import: preserve relative order
+                // side effect import: preserve relative order
                 side_effects.push(expr_id);
             } else {
                 let group = categorize_import(target_str);
@@ -109,7 +109,7 @@ pub fn sort_imports(
         other => other,
     });
 
-    // build result: side-effects first, then sorted regular imports
+    // build result: side effects first, then sorted regular imports
     let mut result: Vec<LocalNodeId<Expression>> = Vec::with_capacity(imports.len());
     result.extend(side_effects);
     result.extend(regular.into_iter().map(|(_, _, id)| id));
@@ -143,7 +143,7 @@ pub fn should_insert_blank_between(
         _ => return false,
     };
 
-    // blank line between side-effect and regular imports
+    // blank line between side effect and regular imports
     if prev_is_side_effect && !curr_is_side_effect {
         return true;
     }

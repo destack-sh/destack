@@ -2,6 +2,7 @@
 mod tests {
     use crate::{DestackFormatOptions, TestFormatter, assert_format};
     use destack_ast::{Asynchrony, DeclarationDescriptor};
+    use destack_source::FileType;
 
     #[test]
     fn test_format_let_with_value() {
@@ -133,5 +134,58 @@ mod tests {
             |p| p.eat_let(&p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default_with_line_width(60)
         );
+    }
+
+    #[test]
+    fn test_format_let_ignored_binding_field_is_idempotent() {
+        let source = "let {\n\t/* biome-ignore format: Test that the property doesn't get formatted */\n\tsomeProperty:    alias\n} = { someProperty: 20 };";
+        let (first_test, first_node_id) =
+            TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
+                p.eat_let(&p.mark(), DeclarationDescriptor::default())
+            })
+            .unwrap();
+        let first_output = first_test.format(
+            &first_node_id,
+            DestackFormatOptions::default_with_line_width(80),
+        );
+
+        let (second_test, second_node_id) =
+            TestFormatter::parse_with_file_type(&first_output, FileType::TypeScript, |p| {
+                p.eat_let(&p.mark(), DeclarationDescriptor::default())
+            })
+            .unwrap();
+        let second_output = second_test.format(
+            &second_node_id,
+            DestackFormatOptions::default_with_line_width(80),
+        );
+
+        assert_eq!(first_output, second_output);
+        assert!(!second_output.contains(",,"));
+    }
+
+    #[test]
+    fn test_format_let_multiline_chain_rhs_is_idempotent() {
+        let source = "const logical_expression_1 = this.state\n  .longLongLongLongLongLongLongLongLongTooLongProp\n  === true;";
+        let (first_test, first_node_id) =
+            TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
+                p.eat_let(&p.mark(), DeclarationDescriptor::default())
+            })
+            .unwrap();
+        let first_output = first_test.format(
+            &first_node_id,
+            DestackFormatOptions::default_with_line_width(80),
+        );
+
+        let (second_test, second_node_id) =
+            TestFormatter::parse_with_file_type(&first_output, FileType::TypeScript, |p| {
+                p.eat_let(&p.mark(), DeclarationDescriptor::default())
+            })
+            .unwrap();
+        let second_output = second_test.format(
+            &second_node_id,
+            DestackFormatOptions::default_with_line_width(80),
+        );
+
+        assert_eq!(first_output, second_output);
     }
 }

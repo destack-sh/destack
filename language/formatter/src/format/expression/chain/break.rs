@@ -597,15 +597,13 @@ pub(crate) fn should_break_chain(
     context: &DestackFormatContext<'_>,
     chain: &[LocalNodeId<Expression>],
 ) -> bool {
+    if chain.is_empty() {
+        return false;
+    }
+
     let line_width = usize::from(context.options.line_width);
-    let chain_root = chain
-        .first()
-        .copied()
-        .expect("chain must contain at least one node");
-    let chain_tail = chain
-        .last()
-        .copied()
-        .expect("chain must contain at least one node");
+    let chain_root = chain[0];
+    let chain_tail = chain[chain.len() - 1];
     let call_summaries = summarize_chain_calls(context, chain);
     let chain_head = chain_head_id(context.tree, chain_root);
     let has_chain_annotations = chain

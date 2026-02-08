@@ -10,6 +10,7 @@ use crate::literal::format_scalar_literal;
 use destack_source::Span;
 
 /// Format a dependency item name.
+/// Format a dependency item name.
 fn format_dependency_item_name<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     name: Name,

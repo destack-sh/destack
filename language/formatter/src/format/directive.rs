@@ -240,7 +240,7 @@ fn comment_token_is_line_leading(context: &DestackFormatContext<'_>, token: Toke
     context.get_span_str(prefix_span).trim().is_empty()
 }
 
-/// Extend an ignored span to include trailing separators and comments on the same line.
+/// Extend an ignored span to include trailing content on the same line.
 fn extend_span_with_trailing_tokens(context: &DestackFormatContext<'_>, span: Span) -> Span {
     let mut tokens: Vec<TokenSpan> = context
         .tokens
@@ -262,26 +262,14 @@ fn extend_span_with_trailing_tokens(context: &DestackFormatContext<'_>, span: Sp
                 if raw.contains(['\n', '\r']) {
                     break;
                 }
+                end = token.span.end;
                 continue;
             }
             TokenType::Newline => {
                 break;
             }
-            TokenType::LineComment
-            | TokenType::BlockComment
-            | TokenType::DocLineComment
-            | TokenType::DocBlockComment => {
-                end = token.span.end;
-                let raw = context.get_token_str(token);
-                if raw.contains(['\n', '\r']) {
-                    break;
-                }
-            }
-            TokenType::Comma | TokenType::Semicolon => {
-                end = token.span.end;
-            }
             _ => {
-                break;
+                end = token.span.end;
             }
         }
     }
@@ -350,7 +338,7 @@ pub fn write_ignored_span<'ast>(
         .get_position(span.start)
         .map_or(0, |(_, column)| column);
 
-    // preserve exact line structure for top-level ignored spans
+    // preserve exact line structure for top level ignored spans
     if start_column == 0 {
         write!(f, [text(&raw)])?;
         return Ok(());
@@ -444,7 +432,7 @@ fn parse_directive_token(comment: &str) -> Option<FormatterDirectiveToken> {
             return None;
         }
 
-        // check for single-line ignore directives
+        // check for single line ignore directives
         if matches!(
             trimmed,
             "prettier-ignore" | "oxfmt-ignore" | "deno-fmt-ignore" | "fmt-ignore" | "format-ignore"
@@ -471,7 +459,7 @@ fn parse_directive_token(comment: &str) -> Option<FormatterDirectiveToken> {
             return Some(FormatterDirectiveToken::IgnoreEnd);
         }
 
-        // check for biome-ignore with format specifier
+        // check for biome ignore with format specifier
         if trimmed.starts_with("biome-ignore") && trimmed.contains("format") {
             return Some(FormatterDirectiveToken::Ignore);
         }

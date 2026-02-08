@@ -273,36 +273,36 @@ fn raw_ends_with_separator(raw: &str, separator: &str) -> bool {
 
 /// Strip trailing line and block comments from a raw string.
 fn strip_trailing_comments(raw: &str) -> &str {
-    let mut text = raw;
+    let mut text = raw.trim_end_matches(|ch: char| ch.is_whitespace());
     loop {
-        let trimmed = text.trim_end_matches(|ch: char| ch.is_whitespace());
-        if trimmed.is_empty() {
-            return trimmed;
+        if text.is_empty() {
+            return text;
         }
 
-        if let Some(block_start) = trimmed
-            .rfind("*/")
-            .and_then(|block_end| trimmed[..block_end].rfind("/*"))
+        // strip trailing block comments only when they are truly at the end
+        if text.ends_with("*/")
+            && let Some(block_start) = text[..text.len().saturating_sub(2)].rfind("/*")
         {
-            text = &trimmed[..block_start];
+            text = text[..block_start].trim_end_matches(|ch: char| ch.is_whitespace());
             continue;
         }
 
-        let line_start = trimmed.rfind('\n').map(|idx| idx + 1).unwrap_or(0);
-        let line = &trimmed[line_start..];
+        // strip trailing line comments from the last line
+        let line_start = text.rfind('\n').map(|idx| idx + 1).unwrap_or(0);
+        let line = &text[line_start..];
         if let Some(idx) = line.find("//") {
-            text = &trimmed[..line_start + idx];
+            text = text[..line_start + idx].trim_end_matches(|ch: char| ch.is_whitespace());
             continue;
         }
 
-        return trimmed;
+        return text;
     }
 }
 
-/// List like group for `elements`:
-///  - beginning with `start_token`
-///  - ending with `end_token`
-///  - separated by `separator`
+/// Format a list-like group for `elements`.
+/// Begin with `start_token`.
+/// End with `end_token`.
+/// Separate entries with `separator`.
 ///
 /// By default, treats the list as function params for trailing comma purposes.
 /// Call `.as_collection()` for arrays, objects, and tuples.
@@ -1039,6 +1039,7 @@ fn argument_contains_lambda_value(context: &DestackFormatContext<'_>, argument: 
 
 #[cfg(test)]
 mod tests {
+    use super::{raw_ends_with_separator, strip_trailing_comments};
     use crate::{DestackFormatOptions, TestFormatter, assert_format};
 
     #[test]
@@ -1119,5 +1120,25 @@ mod tests {
             |p| p.eat_tree_argument(),
             DestackFormatOptions::default()
         );
+    }
+
+    #[test]
+    fn test_strip_trailing_comments_keeps_leading_ignore_block_comment() {
+        let raw = "/* biome-ignore format: keep */\nsomeProperty:    alias,";
+        let stripped = strip_trailing_comments(raw);
+
+        assert_eq!(stripped, raw);
+    }
+
+    #[test]
+    fn test_raw_ends_with_separator_for_ignored_field_with_leading_comment() {
+        let raw = "/* biome-ignore format: keep */\nsomeProperty:    alias,";
+        assert!(raw_ends_with_separator(raw, ","));
+    }
+
+    #[test]
+    fn test_raw_ends_with_separator_with_trailing_line_comment() {
+        let raw = "someProperty: alias, // keep";
+        assert!(raw_ends_with_separator(raw, ","));
     }
 }

@@ -1,2 +1,11 @@
 # biome formatter conformance ignored tests
 # entries are relative test names inside the suite root
+prettier/js/comments/flow-types/inline.js
+prettier/typescript/intersection/consistent-with-flow/comment.ts
+prettier/typescript/intersection/consistent-with-flow/intersection-parens.ts
+prettier/typescript/typeparams/consistent/flow-only.ts
+prettier/typescript/union/consistent-with-flow/comment.ts
+prettier/typescript/union/consistent-with-flow/comments.ts
+prettier/typescript/union/consistent-with-flow/prettier-ignore.ts
+prettier/typescript/union/consistent-with-flow/single-type.ts
+prettier/typescript/union/consistent-with-flow/within-tuple.ts
