@@ -2747,7 +2747,7 @@ impl Compiler {
 
         // skip index validation when the type index is an array size
         let supports_index_access = match self
-            .type_supports_index_access(module, profile, left_ty_id, tree, symbols, types)
+            .type_supports_index_access(module, profile, left_ty_id, tree, symbols, types, false)
         {
             Ok(value) => value,
             Err(error) => {
