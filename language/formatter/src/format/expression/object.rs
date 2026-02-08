@@ -1,6 +1,7 @@
 use super::*;
 use destack_fir::{format_args, write};
 
+/// Format boundary comments for array-like structures.
 pub(super) fn format_boundary_comment_array<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     elements: &[LocalNodeId<Argument>],
@@ -149,6 +150,7 @@ fn object_has_leading_newline_before_first_property(
 }
 
 /// Format a struct literal.
+/// Format a struct literal expression.
 #[inline]
 pub(crate) fn format_struct_literal<'ast>(
     f: &mut DestackFormatter<'ast, '_>,

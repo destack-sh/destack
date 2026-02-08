@@ -37,7 +37,6 @@ pub(crate) fn extract_parenthesized_index_chain(
 }
 
 /// Format a maybe expression without considering chaining.
-#[inline]
 pub(crate) fn format_maybe_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,

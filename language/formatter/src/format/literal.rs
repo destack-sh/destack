@@ -86,7 +86,7 @@ pub(crate) fn format_scalar_literal<'ast>(
                 let quote_str = if quote_char == '"' { "\"" } else { "'" };
                 write!(f, [token(quote_str), text(content), token(quote_str)])?;
             } else if span_str.starts_with('"') || span_str.starts_with('\'') {
-                // quoted string -> normalize to preferred quote style
+                // quoted string: normalize to preferred quote style
                 let inner = &span_str[1..span_str.len() - 1];
                 let mut normalized = String::with_capacity(span_str.len());
                 normalized.push(quote_char);
@@ -94,7 +94,7 @@ pub(crate) fn format_scalar_literal<'ast>(
                 normalized.push(quote_char);
                 write!(f, [text(normalized.as_str())])?;
             } else {
-                // jsx text content (unquoted) -> normalize whitespace
+                // jsx text content (unquoted): normalize whitespace
                 let has_newline = span_str.contains(['\n', '\r']);
                 let has_non_whitespace = span_str.chars().any(|c| !c.is_whitespace());
                 if !has_non_whitespace {

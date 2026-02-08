@@ -25,6 +25,7 @@ use destack_fir::{format_args, write};
 use destack_source::Span;
 use destack_workspace::QuoteProperty;
 
+/// Format binding modifiers that appear before a name.
 #[inline]
 pub(crate) fn format_binding_modifiers_prefix<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -78,6 +79,7 @@ pub(crate) fn format_binding_modifiers_prefix<'ast>(
     Ok(())
 }
 
+/// Format optional binding modifiers before a name.
 #[inline]
 pub(crate) fn format_binding_modifiers_prefix_maybe<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -89,6 +91,7 @@ pub(crate) fn format_binding_modifiers_prefix_maybe<'ast>(
     Ok(())
 }
 
+/// Format binding modifiers that appear after a name.
 #[inline]
 pub(crate) fn format_binding_modifiers_postfix<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -105,6 +108,7 @@ pub(crate) fn format_binding_modifiers_postfix<'ast>(
     Ok(())
 }
 
+/// Format optional binding modifiers after a name.
 #[inline]
 pub(crate) fn format_binding_modifiers_postfix_maybe<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -295,6 +299,7 @@ fn format_method_body_block_with_deferred_boundary_line_comments<'ast>(
 }
 
 /// Format a block of properties with appropriate empty annotations.
+/// Format a block of properties.
 #[allow(unused)]
 pub(crate) fn format_block_of_properties<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -345,6 +350,7 @@ pub(crate) fn format_block_of_properties<'ast>(
 }
 
 /// Format a block of members with appropriate empty annotations.
+/// Format a block of members.
 #[allow(unused)]
 pub(crate) fn format_block_of_members<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -386,6 +392,7 @@ pub(crate) fn format_block_of_members<'ast>(
 }
 
 /// Check whether a key requires quotes under identifier rules.
+/// Return whether a key requires quoting.
 #[inline]
 fn key_requires_quotes<'ast>(f: &DestackFormatter<'ast, '_>, key: Key) -> bool {
     let strings = f.context().strings;
@@ -399,6 +406,7 @@ fn key_requires_quotes<'ast>(f: &DestackFormatter<'ast, '_>, key: Key) -> bool {
 }
 
 /// Check whether any object key forces consistent quoting.
+/// Return whether object properties should force quoted keys.
 #[inline]
 fn force_quote_keys_for_object<'ast>(
     f: &DestackFormatter<'ast, '_>,
@@ -416,6 +424,7 @@ fn force_quote_keys_for_object<'ast>(
 }
 
 /// Check whether any type member key forces consistent quoting.
+/// Return whether members should force quoted keys.
 #[inline]
 fn force_quote_keys_for_members<'ast>(
     f: &DestackFormatter<'ast, '_>,
@@ -433,6 +442,7 @@ fn force_quote_keys_for_members<'ast>(
 }
 
 /// Decide whether this property should force consistent key quoting.
+/// Return whether one property should force quoted keys.
 #[inline]
 fn should_force_quote_keys_for_property<'ast>(
     f: &DestackFormatter<'ast, '_>,
@@ -463,6 +473,7 @@ fn should_force_quote_keys_for_property<'ast>(
 }
 
 /// Decide whether this member should force consistent key quoting.
+/// Return whether one member should force quoted keys.
 #[inline]
 fn should_force_quote_keys_for_member<'ast>(
     f: &DestackFormatter<'ast, '_>,
@@ -514,7 +525,7 @@ fn should_keep_field_default_inline<'ast>(
         return true;
     }
 
-    // single-line call-like defaults should only stay inline when short
+    // single line call like defaults should only stay inline when short
     let line_width = usize::from(f.context().options.line_width);
     let expression_len = f
         .context()
@@ -526,6 +537,7 @@ fn should_keep_field_default_inline<'ast>(
 }
 
 /// Write a field-like type annotation after `:`.
+/// Write a field type annotation.
 #[inline]
 fn write_field_type_annotation<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -861,7 +873,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                 ty,
                 value,
             } => {
-                // keep non-comptime modifiers before the associated keyword pair
+                // keep non comptime modifiers before the associated keyword pair
                 if let Some(mut modifiers) = *modifiers {
                     modifiers.timing = None;
                     modifiers.operator = None;

@@ -186,38 +186,50 @@ pub(super) fn format_declarator<'ast>(
         || value_is_lambda
         || value_is_declaration;
     let should_force_expand_value = value_breakable && !value_is_poor_chain;
-    let value_is_complex_chain = if value_is_chain {
-        let mut chain = Vec::new();
-        let mut current = value_inner_id;
-        loop {
-            chain.push(current);
-            let next = match tree.get(current) {
-                Expression::Member { left, .. }
-                | Expression::PrivateMember { left, .. }
-                | Expression::Call { left, .. }
-                | Expression::Index { left, .. }
-                | Expression::Instantiation { left, .. }
-                | Expression::Maybe { left, .. }
-                | Expression::Must { left, .. } => Some(*left),
-                _ => None,
-            };
+    let (value_is_complex_chain, value_chain_call_count, value_chain_has_member_access) =
+        if value_is_chain {
+            let mut chain = Vec::new();
+            let mut current = value_inner_id;
+            loop {
+                chain.push(current);
+                let next = match tree.get(current) {
+                    Expression::Member { left, .. }
+                    | Expression::PrivateMember { left, .. }
+                    | Expression::Call { left, .. }
+                    | Expression::Index { left, .. }
+                    | Expression::Instantiation { left, .. }
+                    | Expression::Maybe { left, .. }
+                    | Expression::Must { left, .. } => Some(*left),
+                    _ => None,
+                };
 
-            if let Some(next_id) = next {
-                current = next_id;
-            } else {
-                break;
+                if let Some(next_id) = next {
+                    current = next_id;
+                } else {
+                    break;
+                }
             }
-        }
-        chain.reverse();
+            chain.reverse();
 
-        let call_summaries = summarize_chain_calls(f.context(), &chain);
-        let has_multiline_call = call_summaries
-            .iter()
-            .any(|summary| summary.has_multiline_argument);
-        call_summaries.len() > 1 && has_multiline_call
-    } else {
-        false
-    };
+            let chain_has_member_access = chain.iter().copied().any(|expression_id| {
+                matches!(
+                    tree.get(expression_id),
+                    Expression::Member { .. } | Expression::PrivateMember { .. }
+                )
+            });
+            let call_summaries = summarize_chain_calls(f.context(), &chain);
+            let chain_call_count = call_summaries.len();
+            let has_multiline_call = call_summaries
+                .iter()
+                .any(|summary| summary.has_multiline_argument);
+            (
+                chain_call_count > 1 && has_multiline_call,
+                chain_call_count,
+                chain_has_member_access,
+            )
+        } else {
+            (false, 0, false)
+        };
     let value_is_multiline_call_like = match value_inner_expr {
         Expression::Call {
             static_arguments,
@@ -248,8 +260,42 @@ pub(super) fn format_declarator<'ast>(
             .any(|argument_id| argument_forces_multiline(f.context(), argument_id)),
         _ => false,
     };
+    let value_has_multiline_static_argument = match value_inner_expr {
+        Expression::Call {
+            static_arguments, ..
+        }
+        | Expression::New {
+            static_arguments, ..
+        } => static_arguments.as_ref().is_some_and(|arguments| {
+            arguments
+                .iter()
+                .copied()
+                .any(|argument_id| f.context().has_newline(f.context().get_span(argument_id)))
+        }),
+        Expression::Instantiation {
+            static_arguments, ..
+        } => static_arguments
+            .iter()
+            .copied()
+            .any(|argument_id| f.context().has_newline(f.context().get_span(argument_id))),
+        _ => false,
+    };
+    let value_has_static_arguments = match value_inner_expr {
+        Expression::Call {
+            static_arguments, ..
+        }
+        | Expression::New {
+            static_arguments, ..
+        } => static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty()),
+        Expression::Instantiation {
+            static_arguments, ..
+        } => !static_arguments.is_empty(),
+        _ => false,
+    };
     let allow_source_operator_break_preservation =
-        !(value_is_complex_chain || value_is_multiline_call_like);
+        !(value_is_complex_chain || (value_is_multiline_call_like && !value_has_static_arguments));
 
     // estimate remaining width if the declarator stayed inline
     let line_width = usize::from(f.context().options.line_width);
@@ -368,6 +414,29 @@ pub(super) fn format_declarator<'ast>(
     let format_break_after_operator_for_binary =
         format_with(|f: &mut DestackFormatter<'ast, '_>| {
             let value_has_prefix_annotation = f.context().has_prefix_annotation(*value_id);
+            let format_value_without_chain = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                let can_format_call_without_chain = !f.context().has_annotation(*value_id)
+                    && !f.context().has_annotation(value_inner_id)
+                    && value_is_chain;
+                if !can_format_call_without_chain {
+                    write!(f, [*value_id])?;
+                    return Ok(());
+                }
+
+                match f.context().tree.get(value_inner_id) {
+                    Expression::Call { .. } => {
+                        format_call_expression(f, value_inner_id)?;
+                    }
+                    Expression::Instantiation { .. } => {
+                        format_instantiation_expression(f, value_inner_id)?;
+                    }
+                    _ => {
+                        write!(f, [*value_id])?;
+                    }
+                }
+                Ok(())
+            });
+
             if value_has_prefix_annotation || value_is_sequence {
                 write!(
                     f,
@@ -375,11 +444,11 @@ pub(super) fn format_declarator<'ast>(
                         header,
                         space(),
                         token("="),
-                        indent(&format_args![hard_line_break(), value_id])
+                        indent(&format_args![hard_line_break(), format_value_without_chain])
                     ]
                 )
             } else {
-                let dedented_value = dedent(value_id);
+                let dedented_value = dedent(&format_value_without_chain);
                 write!(
                     f,
                     [
@@ -396,7 +465,7 @@ pub(super) fn format_declarator<'ast>(
         Expression::ScalarLiteral(ScalarLiteral::String(_)) | Expression::TemplateExpression { .. }
     );
 
-    // for string literals, never break at `=` - just let them exceed line width
+    // for string literals, never break at `=`: let them exceed line width
     if is_string_literal {
         if value_is_long && !pattern_breakable {
             best_fitting![
@@ -418,15 +487,23 @@ pub(super) fn format_declarator<'ast>(
             .with_mode(BestFittingMode::AllLines)
             .format(f)?;
     } else if value_handles_its_own_breaking {
-        let chain_fits_after_operator_break = value_is_chain
-            && !value_is_complex_chain
-            && value_is_long
-            && value_source_len <= line_width.saturating_sub(4);
         let source_rhs_has_newline = value_has_newline && allow_source_operator_break_preservation;
         let source_operator_has_newline =
             value_has_existing_operator_break && allow_source_operator_break_preservation;
+        let static_argument_operator_break_candidate = value_is_call_like
+            && value_has_static_arguments
+            && !value_has_multiline_static_argument
+            && (!value_is_chain || value_chain_call_count <= 1)
+            && !value_has_prefix_annotation
+            && !value_has_between_comment
+            && estimated_inline_declarator_len
+                >= line_width.saturating_sub(DECLARATOR_PREFIX_PADDING);
+        let preserve_static_argument_operator_break =
+            source_operator_has_newline && static_argument_operator_break_candidate;
+        let prefer_static_argument_operator_break = static_argument_operator_break_candidate
+            && (source_operator_has_newline || value_is_long);
         let preserve_source_rhs_break =
-            source_rhs_has_newline && (value_is_chain || value_is_binary || value_is_sequence);
+            source_rhs_has_newline && (value_is_binary || value_is_sequence);
         let preserve_source_operator_break =
             source_operator_has_newline && (value_is_chain || value_is_binary || value_is_sequence);
         let has_significant_between_comment = value_has_between_comment
@@ -440,8 +517,13 @@ pub(super) fn format_declarator<'ast>(
             && (value_has_prefix_annotation
                 || preserve_source_rhs_break
                 || preserve_source_operator_break
+                || prefer_static_argument_operator_break
+                || (value_is_chain
+                    && value_is_long
+                    && value_chain_call_count <= 1
+                    && value_chain_has_member_access
+                    && !value_is_complex_chain)
                 || has_significant_between_comment
-                || chain_fits_after_operator_break
                 || (value_has_generic_class_heritage && value_is_long));
         let value_is_await_expression = matches!(
             value_expr,
@@ -452,6 +534,7 @@ pub(super) fn format_declarator<'ast>(
             (value_is_long && !value_is_await_expression && !value_has_multiline_chain_body)
                 || value_has_prefix_annotation
                 || preserve_source_operator_break
+                || prefer_static_argument_operator_break
                 || has_significant_between_comment;
 
         match pattern_breakable {
@@ -483,12 +566,18 @@ pub(super) fn format_declarator<'ast>(
             false => {
                 if value_prefers_operator_break {
                     if value_should_lead_with_break {
-                        best_fitting![
-                            format_break_after_operator_for_binary,
-                            format_inline,
-                            format_value_expanded_strict
-                        ]
-                        .format(f)?;
+                        if preserve_static_argument_operator_break
+                            || prefer_static_argument_operator_break
+                        {
+                            write!(f, [format_break_after_operator_for_binary])?;
+                        } else {
+                            best_fitting![
+                                format_break_after_operator_for_binary,
+                                format_inline,
+                                format_value_expanded_strict
+                            ]
+                            .format(f)?;
+                        }
                     } else {
                         best_fitting![
                             format_inline,

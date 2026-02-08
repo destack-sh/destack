@@ -49,9 +49,21 @@ pub(super) fn format_operator_expression<'ast>(
         // unary
         Expression::Unary { operator, right } => {
             if operator.is_prefix() {
+                let right_needs_await_or_yield_grouping = matches!(
+                    tree.get(*right),
+                    Expression::Await { .. }
+                        | Expression::AwaitMaybe { .. }
+                        | Expression::Yield { .. }
+                );
                 let needs_space = matches!(operator, UnaryOperator::Typeof | UnaryOperator::Void);
                 if needs_space {
-                    write!(f, [operator, space(), right])?;
+                    if right_needs_await_or_yield_grouping {
+                        write!(f, [operator, space(), token("("), right, token(")")])?;
+                    } else {
+                        write!(f, [operator, space(), right])?;
+                    }
+                } else if right_needs_await_or_yield_grouping {
+                    write!(f, [operator, token("("), right, token(")")])?;
                 } else {
                     write!(f, [operator, right])?;
                 }
@@ -181,6 +193,23 @@ pub(super) fn format_operator_expression<'ast>(
                 left = *expression;
             }
 
+            let has_deferred_empty_argument_comments = if dynamic_arguments.is_empty() {
+                let (inline_argument_comment, line_argument_comment, trailing_optional_comment) =
+                    collect_deferred_empty_call_boundary_comments(f.context(), node_id);
+                inline_argument_comment.is_some()
+                    || line_argument_comment.is_some()
+                    || trailing_optional_comment.is_some()
+            } else {
+                false
+            };
+
+            let left_without_infix_or_postfix_annotations = format_with(|f| {
+                let directive = directive_for_node(f.context(), left);
+                write!(f, [f.context().any_prefix_annotations(left)])?;
+                format_expression(f, left, f.context().tree.get(left), directive)?;
+                Ok(())
+            });
+
             let mut formatted_left = None;
             if let Some((base_expression, indices)) =
                 extract_parenthesized_index_chain(f.context().tree, left)
@@ -208,7 +237,29 @@ pub(super) fn format_operator_expression<'ast>(
                     } if member_object_prefers_new_callee_parentheses(f.context(), *member_left)
                 );
                 if should_wrap_member_callee {
-                    write!(f, [token("new"), space(), token("("), left, token(")")])?;
+                    if has_deferred_empty_argument_comments {
+                        write!(
+                            f,
+                            [
+                                token("new"),
+                                space(),
+                                token("("),
+                                left_without_infix_or_postfix_annotations,
+                                token(")")
+                            ]
+                        )?;
+                    } else {
+                        write!(f, [token("new"), space(), token("("), left, token(")")])?;
+                    }
+                } else if has_deferred_empty_argument_comments {
+                    write!(
+                        f,
+                        [
+                            token("new"),
+                            space(),
+                            left_without_infix_or_postfix_annotations
+                        ]
+                    )?;
                 } else {
                     write!(f, [token("new"), space(), left])?;
                 }
@@ -216,7 +267,7 @@ pub(super) fn format_operator_expression<'ast>(
             if let Some(static_arguments) = static_arguments {
                 format_static_argument_list(f, static_arguments)?;
             }
-            format_call_arguments(f, node_id, dynamic_arguments)?;
+            format_call_dynamic_arguments_with_deferred_comments(f, node_id, dynamic_arguments)?;
         }
 
         // delete
@@ -325,7 +376,7 @@ pub(super) fn format_operator_expression<'ast>(
             }
 
             // keep precedence mixed logical rhs grouped for readability:
-            // `a || b && c` -> `a || (b && c)`
+            // `a || b && c`: `a || (b && c)`
             if matches!(operator, BinaryOperator::Or | BinaryOperator::Coalesce)
                 && let Expression::Binary {
                     operator: right_operator,
@@ -457,7 +508,7 @@ pub(super) fn format_operator_expression<'ast>(
                 }
             }
 
-            // flatten binary expression chain for Prettier-style formatting
+            // flatten binary expression chain for Prettier style formatting
             // e.g. `a + b + c` formats as:
             //   a
             //       + b
@@ -668,7 +719,7 @@ pub(super) fn format_operator_expression<'ast>(
                 return Ok(true);
             }
 
-            // destack intersections: prefer trailing `&` with object-like heuristics
+            // destack intersections: prefer trailing `&` with object like heuristics
             if is_type_intersection && is_destack {
                 write!(
                     f,
@@ -1098,6 +1149,7 @@ pub(super) fn format_operator_expression<'ast>(
                     !right_is_lambda
                         && (right_is_chain_tail_lambda
                             || right_has_prefix_annotation
+                            || (!right_has_newline && right_is_long)
                             || right_has_between_comment)
                 } else {
                     !right_is_lambda
@@ -1174,6 +1226,7 @@ pub(super) fn format_operator_expression<'ast>(
                     is_trivial_expression(f.context().tree, inner_right_expr)
                         && expression_source_len(f.context(), inner_right_id)
                             <= usize::from(f.context().options.line_width) / 3;
+
                 if (left_has_newline || left_is_expanded_object_target)
                     && (right_is_short_object || right_is_short_atomic)
                 {
@@ -1198,7 +1251,7 @@ pub(super) fn format_operator_expression<'ast>(
             write!(f, [token("debugger")])?;
         }
 
-        // stub (placeholder for annotation-only files)
+        // stub: placeholder for annotation only files
         Expression::Stub => {}
 
         // error

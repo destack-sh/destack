@@ -1,6 +1,7 @@
 use super::*;
 use destack_fir::write;
 
+/// Return whether an expression is a type-grammar variant.
 pub(super) fn is_type_expression_variant(expression: &Expression) -> bool {
     matches!(
         expression,

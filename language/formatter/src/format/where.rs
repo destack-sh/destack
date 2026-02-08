@@ -6,6 +6,7 @@ use destack_ast::{Keyword, LocalNodeId, WhereClause};
 use destack_fir::prelude::*;
 use destack_fir::{best_fitting, write};
 
+/// Format a where clause list.
 pub(crate) fn format_where_clause<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     clauses: &[LocalNodeId<WhereClause>],
@@ -28,6 +29,7 @@ pub(crate) fn format_where_clause<'ast>(
     Ok(())
 }
 
+/// Format a where clause list with a break fallback.
 pub(crate) fn format_where_clause_with_break<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     clauses: &[LocalNodeId<WhereClause>],

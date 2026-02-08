@@ -96,8 +96,10 @@ const result = someVeryLongChain().a().b().c()
 ```
 
 ```ds expected
-const result =
-    someVeryLongChain().a().b().c();
+const result = someVeryLongChain()
+    .a()
+    .b()
+    .c();
 ```
 
 ### assignment with long left hand side still breaks at the chain
@@ -109,8 +111,11 @@ const veryLongResultName = someVeryLongChain().a().b().c().d()
 ```
 
 ```ds expected
-const veryLongResultName =
-    someVeryLongChain().a().b().c().d();
+const veryLongResultName = someVeryLongChain()
+    .a()
+    .b()
+    .c()
+    .d();
 ```
 
 ## Complex Function Calls

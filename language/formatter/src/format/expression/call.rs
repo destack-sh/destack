@@ -2,6 +2,7 @@ use super::*;
 use destack_ast::TemplateLiteral;
 use destack_fir::write;
 
+/// Return whether an expression appears in call-like argument position.
 pub(super) fn is_call_like_argument(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
@@ -701,13 +702,18 @@ pub(super) fn collect_deferred_empty_call_boundary_comments(
     context: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
 ) -> (Option<String>, Option<String>, Option<String>) {
-    let Expression::Call {
-        left,
-        dynamic_arguments,
-        ..
-    } = context.tree.get(call_node_id)
-    else {
-        return (None, None, None);
+    let (left, dynamic_arguments) = match context.tree.get(call_node_id) {
+        Expression::Call {
+            left,
+            dynamic_arguments,
+            ..
+        }
+        | Expression::New {
+            left,
+            dynamic_arguments,
+            ..
+        } => (*left, dynamic_arguments),
+        _ => return (None, None, None),
     };
 
     if !dynamic_arguments.is_empty() {
@@ -717,7 +723,7 @@ pub(super) fn collect_deferred_empty_call_boundary_comments(
     let mut inline_argument_comment: Option<String> = None;
     let mut line_argument_comment: Option<String> = None;
     let mut trailing_optional_comment: Option<String> = None;
-    for expression_id in callee_expression_chain_ids(context, *left) {
+    for expression_id in callee_expression_chain_ids(context, left) {
         let Some(annotations) = context.get_annotations(expression_id) else {
             continue;
         };
@@ -804,11 +810,14 @@ pub(super) fn enclosing_empty_call_id_for_callee_expression(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> Option<LocalNodeId<Expression>> {
-    if let Expression::Call {
-        dynamic_arguments, ..
-    } = context.tree.get(expression_id)
-        && dynamic_arguments.is_empty()
-    {
+    if matches!(
+        context.tree.get(expression_id),
+        Expression::Call {
+            dynamic_arguments, ..
+        } | Expression::New {
+            dynamic_arguments, ..
+        } if dynamic_arguments.is_empty()
+    ) {
         return Some(expression_id);
     }
 
@@ -822,6 +831,11 @@ pub(super) fn enclosing_empty_call_id_for_callee_expression(
         let parent_id = LocalNodeId::<Expression>::new(parent_id);
         match context.tree.get(parent_id) {
             Expression::Call {
+                left,
+                dynamic_arguments,
+                ..
+            }
+            | Expression::New {
                 left,
                 dynamic_arguments,
                 ..
@@ -1301,6 +1315,7 @@ pub(super) fn format_call_dynamic_arguments_with_deferred_comments<'ast>(
 }
 
 /// Format a call expression without considering chaining.
+/// Format a call expression.
 #[inline]
 pub(super) fn format_call_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -1329,6 +1344,7 @@ pub(super) fn format_call_expression<'ast>(
 }
 
 /// Format an instantiation expression without considering chaining.
+/// Format an instantiation expression.
 #[inline]
 pub(super) fn format_instantiation_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,

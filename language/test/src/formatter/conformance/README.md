@@ -2,6 +2,29 @@
 
 Formatter conformance tests measure how close Destack formatter behavior is to external formatter ecosystems.
 
+## Compliance Policy
+
+Formatter conformance uses a tiered target model.
+
+The tier definitions are below.
+1. `hard`: `oxfmt` parity for supported JS/TS/JSX/TSX syntax.
+2. `hard`: Destack owned formatter spec and fixture behavior for DS and TS++ syntax.
+3. `soft`: `prettier` and `biome` parity for gap discovery and prioritization.
+
+Conflict resolution follows this order.
+1. Destack language spec and formatter fixtures for DS and TS++ behavior.
+2. `oxfmt` for shared JS and TS behavior.
+3. `prettier` and `biome` as advisory when they conflict with `oxfmt`.
+
+Known failures and ignored files have strict meanings.
+1. `*-known-failures.txt`: active gaps we intend to burn down.
+2. `*-ignored.txt`: intentional divergence or unsupported scope only.
+3. Flow and `flow-repo` fixtures are unsupported language scope and stay in `ignored`.
+
+Runner output and README summary rows include a suite tier label.
+`hard` means release blocking for that suite's in-scope coverage.
+`soft` means informational and prioritization signal, not a hard merge gate.
+
 ## Status
 
 The pass rate intentionally excludes explicitly ignored tests.
@@ -9,42 +32,42 @@ Ignored tests track intentional differences and unsupported or out of scope beha
 
 <!-- (results are automatically updated by the formatter conformance test runner) -->
 <!-- begin:summary-results -->
-| Suite    | Passed | Failed | Ignored | Total |  Rate   |
-|:---------|-------:|-------:|--------:|------:|--------:|
-| biome    |   544  |  1192  |     -  |  1736 |  31.34% |
-| oxfmt    |   129  |     0  |     6  |   129 | 100.00% |
-| prettier |  1934  |  1294  |     -  |  3228 |  59.93% |
-|----------|--------|--------|---------|-------|---------|
-| total    |  2607  |  2486  |      6  |  5093 |  51.19% |
+| Suite    | Tier | Passed | Failed | Ignored | Total |  Rate   |
+|:---------|:-----|-------:|-------:|--------:|------:|--------:|
+| biome    | soft |   612  |  1115  |     9  |  1727 |  35.44% |
+| oxfmt    | hard |   129  |     0  |     6  |   129 | 100.00% |
+| prettier | soft |  1173  |   619  |  1436  |  1792 |  65.49% |
+|----------|------|--------|--------|---------|-------|---------|
+| total    | -    |  1914  |  1734  |   1451  |  3648 |  52.47% |
 
-Total Blended Pass Rate: **51.19%**
+Total Blended Pass Rate: **52.47%**
 <!-- end:summary-results -->
 
 ### biome
 <!-- begin:biome-results -->
 | Category             | Passed | Failed | Ignored | Total |  Rate   |
 |:---------------------|-------:|-------:|--------:|------:|--------:|
-| js                   |    97  |    72  |       -  |   169 |  57.40% |
+| js                   |   105  |    64  |       -  |   169 |  62.13% |
 | jsx                  |    12  |     7  |       -  |    19 |  63.16% |
-| prettier             |   385  |  1085  |       -  |  1470 |  26.19% |
-| ts                   |    48  |    27  |       -  |    75 |  64.00% |
+| prettier             |   444  |  1017  |       9  |  1461 |  30.39% |
+| ts                   |    49  |    26  |       -  |    75 |  65.33% |
 | tsx                  |     2  |     1  |       -  |     3 |  66.67% |
 |----------------------|--------|--------|---------|-------|---------|
-| total                |   544  |  1192  |       -  |  1736 |  31.34% |
+| total                |   612  |  1115  |       9  |  1727 |  35.44% |
 <!-- end:biome-results -->
 
 ### prettier
 <!-- begin:prettier-results -->
 | Category             | Passed | Failed | Ignored | Total |  Rate   |
 |:---------------------|-------:|-------:|--------:|------:|--------:|
-| flow                 |   786  |   629  |       -  |  1415 |  55.55% |
-| flow-repo            |     7  |     7  |       -  |    14 |  50.00% |
-| js                   |   626  |   412  |       -  |  1038 |  60.31% |
-| jsx                  |     1  |    62  |       -  |    63 |   1.59% |
+| flow                 |     0  |     0  |    1415  |     0 | 100.00% |
+| flow-repo            |     0  |     0  |      14  |     0 | 100.00% |
+| js                   |   641  |   396  |       1  |  1037 |  61.81% |
+| jsx                  |     2  |    61  |       -  |    63 |   3.17% |
 | misc                 |    33  |    11  |       -  |    44 |  75.00% |
-| typescript           |   481  |   173  |       -  |   654 |  73.55% |
+| typescript           |   497  |   151  |       6  |   648 |  76.70% |
 |----------------------|--------|--------|---------|-------|---------|
-| total                |  1934  |  1294  |       -  |  3228 |  59.91% |
+| total                |  1173  |   619  |    1436  |  1792 |  65.46% |
 <!-- end:prettier-results -->
 
 ### oxfmt

@@ -1,14 +1,19 @@
 use super::*;
 use destack_fir::write;
 
-/// Format a member/call/maybe/index chain with prettier-style breaking.
-pub(crate) fn format_expression_chain<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Expression>,
-) -> FormatResult<()> {
-    let tree = f.context().tree;
+/// The root-derived base and synthetic operations for chain formatting.
+struct ChainRootParts {
+    head: ChainExpressionBaseHead,
+    operations: Vec<ChainExpression>,
+    deferred_boundary_comments: Vec<String>,
+}
 
-    // collect the nodes that belong to this chain
+/// Collect all chain nodes from root to leaf.
+fn collect_chain_nodes(
+    tree: &NodeTree,
+    node_id: LocalNodeId<Expression>,
+) -> FormatResult<Vec<LocalNodeId<Expression>>> {
+    // walk from leaf to root through chain links
     let mut chain = Vec::new();
     let mut current = node_id;
     loop {
@@ -31,9 +36,180 @@ pub(crate) fn format_expression_chain<'ast>(
         }
     }
     chain.reverse();
-    let root_id = *chain
-        .first()
-        .expect("member/call/maybe/index chain must contain at least one node");
+
+    // sanity check: chain format requires at least one node
+    if chain.is_empty() {
+        return Err(FormatError::SyntaxError {
+            message: "member/call/maybe/index chain must contain at least one node",
+        });
+    }
+
+    Ok(chain)
+}
+
+/// Build base head and synthetic root operations for a chain root.
+fn collect_chain_root_parts(
+    context: &DestackFormatContext<'_>,
+    root_id: LocalNodeId<Expression>,
+) -> FormatResult<ChainRootParts> {
+    let tree = context.tree;
+    let mut head = ChainExpressionBaseHead::Expression(root_id);
+    let mut operations = Vec::new();
+    let mut deferred_boundary_comments = Vec::new();
+
+    // split root path segments into explicit member chain operations
+    if let Expression::Path {
+        path,
+        static_arguments,
+    } = tree.get(root_id)
+        && should_split_chain_root_path_segments(context, root_id)
+    {
+        let mut segments = path.segments.clone().into_iter();
+        let static_arguments = static_arguments.clone();
+        let Some(first_segment) = segments.next() else {
+            return Err(FormatError::SyntaxError {
+                message: "path chain root must contain at least one segment",
+            });
+        };
+        let remaining_segments: Vec<StringId> = segments.collect();
+        deferred_boundary_comments =
+            path_deferred_boundary_line_comments(context, root_id, path.segments.len());
+
+        let emit_postfix_on_tail = !remaining_segments.is_empty()
+            && path_postfix_annotations_emit_on_tail(context, root_id, path.segments.len());
+
+        // path base keeps static arguments only when there is no synthetic tail
+        let base_static_arguments = if remaining_segments.is_empty() {
+            static_arguments.clone()
+        } else {
+            None
+        };
+        head = ChainExpressionBaseHead::Path {
+            node_id: root_id,
+            segment: first_segment,
+            static_arguments: base_static_arguments,
+            emit_postfix_annotations: (remaining_segments.is_empty() || !emit_postfix_on_tail)
+                && deferred_boundary_comments.is_empty(),
+        };
+
+        // append synthetic member operations for remaining path segments
+        let tail_len = remaining_segments.len();
+        for (index, segment) in remaining_segments.into_iter().enumerate() {
+            let is_last = tail_len != 0 && index + 1 == tail_len;
+            let static_args = if is_last {
+                static_arguments.clone()
+            } else {
+                None
+            };
+            operations.push(ChainExpression::Member {
+                node_id: root_id,
+                segment,
+                static_arguments: static_args,
+                emit_prefix_annotations: false,
+                emit_postfix_annotations: emit_postfix_on_tail && is_last,
+            });
+        }
+    }
+
+    Ok(ChainRootParts {
+        head,
+        operations,
+        deferred_boundary_comments,
+    })
+}
+
+/// Convert one chain expression node into a chain operation.
+fn chain_expression_from_node(
+    tree: &NodeTree,
+    expression_id: LocalNodeId<Expression>,
+) -> FormatResult<ChainExpression> {
+    let chain_expression = match tree.get(expression_id) {
+        Expression::Member {
+            name,
+            static_arguments,
+            ..
+        } => ChainExpression::Member {
+            node_id: expression_id,
+            segment: *name,
+            static_arguments: static_arguments.clone(),
+            emit_prefix_annotations: true,
+            emit_postfix_annotations: true,
+        },
+        Expression::PrivateMember {
+            name,
+            static_arguments,
+            ..
+        } => ChainExpression::Member {
+            node_id: expression_id,
+            segment: *name,
+            static_arguments: static_arguments.clone(),
+            emit_prefix_annotations: true,
+            emit_postfix_annotations: true,
+        },
+        Expression::Call {
+            position,
+            static_arguments,
+            dynamic_arguments,
+            ..
+        } => ChainExpression::Call {
+            node_id: expression_id,
+            position: *position,
+            static_arguments: static_arguments.clone(),
+            dynamic_arguments: dynamic_arguments.clone(),
+        },
+        Expression::Instantiation {
+            static_arguments, ..
+        } => ChainExpression::Instantiation {
+            node_id: expression_id,
+            static_arguments: static_arguments.clone(),
+        },
+        Expression::Index {
+            position, index, ..
+        } => ChainExpression::Index {
+            node_id: expression_id,
+            position: *position,
+            index: *index,
+        },
+        Expression::Maybe { position, .. } => ChainExpression::Maybe {
+            node_id: expression_id,
+            position: *position,
+        },
+        Expression::Must { position, .. } => ChainExpression::Must {
+            node_id: expression_id,
+            position: *position,
+        },
+        _ => {
+            return Err(FormatError::SyntaxError {
+                message: "unexpected expression kind for chain expression",
+            });
+        }
+    };
+
+    Ok(chain_expression)
+}
+
+/// Append operation nodes from chain body expressions.
+fn append_chain_operations(
+    tree: &NodeTree,
+    chain: &[LocalNodeId<Expression>],
+    body: &mut Vec<ChainExpression>,
+) -> FormatResult<()> {
+    for expression_id in chain.iter().skip(1).copied() {
+        body.push(chain_expression_from_node(tree, expression_id)?);
+    }
+    Ok(())
+}
+
+/// Format a member/call/maybe/index chain with prettier-style breaking.
+pub(crate) fn format_expression_chain<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let tree = f.context().tree;
+
+    // collect chain nodes from root to leaf
+    let chain = collect_chain_nodes(tree, node_id)?;
+    let root_id = chain[0];
     let mut chain_should_break = should_break_chain(f.context(), &chain);
     let has_chain_intervening_trivia = chain_has_intervening_break_or_comment(f.context(), &chain);
     let chain_call_summaries = summarize_chain_calls(f.context(), &chain);
@@ -46,135 +222,19 @@ pub(crate) fn format_expression_chain<'ast>(
     let has_path_tail_deferred_empty_call_boundary_comment =
         chain_has_deferred_empty_call_boundary_comment_on_path_tail(f.context(), &chain);
 
-    // gather operations while breaking path roots into individual segments
-    let mut body: Vec<ChainExpression> = Vec::new();
-    let mut base_head = ChainExpressionBaseHead::Expression(root_id);
-    let mut deferred_path_boundary_comments: Vec<String> = Vec::new();
-
-    // break leading path expression into individual segments
-    if let Expression::Path {
-        path,
-        static_arguments,
-    } = tree.get(root_id)
-        && should_split_chain_root_path_segments(f.context(), root_id)
-    {
-        let mut segments = path.segments.clone().into_iter();
-        let static_arguments = static_arguments.clone();
-        let first_segment = segments.next().expect("path is not empty");
-        let remaining_segments: Vec<StringId> = segments.collect();
-        deferred_path_boundary_comments =
-            path_deferred_boundary_line_comments(f.context(), root_id, path.segments.len());
-
-        let emit_postfix_on_tail = !remaining_segments.is_empty()
-            && path_postfix_annotations_emit_on_tail(f.context(), root_id, path.segments.len());
-
-        // path base (keeps static arguments if there are no remaining segments)
-        let base_static_arguments = if remaining_segments.is_empty() {
-            static_arguments.clone()
-        } else {
-            None
-        };
-        base_head = ChainExpressionBaseHead::Path {
-            node_id: root_id,
-            segment: first_segment,
-            static_arguments: base_static_arguments,
-            emit_postfix_annotations: (remaining_segments.is_empty() || !emit_postfix_on_tail)
-                && deferred_path_boundary_comments.is_empty(),
-        };
-
-        // path rest (tail segments)
-        // (path segments are synthetic, they come from a single Path expression,
-        //  so we use root_id for annotations, even though they won't have intra-path comments)
-        let tail_len = remaining_segments.len();
-        for (index, segment) in remaining_segments.into_iter().enumerate() {
-            let is_last = tail_len != 0 && index + 1 == tail_len;
-            // last segment keeps static arguments if there are any
-            let static_args = if is_last {
-                static_arguments.clone()
-            } else {
-                None
-            };
-            body.push(ChainExpression::Member {
-                node_id: root_id,
-                segment,
-                static_arguments: static_args,
-                emit_prefix_annotations: false,
-                emit_postfix_annotations: emit_postfix_on_tail && is_last,
-            });
-        }
-    }
+    // initialize base head and synthetic root path operations
+    let root_parts = collect_chain_root_parts(f.context(), root_id)?;
+    let mut body = root_parts.operations;
     let mut base = ChainExpressionBase {
-        head: base_head,
+        head: root_parts.head,
         body: Vec::new(),
     };
+    let deferred_path_boundary_comments = root_parts.deferred_boundary_comments;
 
-    // convert the chain into individual chain expressions, preserving node IDs for annotations
-    for &expression_id in &chain[1..] {
-        let chain_expression = match tree.get(expression_id) {
-            Expression::Member {
-                name,
-                static_arguments,
-                ..
-            } => ChainExpression::Member {
-                node_id: expression_id,
-                segment: *name,
-                static_arguments: static_arguments.clone(),
-                emit_prefix_annotations: true,
-                emit_postfix_annotations: true,
-            },
-            Expression::PrivateMember {
-                name,
-                static_arguments,
-                ..
-            } => ChainExpression::Member {
-                node_id: expression_id,
-                segment: *name,
-                static_arguments: static_arguments.clone(),
-                emit_prefix_annotations: true,
-                emit_postfix_annotations: true,
-            },
-            Expression::Call {
-                position,
-                static_arguments,
-                dynamic_arguments,
-                ..
-            } => ChainExpression::Call {
-                node_id: expression_id,
-                position: *position,
-                static_arguments: static_arguments.clone(),
-                dynamic_arguments: dynamic_arguments.clone(),
-            },
-            Expression::Instantiation {
-                static_arguments, ..
-            } => ChainExpression::Instantiation {
-                node_id: expression_id,
-                static_arguments: static_arguments.clone(),
-            },
-            Expression::Index {
-                position, index, ..
-            } => ChainExpression::Index {
-                node_id: expression_id,
-                position: *position,
-                index: *index,
-            },
-            Expression::Maybe { position, .. } => ChainExpression::Maybe {
-                node_id: expression_id,
-                position: *position,
-            },
-            Expression::Must { position, .. } => ChainExpression::Must {
-                node_id: expression_id,
-                position: *position,
-            },
-            _ => {
-                return Err(FormatError::SyntaxError {
-                    message: "unexpected expression kind for chain expression",
-                });
-            }
-        };
-        body.push(chain_expression);
-    }
+    // append operation nodes from the original chain
+    append_chain_operations(tree, &chain, &mut body)?;
 
-    // member operations with non-inline annotations should keep one operation per line
+    // member operations with non inline annotations should keep one operation per line
     let member_has_non_inline_annotation = body.iter().any(|operation| {
         let ChainExpression::Member { node_id, .. } = operation else {
             return false;
@@ -416,6 +476,7 @@ pub(crate) fn format_expression_chain<'ast>(
         .with_mode(BestFittingMode::AllLines)
         .format(f)
 }
+/// Format the base segment of a chain.
 fn format_chain_base<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     base: &ChainExpressionBase,
@@ -633,206 +694,252 @@ fn group_chain_expression_lines(
     while let Some(op) = iter.next() {
         let mut line = smallvec![op.clone()];
         match op {
-            // (maybe)
             ChainExpression::Maybe { .. } => {
-                match iter.peek() {
-                    // (maybe, member)
-                    Some(ChainExpression::Member { .. }) => {
-                        line.push(iter.next().unwrap());
-                        // (maybe, member, must?)
-                        if let Some(ChainExpression::Must { .. }) = iter.peek() {
-                            line.push(iter.next().unwrap());
-                        }
-                        // (maybe, member, index | call)
-                        if let Some(
-                            ChainExpression::Index { .. }
-                            | ChainExpression::Call { .. }
-                            | ChainExpression::Instantiation { .. },
-                        ) = iter.peek()
-                        {
-                            line.push(iter.next().unwrap());
-                        }
-
-                        // keep short member tails with optional call chains:
-                        // `?.foo().bar.baz`
-                        let mut merged_member_count = 0usize;
-                        while merged_member_count < 2 {
-                            let Some(ChainExpression::Member { node_id, .. }) = iter.peek() else {
-                                break;
-                            };
-                            if chain_node_has_non_inline_annotation(context, *node_id) {
-                                break;
-                            }
-                            line.push(iter.next().unwrap());
-                            merged_member_count += 1;
-                        }
-                    }
-                    // (maybe, index | call)
-                    Some(
-                        ChainExpression::Index { .. }
-                        | ChainExpression::Call { .. }
-                        | ChainExpression::Instantiation { .. },
-                    ) => {
-                        line.push(iter.next().unwrap());
-                        // (maybe, index | call, must?)
-                        if let Some(ChainExpression::Must { .. }) = iter.peek() {
-                            line.push(iter.next().unwrap());
-                        }
-                    }
-                    _ => {}
-                }
+                extend_maybe_line(context, &mut iter, &mut line);
             }
-            // (member)
             ChainExpression::Member { .. } => {
-                // (member, must)
-                if let Some(ChainExpression::Must { .. }) = iter.peek() {
-                    line.push(iter.next().unwrap());
-                }
-                // (member, index | call)
-                if let Some(
-                    ChainExpression::Call { .. }
-                    | ChainExpression::Index { .. }
-                    | ChainExpression::Instantiation { .. },
-                ) = iter.peek()
-                {
-                    line.push(iter.next().unwrap());
-                }
-
-                // keep direct curried calls attached: `foo(...)(...)`
-                while let Some(ChainExpression::Call {
-                    node_id,
-                    position: PostfixPosition::Direct,
-                    ..
-                }) = iter.peek()
-                {
-                    if chain_node_has_non_inline_annotation(context, *node_id) {
-                        break;
-                    }
-                    line.push(iter.next().unwrap());
-                }
-
-                // merge member runs that end in a call like op
-                // this keeps tails like `.property.test.only(...)` together
-                let line_has_call_like = line.iter().any(|operation| {
-                    matches!(
-                        operation,
-                        ChainExpression::Call { .. }
-                            | ChainExpression::Index { .. }
-                            | ChainExpression::Instantiation { .. }
-                    )
-                });
-                let should_merge_member_run = if line_has_call_like {
-                    false
-                } else {
-                    let lookahead = iter.clone();
-                    let mut member_run_count = 0usize;
-                    let mut terminal_is_call = false;
-                    let mut should_merge = false;
-                    for next_operation in lookahead {
-                        match next_operation {
-                            ChainExpression::Member { .. } => {
-                                member_run_count += 1;
-                            }
-                            ChainExpression::Must { .. } => {}
-                            ChainExpression::Maybe { .. } => {
-                                break;
-                            }
-                            ChainExpression::Call { .. } => {
-                                terminal_is_call = true;
-                                should_merge = member_run_count >= 2;
-                                break;
-                            }
-                            ChainExpression::Index { .. }
-                            | ChainExpression::Instantiation { .. } => {
-                                break;
-                            }
-                        }
-                    }
-                    should_merge && terminal_is_call
-                };
-                if should_merge_member_run {
-                    while let Some(ChainExpression::Member { .. }) = iter.peek() {
-                        line.push(iter.next().unwrap());
-                    }
-                    if let Some(ChainExpression::Must { .. }) = iter.peek() {
-                        line.push(iter.next().unwrap());
-                    }
-                    if let Some(ChainExpression::Call { .. }) = iter.peek() {
-                        line.push(iter.next().unwrap());
-                    }
-                }
-
-                // keep short member tails together before terminal call-like operations
-                let should_merge_member_tail = line
-                    .last()
-                    .is_some_and(|op| chain_call_has_single_template_literal_argument(context, op));
-
-                if should_merge_member_tail {
-                    let mut merged_member_count = 0usize;
-                    while merged_member_count < 2 {
-                        let Some(ChainExpression::Member { .. }) = iter.peek() else {
-                            break;
-                        };
-
-                        line.push(iter.next().unwrap());
-                        merged_member_count += 1;
-                    }
-
-                    if let Some(ChainExpression::Must { .. }) = iter.peek() {
-                        line.push(iter.next().unwrap());
-                    }
-
-                    if let Some(
-                        ChainExpression::Call { .. }
-                        | ChainExpression::Index { .. }
-                        | ChainExpression::Instantiation { .. },
-                    ) = iter.peek()
-                    {
-                        line.push(iter.next().unwrap());
-                    }
-                }
+                extend_member_line(context, &mut iter, &mut line);
             }
-            // (index | call | instantiation)
             ChainExpression::Index { .. }
             | ChainExpression::Call { .. }
             | ChainExpression::Instantiation { .. } => {
-                // (index | call | instantiation, must)
-                if let Some(ChainExpression::Must { .. }) = iter.peek() {
-                    line.push(iter.next().unwrap());
-                }
-
-                // (call, call, ...) for curried call tails
-                while let Some(ChainExpression::Call {
-                    node_id,
-                    position: PostfixPosition::Direct,
-                    ..
-                }) = iter.peek()
-                {
-                    if chain_node_has_non_inline_annotation(context, *node_id) {
-                        break;
-                    }
-                    line.push(iter.next().unwrap());
-                }
+                extend_call_like_line(context, &mut iter, &mut line);
             }
-            // (must)
             ChainExpression::Must { .. } => {
-                // (must, member)
-                if let Some(ChainExpression::Member { .. }) = iter.peek() {
-                    line.push(iter.next().unwrap());
-                }
-                // (must, index | call)
-                if let Some(
-                    ChainExpression::Call { .. }
-                    | ChainExpression::Index { .. }
-                    | ChainExpression::Instantiation { .. },
-                ) = iter.peek()
-                {
-                    line.push(iter.next().unwrap());
-                }
+                extend_must_line(&mut iter, &mut line);
             }
         }
         lines.push(line);
     }
 
     lines
+}
+
+type ChainOperationIter = std::iter::Peekable<std::vec::IntoIter<ChainExpression>>;
+
+/// Extend a line that starts with a maybe chain operation.
+fn extend_maybe_line(
+    context: &DestackFormatContext<'_>,
+    iter: &mut ChainOperationIter,
+    line: &mut SmallVec<[ChainExpression; 2]>,
+) {
+    // member based maybe tails
+    if matches!(iter.peek(), Some(ChainExpression::Member { .. })) {
+        push_next_chain_operation(iter, line);
+        if matches!(iter.peek(), Some(ChainExpression::Must { .. })) {
+            push_next_chain_operation(iter, line);
+        }
+        if matches!(
+            iter.peek(),
+            Some(
+                ChainExpression::Index { .. }
+                    | ChainExpression::Call { .. }
+                    | ChainExpression::Instantiation { .. }
+            )
+        ) {
+            push_next_chain_operation(iter, line);
+        }
+
+        // keep short member tails with optional call chains
+        let mut merged_member_count = 0usize;
+        while merged_member_count < 2 {
+            let Some(ChainExpression::Member { node_id, .. }) = iter.peek() else {
+                break;
+            };
+            if chain_node_has_non_inline_annotation(context, *node_id) {
+                break;
+            }
+            push_next_chain_operation(iter, line);
+            merged_member_count += 1;
+        }
+
+        return;
+    }
+
+    // index or call maybe tails
+    if matches!(
+        iter.peek(),
+        Some(
+            ChainExpression::Index { .. }
+                | ChainExpression::Call { .. }
+                | ChainExpression::Instantiation { .. }
+        )
+    ) {
+        push_next_chain_operation(iter, line);
+        if matches!(iter.peek(), Some(ChainExpression::Must { .. })) {
+            push_next_chain_operation(iter, line);
+        }
+    }
+}
+
+/// Extend a line that starts with a member chain operation.
+fn extend_member_line(
+    context: &DestackFormatContext<'_>,
+    iter: &mut ChainOperationIter,
+    line: &mut SmallVec<[ChainExpression; 2]>,
+) {
+    // attach immediate must and call like operations
+    if matches!(iter.peek(), Some(ChainExpression::Must { .. })) {
+        push_next_chain_operation(iter, line);
+    }
+    if matches!(
+        iter.peek(),
+        Some(
+            ChainExpression::Call { .. }
+                | ChainExpression::Index { .. }
+                | ChainExpression::Instantiation { .. }
+        )
+    ) {
+        push_next_chain_operation(iter, line);
+    }
+
+    // keep direct curried calls attached
+    while let Some(ChainExpression::Call {
+        node_id,
+        position: PostfixPosition::Direct,
+        ..
+    }) = iter.peek()
+    {
+        if chain_node_has_non_inline_annotation(context, *node_id) {
+            break;
+        }
+        push_next_chain_operation(iter, line);
+    }
+
+    // merge member runs that end in a call operation
+    if should_merge_member_run_with_call(line, iter) {
+        while matches!(iter.peek(), Some(ChainExpression::Member { .. })) {
+            push_next_chain_operation(iter, line);
+        }
+        if matches!(iter.peek(), Some(ChainExpression::Must { .. })) {
+            push_next_chain_operation(iter, line);
+        }
+        if matches!(iter.peek(), Some(ChainExpression::Call { .. })) {
+            push_next_chain_operation(iter, line);
+        }
+    }
+
+    // keep short member tails together before terminal call like operations
+    let should_merge_member_tail = line
+        .last()
+        .is_some_and(|op| chain_call_has_single_template_literal_argument(context, op));
+    if !should_merge_member_tail {
+        return;
+    }
+
+    let mut merged_member_count = 0usize;
+    while merged_member_count < 2 && matches!(iter.peek(), Some(ChainExpression::Member { .. })) {
+        push_next_chain_operation(iter, line);
+        merged_member_count += 1;
+    }
+    if matches!(iter.peek(), Some(ChainExpression::Must { .. })) {
+        push_next_chain_operation(iter, line);
+    }
+    if matches!(
+        iter.peek(),
+        Some(
+            ChainExpression::Call { .. }
+                | ChainExpression::Index { .. }
+                | ChainExpression::Instantiation { .. }
+        )
+    ) {
+        push_next_chain_operation(iter, line);
+    }
+}
+
+/// Extend a line that starts with an index, call, or instantiation operation.
+fn extend_call_like_line(
+    context: &DestackFormatContext<'_>,
+    iter: &mut ChainOperationIter,
+    line: &mut SmallVec<[ChainExpression; 2]>,
+) {
+    // attach immediate must operation
+    if matches!(iter.peek(), Some(ChainExpression::Must { .. })) {
+        push_next_chain_operation(iter, line);
+    }
+
+    // keep direct curried calls attached
+    while let Some(ChainExpression::Call {
+        node_id,
+        position: PostfixPosition::Direct,
+        ..
+    }) = iter.peek()
+    {
+        if chain_node_has_non_inline_annotation(context, *node_id) {
+            break;
+        }
+        push_next_chain_operation(iter, line);
+    }
+}
+
+/// Extend a line that starts with a must chain operation.
+fn extend_must_line(iter: &mut ChainOperationIter, line: &mut SmallVec<[ChainExpression; 2]>) {
+    // attach immediate member and call like operations
+    if matches!(iter.peek(), Some(ChainExpression::Member { .. })) {
+        push_next_chain_operation(iter, line);
+    }
+    if matches!(
+        iter.peek(),
+        Some(
+            ChainExpression::Call { .. }
+                | ChainExpression::Index { .. }
+                | ChainExpression::Instantiation { .. }
+        )
+    ) {
+        push_next_chain_operation(iter, line);
+    }
+}
+
+/// Return whether a member line should absorb a member run that ends with a call.
+fn should_merge_member_run_with_call(
+    line: &SmallVec<[ChainExpression; 2]>,
+    iter: &ChainOperationIter,
+) -> bool {
+    let line_has_call_like = line.iter().any(|operation| {
+        matches!(
+            operation,
+            ChainExpression::Call { .. }
+                | ChainExpression::Index { .. }
+                | ChainExpression::Instantiation { .. }
+        )
+    });
+    if line_has_call_like {
+        return false;
+    }
+
+    let lookahead = iter.clone();
+    let mut member_run_count = 0usize;
+    let mut terminal_is_call = false;
+    let mut should_merge = false;
+    for next_operation in lookahead {
+        match next_operation {
+            ChainExpression::Member { .. } => {
+                member_run_count += 1;
+            }
+            ChainExpression::Must { .. } => {}
+            ChainExpression::Maybe { .. } => {
+                break;
+            }
+            ChainExpression::Call { .. } => {
+                terminal_is_call = true;
+                should_merge = member_run_count >= 2;
+                break;
+            }
+            ChainExpression::Index { .. } | ChainExpression::Instantiation { .. } => {
+                break;
+            }
+        }
+    }
+
+    should_merge && terminal_is_call
+}
+
+/// Push the next chain operation into the current line when available.
+fn push_next_chain_operation(
+    iter: &mut std::iter::Peekable<std::vec::IntoIter<ChainExpression>>,
+    line: &mut SmallVec<[ChainExpression; 2]>,
+) {
+    if let Some(next_operation) = iter.next() {
+        line.push(next_operation);
+    }
 }

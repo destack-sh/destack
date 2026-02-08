@@ -1,6 +1,7 @@
 use super::*;
 use destack_fir::{format_args, write};
 
+/// Format a member expression.
 pub(super) fn format_member_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
@@ -256,6 +257,7 @@ impl HugOptions {
 }
 
 /// Returns the precedence group for a binary operator.
+/// Return precedence group for binary operators.
 #[inline]
 fn binary_operator_precedence_group(operator: BinaryOperator) -> u8 {
     // first two digits of discriminant encode precedence
@@ -263,6 +265,7 @@ fn binary_operator_precedence_group(operator: BinaryOperator) -> u8 {
 }
 
 /// Checks if two binary operators should be flattened together.
+/// Return whether nested binaries should flatten into one group.
 #[inline]
 fn should_flatten_binary(left_operator: BinaryOperator, right_operator: BinaryOperator) -> bool {
     binary_operator_precedence_group(left_operator)
@@ -369,6 +372,7 @@ pub(super) fn normalize_type_binary_operand_expression(
     current_id
 }
 
+/// Recursively collect binary expression operands.
 fn flatten_binary_recursive(
     tree: &NodeTree,
     expression_id: LocalNodeId<Expression>,
@@ -402,6 +406,7 @@ fn flatten_binary_recursive(
 }
 
 /// Whether an expression variant is type specific.
+/// Return precedence value for an expression.
 #[inline]
 pub(super) fn expression_precedence(expr: &Expression) -> u16 {
     match expr {
@@ -460,6 +465,7 @@ pub(super) fn expression_precedence(expr: &Expression) -> u16 {
 /// Postfix operators (precedence 2000) bind tighter than all other operators.
 /// For example, `await x?` parses as `await (x?)`, not `(await x)?`.
 /// So when formatting `Maybe { left: Await { expr } }`, we need to output `(await expr)?`.
+/// Return whether postfix formatting requires parentheses.
 #[inline]
 pub(super) fn needs_parens_in_postfix_position(
     tree: &NodeTree,

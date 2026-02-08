@@ -445,6 +445,7 @@ fn format_anonymous_class_heritage<'ast>(
 }
 
 /// Format a struct or class declaration body and return whether it ended early.
+/// Format a struct or class declaration.
 #[allow(clippy::too_many_arguments)]
 fn format_struct_or_class_declaration<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -604,6 +605,7 @@ fn format_enum_declaration<'ast>(
 }
 
 /// Format an interface declaration body and return whether it ended early.
+/// Format an interface declaration.
 fn format_interface_declaration<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,

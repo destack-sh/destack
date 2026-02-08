@@ -45,11 +45,59 @@ pub(super) fn should_skip_fixture_file(path: &Path) -> bool {
 
 /// Return whether a test path likely expects parser failure.
 pub(super) fn expect_error_from_path(test_name: &str) -> bool {
-    test_name.contains("/error/")
-        || test_name.contains("/errors/")
-        || test_name.contains("/invalid/")
-        || test_name.contains("/malformed/")
-        || test_name.contains("/fail/")
+    let normalized = test_name.replace('\\', "/").to_ascii_lowercase();
+    let segments: Vec<&str> = normalized.split('/').collect();
+
+    // explicit error marker directories
+    if segments.iter().copied().any(segment_is_error_marker) {
+        return true;
+    }
+
+    // filenames in error suites often carry invalid or malformed prefixes
+    let file_name = segments.last().copied().unwrap_or_default();
+    let file_stem = file_name
+        .split_once('.')
+        .map_or(file_name, |(stem, _)| stem);
+    file_stem_starts_with_error_marker(file_stem)
+}
+
+/// Return whether a path segment marks an error fixture bucket.
+fn segment_is_error_marker(segment: &str) -> bool {
+    matches!(
+        segment,
+        "error"
+            | "errors"
+            | "_errors_"
+            | "invalid"
+            | "malformed"
+            | "fail"
+            | "fails"
+            | "failing"
+            | "failure"
+            | "syntax-error"
+            | "syntax-errors"
+            | "syntax_error"
+            | "syntax_errors"
+            | "early-error"
+            | "early-errors"
+            | "early_error"
+            | "early_errors"
+    ) || segment.starts_with("error-")
+        || segment.ends_with("-error")
+        || segment.starts_with("errors-")
+        || segment.ends_with("-errors")
+        || segment.starts_with("invalid-")
+        || segment.ends_with("-invalid")
+        || segment.starts_with("malformed-")
+        || segment.ends_with("-malformed")
+}
+
+/// Return whether a file stem starts with a known error marker.
+fn file_stem_starts_with_error_marker(file_stem: &str) -> bool {
+    file_stem.starts_with("invalid-")
+        || file_stem.starts_with("error-")
+        || file_stem.starts_with("malformed-")
+        || file_stem.starts_with("fail-")
 }
 
 /// Build a sibling path with an additional suffix.
@@ -57,4 +105,36 @@ pub(super) fn sibling_with_suffix(path: &Path, suffix: &str) -> Option<PathBuf> 
     let file_name = path.file_name()?.to_str()?;
     let sibling_name = format!("{file_name}{suffix}");
     Some(path.parent()?.join(sibling_name))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::expect_error_from_path;
+
+    #[test]
+    fn test_expect_error_from_path_matches_error_directory() {
+        assert!(expect_error_from_path(
+            "js/_errors_/discard-binding/example.js"
+        ));
+        assert!(expect_error_from_path("js/errors/example.js"));
+        assert!(expect_error_from_path("js/error/example.js"));
+    }
+
+    #[test]
+    fn test_expect_error_from_path_matches_error_file_prefixes() {
+        assert!(expect_error_from_path(
+            "js/module/invalid-array-expression.js"
+        ));
+        assert!(expect_error_from_path("js/module/error-case.js"));
+        assert!(expect_error_from_path("js/module/malformed-token.js"));
+        assert!(expect_error_from_path("js/module/fail-case.js"));
+    }
+
+    #[test]
+    fn test_expect_error_from_path_does_not_match_non_error_paths() {
+        assert!(!expect_error_from_path("js/module/assignment/basic.js"));
+        assert!(!expect_error_from_path(
+            "typescript/type-parameters/variables.ts"
+        ));
+    }
 }
