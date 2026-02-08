@@ -37,20 +37,6 @@ check:
     just library/check
     just platform/check
 
-# compile runtime for all supported targets
-# NOTE #Incomplete: requires `rustup target add` for each target
-check-targets:
-    cargo check -p destack_runtime --target aarch64-apple-darwin
-    cargo check -p destack_runtime --target aarch64-apple-ios
-    cargo check -p destack_runtime --target aarch64-linux-android
-    cargo check -p destack_runtime --target aarch64-unknown-linux-gnu
-    cargo check -p destack_runtime --target wasm32-wasi
-    cargo check -p destack_runtime --target x86_64-pc-windows-msvc
-    cargo check -p destack_runtime --target x86_64-unknown-dragonfly
-    cargo check -p destack_runtime --target x86_64-unknown-freebsd
-    cargo check -p destack_runtime --target x86_64-unknown-linux-gnu
-    cargo check -p destack_runtime --target x86_64-unknown-netbsd
-    cargo check -p destack_runtime --target x86_64-unknown-openbsd
 
 # build everything
 build:
@@ -85,6 +71,9 @@ test:
 test-linter:
     just language/test-linter
 
+# run language runtime windows target tests through wine
+test-windows-runtime:
+    just language/test-windows-runtime
 # --- bench ---
 
 # run benchmarks
