@@ -24,7 +24,7 @@ mod template;
 mod r#type;
 mod walk;
 
-pub(crate) use associated::AssociatedTypeRequirement;
+pub(crate) use associated::{AssociatedProjectionSelection, AssociatedTypeRequirement};
 pub(crate) use canonical::CanonicalSymbolMode;
 pub(crate) use context::{ConstContext, ContextualTypingMode, LiteralFreshness, WideningMode};
 pub(crate) use destack_dir::NormalizationMode;

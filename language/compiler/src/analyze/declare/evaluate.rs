@@ -136,6 +136,8 @@ impl NodeVisitor for StaticValueParameterValidator<'_> {
                 }
             };
 
+            let (_, is_explicit_comptime) =
+                self.compiler.unwrap_as_comptime_expression(*index, tree);
             let supports_index_access = match self.compiler.type_supports_index_access(
                 self.module,
                 self.profile,
@@ -143,7 +145,7 @@ impl NodeVisitor for StaticValueParameterValidator<'_> {
                 tree,
                 self.symbols,
                 self.types,
-                false,
+                true,
             ) {
                 Ok(supports) => supports,
                 Err(error) => {
@@ -152,7 +154,8 @@ impl NodeVisitor for StaticValueParameterValidator<'_> {
                 }
             };
             let is_primitive_literal = self.compiler.type_is_primitive_literal(left_id, self.types);
-            let is_index_access = supports_index_access && !is_primitive_literal;
+            let is_index_access =
+                !is_explicit_comptime && supports_index_access && !is_primitive_literal;
 
             if !is_index_access {
                 let is_array_size_candidate =
@@ -608,6 +611,36 @@ impl Compiler {
         Ok(is_associated_comptime)
     }
 
+    /// Check whether a symbol references an associated comptime member.
+    fn symbol_is_associated_comptime_member(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> bool {
+        self.with_module_tree_symbols_or_local(
+            module,
+            profile,
+            symbol.module_id,
+            tree,
+            symbols,
+            |_owner_module, owner_tree, owner_symbols| {
+                let symbol_entry = owner_symbols.get_symbol(symbol.local_id);
+                let Some(primary_declaration) = symbol_entry.primary_declaration else {
+                    return false;
+                };
+                if primary_declaration.local_id.ty != NodeType::Member {
+                    return false;
+                }
+
+                let member_id = primary_declaration.local_id.into_typed::<Member>();
+                matches!(owner_tree.get(member_id), Member::ComptimeConst { .. })
+            },
+        )
+    }
+
     /// Unwrap parenthesized expressions and explicit `as comptime` markers.
     fn unwrap_as_comptime_expression(
         &self,
@@ -675,18 +708,21 @@ impl Compiler {
                 }
                 Type::Reference { symbol, .. } => {
                     // follow static parameter constraints when available
-                    if self.symbol_is_static_parameter(module, profile, symbol, symbols, types)
-                        && let Some(constraint) = self.static_parameter_constraint_type(
+                    if self.symbol_is_static_parameter(module, profile, symbol, symbols, types) {
+                        if let Some(constraint) = self.static_parameter_constraint_type(
                             module,
                             profile,
                             symbol,
                             types.get_type_source(current_type_id),
                             symbols,
                             types,
-                        )
-                    {
-                        current_type_id = constraint;
-                        continue;
+                        ) {
+                            current_type_id = constraint;
+                            continue;
+                        }
+
+                        // treat unconstrained static parameters as unknown when requested
+                        return Ok(treat_unknown_as_indexable);
                     }
 
                     // follow alias targets when available
@@ -1749,7 +1785,6 @@ impl Compiler {
                     expression_id,
                     *left,
                     member_key,
-                    SymbolSpaceOrder::ValueThenType,
                     tree,
                     symbols,
                     types,
@@ -2639,7 +2674,6 @@ impl Compiler {
             expression_id,
             left,
             member_key,
-            SymbolSpaceOrder::TypeThenValue,
             tree,
             symbols,
             types,
@@ -3331,6 +3365,7 @@ impl Compiler {
             }
             Expression::TypeIndex { left, index } => {
                 let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_INDEX);
+                let (_, is_explicit_comptime) = self.unwrap_as_comptime_expression(index, tree);
 
                 // resolve the left type
                 let left_id = self.try_evaluate_expression_to_type(
@@ -3346,14 +3381,14 @@ impl Compiler {
 
                 // treat declaration modules as index access only
                 let is_index_access = if module.language_type.is_declaration() {
-                    true
+                    !is_explicit_comptime
                 } else {
                     // check whether the left type supports index access
                     let supports_index_access = self.type_supports_index_access(
-                        module, profile, left_id, tree, symbols, types, false,
+                        module, profile, left_id, tree, symbols, types, true,
                     )?;
                     let is_primitive_literal = self.type_is_primitive_literal(left_id, types);
-                    supports_index_access && !is_primitive_literal
+                    !is_explicit_comptime && supports_index_access && !is_primitive_literal
                 };
 
                 // compute the type index result

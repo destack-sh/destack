@@ -195,6 +195,17 @@ pub(crate) struct AssociatedTypeRequirement {
     pub(crate) requires_implementation: bool,
 }
 
+/// Selection result for an associated projection member lookup.
+#[derive(Clone, Debug)]
+pub(crate) struct AssociatedProjectionSelection {
+    /// The projected associated member symbol.
+    pub(crate) target_symbol: GlobalSymbolId,
+    /// The receiver symbol used for projection.
+    pub(crate) receiver_symbol: GlobalSymbolId,
+    /// The receiver static arguments used for projection.
+    pub(crate) receiver_arguments: Vec<StaticArgument>,
+}
+
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Collect contract associated type requirements for one contract symbol.
@@ -388,7 +399,7 @@ impl Compiler {
         types: &mut TypeTable,
         validate_static_argument_bounds: bool,
         enforce_implicit_managed: bool,
-    ) -> AnalyzeResult<Option<(GlobalSymbolId, GlobalSymbolId, Vec<StaticArgument>)>> {
+    ) -> AnalyzeResult<Option<AssociatedProjectionSelection>> {
         // evaluate the receiver to a reference-like type
         let left_ty_id = self.try_evaluate_expression_to_type(
             module,
@@ -520,7 +531,11 @@ impl Compiler {
             return Ok(None);
         };
 
-        Ok(Some((projected_symbol, lookup_symbol, lookup_arguments)))
+        Ok(Some(AssociatedProjectionSelection {
+            target_symbol: projected_symbol,
+            receiver_symbol: lookup_symbol,
+            receiver_arguments: lookup_arguments,
+        }))
     }
 
     /// Rewrite owner-scoped associated aliases in one type id with known substitutions.
@@ -1137,9 +1152,9 @@ impl Compiler {
         Ok(None)
     }
 
-    /// Materialize associated member projections with receiver substitutions.
+    /// Resolve substitutions for an associated projection member.
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn materialize_associated_member_projection(
+    pub(crate) fn associated_projection_substitutions_for_member(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1147,12 +1162,11 @@ impl Compiler {
         target_symbol: GlobalSymbolId,
         receiver_symbol: Option<GlobalSymbolId>,
         receiver_arguments: &[StaticArgument],
-        static_arguments: Option<&[StaticArgument]>,
-        member_ty: Type,
+        options: &AnalyzeOptions,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-    ) -> AnalyzeResult<Type> {
+    ) -> AnalyzeResult<HashMap<GlobalSymbolId, LocalTypeId>> {
         let mut substitutions = HashMap::new();
         let owner_symbol =
             self.owner_symbol_for_member_symbol(module, profile, target_symbol, symbols);
@@ -1177,7 +1191,6 @@ impl Compiler {
         }
 
         // map interface substitutions for projected members
-        let options = self.analyze_context_options_for_module(module.id);
         if let Some(receiver_symbol) = receiver_symbol
             && let Some(interface_substitutions) = self
                 .interface_member_substitutions_for_receiver(
@@ -1187,7 +1200,7 @@ impl Compiler {
                     receiver_symbol,
                     receiver_arguments,
                     target_symbol,
-                    &options,
+                    options,
                     tree,
                     symbols,
                     types,
@@ -1203,13 +1216,47 @@ impl Compiler {
             source_id,
             target_symbol,
             receiver_arguments,
-            &options,
+            options,
             tree,
             symbols,
             types,
         ) {
             substitutions.extend(extension_context.substitutions);
         }
+
+        Ok(substitutions)
+    }
+
+    /// Materialize associated member projections with receiver substitutions.
+    pub(crate) fn materialize_associated_member_projection(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        source_id: LocalNodeIdAny,
+        target_symbol: GlobalSymbolId,
+        receiver_symbol: Option<GlobalSymbolId>,
+        receiver_arguments: &[StaticArgument],
+        static_arguments: Option<&[StaticArgument]>,
+        member_ty: Type,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Type> {
+        let options = self.analyze_context_options_for_module(module.id);
+        let mut substitutions = self.associated_projection_substitutions_for_member(
+            module,
+            profile,
+            source_id,
+            target_symbol,
+            receiver_symbol,
+            receiver_arguments,
+            &options,
+            tree,
+            symbols,
+            types,
+        )?;
+        let owner_symbol =
+            self.owner_symbol_for_member_symbol(module, profile, target_symbol, symbols);
 
         // map member parameters from explicit member arguments
         if let Some(member_arguments) = static_arguments

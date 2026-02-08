@@ -858,26 +858,46 @@ impl Compiler {
                 continue;
             };
             let declaration = tree.get(declaration_id);
-            let (members, heritage) = match declaration {
+            let (members, enum_fields, heritage, fields_static_by_default) = match declaration {
                 Declaration::Class {
                     members, heritage, ..
-                } => (members.as_slice(), Some(heritage)),
+                } => (members.as_slice(), None, Some(heritage), false),
                 Declaration::Struct {
                     members, heritage, ..
-                } => (members.as_slice(), Some(heritage)),
+                } => (members.as_slice(), None, Some(heritage), false),
                 Declaration::Enum {
-                    members, heritage, ..
-                } => (members.as_slice(), Some(heritage)),
+                    fields,
+                    members,
+                    heritage,
+                    ..
+                } => (
+                    members.as_slice(),
+                    Some(fields.as_slice()),
+                    Some(heritage),
+                    true,
+                ),
                 Declaration::Interface {
                     members, heritage, ..
-                } => (members.as_slice(), Some(heritage)),
+                } => (members.as_slice(), None, Some(heritage), false),
                 _ => continue,
             };
+
+            if let Some(enum_fields) = enum_fields
+                && let Some(symbol) = self.resolve_static_member_symbol_in_enum_fields(
+                    target_symbol.module_id,
+                    enum_fields,
+                    member_key,
+                    tree,
+                )
+            {
+                return Some(symbol);
+            }
 
             if let Some(symbol) = self.resolve_static_member_symbol_in_members(
                 target_symbol.module_id,
                 members,
                 member_key,
+                fields_static_by_default,
                 tree,
             ) {
                 return Some(symbol);
@@ -919,9 +939,9 @@ impl Compiler {
             }
 
             // resolve extension members before interface fallback
-            if let Some(symbol) =
-                self.resolve_static_member_symbol_in_members(module.id, members, member_key, tree)
-            {
+            if let Some(symbol) = self.resolve_static_member_symbol_in_members(
+                module.id, members, member_key, false, tree,
+            ) {
                 return Some(symbol);
             }
 
@@ -942,18 +962,41 @@ impl Compiler {
         None
     }
 
+    /// Resolve a static member symbol within one enum field list.
+    fn resolve_static_member_symbol_in_enum_fields(
+        &self,
+        module_id: destack_source::ModuleId,
+        fields: &[LocalNodeId<destack_dir::EnumField>],
+        member_key: StaticKey,
+        tree: &NodeTree,
+    ) -> Option<GlobalSymbolId> {
+        for field_id in fields {
+            let field = tree.get(*field_id);
+            let field_key = StaticKey::Name(field.name);
+            if field_key.matches(&member_key) {
+                return Some(field.symbol.into_global(module_id));
+            }
+        }
+
+        None
+    }
+
     /// Resolve a static member symbol within a declaration member list.
     fn resolve_static_member_symbol_in_members(
         &self,
         module_id: destack_source::ModuleId,
         members: &[LocalNodeId<destack_dir::Member>],
         member_key: StaticKey,
+        fields_static_by_default: bool,
         tree: &NodeTree,
     ) -> Option<GlobalSymbolId> {
         for member_id in members {
             let member = tree.get(*member_id);
             let (modifiers, static_key, symbol, requires_static_anchor) = match member {
                 destack_dir::Member::Type { name, symbol, .. } => {
+                    (None, Some(StaticKey::Name(*name)), *symbol, false)
+                }
+                destack_dir::Member::ComptimeConst { name, symbol, .. } => {
                     (None, Some(StaticKey::Name(*name)), *symbol, false)
                 }
                 destack_dir::Member::Field {
@@ -991,9 +1034,10 @@ impl Compiler {
 
             // require static members when the member kind needs it
             if requires_static_anchor {
-                let is_static = modifiers
+                let has_static_anchor = modifiers
                     .and_then(|modifiers| modifiers.anchor)
                     .is_some_and(|anchor| anchor == BindingAnchor::Static);
+                let is_static = has_static_anchor || fields_static_by_default;
                 if !is_static {
                     continue;
                 }
