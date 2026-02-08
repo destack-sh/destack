@@ -4,7 +4,7 @@ use crate::expression::{is_expression_breakable, is_trivial_expression};
 use crate::{DestackFormatContext, DestackFormatter};
 
 use destack_ast::{
-    Argument, Expression, FloatType, IntType, LocalNodeId, ScalarLiteral, TemplateLiteral,
+    Argument, Expression, FloatType, IfKind, IntType, LocalNodeId, ScalarLiteral, TemplateLiteral,
     TypeLiteral,
 };
 use destack_base::StringId;
@@ -124,9 +124,11 @@ pub(crate) fn format_scalar_literal<'ast>(
 fn format_interpolated_template_literal<'ast>(
     strings: &[StringId],
     arguments: &[LocalNodeId<Argument>],
+    template_span: Span,
     f: &mut DestackFormatter<'ast, '_>,
 ) -> FormatResult<()> {
     debug_assert_eq!(strings.len(), arguments.len().saturating_add(1));
+    let template_has_newline = f.context().has_newline(template_span);
 
     write!(f, [token("`")])?;
 
@@ -136,9 +138,22 @@ fn format_interpolated_template_literal<'ast>(
     }
 
     for (argument, segment) in arguments.iter().zip(string_segments) {
+        let should_force_inline =
+            !template_has_newline && template_argument_should_force_inline(f.context(), *argument);
         let should_expand = template_argument_should_expand(f.context(), *argument);
 
-        if should_expand {
+        if should_force_inline {
+            let expression_id = template_argument_expression_id(f.context(), *argument);
+            let expression_span = f.context().get_span(expression_id);
+            let raw_expression = f.context().get_span_str(expression_span).trim();
+            write!(
+                f,
+                [
+                    group(&format_args![token("${"), text(raw_expression), token("}")]),
+                    *segment,
+                ]
+            )?;
+        } else if should_expand {
             write!(
                 f,
                 [
@@ -171,21 +186,58 @@ fn format_interpolated_template_literal<'ast>(
     write!(f, [token("`")])
 }
 
-/// Decide whether a template literal interpolation should break across lines.
-fn template_argument_should_expand(
+/// Return the unwrapped expression id for a template interpolation argument.
+fn template_argument_expression_id(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
-) -> bool {
+) -> LocalNodeId<Expression> {
     let value = match context.tree.get(argument_id) {
         Argument::Named { value, .. }
         | Argument::Labeled { value, .. }
         | Argument::Positional { value, .. }
         | Argument::Spread { value, .. } => *value,
     };
+    unwrap_template_expression(context, value)
+}
 
-    let expression_id = unwrap_template_expression(context, value);
+/// Decide whether a template interpolation should stay fully inline.
+fn template_argument_should_force_inline(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let expression_id = template_argument_expression_id(context, argument_id);
+
+    matches!(
+        context.tree.get(expression_id),
+        Expression::If {
+            kind: IfKind::Ternary,
+            ..
+        }
+    ) && !context.has_newline(context.get_span(expression_id))
+        && !context.has_newline(context.get_span(argument_id))
+}
+
+/// Decide whether a template literal interpolation should break across lines.
+fn template_argument_should_expand(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let expression_id = template_argument_expression_id(context, argument_id);
     let expression = context.tree.get(expression_id);
     if is_trivial_expression(context.tree, expression) {
+        return false;
+    }
+
+    // prefer inline conditional interpolations unless source already spans lines
+    if matches!(
+        expression,
+        Expression::If {
+            kind: IfKind::Ternary,
+            ..
+        }
+    ) && !context.has_newline(context.get_span(expression_id))
+        && !context.has_newline(context.get_span(argument_id))
+    {
         return false;
     }
 
@@ -212,6 +264,12 @@ fn template_argument_should_expand(
     }
 
     let span = context.get_span(expression_id);
+    let has_expression_newline =
+        context.has_newline(span) || context.has_newline(context.get_span(argument_id));
+    if !has_expression_newline {
+        return false;
+    }
+
     let span_str = context.get_span_str(span);
     let expression_len = span_str.chars().count();
     let line_width = usize::from(context.options.line_width);
@@ -308,7 +366,7 @@ pub(crate) fn format_template_literal<'ast>(
             write!(f, [token("`"), string, token("`")])?;
         }
         TemplateLiteral::InterpolatedString { strings, arguments } => {
-            format_interpolated_template_literal(strings, arguments, f)?;
+            format_interpolated_template_literal(strings, arguments, _span, f)?;
         }
     }
 

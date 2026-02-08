@@ -221,6 +221,7 @@ impl Compiler {
                 kind,
                 target,
                 items,
+                arguments: _,
             } => {
                 let target = target.map(|target| {
                     self.program

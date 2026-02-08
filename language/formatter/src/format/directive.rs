@@ -106,6 +106,10 @@ where
     }
 
     if let Some(token) = last_prefix_token {
+        if !comment_token_is_line_leading(context, token) {
+            return None;
+        }
+
         let raw = context.get_token_str(token);
         let (between, newlines) = if token.span.end > node_span.start {
             ("", 0)
@@ -129,29 +133,6 @@ where
                     position: FormatterDirectivePosition::Prefix,
                 });
             }
-        }
-    }
-
-    let (line_index, _) = context.file.get_position(node_span.start)?;
-    if line_index == 0 {
-        return None;
-    }
-    let prev_line_span = context.file.get_line_span(line_index - 1)?;
-    let prev_line = context
-        .file
-        .get_span_str(prev_line_span)
-        .unwrap_or_default();
-    let comment_start = prev_line.find("//").or_else(|| prev_line.find("/*"));
-    if let Some(comment_start) = comment_start {
-        let comment = &prev_line[comment_start..];
-        if matches!(
-            parse_directive_token_from_raw(comment),
-            Some(FormatterDirectiveToken::Ignore)
-        ) {
-            return Some(FormatterDirective {
-                kind: FormatterDirectiveKind::IgnoreFormat,
-                position: FormatterDirectivePosition::Prefix,
-            });
         }
     }
 
@@ -212,6 +193,10 @@ where
     }
 
     if let Some(token) = last_prefix_token {
+        if !comment_token_is_line_leading(context, token) {
+            return None;
+        }
+
         let raw = context.get_token_str(token);
         let comment_line = context
             .file
@@ -240,6 +225,19 @@ where
     }
 
     None
+}
+
+/// Return whether a comment token starts at the first non-whitespace position on its line.
+fn comment_token_is_line_leading(context: &DestackFormatContext<'_>, token: TokenSpan) -> bool {
+    let Some((line_index, _)) = context.file.get_position(token.span.start) else {
+        return false;
+    };
+    let Some(line_span) = context.file.get_line_span(line_index) else {
+        return false;
+    };
+
+    let prefix_span = Span::new(token.span.file, line_span.start, token.span.start);
+    context.get_span_str(prefix_span).trim().is_empty()
 }
 
 /// Extend an ignored span to include trailing separators and comments on the same line.
@@ -317,7 +315,7 @@ pub fn collect_comment_tokens(context: &DestackFormatContext<'_>) -> Vec<TokenSp
     tokens
 }
 
-/// Extract the source for an ignored span, removing its leading indentation.
+/// Extract the source for an ignored span.
 pub fn ignored_span_source(context: &DestackFormatContext<'_>, span: Span) -> String {
     let raw = context.get_span_str(span);
     let Some((line_index, column)) = context.file.get_position(span.start) else {
@@ -330,7 +328,7 @@ pub fn ignored_span_source(context: &DestackFormatContext<'_>, span: Span) -> St
     let Some(prefix) = line_str.get(..column as usize) else {
         return raw.to_owned();
     };
-    if prefix.is_empty() {
+    if prefix.is_empty() || !prefix.trim().is_empty() {
         return raw.to_owned();
     }
 
@@ -345,15 +343,24 @@ pub fn write_ignored_span<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     span: Span,
 ) -> FormatResult<()> {
-    let mut raw = ignored_span_source(f.context(), span);
-    if raw.ends_with('\n') {
-        raw.pop();
-        if raw.ends_with('\r') {
-            raw.pop();
-        }
+    let raw = ignored_span_source(f.context(), span);
+    let start_column = f
+        .context()
+        .file
+        .get_position(span.start)
+        .map_or(0, |(_, column)| column);
+
+    // preserve exact line structure for top-level ignored spans
+    if start_column == 0 {
+        write!(f, [text(&raw)])?;
+        return Ok(());
     }
 
-    let mut lines = raw.split('\n');
+    let mut lines: Vec<&str> = raw.split('\n').collect();
+    if raw.ends_with('\n') {
+        lines.pop();
+    }
+    let mut lines = lines.into_iter();
     if let Some(first) = lines.next() {
         write!(f, [text(first)])?;
     }

@@ -166,4 +166,14 @@ mod tests {
             DestackFormatOptions::default()
         );
     }
+
+    #[test]
+    fn test_format_export_with_attributes() {
+        assert_format!(
+            "export { foo } from \"bar\" with { mode: \"strict\" }",
+            "export { foo } from \"bar\" with { mode: \"strict\" }",
+            |p| p.eat_expression(),
+            DestackFormatOptions::default()
+        );
+    }
 }

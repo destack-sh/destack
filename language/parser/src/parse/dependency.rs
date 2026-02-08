@@ -379,6 +379,7 @@ impl Parser {
                     kind: DependencyKind::Value,
                     target: None,
                     items: vec![item],
+                    arguments: None,
                 },
                 self.get_span_from(&start),
             );
@@ -420,6 +421,7 @@ impl Parser {
                     kind: DependencyKind::Value,
                     target: None,
                     items: vec![item],
+                    arguments: None,
                 },
                 self.get_span_from(&start),
             );
@@ -439,7 +441,7 @@ impl Parser {
             self.bump(); // eat *
             self.bump(); // eat from
             let (target, target_span) = self.eat_dependency_target_with_span()?;
-            let _ = self.eat_dependency_arguments_maybe()?;
+            let arguments = self.eat_dependency_arguments_maybe()?;
             let item = DependencyItem {
                 mode: DependencyMode::Namespace,
                 kind: None,
@@ -453,6 +455,7 @@ impl Parser {
                     kind: kind.unwrap_or(DependencyKind::Value),
                     target: Some(target),
                     items: vec![item_id],
+                    arguments,
                 },
                 self.get_span_from(&start),
             );
@@ -480,9 +483,11 @@ impl Parser {
         };
 
         // assertions or attributes (parsed for conformance)
-        if target.is_some() {
-            let _ = self.eat_dependency_arguments_maybe()?;
-        }
+        let arguments = if target.is_some() {
+            self.eat_dependency_arguments_maybe()?
+        } else {
+            None
+        };
 
         // `export { default }` without `from` is invalid
         // (default is a reserved word and can't be a local binding)
@@ -505,6 +510,7 @@ impl Parser {
                 kind: kind.unwrap_or(DependencyKind::Value),
                 target,
                 items,
+                arguments,
             },
             self.get_span_from(&start),
         );

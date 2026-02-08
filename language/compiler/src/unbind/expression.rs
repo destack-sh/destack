@@ -88,7 +88,12 @@ impl Compiler {
                     let items = items.iter().map(|item| {
                         self.unbind_dependency_item(module, *item, tree, symbols, ast_tree, ast_strings, context)
                     }).collect();
-                    ast::Expression::Export { kind, target: Some(target), items }
+                    ast::Expression::Export {
+                        kind,
+                        target: Some(target),
+                        items,
+                        arguments: None,
+                    }
                 }
 
                 dir::Expression::Export { kind, items } => {
@@ -96,7 +101,12 @@ impl Compiler {
                     let items = items.iter().map(|item| {
                         self.unbind_dependency_item(module, *item, tree, symbols, ast_tree, ast_strings, context)
                     }).collect();
-                    ast::Expression::Export { kind, target: None, items }
+                    ast::Expression::Export {
+                        kind,
+                        target: None,
+                        items,
+                        arguments: None,
+                    }
                 }
                 dir::Expression::ExportNamespace { name } => {
                     let name = ast_strings.intern_from(&self.program.strings, *name);

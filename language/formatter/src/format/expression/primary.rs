@@ -1,0 +1,682 @@
+use super::*;
+use destack_fir::{format_args, write};
+
+/// Format primary expression variants.
+pub(super) fn format_primary_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+    expression: &Expression,
+) -> FormatResult<bool> {
+    let tree = f.context().tree;
+
+    match expression {
+        // path
+        Expression::Path {
+            path,
+            static_arguments,
+        } => {
+            write!(f, [path])?;
+
+            // static arguments
+            if let Some(static_arguments) = static_arguments
+                && !static_arguments.is_empty()
+            {
+                let is_single_simple = static_arguments.len() == 1
+                    && is_simple_static_argument(f.context(), static_arguments[0]);
+                if is_single_simple {
+                    write!(f, [token("<"), static_arguments[0], token(">"),])?;
+                } else {
+                    format_static_argument_list(f, static_arguments)?;
+                }
+            }
+        }
+
+        // private identifier
+        Expression::PrivateIdentifier { name } => {
+            write!(f, [token("#"), *name])?;
+        }
+
+        // this
+        Expression::This => {
+            write!(f, [Keyword::This])?;
+        }
+
+        // super
+        Expression::Super => {
+            write!(f, [Keyword::Super])?;
+        }
+
+        // scalar literal
+        Expression::ScalarLiteral(node) => {
+            format_scalar_literal(node, tree.get_span(node_id), f)?;
+        }
+
+        // template literal
+        Expression::TemplateExpression { value } => {
+            format_template_literal(value, tree.get_span(node_id), f)?;
+        }
+
+        // tagged template literal
+        Expression::TaggedTemplateExpression { tag, value } => {
+            write!(f, [tag])?;
+            format_template_literal(value, tree.get_span(node_id), f)?;
+        }
+
+        // type template literal
+        Expression::TypeTemplateLiteral { strings, spans } => {
+            format_type_template_literal(strings, spans, f)?;
+        }
+
+        // type literal
+        Expression::TypeLiteral(node) => node.format(f)?,
+
+        // type import
+        Expression::TypeImport {
+            target: _,
+            arguments,
+            qualifier,
+            static_arguments,
+        } => {
+            write!(f, [Keyword::Import, list_like("(", ")", ",", arguments)])?;
+            if let Some(qualifier) = qualifier {
+                write!(f, [token("."), qualifier])?;
+            }
+            if let Some(static_arguments) = static_arguments {
+                format_static_argument_list(f, static_arguments)?;
+            }
+        }
+
+        // type infer
+        Expression::TypeInfer { name, constraint } => {
+            write!(f, [Keyword::Infer, space(), *name])?;
+            if let Some(constraint) = constraint {
+                write!(f, [space(), Keyword::Extends, space(), *constraint])?;
+            }
+        }
+
+        // type predicate
+        Expression::TypePredicate {
+            asserts,
+            subject,
+            target,
+        } => {
+            if *asserts {
+                write!(f, [Keyword::Asserts, space()])?;
+            }
+            match subject {
+                TypePredicateSubject::Identifier(name) => {
+                    write!(f, [*name])?;
+                }
+                TypePredicateSubject::This => {
+                    write!(f, [Keyword::This])?;
+                }
+            }
+            if let Some(target) = target {
+                write!(f, [space(), Keyword::Is, space(), *target])?;
+            }
+        }
+
+        // type conditional
+        Expression::TypeConditional {
+            left,
+            right,
+            then_type,
+            else_type,
+        } => {
+            let conditional_tail = format_with(|f| {
+                write!(
+                    f,
+                    [
+                        soft_line_break_or_space(),
+                        token("?"),
+                        space(),
+                        then_type,
+                        soft_line_break_or_space(),
+                        token(":"),
+                        space(),
+                        else_type
+                    ]
+                )
+            });
+            let is_nested_inside_type_conditional =
+                f.context().get_ancestors(node_id).into_iter().any(
+                    |(ancestor_id, ancestor_type)| {
+                        ancestor_type == NodeType::Expression
+                            && matches!(
+                                f.context()
+                                    .tree
+                                    .get(LocalNodeId::<Expression>::new(ancestor_id)),
+                                Expression::TypeConditional { .. }
+                            )
+                    },
+                );
+            let should_double_indent_tail =
+                expression_is_in_template_literal_interpolation(f.context(), node_id)
+                    && is_nested_inside_type_conditional;
+            if should_double_indent_tail {
+                write!(
+                    f,
+                    [group(&format_args![
+                        left,
+                        space(),
+                        Keyword::Extends,
+                        space(),
+                        right,
+                        indent(&indent(&conditional_tail))
+                    ])]
+                )?;
+            } else {
+                write!(
+                    f,
+                    [group(&format_args![
+                        left,
+                        space(),
+                        Keyword::Extends,
+                        space(),
+                        right,
+                        indent(&conditional_tail)
+                    ])]
+                )?;
+            }
+        }
+
+        // type mapped
+        Expression::TypeMapped {
+            parameter,
+            modifiers,
+            value,
+        } => {
+            let include_space = f.context().options.bracket_spacing;
+            let break_parameter_clause = usize::from(f.context().options.line_width) <= 60;
+            let inline_separator = if include_space {
+                soft_line_break_or_space()
+            } else {
+                soft_line_break()
+            };
+            let field_terminator = if f.context().options.language_type.is_typescript() {
+                ";"
+            } else {
+                ","
+            };
+
+            let format_parameter_clause = |f: &mut DestackFormatter<'ast, '_>,
+                                           break_between_name_and_in: bool|
+             -> FormatResult<()> {
+                write!(f, [token("["), parameter.name])?;
+
+                if break_between_name_and_in {
+                    write!(
+                        f,
+                        [indent(&format_args![
+                            hard_line_break(),
+                            Keyword::In,
+                            space(),
+                            parameter.constraint
+                        ])]
+                    )?;
+                } else {
+                    write!(f, [space(), Keyword::In, space(), parameter.constraint])?;
+                }
+
+                if let Some(key_remap) = parameter.key_remap {
+                    write!(f, [space(), Keyword::As, space(), key_remap])?;
+                }
+
+                write!(f, [token("]")])
+            };
+
+            let inner_multiline = format_with(|f| {
+                match modifiers.readonly {
+                    TypeModifier::Add => {
+                        write!(f, [token("readonly"), space()])?;
+                    }
+                    TypeModifier::Remove => {
+                        write!(f, [token("-readonly"), space()])?;
+                    }
+                    TypeModifier::None => {}
+                }
+
+                format_parameter_clause(f, break_parameter_clause)?;
+
+                match modifiers.optional {
+                    TypeModifier::Add => {
+                        write!(f, [token("?")])?;
+                    }
+                    TypeModifier::Remove => {
+                        write!(f, [token("-?")])?;
+                    }
+                    TypeModifier::None => {}
+                }
+
+                write!(f, [token(":"), space()])?;
+
+                let has_value_postfix_annotations = f.context().has_postfix_annotation(*value);
+                if f.context().options.language_type.is_typescript()
+                    && has_value_postfix_annotations
+                {
+                    let value_expression = f.context().tree.get(*value);
+                    write!(f, [f.context().any_prefix_annotations(*value)])?;
+                    format_expression(
+                        f,
+                        *value,
+                        value_expression,
+                        directive_for_node(f.context(), *value),
+                    )?;
+                    write!(f, [token(field_terminator)])?;
+                    write!(f, [f.context().any_infix_or_postfix_annotations(*value)])
+                } else {
+                    write!(f, [*value, token(field_terminator)])
+                }
+            });
+
+            let inner_flat = format_with(|f| {
+                match modifiers.readonly {
+                    TypeModifier::Add => {
+                        write!(f, [token("readonly"), space()])?;
+                    }
+                    TypeModifier::Remove => {
+                        write!(f, [token("-readonly"), space()])?;
+                    }
+                    TypeModifier::None => {}
+                }
+
+                format_parameter_clause(f, false)?;
+
+                match modifiers.optional {
+                    TypeModifier::Add => {
+                        write!(f, [token("?")])?;
+                    }
+                    TypeModifier::Remove => {
+                        write!(f, [token("-?")])?;
+                    }
+                    TypeModifier::None => {}
+                }
+
+                write!(f, [token(":"), space(), *value])
+            });
+
+            let mapped_multiline = format_with(|f| {
+                write!(
+                    f,
+                    [
+                        token("{"),
+                        hard_line_break(),
+                        block_indent(&inner_multiline),
+                        hard_line_break(),
+                        token("}")
+                    ]
+                )
+            });
+
+            let mapped_flat = format_with(|f| {
+                write!(
+                    f,
+                    [
+                        token("{"),
+                        indent(&format_args![inline_separator, inner_flat]),
+                        inline_separator,
+                        token("}")
+                    ]
+                )
+            });
+
+            let force_multiline = should_force_multiline_mapped_type(f.context(), node_id, *value);
+            if force_multiline {
+                write!(f, [mapped_multiline])?;
+            } else {
+                write!(f, [group(&mapped_flat)])?;
+            }
+        }
+
+        // type index
+        Expression::TypeIndex { left, index } => {
+            format_type_index_expression(f, *left, *index)?;
+        }
+
+        // range literal
+        Expression::RangeExpression {
+            start,
+            end,
+            is_inclusive,
+        } => {
+            if *is_inclusive {
+                write!(f, [start, token("..="), end,])?;
+            } else {
+                write!(f, [start, token(".."), end,])?;
+            }
+        }
+
+        // array literal
+        Expression::ArrayExpression {
+            elements: elements_ids,
+        } => {
+            // try hugged format for single object/array elements
+            if !format_hugged(f, elements_ids, HugOptions::ARRAY, None, false)? {
+                let span = f.context().get_span(node_id);
+                let elements = elements_ids
+                    .iter()
+                    .map(|id| tree.get(*id))
+                    .collect::<SmallVec<[_; 3]>>();
+                let elements_are_inline_in_source =
+                    if let (Some(first_element), Some(last_element)) =
+                        (elements_ids.first(), elements_ids.last())
+                    {
+                        let first_span = f.context().get_span(*first_element);
+                        let last_span = f.context().get_span(*last_element);
+                        if first_span.file == last_span.file && first_span.start < last_span.end {
+                            !f.context().has_newline(Span::new(
+                                first_span.file,
+                                first_span.start,
+                                last_span.end,
+                            ))
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    };
+
+                // check for annotations that require expansion
+                let has_annotations = f.context().has_infix_annotation(node_id)
+                    || elements_ids
+                        .iter()
+                        .any(|element| f.context().has_annotation(*element));
+                let has_line_comment_annotations = elements_ids.iter().copied().any(|element_id| {
+                    argument_has_line_comment_annotation(f.context(), element_id)
+                        || argument_has_prefix_line_comment_annotation(f.context(), element_id)
+                });
+                let is_assignment_target = is_assignment_left_target(f.context(), node_id);
+                let keep_inline_assignment_target_annotated_array = is_assignment_target
+                    && elements_are_inline_in_source
+                    && has_annotations
+                    && !has_line_comment_annotations;
+                let can_keep_inline_boundary_comment_array = elements_are_inline_in_source
+                    && array_elements_are_fill_candidates(f.context().tree, elements_ids)
+                    && array_has_only_boundary_comments(f.context(), span, elements_ids);
+                let should_expand_for_annotations = has_line_comment_annotations
+                    || (has_annotations && !keep_inline_assignment_target_annotated_array);
+
+                let should_expand = (should_expand_for_annotations
+                    && !can_keep_inline_boundary_comment_array)
+                    || (elements.len() > 1
+                        && elements
+                            .iter()
+                            .any(|element| is_complex_argument(tree, element)))
+                    || (elements.len() == 1
+                        && f.context().has_newline(span)
+                        && !is_trivial_argument(tree, elements[0]))
+                    || (f.context().has_newline(span)
+                        && elements.len() > 1
+                        && !elements_are_inline_in_source);
+
+                if has_annotations && can_keep_inline_boundary_comment_array {
+                    format_boundary_comment_array(f, elements_ids)?;
+                } else {
+                    write!(
+                        f,
+                        [list_like("[", "]", ",", elements_ids)
+                            .as_collection()
+                            .should_expand(should_expand)]
+                    )?;
+                }
+            }
+        }
+
+        // tuple literal
+        Expression::TupleExpression {
+            elements: elements_ids,
+        } => {
+            if elements_ids.is_empty() {
+                write!(f, [token("()")])?;
+            } else if !format_hugged(f, elements_ids, HugOptions::TUPLE, None, false)? {
+                // not a single huggable element - use regular formatting
+                let span = f.context().get_span(node_id);
+                let elements = elements_ids
+                    .iter()
+                    .map(|id| tree.get(*id))
+                    .collect::<SmallVec<[_; 3]>>();
+
+                // check for annotations that require expansion
+                let has_annotations = f.context().has_infix_annotation(node_id)
+                    || elements_ids
+                        .iter()
+                        .any(|element| f.context().has_annotation(*element));
+
+                let should_expand = has_annotations
+                    || (elements.len() > 1
+                        && elements
+                            .iter()
+                            .any(|element| is_complex_argument(tree, element)))
+                    || (f.context().has_newline(span) && elements.len() > 1);
+                // trailing comma disambiguates tuples from parenthesized expressions
+                write!(
+                    f,
+                    [list_like("(", ")", ",", elements_ids)
+                        .as_collection()
+                        .force_trailing_separator()
+                        .should_expand(should_expand)]
+                )?;
+            }
+        }
+
+        // sequence expression (JS/TS comma operator)
+        Expression::SequenceExpression { expressions } => {
+            if expressions.is_empty() {
+                write!(f, [token("()")])?;
+            } else {
+                let format_sequence = format_with(|f| {
+                    let joiner_separator = format_with(|f| {
+                        write!(
+                            f,
+                            [
+                                token(","),
+                                line_postfix_boundary(),
+                                soft_line_break_or_space()
+                            ]
+                        )
+                    });
+                    let mut joiner = f.join_with(joiner_separator);
+                    joiner.entries(expressions);
+                    joiner.finish()
+                });
+                if sequence_expression_needs_parens(f.context(), node_id) {
+                    write!(
+                        f,
+                        [group(&format_args![
+                            token("("),
+                            format_sequence,
+                            token(")")
+                        ])]
+                    )?;
+                } else {
+                    write!(f, [group(&format_sequence)])?;
+                }
+            }
+        }
+
+        // struct literal
+        Expression::ObjectExpression { ty, properties } => {
+            format_struct_literal(f, node_id, ty, properties)?;
+        }
+
+        // tree literal
+        Expression::TreeExpression {
+            left,
+            arguments,
+            elements,
+        } => {
+            format_tree_literal_expression(f, node_id, left, arguments, elements)?;
+        }
+
+        // parenthesized
+        Expression::Parenthesized { expression } => {
+            let inner_expression = tree.get(*expression);
+            let deferred_boundary_comments =
+                collect_parenthesized_boundary_comments(f.context(), node_id, *expression);
+            let has_parenthesized_leading_inner_trivia =
+                parenthesized_has_leading_inner_trivia(f.context(), node_id, *expression);
+            let should_drop_type_parentheses =
+                should_drop_parenthesized_type_expression(f.context(), node_id, *expression);
+            let has_parenthesized_prefix_annotation = f.context().has_prefix_annotation(node_id)
+                || f.context().has_prefix_annotation(*expression);
+            let should_drop_parentheses = if let Some((parent_id, parent_type)) =
+                f.context().get_parent(node_id)
+                && parent_type == NodeType::Expression
+            {
+                let parent_id = LocalNodeId::<Expression>::new(parent_id);
+                let should_drop_assignment_must =
+                    matches!(
+                        f.context().tree.get(parent_id),
+                        Expression::Assign { left, .. } if *left == node_id
+                    ) && matches!(inner_expression, Expression::Must { .. });
+                let should_drop_statement_lambda = matches!(
+                    f.context().tree.get(parent_id),
+                    Expression::Statement(inner_id) if inner_id.id == node_id.id
+                ) && matches!(
+                    inner_expression,
+                    Expression::Declaration(declaration_id)
+                        if matches!(
+                            f.context().tree.get(*declaration_id),
+                            Declaration::Function { signature, .. }
+                                if signature.kind == FunctionKind::Lambda
+                        )
+                ) && !f.context().has_annotation(node_id);
+
+                should_drop_assignment_must
+                    || should_drop_statement_lambda
+                    || should_drop_type_parentheses
+            } else {
+                should_drop_type_parentheses
+            };
+            let should_expand_assignment_target = match inner_expression {
+                // prefer expanded destructuring targets once they become moderately wide
+                Expression::ObjectExpression { properties, .. } => {
+                    properties.len() > 2 && is_assignment_left_target(f.context(), *expression)
+                }
+                Expression::ArrayExpression { elements } => {
+                    elements.len() > 3 && is_assignment_left_target(f.context(), *expression)
+                }
+                _ => false,
+            };
+
+            if should_drop_parentheses {
+                write!(f, [*expression])?;
+            } else if should_expand_assignment_target {
+                write!(
+                    f,
+                    [group(&format_args![
+                        token("("),
+                        group(expression).should_expand(true),
+                        token(")")
+                    ])
+                    .should_expand(true)]
+                )?;
+            } else if let Expression::TreeExpression {
+                arguments,
+                elements,
+                ..
+            } = inner_expression
+            {
+                let tree_should_break = tree_literal_should_break(f.context(), arguments, elements)
+                    || f.context().has_newline(f.context().get_span(*expression));
+                if is_call_like_argument(f.context(), node_id) {
+                    write!(f, [*expression])?;
+                } else if has_parenthesized_leading_inner_trivia || tree_should_break {
+                    write!(
+                        f,
+                        [
+                            token("("),
+                            block_indent(&group(expression).should_expand(true)),
+                            hard_line_break(),
+                            token(")")
+                        ]
+                    )?;
+                } else {
+                    write!(f, [token("("), soft_block_indent(&expression), token(")")])?;
+                }
+            } else if should_hoist_parenthesized_inner_cast_prefix_comments(
+                f.context(),
+                node_id,
+                *expression,
+            ) {
+                let inner_directive = directive_for_node(f.context(), *expression);
+                let format_inner_without_prefix = format_with(|f| {
+                    format_expression(
+                        f,
+                        *expression,
+                        f.context().tree.get(*expression),
+                        inner_directive,
+                    )?;
+                    if !matches!(
+                        inner_directive,
+                        Some(FormatterDirective {
+                            kind: FormatterDirectiveKind::IgnoreFormat,
+                            position: FormatterDirectivePosition::Postfix { .. },
+                        })
+                    ) {
+                        write!(
+                            f,
+                            [f.context().any_infix_or_postfix_annotations(*expression)]
+                        )?;
+                    }
+                    Ok(())
+                });
+                write!(f, [f.context().any_prefix_annotations(*expression)])?;
+                write!(
+                    f,
+                    [group(&format_args![
+                        token("("),
+                        format_inner_without_prefix,
+                        token(")")
+                    ])]
+                )?;
+            } else if has_parenthesized_prefix_annotation {
+                let format_inline =
+                    format_with(|f| write!(f, [token("("), expression, token(")")]));
+                let format_multiline = format_with(|f| {
+                    write!(
+                        f,
+                        [
+                            token("("),
+                            block_indent(&group(expression).should_expand(true)),
+                            hard_line_break(),
+                            token(")")
+                        ]
+                    )
+                });
+                if f.context().has_newline(f.context().get_span(*expression))
+                    || has_parenthesized_leading_inner_trivia
+                {
+                    format_multiline.format(f)?;
+                } else {
+                    best_fitting![format_inline, format_multiline]
+                        .with_mode(BestFittingMode::AllLines)
+                        .format(f)?;
+                }
+            } else if matches!(inner_expression, Expression::TypeConditional { .. }) {
+                write!(f, [token("("), soft_block_indent(&expression), token(")")])?;
+            } else if has_parenthesized_leading_inner_trivia {
+                write!(
+                    f,
+                    [
+                        token("("),
+                        block_indent(&expression),
+                        hard_line_break(),
+                        token(")")
+                    ]
+                )?;
+            } else {
+                write!(f, [token("("), expression, token(")")])?;
+            }
+
+            if !should_drop_parentheses {
+                for comment in deferred_boundary_comments {
+                    write!(f, [space(), text(comment.as_str())])?;
+                }
+            }
+        }
+        _ => return Ok(false),
+    }
+
+    Ok(true)
+}

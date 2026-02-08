@@ -7,16 +7,19 @@ use crate::block::format_block_of_statements;
 use crate::expression::{is_expression_breakable, lambda_expression_should_break};
 use crate::key::format_key_with_quote_policy;
 use crate::property::format_block_of_members;
+use crate::signature::{
+    constructor_parameters_should_expand, parameter_is_variadic, single_parameter_should_hug,
+};
 use crate::r#where::format_where_clause_with_break;
 use crate::{
     DestackFormatContext, DestackFormatter, FormatNode, empty_block_with_infix_annotations,
 };
 use destack_ast::{
-    Annotation, Argument, Asynchrony, Declaration, DeclarationAbstraction, DeclarationDescriptor,
-    DeclarationKind, DependencyKind, DependencyMode, EnumField, EnumKind, Expression,
-    FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode, Generics, Heritage,
-    ImportAliasTarget, Key, Keyword, LocalNodeId, Member, Mutability, Name, NodeType, Parameter,
-    Pattern, PatternField, TypeKind, Visibility, WhereClause,
+    Annotation, AnnotationPosition, Argument, Asynchrony, Declaration, DeclarationAbstraction,
+    DeclarationDescriptor, DeclarationKind, DependencyKind, DependencyMode, EnumField, EnumKind,
+    Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode, Generics,
+    Heritage, IfKind, ImportAliasTarget, Key, Keyword, LocalNodeId, Member, Mutability, Name,
+    NodeType, Parameter, Pattern, PatternField, TypeKind, Visibility, WhereClause,
 };
 use destack_fir::format::{BestFittingMode, FormatResult};
 use destack_fir::prelude::*;
@@ -171,43 +174,6 @@ fn write_deferred_declaration_body_boundary_prefix_annotations<'ast>(
     Ok(true)
 }
 
-/// Return whether this parameter is variadic.
-fn parameter_is_variadic(
-    context: &DestackFormatContext<'_>,
-    parameter_id: LocalNodeId<Parameter>,
-) -> bool {
-    matches!(
-        context.tree.get(parameter_id),
-        Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. }
-    )
-}
-
-/// Return whether this parameter declares any modifiers.
-fn parameter_has_modifier(
-    context: &DestackFormatContext<'_>,
-    parameter_id: LocalNodeId<Parameter>,
-) -> bool {
-    match context.tree.get(parameter_id) {
-        Parameter::Named { modifiers, .. }
-        | Parameter::Pattern { modifiers, .. }
-        | Parameter::VariadicNamed { modifiers, .. }
-        | Parameter::VariadicPattern { modifiers, .. } => modifiers.is_some(),
-    }
-}
-
-/// Return whether constructor parameter lists should break by default.
-fn constructor_parameters_should_expand(
-    context: &DestackFormatContext<'_>,
-    mode: Option<FunctionMode>,
-    parameters: &[LocalNodeId<Parameter>],
-) -> bool {
-    matches!(mode, Some(FunctionMode::Constructor | FunctionMode::New))
-        && parameters.len() > 1
-        && parameters
-            .iter()
-            .any(|parameter_id| parameter_has_modifier(context, *parameter_id))
-}
-
 /// Return whether an object parameter pattern should expand for readability.
 fn parameter_object_pattern_should_expand(
     context: &DestackFormatContext<'_>,
@@ -287,37 +253,6 @@ fn parameter_should_force_expand_in_signature(
     parameter_object_pattern_should_expand(context, pattern_id)
 }
 
-/// Return whether a single parameter should keep compact outer parentheses.
-fn single_parameter_should_hug(
-    context: &DestackFormatContext<'_>,
-    parameter_id: LocalNodeId<Parameter>,
-) -> bool {
-    if parameter_is_variadic(context, parameter_id) {
-        return false;
-    }
-
-    let has_multiline_collection_default = match context.tree.get(parameter_id) {
-        Parameter::Named { default, .. } | Parameter::Pattern { default, .. } => default
-            .is_some_and(|default_id| {
-                matches!(
-                    context.tree.get(default_id),
-                    Expression::ObjectExpression { .. } | Expression::ArrayExpression { .. }
-                ) && context.has_newline(context.get_span(default_id))
-            }),
-        Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } => false,
-    };
-    if has_multiline_collection_default {
-        return false;
-    }
-
-    let has_newline = context.has_newline(context.get_span(parameter_id));
-    match context.tree.get(parameter_id) {
-        Parameter::Named { default, .. } => !(has_newline && default.is_some()),
-        Parameter::VariadicNamed { .. } => !has_newline,
-        Parameter::Pattern { .. } | Parameter::VariadicPattern { .. } => true,
-    }
-}
-
 /// Format a super type clause.
 pub(crate) fn format_super_type_clause<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -328,18 +263,16 @@ pub(crate) fn format_super_type_clause<'ast>(
 
     write!(
         f,
-        [
-            space(),
+        [group(&indent(&format_args![
+            soft_line_break_or_space(),
             keyword,
-            group(&indent(&format_args![
-                soft_line_break_or_space(),
-                format_with(|f| {
-                    f.join_with(&format_args![&token(","), soft_line_break_or_space()])
-                        .entries(types)
-                        .finish()
-                })
-            ])),
-        ]
+            space(),
+            format_with(|f| {
+                f.join_with(&format_args![&token(","), soft_line_break_or_space()])
+                    .entries(types)
+                    .finish()
+            }),
+        ]))]
     )
 }
 
@@ -403,7 +336,116 @@ fn format_declaration_heritage<'ast>(
     Ok(())
 }
 
+/// Return whether a heritage type expression includes static type arguments.
+fn heritage_type_has_static_arguments(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    match context.tree.get(expression_id) {
+        Expression::Path {
+            static_arguments, ..
+        } => static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty()),
+        Expression::Member {
+            left,
+            static_arguments,
+            ..
+        }
+        | Expression::PrivateMember {
+            left,
+            static_arguments,
+            ..
+        } => {
+            static_arguments
+                .as_ref()
+                .is_some_and(|arguments| !arguments.is_empty())
+                || heritage_type_has_static_arguments(context, *left)
+        }
+        Expression::Call {
+            left,
+            static_arguments,
+            ..
+        }
+        | Expression::New {
+            left,
+            static_arguments,
+            ..
+        } => {
+            static_arguments
+                .as_ref()
+                .is_some_and(|arguments| !arguments.is_empty())
+                || heritage_type_has_static_arguments(context, *left)
+        }
+        Expression::Instantiation {
+            left,
+            static_arguments,
+        } => !static_arguments.is_empty() || heritage_type_has_static_arguments(context, *left),
+        Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+            heritage_type_has_static_arguments(context, *expression)
+        }
+        _ => false,
+    }
+}
+
+/// Format anonymous class heritage, preserving oxfmt style for generic extends and implements.
+fn format_anonymous_class_heritage<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    heritage: &Heritage,
+) -> FormatResult<()> {
+    if let Some(extends_types) = heritage.extends_types.as_ref()
+        && !extends_types.is_empty()
+    {
+        let has_generic_extends = extends_types
+            .iter()
+            .copied()
+            .any(|type_id| heritage_type_has_static_arguments(f.context(), type_id));
+        if has_generic_extends {
+            write!(f, [space(), Keyword::Extends, space(), token("(")])?;
+            write!(
+                f,
+                [group(&indent(&format_args![
+                    soft_line_break_or_space(),
+                    format_with(|f| {
+                        f.join_with(&format_args![&token(","), soft_line_break_or_space()])
+                            .entries(extends_types)
+                            .finish()
+                    })
+                ]))]
+            )?;
+            write!(f, [soft_line_break_or_space(), token(")")])?;
+        } else {
+            format_super_type_clause(f, Keyword::Extends, extends_types)?;
+        }
+    }
+
+    if let Some(implements_types) = heritage.implements_types.as_ref()
+        && !implements_types.is_empty()
+    {
+        let has_generic_implements = implements_types
+            .iter()
+            .copied()
+            .any(|type_id| heritage_type_has_static_arguments(f.context(), type_id));
+        if has_generic_implements {
+            write!(f, [space(), Keyword::Implements, space()])?;
+            write!(
+                f,
+                [format_with(|f| {
+                    f.join_with(&format_args![&token(","), space()])
+                        .entries(implements_types)
+                        .finish()
+                })]
+            )?;
+        } else {
+            format_super_type_clause(f, Keyword::Implements, implements_types)?;
+        }
+    }
+
+    Ok(())
+}
+
 /// Format a struct or class declaration body and return whether it ended early.
+#[allow(clippy::too_many_arguments)]
 fn format_struct_or_class_declaration<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
@@ -430,8 +472,31 @@ fn format_struct_or_class_declaration<'ast>(
         write!(f, [space(), name])?;
     }
 
+    let is_assignment_rhs_anonymous_class = if is_class && descriptor.name.is_none() {
+        declaration_expression_id.is_some_and(|expression_id| {
+            let Some((parent_id, parent_type)) = f.context().get_parent(expression_id) else {
+                return false;
+            };
+            if parent_type != NodeType::Expression {
+                return false;
+            }
+
+            let parent_expression = LocalNodeId::<Expression>::new(parent_id);
+            matches!(
+                f.context().tree.get(parent_expression),
+                Expression::Assign { right, .. } if *right == expression_id
+            )
+        })
+    } else {
+        false
+    };
+
     format_declaration_static_parameters(f, generics)?;
-    format_declaration_heritage(f, heritage, true)?;
+    if is_assignment_rhs_anonymous_class {
+        format_anonymous_class_heritage(f, heritage)?;
+    } else {
+        format_declaration_heritage(f, heritage, true)?;
+    }
     format_declaration_where_clauses(f, generics.where_clauses.as_deref())?;
 
     let has_deferred_declaration_boundary_annotations =
@@ -860,14 +925,60 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 let has_comment_before_value =
                     f.context().get_span_str(leading_value_span).contains("/*")
                         || f.context().get_span_str(leading_value_span).contains("//");
+                let inline_header_len =
+                    f.context().get_span_str(leading_value_span).chars().count();
+                let inline_value_len = f.context().get_span_str(value_span).chars().count();
+                let inline_total_len = inline_header_len.saturating_add(inline_value_len);
+                let line_width = usize::from(f.context().options.line_width);
+                let should_break_template_literal_type_after_equals = match value_expression {
+                    Expression::TypeTemplateLiteral { spans, .. } => {
+                        let has_conditional_interpolation = spans.iter().any(|span_id| {
+                            matches!(
+                                tree.get(*span_id),
+                                Expression::TypeConditional { .. }
+                                    | Expression::If {
+                                        kind: IfKind::Ternary,
+                                        ..
+                                    }
+                            )
+                        });
+                        has_conditional_interpolation && inline_total_len > line_width
+                    }
+                    _ => false,
+                };
                 let should_break_after_equals = match value_expression {
                     Expression::TypeConditional { left, .. } => {
                         !matches!(tree.get(*left), Expression::Parenthesized { .. })
                     }
                     _ => false,
                 };
+                let value_parenthesized_inner_has_block_prefix_annotation = match value_expression {
+                    Expression::Parenthesized { expression } => f
+                        .context()
+                        .get_annotations(*expression)
+                        .is_some_and(|annotation_ids| {
+                            annotation_ids.iter().any(|annotation_id| {
+                                let annotation = f.context().tree.get::<Annotation>(*annotation_id);
+                                if !matches!(annotation.position(), AnnotationPosition::BlockPrefix)
+                                    || !matches!(annotation, Annotation::Comment { .. })
+                                {
+                                    return false;
+                                }
 
-                if should_break_after_equals || has_comment_before_value {
+                                let annotation_span =
+                                    f.context().get_span::<Annotation>(*annotation_id);
+                                let annotation_source = f.context().get_span_str(annotation_span);
+                                let trimmed = annotation_source.trim_start();
+                                annotation_source.contains('\n') && !trimmed.starts_with("/**")
+                            })
+                        }),
+                    _ => false,
+                };
+                if should_break_after_equals
+                    || should_break_template_literal_type_after_equals
+                    || value_parenthesized_inner_has_block_prefix_annotation
+                    || has_comment_before_value
+                {
                     format_soft_break.format(f)?;
                 } else if is_expression_breakable(tree, tree.get(*value_id)) {
                     if value_has_prefix_annotation {
@@ -1020,10 +1131,10 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 // keyword
                 write!(f, [Keyword::Extension])?;
 
-                // For named extensions: `extension Name<T> of Target`
-                // For anonymous extensions: `extension<T> of Target`
+                // named extensions: `extension Name<T> of Target`
+                // anonymous extensions: `extension<T> of Target`
                 if let Some(name) = descriptor.name {
-                    // Named: name first, then generics
+                    // named: name first, then generics
                     write!(f, [space(), name])?;
 
                     if let Some(static_arguments) = generics.static_parameters.as_ref()
@@ -1046,7 +1157,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                         )?;
                     }
                 } else {
-                    // Anonymous: generics first (no name)
+                    // anonymous: generics first, no name
                     if let Some(static_arguments) = generics.static_parameters.as_ref()
                         && !static_arguments.is_empty()
                     {
@@ -1425,32 +1536,30 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                                         .should_expand(force_break)]
                                     )?;
                                 }
+                            } else if body_is_parenthesized_tree {
+                                write!(
+                                    f,
+                                    [group(&format_args![
+                                        space(),
+                                        token("=>"),
+                                        space(),
+                                        body_break
+                                    ])
+                                    .should_expand(force_break)]
+                                )?;
                             } else {
-                                if body_is_parenthesized_tree {
-                                    write!(
-                                        f,
-                                        [group(&format_args![
-                                            space(),
-                                            token("=>"),
-                                            space(),
+                                write!(
+                                    f,
+                                    [group(&format_args![
+                                        space(),
+                                        token("=>"),
+                                        indent(&format_args![
+                                            soft_line_break_or_space(),
                                             body_break
                                         ])
-                                        .should_expand(force_break)]
-                                    )?;
-                                } else {
-                                    write!(
-                                        f,
-                                        [group(&format_args![
-                                            space(),
-                                            token("=>"),
-                                            indent(&format_args![
-                                                soft_line_break_or_space(),
-                                                body_break
-                                            ])
-                                        ])
-                                        .should_expand(force_break)]
-                                    )?;
-                                }
+                                    ])
+                                    .should_expand(force_break)]
+                                )?;
                             }
                         }
                     } else {
@@ -1466,7 +1575,29 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
             }
         }
 
-        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        let should_skip_blank_postfix_annotations =
+            is_lambda_declaration && declaration_expression_id.is_some();
+        if should_skip_blank_postfix_annotations {
+            if let Some(annotation_ids) = f.context().get_annotations(node_id) {
+                for annotation_id in annotation_ids {
+                    let annotation = f.context().tree.get::<Annotation>(annotation_id);
+                    if matches!(annotation, Annotation::Blank { .. }) {
+                        continue;
+                    }
+                    if !matches!(
+                        annotation.position(),
+                        AnnotationPosition::BlockPostfix
+                            | AnnotationPosition::LinePostfix
+                            | AnnotationPosition::LinePostfixBoundary
+                    ) {
+                        continue;
+                    }
+                    annotation.format_node(annotation_id, f)?;
+                }
+            }
+        } else {
+            write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        }
 
         Ok(())
     }

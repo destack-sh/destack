@@ -25,7 +25,7 @@ fn format_selector(f: &mut DestackFormatter<'_, '_>, selector: &MatchSelector) -
             }
         }
         MatchSelector::Default => {
-            // For match-style formatting, output underscore for default
+            // for match-style formatting, output underscore for default
             write!(f, [token("_")])?;
         }
     }

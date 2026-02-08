@@ -20,6 +20,8 @@ pub mod operator;
 pub mod path;
 pub mod pattern;
 pub mod property;
+pub mod scan;
+pub mod signature;
 pub mod r#try;
 pub mod r#where;
 
