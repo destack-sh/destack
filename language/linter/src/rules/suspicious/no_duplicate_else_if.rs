@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_is_equal;
+use crate::rules::common::ExpressionDuplicateTracker;
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -10,7 +10,7 @@ declare_lint! {
     /// Having the same condition in multiple branches of an if-else-if chain
     /// is almost always a bug since the later branch will never be reached.
     #[lint(
-        id = "no-dupe-else-if",
+        id = "no-duplicate-else-if",
         code = "LU011",
         category = Suspicious,
         level = Ast,
@@ -20,13 +20,13 @@ declare_lint! {
         recommended = Always,
         stability = Stable
     )]
-    pub NoDupeElseIf,
+    pub NoDuplicateElseIf,
     "Disallow duplicate else-if conditions"
 }
 
-impl LintRule for NoDupeElseIf {
+impl LintRule for NoDuplicateElseIf {
     fn meta(&self) -> &'static crate::LintMeta {
-        NoDupeElseIf::meta()
+        NoDuplicateElseIf::meta()
     }
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
@@ -58,27 +58,26 @@ impl LintRule for NoDupeElseIf {
             collect_else_if_conditions(ctx, *else_expr, &mut conditions);
 
             // check for duplicates using structural comparison
-            for i in 0..conditions.len() {
-                for j in (i + 1)..conditions.len() {
-                    if expression_is_equal(ctx, conditions[i], conditions[j]) {
-                        let severity = ctx.get_effective_severity(meta, conditions[j]);
-                        if !severity.is_enabled() {
-                            continue;
-                        }
-
-                        ctx.report(
-                            LintDiagnostic::new(
-                                NO_DUPE_ELSE_IF.id,
-                                NO_DUPE_ELSE_IF.code,
-                                NO_DUPE_ELSE_IF.category,
-                                severity,
-                                "duplicate condition in if-else-if chain",
-                                ctx.module.file_id,
-                                ctx.tree.get_span(conditions[j]),
-                            )
-                            .with_label("this condition was already checked above"),
-                        );
+            let mut seen = ExpressionDuplicateTracker::new();
+            for condition_id in conditions {
+                if seen.find_duplicate_or_insert(ctx, condition_id).is_some() {
+                    let severity = ctx.get_effective_severity(meta, condition_id);
+                    if !severity.is_enabled() {
+                        continue;
                     }
+
+                    ctx.report(
+                        LintDiagnostic::new(
+                            NO_DUPLICATE_ELSE_IF.id,
+                            NO_DUPLICATE_ELSE_IF.code,
+                            NO_DUPLICATE_ELSE_IF.category,
+                            severity,
+                            "duplicate condition in if-else-if chain",
+                            ctx.module.file_id,
+                            ctx.tree.get_span(condition_id),
+                        )
+                        .with_label("this condition was already checked above"),
+                    );
                 }
             }
         }
@@ -141,9 +140,9 @@ mod tests {
 
     #[test]
     fn test_detects_duplicate_else_if() {
-        let test = TestProgram::for_rule_without_prelude(NoDupeElseIf);
+        let test = TestProgram::for_rule_without_prelude(NoDuplicateElseIf);
         let result = test.lint_ast(
-            "no_dupe_else_if/test_detects_duplicate_else_if.ds",
+            "no_duplicate_else_if/test_detects_duplicate_else_if.ds",
             r#"
 if (x > 0) {
     a()
@@ -152,14 +151,14 @@ if (x > 0) {
 }
 "#,
         );
-        test.result(result).assert_lint("no-dupe-else-if");
+        test.result(result).assert_lint("no-duplicate-else-if");
     }
 
     #[test]
     fn test_detects_duplicate_in_longer_chain() {
-        let test = TestProgram::for_rule_without_prelude(NoDupeElseIf);
+        let test = TestProgram::for_rule_without_prelude(NoDuplicateElseIf);
         let result = test.lint_ast(
-            "no_dupe_else_if/test_detects_duplicate_in_longer_chain.ds",
+            "no_duplicate_else_if/test_detects_duplicate_in_longer_chain.ds",
             r#"
 if (x > 0) {
     a()
@@ -170,14 +169,14 @@ if (x > 0) {
 }
 "#,
         );
-        test.result(result).assert_lint("no-dupe-else-if");
+        test.result(result).assert_lint("no-duplicate-else-if");
     }
 
     #[test]
     fn test_allows_different_conditions() {
-        let test = TestProgram::for_rule_without_prelude(NoDupeElseIf);
+        let test = TestProgram::for_rule_without_prelude(NoDuplicateElseIf);
         let result = test.lint_ast(
-            "no_dupe_else_if/test_allows_different_conditions.ds",
+            "no_duplicate_else_if/test_allows_different_conditions.ds",
             r#"
 if (x > 0) {
     a()
@@ -188,14 +187,14 @@ if (x > 0) {
 }
 "#,
         );
-        test.result(result).assert_no_lint("no-dupe-else-if");
+        test.result(result).assert_no_lint("no-duplicate-else-if");
     }
 
     #[test]
     fn test_allows_simple_if_else() {
-        let test = TestProgram::for_rule_without_prelude(NoDupeElseIf);
+        let test = TestProgram::for_rule_without_prelude(NoDuplicateElseIf);
         let result = test.lint_ast(
-            "no_dupe_else_if/test_allows_simple_if_else.ds",
+            "no_duplicate_else_if/test_allows_simple_if_else.ds",
             r#"
 if (x > 0) {
     a()
@@ -204,6 +203,6 @@ if (x > 0) {
 }
 "#,
         );
-        test.result(result).assert_no_lint("no-dupe-else-if");
+        test.result(result).assert_no_lint("no-duplicate-else-if");
     }
 }

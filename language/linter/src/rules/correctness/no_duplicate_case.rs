@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_is_equal;
+use crate::rules::common::ExpressionDuplicateTracker;
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -43,7 +43,7 @@ impl LintRule for NoDuplicateCase {
             }
 
             // collect case expression IDs and check for duplicates
-            let mut seen: Vec<ast::LocalNodeId<ast::Expression>> = Vec::new();
+            let mut seen = ExpressionDuplicateTracker::new();
             for case_id in cases {
                 let case = ctx.tree.get(*case_id);
                 let selector = match case {
@@ -66,12 +66,8 @@ impl LintRule for NoDuplicateCase {
                 };
 
                 // check against all previously seen expressions
-                let is_duplicate = seen
-                    .iter()
-                    .any(|&prev| expression_is_equal(ctx, prev, expr_id));
-
-                if is_duplicate {
-                    let severity = ctx.get_effective_severity(meta, node_id);
+                if seen.find_duplicate_or_insert(ctx, expr_id).is_some() {
+                    let severity = ctx.get_effective_severity(meta, expr_id);
                     if !severity.is_enabled() {
                         continue;
                     }
@@ -87,8 +83,6 @@ impl LintRule for NoDuplicateCase {
                         )
                         .with_label("this case was already handled"),
                     );
-                } else {
-                    seen.push(expr_id);
                 }
             }
         }

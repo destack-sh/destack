@@ -120,7 +120,7 @@ High-confidence issues that are almost always wrong.
 | `LC033` | `no-misused-spread` | TS-ESLint | DIR | ✓ | None | Disallow spread syntax in contexts where it's incorrect |
 | `LC036` | `no-overlapping-match-arms` | Destack | DIR |  | Safe | Disallow match patterns that subsume later arms |
 | `LC037` | `no-promise-executor-return` | ESLint | DIR | ✓ | Safe | Disallow returning values from Promise executor |
-| `LC038` | `no-self-compare` | ESLint | AST | ✓ | None | Disallow comparisons where both sides are exactly the same |
+| `LC038` | `no-self-compare` | ESLint | DIR | ✓ | None | Disallow comparisons where both sides are exactly the same |
 | `LC039` | `no-sparse-arrays` | ESLint | AST | ✓ | None | Disallow sparse arrays with holes |
 | `LC040` | `no-struct-identity-compare` | Destack | DIR | ✓ | Safe | Disallow identity comparison on value types |
 | `LC042` | `no-throw-in-result-function` | Destack | DIR | ✓ | None | Disallow `throw` in functions returning `Result` |
@@ -158,7 +158,7 @@ Code that is likely unintentional but may occasionally be intentional.
 | `LU008` | `no-constant-assertion` | Destack | AST | ✓ | Safe | Disallow assertions on constant values |
 | `LU009` | `no-constructor-return` | ESLint | AST | ✓ | Safe | Disallow returning values from constructors |
 | `LU010` | `no-debugger` | ESLint | AST | ✓ | Safe | Disallow debugger statements |
-| `LU011` | `no-dupe-else-if` | ESLint | AST | ✓ | None | Disallow duplicate conditions in if-else-if chains |
+| `LU011` | `no-duplicate-else-if` | ESLint | AST | ✓ | None | Disallow duplicate conditions in if-else-if chains |
 | `LU012` | `no-duplicate-decorators` | Destack | AST | ✓ | Always | Disallow identical decorators (same name and arguments) |
 | `LU013` | `no-duplicate-match-arms` | Destack | AST | ✓ | None | Warn on match arms with identical bodies |
 | `LU014` | `no-empty` | ESLint | AST | ✓ | Suggestion | Disallow empty block statements |
@@ -168,20 +168,19 @@ Code that is likely unintentional but may occasionally be intentional.
 | `LU018` | `no-ex-assign` | ESLint | AST | ✓ | None | Disallow reassigning exceptions in catch clauses |
 | `LU019` | `no-extra-non-null-assertion` | TS-ESLint | AST | ✓ | Safe | Disallow extra non-null assertions |
 | `LU021` | `no-identical-branches` | SonarQube | AST | ✓ | Safe | Warn when all branches of if/switch have identical bodies |
-| `LU022` | `no-identical-functions` | SonarQube | DIR |  | Suggestion | Warn on functions with identical implementations |
 | `LU024` | `no-incomplete-range` | Destack | AST | ✓ | Safe | Warn on exclusive ranges that are likely meant to be inclusive |
 | `LU025` | `no-inner-declarations` | ESLint | AST | ✓ | None | Disallow variable or function declarations in nested blocks |
 | `LU026` | `no-large-try-block` | DeepSource | AST | ✓ | None | Warn when try block contains much more than throwing code |
-| `LU027` | `no-loop-func` | ESLint | DIR | ✓ | None | Disallow functions that capture loop variables |
-| `LU028` | `no-method-shadowing` | Destack | DIR | ✓ | None | Warn when a method shadows an inherited method |
+| `LU027` | `no-loop-func` | ESLint | DIR |  | None | Disallow functions that capture loop variables |
+| `LU028` | `no-method-shadowing` | Destack | DIR |  | None | Warn when a method shadows an inherited method |
 | `LU066` | `no-mixed-key-types` | Destack | DIR |  | Suggestion | Warn on objects that mix string, symbol, and numeric keys |
 | `LU029` | `no-misleading-character-class` | ESLint | AST | ✓ | Suggestion | Disallow characters that behave unexpectedly in regex |
-| `LU030` | `no-missing-override` | ErrorProne | DIR | ✓ | Safe | Warn when method overrides parent without `override` keyword |
+| `LU030` | `no-missing-override` | ErrorProne | DIR |  | Safe | Warn when method overrides parent without `override` keyword |
 | `LU031` | `no-negation-in-equality-check` | Unicorn | AST | ✓ | Safe | Disallow negation in the left operand of equality tests |
-| `LU032` | `no-prototype-builtins` | ESLint | DIR | ✓ | Safe | Disallow calling Object.prototype methods directly on objects |
-| `LU033` | `no-pointer-arithmetic` | Destack | DIR | ✓ | Suggestion | Warn on pointer arithmetic without explicit offset helpers |
-| `LU034` | `no-pointer-comparison` | Destack | DIR | ✓ | Suggestion | Warn on pointer comparisons outside explicit address checks |
-| `LU036` | `no-redundant-match-guard` | Destack | AST | ✓ | Safe | Disallow match guards that are always true or false |
+| `LU032` | `no-prototype-builtins` | ESLint | DIR |  | Safe | Disallow calling Object.prototype methods directly on objects |
+| `LU033` | `no-pointer-arithmetic` | Destack | DIR |  | Suggestion | Warn on pointer arithmetic without explicit offset helpers |
+| `LU034` | `no-pointer-comparison` | Destack | DIR |  | Suggestion | Warn on pointer comparisons outside explicit address checks |
+| `LU036` | `no-redundant-match-guard` | Destack | AST | ✓ | None | Disallow match guards that are always true or false |
 | `LU037` | `no-redundant-pattern` | Destack | AST | ✓ | Safe | Disallow patterns that bind nothing useful |
 | `LU038` | `no-return-assign` | ESLint | AST | ✓ | None | Disallow assignment operators in return statements |
 | `LU039` | `no-self-assign` | ESLint | AST | ✓ | Safe | Disallow assignments where both sides are exactly the same |
@@ -190,8 +189,8 @@ Code that is likely unintentional but may occasionally be intentional.
 | `LU041` | `no-single-element-tuple` | Destack | AST | ✓ | Safe | Warn on single-element tuples that may be accidental |
 | `LU042` | `no-template-curly-in-string` | ESLint | AST | ✓ | Safe | Disallow template literal placeholder syntax in regular strings |
 | `LU043` | `no-throw-literal` | ESLint | DIR | ✓ | Suggestion | Disallow throwing literals instead of Error objects |
-| `LU044` | `no-unnecessary-clone` | TS-ESLint | DIR | ✓ | Safe | Warn on cloning values that are not used afterward |
-| `LU045` | `no-unnecessary-type-assertion` | TS-ESLint | DIR | ✓ | Safe | Disallow type assertions that do not change the type |
+| `LU044` | `no-unnecessary-clone` | TS-ESLint | DIR |  | Safe | Warn on cloning values that are not used afterward |
+| `LU045` | `no-unnecessary-type-assertion` | TS-ESLint | DIR |  | Safe | Disallow type assertions that do not change the type |
 | `LU068` | `no-unstable-iteration-order` | Go | DIR |  | Suggestion | Warn on map iteration order where determinism is required |
 | `LU047` | `no-unused-except-recursion` | Destack | DIR |  | Suggestion | Warn on function arguments only used for recursion |
 | `LU048` | `no-useless-backreference` | ESLint | AST | ✓ | Safe | Disallow useless backreferences in regular expressions |
@@ -206,7 +205,7 @@ Code that is likely unintentional but may occasionally be intentional.
 | `LU062` | `require-await` | TS-ESLint | AST | ✓ | Safe | Disallow async functions with no await expressions |
 | `LU063` | `require-else-in-if-chain` | Destack | AST | ✓ | Suggestion | Require final else in if-else-if chains |
 | `LU064` | `require-yield` | ESLint | AST | ✓ | None | Require generator functions to contain yield |
-| `LU065` | `return-await` | TS-ESLint | DIR | ✓ | Safe | Enforce consistent `return await` usage |
+| `LU065` | `return-await` | TS-ESLint | DIR |  | Safe | Enforce consistent `return await` usage |
 
 ## Security (S)
 
@@ -279,7 +278,7 @@ Subjective preferences for consistent coding style.
 
 | Code | Rule | Source | Level | Status | Fixability | Description |
 |------|------|--------|-------|--------|------------|-------------|
-| `LY001` | `array-type` | TS-ESLint | DIR | ✓ | Safe | Require consistently using either `T[]` or `Array<T>` |
+| `LY001` | `array-type` | TS-ESLint | DIR |  | Safe | Require consistently using either `T[]` or `Array<T>` |
 | `LY002` | `catch-error-name` | Unicorn | AST | ✓ | Safe | Enforce a specific name for catch clause error parameters |
 | `LY003` | `comment-casing` | Destack | AST | ✓ | Safe | Enforce comment / doc casing |
 | `LY004` | `comment-layout` | Destack | AST | ✓ | Safe | Enforce comment / doc layout |
@@ -291,27 +290,27 @@ Subjective preferences for consistent coding style.
 | `LY011` | `dot-notation` | ESLint | AST | ✓ | Safe | Enforce dot notation whenever possible |
 | `LY012` | `eqeqeq` | ESLint | AST | ✓ | Safe | Require `===` and `!==` |
 | `LY013` | `explicit-function-return-type` | TS-ESLint | AST | ✓ | Suggestion | Require explicit return types on functions |
-| `LY014` | `explicit-module-boundary-types` | TS-ESLint | AST | ✓ | Suggestion | Require explicit types on exported APIs |
+| `LY014` | `explicit-module-boundary-types` | TS-ESLint | AST |  | Suggestion | Require explicit types on exported APIs |
 | `LY015` | `filename-case` | Unicorn | AST | ✓ | Unsafe | Enforce a case style for filenames |
 | `LY016` | `grouped-accessor-pairs` | ESLint | AST | ✓ | None | Require grouped accessor pairs in object literals and classes |
 | `LY088` | `missing-docs` | Rust | AST |  | Suggestion | Require documentation comments on public items |
 | `LY017` | `no-boolean-literal-compare` | Unicorn | AST | ✓ | Safe | Disallow comparing boolean expressions to boolean literals |
 | `LY018` | `no-collapsible-if` | Unicorn | AST | ✓ | Safe | Suggest merging nested if statements without else |
 | `LY019` | `no-duplicate-string` | SonarQube | AST | ✓ | None | Disallow the same string literal appearing many times |
-| `LY020` | `no-duplicate-type-constituents` | TS-ESLint | AST | ✓ | Safe | Disallow duplicate constituents in union/intersection types |
+| `LY020` | `no-duplicate-type-constituents` | TS-ESLint | AST |  | Safe | Disallow duplicate constituents in union/intersection types |
 | `LY021` | `no-else-return` | ESLint | AST | ✓ | Safe | Disallow else blocks after return statements |
 | `LY022` | `no-empty-interface` | TS-ESLint | AST | ✓ | Safe | Disallow empty interfaces |
-| `LY023` | `no-extra-boolean-cast` | ESLint | DIR | ✓ | Safe | Disallow unnecessary boolean casts |
-| `LY024` | `no-implicit-coercion` | ESLint | DIR | ✓ | Safe | Disallow shorthand type conversions |
+| `LY023` | `no-extra-boolean-cast` | ESLint | DIR |  | Safe | Disallow unnecessary boolean casts |
+| `LY024` | `no-implicit-coercion` | ESLint | DIR |  | Safe | Disallow shorthand type conversions |
 | `LY025` | `no-lonely-if` | ESLint | AST | ✓ | Safe | Disallow if statements as the only statement in else blocks |
 | `LY026` | `no-negated-condition` | ESLint | AST | ✓ | Safe | Disallow negated conditions with else branches |
-| `LY027` | `no-redundant-type-constituents` | TS-ESLint | DIR | ✓ | Safe | Disallow type constituents made redundant by others |
+| `LY027` | `no-redundant-type-constituents` | TS-ESLint | DIR |  | Safe | Disallow type constituents made redundant by others |
 | `LY028` | `no-nested-template-literal` | SonarQube | AST | ✓ | None | Disallow template literals nested inside template literals |
 | `LY029` | `no-nested-ternary` | ESLint | AST | ✓ | Unsafe | Disallow nested ternary expressions |
 | `LY031` | `no-object-constructor` | ESLint | DIR | ✓ | Safe | Disallow `new Object()` |
 | `LY032` | `no-unneeded-ternary` | ESLint | AST | ✓ | Safe | Disallow ternary operators when simpler alternatives exist |
-| `LY033` | `no-unnecessary-template-expression` | TS-ESLint | DIR | ✓ | Safe | Disallow unnecessary template literal expressions |
-| `LY034` | `no-unnecessary-type-arguments` | TS-ESLint | DIR | ✓ | Safe | Disallow type arguments that equal the default |
+| `LY033` | `no-unnecessary-template-expression` | TS-ESLint | DIR |  | Safe | Disallow unnecessary template literal expressions |
+| `LY034` | `no-unnecessary-type-arguments` | TS-ESLint | DIR |  | Safe | Disallow type arguments that equal the default |
 | `LY035` | `no-unnecessary-lambda` | ErrorProne | AST | ✓ | Safe | Disallow lambdas that only wrap a direct function call |
 | `LY036` | `no-var` | ESLint | AST | ✓ | Safe | Require `let` or `const` instead of `var` |
 | `LY037` | `object-shorthand` | ESLint | AST | ✓ | Safe | Require or disallow method and property shorthand syntax |
@@ -319,7 +318,7 @@ Subjective preferences for consistent coding style.
 | `LY039` | `prefer-arrow-callback` | ESLint | AST | ✓ | Safe | Require arrow functions as callbacks |
 | `LY040` | `prefer-as-const` | TS-ESLint | AST | ✓ | Safe | Prefer `as const` over literal type assertions |
 | `LY041` | `prefer-const` | ESLint | DIR | ✓ | Safe | Require `const` declarations for never-reassigned variables |
-| `LY042` | `prefer-destructuring` | ESLint | DIR | ✓ | Safe | Prefer destructuring from arrays and objects |
+| `LY042` | `prefer-destructuring` | ESLint | DIR |  | Safe | Prefer destructuring from arrays and objects |
 | `LY043` | `prefer-exponentiation-operator` | ESLint | DIR | ✓ | Safe | Prefer `**` over `Math.pow()` |
 | `LY044` | `prefer-expression` | Destack | AST | ✓ | Safe | Prefer expression syntax for assignments |
 | `LY046` | `prefer-fragment-shorthand` | Destack | AST | ✓ | Safe | Prefer `<>` shorthand over `<Fragment>` |
@@ -328,19 +327,19 @@ Subjective preferences for consistent coding style.
 | `LY049` | `prefer-inclusive-range` | Destack | AST | ✓ | Safe | Prefer inclusive range syntax where applicable |
 | `LY050` | `prefer-loop` | Destack | AST | ✓ | Safe | Prefer `loop` keyword over `while(true)` or `for(;;)` |
 | `LY052` | `prefer-named-extension` | Destack | AST | ✓ | Unsafe | Prefer named extensions for foreign types |
-| `LY081` | `prefer-nullish-coalescing` | TS-ESLint | DIR | ✓ | Safe | Prefer `??` over `\|\|` for default values |
+| `LY081` | `prefer-nullish-coalescing` | TS-ESLint | DIR |  | Safe | Prefer `??` over `\|\|` for default values |
 | `LY053` | `prefer-numeric-literals` | ESLint | DIR | ✓ | Safe | Prefer numeric literals over `parseInt()` |
-| `LY054` | `prefer-object-has-own` | ESLint | DIR | ✓ | Safe | Prefer `Object.hasOwn()` over `Object.prototype.hasOwnProperty` |
+| `LY054` | `prefer-object-has-own` | ESLint | DIR |  | Safe | Prefer `Object.hasOwn()` over `Object.prototype.hasOwnProperty` |
 | `LY055` | `prefer-object-spread` | ESLint | DIR | ✓ | Safe | Prefer spread operator over `Object.assign()` |
 | `LY056` | `prefer-pattern-over-guard` | Destack | AST | ✓ | Safe | Suggest moving match guards into the pattern |
 | `LY057` | `prefer-precise-numeric` | Destack | AST | ✓ | Suggestion | Prefer precise numeric types over `number` |
-| `LY058` | `prefer-promise-reject-errors` | TS-ESLint | DIR | ✓ | Suggestion | Require Error objects in Promise rejections |
-| `LY059` | `prefer-propagate-operator` | Destack | DIR | ✓ | Safe | Prefer `?` propagation over manual Result matching |
+| `LY058` | `prefer-promise-reject-errors` | TS-ESLint | DIR |  | Suggestion | Require Error objects in Promise rejections |
+| `LY059` | `prefer-propagate-operator` | Destack | DIR |  | Safe | Prefer `?` propagation over manual Result matching |
 | `LY060` | `prefer-range-contains` | Destack | AST | ✓ | Safe | Prefer range contains method over comparison chains |
 | `LY061` | `prefer-range-literal` | Destack | AST | ✓ | Safe | Prefer range literals over C-style for loops |
-| `LY062` | `prefer-readonly` | TS-ESLint | DIR | ✓ | Suggestion | Prefer `readonly` for non-mutated fields |
+| `LY062` | `prefer-readonly` | TS-ESLint | DIR |  | Suggestion | Prefer `readonly` for non-mutated fields |
 | `LY064` | `prefer-self-closing-tree` | Destack | AST | ✓ | Safe | Prefer self-closing tree elements when possible |
-| `LY065` | `prefer-set-over-empty-map` | Destack | DIR | ✓ | Safe | Suggest `Set<K>` over `Map<K, void>` |
+| `LY065` | `prefer-set-over-empty-map` | Destack | DIR |  | Safe | Suggest `Set<K>` over `Map<K, void>` |
 | `LY066` | `prefer-struct` | Destack | AST | ✓ | Unsafe | Prefer struct for data-only classes |
 | `LY067` | `prefer-string-replaceall` | Unicorn | DIR | ✓ | Safe | Prefer `.replaceAll()` over `.replace()` with global regex |
 | `LY068` | `prefer-struct-literal` | Destack | AST | ✓ | Safe | Prefer struct literal syntax over constructor calls |
@@ -349,11 +348,10 @@ Subjective preferences for consistent coding style.
 | `LY071` | `prefer-tuple-destructure` | Destack | AST | ✓ | Safe | Prefer tuple destructuring over indexed access |
 | `LY072` | `prefer-tuple-swap` | Destack | AST | ✓ | Safe | Prefer tuple swap syntax over temporary variable |
 | `LY073` | `prefer-unary-negation` | Destack | AST | ✓ | Safe | Prefer unary negation over multiplying by -1 |
-| `LY074` | `promise-function-async` | TS-ESLint | DIR | ✓ | Safe | Require `async` keyword for Promise-returning functions |
-| `LY082` | `redundant-const-reference` | Destack | AST | ✓ | Safe | Disallow explicit `const` on borrows and raw pointers |
+| `LY074` | `promise-function-async` | TS-ESLint | DIR |  | Safe | Require `async` keyword for Promise-returning functions |
 | `LY075` | `require-jsdoc` | ESLint | AST | ✓ | Suggestion | Require documentation on public items |
 | `LY076` | `require-returns-doc` | ESLint | AST | ✓ | Suggestion | Require return type documentation |
-| `LY077` | `restrict-template-expressions` | TS-ESLint | DIR | ✓ | Suggestion | Require template expressions to be strings or numbers |
+| `LY077` | `restrict-template-expressions` | TS-ESLint | DIR |  | Suggestion | Require template expressions to be strings or numbers |
 | `LY078` | `sort-imports` | ESLint | AST | ✓ | Safe | Enforce sorted import declarations |
 | `LY079` | `symbol-description` | ESLint | DIR | ✓ | Suggestion | Require symbol descriptions |
 | `LY080` | `yoda` | ESLint | AST | ✓ | Safe | Disallow Yoda conditions |
@@ -388,7 +386,7 @@ Overly complex code that is harder to understand and maintain.
 | `LX015` | `max-type-variants` | Destack | AST | ✓ | None | Enforce a maximum number of variants in a union type or enum |
 | `LX016` | `no-complex-boolean-expression` | Destack | AST | ✓ | Safe | Suggest simplifying complex boolean expressions |
 | `LX017` | `no-complex-type` | Destack | AST | ✓ | None | Warn on overly complex types that should be aliased |
-| `LX018` | `no-duplicate-code` | Code Climate | DIR |  | Suggestion | Warn on duplicate or near-duplicate code blocks |
+| `LX018` | `no-duplicate-code` | Code Climate | AST | ✓ | None | Warn on duplicate or near-duplicate code blocks |
 | `LX019` | `no-excessive-booleans` | Destack | AST | ✓ | Suggestion | Disallow too many boolean parameters or struct fields |
 | `LX020` | `no-multi-assign` | ESLint | AST | ✓ | Safe | Disallow chained assignment expressions |
 | `LX021` | `no-multi-declarators` | ESLint | AST | ✓ | Safe | Disallow multiple variable declarations per statement |
@@ -409,14 +407,14 @@ Opt-in rules that ban certain patterns by project choice. These rules may confli
 |------|------|--------|-------|--------|------------|-------------|
 | `LR001` | `no-alert` | ESLint | DIR | ✓ | None | Disallow the use of `alert`, `confirm`, and `prompt` |
 | `LR002` | `no-anonymous-default-export` | Unicorn | AST | ✓ | Suggestion | Disallow anonymous default exports |
-| `LR004` | `no-banned-import` | ESLint | DIR | ✓ | None | Disallow imports from specified modules |
+| `LR004` | `no-banned-import` | ESLint | DIR |  | None | Disallow imports from specified modules |
 | `LR005` | `no-bitwise` | ESLint | AST | ✓ | None | Disallow bitwise operators |
-| `LR006` | `no-circular-dependency` | Import | DIR |  | None | Disallow circular module dependencies |
+| `LR006` | `no-circular-dependency` | Import | DIR | ✓ | None | Disallow circular module dependencies |
 | `LR007` | `no-class` | Destack | AST | ✓ | Unsafe | Disallow class declarations (prefer structs) |
 | `LR008` | `no-console` | ESLint | DIR | ✓ | Safe | Disallow the use of `console` |
 | `LR009` | `no-continue` | ESLint | AST | ✓ | None | Disallow `continue` statements |
-| `LR010` | `no-cross-target-import` | Destack | DIR | ✓ | None | Disallow imports across target boundaries |
-| `LR011` | `no-default-export` | Import | AST | ✓ | Unsafe | Disallow default exports |
+| `LR010` | `no-cross-target-import` | Destack | DIR |  | None | Disallow imports across target boundaries |
+| `LR011` | `no-default-export` | Import | DIR | ✓ | Unsafe | Disallow default exports |
 | `LR012` | `no-re-export-all` | Biome | AST | ✓ | None | Disallow `export * from` (hurts tree-shaking) |
 | `LR013` | `no-enum` | Biome | AST | ✓ | Unsafe | Disallow TypeScript enums (prefer union types) |
 | `LR014` | `no-explicit-any` | TS-ESLint | AST | ✓ | Suggestion | Disallow the `any` type |
@@ -427,14 +425,14 @@ Opt-in rules that ban certain patterns by project choice. These rules may confli
 | `LR019` | `no-namespace` | TS-ESLint | AST | ✓ | None | Disallow TypeScript namespaces |
 | `LR020` | `no-non-null-assertion` | TS-ESLint | AST | ✓ | Suggestion | Disallow non-null assertions using the `!` postfix |
 | `LR021` | `no-null` | Unicorn | AST | ✓ | Safe | Disallow `null` (prefer `undefined`) |
-| `LR022` | `no-parameter-reassignment` | SonarQube | DIR | ✓ | None | Disallow reassigning function parameters |
+| `LR022` | `no-parameter-reassignment` | SonarQube | DIR |  | None | Disallow reassigning function parameters |
 | `LR023` | `no-placeholder-implementation` | ESLint | AST | ✓ | None | Disallow placeholder implementations (throw "not implemented", etc.) |
 | `LR024` | `no-plusplus` | ESLint | AST | ✓ | Safe | Disallow `++` and `--` operators |
 | `LR025` | `no-process-exit` | Unicorn | DIR | ✓ | None | Disallow `process.exit()` |
-| `LR026` | `no-require-imports` | TS-ESLint | DIR | ✓ | Safe | Disallow `require()` imports |
+| `LR026` | `no-require-imports` | TS-ESLint | DIR |  | Safe | Disallow `require()` imports |
 | `LR027` | `no-runtime-reflection` | Destack | DIR |  | None | Disallow runtime reflection (ban RTTI) |
 | `LR028` | `no-sequences` | ESLint | AST | ✓ | None | Disallow comma operators |
-| `LR029` | `no-shadow` | Destack | DIR | ✓ | Suggestion | Disallow shadowing by rebinding a value |
+| `LR029` | `no-shadow` | Destack | DIR |  | Suggestion | Disallow shadowing by rebinding a value |
 | `LR030` | `no-struct` | Destack | AST | ✓ | Unsafe | Disallow struct declarations (prefer classes) |
 | `LR031` | `no-ternary` | ESLint | AST | ✓ | Unsafe | Disallow ternary operators |
 | `LR033` | `no-warning-comments` | ESLint | AST | ✓ | None | Disallow specified warning terms in comments (TODO, FIXME, etc.) |

@@ -4,6 +4,7 @@ use destack_source::{
     ModuleId, ModuleStamp, ModuleVersion, PackageId, PackageStamp, ProfileStamp, ProfileVersion,
 };
 use destack_workspace::{LintPreset, ProfileId};
+use std::collections::HashSet;
 use std::sync::LazyLock;
 
 use crate::timing::tags;
@@ -144,24 +145,56 @@ impl Compiler {
     /// Lint a package.
     fn lint_package(&self, package_id: PackageId) -> LintResult<()> {
         // collect all modules in the package
-        let modules = self
+        let module_ids: Vec<_> = self
             .program
             .modules
             .iter()
-            .filter(|module| module.read().package_id == package_id);
+            .filter(|module| module.read().package_id == package_id)
+            .map(|module| module.read().id)
+            .collect();
 
         // lint each module
         let mut collector = TaskResultCollector::new();
-        for module in modules {
-            let module_id = module.read().id;
-            let profile = self.program.default_profile_id_for_module(module_id);
-            let result = self.require_lint_module(module_id, profile);
+        for module_id in &module_ids {
+            let profile = self.program.default_profile_id_for_module(*module_id);
+            let result = self.require_lint_module(*module_id, profile);
             collector.try_collect(result);
         }
 
         // yield on any yields
         if let Some(dependency) = collector.try_into_yield_all() {
             return Err(LintError::Yield { dependency });
+        }
+
+        // run program scoped AST rules once per package lint pass
+        let Some(options_module_id) = module_ids.first().copied() else {
+            return Ok(());
+        };
+        let options = self.program.get_linter_options(options_module_id);
+        if !options.enabled {
+            return Ok(());
+        }
+        let runner = cached_runner_for_preset(options.preset);
+        let ast_diagnostics = runner.lint_program_ast(self.program.clone(), &options);
+        for diagnostic in ast_diagnostics {
+            self.program
+                .diagnostics
+                .insert(diagnostic.into_diagnostic());
+        }
+
+        // run program scoped DIR rules once per profile used by this package
+        let mut profiles = HashSet::new();
+        for module_id in &module_ids {
+            let profile = self.program.default_profile_id_for_module(*module_id);
+            profiles.insert(profile);
+        }
+        for profile in profiles {
+            let dir_diagnostics = runner.lint_program_dir(self.program.clone(), profile, &options);
+            for diagnostic in dir_diagnostics {
+                self.program
+                    .diagnostics
+                    .insert(diagnostic.into_diagnostic());
+            }
         }
 
         Ok(())
@@ -226,5 +259,51 @@ x == x;
         test.lint_module(module);
         test.compile();
         test.check_has_diagnostic("LC038");
+    }
+
+    #[test]
+    fn test_lint_package_runs_program_ast_lints() {
+        let test = TestProgram::memory_sequential();
+        let first_module = test.add_module(
+            "program_ast/first.ds",
+            r#"
+function shared(): int32 {
+    const first = 1;
+    const second = 2;
+    const third = first + second;
+    return third + 10;
+}
+"#,
+        );
+        let _second_module = test.add_module(
+            "program_ast/second.ds",
+            r#"
+function shared(): int32 {
+    const first = 1;
+    const second = 2;
+    const third = first + second;
+    return third + 10;
+}
+"#,
+        );
+        test.apply_dsconfig(
+            first_module,
+            r#"
+{
+  "linter": {
+    "rules": {
+      "all": true
+    }
+  }
+}
+"#,
+        );
+
+        let package_id = test.program.modules.get(first_module).read().package_id;
+        test.enqueue(super::LintTask::LintPackage {
+            package: test.package_stamp(package_id),
+        });
+        test.compile();
+        test.check_has_diagnostic("LX018");
     }
 }

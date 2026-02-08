@@ -21,7 +21,7 @@ use parking_lot::Mutex;
 
 use crate::{
     BoxedLintRule, Fixability, LintDiagnostic, LintLevel, LintModuleReport, LintRequirement,
-    LintRunner,
+    LintRunReport, LintRunner,
 };
 
 /// Shared memory cache store for linter tests.
@@ -358,6 +358,49 @@ impl TestProgram {
         self.import_module(module);
         self.compile();
         self.lint_module(module, LintLevel::Ast)
+    }
+
+    /// Lint the full program with program-scope rules.
+    pub(crate) fn lint_program_ast(&self) -> Vec<LintDiagnostic> {
+        self.runner
+            .lint_program_ast(self.program.clone(), &self.linter_options)
+    }
+
+    /// Lint the full program with AST program-scope rules and collect performance data.
+    pub(crate) fn lint_program_ast_profiled(&self) -> LintRunReport {
+        self.runner
+            .lint_program_ast_profiled(self.program.clone(), &self.linter_options)
+    }
+
+    /// Lint the full program with DIR program-scope rules.
+    pub(crate) fn lint_program_dir(&self) -> Vec<LintDiagnostic> {
+        self.runner
+            .lint_program_dir(self.program.clone(), self.profile_id, &self.linter_options)
+    }
+
+    /// Lint the full program with DIR program-scope rules and collect performance data.
+    pub(crate) fn lint_program_dir_profiled(&self) -> LintRunReport {
+        self.runner.lint_program_dir_profiled(
+            self.program.clone(),
+            self.profile_id,
+            &self.linter_options,
+        )
+    }
+
+    /// Lint the full program with program-scope rules.
+    pub(crate) fn lint_program(&self) -> Vec<LintDiagnostic> {
+        let mut diagnostics = self.lint_program_ast();
+        diagnostics.extend(self.lint_program_dir());
+        diagnostics
+    }
+
+    /// Lint the full program with program-scope rules and collect performance data.
+    pub(crate) fn lint_program_profiled(&self) -> LintRunReport {
+        let mut ast_report = self.lint_program_ast_profiled();
+        let dir_report = self.lint_program_dir_profiled();
+        ast_report.performance.merge(&dir_report.performance);
+        ast_report.diagnostics.extend(dir_report.diagnostics);
+        ast_report
     }
 
     /// Check no compiler diagnostics at or above the given severity.

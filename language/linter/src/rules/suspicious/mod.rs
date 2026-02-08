@@ -6,8 +6,8 @@ mod no_confusing_non_null_assertion;
 mod no_constant_assertion;
 mod no_constructor_return;
 mod no_debugger;
-mod no_dupe_else_if;
 mod no_duplicate_decorators;
+mod no_duplicate_else_if;
 mod no_duplicate_match_arms;
 mod no_empty;
 mod no_empty_function;
@@ -51,8 +51,8 @@ pub use no_confusing_non_null_assertion::*;
 pub use no_constant_assertion::*;
 pub use no_constructor_return::*;
 pub use no_debugger::*;
-pub use no_dupe_else_if::*;
 pub use no_duplicate_decorators::*;
+pub use no_duplicate_else_if::*;
 pub use no_duplicate_match_arms::*;
 pub use no_empty::*;
 pub use no_empty_function::*;
@@ -97,7 +97,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoConfusingNonNullAssertion),
         boxed(NoConstructorReturn),
         boxed(NoDebugger),
-        boxed(NoDupeElseIf),
+        boxed(NoDuplicateElseIf),
         boxed(NoDuplicateDecorators),
         boxed(NoDuplicateMatchArms),
         boxed(NoEmpty),

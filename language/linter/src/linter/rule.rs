@@ -2,7 +2,9 @@ use destack_dir::WellKnownSymbol;
 use destack_source::{DiagnosticSeverity, FileType};
 use destack_workspace::{LintCategory, LintSeverity};
 
-use super::{LintModuleAstContext, LintModuleDirContext, LintProgramContext};
+use super::{
+    LintModuleAstContext, LintModuleDirContext, LintProgramAstContext, LintProgramDirContext,
+};
 
 /// The IR level at which a lint operates.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -163,8 +165,11 @@ pub trait LintRule: Send + Sync {
     /// Check a module at DIR level (typed IR with symbols and types).
     fn check_module_dir<'a>(&self, _severity: LintSeverity, _ctx: &mut LintModuleDirContext<'a>) {}
 
-    /// Check the entire program (cross-module analysis).
-    fn check_program(&self, _ctx: &mut LintProgramContext) {}
+    /// Check the entire program at AST level (cross-module syntax analysis).
+    fn check_program_ast(&self, _ctx: &mut LintProgramAstContext) {}
+
+    /// Check the entire program at DIR level (cross-module typed analysis).
+    fn check_program_dir(&self, _ctx: &mut LintProgramDirContext) {}
 }
 
 /// A boxed lint rule for dynamic dispatch.

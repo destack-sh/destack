@@ -8,7 +8,7 @@ use destack_workspace::{LintCategory, LintPreset, LinterOptions, Module, Profile
 
 use crate::{
     BoxedLintRule, LintDiagnostic, LintLevel, LintModuleAstContext, LintModuleDirContext,
-    all_rules, recommended_rules,
+    LintProgramAstContext, LintProgramDirContext, LintScope, all_rules, recommended_rules,
 };
 
 /// Per lint rule performance metrics.
@@ -284,6 +284,7 @@ impl LintRunner {
         for rule in &self.rules {
             let meta = rule.meta();
             if meta.level == LintLevel::Ast
+                && meta.scope == LintScope::Module
                 && ctx.is_rule_supported(meta)
                 && ctx.is_rule_enabled(meta)
             {
@@ -362,6 +363,7 @@ impl LintRunner {
         for rule in &self.rules {
             let meta = rule.meta();
             if meta.level == LintLevel::Dir
+                && meta.scope == LintScope::Module
                 && ctx.is_rule_supported(meta)
                 && ctx.is_rule_enabled(meta)
             {
@@ -439,6 +441,121 @@ impl LintRunner {
 
         LintRunReport {
             diagnostics,
+            performance,
+        }
+    }
+
+    /// Lint the entire program at AST level using program-scope rules.
+    pub fn lint_program_ast(
+        &self,
+        program: Arc<Program>,
+        options: &LinterOptions,
+    ) -> Vec<LintDiagnostic> {
+        self.lint_program_ast_profiled(program, options).diagnostics
+    }
+
+    /// Lint the entire program at AST level and collect performance metrics.
+    pub fn lint_program_ast_profiled(
+        &self,
+        program: Arc<Program>,
+        options: &LinterOptions,
+    ) -> LintRunReport {
+        if !options.enabled {
+            return LintRunReport::default();
+        }
+
+        let mut performance = LintPerformanceReport::default();
+        let mut ctx = LintProgramAstContext::new(program, options.clone());
+
+        for rule in &self.rules {
+            let meta = rule.meta();
+            if meta.scope != LintScope::Program
+                || meta.level != LintLevel::Ast
+                || !ctx.is_rule_supported(meta)
+                || !ctx.is_rule_enabled(meta)
+            {
+                continue;
+            }
+
+            let diagnostics_before = ctx.diagnostics().len();
+            let start = Instant::now();
+            rule.check_program_ast(&mut ctx);
+            let duration = start.elapsed();
+            let diagnostics_after = ctx.diagnostics().len();
+            let diagnostics_added = diagnostics_after.saturating_sub(diagnostics_before);
+
+            performance.record(
+                meta.id,
+                meta.code,
+                meta.name,
+                meta.category,
+                meta.level,
+                duration,
+                diagnostics_added,
+            );
+        }
+
+        LintRunReport {
+            diagnostics: ctx.take_diagnostics(),
+            performance,
+        }
+    }
+
+    /// Lint the entire program at DIR level using program-scope rules.
+    pub fn lint_program_dir(
+        &self,
+        program: Arc<Program>,
+        profile: ProfileId,
+        options: &LinterOptions,
+    ) -> Vec<LintDiagnostic> {
+        self.lint_program_dir_profiled(program, profile, options)
+            .diagnostics
+    }
+
+    /// Lint the entire program at DIR level and collect performance metrics.
+    pub fn lint_program_dir_profiled(
+        &self,
+        program: Arc<Program>,
+        profile: ProfileId,
+        options: &LinterOptions,
+    ) -> LintRunReport {
+        if !options.enabled {
+            return LintRunReport::default();
+        }
+
+        let mut performance = LintPerformanceReport::default();
+        let mut ctx = LintProgramDirContext::new(program, profile, options.clone());
+
+        for rule in &self.rules {
+            let meta = rule.meta();
+            if meta.scope != LintScope::Program
+                || meta.level != LintLevel::Dir
+                || !ctx.is_rule_supported(meta)
+                || !ctx.is_rule_enabled(meta)
+            {
+                continue;
+            }
+
+            let diagnostics_before = ctx.diagnostics().len();
+            let start = Instant::now();
+            rule.check_program_dir(&mut ctx);
+            let duration = start.elapsed();
+            let diagnostics_after = ctx.diagnostics().len();
+            let diagnostics_added = diagnostics_after.saturating_sub(diagnostics_before);
+
+            performance.record(
+                meta.id,
+                meta.code,
+                meta.name,
+                meta.category,
+                meta.level,
+                duration,
+                diagnostics_added,
+            );
+        }
+
+        LintRunReport {
+            diagnostics: ctx.take_diagnostics(),
             performance,
         }
     }

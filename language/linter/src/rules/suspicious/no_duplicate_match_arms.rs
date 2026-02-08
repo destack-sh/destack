@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_is_equal;
+use crate::rules::common::{BlockDuplicateTracker, ExpressionDuplicateTracker};
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -38,36 +38,35 @@ impl LintRule for NoDuplicateMatchArms {
                 continue;
             };
 
-            // collect bodies and check for duplicates
-            let mut seen_bodies: Vec<(
-                ast::LocalNodeId<ast::MatchCase>,
-                ast::LocalNodeId<ast::Expression>,
-            )> = Vec::new();
+            // collect expression and block bodies separately
+            let mut seen_expression_bodies = ExpressionDuplicateTracker::new();
+            let mut seen_block_bodies = BlockDuplicateTracker::new();
 
             for case_id in cases {
                 let case = ctx.tree.get(*case_id);
 
                 // extract body expression from match case
-                let body_id = match case {
-                    ast::MatchCase::Expression { body, .. } => *body,
+                let is_duplicate = match case {
+                    ast::MatchCase::Expression { body, .. } => seen_expression_bodies
+                        .find_duplicate_or_insert(ctx, *body)
+                        .is_some(),
                     ast::MatchCase::Block { body, .. } => {
-                        // for block bodies, check if it's a single expression block
                         let block = ctx.tree.get(*body);
                         if block.expressions.len() == 1 {
-                            block.expressions[0]
+                            seen_expression_bodies
+                                .find_duplicate_or_insert(ctx, block.expressions[0])
+                                .is_some()
                         } else {
-                            // can't easily compare complex blocks
-                            continue;
+                            seen_block_bodies
+                                .find_duplicate_or_insert(ctx, *body)
+                                .is_some()
                         }
                     }
                 };
 
                 // check against previously seen bodies
-                let is_duplicate = seen_bodies
-                    .iter()
-                    .any(|(_, prev_body)| expression_is_equal(ctx, *prev_body, body_id));
                 if is_duplicate {
-                    let severity = ctx.get_effective_severity(meta, body_id);
+                    let severity = ctx.get_effective_severity(meta, *case_id);
                     if !severity.is_enabled() {
                         continue;
                     }
@@ -84,8 +83,6 @@ impl LintRule for NoDuplicateMatchArms {
                         )
                         .with_label("this arm has the same body as a previous arm"),
                     );
-                } else {
-                    seen_bodies.push((*case_id, body_id));
                 }
             }
         }
@@ -137,6 +134,27 @@ match (x) {
 match (x) {
     1 => 42
     2 => 42
+}
+"#,
+        );
+        test.result(result).assert_lint("no-duplicate-match-arms");
+    }
+
+    #[test]
+    fn test_detects_duplicate_block_bodies() {
+        let test = TestProgram::for_rule_without_prelude(NoDuplicateMatchArms);
+        let result = test.lint_ast(
+            "no_duplicate_match_arms/test_detects_duplicate_block_bodies.ds",
+            r#"
+match (x) {
+    1 => {
+        let y = x + 1;
+        y
+    }
+    2 => {
+        let y = x + 1;
+        y
+    }
 }
 "#,
         );

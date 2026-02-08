@@ -1,6 +1,7 @@
 use destack_ast::{self as ast};
 
 use crate::LintModuleAstContext;
+use crate::rules::common::{stable_hash_debug, stable_hash_token, stable_hash_token_hashed_value};
 
 /// Return whether two expressions are structurally equal.
 ///
@@ -319,8 +320,8 @@ pub fn expression_is_equal(
             expression_is_equal(ctx, left_id, *right_inner)
         }
 
-        // for other expression types, don't try to compare
-        _ => false,
+        // fallback: compare structural signatures for remaining expression kinds
+        _ => expression_signature_equal(ctx, left_id, right_id),
     }
 }
 
@@ -704,4 +705,324 @@ pub fn expression_constant_to_bool(
         }
         _ => None,
     }
+}
+
+/// Compare two expressions using a structural fallback signature.
+fn expression_signature_equal(
+    ctx: &LintModuleAstContext<'_>,
+    left_id: ast::LocalNodeId<ast::Expression>,
+    right_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    let left_signature = expression_signature(ctx, left_id);
+    let right_signature = expression_signature(ctx, right_id);
+    left_signature == right_signature
+}
+
+/// Build a structural signature for one expression subtree.
+fn expression_signature(
+    ctx: &LintModuleAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> Vec<u64> {
+    let expression = ctx.tree.get(expression_id);
+    let mut collector = ExpressionSignatureCollector::new(ctx.strings);
+    ast::walk_expression(&mut collector, ctx.tree, expression_id, expression);
+    collector.finish()
+}
+
+/// Collect a structural signature for an expression subtree.
+struct ExpressionSignatureCollector<'a> {
+    /// String pool for identifier and literal names.
+    strings: &'a ast::StringPool,
+    /// Visitor options.
+    visitor_options: ast::NodeVisitorOptions,
+    /// Signature token stream.
+    tokens: Vec<u64>,
+}
+
+impl<'a> ExpressionSignatureCollector<'a> {
+    /// Build an empty signature collector.
+    fn new(strings: &'a ast::StringPool) -> Self {
+        Self {
+            strings,
+            visitor_options: ast::NodeVisitorOptions::default(),
+            tokens: Vec::new(),
+        }
+    }
+
+    /// Finalize and return the signature tokens.
+    fn finish(self) -> Vec<u64> {
+        self.tokens
+    }
+
+    /// Push one key-value token.
+    fn push_token(&mut self, key: &str, value: &str) {
+        self.tokens.push(hash_signature_token(key, value));
+    }
+
+    /// Push one debug token value.
+    fn push_debug<T: std::fmt::Debug>(&mut self, key: &str, value: T) {
+        let value_hash = stable_hash_debug(&value);
+        self.tokens
+            .push(hash_signature_token_hashed_value(key, value_hash));
+    }
+
+    /// Push one string id as text.
+    fn push_string_id(&mut self, key: &str, string_id: ast::StringId) {
+        self.push_token(key, &self.strings.get(string_id));
+    }
+}
+
+impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
+    fn options(&self) -> &ast::NodeVisitorOptions {
+        &self.visitor_options
+    }
+
+    fn visit_any(&mut self, _tree: &ast::NodeTree, ty: ast::NodeType, _id: u32) {
+        self.push_debug("node", ty);
+    }
+
+    fn visit_expression(
+        &mut self,
+        tree: &ast::NodeTree,
+        id: ast::LocalNodeId<ast::Expression>,
+        expression: &ast::Expression,
+    ) {
+        self.push_debug("expression", std::mem::discriminant(expression));
+        match expression {
+            ast::Expression::Labelled { label, .. } => {
+                self.push_string_id("expression_label", *label);
+            }
+            ast::Expression::Import {
+                source,
+                kind,
+                target,
+                ..
+            } => {
+                self.push_debug("expression_import_source", *source);
+                self.push_debug("expression_import_kind", *kind);
+                self.push_string_id("expression_import_target", *target);
+            }
+            ast::Expression::Export { kind, target, .. } => {
+                self.push_debug("expression_export_kind", *kind);
+                if let Some(target) = target {
+                    self.push_string_id("expression_export_target", *target);
+                }
+            }
+            ast::Expression::ExportNamespace { name } => {
+                self.push_string_id("expression_export_namespace", *name);
+            }
+            ast::Expression::If { kind, .. } => {
+                self.push_debug("expression_if_kind", *kind);
+            }
+            ast::Expression::While { kind, .. } => {
+                self.push_debug("expression_while_kind", *kind);
+            }
+            ast::Expression::ForEach {
+                asynchrony, kind, ..
+            } => {
+                self.push_debug("expression_foreach_asynchrony", *asynchrony);
+                self.push_debug("expression_foreach_kind", *kind);
+            }
+            ast::Expression::Match { kind, .. } => {
+                self.push_debug("expression_match_kind", *kind);
+            }
+            ast::Expression::Break { label, value } => {
+                self.push_debug("expression_break_has_label", label.is_some());
+                self.push_debug("expression_break_has_value", value.is_some());
+                if let Some(label) = label {
+                    self.push_string_id("expression_break_label", *label);
+                }
+            }
+            ast::Expression::Continue { label } => {
+                self.push_debug("expression_continue_has_label", label.is_some());
+                if let Some(label) = label {
+                    self.push_string_id("expression_continue_label", *label);
+                }
+            }
+            ast::Expression::Yield { cardinality, .. } => {
+                self.push_debug("expression_yield_cardinality", *cardinality);
+            }
+            ast::Expression::Path { path, .. } => {
+                self.push_debug("expression_path_len", path.segments.len());
+                for segment in &path.segments {
+                    self.push_string_id("expression_path_segment", *segment);
+                }
+            }
+            ast::Expression::PrivateIdentifier { name } => {
+                self.push_string_id("expression_private_identifier", *name);
+            }
+            ast::Expression::ScalarLiteral(literal) => {
+                self.push_debug("expression_scalar_literal", literal);
+            }
+            ast::Expression::TypeLiteral(literal) => {
+                self.push_debug("expression_type_literal", literal);
+            }
+            ast::Expression::TemplateExpression { value }
+            | ast::Expression::TaggedTemplateExpression { value, .. } => {
+                self.push_debug("expression_template", value);
+            }
+            ast::Expression::RangeExpression { is_inclusive, .. } => {
+                self.push_debug("expression_range_inclusive", *is_inclusive);
+            }
+            ast::Expression::TypeUnary { operator, .. } => {
+                self.push_debug("expression_type_unary", *operator);
+            }
+            ast::Expression::TypeBinary { operator, .. } => {
+                self.push_debug("expression_type_binary", *operator);
+            }
+            ast::Expression::TypeMapped {
+                parameter,
+                modifiers,
+                ..
+            } => {
+                self.push_string_id("expression_type_mapped_name", parameter.name);
+                self.push_debug("expression_type_mapped_modifiers", modifiers);
+            }
+            ast::Expression::TypeTemplateLiteral { strings, .. } => {
+                self.push_debug("expression_type_template_len", strings.len());
+                for string in strings {
+                    self.push_string_id("expression_type_template_string", *string);
+                }
+            }
+            ast::Expression::TypeInfer { name, .. } => {
+                self.push_string_id("expression_type_infer", *name);
+            }
+            ast::Expression::TypePredicate {
+                asserts, subject, ..
+            } => {
+                self.push_debug("expression_type_predicate_asserts", *asserts);
+                self.push_debug("expression_type_predicate_subject", subject);
+            }
+            ast::Expression::Unary { operator, .. } => {
+                self.push_debug("expression_unary", *operator);
+            }
+            ast::Expression::ValueOf {
+                mutability,
+                variance,
+                ..
+            } => {
+                self.push_debug("expression_valueof_mutability", *mutability);
+                self.push_debug("expression_valueof_variance", *variance);
+            }
+            ast::Expression::ReferenceOf {
+                mutability,
+                variance,
+                ..
+            } => {
+                self.push_debug("expression_referenceof_mutability", *mutability);
+                self.push_debug("expression_referenceof_variance", *variance);
+            }
+            ast::Expression::PointerOf { mutability, .. } => {
+                self.push_debug("expression_pointerof_mutability", *mutability);
+            }
+            ast::Expression::Member { name, .. } | ast::Expression::PrivateMember { name, .. } => {
+                self.push_string_id("expression_member", *name);
+            }
+            ast::Expression::Index { position, .. }
+            | ast::Expression::Call { position, .. }
+            | ast::Expression::Maybe { position, .. }
+            | ast::Expression::Must { position, .. } => {
+                self.push_debug("expression_postfix_position", *position);
+            }
+            ast::Expression::Binary { operator, .. } => {
+                self.push_debug("expression_binary", *operator);
+            }
+            ast::Expression::Assign { operator, .. } => {
+                self.push_debug("expression_assign", *operator);
+            }
+            _ => {}
+        }
+
+        ast::walk_expression(self, tree, id, expression);
+    }
+
+    fn visit_declaration(
+        &mut self,
+        tree: &ast::NodeTree,
+        id: ast::LocalNodeId<ast::Declaration>,
+        declaration: &ast::Declaration,
+    ) {
+        self.push_debug("declaration", std::mem::discriminant(declaration));
+        ast::walk_declaration(self, tree, id, declaration);
+    }
+
+    fn visit_property(
+        &mut self,
+        tree: &ast::NodeTree,
+        id: ast::LocalNodeId<ast::Property>,
+        property: &ast::Property,
+    ) {
+        self.push_debug("property", std::mem::discriminant(property));
+        ast::walk_property(self, tree, id, property);
+    }
+
+    fn visit_member(
+        &mut self,
+        tree: &ast::NodeTree,
+        id: ast::LocalNodeId<ast::Member>,
+        member: &ast::Member,
+    ) {
+        self.push_debug("member", std::mem::discriminant(member));
+        ast::walk_member(self, tree, id, member);
+    }
+
+    fn visit_parameter(
+        &mut self,
+        tree: &ast::NodeTree,
+        id: ast::LocalNodeId<ast::Parameter>,
+        parameter: &ast::Parameter,
+    ) {
+        self.push_debug("parameter", std::mem::discriminant(parameter));
+        ast::walk_parameter(self, tree, id, parameter);
+    }
+
+    fn visit_argument(
+        &mut self,
+        tree: &ast::NodeTree,
+        id: ast::LocalNodeId<ast::Argument>,
+        argument: &ast::Argument,
+    ) {
+        self.push_debug("argument", std::mem::discriminant(argument));
+        ast::walk_argument(self, tree, id, argument);
+    }
+
+    fn visit_pattern(
+        &mut self,
+        tree: &ast::NodeTree,
+        id: ast::LocalNodeId<ast::Pattern>,
+        pattern: &ast::Pattern,
+    ) {
+        self.push_debug("pattern", std::mem::discriminant(pattern));
+        ast::walk_pattern(self, tree, id, pattern);
+    }
+
+    fn visit_pattern_field(
+        &mut self,
+        tree: &ast::NodeTree,
+        id: ast::LocalNodeId<ast::PatternField>,
+        pattern_field: &ast::PatternField,
+    ) {
+        self.push_debug("pattern_field", std::mem::discriminant(pattern_field));
+        ast::walk_pattern_field(self, tree, id, pattern_field);
+    }
+
+    fn visit_match_case(
+        &mut self,
+        tree: &ast::NodeTree,
+        id: ast::LocalNodeId<ast::MatchCase>,
+        match_case: &ast::MatchCase,
+    ) {
+        self.push_debug("match_case", std::mem::discriminant(match_case));
+        ast::walk_match_case(self, tree, id, match_case);
+    }
+}
+
+/// Hash one expression signature token.
+fn hash_signature_token(key: &str, value: &str) -> u64 {
+    stable_hash_token(key, value)
+}
+
+/// Hash one expression signature token from prehashed value bytes.
+fn hash_signature_token_hashed_value(key: &str, value_hash: u64) -> u64 {
+    stable_hash_token_hashed_value(key, value_hash)
 }
