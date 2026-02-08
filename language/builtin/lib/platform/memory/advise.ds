@@ -20,7 +20,7 @@ declare namespace memory {
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.memory.advise.advise",
+        "destack.memory.advise.range",
         {
             effect: "external",
             replay: "recordable",
@@ -73,7 +73,7 @@ declare namespace memory {
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `memory.hugePage`.
+    /// Requires `memory.huge.page`.
     ///
     /// # Replay
     /// External, recordable.
@@ -82,7 +82,7 @@ declare namespace memory {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["memory.hugePage"],
+            requires: ["memory.huge.page"],
             scope: "os",
             blocking: "sometimes",
         },

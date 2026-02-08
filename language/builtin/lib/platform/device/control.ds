@@ -30,7 +30,7 @@ declare namespace device {
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.device.control.control",
+        "destack.device.control.request",
         {
             effect: "external",
             replay: "recordable",

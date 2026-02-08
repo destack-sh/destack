@@ -22,7 +22,7 @@ declare namespace ffi {
     /// # Replay
     /// External, nonrecordable.
     @binding(
-        "destack.ffi.call.call",
+        "destack.ffi.call.invoke",
         {
             effect: "external",
             replay: "nonrecordable",

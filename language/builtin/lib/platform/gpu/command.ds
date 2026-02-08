@@ -6,15 +6,16 @@ import {
     GpuDeviceHandle,
     GpuPipelineHandle,
     GpuQueueHandle,
+    GpuTextureHandle,
 } from "../resource/index.ds";
 
-/// GPU command list options.
-export struct GpuCommandListOptions {
-    /// Command list option flags.
+/// Command encoder creation options.
+export struct GpuCommandEncoderOptions {
+    /// Encoder option flags.
     flags: uint32,
 }
 
-/// GPU submit options.
+/// Queue submission options.
 export struct GpuSubmitOptions {
     /// Submit option flags.
     flags: uint32,
@@ -22,16 +23,80 @@ export struct GpuSubmitOptions {
     timeoutNs: uint64,
 }
 
+/// Render pass descriptor.
+export struct GpuRenderPassOptions {
+    /// Color attachment texture.
+    colorTexture: GpuTextureHandle,
+    /// Whether depth attachment is enabled.
+    hasDepth: boolean,
+    /// Depth attachment texture when enabled.
+    depthTexture: GpuTextureHandle,
+    /// Clear color red component.
+    clearColorR: float64,
+    /// Clear color green component.
+    clearColorG: float64,
+    /// Clear color blue component.
+    clearColorB: float64,
+    /// Clear color alpha component.
+    clearColorA: float64,
+    /// Clear depth value.
+    clearDepth: float64,
+}
+
+/// 3D extent descriptor.
+export struct GpuExtent3D {
+    /// Width in texels.
+    width: uint32,
+    /// Height in texels.
+    height: uint32,
+    /// Depth or array layer count.
+    depthOrArrayLayers: uint32,
+}
+
+/// Texture copy source or destination descriptor.
+export struct GpuTextureCopy {
+    /// Texture handle.
+    texture: GpuTextureHandle,
+    /// Mip level index.
+    mipLevel: uint32,
+    /// Origin x coordinate.
+    originX: uint32,
+    /// Origin y coordinate.
+    originY: uint32,
+    /// Origin z coordinate.
+    originZ: uint32,
+    /// Texture aspect selector.
+    aspect: uint32,
+}
+
+/// Buffer copy layout descriptor.
+export struct GpuBufferCopyLayout {
+    /// Byte offset in the buffer.
+    offset: uint64,
+    /// Bytes per row.
+    bytesPerRow: uint32,
+    /// Rows per image.
+    rowsPerImage: uint32,
+}
+
+/// Buffer copy source or destination descriptor.
+export struct GpuBufferCopy {
+    /// Buffer handle.
+    buffer: GpuBufferHandle,
+    /// Buffer layout metadata.
+    layout: GpuBufferCopyLayout,
+}
+
 /// GPU command bindings.
 declare namespace gpu {
-    /// Open one command list.
+    /// Open one command encoder.
     ///
-    /// Open one command list object for recording backend commands.
-    /// Command list lifecycle follows backend recording and submission semantics.
+    /// Open one command encoder object for recording backend commands.
+    /// Encoder lifecycle follows backend recording and submission semantics.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend command buffer or command list creation APIs.
+    /// Uses backend command encoder or command buffer creation APIs.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -41,26 +106,26 @@ declare namespace gpu {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.gpu.command.listOpen", {
+    @binding("destack.gpu.command.encoderOpen", {
         effect: "external",
         replay: "recordable",
         requires: ["gpu.queue"],
         scope: "os",
         blocking: "sometimes",
     })
-    export function commandListOpen(
+    export function commandEncoderOpen(
         device: GpuDeviceHandle,
-        options: GpuCommandListOptions,
+        options: GpuCommandEncoderOptions,
     ): Result<GpuCommandListHandle, PlatformError>;
 
-    /// Close one command list.
+    /// Close one command encoder.
     ///
-    /// Close one command list object and release backend recording resources.
-    /// The command list handle becomes invalid after close.
+    /// Close one command encoder object and release backend recording resources.
+    /// The encoder handle becomes invalid after close.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend command list destroy operations.
+    /// Uses backend command encoder destroy operations.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, notSupported.
@@ -70,44 +135,18 @@ declare namespace gpu {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.gpu.command.listClose", {
+    @binding("destack.gpu.command.encoderClose", {
         effect: "external",
         replay: "recordable",
         requires: ["gpu.queue"],
         scope: "os",
         blocking: "never",
     })
-    export function commandListClose(handle: GpuCommandListHandle): Result<void, PlatformError>;
+    export function commandEncoderClose(handle: GpuCommandListHandle): Result<void, PlatformError>;
 
-    /// Begin one command list recording pass.
+    /// Finish one command encoder.
     ///
-    /// Begin recording commands into one command list.
-    /// Nested begin semantics follow backend command recording rules.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend begin command recording calls.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `gpu.queue`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    @binding("destack.gpu.command.listBegin", {
-        effect: "external",
-        replay: "recordable",
-        requires: ["gpu.queue"],
-        scope: "os",
-        blocking: "sometimes",
-    })
-    export function commandListBegin(handle: GpuCommandListHandle): Result<void, PlatformError>;
-
-    /// End one command list recording pass.
-    ///
-    /// End recording commands and finalize one command list for submission.
+    /// Finalize recording for one command encoder and make it ready for queue submission.
     /// Finalization semantics follow backend validation rules.
     ///
     /// # Platform
@@ -122,23 +161,49 @@ declare namespace gpu {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.gpu.command.listEnd", {
+    @binding("destack.gpu.command.encoderFinish", {
         effect: "external",
         replay: "recordable",
         requires: ["gpu.queue"],
         scope: "os",
         blocking: "sometimes",
     })
-    export function commandListEnd(handle: GpuCommandListHandle): Result<void, PlatformError>;
+    export function commandEncoderFinish(handle: GpuCommandListHandle): Result<void, PlatformError>;
 
-    /// Bind one compute pipeline.
+    /// Begin one compute pass.
     ///
-    /// Bind one compute pipeline to one command list for subsequent dispatch operations.
-    /// Binding state remains active until changed or command list reset.
+    /// Begin compute-pass encoding on one command encoder.
+    /// Nested pass semantics follow backend command recording rules.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend pipeline bind commands.
+    /// Uses backend begin compute pass commands.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.compute`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.command.computePassBegin", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.compute"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function commandComputePassBegin(handle: GpuCommandListHandle): Result<void, PlatformError>;
+
+    /// End one compute pass.
+    ///
+    /// End compute-pass encoding on one command encoder.
+    /// Pass finalization follows backend validation behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend end compute pass commands.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -148,14 +213,124 @@ declare namespace gpu {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.gpu.command.bindPipeline", {
+    @binding("destack.gpu.command.computePassEnd", {
         effect: "external",
         replay: "recordable",
         requires: ["gpu.compute"],
         scope: "os",
         blocking: "never",
     })
-    export function commandBindPipeline(
+    export function commandComputePassEnd(handle: GpuCommandListHandle): Result<void, PlatformError>;
+
+    /// Begin one render pass.
+    ///
+    /// Begin render-pass encoding on one command encoder with explicit color and depth attachments.
+    /// Attachment load and clear behavior follow backend render pass semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend begin render pass commands.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.render`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.command.renderPassBegin", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.render"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function commandRenderPassBegin(
+        handle: GpuCommandListHandle,
+        options: GpuRenderPassOptions,
+    ): Result<void, PlatformError>;
+
+    /// End one render pass.
+    ///
+    /// End render-pass encoding on one command encoder.
+    /// Pass finalization follows backend validation behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend end render pass commands.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.render`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.command.renderPassEnd", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.render"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function commandRenderPassEnd(handle: GpuCommandListHandle): Result<void, PlatformError>;
+
+    /// Bind one compute pipeline.
+    ///
+    /// Bind one compute pipeline to one command encoder for subsequent dispatch operations.
+    /// Binding state remains active until changed or encoder reset.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend compute pipeline bind commands.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.compute`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.command.bindComputePipeline", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.compute"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function commandBindComputePipeline(
+        handle: GpuCommandListHandle,
+        pipeline: GpuPipelineHandle,
+    ): Result<void, PlatformError>;
+
+    /// Bind one render pipeline.
+    ///
+    /// Bind one render pipeline to one command encoder for subsequent draw operations.
+    /// Binding state remains active until changed or encoder reset.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend render pipeline bind commands.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.render`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.command.bindRenderPipeline", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.render"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function commandBindRenderPipeline(
         handle: GpuCommandListHandle,
         pipeline: GpuPipelineHandle,
     ): Result<void, PlatformError>;
@@ -191,6 +366,71 @@ declare namespace gpu {
         groupZ: uint32,
     ): Result<void, PlatformError>;
 
+    /// Draw one non-indexed primitive range.
+    ///
+    /// Encode one non-indexed draw call with explicit vertex and instance ranges.
+    /// Vertex fetch and instance stepping follow backend render pipeline rules.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend draw commands.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.render`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.command.draw", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.render"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function commandDraw(
+        handle: GpuCommandListHandle,
+        vertexCount: uint32,
+        instanceCount: uint32,
+        firstVertex: uint32,
+        firstInstance: uint32,
+    ): Result<void, PlatformError>;
+
+    /// Draw one indexed primitive range.
+    ///
+    /// Encode one indexed draw call with explicit index and instance ranges.
+    /// Index format and base vertex behavior follow backend draw-indexed semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend indexed draw commands.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.render`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.command.drawIndexed", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.render"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function commandDrawIndexed(
+        handle: GpuCommandListHandle,
+        indexCount: uint32,
+        instanceCount: uint32,
+        firstIndex: uint32,
+        baseVertex: int32,
+        firstInstance: uint32,
+    ): Result<void, PlatformError>;
+
     /// Copy one buffer range.
     ///
     /// Encode one buffer-to-buffer copy command with explicit offsets and size.
@@ -224,9 +464,102 @@ declare namespace gpu {
         bytes: uint64,
     ): Result<void, PlatformError>;
 
-    /// Submit one command list batch to one queue.
+    /// Copy one texture range to another texture.
     ///
-    /// Submit one batch of command lists to one queue with explicit submit options.
+    /// Encode one texture-to-texture copy command with explicit source, destination, and extent metadata.
+    /// Copy constraints follow backend format compatibility and alignment rules.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend copy texture commands.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.memory`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.command.copyTextureToTexture", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.memory"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function commandCopyTextureToTexture(
+        handle: GpuCommandListHandle,
+        source: GpuTextureCopy,
+        destination: GpuTextureCopy,
+        size: GpuExtent3D,
+    ): Result<void, PlatformError>;
+
+    /// Copy one texture range into one buffer range.
+    ///
+    /// Encode one texture-to-buffer copy command with explicit source texture metadata and destination buffer layout.
+    /// Copy constraints follow backend format conversion and row alignment rules.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend copy texture to buffer commands.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.memory`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.command.copyTextureToBuffer", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.memory"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function commandCopyTextureToBuffer(
+        handle: GpuCommandListHandle,
+        source: GpuTextureCopy,
+        destination: GpuBufferCopy,
+        size: GpuExtent3D,
+    ): Result<void, PlatformError>;
+
+    /// Copy one buffer range into one texture range.
+    ///
+    /// Encode one buffer-to-texture copy command with explicit source buffer layout and destination texture metadata.
+    /// Copy constraints follow backend format conversion and row alignment rules.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend copy buffer to texture commands.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.memory`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.command.copyBufferToTexture", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.memory"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function commandCopyBufferToTexture(
+        handle: GpuCommandListHandle,
+        source: GpuBufferCopy,
+        destination: GpuTextureCopy,
+        size: GpuExtent3D,
+    ): Result<void, PlatformError>;
+
+    /// Submit one command encoder batch to one queue.
+    ///
+    /// Submit one batch of finalized command encoders to one queue with explicit submit options.
     /// Queue ordering and dependency behavior follow backend queue semantics.
     ///
     /// # Platform
@@ -252,6 +585,71 @@ declare namespace gpu {
         queue: GpuQueueHandle,
         commandLists: Slice<GpuCommandListHandle>,
         options: GpuSubmitOptions,
+    ): Result<void, PlatformError>;
+
+    /// Write host bytes into one GPU buffer through one queue.
+    ///
+    /// Upload one byte range into a destination buffer using backend queue upload operations.
+    /// Data offset and size are interpreted in bytes.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend queue write-buffer operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.queue`, `gpu.memory`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.command.queueWriteBuffer", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.queue", "gpu.memory"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function queueWriteBuffer(
+        queue: GpuQueueHandle,
+        buffer: GpuBufferHandle,
+        bufferOffset: uint64,
+        data: Slice<uint8>,
+        dataOffset: uint64,
+        size: uint64,
+    ): Result<void, PlatformError>;
+
+    /// Write host bytes into one GPU texture through one queue.
+    ///
+    /// Upload one texel payload into a destination texture using backend queue upload operations.
+    /// Layout metadata controls row and image stride for source bytes.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend queue write-texture operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.queue`, `gpu.memory`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.command.queueWriteTexture", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.queue", "gpu.memory"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function queueWriteTexture(
+        queue: GpuQueueHandle,
+        destination: GpuTextureCopy,
+        data: Slice<uint8>,
+        layout: GpuBufferCopyLayout,
+        size: GpuExtent3D,
     ): Result<void, PlatformError>;
 
     /// Wait for one queue to become idle.

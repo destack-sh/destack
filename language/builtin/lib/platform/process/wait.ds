@@ -54,7 +54,7 @@ declare namespace process {
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.process.wait.wait",
+        "destack.process.wait.handle",
         {
             effect: "external",
             replay: "recordable",

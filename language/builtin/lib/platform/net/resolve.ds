@@ -55,7 +55,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.resolve.resolve", { effect: "external", replay: "recordable", requires: ["net.dns"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.resolve.lookup", { effect: "external", replay: "recordable", requires: ["net.dns"], scope: "os", blocking: "sometimes" })
     export function resolve(query: ResolveQuery): Result<Array<SocketAddress>, PlatformError>;
 
     /// Reverse lookup a raw socket address into host and service names.

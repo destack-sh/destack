@@ -54,7 +54,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.routeList", { effect: "external", replay: "recordable", requires: ["net.route.read"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.route.list", { effect: "external", replay: "recordable", requires: ["net.route.read"], scope: "os", blocking: "sometimes" })
     export function routeList(family: SocketFamily): Result<Array<RouteEntry>, PlatformError>;
 
     /// Add a route table entry.
@@ -74,7 +74,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.routeAdd", { effect: "external", replay: "recordable", requires: ["net.route.write"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.route.add", { effect: "external", replay: "recordable", requires: ["net.route.write"], scope: "os", blocking: "sometimes" })
     export function routeAdd(route: RouteEntry): Result<void, PlatformError>;
 
     /// Remove a route table entry.
@@ -94,7 +94,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.routeDelete", { effect: "external", replay: "recordable", requires: ["net.route.write"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.route.delete", { effect: "external", replay: "recordable", requires: ["net.route.write"], scope: "os", blocking: "sometimes" })
     export function routeDelete(route: RouteEntry): Result<void, PlatformError>;
 
     /// Set the active route namespace for route operations.
@@ -115,7 +115,7 @@ declare namespace net {
     /// # Replay
     /// External, nonrecordable.
     @binding(
-        "destack.net.routeSetNamespace",
+        "destack.net.route.setNamespace",
         {
             effect: "external",
             replay: "nonrecordable",

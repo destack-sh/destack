@@ -40,7 +40,7 @@ declare namespace random {
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.random.stream.stream",
+        "destack.random.stream.open",
         {
             effect: "external",
             replay: "recordable",

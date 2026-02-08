@@ -12,6 +12,14 @@ export enum TlsHandshakeStatus {
     WantWrite = 2,
 }
 
+/// Tls resumption state for one session.
+export enum TlsSessionResumptionState {
+    /// Session was not resumed.
+    Fresh = 0,
+    /// Session resumed from one cached state or ticket.
+    Resumed = 1,
+}
+
 /// Tls session bindings for socket-backed transports.
 declare namespace tls {
     /// Open one tls session over one connected socket.
@@ -37,7 +45,7 @@ declare namespace tls {
             effect: "external",
             replay: "recordable",
             requires: ["tls.session"],
-            scope: "os",
+            scope: "hybrid",
             blocking: "sometimes",
         },
     )
@@ -70,7 +78,7 @@ declare namespace tls {
             effect: "external",
             replay: "recordable",
             requires: ["tls.handshake"],
-            scope: "os",
+            scope: "hybrid",
             blocking: "sometimes",
         },
     )
@@ -99,7 +107,7 @@ declare namespace tls {
             effect: "external",
             replay: "nonrecordable",
             requires: ["tls.session"],
-            scope: "os",
+            scope: "hybrid",
             blocking: "sometimes",
         },
     )
@@ -131,7 +139,7 @@ declare namespace tls {
             effect: "external",
             replay: "nonrecordable",
             requires: ["tls.session"],
-            scope: "os",
+            scope: "hybrid",
             blocking: "sometimes",
         },
     )
@@ -163,7 +171,7 @@ declare namespace tls {
             effect: "external",
             replay: "recordable",
             requires: ["tls.session"],
-            scope: "os",
+            scope: "hybrid",
             blocking: "sometimes",
         },
     )
@@ -192,7 +200,7 @@ declare namespace tls {
             effect: "external",
             replay: "recordable",
             requires: ["tls.session"],
-            scope: "os",
+            scope: "hybrid",
             blocking: "sometimes",
         },
     )
@@ -221,7 +229,7 @@ declare namespace tls {
             effect: "external",
             replay: "recordable",
             requires: ["tls.session"],
-            scope: "os",
+            scope: "hybrid",
             blocking: "sometimes",
         },
     )
@@ -250,9 +258,74 @@ declare namespace tls {
             effect: "external",
             replay: "nonrecordable",
             requires: ["tls.certificate.read"],
-            scope: "os",
+            scope: "hybrid",
             blocking: "sometimes",
         },
     )
     export function sessionPeerCertificatesPem(handle: TlsSessionHandle): Result<Slice<uint8>, PlatformError>;
+
+    /// Export keying material bytes for one tls session.
+    ///
+    /// Derive exporter keying material for one label and optional context value.
+    /// Exporter derivation follows RFC 5705 and RFC 8446 provider rules.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses SSL_export_keying_material style APIs in OpenSSL or BoringSSL and equivalent exporter APIs in rustls-backed providers.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `tls.session`, `tls.exporter`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.tls.session.exportKeyingMaterial",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            requires: ["tls.session", "tls.exporter"],
+            scope: "hybrid",
+            blocking: "sometimes",
+        },
+    )
+    export function sessionExportKeyingMaterial(
+        handle: TlsSessionHandle,
+        label: string,
+        context: Slice<uint8>,
+        outputLength: uint32,
+    ): Result<Slice<uint8>, PlatformError>;
+
+    /// Return whether one session resumed from cached state or ticket.
+    ///
+    /// Report resumption state as observed by the backend after handshake completion.
+    /// State semantics follow backend cache and ticket policy behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses SSL_session_reused style APIs in OpenSSL or BoringSSL and equivalent session state APIs in Schannel, SecureTransport, or rustls-backed providers.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `tls.session`, `tls.resumption`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.tls.session.resumptionState",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["tls.session", "tls.resumption"],
+            scope: "hybrid",
+            blocking: "sometimes",
+        },
+    )
+    export function sessionResumptionState(
+        handle: TlsSessionHandle,
+    ): Result<TlsSessionResumptionState, PlatformError>;
 }

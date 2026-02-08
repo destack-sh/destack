@@ -24,16 +24,16 @@ declare namespace ipc {
     /// Returns invalidArgument, ioPermissionDenied, ioAlreadyExists, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `ipc.sharedMemory`.
+    /// Requires `ipc.shared.memory`.
     ///
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.ipc.sharedMemory.create",
+        "destack.ipc.shared.memory.create",
         {
             effect: "external",
             replay: "recordable",
-            requires: ["ipc.sharedMemory"],
+            requires: ["ipc.shared.memory"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -53,16 +53,16 @@ declare namespace ipc {
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `ipc.sharedMemory`.
+    /// Requires `ipc.shared.memory`.
     ///
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.ipc.sharedMemory.open",
+        "destack.ipc.shared.memory.open",
         {
             effect: "external",
             replay: "recordable",
-            requires: ["ipc.sharedMemory"],
+            requires: ["ipc.shared.memory"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -82,16 +82,16 @@ declare namespace ipc {
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `ipc.sharedMemory`.
+    /// Requires `ipc.shared.memory`.
     ///
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.ipc.sharedMemory.close",
+        "destack.ipc.shared.memory.close",
         {
             effect: "external",
             replay: "recordable",
-            requires: ["ipc.sharedMemory"],
+            requires: ["ipc.shared.memory"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -111,16 +111,16 @@ declare namespace ipc {
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `ipc.sharedMemory`.
+    /// Requires `ipc.shared.memory`.
     ///
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.ipc.sharedMemory.unlink",
+        "destack.ipc.shared.memory.unlink",
         {
             effect: "external",
             replay: "recordable",
-            requires: ["ipc.sharedMemory"],
+            requires: ["ipc.shared.memory"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -140,16 +140,16 @@ declare namespace ipc {
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `ipc.sharedMemory`.
+    /// Requires `ipc.shared.memory`.
     ///
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.ipc.sharedMemory.resize",
+        "destack.ipc.shared.memory.resize",
         {
             effect: "external",
             replay: "recordable",
-            requires: ["ipc.sharedMemory"],
+            requires: ["ipc.shared.memory"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -169,16 +169,16 @@ declare namespace ipc {
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `ipc.sharedMemory`.
+    /// Requires `ipc.shared.memory`.
     ///
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.ipc.sharedMemory.map",
+        "destack.ipc.shared.memory.map",
         {
             effect: "external",
             replay: "recordable",
-            requires: ["ipc.sharedMemory"],
+            requires: ["ipc.shared.memory"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -203,16 +203,16 @@ declare namespace ipc {
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `ipc.sharedMemory`.
+    /// Requires `ipc.shared.memory`.
     ///
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.ipc.sharedMemory.unmap",
+        "destack.ipc.shared.memory.unmap",
         {
             effect: "external",
             replay: "recordable",
-            requires: ["ipc.sharedMemory"],
+            requires: ["ipc.shared.memory"],
             scope: "os",
             blocking: "sometimes",
         },

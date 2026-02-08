@@ -26,10 +26,32 @@ export struct GpuShaderOptions {
     entry: string,
 }
 
-/// GPU pipeline options.
-export struct GpuPipelineOptions {
-    /// Pipeline kind selector.
-    kind: uint32,
+/// Compute pipeline creation options.
+export struct GpuComputePipelineOptions {
+    /// Compute shader module.
+    shader: GpuShaderHandle,
+    /// Compute shader entry point.
+    entry: string,
+    /// Pipeline option flags.
+    flags: uint32,
+}
+
+/// Render pipeline creation options.
+export struct GpuRenderPipelineOptions {
+    /// Vertex shader module.
+    vertexShader: GpuShaderHandle,
+    /// Vertex shader entry point.
+    vertexEntry: string,
+    /// Fragment shader module.
+    fragmentShader: GpuShaderHandle,
+    /// Fragment shader entry point.
+    fragmentEntry: string,
+    /// Color attachment format identifier.
+    colorFormat: uint32,
+    /// Depth stencil format identifier, zero when unused.
+    depthStencilFormat: uint32,
+    /// Sample count.
+    sampleCount: uint32,
     /// Pipeline option flags.
     flags: uint32,
 }
@@ -92,14 +114,14 @@ declare namespace gpu {
     })
     export function shaderDestroy(handle: GpuShaderHandle): Result<void, PlatformError>;
 
-    /// Create one pipeline object.
+    /// Create one compute pipeline.
     ///
-    /// Create one pipeline from one shader module set and explicit pipeline options.
+    /// Create one compute pipeline with one explicit compute stage descriptor.
     /// Pipeline compilation and cache behavior follow host backend semantics.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend pipeline creation APIs.
+    /// Uses backend compute pipeline creation APIs.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
@@ -109,17 +131,45 @@ declare namespace gpu {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.gpu.pipeline.create", {
+    @binding("destack.gpu.pipeline.computeCreate", {
         effect: "external",
         replay: "recordable",
         requires: ["gpu.compute"],
         scope: "os",
         blocking: "sometimes",
     })
-    export function pipelineCreate(
+    export function computePipelineCreate(
         device: GpuDeviceHandle,
-        shaders: Slice<GpuShaderHandle>,
-        options: GpuPipelineOptions,
+        options: GpuComputePipelineOptions,
+    ): Result<GpuPipelineHandle, PlatformError>;
+
+    /// Create one render pipeline.
+    ///
+    /// Create one render pipeline with explicit vertex and fragment stages and attachment formats.
+    /// Pipeline compilation and backend render state linkage follow host API semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend render pipeline creation APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.render`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.pipeline.renderCreate", {
+        effect: "external",
+        replay: "recordable",
+        requires: ["gpu.render"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function renderPipelineCreate(
+        device: GpuDeviceHandle,
+        options: GpuRenderPipelineOptions,
     ): Result<GpuPipelineHandle, PlatformError>;
 
     /// Destroy one pipeline object.
@@ -135,14 +185,14 @@ declare namespace gpu {
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `gpu.compute`.
+    /// Requires `gpu.compute`, `gpu.render`.
     ///
     /// # Replay
     /// External, recordable.
     @binding("destack.gpu.pipeline.destroy", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.compute"],
+        requires: ["gpu.compute", "gpu.render"],
         scope: "os",
         blocking: "sometimes",
     })

@@ -106,7 +106,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.rawSocket", { effect: "external", replay: "recordable", requires: ["net.raw"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.raw.socket", { effect: "external", replay: "recordable", requires: ["net.raw"], scope: "os", blocking: "sometimes" })
     export function rawSocket(family: SocketFamily, protocol: int32): Result<SocketHandle, PlatformError>;
 
     /// Enable or disable IP header inclusion on a raw socket.
@@ -126,7 +126,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.rawSetHeaderIncluded", { effect: "external", replay: "recordable", requires: ["net.raw"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.raw.setHeaderIncluded", { effect: "external", replay: "recordable", requires: ["net.raw"], scope: "os", blocking: "sometimes" })
     export function rawSetHeaderIncluded(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>;
 
     /// Open a packet capture or inject endpoint.

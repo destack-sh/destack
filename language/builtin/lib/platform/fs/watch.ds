@@ -71,7 +71,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.watch.watch", { effect: "external", replay: "recordable", requires: ["fs.watch"], scope: "os", blocking: "sometimes" })
+    @binding("destack.fs.watch.start", { effect: "external", replay: "recordable", requires: ["fs.watch"], scope: "os", blocking: "sometimes" })
     export function watch(path: OsPath, options: WatchOptions): Result<WatchHandle, PlatformError>;
 
     /// Start watching a path relative to a directory handle.

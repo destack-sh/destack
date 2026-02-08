@@ -15,6 +15,7 @@ declare namespace timer {
 
     /// Timer scheduling options.
     export struct TimerOptions {
+        /// Clock domain used for deadline interpretation.
         clock: TimerClock,
         /// Timer behavior flags.
         flags: TimerFlags,
@@ -22,7 +23,7 @@ declare namespace timer {
 
     /// Schedule a one-shot timer.
     ///
-    /// Register one timer that fires once after a relative delay.
+    /// Register one timer that fires once after a relative delay with explicit timer options.
     /// The handle remains valid until explicit cancel or one-shot completion.
     ///
     /// # Platform
@@ -47,11 +48,11 @@ declare namespace timer {
             blocking: "never",
         },
     )
-    export function once(delayNs: uint64): Result<TimerHandle, PlatformError>;
+    export function once(delayNs: uint64, options: TimerOptions): Result<TimerHandle, PlatformError>;
 
     /// Schedule a repeating timer.
     ///
-    /// Register one timer that fires repeatedly at a fixed period.
+    /// Register one timer that fires repeatedly at a fixed period with explicit timer options.
     /// Drift and catch-up behavior follow runtime timer policy.
     ///
     /// # Platform
@@ -76,12 +77,12 @@ declare namespace timer {
             blocking: "never",
         },
     )
-    export function interval(periodNs: uint64): Result<TimerHandle, PlatformError>;
+    export function interval(periodNs: uint64, options: TimerOptions): Result<TimerHandle, PlatformError>;
 
     /// Schedule a timer for an absolute wall-clock deadline.
     ///
-    /// Register one timer that fires at a specific deadline in nanoseconds.
-    /// Deadline interpretation follows runtime wall-clock policy.
+    /// Register one timer that fires at a specific deadline in nanoseconds with explicit timer options.
+    /// Deadline interpretation follows runtime wall-clock and monotonic policy.
     ///
     /// # Platform
     /// Runtime-integrated operation on Unix, Windows, and Wasi targets.
@@ -105,101 +106,5 @@ declare namespace timer {
             blocking: "never",
         },
     )
-    export function at(deadlineNs: uint64): Result<TimerHandle, PlatformError>;
-
-    /// Schedule a one-shot timer with explicit options.
-    ///
-    /// Register one timer that fires once after a relative delay using explicit timer options.
-    /// The handle remains valid until explicit cancel or one-shot completion.
-    ///
-    /// # Platform
-    /// Runtime-integrated operation on Unix, Windows, and Wasi targets.
-    /// Returns `notSupported` when the active runtime backend does not implement timer support.
-    ///
-    /// # Errors
-    /// Returns timeUnavailable, invalidArgument, notSupported.
-    ///
-    /// # Security
-    /// Requires `time.timer`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    @binding(
-        "destack.timer.schedule.onceWithOptions",
-        {
-            effect: "external",
-            replay: "recordable",
-            requires: ["time.timer"],
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
-    export function onceWithOptions(
-        delayNs: uint64,
-        options: TimerOptions,
-    ): Result<TimerHandle, PlatformError>;
-
-    /// Schedule a repeating timer with explicit options.
-    ///
-    /// Register one timer that fires repeatedly at a fixed period using explicit timer options.
-    /// Drift and catch-up behavior follow runtime timer policy.
-    ///
-    /// # Platform
-    /// Runtime-integrated operation on Unix, Windows, and Wasi targets.
-    /// Returns `notSupported` when the active runtime backend does not implement timer support.
-    ///
-    /// # Errors
-    /// Returns timeUnavailable, invalidArgument, notSupported.
-    ///
-    /// # Security
-    /// Requires `time.timer`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    @binding(
-        "destack.timer.schedule.intervalWithOptions",
-        {
-            effect: "external",
-            replay: "recordable",
-            requires: ["time.timer"],
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
-    export function intervalWithOptions(
-        periodNs: uint64,
-        options: TimerOptions,
-    ): Result<TimerHandle, PlatformError>;
-
-    /// Schedule a deadline timer with explicit options.
-    ///
-    /// Register one timer that fires at a specific deadline using explicit timer options.
-    /// Deadline interpretation follows runtime wall-clock and monotonic policy.
-    ///
-    /// # Platform
-    /// Runtime-integrated operation on Unix, Windows, and Wasi targets.
-    /// Returns `notSupported` when the active runtime backend does not implement timer support.
-    ///
-    /// # Errors
-    /// Returns timeUnavailable, invalidArgument, notSupported.
-    ///
-    /// # Security
-    /// Requires `time.timer`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    @binding(
-        "destack.timer.schedule.atWithOptions",
-        {
-            effect: "external",
-            replay: "recordable",
-            requires: ["time.timer"],
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
-    export function atWithOptions(
-        deadlineNs: uint64,
-        options: TimerOptions,
-    ): Result<TimerHandle, PlatformError>;
+    export function at(deadlineNs: uint64, options: TimerOptions): Result<TimerHandle, PlatformError>;
 }

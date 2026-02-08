@@ -60,7 +60,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.interfaceIndex", { effect: "external", replay: "recordable", requires: ["net.interface"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.interface.index", { effect: "external", replay: "recordable", requires: ["net.interface"], scope: "os", blocking: "sometimes" })
     export function interfaceIndex(name: string): Result<uint32, PlatformError>;
 
     /// Resolve an interface index to a name.
@@ -80,6 +80,6 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.interfaceName", { effect: "external", replay: "recordable", requires: ["net.interface"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.interface.name", { effect: "external", replay: "recordable", requires: ["net.interface"], scope: "os", blocking: "sometimes" })
     export function interfaceName(index: uint32): Result<string, PlatformError>;
 }
