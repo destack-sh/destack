@@ -83,6 +83,12 @@ dist
 .pnp.*
 *.vsix
 
+# tree-sitter grammar local build artifacts
+language/grammar/destack/build/
+language/grammar/destack/prebuilds/
+language/grammar/destack/.build/
+language/grammar/destack/_obj/
+
 # Fuzzing
 **/hfuzz_target/**
 **/fuzz/corpus/**

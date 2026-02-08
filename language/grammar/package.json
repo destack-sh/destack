@@ -4,6 +4,7 @@
     "version": "0.53.0",
     "type": "module",
     "scripts": {
-        "check": "node scripts/check-overlay.mjs"
+        "check": "node scripts/check-overlay.mjs",
+        "profile-delta": "node scripts/profile-grammar-delta.mjs"
     }
 }

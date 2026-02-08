@@ -163,6 +163,43 @@ test-specification:
 test-grammar-overlay:
     node grammar/scripts/check-overlay.mjs
 
+# validate corpus language routing
+test-grammar-corpus-routing:
+    node grammar/scripts/check-corpus-routing.mjs
+
+# run TypeScript and TSX tree sitter corpus tests
+test-grammar-typescript-tsx:
+    cd grammar/destack && npx tree-sitter test --rebuild
+
+# run Destack tree sitter corpus tests
+test-grammar-destack:
+    cd grammar/destack/destack && npx tree-sitter test --rebuild
+
+# validate destack-only tree sitter node coverage in corpus
+test-grammar-destack-node-coverage:
+    node grammar/scripts/check-destack-node-coverage.mjs
+
+# run all tree sitter grammar tests
+test-grammar-all:
+    just test-grammar-corpus-routing
+    just test-grammar-typescript-tsx
+    just test-grammar-destack
+    just test-grammar-destack-node-coverage
+    just test-grammar-specification-sweep-positive
+    just test-grammar-overlay
+
+# sweep specification markdown fixtures through tree sitter parsers
+test-grammar-specification-sweep args="":
+    node grammar/scripts/specification-parser-sweep.mjs {{args}}
+
+# fail when specification positive cases produce parser errors
+test-grammar-specification-sweep-positive:
+    node grammar/scripts/specification-parser-sweep.mjs --fail-on-positive
+
+# profile tree sitter grammar state deltas
+profile-grammar-delta args="--target destack --baseline tsx --top 30":
+    node grammar/scripts/profile-grammar-delta.mjs {{args}}
+
 # run query tests (IDE/LSP queries)
 test-query:
     cargo test --release --test query

@@ -1,5 +1,6 @@
 =======================================
 Built-in types
+:language(typescript)
 =======================================
 
 var x: string = 'hi';
@@ -23,6 +24,7 @@ var y: number;
 
 =======================================
 Parenthesized types
+:language(typescript)
 =======================================
 
 var x: (string);
@@ -50,6 +52,7 @@ var x: ({a: any});
 
 =======================================
 Object types
+:language(typescript)
 =======================================
 
 let person: {name: string, age: number};
@@ -117,6 +120,7 @@ type T = { -readonly [K in keyof T]: any }
 
 =======================================
 Object types with call signatures
+:language(typescript)
 =======================================
 
 let MyFunction: {
@@ -145,6 +149,7 @@ let MyFunction: {
 
 ====================================================
 Index signatures
+:language(typescript)
 ====================================================
 
 type Foo = {
@@ -171,6 +176,7 @@ type Foo = {
 
 ====================================================
 Object types with automatic semicolon insertion
+:language(typescript)
 ====================================================
 
 type Something = {
@@ -203,6 +209,7 @@ type Something = {
 
 ==========================================================
 Automatic semicolon disabled before return type
+:language(typescript)
 ==========================================================
 
 function f(): any {
@@ -249,6 +256,7 @@ f
 
 =======================================
 Array types
+:language(typescript)
 =======================================
 
 let x: X[];
@@ -265,6 +273,7 @@ let x: X[];
 
 =======================================
 Function types
+:language(typescript)
 =======================================
 
 let x: (result: string) => any;
@@ -303,6 +312,7 @@ const foo: (this: Readable, size?: number) => any;
 
 ======================================
 Functions with destructured parameters
+:language(typescript)
 ======================================
 
 let foo: ({a}: Foo) => number
@@ -325,6 +335,7 @@ let foo: ({a}: Foo) => number
 
 =======================================
 Constructor types
+:language(typescript)
 =======================================
 
 let x: new < T1, T2 > ( p1, p2 ) => R;
@@ -351,6 +362,7 @@ let x: new < T1, T2 > ( p1, p2 ) => R;
 
 =======================================
 Symbol types
+:language(typescript)
 =======================================
 
 const symFoo: unique symbol = Symbol("foo");
@@ -384,6 +396,7 @@ const symBar: symbol = Symbol.for("bar");
 
 =======================================
 Type annotations in parenthesized expressions
+:language(typescript)
 =======================================
 
 const range = (document: any).selection.createRange()
@@ -407,6 +420,7 @@ const range = (document: any).selection.createRange()
 
 =======================================
 Flow Maybe Types
+:language(typescript)
 =======================================
 
 const editor: ?CodeEditor
@@ -431,6 +445,7 @@ const miscArray: ?T[]
 
 =======================================
 Flow Import Types
+:language(typescript)
 =======================================
 
 import type {UserID, User} from "./User.js";
@@ -553,6 +568,7 @@ import type, {addUser, type User} from './User.js';
 
 =======================================
 Type-only Export
+:language(typescript)
 =======================================
 
 export type { UserType }
@@ -586,6 +602,7 @@ export type { A, B, C as D } from 'mymodule';
 
 =======================================
 Flow Export Types
+:language(typescript)
 =======================================
 
 export type UserType = {};
@@ -605,6 +622,7 @@ export interface UserInterface {}
 
 =======================================
 Type alias declarations
+:language(typescript)
 =======================================
 
 type FileMergeData = {
@@ -661,6 +679,7 @@ type ConflictInfo = {
 
 =======================================
 Enum declarations
+:language(typescript)
 =======================================
 
 enum Test {
@@ -736,6 +755,7 @@ enum Style {
 
 =======================================
 Interface declarations
+:language(typescript)
 =======================================
 
 interface A { a: string; }
@@ -848,6 +868,7 @@ interface Enum extends Bar, Baz, Foo<A> {
 
 =======================================
 Generic types
+:language(typescript)
 =======================================
 
 class A<
@@ -910,6 +931,7 @@ class F extends G, H<T> {}
 
 =======================================
 Existential types
+:language(typescript)
 =======================================
 
 let x: Array<*>
@@ -928,6 +950,7 @@ let x: Array<*>
 
 =======================================
 Flow Union types
+:language(typescript)
 =======================================
 
 type U = number | string;
@@ -961,6 +984,7 @@ type Z = | "foo";
 
 =======================================
 Flow Intersection types
+:language(typescript)
 =======================================
 
 type BrowserStats$ResourceTiming = number & string;
@@ -976,6 +1000,7 @@ type BrowserStats$ResourceTiming = number & string;
 
 =======================================
 Flow exact object types
+:language(typescript)
 =======================================
 
 type BrowserStats = {|
@@ -1000,6 +1025,7 @@ type BrowserStats = {|
 
 =======================================
 Literal types
+:language(typescript)
 =======================================
 
 let x: 2
@@ -1046,6 +1072,7 @@ let x: false
 
 =======================================
 Flow type parameter constraint syntax
+:language(typescript)
 =======================================
 
 type HandlerFunction<T: Element> = void
@@ -1064,6 +1091,7 @@ type HandlerFunction<T: Element> = void
 
 =======================================
 Nested type arguments
+:language(typescript)
 =======================================
 
 interface X {
@@ -1112,6 +1140,7 @@ var y: Map<number, Promise<Map<bool, Map<Foo, Bar>>>>
 
 =======================================
 predefined types as identifiers
+:language(typescript)
 =======================================
 
 let score: (string: string, query: string) => number
@@ -1137,6 +1166,7 @@ let score: (string: string, query: string) => number
 
 =======================================
 Non-null assertion operator
+:language(typescript)
 =======================================
 
 const repository = foo++!
@@ -1153,6 +1183,7 @@ const repository = foo++!
 
 =======================================
 Type query and index type query types
+:language(typescript)
 =======================================
 
 type T = keyof Person;
@@ -1240,6 +1271,7 @@ type T = typeof array[number];
 
 =======================================
 Lookup types
+:language(typescript)
 =======================================
 
 type K1 = Foo[bar]
@@ -1267,6 +1299,7 @@ type K1 = Foo['bar' | 'baz']
 
 =======================================
 Mapped types
+:language(typescript)
 =======================================
 
 export type NoInfer<T> = T & { [K in keyof T]: T[K] };
@@ -1295,6 +1328,7 @@ export type NoInfer<T> = T & { [K in keyof T]: T[K] };
 
 =======================================
 Assertion functions checking a value
+:language(typescript)
 =======================================
 
 function f(x: any): asserts x {
@@ -1317,6 +1351,7 @@ function f(x: any): asserts x {
 
 =======================================
 Assertion functions checking a type
+:language(typescript)
 =======================================
 
 function f(x: any): asserts x is number {
@@ -1377,6 +1412,7 @@ function isT(t: T): t is T {
 
 =======================================
 Type of an assertion function
+:language(typescript)
 =======================================
 
 declare const f: (x: any) => asserts x;
@@ -1416,6 +1452,7 @@ declare const g: (x: any) => asserts x is number;
 
 ==================================
 Type predicate and predefined types
+:language(typescript)
 ==================================
 
 function isFish(pet: Fish): pet is Fish {
@@ -1454,6 +1491,7 @@ function isFish(object: Fish): object is Fish {
 
 ==================================
 Read-only arrays
+:language(typescript)
 ==================================
 
 type t = a[]
@@ -1498,6 +1536,7 @@ type t = readonly (readonly a[]) []
 
 ==================================
 Tuple types
+:language(typescript)
 ==================================
 
 type t = []
@@ -1566,6 +1605,7 @@ type t = [a: A, b?: B, ...c: C[]]
 
 ==================================
 Conditional types
+:language(typescript)
 ==================================
 
 type T = X extends Y ? Z : Y
@@ -1729,6 +1769,7 @@ type T<X> = T extends { x: infer X extends number } ? X : never;
 
 ==================================
 Template literal types
+:language(typescript)
 ==================================
 
 type A<B, C> = `${B}${C}`;
@@ -1868,6 +1909,7 @@ type StringToNumber<S extends string> = S extends `${infer N extends number}` ? 
 
 ==================================
 Mapped type 'as' clauses
+:language(typescript)
 ==================================
 
 type A<B> = { [B in keyof C & string as `get${Capitalize<P>}`]: () => A[B] };
@@ -1931,6 +1973,7 @@ type A<B> = { [B in keyof C & string as `${P}1` | `${P}2`]: A[B] }
 
 ============================
 typeof in generic arguments
+:language(typescript)
 ============================
 
 type T = Foo<Bar<typeof bar>>
@@ -1979,6 +2022,7 @@ type T = Foo<Bar<typeof bar["baz"]>>
 
 ==================================
 Literal types and pre-defined types
+:language(typescript)
 ==================================
 
 type T = Foo<any, unknown, number, string, void, true, false, null, undefined, 0, "foo">
@@ -2012,6 +2056,7 @@ type T = Foo<any, unknown, number, string, void, true, false, null, undefined, 0
 
 ==================================
 Extends
+:language(typescript)
 ==================================
 
 type Foo<T extends abstract new (...args: any) => any> = T;
@@ -2053,6 +2098,7 @@ type Foo<T extends new (...args: any) => any> = T;
 
 ========
 Abstract
+:language(typescript)
 ========
 
 type Foo<T> = abstract new () => T;
@@ -2071,6 +2117,7 @@ type Foo<T> = abstract new () => T;
 
 =========================
 Indexed Access Precedence
+:language(typescript)
 =========================
 
 // These should generate the same AST aside from the parenthesized_type node
@@ -2101,6 +2148,7 @@ type X2 = (typeof Y)[keyof typeof Z];
 
 =========================
 Typeof instantiation expressions
+:language(typescript)
 =========================
 
 // This is a special construct, different from both "typeof (f<T>)" and
@@ -2122,6 +2170,7 @@ type T = typeof f<T>;
 
 =========================
 Typeof this
+:language(typescript)
 =========================
 
 class A {
@@ -2170,6 +2219,7 @@ class A {
 
 =========================
 Import in type
+:language(typescript)
 =========================
 
 type Foo = import('node:fs').ReadStream & {
@@ -2196,6 +2246,7 @@ type Foo = import('node:fs').ReadStream & {
 
 =========================
 Import assert
+:language(typescript)
 =========================
 
 import something from 'foo.css' assert { type: 'css' }
