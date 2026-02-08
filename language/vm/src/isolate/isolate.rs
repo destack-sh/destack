@@ -3,7 +3,7 @@ use std::fmt;
 use destack_base::ImmutableStringPool;
 use destack_mir as mir;
 
-use super::{ExternalHandler, IsolateState, StringRef};
+use super::{ExternalHandler, IsolateState, RuntimeContext, StringRef};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::execute::{Continuation, ExecutionOutcome, ExecutionOutput};
 use crate::interpreter::{Interpreter, InterpreterContext};
@@ -109,6 +109,15 @@ impl Isolate {
     /// Register a VM binding handler.
     pub fn register_vm_binding(&mut self, name: &str, handler: impl ExternalHandler + 'static) {
         self.state.register_vm_binding(name, handler);
+    }
+
+    /// Run a callback with a runtime context for this isolate.
+    pub fn with_runtime_context<F, R>(&mut self, run: F) -> R
+    where
+        F: for<'ctx> FnOnce(&mut RuntimeContext<'ctx>) -> R,
+    {
+        let mut context = RuntimeContext::new(&mut self.state);
+        run(&mut context)
     }
 
     /// Intern a UTF-8 string and return the managed string value.

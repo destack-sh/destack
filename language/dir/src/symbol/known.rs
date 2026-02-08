@@ -181,7 +181,10 @@ pub enum WellKnownDecorator {
 impl WellKnownDecorator {
     /// Return the module path for well known decorators.
     pub fn module(&self) -> &'static str {
-        "intrinsic/decorator"
+        match self {
+            WellKnownDecorator::Binding => "intrinsic/binding",
+            _ => "intrinsic/decorator",
+        }
     }
 
     /// Return the export name for a decorator marker.
