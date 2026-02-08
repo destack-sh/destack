@@ -11,6 +11,9 @@ use crate::directive::{
 use crate::property::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
 };
+use crate::scan::{
+    next_non_whitespace_after_annotation, previous_non_whitespace_before_annotation,
+};
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     Annotation, AnnotationPosition, Argument, CommentStyle, Declaration, Expression, FunctionKind,
@@ -483,6 +486,7 @@ fn parameter_is_static(
                     .and_then(|generics| generics.static_parameters.as_ref())
                     .is_some_and(|parameters| parameters.contains(&parameter_id)),
                 Member::Field { .. }
+                | Member::ComptimeConst { .. }
                 | Member::Embed { .. }
                 | Member::StaticBlock { .. }
                 | Member::ComptimeBlock { .. } => false,
@@ -719,39 +723,6 @@ fn argument_has_trailing_line_comment_annotation(
         let annotation_span = context.get_span::<Annotation>(*annotation_id);
         annotation_span.start >= argument_span.end
     })
-}
-
-/// Return the previous non whitespace character before an annotation span.
-fn previous_non_whitespace_before_annotation(
-    context: &DestackFormatContext<'_>,
-    annotation_id: LocalNodeId<Annotation>,
-) -> Option<char> {
-    let span = context.get_span(annotation_id);
-    if span.start == 0 {
-        return None;
-    }
-
-    let source = context.get_span_str(Span::new(span.file, 0, span.start));
-    source
-        .chars()
-        .rev()
-        .find(|character: &char| !character.is_whitespace())
-}
-
-/// Return the next non whitespace character after an annotation span.
-fn next_non_whitespace_after_annotation(
-    context: &DestackFormatContext<'_>,
-    annotation_id: LocalNodeId<Annotation>,
-) -> Option<char> {
-    let span = context.get_span(annotation_id);
-    if span.end >= context.file.len {
-        return None;
-    }
-
-    let source = context.get_span_str(Span::new(span.file, span.end, context.file.len));
-    source
-        .chars()
-        .find(|character: &char| !character.is_whitespace())
 }
 
 /// Return whether a lambda argument has an inline prefix comment that must break.
@@ -1023,9 +994,7 @@ fn previous_dynamic_argument_in_call_or_new(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> Option<LocalNodeId<Argument>> {
-    let Some((parent_id, parent_type)) = context.get_parent(argument_id) else {
-        return None;
-    };
+    let (parent_id, parent_type) = context.get_parent(argument_id)?;
     if parent_type != NodeType::Expression {
         return None;
     }

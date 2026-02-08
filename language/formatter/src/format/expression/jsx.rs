@@ -1,0 +1,1745 @@
+use super::*;
+use destack_fir::{format_args, write};
+
+pub(super) fn has_multiline_jsx_argument(
+    tree: &NodeTree,
+    arguments: &[LocalNodeId<Argument>],
+) -> bool {
+    if arguments.len() != 1 {
+        return false;
+    }
+
+    let Some(value_id) = get_argument_value(tree, arguments[0]) else {
+        return false;
+    };
+
+    // check if it's a JSX element with children
+    if let Expression::TreeExpression { elements, .. } = tree.get(value_id) {
+        elements.as_ref().is_some_and(|e| !e.is_empty())
+    } else {
+        false
+    }
+}
+
+/// Tree expression argument, using `=` for named arguments.
+#[derive(Debug, Clone, PartialEq)]
+pub(super) struct TreeExpressionArgument {
+    pub(super) argument_id: LocalNodeId<Argument>,
+}
+
+pub(super) fn format_inline_stub_comment<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    value_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let Some(annotations) = f.context().get_annotations(value_id) else {
+        return Ok(());
+    };
+
+    let mut first = true;
+    for annotation_id in annotations {
+        let Annotation::Comment { node, .. } = f.context().tree.get::<Annotation>(annotation_id)
+        else {
+            continue;
+        };
+
+        if !first {
+            write!(f, [space()])?;
+        }
+        first = false;
+
+        write!(f, [*node])?;
+    }
+
+    Ok(())
+}
+
+impl<'ast> Format<DestackFormatContext<'ast>> for TreeExpressionArgument {
+    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(self.argument_id)])?;
+
+        let argument = f.context().tree.get(self.argument_id);
+        match argument {
+            Argument::Named { name, value, .. } => {
+                let value_expr = f.context().tree.get(*value);
+                if let Expression::ScalarLiteral(ScalarLiteral::Boolean(true)) = value_expr {
+                    // boolean shorthand
+                    write!(f, [name])?;
+                } else {
+                    write!(f, [name])?;
+                    let is_string_literal = matches!(
+                        value_expr,
+                        Expression::ScalarLiteral(ScalarLiteral::String(_))
+                            | Expression::ScalarLiteral(ScalarLiteral::Character(_))
+                    );
+                    if is_string_literal {
+                        write!(f, [token("="), value])?;
+                    } else {
+                        // try hugged format for object and array attribute values
+                        format_tree_attribute_value(f, *value)?;
+                    }
+                }
+            }
+            Argument::Labeled { label, value, .. } => {
+                // label
+                write!(f, [label])?;
+                // value
+                write!(f, [token(":"), space(), value])?;
+            }
+            Argument::Positional { value, .. } => {
+                // in tree expressions, expression children need braces too
+                let value_expr = f.context().tree.get(*value);
+                let argument_span = f.context().get_span(self.argument_id);
+                let argument_span_str = f.context().get_span_str(argument_span);
+                let argument_is_braced = argument_span_str.trim_start().starts_with('{')
+                    && argument_span_str.trim_end().ends_with('}');
+                let needs_braces = argument_is_braced
+                    || !matches!(
+                        value_expr,
+                        Expression::ScalarLiteral(ScalarLiteral::String(_))
+                            | Expression::TreeExpression { .. }
+                    );
+                if needs_braces {
+                    if matches!(value_expr, Expression::Stub) {
+                        write!(f, [token("{")])?;
+                        format_inline_stub_comment(f, *value)?;
+                        write!(f, [token("}")])?;
+                    } else {
+                        // keep jsx expression containers inline for common expression forms
+                        if tree_child_should_inline_braced_expression(f.context(), self.argument_id)
+                        {
+                            write!(f, [token("{"), value, token("}")])?;
+                        } else {
+                            write!(
+                                f,
+                                [group(&format_args![
+                                    token("{"),
+                                    soft_block_indent(&value),
+                                    token("}")
+                                ])]
+                            )?;
+                        }
+                    }
+                } else {
+                    write!(f, [value])?;
+                }
+            }
+            Argument::Spread { value, .. } => {
+                // spread in jsx needs braces: {...props}
+                write!(f, [token("{"), token("..."), value, token("}")])?;
+            }
+        }
+
+        write!(
+            f,
+            [f.context()
+                .any_infix_or_postfix_annotations(self.argument_id)]
+        )?;
+
+        Ok(())
+    }
+}
+
+/// Get the value expression for any tree attribute argument variant.
+pub(super) fn tree_attribute_value_id(
+    tree: &NodeTree,
+    argument_id: LocalNodeId<Argument>,
+) -> Option<LocalNodeId<Expression>> {
+    match tree.get(argument_id) {
+        Argument::Named { value, .. }
+        | Argument::Labeled { value, .. }
+        | Argument::Positional { value, .. }
+        | Argument::Spread { value, .. } => Some(*value),
+    }
+}
+
+/// Check whether a property value is complex enough to force breaks.
+pub(super) fn property_has_complex_value(
+    context: &DestackFormatContext<'_>,
+    property_id: LocalNodeId<Property>,
+) -> bool {
+    let tree = context.tree;
+
+    // annotations on the property force complexity
+    if context.has_annotation(property_id) {
+        return true;
+    }
+
+    let property = tree.get(property_id);
+
+    // field values and defaults can be complex
+    if let Property::Field { value, default, .. } = property {
+        // inspect the field value
+        let value_is_complex = value.is_some_and(|value_id| {
+            let value_expr = tree.get(value_id);
+            is_complex_expression(tree, value_expr) || context.has_annotation(value_id)
+        });
+
+        // inspect the field default
+        let default_is_complex = default.is_some_and(|default_id| {
+            let default_expr = tree.get(default_id);
+            is_complex_expression(tree, default_expr) || context.has_annotation(default_id)
+        });
+
+        return value_is_complex || default_is_complex;
+    }
+
+    // methods with bodies are always complex in object literals
+    if let Property::Method { body, .. } = property {
+        return body.is_some();
+    }
+
+    // spread properties inherit complexity from their value
+    if let Property::Spread { value, .. } = property {
+        let value_expr = tree.get(*value);
+        return is_complex_expression(tree, value_expr) || context.has_annotation(*value);
+    }
+
+    false
+}
+
+/// Check whether a property contains a complex type value.
+pub(super) fn property_has_complex_type_value(
+    context: &DestackFormatContext<'_>,
+    property_id: LocalNodeId<Property>,
+) -> bool {
+    let tree = context.tree;
+    let line_width = usize::from(context.options.line_width);
+    let type_len_threshold = (line_width / 2).max(30);
+
+    if context.has_annotation(property_id) {
+        return true;
+    }
+
+    let is_complex_type_expression = |expression_id: LocalNodeId<Expression>| {
+        let expression = tree.get(expression_id);
+        context.has_annotation(expression_id)
+            || is_expression_breakable(tree, expression)
+            || !is_trivial_expression(tree, expression)
+            || expression_source_len(context, expression_id) > type_len_threshold
+    };
+
+    match tree.get(property_id) {
+        Property::Field { value, default, .. } => {
+            value.is_some_and(is_complex_type_expression)
+                || default.is_some_and(is_complex_type_expression)
+        }
+        Property::Method { body, .. } => body.is_some(),
+        Property::Spread { value, .. } => is_complex_type_expression(*value),
+    }
+}
+
+/// Decide whether tree attributes should force the element to break.
+pub(super) fn should_force_break_tree_attributes(
+    context: &DestackFormatContext<'_>,
+    arguments: &[LocalNodeId<Argument>],
+) -> bool {
+    let tree = context.tree;
+    let line_width = usize::from(context.options.line_width);
+    let complex_len_threshold = (line_width / 2).max(24);
+
+    // comments on attributes force a break
+    if arguments
+        .iter()
+        .copied()
+        .any(|argument_id| context.has_annotation(argument_id))
+    {
+        return true;
+    }
+
+    for argument_id in arguments {
+        let Some(value_id) = tree_attribute_value_id(tree, *argument_id) else {
+            continue;
+        };
+
+        // comments on attribute values force a break
+        if context.has_annotation(value_id) {
+            return true;
+        }
+
+        // preserve explicit multiline attribute values
+        let value_span = context.get_span(value_id);
+        if context.has_newline(value_span) {
+            return true;
+        }
+
+        // collect value signals for complexity checks
+        let value_source_len = expression_source_len(context, value_id);
+        let value_expr = tree.get(value_id);
+
+        // long attribute values should force multiline element layout
+        if value_source_len > line_width {
+            return true;
+        }
+
+        // complex object and array values should break the element
+        match value_expr {
+            Expression::ObjectExpression { properties, .. } => {
+                // collect object signals
+                let has_many_properties = properties.len() > 1;
+                let has_complex_property = properties
+                    .iter()
+                    .copied()
+                    .any(|property_id| property_has_complex_value(context, property_id));
+
+                // break when the object is clearly complex
+                let should_break_object = has_many_properties
+                    && (has_complex_property || value_source_len > complex_len_threshold);
+
+                if should_break_object {
+                    return true;
+                }
+            }
+            Expression::ArrayExpression { elements } => {
+                // collect array signals
+                let has_many_elements = elements.len() > 1;
+                let has_complex_element = elements.iter().any(|element_id| {
+                    // annotations on the element force complexity
+                    let element_has_annotation = context.has_annotation(*element_id);
+
+                    // inspect the element value when present
+                    let element_value_is_complex = tree_attribute_value_id(tree, *element_id)
+                        .is_some_and(|element_value_id| {
+                            let element_expr = tree.get(element_value_id);
+                            is_complex_expression(tree, element_expr)
+                                || context.has_annotation(element_value_id)
+                        });
+
+                    element_has_annotation || element_value_is_complex
+                });
+
+                // break when the array is clearly complex
+                let should_break_array = has_many_elements
+                    && (has_complex_element || value_source_len > complex_len_threshold);
+
+                if should_break_array {
+                    return true;
+                }
+            }
+            Expression::TreeExpression { elements, .. } => {
+                // nested trees with children force a break
+                let has_children = elements
+                    .as_ref()
+                    .is_some_and(|elements| !elements.is_empty());
+
+                if has_children {
+                    return true;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    false
+}
+
+/// Check if an expression is huggable with the given configuration.
+#[inline]
+pub(super) fn is_huggable_expression(
+    tree: &NodeTree,
+    expression_id: LocalNodeId<Expression>,
+    config: &HugOptions,
+) -> bool {
+    match tree.get(expression_id) {
+        Expression::ObjectExpression { .. } | Expression::ArrayExpression { .. } => true,
+        Expression::Declaration(declaration_id) if config.allow_arrow_functions => {
+            // arrow functions stay hugged when used as the only call argument
+            if let Declaration::Function {
+                signature,
+                body: Some(_),
+                ..
+            } = tree.get(*declaration_id)
+            {
+                signature.kind == FunctionKind::Lambda
+            } else {
+                false
+            }
+        }
+        _ => false,
+    }
+}
+
+/// Format a single-element argument list with hugging for expandable elements.
+///
+/// When a single object/array (or arrow function for calls) is the only argument,
+/// format as `foo({...})` instead of `foo(\n    {...},\n)`.
+/// Returns true if hugging was applied, false if regular list_like should be used.
+pub(super) fn format_hugged<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    arguments: &[LocalNodeId<Argument>],
+    config: HugOptions,
+    group_id: Option<GroupId>,
+    force_expand: bool,
+) -> FormatResult<bool> {
+    // only hug single positional arguments
+    if arguments.len() != 1 {
+        return Ok(false);
+    }
+
+    let argument_id = arguments[0];
+    let tree = f.context().tree;
+
+    let Some(value_id) = get_argument_value(tree, argument_id) else {
+        return Ok(false);
+    };
+    let value_id = transparent_inner_expression(f.context(), value_id);
+
+    if !is_huggable_expression(tree, value_id, &config) {
+        return Ok(false);
+    }
+
+    // multiline object and array inputs usually want regular expanded delimiters
+    if !force_expand
+        && f.context().has_newline(f.context().get_span(value_id))
+        && matches!(
+            tree.get(value_id),
+            Expression::ObjectExpression { .. } | Expression::ArrayExpression { .. }
+        )
+    {
+        return Ok(false);
+    }
+
+    let arrow_declaration_id = match tree.get(value_id) {
+        Expression::Declaration(declaration_id) => match tree.get(*declaration_id) {
+            Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda => {
+                Some(*declaration_id)
+            }
+            _ => None,
+        },
+        _ => None,
+    };
+    let is_arrow_function = arrow_declaration_id.is_some();
+    let (arrow_body_is_block, arrow_body_is_tree, arrow_body_is_lambda) = arrow_declaration_id
+        .and_then(|declaration_id| {
+            let Declaration::Function {
+                body: Some(body_id),
+                ..
+            } = tree.get(declaration_id)
+            else {
+                return None;
+            };
+
+            let body_id = transparent_inner_expression(f.context(), *body_id);
+            let body_expr = tree.get(body_id);
+            let is_block = matches!(body_expr, Expression::Block(_));
+            let is_tree = matches!(body_expr, Expression::TreeExpression { .. });
+            let is_lambda = matches!(
+                body_expr,
+                Expression::Declaration(nested_declaration_id)
+                    if matches!(
+                        tree.get(*nested_declaration_id),
+                        Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
+                    )
+            );
+            Some((is_block, is_tree, is_lambda))
+        })
+        .unwrap_or((false, false, false));
+    let arrow_force_expand = arrow_declaration_id
+        .is_some_and(|declaration_id| lambda_expression_should_break(f.context(), declaration_id))
+        || (is_arrow_function
+            && expression_source_len(f.context(), value_id)
+                > usize::from(f.context().options.line_width));
+    let arrow_trailing_line_break_if_breaks =
+        is_arrow_function && !arrow_body_is_block && !arrow_body_is_tree && !arrow_body_is_lambda;
+    let arrow_trailing_comma_if_breaks =
+        arrow_trailing_line_break_if_breaks && !arrow_body_is_lambda;
+    let trailing_if_breaks = config.trailing_if_breaks;
+
+    // inline: keep everything on one line
+    let inline_format = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        let inline_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            write!(f, [token(config.open), argument_id])?;
+            if config.force_trailing {
+                write!(f, [token(",")])?;
+            }
+            write!(f, [token(config.close)])
+        });
+
+        if let Some(group_id) = group_id {
+            group(&inline_inner).with_id(Some(group_id)).format(f)
+        } else {
+            write!(f, [inline_inner])
+        }
+    });
+
+    // hugged: argument expands but delimiters hug
+    let hugged_format_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        if config.handle_annotations {
+            if is_arrow_function {
+                write!(f, [f.context().block_prefix_annotations(argument_id)])?;
+            } else {
+                write!(f, [f.context().any_prefix_annotations(argument_id)])?;
+            }
+        }
+
+        if arrow_force_expand {
+            write!(f, [expand_parent()])?;
+        }
+
+        write!(f, [token(config.open)])?;
+
+        match f.context().tree.get(value_id) {
+            Expression::ObjectExpression { ty, properties } => {
+                if let Some(ty) = ty {
+                    write!(f, [ty, space()])?;
+                }
+                write!(
+                    f,
+                    [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                        write!(
+                            f,
+                            [
+                                token("{"),
+                                block_indent(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                                    f.join_with(&format_args![
+                                        token(","),
+                                        soft_line_break_or_space()
+                                    ])
+                                    .entries(properties)
+                                    .finish()?;
+                                    write!(f, [if_group_breaks(&token(","))])
+                                })),
+                                token("}")
+                            ]
+                        )
+                    }))
+                    .should_expand(true),]
+                )?;
+            }
+            Expression::ArrayExpression { elements } => {
+                write!(
+                    f,
+                    [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                        write!(
+                            f,
+                            [
+                                token("["),
+                                block_indent(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                                    f.join_with(&format_args![
+                                        token(","),
+                                        soft_line_break_or_space()
+                                    ])
+                                    .entries(elements)
+                                    .finish()?;
+                                    write!(f, [if_group_breaks(&token(","))])
+                                })),
+                                token("]")
+                            ]
+                        )
+                    }))
+                    .should_expand(true)]
+                )?;
+            }
+            Expression::Declaration(declaration_id) if config.allow_arrow_functions => {
+                // arrow function: format normally, handles its own expansion
+                if let Some(group_id) = group_id {
+                    write!(
+                        f,
+                        [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                            write!(f, [declaration_id])
+                        }))
+                        .with_id(Some(group_id))]
+                    )?;
+                } else {
+                    write!(f, [declaration_id])?;
+                }
+            }
+            _ => {
+                write!(f, [value_id])?;
+            }
+        }
+
+        if config.force_trailing {
+            write!(f, [token(",")])?;
+        } else if arrow_trailing_comma_if_breaks || trailing_if_breaks {
+            let comma = token(",");
+            let trailing_comma = if let Some(group_id) = group_id {
+                if_group_breaks(&comma).with_group_id(Some(group_id))
+            } else {
+                if_group_breaks(&comma)
+            };
+            write!(f, [trailing_comma])?;
+        }
+
+        if arrow_trailing_line_break_if_breaks {
+            let line_break = hard_line_break();
+            let break_doc = if let Some(group_id) = group_id {
+                if_group_breaks(&line_break).with_group_id(Some(group_id))
+            } else {
+                if_group_breaks(&line_break)
+            };
+            write!(f, [break_doc])?;
+        }
+
+        write!(f, [token(config.close)])?;
+
+        if config.handle_annotations {
+            write!(
+                f,
+                [f.context().any_infix_or_postfix_annotations(argument_id)]
+            )?;
+        }
+        Ok(())
+    });
+
+    let hugged_format = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        if trailing_if_breaks || group_id.is_some() {
+            write!(
+                f,
+                [group(&hugged_format_inner)
+                    .with_id(group_id)
+                    .should_expand(arrow_force_expand)]
+            )?;
+        } else {
+            write!(f, [hugged_format_inner])?;
+        }
+        Ok(())
+    });
+
+    if force_expand {
+        hugged_format.format(f)?;
+    } else {
+        best_fitting![inline_format, hugged_format]
+            .with_mode(BestFittingMode::AllLines)
+            .format(f)?;
+    }
+
+    Ok(true)
+}
+
+/// Format a tree/JSX attribute value with hugging for objects/arrays.
+pub(super) fn format_tree_attribute_value<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    value_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let tree = f.context().tree;
+    let value_expr = tree.get(value_id);
+
+    match value_expr {
+        Expression::ObjectExpression { ty, properties } => {
+            let ty = *ty;
+            let properties = properties.clone();
+
+            // inline: ={value} all on one line
+            let inline_format = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                write!(f, [token("="), token("{"), value_id, token("}")])
+            });
+
+            // hugged: ={{ with expanded object contents then }}
+            let hugged_format = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                write!(
+                    f,
+                    [
+                        token("="),
+                        token("{"),
+                        format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                            if let Some(ty) = ty {
+                                write!(f, [ty, space()])?;
+                            }
+                            write!(
+                                f,
+                                [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                                    write!(
+                                        f,
+                                        [
+                                            token("{"),
+                                            block_indent(&format_with(
+                                                |f: &mut DestackFormatter<'ast, '_>| {
+                                                    f.join_with(&format_args![
+                                                        token(","),
+                                                        soft_line_break_or_space()
+                                                    ])
+                                                    .entries(&properties)
+                                                    .finish()?;
+                                                    write!(f, [if_group_breaks(&token(","))])
+                                                }
+                                            )),
+                                            token("}")
+                                        ]
+                                    )
+                                }))
+                                .should_expand(true)]
+                            )
+                        }),
+                        token("}")
+                    ]
+                )
+            });
+
+            best_fitting![inline_format, hugged_format]
+                .with_mode(BestFittingMode::AllLines)
+                .format(f)?;
+        }
+        Expression::ArrayExpression { elements } => {
+            let elements = elements.clone();
+
+            // inline: ={value} all on one line
+            let inline_format = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                write!(f, [token("="), token("{"), value_id, token("}")])
+            });
+
+            // hugged: ={[ with expanded array contents then ]}
+            let hugged_format = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                write!(
+                    f,
+                    [
+                        token("="),
+                        token("{"),
+                        group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                            write!(
+                                f,
+                                [
+                                    token("["),
+                                    block_indent(&format_with(
+                                        |f: &mut DestackFormatter<'ast, '_>| {
+                                            f.join_with(&format_args![
+                                                token(","),
+                                                soft_line_break_or_space()
+                                            ])
+                                            .entries(&elements)
+                                            .finish()?;
+                                            write!(f, [if_group_breaks(&token(","))])
+                                        }
+                                    )),
+                                    token("]")
+                                ]
+                            )
+                        }))
+                        .should_expand(true),
+                        token("}")
+                    ]
+                )
+            });
+
+            best_fitting![inline_format, hugged_format]
+                .with_mode(BestFittingMode::AllLines)
+                .format(f)?;
+        }
+        _ => {
+            // regular format for non-huggable values
+            write!(f, [token("="), token("{"), value_id, token("}")])?;
+        }
+    }
+
+    Ok(())
+}
+
+pub(super) fn tree_text_span_str(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> Option<String> {
+    let tree = context.tree;
+    let Argument::Positional { value, .. } = tree.get(argument_id) else {
+        return None;
+    };
+
+    let Expression::ScalarLiteral(ScalarLiteral::String(_)) = tree.get(*value) else {
+        return None;
+    };
+
+    let span = context.get_span(*value);
+    let span_str = context.file.get_span_str(span).unwrap_or_default();
+    Some(span_str.to_owned())
+}
+
+/// Check whether a tree text child is whitespace-only.
+pub(super) fn tree_text_is_whitespace_only(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> Option<(bool, bool)> {
+    let tree = context.tree;
+    let strings = context.strings;
+    let Argument::Positional { value, .. } = tree.get(argument_id) else {
+        return None;
+    };
+
+    if let Expression::ScalarLiteral(ScalarLiteral::String(string_id)) = tree.get(*value) {
+        let span_str = tree_text_span_str(context, argument_id)?;
+        if span_str.starts_with('"') || span_str.starts_with('\'') {
+            let content = strings.get(*string_id);
+            let has_non_whitespace = content.chars().any(|c| !c.is_whitespace());
+            if has_non_whitespace {
+                return Some((false, false));
+            }
+            let has_newline = content.contains(['\n', '\r']);
+            return Some((true, has_newline));
+        }
+    }
+
+    if let Expression::ScalarLiteral(ScalarLiteral::Character(value)) = tree.get(*value) {
+        if !value.is_whitespace() {
+            return Some((false, false));
+        }
+        let has_newline = matches!(value, '\n' | '\r');
+        return Some((true, has_newline));
+    }
+
+    let span_str = tree_text_span_str(context, argument_id)?;
+    let has_non_whitespace = span_str.chars().any(|c| !c.is_whitespace());
+    if has_non_whitespace {
+        return Some((false, false));
+    }
+
+    let has_newline = span_str.contains(['\n', '\r']);
+    Some((true, has_newline))
+}
+
+/// Check whether a tree text child needs separator spaces for newline boundaries.
+pub(super) fn tree_text_boundary_separator_space(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> Option<(bool, bool)> {
+    let tree = context.tree;
+    let strings = context.strings;
+
+    // locate the raw text content
+    let Argument::Positional { value, .. } = tree.get(argument_id) else {
+        return None;
+    };
+
+    let Expression::ScalarLiteral(ScalarLiteral::String(string_id)) = tree.get(*value) else {
+        return None;
+    };
+
+    let span_str = tree_text_span_str(context, argument_id)?;
+    let text = if span_str.starts_with('"') || span_str.starts_with('\'') {
+        Cow::Borrowed(strings.get(*string_id))
+    } else {
+        Cow::Owned(span_str)
+    };
+
+    // identify the boundary whitespace runs
+    let leading_end = text
+        .char_indices()
+        .find(|(_, c)| !c.is_whitespace())
+        .map_or(text.len(), |(index, _)| index);
+    let trailing_start = text
+        .char_indices()
+        .rev()
+        .find(|(_, c)| !c.is_whitespace())
+        .map_or(0, |(index, c)| index + c.len_utf8());
+
+    let leading_whitespace = &text[..leading_end];
+    let trailing_whitespace = &text[trailing_start..];
+
+    let has_leading_whitespace = !leading_whitespace.is_empty();
+    let has_trailing_whitespace = !trailing_whitespace.is_empty();
+
+    let leading_is_inline = has_leading_whitespace && !leading_whitespace.contains(['\n', '\r']);
+    let trailing_is_inline = has_trailing_whitespace && !trailing_whitespace.contains(['\n', '\r']);
+
+    let needs_leading_separator = has_leading_whitespace && !leading_is_inline;
+    let needs_trailing_separator = has_trailing_whitespace && !trailing_is_inline;
+
+    Some((needs_leading_separator, needs_trailing_separator))
+}
+
+/// Return whether source preserves an empty line between two tree child arguments.
+pub(super) fn tree_children_have_blank_line_between(
+    context: &DestackFormatContext<'_>,
+    previous_argument_id: LocalNodeId<Argument>,
+    next_argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let previous_span = context.get_span(previous_argument_id);
+    let next_span = context.get_span(next_argument_id);
+    if previous_span.file != next_span.file {
+        return false;
+    }
+    if previous_span.end >= next_span.start {
+        return false;
+    }
+
+    let between_span = Span::new(previous_span.file, previous_span.end, next_span.start);
+    let between_source = context.get_span_str(between_span);
+    between_source.contains("\n\n") || between_source.contains("\r\n\r\n")
+}
+
+/// Get the expression value for a tree child argument.
+pub(super) fn tree_child_value_id(
+    tree: &NodeTree,
+    argument_id: LocalNodeId<Argument>,
+) -> Option<LocalNodeId<Expression>> {
+    match tree.get(argument_id) {
+        Argument::Named { value, .. }
+        | Argument::Labeled { value, .. }
+        | Argument::Positional { value, .. }
+        | Argument::Spread { value, .. } => Some(*value),
+    }
+}
+
+/// Check whether a tree child expression should stay inline inside `{ ... }`.
+pub(super) fn tree_child_should_inline_braced_expression(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let Some(value_id) = tree_child_value_id(context.tree, argument_id) else {
+        return false;
+    };
+
+    let value_id = transparent_inner_expression(context, value_id);
+    let value_expr = context.tree.get(value_id);
+    let argument_span = context.get_span(argument_id);
+    let value_span = context.get_span(value_id);
+
+    if argument_span.file == value_span.file {
+        if argument_span.start < value_span.start
+            && span_has_comment(
+                context,
+                Span::new(argument_span.file, argument_span.start, value_span.start),
+            )
+        {
+            return false;
+        }
+
+        if value_span.end < argument_span.end
+            && span_has_comment(
+                context,
+                Span::new(argument_span.file, value_span.end, argument_span.end),
+            )
+        {
+            return false;
+        }
+    }
+
+    match value_expr {
+        Expression::ScalarLiteral(ScalarLiteral::String(_))
+        | Expression::ScalarLiteral(ScalarLiteral::Character(_)) => true,
+        Expression::ArrayExpression { .. }
+        | Expression::ObjectExpression { .. }
+        | Expression::Call { .. }
+        | Expression::TemplateExpression { .. }
+        | Expression::TaggedTemplateExpression { .. }
+        | Expression::Await { .. }
+        | Expression::AwaitMaybe { .. }
+        | Expression::Binary { .. }
+        | Expression::Member { .. }
+        | Expression::PrivateMember { .. }
+        | Expression::Index { .. }
+        | Expression::Maybe { .. }
+        | Expression::Must { .. } => true,
+        Expression::If {
+            kind: IfKind::Ternary,
+            ..
+        } => true,
+        Expression::Declaration(declaration_id) => matches!(
+            context.tree.get(*declaration_id),
+            Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
+        ),
+        _ => false,
+    }
+}
+
+/// Check whether a tree child forces the element to break.
+pub(super) fn tree_child_breaks_element(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let Some(value_id) = tree_child_value_id(context.tree, argument_id) else {
+        return false;
+    };
+
+    let value_id = transparent_inner_expression(context, value_id);
+    let value_expr = context.tree.get(value_id);
+    let span = context.get_span(value_id);
+    let argument_span = context.get_span(argument_id);
+    let is_text_node = matches!(
+        value_expr,
+        Expression::ScalarLiteral(ScalarLiteral::String(_))
+    );
+    let is_tree_node = matches!(value_expr, Expression::TreeExpression { .. });
+    if !is_text_node && !is_tree_node {
+        let has_comment =
+            span_has_comment(context, span) || span_has_comment(context, argument_span);
+        if context.has_newline(span) || has_comment {
+            return true;
+        }
+    }
+
+    if (context.has_annotation(argument_id) || context.has_annotation(value_id)) && !is_text_node {
+        return true;
+    }
+
+    match value_expr {
+        Expression::Stub => true,
+        Expression::If {
+            kind: IfKind::Ternary,
+            ..
+        } => expression_source_len(context, value_id) > usize::from(context.options.line_width),
+        Expression::Block(_) | Expression::Match { .. } => true,
+        Expression::Declaration(declaration_id) => {
+            lambda_body_is_complex_for_tree(context, *declaration_id)
+        }
+        Expression::TreeExpression { .. } => false,
+        _ => expression_has_complex_callback(context, value_id),
+    }
+}
+
+/// Check whether a lambda body is complex enough to force tree breaking.
+pub(super) fn lambda_body_is_complex_for_tree(
+    context: &DestackFormatContext<'_>,
+    declaration_id: LocalNodeId<Declaration>,
+) -> bool {
+    let tree = context.tree;
+
+    let Declaration::Function {
+        signature,
+        body: Some(body_id),
+        ..
+    } = tree.get(declaration_id)
+    else {
+        return false;
+    };
+
+    if signature.kind != FunctionKind::Lambda {
+        return false;
+    }
+
+    let body_id = transparent_inner_expression(context, *body_id);
+
+    matches!(
+        tree.get(body_id),
+        Expression::Block(_) | Expression::TreeExpression { .. }
+    )
+}
+
+/// Check whether a call has a complex callback argument.
+/// Check whether an argument is a lambda with a complex body for tree literals.
+pub(super) fn argument_is_complex_callback(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let tree = context.tree;
+
+    // grab the argument value
+    let value_id = match tree.get(argument_id) {
+        Argument::Positional { value, .. } | Argument::Spread { value, .. } => *value,
+        Argument::Named { value, .. } | Argument::Labeled { value, .. } => *value,
+    };
+
+    // unwrap transparent wrappers
+    let value_id = transparent_inner_expression(context, value_id);
+
+    // only lambda declarations qualify
+    let Expression::Declaration(decl_id) = tree.get(value_id) else {
+        return false;
+    };
+
+    lambda_body_is_complex_for_tree(context, *decl_id)
+}
+
+/// Check whether an argument is a lambda with a block body.
+pub(super) fn argument_is_block_callback(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let tree = context.tree;
+
+    // grab the argument value
+    let value_id = match tree.get(argument_id) {
+        Argument::Positional { value, .. } | Argument::Spread { value, .. } => *value,
+        Argument::Named { value, .. } | Argument::Labeled { value, .. } => *value,
+    };
+
+    // unwrap transparent wrappers
+    let value_id = transparent_inner_expression(context, value_id);
+
+    // only lambda declarations qualify
+    let Expression::Declaration(decl_id) = tree.get(value_id) else {
+        return false;
+    };
+
+    let Declaration::Function {
+        signature,
+        body: Some(body_id),
+        ..
+    } = tree.get(*decl_id)
+    else {
+        return false;
+    };
+
+    if signature.kind != FunctionKind::Lambda {
+        return false;
+    }
+
+    let body_id = transparent_inner_expression(context, *body_id);
+    matches!(tree.get(body_id), Expression::Block(_))
+}
+
+/// Check whether an argument is an object literal expression.
+pub(super) fn argument_is_object_literal(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let tree = context.tree;
+
+    let value_id = match tree.get(argument_id) {
+        Argument::Positional { value, .. } | Argument::Spread { value, .. } => *value,
+        Argument::Named { value, .. } | Argument::Labeled { value, .. } => *value,
+    };
+
+    let value_id = transparent_inner_expression(context, value_id);
+    matches!(tree.get(value_id), Expression::ObjectExpression { .. })
+}
+
+/// Check whether an argument is an array literal expression.
+pub(super) fn argument_is_array_literal(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let tree = context.tree;
+
+    let value_id = match tree.get(argument_id) {
+        Argument::Positional { value, .. } | Argument::Spread { value, .. } => *value,
+        Argument::Named { value, .. } | Argument::Labeled { value, .. } => *value,
+    };
+
+    let value_id = transparent_inner_expression(context, value_id);
+    matches!(tree.get(value_id), Expression::ArrayExpression { .. })
+}
+
+/// Check whether an argument is a template literal expression.
+pub(super) fn argument_is_template_literal(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let tree = context.tree;
+    let value_id = match tree.get(argument_id) {
+        Argument::Positional { value, .. } | Argument::Spread { value, .. } => *value,
+        Argument::Named { value, .. } | Argument::Labeled { value, .. } => *value,
+    };
+    let value_id = transparent_inner_expression(context, value_id);
+
+    matches!(tree.get(value_id), Expression::TemplateExpression { .. })
+}
+
+/// Check whether an argument is a tree or jsx expression.
+pub(super) fn argument_is_tree_expression(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let tree = context.tree;
+    let value_id = match tree.get(argument_id) {
+        Argument::Positional { value, .. } | Argument::Spread { value, .. } => *value,
+        Argument::Named { value, .. } | Argument::Labeled { value, .. } => *value,
+    };
+    let value_id = transparent_inner_expression(context, value_id);
+
+    matches!(tree.get(value_id), Expression::TreeExpression { .. })
+}
+
+/// Check whether an argument is a lambda expression.
+pub(super) fn argument_is_lambda_expression(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let tree = context.tree;
+    let value_id = match tree.get(argument_id) {
+        Argument::Positional { value, .. } | Argument::Spread { value, .. } => *value,
+        Argument::Named { value, .. } | Argument::Labeled { value, .. } => *value,
+    };
+    let value_id = transparent_inner_expression(context, value_id);
+
+    let Expression::Declaration(decl_id) = tree.get(value_id) else {
+        return false;
+    };
+
+    let Declaration::Function { signature, .. } = tree.get(*decl_id) else {
+        return false;
+    };
+
+    signature.kind == FunctionKind::Lambda
+}
+
+/// Check whether an argument is a function expression.
+pub(super) fn argument_is_function_expression(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let tree = context.tree;
+    let value_id = match tree.get(argument_id) {
+        Argument::Positional { value, .. } | Argument::Spread { value, .. } => *value,
+        Argument::Named { value, .. } | Argument::Labeled { value, .. } => *value,
+    };
+    let value_id = transparent_inner_expression(context, value_id);
+
+    let Expression::Declaration(decl_id) = tree.get(value_id) else {
+        return false;
+    };
+
+    let Declaration::Function { signature, .. } = tree.get(*decl_id) else {
+        return false;
+    };
+
+    signature.kind != FunctionKind::Lambda
+}
+
+/// Check whether an expression contains a call with a complex callback.
+pub(super) fn expression_has_complex_callback(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let tree = context.tree;
+
+    // unwrap transparent wrappers
+    let expression_id = transparent_inner_expression(context, expression_id);
+
+    // walk the expression shape looking for callback lambdas
+    match tree.get(expression_id) {
+        Expression::Call {
+            left,
+            dynamic_arguments,
+            ..
+        }
+        | Expression::New {
+            left,
+            dynamic_arguments,
+            ..
+        } => {
+            // check the call arguments
+            let has_complex_argument = dynamic_arguments
+                .iter()
+                .any(|arg_id| argument_is_complex_callback(context, *arg_id));
+
+            if has_complex_argument {
+                return true;
+            }
+
+            // check chained receivers
+            expression_has_complex_callback(context, *left)
+        }
+        Expression::Member { left, .. }
+        | Expression::PrivateMember { left, .. }
+        | Expression::Index { left, .. }
+        | Expression::Maybe { left, .. }
+        | Expression::Must { left, .. } => {
+            // walk through postfix chains
+            expression_has_complex_callback(context, *left)
+        }
+        Expression::Declaration(declaration_id) => {
+            lambda_body_is_complex_for_tree(context, *declaration_id)
+        }
+        Expression::Parenthesized { expression } => {
+            expression_has_complex_callback(context, *expression)
+        }
+        Expression::Statement(inner_id) => {
+            // peel statement wrappers
+            expression_has_complex_callback(context, *inner_id)
+        }
+        Expression::Block(block_id) => {
+            let block = tree.get(*block_id);
+
+            // scan block expressions for complex callbacks
+            block
+                .expressions
+                .iter()
+                .any(|expr_id| expression_has_complex_callback(context, *expr_id))
+        }
+        _ => false,
+    }
+}
+
+/// Decide whether a tree literal should break across multiple lines.
+pub(crate) fn tree_literal_should_break(
+    context: &DestackFormatContext<'_>,
+    arguments: &Option<Vec<LocalNodeId<Argument>>>,
+    elements: &Option<Vec<LocalNodeId<Argument>>>,
+) -> bool {
+    let force_break_attributes = arguments
+        .as_ref()
+        .is_some_and(|arguments| should_force_break_tree_attributes(context, arguments));
+
+    let Some(elements) = elements else {
+        return force_break_attributes;
+    };
+
+    if elements.is_empty() {
+        return force_break_attributes;
+    }
+
+    let tree = context.tree;
+    let element_children_count = elements
+        .iter()
+        .filter(|elem_id| {
+            let arg = tree.get(**elem_id);
+            if let Argument::Positional { value, .. } = arg {
+                matches!(tree.get(*value), Expression::TreeExpression { .. })
+            } else {
+                false
+            }
+        })
+        .count();
+
+    let has_breaking_child = elements
+        .iter()
+        .any(|elem_id| tree_child_breaks_element(context, *elem_id));
+
+    let has_tree_child = element_children_count > 0;
+    let has_single_text_child = elements.len() == 1 && !has_tree_child && !has_breaking_child;
+
+    force_break_attributes || has_breaking_child || (has_tree_child && !has_single_text_child)
+}
+
+/// Return whether a tree literal should be wrapped in parentheses when it breaks.
+pub(super) fn tree_literal_wraps_on_break(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some((parent_id, parent_type)) = context.get_parent(node_id) else {
+        return true;
+    };
+
+    match parent_type {
+        NodeType::Expression => {
+            let parent_id = LocalNodeId::<Expression>::new(parent_id);
+            match context.tree.get(parent_id) {
+                // explicit parentheses already control wrapping
+                Expression::Parenthesized { .. } => false,
+                // jsx-like containers and conditional branches keep children unwrapped
+                Expression::ArrayExpression { .. }
+                | Expression::TupleExpression { .. }
+                | Expression::TreeExpression { .. }
+                | Expression::If {
+                    kind: IfKind::Ternary,
+                    ..
+                } => false,
+                // standalone jsx statements stay unwrapped
+                Expression::Statement(_) => false,
+                // return handles jsx wrapping at the statement formatter level
+                Expression::Return { .. } => false,
+                _ => true,
+            }
+        }
+        NodeType::Argument => {
+            let Some((grand_id, grand_type)) = context.get_parent_by_id(parent_id) else {
+                return true;
+            };
+            if grand_type != NodeType::Expression {
+                return true;
+            }
+
+            let grand_id = LocalNodeId::<Expression>::new(grand_id);
+            !matches!(
+                context.tree.get(grand_id),
+                Expression::Call { .. }
+                    | Expression::New { .. }
+                    | Expression::ArrayExpression { .. }
+                    | Expression::TupleExpression { .. }
+                    | Expression::TreeExpression { .. }
+                    | Expression::If {
+                        kind: IfKind::Ternary,
+                        ..
+                    }
+            )
+        }
+        _ => true,
+    }
+}
+
+/// Format a tree literal expression with optional wrap-on-break parentheses.
+pub(super) fn format_tree_literal_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+    left: &Option<LocalNodeId<Expression>>,
+    arguments: &Option<Vec<LocalNodeId<Argument>>>,
+    elements: &Option<Vec<LocalNodeId<Argument>>>,
+) -> FormatResult<()> {
+    if !tree_literal_wraps_on_break(f.context(), node_id) {
+        return format_tree_literal(f, node_id, left, arguments, elements);
+    }
+
+    let should_expand = tree_literal_should_break(f.context(), arguments, elements);
+
+    write!(
+        f,
+        [group(&format_with(|f| {
+            write!(f, [if_group_breaks(&token("("))])?;
+
+            let formatted_tree =
+                format_with(|f| format_tree_literal(f, node_id, left, arguments, elements));
+            if should_expand {
+                write!(f, [block_indent(&formatted_tree)])?;
+            } else {
+                write!(f, [soft_block_indent(&formatted_tree)])?;
+            }
+
+            write!(f, [if_group_breaks(&token(")"))])?;
+            Ok(())
+        }))
+        .should_expand(should_expand)]
+    )
+}
+
+/// Format a tree literal.
+#[inline]
+pub(crate) fn format_tree_literal<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    _expression_id: LocalNodeId<Expression>,
+    left: &Option<LocalNodeId<Expression>>,
+    arguments: &Option<Vec<LocalNodeId<Argument>>>,
+    elements: &Option<Vec<LocalNodeId<Argument>>>,
+) -> FormatResult<()> {
+    let force_break_attributes = arguments
+        .as_ref()
+        .is_some_and(|arguments| should_force_break_tree_attributes(f.context(), arguments));
+
+    write!(
+        f,
+        [group(&format_with(|f| {
+            // header
+            write!(
+                f,
+                [group(&format_with(|f| {
+                    // <
+                    write!(f, [token("<")])?;
+                    // left
+                    if let Some(left) = left {
+                        write!(f, [left])?;
+                    }
+                    // arguments
+                    if let Some(arguments) = arguments {
+                        let single_attr_per_line = f.context().options.single_attribute_per_line;
+                        let bracket_same_line = f.context().options.bracket_same_line;
+
+                        // separator between attributes
+                        let attr_separator: &dyn Format<DestackFormatContext<'ast>> =
+                            if force_break_attributes
+                                || (single_attr_per_line && arguments.len() > 1)
+                            {
+                                &hard_line_break()
+                            } else {
+                                &soft_line_break_or_space()
+                            };
+
+                        // format attribute list
+                        let format_attrs = format_with(|f| {
+                            f.join_with(attr_separator)
+                                .entries(arguments.iter().map(|argument| TreeExpressionArgument {
+                                    argument_id: *argument,
+                                }))
+                                .finish()
+                        });
+
+                        // complex attributes should expand the element
+                        if force_break_attributes {
+                            write!(f, [expand_parent()])?;
+                        }
+
+                        // when bracket_same_line is true, don't add trailing line break before >
+                        // when false (default), soft_block_indent adds trailing soft_line_break
+                        if bracket_same_line {
+                            // avoid a trailing break before `>` when bracket_same_line is enabled
+                            if force_break_attributes {
+                                write!(
+                                    f,
+                                    [
+                                        if_group_fits_on_line(&space()),
+                                        indent(&format_args![hard_line_break(), format_attrs])
+                                    ]
+                                )?;
+                            } else {
+                                write!(
+                                    f,
+                                    [
+                                        if_group_fits_on_line(&space()),
+                                        indent(&format_args![soft_line_break(), format_attrs])
+                                    ]
+                                )?;
+                            }
+                        } else {
+                            // force expansion for complex attributes in the default layout
+                            if force_break_attributes {
+                                write!(
+                                    f,
+                                    [
+                                        if_group_fits_on_line(&space()),
+                                        group(&soft_block_indent(&format_attrs))
+                                            .should_expand(true)
+                                    ]
+                                )?;
+                            } else {
+                                write!(
+                                    f,
+                                    [
+                                        if_group_fits_on_line(&space()),
+                                        soft_block_indent(&format_attrs)
+                                    ]
+                                )?;
+                            }
+                        }
+                    }
+                    // /
+                    if elements.is_none() {
+                        let bracket_same_line = f.context().options.bracket_same_line;
+                        let has_attributes = arguments.is_some();
+                        if left.is_some() || has_attributes {
+                            if has_attributes {
+                                // space before /> when inline, or when bracket_same_line is true
+                                if bracket_same_line {
+                                    write!(f, [if_group_breaks(&space())])?;
+                                }
+                                write!(f, [if_group_fits_on_line(&space())])?;
+                            } else {
+                                write!(f, [space()])?;
+                            }
+                        }
+                        write!(f, [token("/")])?;
+                    }
+                    // >
+                    write!(f, [token(">")])?;
+                    Ok(())
+                }))]
+            )?;
+
+            // body
+            if let Some(elements) = elements {
+                let write_closing_tag = |f: &mut DestackFormatter<'ast, '_>| -> FormatResult<()> {
+                    write!(f, [token("</")])?;
+                    if let Some(left) = left {
+                        let left_expression = f.context().tree.get(*left);
+
+                        if let Expression::Path { path, .. } = left_expression {
+                            write!(f, [path])?;
+                        } else {
+                            write!(f, [left])?;
+                        }
+                    }
+                    write!(f, [token(">")])?;
+                    Ok(())
+                };
+
+                // preserve compact empty paired tags
+                if elements.is_empty() {
+                    write_closing_tag(f)?;
+                    return Ok(());
+                }
+
+                // check child types for formatting decisions
+                let tree = f.context().tree;
+                let element_children_count = elements
+                    .iter()
+                    .filter(|elem_id| {
+                        let arg = tree.get(**elem_id);
+                        if let Argument::Positional { value, .. } = arg {
+                            matches!(tree.get(*value), Expression::TreeExpression { .. })
+                        } else {
+                            false
+                        }
+                    })
+                    .count();
+                let all_tree_children = element_children_count == elements.len();
+                let only_tree_or_comment_children = elements.iter().all(|elem_id| {
+                    let arg = tree.get(*elem_id);
+                    let value_id = match arg {
+                        Argument::Positional { value, .. }
+                        | Argument::Spread { value, .. }
+                        | Argument::Named { value, .. }
+                        | Argument::Labeled { value, .. } => *value,
+                    };
+                    let value_id = transparent_inner_expression(f.context(), value_id);
+                    matches!(
+                        tree.get(value_id),
+                        Expression::TreeExpression { .. } | Expression::Stub
+                    )
+                });
+
+                // check if any child forces a break
+                let child_breaks = elements
+                    .iter()
+                    .map(|elem_id| tree_child_breaks_element(f.context(), *elem_id))
+                    .collect::<Vec<_>>();
+                let has_breaking_child = child_breaks.iter().any(|breaks| *breaks);
+
+                // force breaking when:
+                // - attributes require a break, OR
+                // - any child has complex content, such as callbacks with block bodies, OR
+                // - there is at least one tree child, unless the only child is plain text
+                let has_tree_child = element_children_count > 0;
+                let has_single_text_child =
+                    elements.len() == 1 && !has_tree_child && !has_breaking_child;
+                let force_break = force_break_attributes
+                    || has_breaking_child
+                    || (has_tree_child && !has_single_text_child);
+
+                // format children using TreeExpressionArgument for proper brace handling
+                let format_children = format_with(|f| {
+                    // multiline tree literals keep one child per line for stable layout
+                    if force_break && elements.len() > 1 {
+                        let mut wrote_child = false;
+                        let mut pending_blank_line = false;
+                        let mut previous_emitted_argument: Option<LocalNodeId<Argument>> = None;
+
+                        for elem_id in elements {
+                            let whitespace_info =
+                                tree_text_is_whitespace_only(f.context(), *elem_id);
+                            let is_whitespace_only = whitespace_info
+                                .is_some_and(|(is_whitespace_only, _)| is_whitespace_only);
+                            let has_blank_line =
+                                whitespace_info.is_some_and(|(_, has_blank_line)| has_blank_line);
+
+                            let argument_span = f.context().get_span(*elem_id);
+                            let argument_source = f.context().get_span_str(argument_span);
+                            let is_braced_whitespace =
+                                argument_source.trim_start().starts_with('{')
+                                    && argument_source.trim_end().ends_with('}')
+                                    && is_whitespace_only;
+
+                            if is_whitespace_only && !is_braced_whitespace {
+                                if has_blank_line && wrote_child {
+                                    pending_blank_line = true;
+                                }
+                                continue;
+                            }
+
+                            // keep explicit `{ " " }` style separators attached to previous child
+                            if is_braced_whitespace {
+                                if !wrote_child {
+                                    continue;
+                                }
+
+                                write!(
+                                    f,
+                                    [TreeExpressionArgument {
+                                        argument_id: *elem_id
+                                    }]
+                                )?;
+                                continue;
+                            }
+
+                            if wrote_child {
+                                let source_has_blank_line =
+                                    previous_emitted_argument.is_some_and(|previous_argument_id| {
+                                        tree_children_have_blank_line_between(
+                                            f.context(),
+                                            previous_argument_id,
+                                            *elem_id,
+                                        )
+                                    });
+
+                                if pending_blank_line || source_has_blank_line {
+                                    write!(f, [empty_line()])?;
+                                    pending_blank_line = false;
+                                } else {
+                                    write!(f, [hard_line_break()])?;
+                                }
+                            }
+
+                            write!(
+                                f,
+                                [TreeExpressionArgument {
+                                    argument_id: *elem_id
+                                }]
+                            )?;
+
+                            wrote_child = true;
+                            previous_emitted_argument = Some(*elem_id);
+                        }
+
+                        return Ok(());
+                    }
+
+                    // when all children are tree elements, keep one element per line
+                    if (all_tree_children || only_tree_or_comment_children) && elements.len() > 1 {
+                        for (index, elem_id) in elements.iter().enumerate() {
+                            if index > 0 {
+                                write!(f, [hard_line_break()])?;
+                            }
+
+                            write!(
+                                f,
+                                [TreeExpressionArgument {
+                                    argument_id: *elem_id
+                                }]
+                            )?;
+                        }
+
+                        return Ok(());
+                    }
+
+                    // otherwise, use fill so mixed content can share lines when it fits
+                    let separators = {
+                        let context = f.context();
+
+                        let whitespace_flags = elements
+                            .iter()
+                            .map(|elem_id| tree_text_is_whitespace_only(context, *elem_id))
+                            .map(|info| info.unwrap_or((false, false)))
+                            .collect::<Vec<_>>();
+                        let boundary_spaces = elements
+                            .iter()
+                            .map(|elem_id| {
+                                tree_text_boundary_separator_space(context, *elem_id)
+                                    .unwrap_or((false, false))
+                            })
+                            .collect::<Vec<_>>();
+
+                        // compute the spacing decisions between adjacent children
+                        let mut separators = Vec::with_capacity(elements.len());
+                        separators.push((false, false));
+
+                        for index in 1..elements.len() {
+                            let prev_is_whitespace_only = whitespace_flags[index - 1].0;
+                            let current_is_whitespace_only = whitespace_flags[index].0;
+                            let force_hard_break = child_breaks[index - 1] || child_breaks[index];
+
+                            if prev_is_whitespace_only || current_is_whitespace_only {
+                                separators.push((false, force_hard_break));
+                                continue;
+                            }
+
+                            let prev_trailing_space = boundary_spaces[index - 1].1;
+                            let current_leading_space = boundary_spaces[index].0;
+                            let should_insert_space_inline =
+                                prev_trailing_space || current_leading_space;
+                            separators.push((should_insert_space_inline, force_hard_break));
+                        }
+
+                        separators
+                    };
+
+                    // render children using fill with the precomputed separators
+                    let mut fill = f.fill();
+
+                    for (index, elem_id) in elements.iter().enumerate() {
+                        let (should_insert_space_inline, force_break) = separators[index];
+
+                        // build a separator doc for fill
+                        let separator = format_with(|f| {
+                            if index == 0 {
+                                return Ok(());
+                            }
+
+                            if force_break {
+                                write!(f, [hard_line_break()])?;
+                            } else if should_insert_space_inline {
+                                write!(f, [soft_line_break_or_space()])?;
+                            } else {
+                                write!(f, [token("")])?;
+                            }
+
+                            Ok(())
+                        });
+
+                        // add the child to the fill output
+                        let entry = TreeExpressionArgument {
+                            argument_id: *elem_id,
+                        };
+                        fill.entry(&separator, &entry);
+                    }
+
+                    fill.finish()
+                });
+
+                if force_break {
+                    write!(f, [block_indent(&group(&format_children))])?;
+                } else {
+                    // use soft indent: stays on one line if it fits
+                    write!(f, [group(&soft_block_indent(&format_children))])?;
+                }
+
+                // closing tag uses path only, no static arguments
+                write_closing_tag(f)?;
+            }
+
+            Ok(())
+        }))]
+    )
+}

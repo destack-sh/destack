@@ -787,6 +787,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 kind,
                 target,
                 items: _,
+                arguments: _,
             } => {
                 self.node("Expression::Export", _id.id)
                     .field("kind", kind)

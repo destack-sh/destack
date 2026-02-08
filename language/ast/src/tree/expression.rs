@@ -88,6 +88,7 @@ pub enum Expression {
         kind: DependencyKind,
         target: Option<StringId>,
         items: Vec<LocalNodeId<DependencyItem>>,
+        arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
 
     /// Export the module namespace as a global name (declaration files only).

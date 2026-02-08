@@ -1,18 +1,18 @@
 use std::collections::HashMap;
 
 use destack_ast::{
-    Block, Declaration, Expression, FunctionKind, LocalNodeId, Node, NodeTree, NodeTreeImpl,
-    NodeType, ScalarLiteral,
+    Annotation, AnnotationPosition, Block, Declaration, Expression, FunctionKind, LocalNodeId,
+    Node, NodeTree, NodeTreeImpl, NodeType, ScalarLiteral, TokenType,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
-use destack_source::Span;
+use destack_source::{FileId, Span};
 
 use super::imports;
 use crate::directive::{
     FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, collect_comment_tokens,
-    directive_for_node, ignore_range_for_node, write_ignored_span,
+    directive_for_node, ignore_range_for_node, ignored_span_source, write_ignored_span,
 };
 use crate::expression::format_expression;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
@@ -61,6 +61,11 @@ where
 {
     #[inline]
     fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'ast>>) -> FormatResult<()> {
+        // keep empty blocks compact unless they carry infix annotations
+        if !f.context().has_infix_annotation(self.node_id) {
+            return write!(f, [token("{"), token("}")]);
+        }
+
         write!(
             f,
             [group(&format_args![
@@ -101,6 +106,28 @@ fn expressions_have_blank_line_between(
         return false;
     }
 
+    // only preserve blank lines when the inter-span gap is pure trivia
+    // expression spans can occasionally include trailing syntax, which should not count
+    let has_non_trivia_token_between = context
+        .tokens
+        .iter()
+        .chain(context.side_tokens.iter())
+        .filter(|token| token.span.start >= left_span.end && token.span.end <= right_span.start)
+        .any(|token| {
+            !matches!(
+                token.token.ty,
+                TokenType::Whitespace
+                    | TokenType::Newline
+                    | TokenType::LineComment
+                    | TokenType::BlockComment
+                    | TokenType::DocLineComment
+                    | TokenType::DocBlockComment
+            )
+        });
+    if has_non_trivia_token_between {
+        return false;
+    }
+
     let between = context.get_span_str(Span::new(left_span.file, left_span.end, right_span.start));
     let normalized_between = between.replace("\r\n", "\n");
     let lines: Vec<&str> = normalized_between.split('\n').collect();
@@ -113,6 +140,61 @@ fn expressions_have_blank_line_between(
         .skip(1)
         .take(lines.len().saturating_sub(2))
         .any(|line| line.trim().is_empty())
+}
+
+/// Return whether trivia between two offsets contains an explicit blank line.
+fn source_has_blank_line_between_offsets(
+    context: &DestackFormatContext<'_>,
+    file: FileId,
+    start: u32,
+    end: u32,
+) -> bool {
+    if end <= start {
+        return false;
+    }
+
+    let between = context.get_span_str(Span::new(file, start, end));
+    let normalized_between = between.replace("\r\n", "\n");
+    let lines: Vec<&str> = normalized_between.split('\n').collect();
+    if lines.len() < 3 {
+        return false;
+    }
+
+    lines
+        .iter()
+        .skip(1)
+        .take(lines.len().saturating_sub(2))
+        .any(|line| line.trim().is_empty())
+}
+
+/// Return the earliest start offset for prefix comment annotations on an expression.
+fn expression_prefix_start(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+    fallback: u32,
+) -> u32 {
+    let Some(annotation_ids) = context.get_annotations(expression_id) else {
+        return fallback;
+    };
+
+    let mut start = fallback;
+    for annotation_id in annotation_ids {
+        let Annotation::Comment { node, position } = context.tree.get::<Annotation>(annotation_id)
+        else {
+            continue;
+        };
+        if !matches!(
+            position,
+            AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+        ) {
+            continue;
+        }
+
+        let comment_span = context.get_span(*node);
+        start = start.min(comment_span.start);
+    }
+
+    start
 }
 
 /// Format a block inline with zero or one expression (including label and infix annotations).
@@ -224,11 +306,13 @@ pub(crate) fn format_block_of_statements<'ast>(
 
     let mut prev_was_import = false;
     let mut prev_import_id: Option<LocalNodeId<Expression>> = None;
+    let mut previous_output_end: Option<(FileId, u32)> = None;
     let mut skip_until: Option<u32> = None;
 
     for (i, &expression_id) in effective_expressions.iter().enumerate() {
         let expression = f.context().tree.get(expression_id);
         let is_import_expr = imports::is_import(expression_id, tree);
+        let has_ignore_range = ignore_ranges.contains_key(&expression_id.id);
 
         let expression_span = f.context().get_span(expression_id);
 
@@ -241,20 +325,59 @@ pub(crate) fn format_block_of_statements<'ast>(
 
         // blank line between expressions
         if i > 0 {
+            let previous_expression_id = effective_expressions[i - 1];
             let has_blank_prefix_annotation =
                 f.context().has_blank_prefix_annotation(expression_id);
-            let source_has_blank_line_between = expressions_have_blank_line_between(
-                f.context(),
-                effective_expressions[i - 1],
-                expression_id,
-            );
-            if !has_blank_prefix_annotation {
+            let has_prefix_annotation = f.context().has_prefix_annotation(expression_id);
+            let previous_has_postfix_annotation =
+                f.context().has_postfix_annotation(previous_expression_id);
+            let source_has_blank_line_between = if has_ignore_range {
+                if let Some((previous_file, previous_end)) = previous_output_end {
+                    if previous_file != expression_span.file {
+                        false
+                    } else {
+                        let range_start = ignore_ranges
+                            .get(&expression_id.id)
+                            .map_or(expression_span.start, |span| span.start);
+                        source_has_blank_line_between_offsets(
+                            f.context(),
+                            expression_span.file,
+                            previous_end,
+                            range_start,
+                        )
+                    }
+                } else {
+                    let previous_span = f.context().get_span(previous_expression_id);
+                    if previous_span.file != expression_span.file {
+                        false
+                    } else {
+                        let range_start = ignore_ranges
+                            .get(&expression_id.id)
+                            .map_or(expression_span.start, |span| span.start);
+                        source_has_blank_line_between_offsets(
+                            f.context(),
+                            expression_span.file,
+                            previous_span.end,
+                            range_start,
+                        )
+                    }
+                }
+            } else {
+                expressions_have_blank_line_between(
+                    f.context(),
+                    previous_expression_id,
+                    expression_id,
+                )
+            };
+            if !has_blank_prefix_annotation || has_ignore_range {
                 write!(f, [hard_line_break()])?;
             }
 
             // determine if we need an extra blank line
             let needs_blank = if directive_count > 0 && i == directive_count {
                 insert_blank_after_directive_prologue && !has_blank_prefix_annotation
+            } else if has_ignore_range && has_blank_prefix_annotation {
+                true
             } else if organize && prev_was_import && is_import_expr {
                 // check if different import groups
                 prev_import_id.is_some_and(|prev_id| {
@@ -267,9 +390,12 @@ pub(crate) fn format_block_of_statements<'ast>(
                 })
             } else if prev_was_import && !is_import_expr {
                 // blank line after import section (if not already present)
-                !has_blank_prefix_annotation
+                !has_blank_prefix_annotation || has_ignore_range
             } else if source_has_blank_line_between {
-                !has_blank_prefix_annotation
+                (!has_blank_prefix_annotation
+                    && !has_prefix_annotation
+                    && !previous_has_postfix_annotation)
+                    || has_ignore_range
             } else {
                 false
             };
@@ -280,10 +406,24 @@ pub(crate) fn format_block_of_statements<'ast>(
         }
 
         if let Some(range_span) = ignore_ranges.get(&expression_id.id) {
+            let prefix_start =
+                expression_prefix_start(f.context(), expression_id, expression_span.start);
+            if prefix_start < range_span.start {
+                let prefix_span = Span::new(expression_span.file, prefix_start, range_span.start);
+                // preserve the final source newline between prefix trivia and ignored range
+                let prefix_source = ignored_span_source(f.context(), prefix_span);
+                let prefix_has_trailing_newline = prefix_source.ends_with('\n');
+                write_ignored_span(f, prefix_span)?;
+                if prefix_has_trailing_newline {
+                    write!(f, [hard_line_break()])?;
+                }
+            }
+
             write_ignored_span(f, *range_span)?;
             skip_until = Some(range_span.end);
             prev_was_import = false;
             prev_import_id = None;
+            previous_output_end = Some((range_span.file, range_span.end));
             continue;
         }
 
@@ -346,6 +486,7 @@ pub(crate) fn format_block_of_statements<'ast>(
         if is_import_expr {
             prev_import_id = Some(expression_id);
         }
+        previous_output_end = Some((expression_span.file, expression_span.end));
     }
     Ok(())
 }

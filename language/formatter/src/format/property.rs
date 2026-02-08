@@ -7,13 +7,17 @@ use crate::directive::{
 };
 use crate::format::block::format_block_of_statements;
 use crate::key::{format_key_with_quote_policy, is_identifier_for_quotes};
+use crate::scan::next_non_whitespace_after_annotation;
+use crate::signature::{
+    constructor_parameters_should_expand, parameter_is_variadic, single_parameter_should_hug,
+};
 use crate::r#where::format_where_clause_with_break;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     AbstractionModifier, AccessorKind, Annotation, AnnotationPosition, Asynchrony, BindingAnchor,
     BindingKind, BindingModifier, BindingOperator, Comment, CommentStyle, Declaration, Expression,
-    FunctionAbstraction, FunctionCardinality, FunctionMode, Key, Keyword, LocalNodeId, Member,
-    Mutability, Name, NodeType, Parameter, Property, Timing, VarianceModifier,
+    FunctionAbstraction, FunctionCardinality, FunctionMode, FunctionSignature, Key, Keyword,
+    LocalNodeId, Member, Mutability, Name, NodeType, Property, Timing, VarianceModifier,
 };
 use destack_fir::format::{FormatResult, text};
 use destack_fir::prelude::*;
@@ -112,74 +116,6 @@ pub(crate) fn format_binding_modifiers_postfix_maybe<'ast>(
     Ok(())
 }
 
-/// Return whether a parameter declares any modifiers.
-fn parameter_has_modifier(
-    context: &DestackFormatContext<'_>,
-    parameter_id: LocalNodeId<Parameter>,
-) -> bool {
-    match context.tree.get(parameter_id) {
-        Parameter::Named { modifiers, .. }
-        | Parameter::Pattern { modifiers, .. }
-        | Parameter::VariadicNamed { modifiers, .. }
-        | Parameter::VariadicPattern { modifiers, .. } => modifiers.is_some(),
-    }
-}
-
-/// Return whether constructor parameter lists should break by default.
-fn constructor_parameters_should_expand(
-    context: &DestackFormatContext<'_>,
-    mode: Option<FunctionMode>,
-    parameters: &[LocalNodeId<Parameter>],
-) -> bool {
-    matches!(mode, Some(FunctionMode::Constructor | FunctionMode::New))
-        && parameters.len() > 1
-        && parameters
-            .iter()
-            .any(|parameter_id| parameter_has_modifier(context, *parameter_id))
-}
-
-/// Return whether this parameter is variadic.
-fn parameter_is_variadic(
-    context: &DestackFormatContext<'_>,
-    parameter_id: LocalNodeId<Parameter>,
-) -> bool {
-    matches!(
-        context.tree.get(parameter_id),
-        Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. }
-    )
-}
-
-/// Return whether a single parameter should keep compact outer parentheses.
-fn single_parameter_should_hug(
-    context: &DestackFormatContext<'_>,
-    parameter_id: LocalNodeId<Parameter>,
-) -> bool {
-    if parameter_is_variadic(context, parameter_id) {
-        return false;
-    }
-
-    let has_multiline_collection_default = match context.tree.get(parameter_id) {
-        Parameter::Named { default, .. } | Parameter::Pattern { default, .. } => default
-            .is_some_and(|default_id| {
-                matches!(
-                    context.tree.get(default_id),
-                    Expression::ObjectExpression { .. } | Expression::ArrayExpression { .. }
-                ) && context.has_newline(context.get_span(default_id))
-            }),
-        Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } => false,
-    };
-    if has_multiline_collection_default {
-        return false;
-    }
-
-    let has_newline = context.has_newline(context.get_span(parameter_id));
-    match context.tree.get(parameter_id) {
-        Parameter::Named { default, .. } => !(has_newline && default.is_some()),
-        Parameter::VariadicNamed { .. } => !has_newline,
-        Parameter::Pattern { .. } | Parameter::VariadicPattern { .. } => true,
-    }
-}
-
 /// Return whether spacing before a function body should be emitted by annotations.
 fn should_elide_space_before_body(
     context: &DestackFormatContext<'_>,
@@ -234,23 +170,6 @@ fn member_method_signature_source_is_multiline(
 
     let signature_span = Span::new(node_span.file, node_span.start, body_span.start);
     context.get_span_str(signature_span).contains('\n')
-}
-
-/// Return the first non-whitespace character after an annotation span.
-fn next_non_whitespace_after_annotation(
-    context: &DestackFormatContext<'_>,
-    annotation_id: LocalNodeId<Annotation>,
-) -> Option<char> {
-    let span = context.get_span::<Annotation>(annotation_id);
-    if span.end >= context.file.len {
-        return None;
-    }
-
-    let tail_span = Span::new(span.file, span.end, context.file.len);
-    let tail_source = context.file.get_span_str(tail_span)?;
-    tail_source
-        .chars()
-        .find(|character: &char| !character.is_whitespace())
 }
 
 /// Collect deferred method boundary line comments from return type and body.
@@ -619,6 +538,175 @@ fn write_field_type_annotation<'ast>(
     }
 }
 
+/// Format shared property or member field output.
+fn format_field_like<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    modifiers: Option<BindingModifier>,
+    key: Option<Key>,
+    value: Option<LocalNodeId<Expression>>,
+    default: Option<LocalNodeId<Expression>>,
+    force_quote_keys: bool,
+) -> FormatResult<()> {
+    // modifiers
+    format_binding_modifiers_prefix_maybe(f, modifiers)?;
+    // key
+    if let Some(key) = key {
+        format_key_with_quote_policy(f, key, force_quote_keys)?;
+    }
+    // modifiers
+    format_binding_modifiers_postfix_maybe(f, modifiers)?;
+    // value
+    if let Some(value) = value {
+        write_field_type_annotation(f, value)?;
+    }
+    // default
+    if let Some(default) = default {
+        if should_keep_field_default_inline(f, default) {
+            write!(
+                f,
+                [group(&format_args![space(), token("="), space(), default])]
+            )?;
+        } else {
+            write!(
+                f,
+                [group(&format_args![
+                    space(),
+                    token("="),
+                    indent(&format_args![soft_line_break_or_space(), default]),
+                ])]
+            )?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Format shared property or member method output.
+fn format_method_like<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    modifiers: Option<BindingModifier>,
+    key: Option<Key>,
+    signature: &FunctionSignature,
+    body: Option<LocalNodeId<Expression>>,
+    force_quote_keys: bool,
+    signature_source_is_multiline_at_80: bool,
+) -> FormatResult<()> {
+    let generics = signature.generics.as_ref();
+
+    // modifiers
+    format_binding_modifiers_prefix_maybe(f, modifiers)?;
+
+    // abstraction
+    match signature.abstraction {
+        FunctionAbstraction::Abstract => {
+            write!(f, [Keyword::Abstract, space()])?;
+        }
+        FunctionAbstraction::AbstractOverride => {
+            write!(f, [Keyword::Abstract, space()])?;
+            write!(f, [Keyword::Override, space()])?;
+        }
+        FunctionAbstraction::ConcreteOverride => {
+            write!(f, [Keyword::Override, space()])?;
+        }
+        FunctionAbstraction::Concrete => {}
+    }
+
+    // asynchrony
+    if signature.asynchrony == Asynchrony::Async {
+        write!(f, [Keyword::Async, space()])?;
+    }
+
+    // mode
+    if let Some(mode) = signature.mode {
+        if let Some(keyword) = mode.to_keyword() {
+            write!(f, [keyword])?;
+        }
+        if key.is_some() || matches!(mode, FunctionMode::New) {
+            write!(f, [space()])?;
+        }
+    }
+
+    // cardinality
+    if signature.cardinality == FunctionCardinality::Generator {
+        write!(f, [token("*")])?;
+    }
+
+    // key
+    if let Some(key) = key {
+        format_key_with_quote_policy(f, key, force_quote_keys)?;
+    }
+
+    // static parameters
+    if let Some(static_parameters) =
+        generics.and_then(|generics| generics.static_parameters.as_ref())
+        && !static_parameters.is_empty()
+    {
+        write!(f, [list_like("<", ">", ",", static_parameters)])?;
+    }
+
+    // dynamic parameters
+    if signature.dynamic_parameters.len() == 1
+        && single_parameter_should_hug(f.context(), signature.dynamic_parameters[0])
+        && !return_type_is_multiline(f.context(), signature.return_type)
+        && !signature_source_is_multiline_at_80
+    {
+        write!(f, [token("("), signature.dynamic_parameters[0], token(")")])?;
+    } else {
+        let should_break_constructor_parameters = constructor_parameters_should_expand(
+            f.context(),
+            signature.mode,
+            &signature.dynamic_parameters,
+        );
+        let should_expand_single_for_multiline_return_type = signature.dynamic_parameters.len()
+            == 1
+            && !parameter_is_variadic(f.context(), signature.dynamic_parameters[0])
+            && return_type_is_multiline(f.context(), signature.return_type);
+        let should_expand_parameters =
+            should_break_constructor_parameters || should_expand_single_for_multiline_return_type;
+        let mut dynamic_parameters_list = list_like("(", ")", ",", &signature.dynamic_parameters);
+        dynamic_parameters_list.should_expand(should_expand_parameters);
+        write!(f, [dynamic_parameters_list])?;
+    }
+
+    // modifiers
+    format_binding_modifiers_postfix_maybe(f, modifiers)?;
+
+    // return type
+    if let Some(return_type) = signature.return_type {
+        write!(f, [token(":"), space(), return_type])?;
+    }
+
+    // where clauses
+    if let Some(where_clauses) = generics.and_then(|generics| generics.where_clauses.as_ref())
+        && !where_clauses.is_empty()
+    {
+        format_where_clause_with_break(f, where_clauses)?;
+    }
+
+    // body
+    if let Some(body) = body {
+        if method_body_has_deferred_boundary_line_comments(
+            f.context(),
+            signature.return_type,
+            Some(body),
+        ) {
+            let comments = collect_deferred_method_boundary_line_comments(
+                f.context(),
+                signature.return_type,
+                body,
+            );
+            write!(f, [space()])?;
+            format_method_body_block_with_deferred_boundary_line_comments(f, body, &comments)?;
+        } else if should_elide_space_before_body(f.context(), signature.return_type) {
+            write!(f, [body])?;
+        } else {
+            write!(f, [space(), body])?;
+        }
+    }
+
+    Ok(())
+}
+
 impl<'ast> FormatNode<'ast, Property> for Property {
     fn format_node(
         &self,
@@ -656,37 +744,7 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                 default,
             } => {
                 let force_quote_keys = should_force_quote_keys_for_property(f, node_id);
-
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-                // key
-                if let Some(key) = key {
-                    format_key_with_quote_policy(f, *key, force_quote_keys)?;
-                }
-                // modifiers
-                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
-                // value
-                if let Some(value) = value {
-                    write_field_type_annotation(f, *value)?;
-                }
-                // default
-                if let Some(default) = default {
-                    if should_keep_field_default_inline(f, *default) {
-                        write!(
-                            f,
-                            [group(&format_args![space(), token("="), space(), default])]
-                        )?;
-                    } else {
-                        write!(
-                            f,
-                            [group(&format_args![
-                                space(),
-                                token("="),
-                                indent(&format_args![soft_line_break_or_space(), default]),
-                            ])]
-                        )?;
-                    }
-                }
+                format_field_like(f, *modifiers, *key, *value, *default, force_quote_keys)?;
             }
             Property::Method {
                 modifiers,
@@ -694,60 +752,7 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                 signature,
                 body,
             } => {
-                let generics = signature.generics.as_ref();
                 let force_quote_keys = should_force_quote_keys_for_property(f, node_id);
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-
-                // abstraction
-                match signature.abstraction {
-                    FunctionAbstraction::Abstract => {
-                        write!(f, [Keyword::Abstract, space()])?;
-                    }
-                    FunctionAbstraction::AbstractOverride => {
-                        write!(f, [Keyword::Abstract, space()])?;
-                        write!(f, [Keyword::Override, space()])?;
-                    }
-                    FunctionAbstraction::ConcreteOverride => {
-                        write!(f, [Keyword::Override, space()])?;
-                    }
-                    FunctionAbstraction::Concrete => {}
-                }
-
-                // asynchrony
-                if signature.asynchrony == Asynchrony::Async {
-                    write!(f, [Keyword::Async, space()])?;
-                }
-
-                // mode
-                if let Some(mode) = signature.mode {
-                    if let Some(keyword) = mode.to_keyword() {
-                        write!(f, [keyword])?;
-                    }
-                    if key.is_some() || matches!(mode, FunctionMode::New) {
-                        write!(f, [space()])?;
-                    }
-                }
-
-                // cardinality
-                if signature.cardinality == FunctionCardinality::Generator {
-                    write!(f, [token("*")])?;
-                }
-
-                // key
-                if let Some(key) = key {
-                    format_key_with_quote_policy(f, *key, force_quote_keys)?;
-                }
-
-                // static parameters
-                if let Some(static_parameters) =
-                    generics.and_then(|generics| generics.static_parameters.as_ref())
-                    && !static_parameters.is_empty()
-                {
-                    write!(f, [list_like("<", ">", ",", static_parameters)])?;
-                }
-
-                // dynamic parameters
                 let signature_source_is_multiline_at_80 =
                     usize::from(f.context().options.line_width) <= 80
                         && property_method_signature_source_is_multiline(
@@ -755,68 +760,15 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                             node_id,
                             *body,
                         );
-                if signature.dynamic_parameters.len() == 1
-                    && single_parameter_should_hug(f.context(), signature.dynamic_parameters[0])
-                    && !return_type_is_multiline(f.context(), signature.return_type)
-                    && !signature_source_is_multiline_at_80
-                {
-                    write!(f, [token("("), signature.dynamic_parameters[0], token(")")])?;
-                } else {
-                    let should_break_constructor_parameters = constructor_parameters_should_expand(
-                        f.context(),
-                        signature.mode,
-                        &signature.dynamic_parameters,
-                    );
-                    let should_expand_single_for_multiline_return_type =
-                        signature.dynamic_parameters.len() == 1
-                            && !parameter_is_variadic(f.context(), signature.dynamic_parameters[0])
-                            && return_type_is_multiline(f.context(), signature.return_type);
-                    let should_expand_parameters = should_break_constructor_parameters
-                        || should_expand_single_for_multiline_return_type;
-                    let mut dynamic_parameters_list =
-                        list_like("(", ")", ",", &signature.dynamic_parameters);
-                    dynamic_parameters_list.should_expand(should_expand_parameters);
-                    write!(f, [dynamic_parameters_list])?;
-                }
-
-                // modifiers
-                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
-
-                // return type
-                if let Some(return_type) = signature.return_type {
-                    write!(f, [token(":"), space(), return_type])?;
-                }
-
-                // where clauses
-                if let Some(where_clauses) =
-                    generics.and_then(|generics| generics.where_clauses.as_ref())
-                    && !where_clauses.is_empty()
-                {
-                    format_where_clause_with_break(f, where_clauses)?;
-                }
-
-                // body
-                if let Some(body) = body {
-                    if method_body_has_deferred_boundary_line_comments(
-                        f.context(),
-                        signature.return_type,
-                        Some(*body),
-                    ) {
-                        let comments = collect_deferred_method_boundary_line_comments(
-                            f.context(),
-                            signature.return_type,
-                            *body,
-                        );
-                        write!(f, [space()])?;
-                        format_method_body_block_with_deferred_boundary_line_comments(
-                            f, *body, &comments,
-                        )?;
-                    } else if should_elide_space_before_body(f.context(), signature.return_type) {
-                        write!(f, [body])?;
-                    } else {
-                        write!(f, [space(), body])?;
-                    }
-                }
+                format_method_like(
+                    f,
+                    *modifiers,
+                    *key,
+                    signature,
+                    *body,
+                    force_quote_keys,
+                    signature_source_is_multiline_at_80,
+                )?;
             }
             Property::Spread { modifiers, value } => {
                 // modifiers
@@ -939,37 +891,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                 default,
             } => {
                 let force_quote_keys = should_force_quote_keys_for_member(f, node_id);
-
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-                // key
-                if let Some(key) = key {
-                    format_key_with_quote_policy(f, *key, force_quote_keys)?;
-                }
-                // modifiers
-                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
-                // value
-                if let Some(value) = value {
-                    write_field_type_annotation(f, *value)?;
-                }
-                // default
-                if let Some(default) = default {
-                    if should_keep_field_default_inline(f, *default) {
-                        write!(
-                            f,
-                            [group(&format_args![space(), token("="), space(), default])]
-                        )?;
-                    } else {
-                        write!(
-                            f,
-                            [group(&format_args![
-                                space(),
-                                token("="),
-                                indent(&format_args![soft_line_break_or_space(), default]),
-                            ])]
-                        )?;
-                    }
-                }
+                format_field_like(f, *modifiers, *key, *value, *default, force_quote_keys)?;
             }
             Member::Method {
                 modifiers,
@@ -977,126 +899,19 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                 signature,
                 body,
             } => {
-                let generics = signature.generics.as_ref();
                 let force_quote_keys = should_force_quote_keys_for_member(f, node_id);
-
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-
-                // abstraction
-                match signature.abstraction {
-                    FunctionAbstraction::Abstract => {
-                        write!(f, [Keyword::Abstract, space()])?;
-                    }
-                    FunctionAbstraction::AbstractOverride => {
-                        write!(f, [Keyword::Abstract, space()])?;
-                        write!(f, [Keyword::Override, space()])?;
-                    }
-                    FunctionAbstraction::ConcreteOverride => {
-                        write!(f, [Keyword::Override, space()])?;
-                    }
-                    FunctionAbstraction::Concrete => {}
-                }
-
-                // asynchrony
-                if signature.asynchrony == Asynchrony::Async {
-                    write!(f, [Keyword::Async, space()])?;
-                }
-
-                // mode
-                if let Some(mode) = signature.mode {
-                    if let Some(keyword) = mode.to_keyword() {
-                        write!(f, [keyword])?;
-                    }
-                    if key.is_some() || matches!(mode, FunctionMode::New) {
-                        write!(f, [space()])?;
-                    }
-                }
-
-                // cardinality
-                if signature.cardinality == FunctionCardinality::Generator {
-                    write!(f, [token("*")])?;
-                }
-
-                // key
-                if let Some(key) = key {
-                    format_key_with_quote_policy(f, *key, force_quote_keys)?;
-                }
-
-                // static parameters
-                if let Some(static_parameters) =
-                    generics.and_then(|generics| generics.static_parameters.as_ref())
-                    && !static_parameters.is_empty()
-                {
-                    write!(f, [list_like("<", ">", ",", static_parameters)])?;
-                }
-
-                // dynamic parameters
                 let signature_source_is_multiline_at_80 =
                     usize::from(f.context().options.line_width) <= 80
                         && member_method_signature_source_is_multiline(f.context(), node_id, *body);
-                if signature.dynamic_parameters.len() == 1
-                    && single_parameter_should_hug(f.context(), signature.dynamic_parameters[0])
-                    && !return_type_is_multiline(f.context(), signature.return_type)
-                    && !signature_source_is_multiline_at_80
-                {
-                    write!(f, [token("("), signature.dynamic_parameters[0], token(")")])?;
-                } else {
-                    let should_break_constructor_parameters = constructor_parameters_should_expand(
-                        f.context(),
-                        signature.mode,
-                        &signature.dynamic_parameters,
-                    );
-                    let should_expand_single_for_multiline_return_type =
-                        signature.dynamic_parameters.len() == 1
-                            && !parameter_is_variadic(f.context(), signature.dynamic_parameters[0])
-                            && return_type_is_multiline(f.context(), signature.return_type);
-                    let should_expand_parameters = should_break_constructor_parameters
-                        || should_expand_single_for_multiline_return_type;
-                    let mut dynamic_parameters_list =
-                        list_like("(", ")", ",", &signature.dynamic_parameters);
-                    dynamic_parameters_list.should_expand(should_expand_parameters);
-                    write!(f, [dynamic_parameters_list])?;
-                }
-
-                // modifiers
-                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
-
-                // return type
-                if let Some(return_type) = signature.return_type {
-                    write!(f, [token(":"), space(), return_type])?;
-                }
-
-                // where clauses
-                if let Some(where_clauses) =
-                    generics.and_then(|generics| generics.where_clauses.as_ref())
-                    && !where_clauses.is_empty()
-                {
-                    format_where_clause_with_break(f, where_clauses)?;
-                }
-
-                // body
-                if let Some(body) = body {
-                    if method_body_has_deferred_boundary_line_comments(
-                        f.context(),
-                        signature.return_type,
-                        Some(*body),
-                    ) {
-                        let comments = collect_deferred_method_boundary_line_comments(
-                            f.context(),
-                            signature.return_type,
-                            *body,
-                        );
-                        write!(f, [space()])?;
-                        format_method_body_block_with_deferred_boundary_line_comments(
-                            f, *body, &comments,
-                        )?;
-                    } else if should_elide_space_before_body(f.context(), signature.return_type) {
-                        write!(f, [body])?;
-                    } else {
-                        write!(f, [space(), body])?;
-                    }
-                }
+                format_method_like(
+                    f,
+                    *modifiers,
+                    *key,
+                    signature,
+                    *body,
+                    force_quote_keys,
+                    signature_source_is_multiline_at_80,
+                )?;
             }
             Member::Embed { modifiers, value } => {
                 // modifiers

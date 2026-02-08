@@ -4,6 +4,9 @@ use destack_fir::write;
 use destack_source::Span;
 
 use crate::directive::is_ignore_directive_comment;
+use crate::scan::{
+    next_non_whitespace_after_annotation, previous_non_whitespace_before_annotation,
+};
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     Annotation, AnnotationPosition, Argument, Blank, Comment, CommentStyle, Declaration, Decorator,
@@ -98,23 +101,6 @@ impl<'ast> DestackFormatContext<'ast> {
             node_id,
         }
     }
-}
-
-/// Return the first non whitespace character after an annotation span.
-fn next_non_whitespace_after_annotation<'ast>(
-    context: &DestackFormatContext<'ast>,
-    annotation_id: LocalNodeId<Annotation>,
-) -> Option<char> {
-    let span = context.get_span::<Annotation>(annotation_id);
-    if span.end >= context.file.len {
-        return None;
-    }
-
-    let tail_span = Span::new(span.file, span.end, context.file.len);
-    let tail_source = context.file.get_span_str(tail_span)?;
-    tail_source
-        .chars()
-        .find(|character: &char| !character.is_whitespace())
 }
 
 /// Return whether an annotation is followed by an `else` keyword.
@@ -568,24 +554,6 @@ fn annotation_next_token_is_on_same_line(
     false
 }
 
-/// Return the first non whitespace character before an annotation span.
-fn previous_non_whitespace_before_annotation<'ast>(
-    context: &DestackFormatContext<'ast>,
-    annotation_id: LocalNodeId<Annotation>,
-) -> Option<char> {
-    let span = context.get_span(annotation_id);
-    if span.start == 0 {
-        return None;
-    }
-
-    let head_span = Span::new(span.file, 0, span.start);
-    let head_source = context.file.get_span_str(head_span)?;
-    head_source
-        .chars()
-        .rev()
-        .find(|character: &char| !character.is_whitespace())
-}
-
 /// Return whether an annotation directly follows a colon in source.
 fn annotation_follows_colon<'ast>(
     context: &DestackFormatContext<'ast>,
@@ -629,6 +597,29 @@ fn annotation_has_leading_newline<'ast>(
         .chars()
         .take_while(|character| character.is_whitespace())
         .any(|character| character == '\n')
+}
+
+/// Return whether a comment annotation starts at the first non-whitespace position on its line.
+fn comment_annotation_starts_on_own_line<'ast>(
+    context: &DestackFormatContext<'ast>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    let Annotation::Comment {
+        node: comment_id, ..
+    } = context.tree.get::<Annotation>(annotation_id)
+    else {
+        return false;
+    };
+
+    let comment_span = context.get_span::<Comment>(*comment_id);
+    if let Some((line_index, _)) = context.file.get_position(comment_span.start)
+        && let Some(line_span) = context.file.get_line_span(line_index)
+    {
+        let prefix_span = Span::new(comment_span.file, line_span.start, comment_span.start);
+        context.get_span_str(prefix_span).trim().is_empty()
+    } else {
+        false
+    }
 }
 
 /// Return whether a span falls on a ternary separator boundary.
@@ -1049,6 +1040,7 @@ where
             return Ok(());
         };
         let mut first_node_type: Option<NodeType> = None;
+        let mut previous_was_blank_annotation = false;
         for annotation_id in annotations {
             // read annotation
             let annotation = f.context().tree.get::<Annotation>(annotation_id);
@@ -1178,6 +1170,11 @@ where
             } else {
                 false
             };
+            let comment_starts_on_own_line = if is_slash_comment {
+                comment_annotation_starts_on_own_line(f.context(), annotation_id)
+            } else {
+                false
+            };
             let is_ignore_directive_postfix_comment = is_slash_comment
                 && matches!(
                     position,
@@ -1188,7 +1185,27 @@ where
                 && {
                     let annotation_span = f.context().get_span::<Annotation>(annotation_id);
                     let annotation_source = f.context().get_span_str(annotation_span);
-                    is_ignore_directive_comment(annotation_source)
+                    let comment_source = if let Annotation::Comment {
+                        node: comment_id, ..
+                    } = annotation
+                    {
+                        let comment = f.context().tree.get::<Comment>(*comment_id);
+                        f.context().strings.get(comment.string)
+                    } else {
+                        ""
+                    };
+
+                    let is_own_line_postfix =
+                        annotation_starts_on_own_line(f.context(), annotation_id)
+                            || annotation_has_leading_newline(f.context(), annotation_id)
+                            || comment_starts_on_own_line;
+
+                    if is_own_line_postfix {
+                        is_ignore_directive_comment(annotation_source)
+                            || is_ignore_directive_comment(comment_source)
+                    } else {
+                        false
+                    }
                 };
             let is_inline_decorator_prefix = matches!(annotation, Annotation::Decorator { .. })
                 && position == AnnotationPosition::BlockPrefix
@@ -1213,14 +1230,20 @@ where
                 .get_ancestors(self.node_id)
                 .into_iter()
                 .any(|(_, node_type)| node_type == NodeType::Member);
-            let has_member_context = has_member_ancestor
-                || (T::TYPE == NodeType::Expression
-                    && matches!(
-                        f.context()
-                            .tree
-                            .get::<Expression>(LocalNodeId::<Expression>::new(self.node_id.id)),
-                        Expression::Member { .. } | Expression::PrivateMember { .. }
-                    ));
+            let node_has_member_shape = if T::TYPE == NodeType::Expression {
+                match f
+                    .context()
+                    .tree
+                    .get::<Expression>(LocalNodeId::<Expression>::new(self.node_id.id))
+                {
+                    Expression::Member { .. } | Expression::PrivateMember { .. } => true,
+                    Expression::Path { path, .. } => path.segments.len() > 1,
+                    _ => false,
+                }
+            } else {
+                false
+            };
+            let has_member_context = has_member_ancestor || node_has_member_shape;
             let is_blank_prefix_annotation = matches!(
                 annotation,
                 Annotation::Blank {
@@ -1228,6 +1251,10 @@ where
                     ..
                 }
             );
+            let is_blank_annotation = matches!(annotation, Annotation::Blank { .. });
+            if is_blank_annotation && previous_was_blank_annotation {
+                continue;
+            }
             if is_blank_prefix_annotation
                 && has_if_ancestor
                 && annotation_followed_by_else_keyword(f.context(), annotation_id)
@@ -1257,14 +1284,17 @@ where
                     position,
                     AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary
                 )
-                && !has_member_context
             {
                 let starts_on_own_line = annotation_starts_on_own_line(f.context(), annotation_id)
-                    || annotation_has_leading_newline(f.context(), annotation_id);
+                    || annotation_has_leading_newline(f.context(), annotation_id)
+                    || comment_starts_on_own_line;
                 let next_character =
                     next_non_whitespace_after_annotation(f.context(), annotation_id);
+                let is_member_chain_boundary =
+                    has_member_context && matches!(next_character, Some('.' | '?'));
                 let should_preserve_own_line_indentation = starts_on_own_line
-                    && (!annotation_precedes_separator(f.context(), annotation_id)
+                    && (is_member_chain_boundary
+                        || !annotation_precedes_separator(f.context(), annotation_id)
                         || matches!(next_character, Some(';' | '(')));
                 if should_preserve_own_line_indentation {
                     let raw_line = annotation_line_with_indentation(f.context(), annotation_id)
@@ -1296,7 +1326,8 @@ where
                 && !has_member_context
             {
                 let starts_on_own_line = annotation_starts_on_own_line(f.context(), annotation_id)
-                    || annotation_has_leading_newline(f.context(), annotation_id);
+                    || annotation_has_leading_newline(f.context(), annotation_id)
+                    || comment_starts_on_own_line;
                 let next_character =
                     next_non_whitespace_after_annotation(f.context(), annotation_id);
                 let should_preserve_own_line_indentation = starts_on_own_line
@@ -1315,6 +1346,19 @@ where
             }
 
             if is_slash_comment && position == AnnotationPosition::BlockPrefix {
+                let starts_on_own_line = annotation_starts_on_own_line(f.context(), annotation_id)
+                    || annotation_has_leading_newline(f.context(), annotation_id)
+                    || comment_starts_on_own_line;
+                let should_preserve_member_chain_prefix_line =
+                    has_member_context && starts_on_own_line;
+                if should_preserve_member_chain_prefix_line {
+                    let annotation_span = f.context().get_span::<Annotation>(annotation_id);
+                    let annotation_source = f.context().get_span_str(annotation_span);
+                    write!(f, [hard_line_break(), text(annotation_source.trim())])?;
+                    write!(f, [hard_line_break()])?;
+                    continue;
+                }
+
                 let annotation_span = f.context().get_span::<Annotation>(annotation_id);
                 let annotation_source = f.context().get_span_str(annotation_span);
                 let should_preserve_alignment_marker_indentation =
@@ -1428,6 +1472,21 @@ where
                 }
             }
 
+            let is_block_prefix_before_type_grouping_operator = position
+                == AnnotationPosition::BlockPrefix
+                && T::TYPE == NodeType::Expression
+                && matches!(annotation, Annotation::Comment { .. })
+                && {
+                    let annotation_span = f.context().get_span::<Annotation>(annotation_id);
+                    let annotation_source = f.context().get_span_str(annotation_span);
+                    let trimmed = annotation_source.trim_start();
+                    annotation_source.contains('\n') && !trimmed.starts_with("/**")
+                }
+                && matches!(
+                    next_non_whitespace_after_annotation(f.context(), annotation_id),
+                    Some('|' | '&')
+                );
+
             // format annotation itself
             annotation.format_node(annotation_id, f)?;
 
@@ -1466,7 +1525,9 @@ where
                         if !annotation_precedes_separator(f.context(), annotation_id) {
                             write!(f, [space()])?;
                         }
-                    } else if is_inline_decorator_prefix {
+                    } else if is_inline_decorator_prefix
+                        || is_block_prefix_before_type_grouping_operator
+                    {
                         write!(f, [space()])?;
                     } else {
                         write!(f, [hard_line_break()])?;
@@ -1480,6 +1541,8 @@ where
                     }
                 }
             }
+
+            previous_was_blank_annotation = is_blank_annotation;
         }
         Ok(())
     }
