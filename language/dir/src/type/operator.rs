@@ -17,6 +17,8 @@ pub enum TypeUnaryOperator {
     Typeof,
     /// `keyof`
     Keyof,
+    /// `as comptime`
+    AsComptime,
     /// `as const`
     AsConst,
 }

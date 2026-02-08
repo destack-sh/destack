@@ -764,6 +764,7 @@ fn format_type_unary(
         dir::TypeUnaryOperator::Readonly => format!("readonly {right_str}"),
         dir::TypeUnaryOperator::Typeof => format!("typeof {right_str}"),
         dir::TypeUnaryOperator::Keyof => format!("keyof {right_str}"),
+        dir::TypeUnaryOperator::AsComptime => format!("{right_str} as comptime"),
         dir::TypeUnaryOperator::AsConst => format!("{right_str} as const"),
     }
 }

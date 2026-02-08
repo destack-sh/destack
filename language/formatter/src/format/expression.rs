@@ -1364,7 +1364,10 @@ fn is_type_context(context: &DestackFormatContext<'_>, node_id: LocalNodeId<Expr
             NodeType::Expression => {
                 let parent_expr = context.tree.get(LocalNodeId::<Expression>::new(parent_id));
                 if let Expression::TypeUnary { operator, right } = parent_expr
-                    && *operator == TypeUnaryOperator::AsConst
+                    && matches!(
+                        operator,
+                        TypeUnaryOperator::AsConst | TypeUnaryOperator::AsComptime
+                    )
                     && right.id == current_id
                 {
                     current_id = parent_id;
@@ -6757,6 +6760,9 @@ pub(crate) fn format_expression<'ast>(
             | TypeUnaryOperator::Typeof
             | TypeUnaryOperator::Keyof => {
                 write!(f, [operator, space(), right])?;
+            }
+            TypeUnaryOperator::AsComptime => {
+                write!(f, [right, token(" as comptime")])?;
             }
             TypeUnaryOperator::AsConst => {
                 write!(f, [right, token(" as const")])?;

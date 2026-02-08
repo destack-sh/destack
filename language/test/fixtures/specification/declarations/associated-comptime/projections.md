@@ -4,6 +4,51 @@ Associated comptime projection tests live here.
 
 ## projections
 
+### type-space indexes remain indexed access in associated aliases
+
+> Type-space indexes inside associated aliases must keep indexed-access semantics.
+> This case uses `keyof` and a type-space key parameter to verify `Row[K]` is not reclassified as a fixed-size array.
+> Projection should preserve TypeScript-style index semantics even on owners that also declare associated comptime members.
+
+```ds
+class Columnar<Row> {
+    comptime const Width: number = 8;
+    type Cell<K: keyof Row> = Row[K];
+}
+
+declare const cell: Columnar<{ id: int32, name: string }>.Cell<"id">;
+cell satisfies int32;
+```
+
+### as comptime forces fixed-size array interpretation
+
+> `as comptime` forces fixed-size array interpretation in `.ds` type indexes.
+> This case keeps the index expression in value-space and marks it explicitly as comptime.
+> Projection should fold the static value and produce a fixed-size array type.
+
+```ds
+class Columnar<Row, comptime Lanes: number> {
+    type Lane = Row[Lanes as comptime];
+}
+
+declare const lane: Columnar<uint8, 16>.Lane;
+lane satisfies uint8[16];
+```
+
+### ambiguous type indexes require as comptime disambiguation
+
+> Unqualified `T[N]` is ambiguous when `N` is not known to be type-space or value-space.
+> This case leaves `N` unconstrained and uses the index in an associated alias.
+> Analyze should reject the declaration and require explicit disambiguation.
+
+```ds
+class Columnar<Row, N> {
+    type Lane = Row[N];
+}
+```
+
+- contains: ambiguous
+
 ### type level projections can use associated comptime constants
 
 > Associated comptime constant projections are valid in type level expressions.

@@ -33,7 +33,7 @@ pub enum OperatorPrecedence {
     /// `!x -x -%x ~x &x *x ..x ++x --x`
     Prefix = 1900,
     /// Type unary operators.
-    /// `type readonly typeof keyof as const`
+    /// `type readonly typeof keyof as comptime as const`
     TypeUnary = 1800,
     /// Multiplication-related binary operators.
     /// `* / % ** *% *| **% **|`
@@ -96,6 +96,8 @@ pub enum TypeUnaryOperator {
     Typeof = 1804,
     /// `keyof`
     Keyof = 1803,
+    /// `as comptime`
+    AsComptime = 1802,
     /// `as const`
     AsConst = 1801,
 }
@@ -124,7 +126,9 @@ impl TypeUnaryOperator {
             | TypeUnaryOperator::Readonly
             | TypeUnaryOperator::Typeof
             | TypeUnaryOperator::Keyof => true,
-            TypeUnaryOperator::Must | TypeUnaryOperator::AsConst => false,
+            TypeUnaryOperator::Must
+            | TypeUnaryOperator::AsComptime
+            | TypeUnaryOperator::AsConst => false,
         }
     }
 
@@ -153,6 +157,7 @@ impl TypeUnaryOperator {
         _token_type: TokenType,
     ) -> Option<TypeUnaryOperator> {
         match (token_str, next_token_str) {
+            ("as", "comptime") => Some(TypeUnaryOperator::AsComptime),
             ("as", "const") => Some(TypeUnaryOperator::AsConst),
             _ => None,
         }

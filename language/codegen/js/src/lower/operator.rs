@@ -39,6 +39,7 @@ impl ModuleLowerer<'_> {
             dir::TypeUnaryOperator::Must => unary(TypeUnaryOperator::Must),
             dir::TypeUnaryOperator::Typeof => unary(TypeUnaryOperator::Typeof),
             dir::TypeUnaryOperator::Keyof => unary(TypeUnaryOperator::Keyof),
+            dir::TypeUnaryOperator::AsComptime => unary(TypeUnaryOperator::AsComptime),
             dir::TypeUnaryOperator::AsConst => unary(TypeUnaryOperator::AsConst),
         };
 

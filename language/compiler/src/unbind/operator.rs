@@ -158,6 +158,7 @@ impl Compiler {
             dir::TypeUnaryOperator::Readonly => ast::TypeUnaryOperator::Readonly,
             dir::TypeUnaryOperator::Typeof => ast::TypeUnaryOperator::Typeof,
             dir::TypeUnaryOperator::Keyof => ast::TypeUnaryOperator::Keyof,
+            dir::TypeUnaryOperator::AsComptime => ast::TypeUnaryOperator::AsComptime,
             dir::TypeUnaryOperator::AsConst => ast::TypeUnaryOperator::AsConst,
         }
     }

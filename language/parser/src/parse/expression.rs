@@ -2990,7 +2990,10 @@ impl Parser {
                     // avoid consuming conditional type ? as a type maybe
                     let operator_start = self.mark();
                     self.bump(); // eat type unary operator
-                    if operator == TypeUnaryOperator::AsConst {
+                    if matches!(
+                        operator,
+                        TypeUnaryOperator::AsConst | TypeUnaryOperator::AsComptime
+                    ) {
                         self.bump(); // eat second token
                     }
                     let operator_span = self.get_span_from(&operator_start);
@@ -6569,6 +6572,19 @@ self
         // Value as const
         assert_node!(parser.tree, expr_id, Expression::TypeUnary { operator, right } => {
             assert_eq!(*operator, TypeUnaryOperator::AsConst);
+            assert_expression_path!(parser, parser.tree.get(*right), "Value");
+        });
+    }
+
+    /// Parse type unary postfix as comptime operation.
+    #[test]
+    fn test_parse_type_unary_postfix_as_comptime_expression() {
+        let mut test = TestParser::new("Value as comptime");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        // Value as comptime
+        assert_node!(parser.tree, expr_id, Expression::TypeUnary { operator, right } => {
+            assert_eq!(*operator, TypeUnaryOperator::AsComptime);
             assert_expression_path!(parser, parser.tree.get(*right), "Value");
         });
     }
