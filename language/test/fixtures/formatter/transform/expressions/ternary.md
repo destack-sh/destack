@@ -51,9 +51,9 @@ const el = isLoading ? <Spinner /> : <Content data={data} />
 ```
 
 ```ds expected
-const el = isLoading
-    ? <Spinner />
-    : <Content data={data} />;
+const el = isLoading ? <Spinner /> : <Content
+    data={data}
+/>;
 ```
 
 ### ternary with long branches breaks
@@ -82,7 +82,7 @@ const value = options.singleRun ? "Infinity" : (options.cacheLifetime?.glob ?? D
 const value = options.singleRun
     ? "Infinity"
     : (options.cacheLifetime?.glob ??
-        DEFAULT_TSCONFIG_CACHE_DURATION_SECONDS);
+            DEFAULT_TSCONFIG_CACHE_DURATION_SECONDS);
 ```
 
 ## Nested Ternary
@@ -150,13 +150,13 @@ const result = id === null
 const result = id === null
     ? null
     : internal.getSuspenseCache(client).getFragmentRef(
-        [id, options.fragment, cache.canonicalStringify(variables)],
-        client,
-        tslib.__assign(tslib.__assign({}, options), {
-            variables: variables,
-            from: id,
-        }),
-    );
+            [id, options.fragment, cache.canonicalStringify(variables)],
+            client,
+            tslib.__assign(tslib.__assign({}, options), {
+                variables: variables,
+                from: id,
+            }),
+        );
 ```
 
 ### ternary with object literals

@@ -111,10 +111,12 @@ const node = <Panel<Props> title="Settings" description="Long description" />
 ```
 
 ```tsx expected
-const node = <Panel<Props>
-    title="Settings"
-    description="Long description"
-/>;
+const node = (
+    <Panel<Props>
+        title="Settings"
+        description="Long description"
+    />
+);
 ```
 
 ## Attributes
@@ -166,11 +168,13 @@ const node = <><Header /><Body /><Footer /></>
 ```
 
 ```tsx expected
-const node = <>
-    <Header />
-    <Body />
-    <Footer />
-</>;
+const node = (
+    <>
+        <Header />
+        <Body />
+        <Footer />
+    </>
+);
 ```
 
 ## Multiline Elements
@@ -184,8 +188,10 @@ const node = <Panel title="Settings" description="Long description" />
 ```
 
 ```tsx expected
-const node = <Panel
-    title="Settings"
-    description="Long description"
-/>;
+const node = (
+    <Panel
+        title="Settings"
+        description="Long description"
+    />
+);
 ```

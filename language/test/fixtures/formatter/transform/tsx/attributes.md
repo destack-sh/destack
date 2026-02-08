@@ -77,11 +77,13 @@ const node = <Panel title="Settings" description="Long description" icon={settin
 ```
 
 ```tsx expected
-const node = <Panel
-    title="Settings"
-    description="Long description"
-    icon={settingsIcon}
-/>;
+const node = (
+    <Panel
+        title="Settings"
+        description="Long description"
+        icon={settingsIcon}
+    />
+);
 ```
 
 ### bracket same line option
@@ -93,10 +95,12 @@ const node = <Panel title="Settings" description="Long description" icon={settin
 ```
 
 ```tsx expected
-const node = <Panel
-    title="Settings"
-    description="Long description"
-    icon={settingsIcon} />;
+const node = (
+    <Panel
+        title="Settings"
+        description="Long description"
+        icon={settingsIcon} />
+);
 ```
 
 ### single attribute per line option
@@ -108,9 +112,11 @@ const node = <Button variant="primary" size="large" disabled />
 ```
 
 ```tsx expected
-const node = <Button
-    variant="primary"
-    size="large"
-    disabled
-/>;
+const node = (
+    <Button
+        variant="primary"
+        size="large"
+        disabled
+    />
+);
 ```

@@ -50,7 +50,7 @@ enum Mode {
     Debug,
 
     toString(): string {
-        return "mode"
+        return "mode";
     }
 }
 ```

@@ -20,10 +20,10 @@ export enum MeetupStatus {
 @entity
 export class MeetupSeries {
     @description("The name of the Meetup Series.")
-    name: string,
+    name: string;
 
     @description("The prefix of the Meetup Series.")
-    prefix: string,
+    prefix: string;
 }
 
 @description("The language of a Meetup.")
@@ -37,29 +37,29 @@ export enum MeetupLanguage {
 @entity
 export class Meetup {
     @description("When the Meetup is happening.")
-    date: DateTime,
+    date: DateTime;
 
     @description("The name of the Meetup.")
-    name: string,
+    name: string;
 
     @description("The number of the Meetup.")
-    number: uint,
+    number: uint;
 
     @description("The Series this Meetup is part of.")
-    series?: MeetupSeries,
+    series?: MeetupSeries;
 
     @description("The language of the Meetup.")
-    language: MeetupLanguage,
+    language: MeetupLanguage;
 
     @description("The status of the Meetup.")
-    status: MeetupStatus,
+    status: MeetupStatus;
 }
 
 @entity
 export class MeetupRegistration {
     @description("The Meetup this registration is for.")
-    meetup: Meetup,
+    meetup: Meetup;
 
     @description("The person registering.")
-    user: User,
+    user: User;
 }

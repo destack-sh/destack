@@ -47,11 +47,7 @@ if(a){foo()}else if(b){bar()}else{baz()}
 ```ds expected
 if (a) {
     foo()
-} else if (b) {
-    bar()
-} else {
-    baz()
-}
+} else if (b) { bar() } else { baz() }
 ```
 
 ### if with complex condition
@@ -70,16 +66,14 @@ if (x > 0 && y < 10) {
 
 ### if without braces
 
-The formatter adds braces to if statements that lack them.
+Single statement `if` bodies stay brace free.
 
 ```ds
 if (x) foo()
 ```
 
 ```ds expected
-if (x) {
-    foo()
-}
+if (x) foo();
 ```
 
 ### if as expression
@@ -298,28 +292,28 @@ for (const i of 0..10) {
 
 ### for with destructuring
 
-In for-of loops with destructuring, `const` is implicit and removed.
+For-of loops with destructuring keep explicit `const`.
 
 ```ds
 for (const [key, value] of map) { process(key, value) }
 ```
 
 ```ds expected
-for ([key, value] of map) {
+for (const [key, value] of map) {
     process(key, value)
 }
 ```
 
 ### for with object destructuring
 
-Object destructuring in for-of loops also has implicit `const`.
+Object destructuring in for-of loops also keeps explicit `const`.
 
 ```ds
 for (const { name, value } of items) { process(name, value) }
 ```
 
 ```ds expected
-for ({ name, value } of items) {
+for (const { name, value } of items) {
     process(name, value)
 }
 ```

@@ -25,6 +25,18 @@ impl TestFormatter {
     where
         F: FnOnce(&mut Parser) -> ParseResult<N>,
     {
+        Self::parse_with_file_type(input, FileType::Destack, parse_fn)
+    }
+
+    /// Make a TestFormatter over a parse function on an input with an explicit file type.
+    pub(crate) fn parse_with_file_type<F, N>(
+        input: &str,
+        file_type: FileType,
+        parse_fn: F,
+    ) -> ParseResult<(Self, N)>
+    where
+        F: FnOnce(&mut Parser) -> ParseResult<N>,
+    {
         // tokenize source
         let file_id = FileId::new(0);
         let file = File::from_text(
@@ -32,13 +44,13 @@ impl TestFormatter {
             "<string>".to_string(),
             Uri::from_string("<string>"),
             None,
-            FileType::Destack,
+            file_type,
             input.to_string(),
         );
         let file = Arc::new(file);
 
         // parse
-        let language = LanguageType::default();
+        let language = LanguageType::from(file_type);
         let (side_span, tree, tokens, side_tokens, strings, n) = {
             let mut parser = Parser::lex_file(file.clone(), language);
             let n = parse_fn(&mut parser)?;

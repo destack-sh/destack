@@ -15,7 +15,7 @@ extension for  Vector2  { }
 Empty extension bodies stay on one line with internal spacing.
 
 ```ds expected
-extension for Vector2 { }
+extension for Vector2 {}
 ```
 
 ### extension with implements
@@ -29,7 +29,7 @@ extension for  Vector2  implements  Add < Vector2 >  { }
 Generic type arguments have no internal spacing.
 
 ```ds expected
-extension for Vector2 implements Add<Vector2> { }
+extension for Vector2 implements Add<Vector2> {}
 ```
 
 ## Named Extensions
@@ -43,7 +43,7 @@ extension  MathUtils  for  int32  { }
 ```
 
 ```ds expected
-extension MathUtils for int32 { }
+extension MathUtils for int32 {}
 ```
 
 ## Generic Extensions
@@ -59,7 +59,7 @@ extension<T> for Box<T> { map<U>(f: (T) => U): Box<U> { return Box { value: f(th
 ```ds expected
 extension<T> for Box<T> {
     map<U>(f: (T) => U): Box<U> {
-        return Box { value: f(this.value) }
+        return Box { value: f(this.value) };
     }
 }
 ```
@@ -73,5 +73,5 @@ extension<T> for Buffer<T> implements Iterable<T> where T: Copy { }
 ```
 
 ```ds expected
-extension<T> for Buffer<T> implements Iterable<T> where T: Copy { }
+extension<T> for Buffer<T> implements Iterable<T> where T: Copy {}
 ```

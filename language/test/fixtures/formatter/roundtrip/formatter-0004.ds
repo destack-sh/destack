@@ -1,8 +1,8 @@
 @decorator
-function demo() { }
+function demo() {}
 
 @factory<T>()
-function factory_demo() { }
+function factory_demo() {}
 
 @(chain.first().second())
-function chained() { }
+function chained() {}

@@ -12,12 +12,12 @@ Ignored tests track intentional differences and unsupported or out of scope beha
 | Suite    | Passed | Failed | Ignored | Total |  Rate   |
 |:---------|-------:|-------:|--------:|------:|--------:|
 | biome    |   544  |  1192  |     -  |  1736 |  31.34% |
-| oxfmt    |    86  |    41  |     6  |   127 |  67.72% |
+| oxfmt    |   129  |     0  |     6  |   129 | 100.00% |
 | prettier |  1934  |  1294  |     -  |  3228 |  59.93% |
 |----------|--------|--------|---------|-------|---------|
-| total    |  2564  |  2527  |      6  |  5091 |  50.36% |
+| total    |  2607  |  2486  |      6  |  5093 |  51.19% |
 
-Total Blended Pass Rate: **50.36%**
+Total Blended Pass Rate: **51.19%**
 <!-- end:summary-results -->
 
 ### biome
@@ -51,10 +51,10 @@ Total Blended Pass Rate: **50.36%**
 <!-- begin:oxfmt-results -->
 | Category             | Passed | Failed | Ignored | Total |  Rate   |
 |:---------------------|-------:|-------:|--------:|------:|--------:|
-| js                   |    54  |    18  |       2  |    72 |  75.00% |
-| ts                   |    32  |    23  |       4  |    55 |  58.18% |
+| js                   |    73  |     0  |       2  |    73 | 100.00% |
+| ts                   |    56  |     0  |       4  |    56 | 100.00% |
 |----------------------|--------|--------|---------|-------|---------|
-| total                |    86  |    41  |       6  |   127 |  67.72% |
+| total                |   129  |     0  |       6  |   129 | 100.00% |
 <!-- end:oxfmt-results -->
 
 ## Running

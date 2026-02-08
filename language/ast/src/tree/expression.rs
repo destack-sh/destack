@@ -897,7 +897,7 @@ impl Expression {
             Expression::Declaration(_) => true,
             Expression::Statement(_) => true,
             Expression::Labelled { .. } => true,
-            Expression::If { .. } => true,
+            Expression::If { kind, .. } => *kind == IfKind::If,
             Expression::While { .. } => true,
             Expression::ForEach { .. } => true,
             Expression::For { .. } => true,

@@ -7,23 +7,23 @@ type UserId = string;
 type Result<T> = { ok: true, value: T } | { ok: false, error: Error };
 
 interface UserService {
-    findById(id: UserId): Promise<User | undefined>
-    create(data: CreateUserInput): Promise<Result<User>>
-    update(id: UserId, data: UpdateUserInput): Promise<Result<User>>
-    delete(id: UserId): Promise<Result<void>>
+    findById(id: UserId): Promise<User | undefined>;
+    create(data: CreateUserInput): Promise<Result<User>>;
+    update(id: UserId, data: UpdateUserInput): Promise<Result<User>>;
+    delete(id: UserId): Promise<Result<void>>;
 }
 
 @entity
 export class User {
     @primaryKey
-    id: UserId,
+    id: UserId;
 
     @unique
     @index
-    email: string,
+    email: string;
 
     @encrypted
-    passwordHash: string,
+    passwordHash: string;
 
     profile: {
         firstName: string,
@@ -33,17 +33,16 @@ export class User {
             theme: "light" | "dark",
             notifications: boolean,
         },
-    },
+    };
 
     @timestamps
-    createdAt: DateTime,
-    updatedAt: DateTime,
+    createdAt: DateTime;
+    updatedAt: DateTime;
 }
 
 export const userRouter = Router.create()
     .get("/users", async (ctx) => {
-        const users = await ctx
-            .db
+        const users = await ctx.db
             .query<User>()
             .where({ active: true })
             .orderBy("createdAt", "desc")

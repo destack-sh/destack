@@ -7,7 +7,7 @@ mod tests {
     fn test_format_interface_empty() {
         assert_format!(
             "interface {}",
-            "interface { }",
+            "interface {}",
             |p| p.eat_interface(
                 &p.mark(),
                 DeclarationDescriptor::default(),
@@ -21,7 +21,7 @@ mod tests {
     fn test_format_interface_with_supers() {
         assert_format!(
             "interface Foo extends Bar, Baz {}",
-            "interface Foo extends Bar, Baz { }",
+            "interface Foo extends Bar, Baz {}",
             |p| p.eat_interface(
                 &p.mark(),
                 DeclarationDescriptor::default(),
@@ -35,7 +35,7 @@ mod tests {
     fn test_format_interface_with_body() {
         assert_format!(
             "interface Foo { static X = 1 }",
-            "interface Foo {\n\tstatic X = 1,\n}",
+            "interface Foo {\n\tstatic X = 1;\n}",
             |p| p.eat_interface(
                 &p.mark(),
                 DeclarationDescriptor::default(),
@@ -49,7 +49,7 @@ mod tests {
     fn test_format_newtype_interface_empty() {
         assert_format!(
             "interface {}",
-            "newtype interface { }",
+            "newtype interface {}",
             |p| p.eat_interface(
                 &p.mark(),
                 DeclarationDescriptor::default(),
@@ -63,7 +63,7 @@ mod tests {
     fn test_format_newtype_interface_with_method() {
         assert_format!(
             "interface Add<T> { add(other: T): Self }",
-            "newtype interface Add<T> {\n\tadd(other: T): Self\n}",
+            "newtype interface Add<T> {\n\tadd(other: T): Self;\n}",
             |p| p.eat_interface(
                 &p.mark(),
                 DeclarationDescriptor::default(),

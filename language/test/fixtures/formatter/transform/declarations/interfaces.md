@@ -15,7 +15,7 @@ interface   Foo   {   }
 Empty interface bodies stay on one line with internal spacing.
 
 ```ds expected
-interface Foo { }
+interface Foo {}
 ```
 
 ### interface with extends
@@ -27,7 +27,7 @@ interface   Foo   extends   Bar  ,  Baz   {   }
 ```
 
 ```ds expected
-interface Foo extends Bar, Baz { }
+interface Foo extends Bar, Baz {}
 ```
 
 ### interface with property
@@ -40,7 +40,7 @@ interface Foo { x: number }
 
 ```ds expected
 interface Foo {
-    x: number,
+    x: number;
 }
 ```
 
@@ -54,9 +54,9 @@ interface Foo { x: number; y: string; z: boolean }
 
 ```ds expected
 interface Foo {
-    x: number,
-    y: string,
-    z: boolean,
+    x: number;
+    y: string;
+    z: boolean;
 }
 ```
 
@@ -70,7 +70,7 @@ interface Foo { bar(): void }
 
 ```ds expected
 interface Foo {
-    bar(): void
+    bar(): void;
 }
 ```
 
@@ -84,7 +84,7 @@ interface Foo { add(a: number, b: number): number }
 
 ```ds expected
 interface Foo {
-    add(a: number, b: number): number
+    add(a: number, b: number): number;
 }
 ```
 
@@ -100,7 +100,7 @@ interface Foo { x?: number }
 
 ```ds expected
 interface Foo {
-    x?: number,
+    x?: number;
 }
 ```
 
@@ -114,7 +114,7 @@ interface Foo { bar?(): void }
 
 ```ds expected
 interface Foo {
-    bar()?: void
+    bar()?: void;
 }
 ```
 
@@ -130,7 +130,7 @@ interface Foo { readonly x: number }
 
 ```ds expected
 interface Foo {
-    readonly x: number,
+    readonly x: number;
 }
 ```
 
@@ -146,7 +146,7 @@ interface Container<T> { value: T }
 
 ```ds expected
 interface Container<T> {
-    value: T,
+    value: T;
 }
 ```
 
@@ -160,7 +160,7 @@ interface Container<T: Comparable> { value: T }
 
 ```ds expected
 interface Container<T: Comparable> {
-    value: T,
+    value: T;
 }
 ```
 
@@ -174,8 +174,8 @@ interface   Box< in  T , out U > { get(): U; set(value: T): void }
 
 ```ds expected
 interface Box<in T, out U> {
-    get(): U
-    set(value: T): void
+    get(): U;
+    set(value: T): void;
 }
 ```
 
@@ -189,8 +189,8 @@ interface Map<K, V> { get(key: K): V; set(key: K, value: V): void }
 
 ```ds expected
 interface Map<K, V> {
-    get(key: K): V
-    set(key: K, value: V): void
+    get(key: K): V;
+    set(key: K, value: V): void;
 }
 ```
 
@@ -206,7 +206,7 @@ interface Dict { [key: string]: number }
 
 ```ds expected
 interface Dict {
-    [key: string]: number,
+    [key: string]: number;
 }
 ```
 
@@ -220,7 +220,7 @@ interface ArrayLike { [index: number]: string }
 
 ```ds expected
 interface ArrayLike {
-    [index: number]: string,
+    [index: number]: string;
 }
 ```
 
@@ -234,8 +234,8 @@ interface Dict { [key: string]: number; length: number }
 
 ```ds expected
 interface Dict {
-    [key: string]: number,
-    length: number,
+    [key: string]: number;
+    length: number;
 }
 ```
 
@@ -251,7 +251,7 @@ interface Callable { (x: number): number }
 
 ```ds expected
 interface Callable {
-    (x: number): number
+    (x: number): number;
 }
 ```
 
@@ -265,7 +265,7 @@ interface Constructor { new(x: number): Foo }
 
 ```ds expected
 interface Constructor {
-    new (x: number): Foo
+    new (x: number): Foo;
 }
 ```
 
@@ -281,7 +281,7 @@ export interface Foo { x: number }
 
 ```ds expected
 export interface Foo {
-    x: number,
+    x: number;
 }
 ```
 
@@ -302,7 +302,7 @@ interface Container<
     VeryLongType,
     AnotherType,
     ThirdType,
-> { }
+> {}
 ```
 
 ## Complex Interfaces
@@ -317,11 +317,11 @@ interface User { id: number; name: string; email?: string; getName(): string; se
 
 ```ds expected
 interface User {
-    id: number,
-    name: string,
-    email?: string,
-    getName(): string
-    setName(name: string): void
+    id: number;
+    name: string;
+    email?: string;
+    getName(): string;
+    setName(name: string): void;
 }
 ```
 
@@ -339,8 +339,8 @@ interface Point { x: number; y: number }
 ```ds expected
 /// Represents a point in 2D space.
 interface Point {
-    x: number,
-    y: number,
+    x: number;
+    y: number;
 }
 ```
 

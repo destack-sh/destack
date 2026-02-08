@@ -6,17 +6,14 @@ Tests for comments in various positions within expressions.
 
 ### comment before argument
 
-Comments before arguments cause expansion to multiline format.
+Comments before arguments stay inline when the call still fits.
 
 ```ds
 foo(/* first */ a, /* second */ b)
 ```
 
 ```ds expected
-foo(
-    /* first */ a,
-    /* second */ b,
-);
+foo(/* first */ a, /* second */ b);
 ```
 
 ### comment in array elements
@@ -75,9 +72,7 @@ Comments before computed keys also expand objects to multiple lines.
 ```
 
 ```ds expected
-{
-    /* key */ [k]: value,
-};
+{ /* key */ [k]: value };
 ```
 
 ### comment in function body
@@ -114,7 +109,7 @@ Multiline block comments are preserved with formatting.
     /*
      * Comment 1
      */
-    const x = 1
+    const x = 1;
 }
 ```
 
@@ -136,7 +131,7 @@ Doc comments precede declarations.
     /** some multiline
      * doc comment
      * over multiple lines */
-    const X = 1
+    const X = 1;
 }
 ```
 
@@ -176,7 +171,7 @@ Multiple consecutive line comments are preserved.
 {
     // comment part 1
     // comment part 2
-    const A = 1
+    const A = 1;
 }
 ```
 
@@ -204,10 +199,9 @@ const valid = isActive() && /* perm */ hasPermission() && /* not blocked */ !isB
 ```
 
 ```ds expected
-const valid =
-    isActive()
-    && /* perm */ hasPermission()
-    && /* not blocked */ !isBlocked();
+const valid = isActive()
+    && /* perm */ hasPermission() &&
+    /* not blocked */ !isBlocked();
 ```
 
 ### comment in nullish coalescing
@@ -219,7 +213,8 @@ const value = input ?? /* fallback */ defaultValue
 ```
 
 ```ds expected
-const value = input ?? /* fallback */ defaultValue;
+const value = input ??
+    /* fallback */ defaultValue;
 ```
 
 ## Comments in Ternary Expressions
@@ -287,7 +282,10 @@ obj.method() /* step 1 */ .transform() /* step 2 */ .result()
 ```
 
 ```ds expected
-obj.method() /* step 1 */ .transform() /* step 2 */ .result();
+obj
+    .method() /* step 1 */
+    .transform() /* step 2 */
+    .result();
 ```
 
 ### comment before method call
@@ -300,7 +298,7 @@ data.filter(x => x.valid) /* now map */ .map(x => x.value)
 
 ```ds expected
 data
-    .filter((x) => x.valid) /* now map */
+    .filter((x) => x.valid) /* now map */ 
     .map((x) => x.value);
 ```
 

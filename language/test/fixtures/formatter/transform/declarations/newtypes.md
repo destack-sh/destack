@@ -52,7 +52,7 @@ newtype interface Add<T, R = this> { add(other: T): R }
 
 ```ds expected
 newtype interface Add<T, R = this> {
-    add(other: T): R
+    add(other: T): R;
 }
 ```
 
@@ -65,5 +65,5 @@ newtype interface Send { }
 ```
 
 ```ds expected
-newtype interface Send { }
+newtype interface Send {}
 ```

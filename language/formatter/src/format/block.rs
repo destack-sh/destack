@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use destack_ast::{
-    Block, Declaration, Expression, LocalNodeId, Node, NodeTree, NodeTreeImpl, NodeType,
-    ScalarLiteral,
+    Block, Declaration, Expression, FunctionKind, LocalNodeId, Node, NodeTree, NodeTreeImpl,
+    NodeType, ScalarLiteral,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -27,40 +27,6 @@ fn is_directive_expression(tree: &NodeTree, expression_id: LocalNodeId<Expressio
     }
 }
 
-/// Check whether two consecutive expressions form a function overload pair.
-fn is_function_overload_pair(
-    tree: &NodeTree,
-    prev_expression_id: LocalNodeId<Expression>,
-    current_expression_id: LocalNodeId<Expression>,
-) -> bool {
-    // extract the declaration nodes
-    let Expression::Declaration(prev_declaration_id) = tree.get(prev_expression_id) else {
-        return false;
-    };
-    let Expression::Declaration(current_declaration_id) = tree.get(current_expression_id) else {
-        return false;
-    };
-
-    // check for matching function declarations
-    let Declaration::Function {
-        descriptor: prev_descriptor,
-        ..
-    } = tree.get(*prev_declaration_id)
-    else {
-        return false;
-    };
-    let Declaration::Function {
-        descriptor: current_descriptor,
-        ..
-    } = tree.get(*current_declaration_id)
-    else {
-        return false;
-    };
-
-    // require matching descriptors and a shared name
-    prev_descriptor.name.is_some() && prev_descriptor == current_descriptor
-}
-
 /// A formatted list of expression statements.
 #[derive(Debug, Clone, Copy)]
 pub struct StatementList<'a> {
@@ -69,7 +35,11 @@ pub struct StatementList<'a> {
 
 impl<'ast, 'a> Format<DestackFormatContext<'ast>> for StatementList<'a> {
     fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'ast>>) -> FormatResult<()> {
-        format_block_of_statements(f, self.expressions)
+        format_block_of_statements(f, self.expressions)?;
+        if !self.expressions.is_empty() {
+            write!(f, [hard_line_break()])?;
+        }
+        Ok(())
     }
 }
 
@@ -96,7 +66,7 @@ where
             [group(&format_args![
                 token("{"),
                 soft_block_indent(&format_args![
-                    if_group_fits_on_line(&space()),
+                    if_group_fits_on_line(&token("")),
                     &f.context().block_infix_annotations(self.node_id)
                 ]),
                 token("}")
@@ -119,6 +89,32 @@ pub fn empty_block_with_infix_annotations<T: Node>(
     EmptyBlockWithInfixAnnotations { node_id }
 }
 
+/// Return whether source text between two expressions contains an explicit blank line.
+fn expressions_have_blank_line_between(
+    context: &DestackFormatContext<'_>,
+    left_expression_id: LocalNodeId<Expression>,
+    right_expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let left_span = context.get_span(left_expression_id);
+    let right_span = context.get_span(right_expression_id);
+    if left_span.file != right_span.file || left_span.end >= right_span.start {
+        return false;
+    }
+
+    let between = context.get_span_str(Span::new(left_span.file, left_span.end, right_span.start));
+    let normalized_between = between.replace("\r\n", "\n");
+    let lines: Vec<&str> = normalized_between.split('\n').collect();
+    if lines.len() < 3 {
+        return false;
+    }
+
+    lines
+        .iter()
+        .skip(1)
+        .take(lines.len().saturating_sub(2))
+        .any(|line| line.trim().is_empty())
+}
+
 /// Format a block inline with zero or one expression (including label and infix annotations).
 #[inline]
 pub(crate) fn format_block_body_narrow<'ast>(
@@ -130,7 +126,7 @@ pub(crate) fn format_block_body_narrow<'ast>(
 
     // body
     if block.expressions.is_empty() {
-        write!(f, [token("{"), space(), token("}")])?;
+        write!(f, [token("{"), token("}")])?;
     } else {
         write!(
             f,
@@ -216,6 +212,15 @@ pub(crate) fn format_block_of_statements<'ast>(
         .iter()
         .take_while(|&&expr_id| is_directive_expression(tree, expr_id))
         .count();
+    let insert_blank_after_directive_prologue = if directive_count == 0 {
+        false
+    } else {
+        let last_directive_expression = effective_expressions[directive_count - 1];
+        !f.context().has_prefix_annotation(last_directive_expression)
+            && !f
+                .context()
+                .has_postfix_annotation(last_directive_expression)
+    };
 
     let mut prev_was_import = false;
     let mut prev_import_id: Option<LocalNodeId<Expression>> = None;
@@ -224,11 +229,6 @@ pub(crate) fn format_block_of_statements<'ast>(
     for (i, &expression_id) in effective_expressions.iter().enumerate() {
         let expression = f.context().tree.get(expression_id);
         let is_import_expr = imports::is_import(expression_id, tree);
-        let prev_expression_id = if i > 0 {
-            Some(effective_expressions[i - 1])
-        } else {
-            None
-        };
 
         let expression_span = f.context().get_span(expression_id);
 
@@ -241,12 +241,20 @@ pub(crate) fn format_block_of_statements<'ast>(
 
         // blank line between expressions
         if i > 0 {
-            write!(f, [hard_line_break()])?;
+            let has_blank_prefix_annotation =
+                f.context().has_blank_prefix_annotation(expression_id);
+            let source_has_blank_line_between = expressions_have_blank_line_between(
+                f.context(),
+                effective_expressions[i - 1],
+                expression_id,
+            );
+            if !has_blank_prefix_annotation {
+                write!(f, [hard_line_break()])?;
+            }
 
             // determine if we need an extra blank line
             let needs_blank = if directive_count > 0 && i == directive_count {
-                !f.context()
-                    .has_blank_prefix_annotation_in_first_position(expression_id)
+                insert_blank_after_directive_prologue && !has_blank_prefix_annotation
             } else if organize && prev_was_import && is_import_expr {
                 // check if different import groups
                 prev_import_id.is_some_and(|prev_id| {
@@ -259,18 +267,9 @@ pub(crate) fn format_block_of_statements<'ast>(
                 })
             } else if prev_was_import && !is_import_expr {
                 // blank line after import section (if not already present)
-                !f.context()
-                    .has_blank_prefix_annotation_in_first_position(expression_id)
-            } else if matches!(expression, Expression::Declaration(_)) {
-                // extra blank line between declarations
-                let is_overload_group = prev_expression_id
-                    .is_some_and(|prev_id| is_function_overload_pair(tree, prev_id, expression_id));
-                if is_overload_group {
-                    false
-                } else {
-                    !f.context()
-                        .has_blank_prefix_annotation_in_first_position(expression_id)
-                }
+                !has_blank_prefix_annotation
+            } else if source_has_blank_line_between {
+                !has_blank_prefix_annotation
             } else {
                 false
             };
@@ -291,13 +290,41 @@ pub(crate) fn format_block_of_statements<'ast>(
         let directive = directive_for_node(f.context(), expression_id);
 
         // expression itself (with prefix annotations)
-        write!(f, [f.context().any_prefix_annotations(expression_id)])?;
+        // lambda declaration line-prefix comments are deferred to declaration formatting
+        let is_lambda_declaration_expression = matches!(
+            expression,
+            Expression::Declaration(declaration_id)
+                if matches!(
+                    tree.get(*declaration_id),
+                    Declaration::Function { signature, .. }
+                        if signature.kind == FunctionKind::Lambda
+                )
+        );
+        if is_lambda_declaration_expression {
+            write!(f, [f.context().block_prefix_annotations(expression_id)])?;
+        } else {
+            write!(f, [f.context().any_prefix_annotations(expression_id)])?;
+        }
         format_expression(f, expression_id, expression, directive)?;
 
-        // add semicolon for bare Import if not last expression (when sorting moved it)
-        let is_last = i == effective_expressions.len() - 1;
-        let is_bare_import = matches!(expression, Expression::Import { .. });
-        if !is_last && is_bare_import {
+        // add statement terminators for declaration-like expression forms
+        let needs_statement_terminator = matches!(
+            expression,
+            Expression::Import { .. } | Expression::Let { .. } | Expression::Using { .. }
+        ) || matches!(
+            expression,
+            Expression::Declaration(declaration_id)
+                if matches!(
+                    tree.get(*declaration_id),
+                    Declaration::Function {
+                        descriptor,
+                        signature,
+                        ..
+                    }
+                    if descriptor.name.is_none() && signature.kind == FunctionKind::Lambda
+                )
+        );
+        if needs_statement_terminator {
             write!(f, [token(";")])?;
         }
 
@@ -332,10 +359,14 @@ pub(crate) fn should_inline_block<'ast>(
     let span = f.context().get_span(block_id);
 
     // can only inline if there is at most one expression
-    //  (on the flipside, always inline if there is nothing in it)
     if block.expressions.len() > 1 || f.context().has_infix_annotation(block_id) {
         return false;
     } else if block.expressions.is_empty() {
+        // keep empty control flow blocks expanded
+        if empty_block_prefers_multiline(f.context(), block_id) {
+            return false;
+        }
+
         return true;
     }
 
@@ -364,6 +395,48 @@ pub(crate) fn should_inline_block<'ast>(
         && !f.context().is_at_line_start(container_node_id)
         && !f.context().has_newline(span)
         && container_node_type != NodeType::Declaration
+}
+
+/// Return whether an empty block should stay multiline in control flow contexts.
+fn empty_block_prefers_multiline<'ast>(
+    context: &DestackFormatContext<'ast>,
+    block_id: LocalNodeId<Block>,
+) -> bool {
+    let Some((parent_expression_id, parent_type)) = context.get_parent(block_id) else {
+        return false;
+    };
+    if parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let parent_expression_id = LocalNodeId::<Expression>::new(parent_expression_id);
+    let Expression::Block(inner_block_id) = context.tree.get(parent_expression_id) else {
+        return false;
+    };
+    if *inner_block_id != block_id {
+        return false;
+    }
+
+    let Some((container_id, container_type)) = context.get_parent(parent_expression_id) else {
+        return false;
+    };
+    if container_type != NodeType::Expression {
+        return false;
+    }
+
+    let container_id = LocalNodeId::<Expression>::new(container_id);
+    match context.tree.get(container_id) {
+        Expression::Try { .. } => true,
+        Expression::If {
+            then_expression,
+            else_expression,
+            ..
+        } => {
+            then_expression.id == parent_expression_id.id
+                || else_expression.is_some_and(|id| id.id == parent_expression_id.id)
+        }
+        _ => false,
+    }
 }
 
 /// Format a block (without a nested group!).
@@ -563,6 +636,17 @@ mod tests {
         assert_format!(
             source,
             source,
+            |p| p.eat_block(),
+            DestackFormatOptions::default_tab()
+        );
+    }
+
+    /// Declarations after expressions should not force an extra blank line.
+    #[test]
+    fn test_format_block_declaration_after_expression_no_forced_blank_line() {
+        assert_format!(
+            "{ x = 1; class A {} }",
+            "{\n\tx = 1;\n\tclass A {}\n}",
             |p| p.eat_block(),
             DestackFormatOptions::default_tab()
         );

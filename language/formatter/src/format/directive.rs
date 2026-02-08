@@ -55,16 +55,10 @@ pub fn directive_for_node<T: Node + Clone>(
 where
     NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Annotation> + NodeTreeImpl<Comment>,
 {
-    let is_javascript_like = context.options.language_type.is_javascript()
-        || context.options.language_type.is_typescript();
-    if !is_javascript_like {
-        return None;
-    }
-
     let annotations = context.get_annotations(node_id).unwrap_or_default();
 
-    let mut max_postfix_comment_span: Option<Span> = None;
-    let mut postfix_ignore_span: Option<Span> = None;
+    // use only prefix directives for ignore behavior
+    // postfix comments like `expr(); // oxfmt-ignore` remain regular comments
     for annotation_id in annotations {
         let Annotation::Comment { node, position } = context.tree.get::<Annotation>(annotation_id)
         else {
@@ -77,17 +71,6 @@ where
         let Some(token) =
             parse_directive_token(content).or_else(|| parse_directive_token_from_raw(raw_comment))
         else {
-            if matches!(
-                position,
-                AnnotationPosition::LinePostfix
-                    | AnnotationPosition::LinePostfixBoundary
-                    | AnnotationPosition::BlockPostfix
-            ) {
-                max_postfix_comment_span = Some(match max_postfix_comment_span {
-                    Some(previous) if previous.end >= span.end => previous,
-                    _ => span,
-                });
-            }
             continue;
         };
 
@@ -107,26 +90,8 @@ where
                     position: FormatterDirectivePosition::Prefix,
                 });
             }
-            AnnotationPosition::LinePostfix
-            | AnnotationPosition::LinePostfixBoundary
-            | AnnotationPosition::BlockPostfix => {
-                max_postfix_comment_span = Some(match max_postfix_comment_span {
-                    Some(previous) if previous.end >= span.end => previous,
-                    _ => span,
-                });
-                postfix_ignore_span = Some(span);
-            }
             _ => {}
         }
-    }
-
-    if let Some(ignore_span) = postfix_ignore_span {
-        return Some(FormatterDirective {
-            kind: FormatterDirectiveKind::IgnoreFormat,
-            position: FormatterDirectivePosition::Postfix {
-                comment_span: max_postfix_comment_span.unwrap_or(ignore_span),
-            },
-        });
     }
 
     let node_span = context.get_span(node_id);
@@ -202,12 +167,6 @@ pub fn ignore_range_for_node<T: Node + Clone>(
 where
     NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Annotation> + NodeTreeImpl<Comment>,
 {
-    let is_javascript_like = context.options.language_type.is_javascript()
-        || context.options.language_type.is_typescript();
-    if !is_javascript_like {
-        return None;
-    }
-
     let annotations = context.get_annotations(node_id).unwrap_or_default();
     let node_span = context.get_span(node_id);
 
@@ -301,6 +260,10 @@ fn extend_span_with_trailing_tokens(context: &DestackFormatContext<'_>, span: Sp
 
         match token.token.ty {
             TokenType::Whitespace => {
+                let raw = context.get_token_str(token);
+                if raw.contains(['\n', '\r']) {
+                    break;
+                }
                 continue;
             }
             TokenType::Newline => {
@@ -443,6 +406,14 @@ fn find_ignore_range_end(
 fn parse_directive_token_from_raw(raw: &str) -> Option<FormatterDirectiveToken> {
     let content = strip_comment_markers(raw);
     parse_directive_token(content.as_ref())
+}
+
+/// Return whether raw comment text is an ignore directive.
+pub(crate) fn is_ignore_directive_comment(raw: &str) -> bool {
+    matches!(
+        parse_directive_token_from_raw(raw),
+        Some(FormatterDirectiveToken::Ignore | FormatterDirectiveToken::IgnoreStart)
+    )
 }
 
 /// Strip comment markers from a raw comment string.

@@ -43,7 +43,7 @@ items.map((item) => { const x = item.value; return x * 2 })
 ```ds expected
 items.map((item) => {
     const x = item.value;
-    return x * 2
+    return x * 2;
 });
 ```
 

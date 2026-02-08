@@ -13,7 +13,8 @@ const result = api.getClient().getService().fetchAll().map((x) => x.id)
 ```
 
 ```ds expected
-const result = api.getClient()
+const result = api
+    .getClient()
     .getService()
     .fetchAll()
     .map((x) => x.id);
@@ -86,7 +87,8 @@ getParameters /* xxxxxxxxxxxxxxxxxxxxxxxxxxxx */
 ```
 
 ```ds expected
-this.getParameters /* xxxxxxxxxxxxxxxxxxxxxxxxxxxx */
+this
+    .getParameters /* xxxxxxxxxxxxxxxxxxxxxxxxxxxx */
     ?.();
 
 this
@@ -97,8 +99,7 @@ foo
     .getParameters /* xxxxxxxxxxxxxxxxxxxxxxxxxxxx */
     ?.();
 
-getParameters /* xxxxxxxxxxxxxxxxxxxxxxxxxxxx */
-    ?.();
+getParameters /* xxxxxxxxxxxxxxxxxxxxxxxxxxxx */?.();
 ```
 
 ## Instantiation Expressions

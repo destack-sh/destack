@@ -93,16 +93,16 @@ new (get(win))[ty](xxx)
 new (get(win)[ty])(xxx);
 ```
 
-### new with member expression keeps grouping
+### new with member expression drops redundant grouping
 
-Member expressions keep parentheses for `new`.
+Simple member expressions drop unnecessary parentheses for `new`.
 
 ```ts:main.ts
 new (Foo.bar)(value)
 ```
 
 ```ts expected
-new (Foo.bar)(value);
+new Foo.bar(value);
 ```
 
 ### new with chained member call

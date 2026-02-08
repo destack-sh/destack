@@ -590,26 +590,28 @@ const x = /^[a-z]+$/i;
 
 ## Long Strings
 
-### long string not broken
+### long string assignment breaks after operator
 
-Long strings are NOT broken even when they exceed line width (like Prettier).
+Long string declarator values break after `=` when they exceed line width.
 
 ```ds line-width=40
 const msg = "This is a very long string that exceeds the line width but should not be broken"
 ```
 
 ```ds expected
-const msg = "This is a very long string that exceeds the line width but should not be broken";
+const msg =
+    "This is a very long string that exceeds the line width but should not be broken";
 ```
 
-### long template literal not broken
+### long template literal assignment breaks after operator
 
-Long template literals are also preserved as-is.
+Long template literal declarator values follow the same break-after-operator rule.
 
 ```ds line-width=40
 const msg = `This is a very long template literal that exceeds the line width but should not be broken`
 ```
 
 ```ds expected
-const msg = `This is a very long template literal that exceeds the line width but should not be broken`;
+const msg =
+    `This is a very long template literal that exceeds the line width but should not be broken`;
 ```
