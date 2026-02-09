@@ -1,0 +1,11 @@
+[package]
+name = "nx"
+description = "Nx smart monorepo build system"
+repo = "https://github.com/nrwl/nx"
+ref = "f1873b27a8cdd0c230b28343b8c77cbb22713555"
+language = "ts"
+tags = ["tooling", "build", "monorepo"]
+
+[discovery]
+include = ["packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/e2e/**", "**/fixtures/**", "**/dist/**", "**/node_modules/**"]

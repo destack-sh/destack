@@ -1,0 +1,11 @@
+[package]
+name = "tanstack-table"
+description = "TanStack Table headless table library"
+repo = "https://github.com/TanStack/table"
+ref = "e172109fca4cc403a07236ed8fa103450ceba5e9"
+language = "ts"
+tags = ["library", "frontend", "ui", "tanstack"]
+
+[discovery]
+include = ["packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/fixtures/**", "**/dist/**", "**/node_modules/**"]

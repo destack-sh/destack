@@ -43,11 +43,66 @@ Ignored cases include known failures and explicit ignore entries.
 <!-- begin:summary-results -->
 | Package | parse | import | resolve | analyze | elaborate | execute | lower | optimize | Passed | Failed | Ignored | Total |  Rate   | Incl. Rate |
 |:--------|:------:|:------:|:------:|:------:|:------:|:------:|:------:|:------:|-------:|-------:|--------:|------:|--------:|-----------:|
+| angular | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| apollo-client | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| arktype | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| astro   | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| changesets | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| definitelytyped | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| drizzle-orm | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| effect  | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| eslint  | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| fastify | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| graphql-codegen | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| graphql-js | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| hono    | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| io-ts   | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| jest    | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| jotai   | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
 | ms      | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| nest    | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| nextjs  | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| nuxt    | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| nx      | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| playwright | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| pnpm    | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| preact  | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| prisma  | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| qwik    | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| react   | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| react-hook-form | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| react-query | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| redux-toolkit | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| remix   | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| runtypes | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| rxjs    | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| solid   | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| storybook | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| sveltekit | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| tanstack-form | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| tanstack-query | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| tanstack-router | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| tanstack-store | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| tanstack-table | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| threejs | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| trpc    | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| ts-toolbelt | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| turborepo | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| type-fest | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| typebox | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| typegpu | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| typescript | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| typescript-eslint | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
 | valibot | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| vite    | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| vitest  | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| vscode  | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| vue     | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| yarn-berry | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
 | zod     | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| zustand | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
 |---------|--------|--------|--------|--------|--------|--------|--------|--------|--------|--------|---------|-------|---------|------------|
-| total   |   -    |   -    |   -    |   -    |   -    |   -    |   -    |   -    |     0  |     0  |      24  |    24 |       - |     0.00% |
+| total   |   -    |   -    |   -    |   -    |   -    |   -    |   -    |   -    |     0  |     0  |     464  |   464 |       - |     0.00% |
 
 Total Blended Pass Rate: **-** (0.00% incl. ignored)
 <!-- end:summary-results -->

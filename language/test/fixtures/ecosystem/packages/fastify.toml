@@ -1,0 +1,11 @@
+[package]
+name = "fastify"
+description = "Fast and low overhead web framework"
+repo = "https://github.com/fastify/fastify"
+ref = "f02eaef672348e9d8f82598042fe5a5fe7e59f7b"
+language = "ts"
+tags = ["backend", "framework", "server"]
+
+[discovery]
+include = ["lib/**/*.js", "types/**/*.ts", "test/**/*.ts"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/benchmarks/**", "**/node_modules/**"]

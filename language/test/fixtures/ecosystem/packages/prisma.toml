@@ -1,0 +1,11 @@
+[package]
+name = "prisma"
+description = "Prisma ORM and toolkit monorepo"
+repo = "https://github.com/prisma/prisma"
+ref = "8410feaa392e798fa8b0602d4504bdee884c78e5"
+language = "ts"
+tags = ["database", "backend", "monorepo"]
+
+[discovery]
+include = ["packages/**/*.ts", "packages/**/*.js"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/fixtures/**", "**/dist/**", "**/node_modules/**"]

@@ -1,0 +1,11 @@
+[package]
+name = "preact"
+description = "Preact fast React alternative"
+repo = "https://github.com/preactjs/preact"
+ref = "fbb6a4eb628589416b953045e2f6e3425a885bff"
+language = "ts"
+tags = ["frontend", "jsx", "library"]
+
+[discovery]
+include = ["src/**/*.ts", "src/**/*.tsx", "hooks/**/*.ts", "compat/**/*.ts", "packages/**/*.ts", "packages/**/*.tsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/fixtures/**", "**/dist/**", "**/node_modules/**"]

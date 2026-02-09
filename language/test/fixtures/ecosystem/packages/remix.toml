@@ -1,0 +1,11 @@
+[package]
+name = "remix"
+description = "Remix full stack web framework"
+repo = "https://github.com/remix-run/remix"
+ref = "3921f065331f6b28e0c29750f1e757a4e09feebc"
+language = "ts"
+tags = ["framework", "frontend", "fullstack"]
+
+[discovery]
+include = ["packages/**/*.ts", "packages/**/*.tsx", "templates/**/*.ts", "templates/**/*.tsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/fixtures/**", "**/dist/**", "**/node_modules/**"]

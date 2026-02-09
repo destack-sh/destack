@@ -1,0 +1,11 @@
+[package]
+name = "tanstack-form"
+description = "TanStack Form typesafe form state management"
+repo = "https://github.com/TanStack/form"
+ref = "c8814d9e4dee6541f5694aa5b5d7f4f7791da3a2"
+language = "ts"
+tags = ["library", "frontend", "forms", "tanstack"]
+
+[discovery]
+include = ["packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/fixtures/**", "**/dist/**", "**/node_modules/**"]

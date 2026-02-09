@@ -1,0 +1,11 @@
+[package]
+name = "vue"
+description = "Vue core framework"
+repo = "https://github.com/vuejs/core"
+ref = "68dbcf7261ec57804eafaa5c00a96958d59197c9"
+language = "ts"
+tags = ["framework", "frontend", "monorepo"]
+
+[discovery]
+include = ["packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx"]
+exclude = ["**/*.spec.ts", "**/*.test.*", "**/__tests__/**", "**/test/**", "**/fixtures/**", "**/dist/**", "**/node_modules/**"]

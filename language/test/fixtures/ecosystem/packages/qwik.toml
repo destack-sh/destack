@@ -1,0 +1,11 @@
+[package]
+name = "qwik"
+description = "Qwik resumable framework"
+repo = "https://github.com/QwikDev/qwik"
+ref = "de54c382b2351756daa1fff95e414f2c560001c2"
+language = "ts"
+tags = ["framework", "frontend", "monorepo"]
+
+[discovery]
+include = ["packages/**/*.ts", "packages/**/*.tsx", "starters/**/*.ts", "starters/**/*.tsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/fixtures/**", "**/dist/**", "**/node_modules/**"]

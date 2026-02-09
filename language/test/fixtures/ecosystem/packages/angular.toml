@@ -1,0 +1,11 @@
+[package]
+name = "angular"
+description = "Angular framework monorepo"
+repo = "https://github.com/angular/angular"
+ref = "4b3b149ba14bb1fc13d6711dc45ba61cf9161ec8"
+language = "ts"
+tags = ["framework", "frontend", "monorepo"]
+
+[discovery]
+include = ["packages/**/*.ts"]
+exclude = ["**/*.spec.ts", "**/test/**", "**/testing/**", "**/integration/**", "**/dist/**", "**/node_modules/**"]

@@ -1,0 +1,11 @@
+[package]
+name = "jotai"
+description = "Jotai primitive and flexible state management"
+repo = "https://github.com/pmndrs/jotai"
+ref = "02b4e13dfa2cc458e836c5bdddfd4dd1b7af76a6"
+language = "ts"
+tags = ["state", "frontend", "library"]
+
+[discovery]
+include = ["src/**/*.ts", "src/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/fixtures/**", "**/dist/**", "**/node_modules/**"]

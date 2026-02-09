@@ -1,0 +1,11 @@
+[package]
+name = "typescript-eslint"
+description = "Tooling that enables ESLint and TypeScript together"
+repo = "https://github.com/typescript-eslint/typescript-eslint"
+ref = "f645b7f70e11acd953285057b515b20843f69924"
+language = "ts"
+tags = ["tooling", "lint", "monorepo"]
+
+[discovery]
+include = ["packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/node_modules/**"]
