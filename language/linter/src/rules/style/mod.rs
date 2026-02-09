@@ -16,12 +16,14 @@ mod no_collapsible_if;
 mod no_duplicate_string;
 mod no_else_return;
 mod no_empty_interface;
+mod no_extra_boolean_cast;
 mod no_lonely_if;
 mod no_negated_condition;
 mod no_nested_template_literal;
 mod no_nested_ternary;
 mod no_object_constructor;
 mod no_unnecessary_lambda;
+mod no_unnecessary_template_expression;
 mod no_unneeded_ternary;
 mod no_var;
 mod object_shorthand;
@@ -45,6 +47,7 @@ mod prefer_match;
 mod prefer_named_extension;
 mod prefer_nullish_coalescing;
 mod prefer_numeric_literals;
+mod prefer_object_has_own;
 mod prefer_object_spread;
 mod prefer_pattern_over_guard;
 mod prefer_precise_numeric;
@@ -85,12 +88,14 @@ pub use no_collapsible_if::*;
 pub use no_duplicate_string::*;
 pub use no_else_return::*;
 pub use no_empty_interface::*;
+pub use no_extra_boolean_cast::*;
 pub use no_lonely_if::*;
 pub use no_negated_condition::*;
 pub use no_nested_template_literal::*;
 pub use no_nested_ternary::*;
 pub use no_object_constructor::*;
 pub use no_unnecessary_lambda::*;
+pub use no_unnecessary_template_expression::*;
 pub use no_unneeded_ternary::*;
 pub use no_var::*;
 pub use object_shorthand::*;
@@ -114,6 +119,7 @@ pub use prefer_match::*;
 pub use prefer_named_extension::*;
 pub use prefer_nullish_coalescing::*;
 pub use prefer_numeric_literals::*;
+pub use prefer_object_has_own::*;
 pub use prefer_object_spread::*;
 pub use prefer_pattern_over_guard::*;
 pub use prefer_precise_numeric::*;
@@ -155,12 +161,14 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoDuplicateString),
         boxed(NoElseReturn),
         boxed(NoEmptyInterface),
+        boxed(NoExtraBooleanCast),
         boxed(NoLonelyIf),
         boxed(NoNegatedCondition),
         boxed(NoNestedTemplateLiteral),
         boxed(NoNestedTernary),
         boxed(NoObjectConstructor),
         boxed(NoUnnecessaryLambda),
+        boxed(NoUnnecessaryTemplateExpression),
         boxed(NoUnneededTernary),
         boxed(NoVar),
         boxed(ObjectShorthand),
@@ -194,6 +202,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(PreferNamedExtension),
         boxed(PreferNullishCoalescing),
         boxed(PreferNumericLiterals),
+        boxed(PreferObjectHasOwn),
         boxed(PreferPreciseNumeric),
         boxed(PreferRangeLiteral),
         boxed(PreferTemplate),

@@ -1,33 +1,22 @@
-use destack_ast::{self as ast, Expression};
+use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, SymbolType, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::rules::common::{expression_target_symbol, symbol_primary_declaration_for};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer struct literal syntax over constructor calls.
     ///
-    /// Structs are value types and should be constructed using the struct
-    /// literal syntax for clarity. Using `new` with structs suggests class
-    /// instantiation semantics which is misleading.
-    ///
-    /// ```
-    /// // bad
-    /// const p = new Point(1, 2)
-    ///
-    /// // good
-    /// const p = Point { x: 1, y: 2 }
-    /// ```
-    ///
-    /// Note: This lint only flags `new` expressions with simple type paths
-    /// (uppercase first letter convention for struct types).
+    /// Structs are value types and read more clearly as tagged object literals.
+    /// Prefer `Point { x: 1, y: 2 }` over `new Point(1, 2)`.
     #[lint(
         id = "prefer-struct-literal",
         code = "LY056",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -36,149 +25,335 @@ declare_lint! {
 }
 
 impl LintRule for PreferStructLiteral {
-    fn meta(&self) -> &'static crate::LintMeta {
+    /// Return lint metadata.
+    fn meta(&self) -> &'static LintMeta {
         PreferStructLiteral::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    /// Check module DIR nodes for struct constructor expressions.
+    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
-
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
-
-            let Expression::New { left, .. } = expression else {
-                continue;
-            };
-
-            // check if the callee looks like a struct type (simple path, PascalCase)
-            if is_struct_like_type(ctx, *left) {
-                let severity = ctx.get_effective_severity(meta, node_id);
-                if !severity.is_enabled() {
-                    continue;
-                }
-
-                ctx.report(
-                    LintDiagnostic::new(
-                        PREFER_STRUCT_LITERAL.id,
-                        PREFER_STRUCT_LITERAL.code,
-                        PREFER_STRUCT_LITERAL.category,
-                        severity,
-                        "prefer struct literal syntax over `new` constructor",
-                        ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
-                    )
-                    .with_label("use `Type { field: value }` instead"),
-                );
-            }
-        }
+        let mut visitor = PreferStructLiteralVisitor::new(ctx, meta);
+        visitor.run();
     }
 }
 
-/// Check if the expression looks like a struct type (PascalCase name).
-fn is_struct_like_type(
-    ctx: &LintModuleAstContext<'_>,
-    expression_id: ast::LocalNodeId<Expression>,
-) -> bool {
-    let expression = ctx.tree.get(expression_id);
+/// Node visitor that flags struct `new` constructor usage.
+struct PreferStructLiteralVisitor<'a, 'b> {
+    /// The lint context.
+    ctx: &'a mut LintModuleDirContext<'b>,
+    /// The lint metadata.
+    meta: &'a LintMeta,
+    /// The visitor options.
+    options: NodeVisitorOptions,
+}
 
-    let Expression::Path { path, .. } = expression else {
-        return false;
-    };
+impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
+    /// Build a visitor for struct literal style checks.
+    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+        Self {
+            ctx,
+            meta,
+            options: NodeVisitorOptions::default(),
+        }
+    }
 
-    // get the last segment of the path (the type name)
-    let Some(last_segment) = path.segments.last() else {
-        return false;
-    };
+    /// Walk the DIR roots.
+    fn run(&mut self) {
+        let roots = self.ctx.roots.clone();
+        let tree = self.ctx.tree;
 
-    let name = ctx.strings.get(*last_segment);
-    let name_str = name.as_ref();
+        for root_id in roots {
+            let expression = tree.get(root_id);
+            self.visit_expression(tree, root_id, expression);
+        }
+    }
 
-    // check if it starts with uppercase (PascalCase convention for types)
-    name_str
-        .chars()
-        .next()
-        .map(|c| c.is_uppercase())
-        .unwrap_or(false)
+    /// Return true when the constructor callee resolves to a struct symbol.
+    fn is_struct_constructor(&self, callee_id: dir::LocalNodeId<dir::Expression>) -> bool {
+        let Some(target_symbol) = expression_target_symbol(self.ctx.tree, callee_id) else {
+            return false;
+        };
+
+        target_symbol.ty() == SymbolType::Struct
+    }
+
+    /// Collect struct field names in constructor order for one constructor callee.
+    fn constructor_field_names(
+        &self,
+        callee_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<Vec<destack_base::StringId>> {
+        // resolve the struct constructor symbol
+        let target_symbol = expression_target_symbol(self.ctx.tree, callee_id)?;
+        if target_symbol.ty() != SymbolType::Struct {
+            return None;
+        }
+
+        // resolve the primary declaration for the struct symbol
+        let declaration_id = symbol_primary_declaration_for(
+            &self.ctx.program,
+            self.ctx.profile_id,
+            self.ctx.module_id(),
+            self.ctx.symbols,
+            target_symbol,
+        )?;
+        if declaration_id.local_id.ty != dir::NodeType::Declaration {
+            return None;
+        }
+
+        // load the declaration module tree for cross module struct constructors
+        let module_ref = self.ctx.program.modules.get(declaration_id.module_id);
+        let module = module_ref.read();
+        let module_dir = module.dir_maybe(self.ctx.profile_id)?;
+        let tree = module_dir.tree.read();
+        let declaration = tree.get(declaration_id.into_local_typed::<dir::Declaration>());
+        let dir::Declaration::Struct { members, .. } = declaration else {
+            return None;
+        };
+
+        // collect named fields in declaration order
+        let mut field_names = Vec::new();
+        for member_id in members {
+            let member = tree.get(*member_id);
+            let dir::Member::Field { key, .. } = member else {
+                continue;
+            };
+            let Some(dir::DynamicKey::Name(field_name)) = key else {
+                return None;
+            };
+
+            field_names.push(*field_name);
+        }
+
+        Some(field_names)
+    }
+
+    /// Build a safe fix from `new Struct(...)` to `Struct { ... }`.
+    fn struct_literal_fix(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        callee_id: dir::LocalNodeId<dir::Expression>,
+        static_arguments: Option<&[dir::LocalNodeId<dir::Argument>]>,
+        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+    ) -> Option<LintFix> {
+        // skip generic constructor calls until we support static argument rendering
+        if static_arguments.is_some_and(|arguments| !arguments.is_empty()) {
+            return None;
+        }
+
+        // require a field mapping in declaration order
+        let field_names = self.constructor_field_names(callee_id)?;
+        if field_names.len() != dynamic_arguments.len() {
+            return None;
+        }
+
+        // build field initializers from positional constructor arguments
+        let mut field_initializers = Vec::new();
+        for (field_name, argument_id) in field_names.into_iter().zip(dynamic_arguments.iter()) {
+            let argument = self.ctx.tree.get(*argument_id);
+            let dir::Argument::Positional { value, .. } = argument else {
+                return None;
+            };
+
+            let field_name_text = self.ctx.program.strings.get(field_name);
+            let value_span = self.ctx.get_span(*value);
+            let value_text = self.ctx.get_span_text(value_span);
+            field_initializers.push(format!("{}: {value_text}", field_name_text.as_ref()));
+        }
+
+        // build the tagged struct literal replacement
+        let callee_span = self.ctx.get_span(callee_id);
+        let callee_text = self.ctx.get_span_text(callee_span);
+        let replacement = if field_initializers.is_empty() {
+            format!("{callee_text} {{}}")
+        } else {
+            format!("{callee_text} {{ {} }}", field_initializers.join(", "))
+        };
+
+        // replace the full constructor expression
+        let expression_span = self.ctx.get_span(expression_id);
+        let edits = self
+            .ctx
+            .edit_builder()
+            .replace(expression_span, replacement)
+            .into_edits();
+        Some(LintFix::safe("Rewrite constructor to struct literal").with_edits(edits))
+    }
+
+    /// Check one `new` expression for struct constructor style.
+    fn check_new_expression(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        callee_id: dir::LocalNodeId<dir::Expression>,
+        static_arguments: Option<&[dir::LocalNodeId<dir::Argument>]>,
+        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+    ) {
+        // only lint real struct constructors
+        if !self.is_struct_constructor(callee_id) {
+            return;
+        }
+
+        // honor configured severity at the node
+        let severity = self.ctx.get_effective_severity(self.meta, expression_id);
+        if !severity.is_enabled() {
+            return;
+        }
+
+        // build the base diagnostic
+        let span = self.ctx.get_span(expression_id);
+        let mut diagnostic = LintDiagnostic::new(
+            PREFER_STRUCT_LITERAL.id,
+            PREFER_STRUCT_LITERAL.code,
+            PREFER_STRUCT_LITERAL.category,
+            severity,
+            "prefer struct literal syntax over struct constructor call",
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label("replace this constructor call with a tagged struct literal");
+
+        // attach fix when argument to field mapping is unambiguous
+        if let Some(fix) = self.struct_literal_fix(
+            expression_id,
+            callee_id,
+            static_arguments,
+            dynamic_arguments,
+        ) {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
+    }
+}
+
+impl NodeVisitor for PreferStructLiteralVisitor<'_, '_> {
+    fn options(&self) -> &NodeVisitorOptions {
+        &self.options
+    }
+
+    fn visit_expression(
+        &mut self,
+        tree: &dir::NodeTree,
+        id: dir::LocalNodeId<dir::Expression>,
+        expression: &dir::Expression,
+    ) {
+        // check struct constructor calls
+        if let dir::Expression::New {
+            left,
+            static_arguments,
+            dynamic_arguments,
+        } = expression
+        {
+            self.check_new_expression(id, *left, static_arguments.as_deref(), dynamic_arguments);
+        }
+
+        // walk expression children
+        walk_expression(self, tree, id, expression);
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::linter::TestProgram;
+    use crate::linter::{TestProgram, test_modules};
 
+    /// Report and fix local struct constructor calls.
     #[test]
-    fn test_new_struct_detected() {
+    fn test_fix_local_struct_constructor_call() {
         let test = TestProgram::for_rule_without_prelude(PreferStructLiteral);
-        let result = test.lint_ast(
-            "prefer_struct_literal/test_new_struct_detected.ds",
+        let result = test.lint_dir(
+            "prefer_struct_literal/test_fix_local_struct_constructor_call.ds",
             r#"
-const p = new Point(1, 2)
+struct Point {
+    x: int32
+    y: int32
+}
+
+const point = new Point(1, 2);
 "#,
         );
-        test.result(result).assert_lint("prefer-struct-literal");
-    }
-
-    #[test]
-    fn test_struct_literal_allowed() {
-        let test = TestProgram::for_rule_without_prelude(PreferStructLiteral);
-        let result = test.lint_ast(
-            "prefer_struct_literal/test_struct_literal_allowed.ds",
-            r#"
-const p = Point { x: 1, y: 2 }
-"#,
-        );
-        test.result(result).assert_no_lint("prefer-struct-literal");
-    }
-
-    #[test]
-    fn test_new_namespaced_struct_detected() {
-        let test = TestProgram::for_rule_without_prelude(PreferStructLiteral);
-        let result = test.lint_ast(
-            "prefer_struct_literal/test_new_namespaced_struct_detected.ds",
-            r#"
-const p = new geom.Point(1, 2)
-"#,
-        );
-        test.result(result).assert_lint("prefer-struct-literal");
-    }
-
-    #[test]
-    fn test_new_lowercase_allowed() {
-        let test = TestProgram::for_rule_without_prelude(PreferStructLiteral);
-        let result = test.lint_ast(
-            "prefer_struct_literal/test_new_lowercase_allowed.ds",
-            r#"
-const p = new factory(1, 2)
-"#,
-        );
-        // lowercase names are likely functions, not struct constructors
-        test.result(result).assert_no_lint("prefer-struct-literal");
-    }
-
-    #[test]
-    fn test_multiple_new_calls_detected() {
-        let test = TestProgram::for_rule_without_prelude(PreferStructLiteral);
-        let result = test.lint_ast(
-            "prefer_struct_literal/test_multiple_new_calls_detected.ds",
-            r#"
-const a = new Point(1, 2)
-const b = new Vector(3, 4)
-"#,
-        );
-        // both should be detected
         test.result(result)
-            .assert_lint_count("prefer-struct-literal", 2);
+            .assert_lint("prefer-struct-literal")
+            .assert_has_fix("prefer-struct-literal")
+            .assert_safe_fixed(
+                r#"
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+const point = Point { x: 1, y: 2 };
+"#,
+            );
     }
 
+    /// Report and fix cross module struct constructor calls.
     #[test]
-    fn test_new_without_args_detected() {
+    fn test_fix_cross_module_struct_constructor_call() {
         let test = TestProgram::for_rule_without_prelude(PreferStructLiteral);
-        let result = test.lint_ast(
-            "prefer_struct_literal/test_new_without_args_detected.ds",
+        let diagnostics = test.lint_module_dir_with_modules(
+            test_modules! {
+                "prefer_struct_literal/point.ds" => r#"
+export struct Point {
+    x: int32
+    y: int32
+}
+"#,
+                "prefer_struct_literal/consumer.ds" => r#"
+import { Point } from "./point.ds";
+
+const point = new Point(1, 2);
+"#,
+            },
+            "prefer_struct_literal/consumer.ds",
+        );
+
+        test.result(diagnostics)
+            .assert_lint("prefer-struct-literal")
+            .assert_has_fix("prefer-struct-literal")
+            .assert_safe_fixed(
+                r#"
+import { Point } from "./point.ds";
+
+const point = Point { x: 1, y: 2 };
+"#,
+            );
+    }
+
+    /// Do not report class constructor calls.
+    #[test]
+    fn test_allows_class_constructor_call() {
+        let test = TestProgram::for_rule_without_prelude(PreferStructLiteral);
+        let result = test.lint_dir(
+            "prefer_struct_literal/test_allows_class_constructor_call.ds",
             r#"
-const p = new Point()
+class Point {
+    x: int32;
+    y: int32;
+}
+
+const point = new Point(1, 2);
 "#,
         );
-        test.result(result).assert_lint("prefer-struct-literal");
+        test.result(result).assert_no_lint("prefer-struct-literal");
+    }
+
+    /// Report but avoid fixing generic constructor calls.
+    #[test]
+    fn test_no_fix_for_generic_struct_constructor_call() {
+        let test = TestProgram::for_rule_without_prelude(PreferStructLiteral);
+        let result = test.lint_dir(
+            "prefer_struct_literal/test_no_fix_for_generic_struct_constructor_call.ds",
+            r#"
+struct Box<T> {
+    value: T
+}
+
+const value = new Box<int32>(1);
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-struct-literal")
+            .assert_has_no_fix("prefer-struct-literal");
     }
 }

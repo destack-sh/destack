@@ -24,6 +24,8 @@ mod no_placeholder_implementation;
 mod no_plusplus;
 mod no_process_exit;
 mod no_re_export_all;
+mod no_relative_parent_imports;
+mod no_require_imports;
 mod no_sequences;
 mod no_shadow;
 mod no_struct;
@@ -57,6 +59,8 @@ pub use no_placeholder_implementation::*;
 pub use no_plusplus::*;
 pub use no_process_exit::*;
 pub use no_re_export_all::*;
+pub use no_relative_parent_imports::*;
+pub use no_require_imports::*;
 pub use no_sequences::*;
 pub use no_shadow::*;
 pub use no_struct::*;
@@ -92,7 +96,9 @@ pub fn rules() -> Vec<BoxedLintRule> {
         Box::new(NoPlaceholderImplementation),
         Box::new(NoPlusplus),
         Box::new(NoProcessExit),
+        Box::new(NoRelativeParentImports),
         Box::new(NoReExportAll),
+        Box::new(NoRequireImports),
         Box::new(NoSequences),
         Box::new(NoShadow),
         Box::new(NoStruct),

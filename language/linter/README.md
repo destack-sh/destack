@@ -297,7 +297,7 @@ Subjective preferences for consistent coding style.
 | `LY020` | `no-duplicate-type-constituents` | TS-ESLint | AST |  | Safe | Disallow duplicate constituents in union/intersection types |
 | `LY021` | `no-else-return` | ESLint | AST | ✓ | Safe | Disallow else blocks after return statements |
 | `LY022` | `no-empty-interface` | TS-ESLint | AST | ✓ | Safe | Disallow empty interfaces |
-| `LY023` | `no-extra-boolean-cast` | ESLint | DIR |  | Safe | Disallow unnecessary boolean casts |
+| `LY023` | `no-extra-boolean-cast` | ESLint | DIR | ✓ | Safe | Disallow unnecessary boolean casts |
 | `LY024` | `no-implicit-coercion` | ESLint | DIR |  | Safe | Disallow shorthand type conversions |
 | `LY025` | `no-lonely-if` | ESLint | AST | ✓ | Safe | Disallow if statements as the only statement in else blocks |
 | `LY026` | `no-negated-condition` | ESLint | AST | ✓ | Safe | Disallow negated conditions with else branches |
@@ -306,7 +306,7 @@ Subjective preferences for consistent coding style.
 | `LY029` | `no-nested-ternary` | ESLint | AST | ✓ | Unsafe | Disallow nested ternary expressions |
 | `LY031` | `no-object-constructor` | ESLint | DIR | ✓ | Safe | Disallow `new Object()` |
 | `LY032` | `no-unneeded-ternary` | ESLint | AST | ✓ | Safe | Disallow ternary operators when simpler alternatives exist |
-| `LY033` | `no-unnecessary-template-expression` | TS-ESLint | DIR |  | Safe | Disallow unnecessary template literal expressions |
+| `LY033` | `no-unnecessary-template-expression` | TS-ESLint | DIR | ✓ | Safe | Disallow unnecessary template literal expressions |
 | `LY034` | `no-unnecessary-type-arguments` | TS-ESLint | DIR |  | Safe | Disallow type arguments that equal the default |
 | `LY035` | `no-unnecessary-lambda` | ErrorProne | AST | ✓ | Safe | Disallow lambdas that only wrap a direct function call |
 | `LY036` | `no-var` | ESLint | AST | ✓ | Safe | Require `let` or `const` instead of `var` |
@@ -326,7 +326,7 @@ Subjective preferences for consistent coding style.
 | `LY052` | `prefer-named-extension` | Destack | AST | ✓ | Unsafe | Prefer named extensions for foreign types |
 | `LY081` | `prefer-nullish-coalescing` | TS-ESLint | DIR | ✓ | Safe | Prefer `??` over `\|\|` for default values |
 | `LY053` | `prefer-numeric-literals` | ESLint | DIR | ✓ | Safe | Prefer numeric literals over `parseInt()` |
-| `LY054` | `prefer-object-has-own` | ESLint | DIR |  | Safe | Prefer `Object.hasOwn()` over `Object.prototype.hasOwnProperty` |
+| `LY054` | `prefer-object-has-own` | ESLint | DIR | ✓ | Safe | Prefer `Object.hasOwn()` over `Object.prototype.hasOwnProperty` |
 | `LY055` | `prefer-object-spread` | ESLint | DIR | ✓ | Safe | Prefer spread operator over `Object.assign()` |
 | `LY056` | `prefer-pattern-over-guard` | Destack | AST | ✓ | Safe | Suggest moving match guards into the pattern |
 | `LY057` | `prefer-precise-numeric` | Destack | AST | ✓ | Suggestion | Prefer precise numeric types over `number` |
@@ -339,7 +339,7 @@ Subjective preferences for consistent coding style.
 | `LY065` | `prefer-set-over-empty-map` | Destack | DIR |  | Safe | Suggest `Set<K>` over `Map<K, void>` |
 | `LY066` | `prefer-struct` | Destack | AST | ✓ | Unsafe | Prefer struct for data-only classes |
 | `LY067` | `prefer-string-replaceall` | Unicorn | DIR | ✓ | Safe | Prefer `.replaceAll()` over `.replace()` with global regex |
-| `LY068` | `prefer-struct-literal` | Destack | AST | ✓ | Safe | Prefer struct literal syntax over constructor calls |
+| `LY068` | `prefer-struct-literal` | Destack | DIR | ✓ | Safe | Prefer struct literal syntax over constructor calls |
 | `LY069` | `prefer-template` | ESLint | AST | ✓ | Safe | Prefer template literals over string concatenation |
 | `LY070` | `prefer-tuple` | Destack | AST | ✓ | Safe | Suggest tuple type for fixed-length heterogeneous arrays |
 | `LY071` | `prefer-tuple-destructure` | Destack | AST | ✓ | Safe | Prefer tuple destructuring over indexed access |
@@ -431,8 +431,8 @@ Opt-in rules that ban certain patterns by project choice. These rules may confli
 | `LR041` | `no-private-api-import` | Destack | DIR |  | None | Disallow importing package private internal APIs from outside their scope |
 | `LR025` | `no-process-exit` | Unicorn | DIR | ✓ | None | Disallow `process.exit()` |
 | `LR042` | `no-profile-incompatible-import` | Destack | DIR |  | None | Disallow imports that are not available in the active profile libraries |
-| `LR043` | `no-relative-parent-imports` | Import | DIR |  | None | Disallow relative parent path imports |
-| `LR026` | `no-require-imports` | TS-ESLint | DIR |  | Safe | Disallow `require()` imports |
+| `LR043` | `no-relative-parent-imports` | Import | DIR | ✓ | None | Disallow relative parent path imports |
+| `LR026` | `no-require-imports` | TS-ESLint | DIR | ✓ | None | Disallow `require()` imports |
 | `LR027` | `no-runtime-reflection` | Destack | DIR |  | None | Disallow runtime reflection (ban RTTI) |
 | `LR028` | `no-sequences` | ESLint | AST | ✓ | None | Disallow comma operators |
 | `LR029` | `no-shadow` | ESLint | DIR | ✓ | None | Disallow shadowing by rebinding a value |
