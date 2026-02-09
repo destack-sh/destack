@@ -1,0 +1,11 @@
+[package]
+name = "rxjs"
+description = "Reactive Extensions library"
+repo = "https://github.com/ReactiveX/rxjs"
+ref = "c15b37f81ba5f5abea8c872b0189a70b150df4cb"
+language = "ts"
+tags = ["library", "functional", "frontend"]
+
+[discovery]
+include = ["packages/**/*.ts", "src/**/*.ts"]
+exclude = ["**/*.spec.ts", "**/*.test.ts", "**/__tests__/**", "**/fixtures/**", "**/dist/**", "**/node_modules/**"]

@@ -1,0 +1,11 @@
+[package]
+name = "nuxt"
+description = "Nuxt full stack framework"
+repo = "https://github.com/nuxt/nuxt"
+ref = "b9151429bd31d5701a8c1cc13ab2d6cb7151074d"
+language = "ts"
+tags = ["framework", "frontend", "monorepo"]
+
+[discovery]
+include = ["packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/fixtures/**", "**/dist/**", "**/node_modules/**"]

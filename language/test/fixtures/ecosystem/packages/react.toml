@@ -1,0 +1,11 @@
+[package]
+name = "react"
+description = "React library monorepo"
+repo = "https://github.com/facebook/react"
+ref = "b07aa7d643ec9028e452612c3ff2c17a6cee6bb7"
+language = "js"
+tags = ["frontend", "jsx", "library"]
+
+[discovery]
+include = ["packages/**/*.js", "packages/**/*.jsx", "packages/**/*.ts", "packages/**/*.tsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/fixtures/**", "**/dist/**", "**/node_modules/**"]

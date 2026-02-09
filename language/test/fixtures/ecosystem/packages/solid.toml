@@ -1,0 +1,11 @@
+[package]
+name = "solid"
+description = "SolidJS reactive UI library"
+repo = "https://github.com/solidjs/solid"
+ref = "a0524c066d8f105e0c6c7b971490b162e9e552b1"
+language = "ts"
+tags = ["frontend", "jsx", "framework"]
+
+[discovery]
+include = ["packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/fixtures/**", "**/dist/**", "**/node_modules/**"]

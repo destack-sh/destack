@@ -1,0 +1,11 @@
+[package]
+name = "apollo-client"
+description = "Apollo GraphQL client"
+repo = "https://github.com/apollographql/apollo-client"
+ref = "d25690481b5bf3186d0979569a72c993d3e3684e"
+language = "ts"
+tags = ["graphql", "frontend", "library"]
+
+[discovery]
+include = ["src/**/*.ts", "src/**/*.tsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/testing/**", "**/integration-tests/**", "**/dist/**", "**/node_modules/**"]

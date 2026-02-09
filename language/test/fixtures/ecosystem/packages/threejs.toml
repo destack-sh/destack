@@ -1,0 +1,11 @@
+[package]
+name = "threejs"
+description = "Three.js 3D graphics library"
+repo = "https://github.com/mrdoob/three.js"
+ref = "53ae84bc0ccbec5b16ca2da740cb0eaea6d8afce"
+language = "js"
+tags = ["graphics", "frontend", "library"]
+
+[discovery]
+include = ["src/**/*.js", "examples/jsm/**/*.js", "examples/jsm/**/*.ts"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/editor/**", "**/dist/**", "**/node_modules/**"]

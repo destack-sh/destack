@@ -1,0 +1,11 @@
+[package]
+name = "graphql-codegen"
+description = "GraphQL Code Generator monorepo"
+repo = "https://github.com/dotansimha/graphql-code-generator"
+ref = "62c76188d4e660efa50dcf486921804adc70e1b5"
+language = "ts"
+tags = ["graphql", "tooling", "monorepo"]
+
+[discovery]
+include = ["packages/**/*.ts", "packages/**/*.tsx", "website/**/*.ts", "website/**/*.tsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/e2e/**", "**/fixtures/**", "**/dist/**", "**/node_modules/**"]

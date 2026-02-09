@@ -1,0 +1,11 @@
+[package]
+name = "tanstack-query"
+description = "TanStack Query data synchronization library"
+repo = "https://github.com/TanStack/query"
+ref = "d68845833b19e9168e6f822b413d5124c8c5904c"
+language = "ts"
+tags = ["library", "frontend", "monorepo"]
+
+[discovery]
+include = ["packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/fixtures/**", "**/dist/**", "**/node_modules/**"]

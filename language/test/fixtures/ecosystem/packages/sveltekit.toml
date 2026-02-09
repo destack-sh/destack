@@ -1,0 +1,11 @@
+[package]
+name = "sveltekit"
+description = "SvelteKit framework monorepo"
+repo = "https://github.com/sveltejs/kit"
+ref = "7492085309e68cb3c6ba1696b8e1a0ac07a8514b"
+language = "ts"
+tags = ["framework", "frontend", "monorepo"]
+
+[discovery]
+include = ["packages/**/*.ts", "packages/**/*.js"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/fixtures/**", "**/dist/**", "**/node_modules/**"]
