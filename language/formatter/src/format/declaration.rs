@@ -848,14 +848,12 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 let value_span = f.context().get_span(*value_id);
                 let leading_value_span =
                     Span::new(value_span.file, declaration_span.start, value_span.start);
-                let has_comment_before_value =
-                    f.context().get_span_str(leading_value_span).contains("/*")
-                        || f.context().get_span_str(leading_value_span).contains("//");
-                let inline_header_len =
-                    f.context().get_span_str(leading_value_span).chars().count();
-                let inline_value_len = f.context().get_span_str(value_span).chars().count();
+                let has_comment_before_value = f.context().has_comment(leading_value_span);
+                let inline_header_len = f.context().span_char_len(leading_value_span);
+                let inline_value_len = f.context().span_char_len(value_span);
                 let inline_total_len = inline_header_len.saturating_add(inline_value_len);
                 let line_width = usize::from(f.context().options.line_width);
+                let value_has_newline = f.context().has_newline(value_span);
                 let should_break_template_literal_type_after_equals = match value_expression {
                     Expression::TypeTemplateLiteral { spans, .. } => {
                         let has_conditional_interpolation = spans.iter().any(|span_id| {
@@ -907,18 +905,25 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 {
                     format_soft_break.format(f)?;
                 } else if is_expression_breakable(tree, tree.get(*value_id)) {
-                    if value_has_prefix_annotation {
-                        f.context()
-                            .record_best_fitting("best_fitting.declaration", 3);
-                        best_fitting![format_inline, format_soft_break, format_indented]
-                            .with_mode(BestFittingMode::AllLines)
-                            .format(f)?;
+                    if !value_has_prefix_annotation
+                        && !value_has_newline
+                        && inline_total_len <= line_width
+                    {
+                        format_inline.format(f)?;
                     } else {
-                        f.context()
-                            .record_best_fitting("best_fitting.declaration", 3);
-                        best_fitting![format_inline, format_inline_expanded, format_indented]
-                            .with_mode(BestFittingMode::AllLines)
-                            .format(f)?;
+                        if value_has_prefix_annotation {
+                            f.context()
+                                .record_best_fitting("best_fitting.declaration", 3);
+                            best_fitting![format_inline, format_soft_break, format_indented]
+                                .with_mode(BestFittingMode::AllLines)
+                                .format(f)?;
+                        } else {
+                            f.context()
+                                .record_best_fitting("best_fitting.declaration", 3);
+                            best_fitting![format_inline, format_inline_expanded, format_indented]
+                                .with_mode(BestFittingMode::AllLines)
+                                .format(f)?;
+                        }
                     }
                 } else {
                     f.context()

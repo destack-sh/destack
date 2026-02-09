@@ -94,6 +94,10 @@ struct Args {
     #[arg(long, default_value_t = 1)]
     workers: usize,
 
+    /// Benchmark behavior mode.
+    #[arg(long, value_enum, default_value_t = BenchMode::RealWorld)]
+    mode: BenchMode,
+
     /// Disable run progress output on stderr.
     #[arg(long)]
     no_progress: bool,
@@ -129,6 +133,25 @@ enum CorpusProfile {
     Full,
 }
 
+/// Benchmark behavior mode.
+#[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
+enum BenchMode {
+    /// Respect formatter-level ignore directives and measure real tool behavior.
+    RealWorld,
+    /// Disable formatter-level ignore directives for cross-tool fairness.
+    Engine,
+}
+
+impl BenchMode {
+    /// Return the mode label.
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::RealWorld => "real_world",
+            Self::Engine => "engine",
+        }
+    }
+}
+
 impl CorpusProfile {
     /// Return the profile label.
     fn as_str(self) -> &'static str {
@@ -153,8 +176,13 @@ struct CorpusFile {
 struct FileRunStat {
     path: PathBuf,
     source_lines: usize,
+    formatted_lines: usize,
+    skipped_lines: usize,
     source_bytes: usize,
+    formatted_bytes: usize,
+    skipped_bytes: usize,
     output_bytes: usize,
+    skipped_by_file_ignore: bool,
     parse: Duration,
     format: Duration,
     print: Duration,
@@ -173,6 +201,12 @@ struct BenchRunStats {
     total: Duration,
     source_bytes: usize,
     source_lines: usize,
+    formatted_bytes: usize,
+    formatted_lines: usize,
+    skipped_bytes: usize,
+    skipped_lines: usize,
+    formatted_files: usize,
+    skipped_files: usize,
     output_bytes: usize,
     sink: usize,
     cache: FormatterCacheStatsSnapshot,
@@ -197,11 +231,18 @@ struct FileAggregate {
 #[derive(Debug, Clone)]
 struct BenchSummary {
     root: PathBuf,
+    mode: BenchMode,
     files: usize,
+    formatted_files_per_run: usize,
+    skipped_files_per_run: usize,
     warmup_runs: usize,
     measured_runs: usize,
     source_lines_per_run: usize,
+    formatted_lines_per_run: usize,
+    skipped_lines_per_run: usize,
     source_bytes_per_run: usize,
+    formatted_bytes_per_run: usize,
+    skipped_bytes_per_run: usize,
     output_bytes_per_run: usize,
     sink: usize,
     min: Duration,
@@ -217,8 +258,10 @@ struct BenchSummary {
     mean_work: Duration,
     files_per_second: f64,
     lines_per_second: f64,
+    formatted_lines_per_second: f64,
     parse_lines_per_second: f64,
     format_lines_per_second: f64,
+    format_formatted_lines_per_second: f64,
     print_lines_per_second: f64,
     input_mib_per_second: f64,
     output_mib_per_second: f64,
@@ -341,8 +384,9 @@ fn main() -> Result<(), String> {
 
     if progress {
         eprintln!(
-            "bench_stats: corpus {} [{}] ({} files, {} lines), warmup {}, measured {}, workers {}, timings {}",
+            "bench_stats: corpus {} [{}|{}] ({} files, {} lines), warmup {}, measured {}, workers {}, timings {}",
             root.display(),
+            args.mode.as_str(),
             args.corpus.as_str(),
             format_count(files.len()),
             format_count(corpus_lines),
@@ -368,7 +412,7 @@ fn main() -> Result<(), String> {
     }
 
     for warmup_index in 0..args.warmup_runs {
-        let run = run_single_benchmark(&files, args.workers, args.timings)?;
+        let run = run_single_benchmark(&files, args.workers, args.timings, args.mode)?;
         if progress {
             eprintln!(
                 "  run {}/{} warmup   total {}",
@@ -381,7 +425,7 @@ fn main() -> Result<(), String> {
 
     let mut measured_runs = Vec::with_capacity(args.runs);
     for run_index in 0..args.runs {
-        let run = run_single_benchmark(&files, args.workers, args.timings)?;
+        let run = run_single_benchmark(&files, args.workers, args.timings, args.mode)?;
         if progress {
             eprintln!(
                 "  run {}/{} measured total {}",
@@ -402,6 +446,7 @@ fn main() -> Result<(), String> {
 
     let summary = summarize(
         root.as_path(),
+        args.mode,
         args.warmup_runs,
         args.top,
         args.timings_top,
@@ -540,6 +585,7 @@ fn run_single_benchmark(
     files: &[CorpusFile],
     workers: usize,
     timings_enabled: bool,
+    mode: BenchMode,
 ) -> Result<BenchRunStats, String> {
     let run_started_at = Instant::now();
     if files.is_empty() {
@@ -551,6 +597,12 @@ fn run_single_benchmark(
             total: Duration::ZERO,
             source_bytes: 0,
             source_lines: 0,
+            formatted_bytes: 0,
+            formatted_lines: 0,
+            skipped_bytes: 0,
+            skipped_lines: 0,
+            formatted_files: 0,
+            skipped_files: 0,
             output_bytes: 0,
             sink: 0,
             cache: FormatterCacheStatsSnapshot::default(),
@@ -564,7 +616,7 @@ fn run_single_benchmark(
     if worker_count == 1 {
         let mut file_stats = Vec::with_capacity(files.len());
         for (index, corpus_file) in files.iter().enumerate() {
-            let file_stat = benchmark_file(index as u32, corpus_file, timings_enabled)?;
+            let file_stat = benchmark_file(index as u32, corpus_file, timings_enabled, mode)?;
             file_stats.push(file_stat);
         }
 
@@ -588,7 +640,8 @@ fn run_single_benchmark(
 
                     let corpus_file = &files[file_index];
                     let file_stat =
-                        match benchmark_file(file_index as u32, corpus_file, timings_enabled) {
+                        match benchmark_file(file_index as u32, corpus_file, timings_enabled, mode)
+                        {
                             Ok(file_stat) => file_stat,
                             Err(error) => {
                                 let _ = sender.send(Err(error));
@@ -638,6 +691,12 @@ fn aggregate_run_stats(file_stats: Vec<FileRunStat>, wall_total: Duration) -> Be
     let mut run_total = Duration::ZERO;
     let mut source_bytes = 0usize;
     let mut source_lines = 0usize;
+    let mut formatted_bytes = 0usize;
+    let mut formatted_lines = 0usize;
+    let mut skipped_bytes = 0usize;
+    let mut skipped_lines = 0usize;
+    let mut formatted_files = 0usize;
+    let mut skipped_files = 0usize;
     let mut output_bytes = 0usize;
     let mut sink = 0usize;
     let mut cache = FormatterCacheStatsSnapshot::default();
@@ -651,8 +710,17 @@ fn aggregate_run_stats(file_stats: Vec<FileRunStat>, wall_total: Duration) -> Be
 
         source_bytes = source_bytes.saturating_add(file_stat.source_bytes);
         source_lines = source_lines.saturating_add(file_stat.source_lines);
+        formatted_bytes = formatted_bytes.saturating_add(file_stat.formatted_bytes);
+        formatted_lines = formatted_lines.saturating_add(file_stat.formatted_lines);
+        skipped_bytes = skipped_bytes.saturating_add(file_stat.skipped_bytes);
+        skipped_lines = skipped_lines.saturating_add(file_stat.skipped_lines);
         output_bytes = output_bytes.saturating_add(file_stat.output_bytes);
         sink ^= file_stat.output_bytes;
+        if file_stat.skipped_by_file_ignore {
+            skipped_files = skipped_files.saturating_add(1);
+        } else {
+            formatted_files = formatted_files.saturating_add(1);
+        }
 
         cache.span_text_hits = cache
             .span_text_hits
@@ -717,6 +785,12 @@ fn aggregate_run_stats(file_stats: Vec<FileRunStat>, wall_total: Duration) -> Be
         total: wall_total,
         source_bytes,
         source_lines,
+        formatted_bytes,
+        formatted_lines,
+        skipped_bytes,
+        skipped_lines,
+        formatted_files,
+        skipped_files,
         output_bytes,
         sink,
         cache,
@@ -731,6 +805,7 @@ fn benchmark_file(
     file_id: u32,
     corpus_file: &CorpusFile,
     timings_enabled: bool,
+    mode: BenchMode,
 ) -> Result<FileRunStat, String> {
     let total_started_at = Instant::now();
 
@@ -755,7 +830,8 @@ fn benchmark_file(
     let parents = NodeParentIndex::from_tree(&tree);
     let parse = parse_started_at.elapsed();
 
-    let options = DestackFormatOptions::default();
+    let options =
+        DestackFormatOptions::default().with_respect_file_ignore(mode == BenchMode::RealWorld);
     let context = DestackFormatContext::new_with_timings(
         options,
         file.as_ref(),
@@ -770,6 +846,7 @@ fn benchmark_file(
     let timing_collector = context.timings.clone();
     let cache_collector = context.cache_stats.clone();
     let counter_collector = context.counters.clone();
+    let file_ignore_applied = context.file_ignore_applied.clone();
 
     let format_started_at = Instant::now();
     let formatted = destack_fir::format!(context, [statement_list(&expressions)])
@@ -798,12 +875,28 @@ fn benchmark_file(
         .as_ref()
         .map_or_else(Vec::new, |timings| timings.snapshot());
     let counters = counter_collector.snapshot();
+    let skipped_by_file_ignore = file_ignore_applied.get();
+    let (formatted_lines, skipped_lines) = if skipped_by_file_ignore {
+        (0usize, corpus_file.source_lines)
+    } else {
+        (corpus_file.source_lines, 0usize)
+    };
+    let (formatted_bytes, skipped_bytes) = if skipped_by_file_ignore {
+        (0usize, corpus_file.source_bytes)
+    } else {
+        (corpus_file.source_bytes, 0usize)
+    };
 
     Ok(FileRunStat {
         path: corpus_file.path.clone(),
         source_lines: corpus_file.source_lines,
+        formatted_lines,
+        skipped_lines,
         source_bytes: corpus_file.source_bytes,
+        formatted_bytes,
+        skipped_bytes,
         output_bytes,
+        skipped_by_file_ignore,
         parse,
         format,
         print,
@@ -817,6 +910,7 @@ fn benchmark_file(
 /// Summarize all measured runs.
 fn summarize(
     root: &Path,
+    mode: BenchMode,
     warmup_runs: usize,
     top: usize,
     timings_top: usize,
@@ -860,6 +954,12 @@ fn summarize(
 
     let source_bytes_per_run = runs.first().map_or(0, |run| run.source_bytes);
     let source_lines_per_run = runs.first().map_or(0, |run| run.source_lines);
+    let formatted_bytes_per_run = runs.first().map_or(0, |run| run.formatted_bytes);
+    let formatted_lines_per_run = runs.first().map_or(0, |run| run.formatted_lines);
+    let skipped_bytes_per_run = runs.first().map_or(0, |run| run.skipped_bytes);
+    let skipped_lines_per_run = runs.first().map_or(0, |run| run.skipped_lines);
+    let formatted_files_per_run = runs.first().map_or(0, |run| run.formatted_files);
+    let skipped_files_per_run = runs.first().map_or(0, |run| run.skipped_files);
     let output_bytes_per_run = runs.first().map_or(0, |run| run.output_bytes);
     let sink = runs.iter().fold(0usize, |acc, run| acc ^ run.sink);
 
@@ -874,6 +974,11 @@ fn summarize(
     } else {
         source_lines_per_run as f64 / mean.as_secs_f64()
     };
+    let formatted_lines_per_second = if mean.is_zero() {
+        f64::INFINITY
+    } else {
+        formatted_lines_per_run as f64 / mean.as_secs_f64()
+    };
     let parse_lines_per_second = if mean_parse.is_zero() {
         f64::INFINITY
     } else {
@@ -883,6 +988,11 @@ fn summarize(
         f64::INFINITY
     } else {
         source_lines_per_run as f64 / mean_format.as_secs_f64()
+    };
+    let format_formatted_lines_per_second = if mean_format.is_zero() {
+        f64::INFINITY
+    } else {
+        formatted_lines_per_run as f64 / mean_format.as_secs_f64()
     };
     let print_lines_per_second = if mean_print.is_zero() {
         f64::INFINITY
@@ -944,11 +1054,18 @@ fn summarize(
 
     BenchSummary {
         root: root.to_path_buf(),
+        mode,
         files,
+        formatted_files_per_run,
+        skipped_files_per_run,
         warmup_runs,
         measured_runs,
         source_lines_per_run,
+        formatted_lines_per_run,
+        skipped_lines_per_run,
         source_bytes_per_run,
+        formatted_bytes_per_run,
+        skipped_bytes_per_run,
         output_bytes_per_run,
         sink,
         min,
@@ -964,8 +1081,10 @@ fn summarize(
         mean_work,
         files_per_second,
         lines_per_second,
+        formatted_lines_per_second,
         parse_lines_per_second,
         format_lines_per_second,
+        format_formatted_lines_per_second,
         print_lines_per_second,
         input_mib_per_second,
         output_mib_per_second,
@@ -1125,7 +1244,7 @@ fn print_table(summary: &BenchSummary, color: bool) {
         let heat = style.color_for_range(run.total, summary.min, summary.max);
         let run_lines_per_second = run.source_lines as f64 / run.total.as_secs_f64().max(0.000_001);
         let run_format_lines_per_second =
-            run.source_lines as f64 / run.format.as_secs_f64().max(0.000_001);
+            run.formatted_lines as f64 / run.format.as_secs_f64().max(0.000_001);
         println!(
             "  {:<5} {:>10} {:>10} {:>10} {heat}{:>10}{reset} {:>8} {:>10} {:>10}",
             index + 1,
@@ -1318,12 +1437,25 @@ fn print_table(summary: &BenchSummary, color: bool) {
         cyan = style.cyan,
         reset = style.reset
     );
+    println!("  mode:              {}", summary.mode.as_str());
     println!(
         "  corpus:            {} files, {} lines, {} source, {} output",
         format_count(summary.files),
         format_count(summary.source_lines_per_run),
         format_bytes(summary.source_bytes_per_run),
         format_bytes(summary.output_bytes_per_run)
+    );
+    println!(
+        "  formatted:         {} files, {} lines, {} source",
+        format_count(summary.formatted_files_per_run),
+        format_count(summary.formatted_lines_per_run),
+        format_bytes(summary.formatted_bytes_per_run)
+    );
+    println!(
+        "  skipped:           {} files, {} lines, {} source",
+        format_count(summary.skipped_files_per_run),
+        format_count(summary.skipped_lines_per_run),
+        format_bytes(summary.skipped_bytes_per_run)
     );
     println!(
         "  runs:              warmup {}, measured {}",
@@ -1417,6 +1549,10 @@ fn print_table(summary: &BenchSummary, color: bool) {
         format_count_rate_per_second(summary.format_lines_per_second)
     );
     println!(
+        "  fmt lines/s work:  {:>10}",
+        format_count_rate_per_second(summary.format_formatted_lines_per_second)
+    );
+    println!(
         "  print lines/s:     {:>10}",
         format_count_rate_per_second(summary.print_lines_per_second)
     );
@@ -1428,6 +1564,10 @@ fn print_table(summary: &BenchSummary, color: bool) {
     println!(
         "  lines/s:           {:>10}",
         format_count_rate_per_second(summary.lines_per_second)
+    );
+    println!(
+        "  lines/s work:      {:>10}",
+        format_count_rate_per_second(summary.formatted_lines_per_second)
     );
     println!(
         "  input rate:        {:>10}",
@@ -1505,61 +1645,81 @@ fn print_table(summary: &BenchSummary, color: bool) {
 /// Print csv benchmark output.
 fn print_csv(summary: &BenchSummary) {
     println!(
-        "root,files,warmup_runs,measured_runs,source_lines_per_run,source_bytes_per_run,output_bytes_per_run,min_ms,mean_ms,median_ms,p95_ms,max_ms,stddev_ms,cv_pct,parse_mean_ms,format_mean_ms,print_mean_ms,files_per_sec,lines_per_sec,parse_lines_per_sec,format_lines_per_sec,print_lines_per_sec,input_mib_per_sec,output_mib_per_sec,span_text_hits,span_text_misses,span_newline_hits,span_newline_misses,span_comment_hits,span_comment_misses,annotation_hits,annotation_misses,sink"
+        "root,mode,files,formatted_files_per_run,skipped_files_per_run,warmup_runs,measured_runs,source_lines_per_run,formatted_lines_per_run,skipped_lines_per_run,source_bytes_per_run,formatted_bytes_per_run,skipped_bytes_per_run,output_bytes_per_run,min_ms,mean_ms,median_ms,p95_ms,max_ms,stddev_ms,cv_pct,parse_mean_ms,format_mean_ms,print_mean_ms,files_per_sec,lines_per_sec,formatted_lines_per_sec,parse_lines_per_sec,format_lines_per_sec,format_formatted_lines_per_sec,print_lines_per_sec,input_mib_per_sec,output_mib_per_sec,span_text_hits,span_text_misses,span_newline_hits,span_newline_misses,span_comment_hits,span_comment_misses,annotation_hits,annotation_misses,sink"
     );
-    println!(
-        "\"{}\",{},{},{},{},{},{},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{},{},{},{},{},{},{},{},{},{}",
-        summary.root.display(),
-        summary.files,
-        summary.warmup_runs,
-        summary.measured_runs,
-        summary.source_lines_per_run,
-        summary.source_bytes_per_run,
-        summary.output_bytes_per_run,
-        duration_ms(summary.min),
-        duration_ms(summary.mean),
-        duration_ms(summary.median),
-        duration_ms(summary.p95),
-        duration_ms(summary.max),
-        summary.stddev_ms,
-        summary.coefficient_of_variation * 100.0,
-        duration_ms(summary.mean_parse),
-        duration_ms(summary.mean_format),
-        duration_ms(summary.mean_print),
-        summary.files_per_second,
-        summary.lines_per_second,
-        summary.parse_lines_per_second,
-        summary.format_lines_per_second,
-        summary.print_lines_per_second,
-        summary.input_mib_per_second,
-        summary.output_mib_per_second,
-        summary.cache.span_text_hits,
-        summary.cache.span_text_misses,
-        summary.cache.span_has_newline_hits,
-        summary.cache.span_has_newline_misses,
-        summary.cache.span_has_comment_hits,
-        summary.cache.span_has_comment_misses,
-        summary.cache.annotation_cache_hits,
-        summary.cache.annotation_cache_misses,
-        summary.sink,
-    );
+    let summary_row = vec![
+        format!("\"{}\"", summary.root.display()),
+        format!("\"{}\"", summary.mode.as_str()),
+        summary.files.to_string(),
+        summary.formatted_files_per_run.to_string(),
+        summary.skipped_files_per_run.to_string(),
+        summary.warmup_runs.to_string(),
+        summary.measured_runs.to_string(),
+        summary.source_lines_per_run.to_string(),
+        summary.formatted_lines_per_run.to_string(),
+        summary.skipped_lines_per_run.to_string(),
+        summary.source_bytes_per_run.to_string(),
+        summary.formatted_bytes_per_run.to_string(),
+        summary.skipped_bytes_per_run.to_string(),
+        summary.output_bytes_per_run.to_string(),
+        format!("{:.3}", duration_ms(summary.min)),
+        format!("{:.3}", duration_ms(summary.mean)),
+        format!("{:.3}", duration_ms(summary.median)),
+        format!("{:.3}", duration_ms(summary.p95)),
+        format!("{:.3}", duration_ms(summary.max)),
+        format!("{:.3}", summary.stddev_ms),
+        format!("{:.3}", summary.coefficient_of_variation * 100.0),
+        format!("{:.3}", duration_ms(summary.mean_parse)),
+        format!("{:.3}", duration_ms(summary.mean_format)),
+        format!("{:.3}", duration_ms(summary.mean_print)),
+        format!("{:.3}", summary.files_per_second),
+        format!("{:.3}", summary.lines_per_second),
+        format!("{:.3}", summary.formatted_lines_per_second),
+        format!("{:.3}", summary.parse_lines_per_second),
+        format!("{:.3}", summary.format_lines_per_second),
+        format!("{:.3}", summary.format_formatted_lines_per_second),
+        format!("{:.3}", summary.print_lines_per_second),
+        format!("{:.3}", summary.input_mib_per_second),
+        format!("{:.3}", summary.output_mib_per_second),
+        summary.cache.span_text_hits.to_string(),
+        summary.cache.span_text_misses.to_string(),
+        summary.cache.span_has_newline_hits.to_string(),
+        summary.cache.span_has_newline_misses.to_string(),
+        summary.cache.span_has_comment_hits.to_string(),
+        summary.cache.span_has_comment_misses.to_string(),
+        summary.cache.annotation_cache_hits.to_string(),
+        summary.cache.annotation_cache_misses.to_string(),
+        summary.sink.to_string(),
+    ];
+    println!("{}", summary_row.join(","));
 
     println!();
-    println!("run,total_ms,work_ms,parse_ms,format_ms,print_ms,lines_per_sec,format_lines_per_sec");
+    println!(
+        "run,total_ms,work_ms,parse_ms,format_ms,print_ms,source_lines,formatted_lines,skipped_lines,lines_per_sec,format_lines_per_sec,format_work_lines_per_sec"
+    );
     for (index, run) in summary.runs.iter().enumerate() {
         let run_lines_per_second = run.source_lines as f64 / run.total.as_secs_f64().max(0.000_001);
         let run_format_lines_per_second =
             run.source_lines as f64 / run.format.as_secs_f64().max(0.000_001);
+        let run_format_work_lines_per_second =
+            run.formatted_lines as f64 / run.format.as_secs_f64().max(0.000_001);
         println!(
-            "{},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3}",
-            index + 1,
-            duration_ms(run.total),
-            duration_ms(run.work_total),
-            duration_ms(run.parse),
-            duration_ms(run.format),
-            duration_ms(run.print),
-            run_lines_per_second,
-            run_format_lines_per_second,
+            "{}",
+            vec![
+                (index + 1).to_string(),
+                format!("{:.3}", duration_ms(run.total)),
+                format!("{:.3}", duration_ms(run.work_total)),
+                format!("{:.3}", duration_ms(run.parse)),
+                format!("{:.3}", duration_ms(run.format)),
+                format!("{:.3}", duration_ms(run.print)),
+                run.source_lines.to_string(),
+                run.formatted_lines.to_string(),
+                run.skipped_lines.to_string(),
+                format!("{:.3}", run_lines_per_second),
+                format!("{:.3}", run_format_lines_per_second),
+                format!("{:.3}", run_format_work_lines_per_second),
+            ]
+            .join(","),
         );
     }
 
@@ -1625,9 +1785,15 @@ fn print_json(summary: &BenchSummary) {
                 "format_ms": duration_ms(run.format),
                 "print_ms": duration_ms(run.print),
                 "lines_per_sec": run.source_lines as f64 / run.total.as_secs_f64().max(0.000_001),
+                "formatted_lines_per_sec": run.formatted_lines as f64 / run.total.as_secs_f64().max(0.000_001),
                 "format_lines_per_sec": run.source_lines as f64 / run.format.as_secs_f64().max(0.000_001),
+                "format_work_lines_per_sec": run.formatted_lines as f64 / run.format.as_secs_f64().max(0.000_001),
                 "source_lines": run.source_lines,
+                "formatted_lines": run.formatted_lines,
+                "skipped_lines": run.skipped_lines,
                 "source_bytes": run.source_bytes,
+                "formatted_bytes": run.formatted_bytes,
+                "skipped_bytes": run.skipped_bytes,
                 "output_bytes": run.output_bytes,
             })
         })
@@ -1688,11 +1854,18 @@ fn print_json(summary: &BenchSummary) {
 
     let payload = json!({
         "root": summary.root.display().to_string(),
+        "mode": summary.mode.as_str(),
         "files": summary.files,
+        "formatted_files_per_run": summary.formatted_files_per_run,
+        "skipped_files_per_run": summary.skipped_files_per_run,
         "warmup_runs": summary.warmup_runs,
         "measured_runs": summary.measured_runs,
         "source_lines_per_run": summary.source_lines_per_run,
+        "formatted_lines_per_run": summary.formatted_lines_per_run,
+        "skipped_lines_per_run": summary.skipped_lines_per_run,
         "source_bytes_per_run": summary.source_bytes_per_run,
+        "formatted_bytes_per_run": summary.formatted_bytes_per_run,
+        "skipped_bytes_per_run": summary.skipped_bytes_per_run,
         "output_bytes_per_run": summary.output_bytes_per_run,
         "sink": summary.sink,
         "timing_ms": {
@@ -1713,8 +1886,10 @@ fn print_json(summary: &BenchSummary) {
         "throughput": {
             "files_per_sec": summary.files_per_second,
             "lines_per_sec": summary.lines_per_second,
+            "formatted_lines_per_sec": summary.formatted_lines_per_second,
             "parse_lines_per_sec": summary.parse_lines_per_second,
             "format_lines_per_sec": summary.format_lines_per_second,
+            "format_work_lines_per_sec": summary.format_formatted_lines_per_second,
             "print_lines_per_sec": summary.print_lines_per_second,
             "input_mib_per_sec": summary.input_mib_per_second,
             "output_mib_per_sec": summary.output_mib_per_second,

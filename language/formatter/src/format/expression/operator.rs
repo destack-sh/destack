@@ -839,6 +839,52 @@ pub(super) fn format_operator_expression<'ast>(
             }
 
             // default: leading operator on break
+            let can_use_clean_type_binary_fast_path = (is_type_union || is_type_intersection)
+                && !(is_type_union && union_source_has_leading_pipe(f.context(), node_id))
+                && !f.context().has_annotation(node_id)
+                && operands
+                    .iter()
+                    .all(|operand| !f.context().has_annotation(operand.expression));
+            if can_use_clean_type_binary_fast_path {
+                f.context()
+                    .increment_counter("profile.binary.type_clean.fast_path", 1);
+                write!(
+                    f,
+                    [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                        let Some(first_operand) = operands.first() else {
+                            return Ok(());
+                        };
+                        format_binary_operand_with_grouping_parentheses(
+                            f,
+                            *operator,
+                            first_operand.expression,
+                        )?;
+
+                        for operand in operands.iter().skip(1) {
+                            let Some(op) = operand.operator else {
+                                continue;
+                            };
+                            write!(
+                                f,
+                                [indent(&format_with(
+                                    |f: &mut DestackFormatter<'ast, '_>| {
+                                        write!(f, [soft_line_break_or_space(), op, space()])?;
+                                        format_binary_operand_with_grouping_parentheses(
+                                            f,
+                                            *operator,
+                                            operand.expression,
+                                        )
+                                    }
+                                ))]
+                            )?;
+                        }
+
+                        Ok(())
+                    }))]
+                )?;
+                return Ok(true);
+            }
+
             let binary_parent_is_parenthesized =
                 f.context()
                     .get_parent(node_id)
@@ -1037,9 +1083,66 @@ pub(super) fn format_operator_expression<'ast>(
             operator,
             right,
         } => {
-            let has_postfix = f.context().has_postfix_annotation(*left);
+            // fast path: trivia free, short, simple assignments stay inline
+            let line_width = usize::from(f.context().options.line_width);
             let inner_right_id = transparent_inner_expression(f.context(), *right);
             let inner_right_expr = f.context().tree.get(inner_right_id);
+            let right_is_simple_expression = matches!(
+                inner_right_expr,
+                Expression::ScalarLiteral(_)
+                    | Expression::Path { .. }
+                    | Expression::Member { .. }
+                    | Expression::PrivateMember { .. }
+                    | Expression::Index { .. }
+            );
+            let has_assignment_parent =
+                f.context()
+                    .get_parent(node_id)
+                    .is_some_and(|(parent_id, parent_type)| {
+                        if parent_type != NodeType::Expression {
+                            return false;
+                        }
+                        matches!(
+                            f.context()
+                                .tree
+                                .get(LocalNodeId::<Expression>::new(parent_id)),
+                            Expression::Assign { .. }
+                        )
+                    });
+            let left_has_annotation = f.context().has_annotation(*left);
+            let right_has_annotation = f.context().has_annotation(*right);
+            let node_has_annotation = f.context().has_annotation(node_id);
+            if right_is_simple_expression
+                && !has_assignment_parent
+                && !left_has_annotation
+                && !right_has_annotation
+                && !node_has_annotation
+            {
+                let left_source_len = expression_source_len(f.context(), *left);
+                let operator_len = assign_operator_len(operator);
+                let right_source_len = expression_source_len(f.context(), inner_right_id);
+                let inline_len = left_source_len
+                    .saturating_add(operator_len)
+                    .saturating_add(right_source_len)
+                    .saturating_add(2);
+                if inline_len <= line_width {
+                    f.context()
+                        .increment_counter("profile.assign.simple_inline.fast_path", 1);
+                    write!(
+                        f,
+                        [group(&format_args![
+                            left,
+                            space(),
+                            operator,
+                            space(),
+                            right
+                        ])]
+                    )?;
+                    return Ok(true);
+                }
+            }
+
+            let has_postfix = f.context().has_postfix_annotation(*left);
 
             // binaries, chains, and nested lambda tails handle their own breaking
             let right_is_binary = matches!(inner_right_expr, Expression::Binary { .. });
@@ -1071,7 +1174,6 @@ pub(super) fn format_operator_expression<'ast>(
             );
 
             // estimate remaining inline width for rhs
-            let line_width = usize::from(f.context().options.line_width);
             let left_source_len = expression_source_len(f.context(), *left);
             let operator_len = assign_operator_len(operator);
             let inline_overhead = left_source_len

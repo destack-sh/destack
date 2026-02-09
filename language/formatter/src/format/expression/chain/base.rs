@@ -666,8 +666,7 @@ pub(crate) fn expression_source_len(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> usize {
-    let span = context.get_span(expression_id);
-    context.span_char_len(span)
+    context.node_span_char_len(expression_id)
 }
 
 /// Decide whether static argument lists should expand at the list level.

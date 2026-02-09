@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use destack_ast::{
     Annotation, AnnotationPosition, Block, Declaration, Expression, FunctionKind, LocalNodeId,
-    Node, NodeTree, NodeTreeImpl, NodeType, ScalarLiteral, TokenType,
+    Node, NodeTree, NodeTreeImpl, NodeType, ScalarLiteral,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -13,7 +13,7 @@ use super::imports;
 use super::timing::tags;
 use crate::directive::{
     FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
-    ignore_range_for_node, ignored_span_source, write_ignored_span,
+    has_file_ignore_directive, ignore_range_for_node, ignored_span_source, write_ignored_span,
 };
 use crate::expression::format_expression;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
@@ -36,6 +36,22 @@ pub struct StatementList<'a> {
 
 impl<'ast, 'a> Format<DestackFormatContext<'ast>> for StatementList<'a> {
     fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'ast>>) -> FormatResult<()> {
+        // respect file-level ignore directives for top-level formatting
+        if f.context().options.respect_file_ignore
+            && statement_list_is_file_root(f.context(), self.expressions)
+            && has_file_ignore_directive(f.context())
+        {
+            let file_line_count = f.context().file.text().lines().count();
+            f.context().mark_file_ignore_applied();
+            f.context()
+                .increment_counter("profile.file_ignore.files", 1);
+            f.context()
+                .increment_counter("profile.file_ignore.lines", file_line_count);
+            let full_file_span = Span::new(f.context().file.id, 0, f.context().file.len);
+            write_ignored_span(f, full_file_span)?;
+            return Ok(());
+        }
+
         let _timing = f.context().timing_scope(tags::FORMAT_STATEMENT_LIST);
         format_block_of_statements(f, self.expressions)?;
         if !self.expressions.is_empty() {
@@ -48,6 +64,16 @@ impl<'ast, 'a> Format<DestackFormatContext<'ast>> for StatementList<'a> {
 /// Create a formatter for a list of expression statements.
 pub fn statement_list(expressions: &[LocalNodeId<Expression>]) -> StatementList<'_> {
     StatementList { expressions }
+}
+
+/// Return whether this statement list is the file root expression list.
+fn statement_list_is_file_root(
+    context: &DestackFormatContext<'_>,
+    expressions: &[LocalNodeId<Expression>],
+) -> bool {
+    expressions
+        .first()
+        .is_some_and(|expression_id| context.get_parent(*expression_id).is_none())
 }
 
 /// Empty block with infix annotations.
@@ -108,40 +134,8 @@ fn expressions_have_blank_line_between(
         return false;
     }
 
-    // only preserve blank lines when the inter span gap is pure trivia
-    // expression spans can occasionally include trailing syntax, which should not count
-    let has_non_trivia_token_between = context
-        .tokens
-        .iter()
-        .chain(context.side_tokens.iter())
-        .filter(|token| token.span.start >= left_span.end && token.span.end <= right_span.start)
-        .any(|token| {
-            !matches!(
-                token.token.ty,
-                TokenType::Whitespace
-                    | TokenType::Newline
-                    | TokenType::LineComment
-                    | TokenType::BlockComment
-                    | TokenType::DocLineComment
-                    | TokenType::DocBlockComment
-            )
-        });
-    if has_non_trivia_token_between {
-        return false;
-    }
-
     let between = context.get_span_str(Span::new(left_span.file, left_span.end, right_span.start));
-    let normalized_between = between.replace("\r\n", "\n");
-    let lines: Vec<&str> = normalized_between.split('\n').collect();
-    if lines.len() < 3 {
-        return false;
-    }
-
-    lines
-        .iter()
-        .skip(1)
-        .take(lines.len().saturating_sub(2))
-        .any(|line| line.trim().is_empty())
+    source_has_blank_line_in_trivia(between)
 }
 
 /// Return whether trivia between two offsets contains an explicit blank line.
@@ -156,17 +150,27 @@ fn source_has_blank_line_between_offsets(
     }
 
     let between = context.get_span_str(Span::new(file, start, end));
-    let normalized_between = between.replace("\r\n", "\n");
-    let lines: Vec<&str> = normalized_between.split('\n').collect();
-    if lines.len() < 3 {
+    source_has_blank_line_in_trivia(between)
+}
+
+/// Return whether trivia text contains an interior blank line.
+fn source_has_blank_line_in_trivia(source: &str) -> bool {
+    let mut lines = source.split('\n').peekable();
+    if lines.next().is_none() {
         return false;
     }
 
-    lines
-        .iter()
-        .skip(1)
-        .take(lines.len().saturating_sub(2))
-        .any(|line| line.trim().is_empty())
+    while let Some(line) = lines.next() {
+        if lines.peek().is_none() {
+            break;
+        }
+
+        if line.trim().is_empty() {
+            return true;
+        }
+    }
+
+    false
 }
 
 /// Return the earliest start offset for prefix comment annotations on an expression.
