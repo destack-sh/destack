@@ -45,7 +45,7 @@ block0(v0: ref<managed @Env>):
     return v2
 }"#;
 
-    let isolate = create_isolate(mir);
+    let mut isolate = create_isolate(mir);
     let env = isolate
         .run_function_by_name("make_env", &[])
         .expect("execution failed")
@@ -271,7 +271,7 @@ block0(v0: ref<managed @Env>):
     return v2
 }"#;
 
-    let isolate = create_isolate(mir);
+    let mut isolate = create_isolate(mir);
     let env_a = isolate
         .run_function_by_name("make_env", &[Value::int32(7)])
         .expect("execution failed")
