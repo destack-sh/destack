@@ -2,6 +2,7 @@ use crate::BoxedLintRule;
 
 mod no_alert;
 mod no_anonymous_default_export;
+mod no_banned_import;
 mod no_bitwise;
 mod no_circular_dependency;
 mod no_class;
@@ -18,19 +19,23 @@ mod no_magic_numbers;
 mod no_namespace;
 mod no_non_null_assertion;
 mod no_null;
+mod no_parameter_reassignment;
 mod no_placeholder_implementation;
 mod no_plusplus;
 mod no_process_exit;
 mod no_re_export_all;
 mod no_sequences;
+mod no_shadow;
 mod no_struct;
 mod no_ternary;
+mod no_unused_modules;
 mod no_warning_comments;
 mod no_wildcard_imports;
 mod strict_boolean_expressions;
 
 pub use no_alert::*;
 pub use no_anonymous_default_export::*;
+pub use no_banned_import::*;
 pub use no_bitwise::*;
 pub use no_circular_dependency::*;
 pub use no_class::*;
@@ -47,13 +52,16 @@ pub use no_magic_numbers::*;
 pub use no_namespace::*;
 pub use no_non_null_assertion::*;
 pub use no_null::*;
+pub use no_parameter_reassignment::*;
 pub use no_placeholder_implementation::*;
 pub use no_plusplus::*;
 pub use no_process_exit::*;
 pub use no_re_export_all::*;
 pub use no_sequences::*;
+pub use no_shadow::*;
 pub use no_struct::*;
 pub use no_ternary::*;
+pub use no_unused_modules::*;
 pub use no_warning_comments::*;
 pub use no_wildcard_imports::*;
 pub use strict_boolean_expressions::*;
@@ -63,6 +71,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
     vec![
         Box::new(NoAlert),
         Box::new(NoAnonymousDefaultExport),
+        Box::new(NoBannedImport),
         Box::new(NoExplicitAny),
         Box::new(NoBitwise),
         Box::new(NoClass),
@@ -79,13 +88,16 @@ pub fn rules() -> Vec<BoxedLintRule> {
         Box::new(NoNamespace),
         Box::new(NoNonNullAssertion),
         Box::new(NoNull),
+        Box::new(NoParameterReassignment),
         Box::new(NoPlaceholderImplementation),
         Box::new(NoPlusplus),
         Box::new(NoProcessExit),
         Box::new(NoReExportAll),
         Box::new(NoSequences),
+        Box::new(NoShadow),
         Box::new(NoStruct),
         Box::new(NoTernary),
+        Box::new(NoUnusedModules),
         Box::new(StrictBooleanExpressions),
         Box::new(NoWarningComments),
         Box::new(NoWildcardImports),
