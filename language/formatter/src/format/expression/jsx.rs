@@ -1,4 +1,5 @@
 use super::*;
+use crate::collection::{collection_nodes_have_annotations, collection_value_should_force_break};
 use destack_fir::{format_args, write};
 
 /// Return whether JSX argument formatting should force multiline mode.
@@ -154,6 +155,83 @@ pub(super) fn tree_attribute_value_id(
     }
 }
 
+/// Return an argument value expression with transparent wrappers removed.
+fn argument_transparent_value_id(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> Option<LocalNodeId<Expression>> {
+    tree_attribute_value_id(context.tree, argument_id)
+        .map(|value_id| transparent_inner_expression(context, value_id))
+}
+
+/// Return a function declaration id from an expression when present.
+fn expression_function_declaration_id(
+    tree: &NodeTree,
+    expression_id: LocalNodeId<Expression>,
+) -> Option<LocalNodeId<Declaration>> {
+    let Expression::Declaration(declaration_id) = tree.get(expression_id) else {
+        return None;
+    };
+
+    if matches!(tree.get(*declaration_id), Declaration::Function { .. }) {
+        Some(*declaration_id)
+    } else {
+        None
+    }
+}
+
+/// Return whether a function declaration is a lambda.
+fn declaration_is_lambda(tree: &NodeTree, declaration_id: LocalNodeId<Declaration>) -> bool {
+    matches!(
+        tree.get(declaration_id),
+        Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
+    )
+}
+
+/// Return a lambda body expression id with transparent wrappers removed.
+fn lambda_body_expression_id(
+    context: &DestackFormatContext<'_>,
+    declaration_id: LocalNodeId<Declaration>,
+) -> Option<LocalNodeId<Expression>> {
+    let Declaration::Function {
+        signature,
+        body: Some(body_id),
+        ..
+    } = context.tree.get(declaration_id)
+    else {
+        return None;
+    };
+    if signature.kind != FunctionKind::Lambda {
+        return None;
+    }
+
+    Some(transparent_inner_expression(context, *body_id))
+}
+
+/// Return a lambda declaration id from an argument when present.
+fn argument_lambda_declaration_id(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> Option<LocalNodeId<Declaration>> {
+    let value_id = argument_transparent_value_id(context, argument_id)?;
+    let declaration_id = expression_function_declaration_id(context.tree, value_id)?;
+    declaration_is_lambda(context.tree, declaration_id).then_some(declaration_id)
+}
+
+/// Return the receiver of a postfix-like expression node.
+fn expression_postfix_receiver_id(expression: &Expression) -> Option<LocalNodeId<Expression>> {
+    match expression {
+        Expression::Member { left, .. }
+        | Expression::PrivateMember { left, .. }
+        | Expression::Index { left, .. }
+        | Expression::Maybe { left, .. }
+        | Expression::Must { left, .. }
+        | Expression::Parenthesized { expression: left }
+        | Expression::Statement(left) => Some(*left),
+        _ => None,
+    }
+}
+
 /// Check whether a property value is complex enough to force breaks.
 pub(super) fn property_has_complex_value(
     context: &DestackFormatContext<'_>,
@@ -240,11 +318,7 @@ pub(super) fn should_force_break_tree_attributes(
     let complex_len_threshold = (line_width / 2).max(24);
 
     // comments on attributes force a break
-    if arguments
-        .iter()
-        .copied()
-        .any(|argument_id| context.has_annotation(argument_id))
-    {
+    if collection_nodes_have_annotations(context, arguments) {
         return true;
     }
 
@@ -284,8 +358,12 @@ pub(super) fn should_force_break_tree_attributes(
                     .any(|property_id| property_has_complex_value(context, property_id));
 
                 // break when the object is clearly complex
-                let should_break_object = has_many_properties
-                    && (has_complex_property || value_source_len > complex_len_threshold);
+                let should_break_object = collection_value_should_force_break(
+                    has_many_properties,
+                    has_complex_property,
+                    value_source_len,
+                    complex_len_threshold,
+                );
 
                 if should_break_object {
                     return true;
@@ -310,8 +388,12 @@ pub(super) fn should_force_break_tree_attributes(
                 });
 
                 // break when the array is clearly complex
-                let should_break_array = has_many_elements
-                    && (has_complex_element || value_source_len > complex_len_threshold);
+                let should_break_array = collection_value_should_force_break(
+                    has_many_elements,
+                    has_complex_element,
+                    value_source_len,
+                    complex_len_threshold,
+                );
 
                 if should_break_array {
                     return true;
@@ -857,29 +939,14 @@ pub(super) fn tree_children_have_blank_line_between(
     between_source.contains("\n\n") || between_source.contains("\r\n\r\n")
 }
 
-/// Get the expression value for a tree child argument.
-pub(super) fn tree_child_value_id(
-    tree: &NodeTree,
-    argument_id: LocalNodeId<Argument>,
-) -> Option<LocalNodeId<Expression>> {
-    match tree.get(argument_id) {
-        Argument::Named { value, .. }
-        | Argument::Labeled { value, .. }
-        | Argument::Positional { value, .. }
-        | Argument::Spread { value, .. } => Some(*value),
-    }
-}
-
 /// Check whether a tree child expression should stay inline inside `{ ... }`.
 pub(super) fn tree_child_should_inline_braced_expression(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    let Some(value_id) = tree_child_value_id(context.tree, argument_id) else {
+    let Some(value_id) = argument_transparent_value_id(context, argument_id) else {
         return false;
     };
-
-    let value_id = transparent_inner_expression(context, value_id);
     let value_expr = context.tree.get(value_id);
     let argument_span = context.get_span(argument_id);
     let value_span = context.get_span(value_id);
@@ -937,11 +1004,9 @@ pub(super) fn tree_child_breaks_element(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    let Some(value_id) = tree_child_value_id(context.tree, argument_id) else {
+    let Some(value_id) = argument_transparent_value_id(context, argument_id) else {
         return false;
     };
-
-    let value_id = transparent_inner_expression(context, value_id);
     let value_expr = context.tree.get(value_id);
     let span = context.get_span(value_id);
     let argument_span = context.get_span(argument_id);
@@ -982,52 +1047,26 @@ pub(super) fn lambda_body_is_complex_for_tree(
     context: &DestackFormatContext<'_>,
     declaration_id: LocalNodeId<Declaration>,
 ) -> bool {
-    let tree = context.tree;
-
-    let Declaration::Function {
-        signature,
-        body: Some(body_id),
-        ..
-    } = tree.get(declaration_id)
-    else {
+    let Some(body_id) = lambda_body_expression_id(context, declaration_id) else {
         return false;
     };
 
-    if signature.kind != FunctionKind::Lambda {
-        return false;
-    }
-
-    let body_id = transparent_inner_expression(context, *body_id);
-
     matches!(
-        tree.get(body_id),
+        context.tree.get(body_id),
         Expression::Block(_) | Expression::TreeExpression { .. }
     )
 }
 
-/// Check whether a call has a complex callback argument.
 /// Check whether an argument is a lambda with a complex body for tree literals.
 pub(super) fn argument_is_complex_callback(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    let tree = context.tree;
-
-    // grab the argument value
-    let value_id = match tree.get(argument_id) {
-        Argument::Positional { value, .. } | Argument::Spread { value, .. } => *value,
-        Argument::Named { value, .. } | Argument::Labeled { value, .. } => *value,
-    };
-
-    // unwrap transparent wrappers
-    let value_id = transparent_inner_expression(context, value_id);
-
-    // only lambda declarations qualify
-    let Expression::Declaration(decl_id) = tree.get(value_id) else {
+    let Some(declaration_id) = argument_lambda_declaration_id(context, argument_id) else {
         return false;
     };
 
-    lambda_body_is_complex_for_tree(context, *decl_id)
+    lambda_body_is_complex_for_tree(context, declaration_id)
 }
 
 /// Check whether an argument is a lambda with a block body.
@@ -1035,37 +1074,12 @@ pub(super) fn argument_is_block_callback(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    let tree = context.tree;
-
-    // grab the argument value
-    let value_id = match tree.get(argument_id) {
-        Argument::Positional { value, .. } | Argument::Spread { value, .. } => *value,
-        Argument::Named { value, .. } | Argument::Labeled { value, .. } => *value,
-    };
-
-    // unwrap transparent wrappers
-    let value_id = transparent_inner_expression(context, value_id);
-
-    // only lambda declarations qualify
-    let Expression::Declaration(decl_id) = tree.get(value_id) else {
+    let Some(declaration_id) = argument_lambda_declaration_id(context, argument_id) else {
         return false;
     };
 
-    let Declaration::Function {
-        signature,
-        body: Some(body_id),
-        ..
-    } = tree.get(*decl_id)
-    else {
-        return false;
-    };
-
-    if signature.kind != FunctionKind::Lambda {
-        return false;
-    }
-
-    let body_id = transparent_inner_expression(context, *body_id);
-    matches!(tree.get(body_id), Expression::Block(_))
+    lambda_body_expression_id(context, declaration_id)
+        .is_some_and(|body_id| matches!(context.tree.get(body_id), Expression::Block(_)))
 }
 
 /// Check whether an argument is an object literal expression.
@@ -1073,15 +1087,12 @@ pub(super) fn argument_is_object_literal(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    let tree = context.tree;
-
-    let value_id = match tree.get(argument_id) {
-        Argument::Positional { value, .. } | Argument::Spread { value, .. } => *value,
-        Argument::Named { value, .. } | Argument::Labeled { value, .. } => *value,
-    };
-
-    let value_id = transparent_inner_expression(context, value_id);
-    matches!(tree.get(value_id), Expression::ObjectExpression { .. })
+    argument_transparent_value_id(context, argument_id).is_some_and(|value_id| {
+        matches!(
+            context.tree.get(value_id),
+            Expression::ObjectExpression { .. }
+        )
+    })
 }
 
 /// Check whether an argument is an array literal expression.
@@ -1089,15 +1100,12 @@ pub(super) fn argument_is_array_literal(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    let tree = context.tree;
-
-    let value_id = match tree.get(argument_id) {
-        Argument::Positional { value, .. } | Argument::Spread { value, .. } => *value,
-        Argument::Named { value, .. } | Argument::Labeled { value, .. } => *value,
-    };
-
-    let value_id = transparent_inner_expression(context, value_id);
-    matches!(tree.get(value_id), Expression::ArrayExpression { .. })
+    argument_transparent_value_id(context, argument_id).is_some_and(|value_id| {
+        matches!(
+            context.tree.get(value_id),
+            Expression::ArrayExpression { .. }
+        )
+    })
 }
 
 /// Check whether an argument is a template literal expression.
@@ -1105,14 +1113,12 @@ pub(super) fn argument_is_template_literal(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    let tree = context.tree;
-    let value_id = match tree.get(argument_id) {
-        Argument::Positional { value, .. } | Argument::Spread { value, .. } => *value,
-        Argument::Named { value, .. } | Argument::Labeled { value, .. } => *value,
-    };
-    let value_id = transparent_inner_expression(context, value_id);
-
-    matches!(tree.get(value_id), Expression::TemplateExpression { .. })
+    argument_transparent_value_id(context, argument_id).is_some_and(|value_id| {
+        matches!(
+            context.tree.get(value_id),
+            Expression::TemplateExpression { .. }
+        )
+    })
 }
 
 /// Check whether an argument is a tree or jsx expression.
@@ -1120,14 +1126,12 @@ pub(super) fn argument_is_tree_expression(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    let tree = context.tree;
-    let value_id = match tree.get(argument_id) {
-        Argument::Positional { value, .. } | Argument::Spread { value, .. } => *value,
-        Argument::Named { value, .. } | Argument::Labeled { value, .. } => *value,
-    };
-    let value_id = transparent_inner_expression(context, value_id);
-
-    matches!(tree.get(value_id), Expression::TreeExpression { .. })
+    argument_transparent_value_id(context, argument_id).is_some_and(|value_id| {
+        matches!(
+            context.tree.get(value_id),
+            Expression::TreeExpression { .. }
+        )
+    })
 }
 
 /// Check whether an argument is a lambda expression.
@@ -1135,22 +1139,7 @@ pub(super) fn argument_is_lambda_expression(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    let tree = context.tree;
-    let value_id = match tree.get(argument_id) {
-        Argument::Positional { value, .. } | Argument::Spread { value, .. } => *value,
-        Argument::Named { value, .. } | Argument::Labeled { value, .. } => *value,
-    };
-    let value_id = transparent_inner_expression(context, value_id);
-
-    let Expression::Declaration(decl_id) = tree.get(value_id) else {
-        return false;
-    };
-
-    let Declaration::Function { signature, .. } = tree.get(*decl_id) else {
-        return false;
-    };
-
-    signature.kind == FunctionKind::Lambda
+    argument_lambda_declaration_id(context, argument_id).is_some()
 }
 
 /// Check whether an argument is a function expression.
@@ -1158,22 +1147,14 @@ pub(super) fn argument_is_function_expression(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    let tree = context.tree;
-    let value_id = match tree.get(argument_id) {
-        Argument::Positional { value, .. } | Argument::Spread { value, .. } => *value,
-        Argument::Named { value, .. } | Argument::Labeled { value, .. } => *value,
+    let Some(value_id) = argument_transparent_value_id(context, argument_id) else {
+        return false;
     };
-    let value_id = transparent_inner_expression(context, value_id);
-
-    let Expression::Declaration(decl_id) = tree.get(value_id) else {
+    let Some(declaration_id) = expression_function_declaration_id(context.tree, value_id) else {
         return false;
     };
 
-    let Declaration::Function { signature, .. } = tree.get(*decl_id) else {
-        return false;
-    };
-
-    signature.kind != FunctionKind::Lambda
+    !declaration_is_lambda(context.tree, declaration_id)
 }
 
 /// Check whether an expression contains a call with a complex callback.
@@ -1210,23 +1191,11 @@ pub(super) fn expression_has_complex_callback(
             // check chained receivers
             expression_has_complex_callback(context, *left)
         }
-        Expression::Member { left, .. }
-        | Expression::PrivateMember { left, .. }
-        | Expression::Index { left, .. }
-        | Expression::Maybe { left, .. }
-        | Expression::Must { left, .. } => {
-            // walk through postfix chains
-            expression_has_complex_callback(context, *left)
+        expression if let Some(left) = expression_postfix_receiver_id(expression) => {
+            expression_has_complex_callback(context, left)
         }
         Expression::Declaration(declaration_id) => {
             lambda_body_is_complex_for_tree(context, *declaration_id)
-        }
-        Expression::Parenthesized { expression } => {
-            expression_has_complex_callback(context, *expression)
-        }
-        Expression::Statement(inner_id) => {
-            // peel statement wrappers
-            expression_has_complex_callback(context, *inner_id)
         }
         Expression::Block(block_id) => {
             let block = tree.get(*block_id);

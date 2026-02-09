@@ -188,7 +188,12 @@ pub(super) fn format_operator_expression<'ast>(
         } => {
             let mut left = *left;
             if let Expression::Parenthesized { expression } = tree.get(left)
-                && should_unwrap_parenthesized_new_member_callee(f.context(), left, *expression)
+                && parenthesized_should_unwrap(
+                    f.context(),
+                    left,
+                    *expression,
+                    ParenthesizedUnwrapPolicy::NewMemberCallee,
+                )
             {
                 left = *expression;
             }
@@ -234,7 +239,10 @@ pub(super) fn format_operator_expression<'ast>(
                     } | Expression::PrivateMember {
                         left: member_left,
                         ..
-                    } if member_object_prefers_new_callee_parentheses(f.context(), *member_left)
+                    } if parenthesized_prefers_new_member_callee_parentheses(
+                        f.context(),
+                        *member_left
+                    )
                 );
                 if should_wrap_member_callee {
                     if has_deferred_empty_argument_comments {
@@ -915,16 +923,12 @@ pub(super) fn format_operator_expression<'ast>(
                 operator,
                 TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies
             ) && let Expression::Parenthesized { expression } = f.context().tree.get(*left)
-                && (!parenthesized_has_leading_inner_trivia(f.context(), *left, *expression)
-                    || matches!(
-                        f.context().tree.get(*expression),
-                        Expression::TypeBinary {
-                            operator: TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies,
-                            ..
-                        }
-                    ))
-                && !f.context().has_annotation(*left)
-                && should_drop_type_binary_left_parentheses(f.context(), node_id, *expression)
+                && parenthesized_should_drop(
+                    f.context(),
+                    *left,
+                    *expression,
+                    ParenthesizedDropPolicy::TypeBinaryLeft { node_id },
+                )
             {
                 formatted_left = *expression;
             }

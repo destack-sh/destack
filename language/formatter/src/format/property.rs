@@ -5,19 +5,21 @@ use crate::directive::{
     FormatterDirectiveKind, FormatterDirectivePosition, collect_comment_tokens, directive_for_node,
     ignore_range_for_node, ignored_node_source, write_ignored_span,
 };
-use crate::format::block::format_block_of_statements;
 use crate::key::{format_key_with_quote_policy, is_identifier_for_quotes};
-use crate::scan::next_non_whitespace_after_annotation;
 use crate::signature::{
-    constructor_parameters_should_expand, parameter_is_variadic, single_parameter_should_hug,
+    FunctionHeaderStyle, collect_deferred_function_boundary_line_comments,
+    format_function_body_block_with_deferred_boundary_line_comments,
+    function_body_has_deferred_boundary_line_comments, signature_parameters_should_expand,
+    signature_return_type_is_multiline, signature_should_elide_space_before_body,
+    single_parameter_should_hug, write_function_header_prefix,
+    write_signature_dynamic_parameter_list,
 };
 use crate::r#where::format_where_clause_with_break;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    AbstractionModifier, AccessorKind, Annotation, AnnotationPosition, Asynchrony, BindingAnchor,
-    BindingKind, BindingModifier, BindingOperator, Comment, CommentStyle, Declaration, Expression,
-    FunctionAbstraction, FunctionCardinality, FunctionMode, FunctionSignature, Key, Keyword,
-    LocalNodeId, Member, Mutability, Name, NodeType, Property, Timing, VarianceModifier,
+    AbstractionModifier, AccessorKind, BindingAnchor, BindingKind, BindingModifier,
+    BindingOperator, Declaration, Expression, FunctionSignature, Key, Keyword, LocalNodeId, Member,
+    Mutability, Name, NodeType, Property, Timing, VarianceModifier,
 };
 use destack_fir::format::{FormatResult, text};
 use destack_fir::prelude::*;
@@ -120,33 +122,16 @@ pub(crate) fn format_binding_modifiers_postfix_maybe<'ast>(
     Ok(())
 }
 
-/// Return whether spacing before a function body should be emitted by annotations.
-fn should_elide_space_before_body(
+/// Return whether method signature source spans multiple lines before the body.
+fn method_signature_source_is_multiline(
     context: &DestackFormatContext<'_>,
-    return_type: Option<LocalNodeId<Expression>>,
-) -> bool {
-    return_type.is_some_and(|return_type| context.has_postfix_annotation(return_type))
-}
-
-/// Return whether a signature return type is already multiline in source.
-fn return_type_is_multiline(
-    context: &DestackFormatContext<'_>,
-    return_type: Option<LocalNodeId<Expression>>,
-) -> bool {
-    return_type.is_some_and(|return_type| context.has_newline(context.get_span(return_type)))
-}
-
-/// Return whether property method signature source spans multiple lines before the body.
-fn property_method_signature_source_is_multiline(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Property>,
+    node_span: Span,
     body: Option<LocalNodeId<Expression>>,
 ) -> bool {
     let Some(body_id) = body else {
         return false;
     };
 
-    let node_span = context.get_span(node_id);
     let body_span = context.get_span(body_id);
     if node_span.file != body_span.file || node_span.start >= body_span.start {
         return false;
@@ -154,148 +139,6 @@ fn property_method_signature_source_is_multiline(
 
     let signature_span = Span::new(node_span.file, node_span.start, body_span.start);
     context.get_span_str(signature_span).contains('\n')
-}
-
-/// Return whether member method signature source spans multiple lines before the body.
-fn member_method_signature_source_is_multiline(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Member>,
-    body: Option<LocalNodeId<Expression>>,
-) -> bool {
-    let Some(body_id) = body else {
-        return false;
-    };
-
-    let node_span = context.get_span(node_id);
-    let body_span = context.get_span(body_id);
-    if node_span.file != body_span.file || node_span.start >= body_span.start {
-        return false;
-    }
-
-    let signature_span = Span::new(node_span.file, node_span.start, body_span.start);
-    context.get_span_str(signature_span).contains('\n')
-}
-
-/// Collect deferred method boundary line comments from return type and body.
-fn collect_deferred_method_boundary_line_comments(
-    context: &DestackFormatContext<'_>,
-    return_type: Option<LocalNodeId<Expression>>,
-    body: LocalNodeId<Expression>,
-) -> Vec<String> {
-    let mut comments: Vec<(u32, String)> = Vec::new();
-
-    if let Some(return_type) = return_type
-        && let Some(annotations) = context.get_annotations(return_type)
-    {
-        for annotation_id in annotations {
-            let Annotation::Comment { node, position } = context.tree.get(annotation_id) else {
-                continue;
-            };
-            if *position != AnnotationPosition::LinePostfixBoundary {
-                continue;
-            }
-            let comment = context.tree.get::<Comment>(*node);
-            if comment.style != CommentStyle::Slash {
-                continue;
-            }
-            if next_non_whitespace_after_annotation(context, annotation_id) != Some('{') {
-                continue;
-            }
-
-            let annotation_span = context.get_span::<Annotation>(annotation_id);
-            let annotation_source = context.get_span_str(annotation_span).trim().to_string();
-            comments.push((annotation_span.start, annotation_source));
-        }
-    }
-
-    if let Some(annotations) = context.get_annotations(body) {
-        for annotation_id in annotations {
-            let Annotation::Comment { node, position } = context.tree.get(annotation_id) else {
-                continue;
-            };
-            if *position != AnnotationPosition::BlockPrefix {
-                continue;
-            }
-            let comment = context.tree.get::<Comment>(*node);
-            if comment.style != CommentStyle::Slash {
-                continue;
-            }
-
-            let annotation_span = context.get_span::<Annotation>(annotation_id);
-            let annotation_source = context.get_span_str(annotation_span).trim().to_string();
-            comments.push((annotation_span.start, annotation_source));
-        }
-    }
-
-    comments.sort_by_key(|(start, _)| *start);
-    comments
-        .into_iter()
-        .map(|(_, comment)| comment)
-        .collect::<Vec<_>>()
-}
-
-/// Return whether a method body has deferred boundary line comments.
-fn method_body_has_deferred_boundary_line_comments(
-    context: &DestackFormatContext<'_>,
-    return_type: Option<LocalNodeId<Expression>>,
-    body: Option<LocalNodeId<Expression>>,
-) -> bool {
-    let Some(body) = body else {
-        return false;
-    };
-    matches!(context.tree.get(body), Expression::Block(_))
-        && !collect_deferred_method_boundary_line_comments(context, return_type, body).is_empty()
-}
-
-/// Format a method body block with deferred boundary line comments inside braces.
-fn format_method_body_block_with_deferred_boundary_line_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    body: LocalNodeId<Expression>,
-    comments: &[String],
-) -> FormatResult<()> {
-    let Expression::Block(block_id) = f.context().tree.get(body) else {
-        return write!(f, [body]);
-    };
-
-    let block = f.context().tree.get(*block_id);
-    let has_block_infix_annotations = f.context().has_infix_annotation(*block_id);
-    write!(
-        f,
-        [
-            token("{"),
-            hard_line_break(),
-            soft_block_indent(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                let mut has_content = false;
-                for (index, comment) in comments.iter().enumerate() {
-                    if index > 0 {
-                        write!(f, [hard_line_break()])?;
-                    }
-                    write!(f, [text(comment.as_str())])?;
-                    has_content = true;
-                }
-
-                if !comments.is_empty() && !block.expressions.is_empty() {
-                    write!(f, [hard_line_break()])?;
-                }
-
-                if !block.expressions.is_empty() {
-                    format_block_of_statements(f, &block.expressions)?;
-                    has_content = true;
-                }
-
-                if has_block_infix_annotations {
-                    if has_content {
-                        write!(f, [hard_line_break()])?;
-                    }
-                    write!(f, [f.context().block_infix_annotations(*block_id)])?;
-                }
-
-                Ok(())
-            })),
-            hard_line_break(),
-            token("}")
-        ]
-    )
 }
 
 /// Format a block of properties with appropriate empty annotations.
@@ -608,40 +451,8 @@ fn format_method_like<'ast>(
     // modifiers
     format_binding_modifiers_prefix_maybe(f, modifiers)?;
 
-    // abstraction
-    match signature.abstraction {
-        FunctionAbstraction::Abstract => {
-            write!(f, [Keyword::Abstract, space()])?;
-        }
-        FunctionAbstraction::AbstractOverride => {
-            write!(f, [Keyword::Abstract, space()])?;
-            write!(f, [Keyword::Override, space()])?;
-        }
-        FunctionAbstraction::ConcreteOverride => {
-            write!(f, [Keyword::Override, space()])?;
-        }
-        FunctionAbstraction::Concrete => {}
-    }
-
-    // asynchrony
-    if signature.asynchrony == Asynchrony::Async {
-        write!(f, [Keyword::Async, space()])?;
-    }
-
-    // mode
-    if let Some(mode) = signature.mode {
-        if let Some(keyword) = mode.to_keyword() {
-            write!(f, [keyword])?;
-        }
-        if key.is_some() || matches!(mode, FunctionMode::New) {
-            write!(f, [space()])?;
-        }
-    }
-
-    // cardinality
-    if signature.cardinality == FunctionCardinality::Generator {
-        write!(f, [token("*")])?;
-    }
+    // shared function header prefix
+    write_function_header_prefix(f, signature, FunctionHeaderStyle::MethodLike, key.is_some())?;
 
     // key
     if let Some(key) = key {
@@ -659,25 +470,24 @@ fn format_method_like<'ast>(
     // dynamic parameters
     if signature.dynamic_parameters.len() == 1
         && single_parameter_should_hug(f.context(), signature.dynamic_parameters[0])
-        && !return_type_is_multiline(f.context(), signature.return_type)
+        && !signature_return_type_is_multiline(f.context(), signature.return_type)
         && !signature_source_is_multiline_at_80
     {
         write!(f, [token("("), signature.dynamic_parameters[0], token(")")])?;
     } else {
-        let should_break_constructor_parameters = constructor_parameters_should_expand(
+        let should_expand_parameters = signature_parameters_should_expand(
             f.context(),
             signature.mode,
             &signature.dynamic_parameters,
+            signature.return_type,
+            false,
         );
-        let should_expand_single_for_multiline_return_type = signature.dynamic_parameters.len()
-            == 1
-            && !parameter_is_variadic(f.context(), signature.dynamic_parameters[0])
-            && return_type_is_multiline(f.context(), signature.return_type);
-        let should_expand_parameters =
-            should_break_constructor_parameters || should_expand_single_for_multiline_return_type;
-        let mut dynamic_parameters_list = list_like("(", ")", ",", &signature.dynamic_parameters);
-        dynamic_parameters_list.should_expand(should_expand_parameters);
-        write!(f, [dynamic_parameters_list])?;
+        write_signature_dynamic_parameter_list(
+            f,
+            &signature.dynamic_parameters,
+            should_expand_parameters,
+            false,
+        )?;
     }
 
     // modifiers
@@ -697,19 +507,19 @@ fn format_method_like<'ast>(
 
     // body
     if let Some(body) = body {
-        if method_body_has_deferred_boundary_line_comments(
+        if function_body_has_deferred_boundary_line_comments(
             f.context(),
             signature.return_type,
             Some(body),
         ) {
-            let comments = collect_deferred_method_boundary_line_comments(
+            let comments = collect_deferred_function_boundary_line_comments(
                 f.context(),
                 signature.return_type,
                 body,
             );
             write!(f, [space()])?;
-            format_method_body_block_with_deferred_boundary_line_comments(f, body, &comments)?;
-        } else if should_elide_space_before_body(f.context(), signature.return_type) {
+            format_function_body_block_with_deferred_boundary_line_comments(f, body, &comments)?;
+        } else if signature_should_elide_space_before_body(f.context(), signature.return_type) {
             write!(f, [body])?;
         } else {
             write!(f, [space(), body])?;
@@ -767,9 +577,9 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                 let force_quote_keys = should_force_quote_keys_for_property(f, node_id);
                 let signature_source_is_multiline_at_80 =
                     usize::from(f.context().options.line_width) <= 80
-                        && property_method_signature_source_is_multiline(
+                        && method_signature_source_is_multiline(
                             f.context(),
-                            node_id,
+                            f.context().get_span(node_id),
                             *body,
                         );
                 format_method_like(
@@ -914,7 +724,11 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                 let force_quote_keys = should_force_quote_keys_for_member(f, node_id);
                 let signature_source_is_multiline_at_80 =
                     usize::from(f.context().options.line_width) <= 80
-                        && member_method_signature_source_is_multiline(f.context(), node_id, *body);
+                        && method_signature_source_is_multiline(
+                            f.context(),
+                            f.context().get_span(node_id),
+                            *body,
+                        );
                 format_method_like(
                     f,
                     *modifiers,

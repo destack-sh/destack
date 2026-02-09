@@ -113,8 +113,11 @@ pub(crate) enum ChainExpression {
     },
 }
 
-/// Check whether the expression is part of a member/call/maybe/index chain.
-pub(crate) fn is_expression_chain(tree: &NodeTree, node_id: LocalNodeId<Expression>) -> bool {
+/// Return the left operand for one chain node.
+pub(crate) fn chain_node_left_id(
+    tree: &NodeTree,
+    node_id: LocalNodeId<Expression>,
+) -> Option<LocalNodeId<Expression>> {
     match tree.get(node_id) {
         Expression::Member { left, .. }
         | Expression::PrivateMember { left, .. }
@@ -122,9 +125,105 @@ pub(crate) fn is_expression_chain(tree: &NodeTree, node_id: LocalNodeId<Expressi
         | Expression::Index { left, .. }
         | Expression::Instantiation { left, .. }
         | Expression::Maybe { left, .. }
-        | Expression::Must { left, .. } => is_chain_expression(tree.get(*left)),
-        _ => false,
+        | Expression::Must { left, .. } => Some(*left),
+        _ => None,
     }
+}
+
+/// Collect all chain nodes from root to leaf.
+pub(crate) fn collect_chain_nodes(
+    tree: &NodeTree,
+    node_id: LocalNodeId<Expression>,
+) -> Vec<LocalNodeId<Expression>> {
+    // walk from leaf to root through chain links
+    let mut chain = Vec::new();
+    let mut current = node_id;
+    loop {
+        chain.push(current);
+
+        let Some(next_id) = chain_node_left_id(tree, current) else {
+            break;
+        };
+        current = next_id;
+    }
+    chain.reverse();
+
+    chain
+}
+
+/// Convert one chain expression node into a chain operation.
+pub(crate) fn chain_expression_from_node(
+    tree: &NodeTree,
+    expression_id: LocalNodeId<Expression>,
+) -> FormatResult<ChainExpression> {
+    let chain_expression = match tree.get(expression_id) {
+        Expression::Member {
+            name,
+            static_arguments,
+            ..
+        } => ChainExpression::Member {
+            node_id: expression_id,
+            segment: *name,
+            static_arguments: static_arguments.clone(),
+            emit_prefix_annotations: true,
+            emit_postfix_annotations: true,
+        },
+        Expression::PrivateMember {
+            name,
+            static_arguments,
+            ..
+        } => ChainExpression::Member {
+            node_id: expression_id,
+            segment: *name,
+            static_arguments: static_arguments.clone(),
+            emit_prefix_annotations: true,
+            emit_postfix_annotations: true,
+        },
+        Expression::Call {
+            position,
+            static_arguments,
+            dynamic_arguments,
+            ..
+        } => ChainExpression::Call {
+            node_id: expression_id,
+            position: *position,
+            static_arguments: static_arguments.clone(),
+            dynamic_arguments: dynamic_arguments.clone(),
+        },
+        Expression::Instantiation {
+            static_arguments, ..
+        } => ChainExpression::Instantiation {
+            node_id: expression_id,
+            static_arguments: static_arguments.clone(),
+        },
+        Expression::Index {
+            position, index, ..
+        } => ChainExpression::Index {
+            node_id: expression_id,
+            position: *position,
+            index: *index,
+        },
+        Expression::Maybe { position, .. } => ChainExpression::Maybe {
+            node_id: expression_id,
+            position: *position,
+        },
+        Expression::Must { position, .. } => ChainExpression::Must {
+            node_id: expression_id,
+            position: *position,
+        },
+        _ => {
+            return Err(FormatError::SyntaxError {
+                message: "unexpected expression kind for chain expression",
+            });
+        }
+    };
+
+    Ok(chain_expression)
+}
+
+/// Check whether the expression is part of a member/call/maybe/index chain.
+pub(crate) fn is_expression_chain(tree: &NodeTree, node_id: LocalNodeId<Expression>) -> bool {
+    chain_node_left_id(tree, node_id).is_some_and(|left_id| is_chain_expression(tree.get(left_id)))
 }
 
 /// Return whether a call with an annotated multi-segment path callee should use chain formatting.
@@ -145,16 +244,7 @@ pub(crate) fn call_prefers_chain_format(
 
 /// Check whether an expression is the root of a chain.
 pub(crate) fn is_chain_root(tree: &NodeTree, node_id: LocalNodeId<Expression>) -> bool {
-    match tree.get(node_id) {
-        Expression::Member { left, .. }
-        | Expression::PrivateMember { left, .. }
-        | Expression::Call { left, .. }
-        | Expression::Index { left, .. }
-        | Expression::Instantiation { left, .. }
-        | Expression::Maybe { left, .. }
-        | Expression::Must { left, .. } => !is_chain_expression(tree.get(*left)),
-        _ => false,
-    }
+    chain_node_left_id(tree, node_id).is_some_and(|left_id| !is_chain_expression(tree.get(left_id)))
 }
 
 /// Check whether this expression is used as the receiver in a chain parent.

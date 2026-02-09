@@ -1,3 +1,6 @@
+use std::cell::{Ref, RefCell};
+use std::collections::HashMap;
+
 use destack_ast::{
     Annotation, AnnotationPosition, Argument, Blank, Block, Comment, Declaration, Declarator,
     Decorator, DependencyItem, Doc, EnumField, Expression, LocalNodeId, LocalNodeIdAny, MatchCase,
@@ -189,19 +192,62 @@ pub struct DestackFormatContext<'a> {
     pub strings: &'a ImmutableStringPool,
     /// The current argument list group id, if any.
     pub current_argument_group_id: Option<GroupId>,
+    /// Cached node-to-annotation ids for hot annotation lookups.
+    pub annotation_ids_cache: RefCell<HashMap<u32, Vec<LocalNodeId<Annotation>>>>,
+    /// Cached source slices for repeated span lookups.
+    pub span_text_cache: RefCell<HashMap<Span, &'a str>>,
+    /// Cached newline checks for repeated span newline predicates.
+    pub span_has_newline_cache: RefCell<HashMap<Span, bool>>,
 }
 
 impl<'a> DestackFormatContext<'a> {
+    /// Construct a formatting context from parse artifacts.
+    pub fn new(
+        options: DestackFormatOptions,
+        file: &'a File,
+        tree: &'a NodeTree,
+        tokens: &'a Vec<TokenSpan>,
+        side_tokens: &'a Vec<TokenSpan>,
+        side_span: &'a MultiSpan,
+        strings: &'a ImmutableStringPool,
+        parents: NodeParentIndex,
+    ) -> Self {
+        Self {
+            options,
+            file,
+            tokens,
+            side_tokens,
+            side_span,
+            tree,
+            source_map: &tree.source_map,
+            parents,
+            strings,
+            current_argument_group_id: None,
+            annotation_ids_cache: RefCell::new(HashMap::new()),
+            span_text_cache: RefCell::new(HashMap::new()),
+            span_has_newline_cache: RefCell::new(HashMap::new()),
+        }
+    }
+
     /// Gets the str source backing a Span.
     #[inline]
     pub fn get_span_str(&self, span: Span) -> &'a str {
-        self.file.get_span_str(span).unwrap_or_default()
+        {
+            let cache = self.span_text_cache.borrow();
+            if let Some(span_str) = cache.get(&span) {
+                return span_str;
+            }
+        }
+
+        let span_str = self.file.get_span_str(span).unwrap_or_default();
+        self.span_text_cache.borrow_mut().insert(span, span_str);
+        span_str
     }
 
     /// Gets the str source backing a TokenSpan.
     #[inline]
     pub fn get_token_str(&self, token: TokenSpan) -> &'a str {
-        self.file.get_span_str(token.span).unwrap_or_default()
+        self.get_span_str(token.span)
     }
 
     /// Get a Node from the tree.
@@ -288,8 +334,18 @@ impl<'a> DestackFormatContext<'a> {
     /// Whether the given span has a newline.
     #[inline]
     pub fn has_newline(&self, span: Span) -> bool {
-        let span_str = self.get_span_str(span);
-        span_str.contains('\n')
+        {
+            let cache = self.span_has_newline_cache.borrow();
+            if let Some(has_newline) = cache.get(&span) {
+                return *has_newline;
+            }
+        }
+
+        let has_newline = self.get_span_str(span).contains('\n');
+        self.span_has_newline_cache
+            .borrow_mut()
+            .insert(span, has_newline);
+        has_newline
     }
 
     /// Whether the given node is at a line start.
@@ -322,6 +378,36 @@ impl<'a> DestackFormatContext<'a> {
         true
     }
 
+    /// Return borrowed annotation ids for a node.
+    #[inline]
+    fn annotation_ids_for_node<T>(
+        &self,
+        node_id: LocalNodeId<T>,
+    ) -> Option<Ref<'_, [LocalNodeId<Annotation>]>>
+    where
+        T: Node,
+        NodeTree: NodeTreeImpl<T>,
+    {
+        if !self.tree.has_annotations(node_id.id) {
+            return None;
+        }
+
+        {
+            let mut cache = self.annotation_ids_cache.borrow_mut();
+            cache
+                .entry(node_id.id)
+                .or_insert_with(|| self.tree.get_annotations(node_id.id));
+        }
+
+        let cache = self.annotation_ids_cache.borrow();
+        Some(Ref::map(cache, |cache| {
+            cache
+                .get(&node_id.id)
+                .expect("annotation cache should contain requested node")
+                .as_slice()
+        }))
+    }
+
     /// Get annotations for a node. Annotations are sorted by position.
     #[inline]
     pub fn get_annotations<T>(
@@ -332,10 +418,8 @@ impl<'a> DestackFormatContext<'a> {
         T: Node,
         NodeTree: NodeTreeImpl<T>,
     {
-        if !self.tree.has_annotations(node_id.id) {
-            return None;
-        }
-        Some(self.tree.get_annotations(node_id.id).to_vec())
+        self.annotation_ids_for_node(node_id)
+            .map(|annotations| annotations.to_vec())
     }
 
     /// Check if a node has an annotation.
@@ -345,7 +429,7 @@ impl<'a> DestackFormatContext<'a> {
         T: Node,
         NodeTree: NodeTreeImpl<T>,
     {
-        self.get_annotations(node_id).is_some()
+        self.tree.has_annotations(node_id.id)
     }
 
     /// Check if a node has a prefix annotation.
@@ -355,13 +439,14 @@ impl<'a> DestackFormatContext<'a> {
         T: Node,
         NodeTree: NodeTreeImpl<T>,
     {
-        self.get_annotations(node_id).is_some_and(|annotations| {
-            annotations.iter().any(|annotation| {
-                let position = self.tree.get::<Annotation>(*annotation).position();
-                position == AnnotationPosition::BlockPrefix
-                    || position == AnnotationPosition::LinePrefix
+        self.annotation_ids_for_node(node_id)
+            .is_some_and(|annotations| {
+                annotations.iter().any(|annotation| {
+                    let position = self.tree.get::<Annotation>(*annotation).position();
+                    position == AnnotationPosition::BlockPrefix
+                        || position == AnnotationPosition::LinePrefix
+                })
             })
-        })
     }
 
     /// Check if a node has a block infix annotation.
@@ -371,12 +456,13 @@ impl<'a> DestackFormatContext<'a> {
         T: Node,
         NodeTree: NodeTreeImpl<T>,
     {
-        self.get_annotations(node_id).is_some_and(|annotations| {
-            annotations.iter().any(|annotation| {
-                let position = self.tree.get::<Annotation>(*annotation).position();
-                position == AnnotationPosition::BlockInfix
+        self.annotation_ids_for_node(node_id)
+            .is_some_and(|annotations| {
+                annotations.iter().any(|annotation| {
+                    let position = self.tree.get::<Annotation>(*annotation).position();
+                    position == AnnotationPosition::BlockInfix
+                })
             })
-        })
     }
 
     /// Check if a node has a postfix annotation.
@@ -386,14 +472,15 @@ impl<'a> DestackFormatContext<'a> {
         T: Node,
         NodeTree: NodeTreeImpl<T>,
     {
-        self.get_annotations(node_id).is_some_and(|annotations| {
-            annotations.iter().any(|annotation| {
-                let position = self.tree.get::<Annotation>(*annotation).position();
-                position == AnnotationPosition::BlockPostfix
-                    || position == AnnotationPosition::LinePostfix
-                    || position == AnnotationPosition::LinePostfixBoundary
+        self.annotation_ids_for_node(node_id)
+            .is_some_and(|annotations| {
+                annotations.iter().any(|annotation| {
+                    let position = self.tree.get::<Annotation>(*annotation).position();
+                    position == AnnotationPosition::BlockPostfix
+                        || position == AnnotationPosition::LinePostfix
+                        || position == AnnotationPosition::LinePostfixBoundary
+                })
             })
-        })
     }
 
     /// Check if a node has a blank block prefix annotation.
@@ -403,16 +490,17 @@ impl<'a> DestackFormatContext<'a> {
         T: Node,
         NodeTree: NodeTreeImpl<T>,
     {
-        self.get_annotations(node_id).is_some_and(|annotations| {
-            annotations.iter().any(
-                |annotation| match self.tree.get::<Annotation>(*annotation) {
-                    Annotation::Blank { position, .. } => {
-                        *position == AnnotationPosition::BlockPrefix
+        self.annotation_ids_for_node(node_id)
+            .is_some_and(|annotations| {
+                annotations.iter().any(|annotation| {
+                    match self.tree.get::<Annotation>(*annotation) {
+                        Annotation::Blank { position, .. } => {
+                            *position == AnnotationPosition::BlockPrefix
+                        }
+                        _ => false,
                     }
-                    _ => false,
-                },
-            )
-        })
+                })
+            })
     }
 
     /// Check if a node has a blank prefix annotation in first position.
@@ -422,7 +510,7 @@ impl<'a> DestackFormatContext<'a> {
         T: Node,
         NodeTree: NodeTreeImpl<T>,
     {
-        let Some(annotations) = self.get_annotations(node_id) else {
+        let Some(annotations) = self.annotation_ids_for_node(node_id) else {
             return false;
         };
         annotations.first().is_some_and(|annotation| {

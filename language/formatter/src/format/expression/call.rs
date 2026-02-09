@@ -2,6 +2,65 @@ use super::*;
 use destack_ast::TemplateLiteral;
 use destack_fir::write;
 
+/// Store shared argument simplicity checks for call and chain classifiers.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) struct ArgumentSimplicityOptions {
+    /// Reject any annotations on the argument node.
+    pub reject_any_argument_annotation: bool,
+    /// Reject non-blank annotations on the argument node.
+    pub reject_non_blank_argument_annotation: bool,
+    /// Reject annotations on the argument value expression.
+    pub reject_value_annotation: bool,
+    /// Reject lambda declaration values.
+    pub reject_lambda_values: bool,
+    /// Set the maximum allowed source length for the argument value.
+    pub max_value_len: usize,
+}
+
+/// Return whether an expression node is a lambda declaration.
+fn expression_is_lambda_declaration(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    matches!(
+        context.tree.get(expression_id),
+        Expression::Declaration(declaration_id)
+            if matches!(
+                context.tree.get(*declaration_id),
+                Declaration::Function { signature, .. }
+                    if signature.kind == FunctionKind::Lambda
+            )
+    )
+}
+
+/// Return whether an argument satisfies shared call and chain simplicity constraints.
+pub(super) fn argument_is_simple_with_options(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+    options: ArgumentSimplicityOptions,
+) -> bool {
+    if options.reject_any_argument_annotation && context.has_annotation(argument_id) {
+        return false;
+    }
+    if options.reject_non_blank_argument_annotation
+        && argument_has_non_blank_annotation(context, argument_id)
+    {
+        return false;
+    }
+
+    let value_id = argument_value_id(context.tree, argument_id);
+    if options.reject_lambda_values && expression_is_lambda_declaration(context, value_id) {
+        return false;
+    }
+    if options.reject_value_annotation && context.has_annotation(value_id) {
+        return false;
+    }
+
+    let value = context.tree.get(value_id);
+    is_trivial_expression(context.tree, value)
+        && expression_source_len(context, value_id) <= options.max_value_len
+}
+
 /// Return whether an expression appears in call-like argument position.
 pub(super) fn is_call_like_argument(
     context: &DestackFormatContext<'_>,
@@ -59,18 +118,18 @@ pub(super) fn is_simple_static_argument(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    if argument_has_non_blank_annotation(context, argument_id) {
-        return false;
-    }
-
-    let value_id = argument_value_id(context.tree, argument_id);
-    let value = context.tree.get(value_id);
-    if !is_trivial_expression(context.tree, value) {
-        return false;
-    }
-
     let line_width = usize::from(context.options.line_width);
-    expression_source_len(context, value_id) <= line_width / 2
+    argument_is_simple_with_options(
+        context,
+        argument_id,
+        ArgumentSimplicityOptions {
+            reject_any_argument_annotation: false,
+            reject_non_blank_argument_annotation: true,
+            reject_value_annotation: false,
+            reject_lambda_values: false,
+            max_value_len: line_width / 2,
+        },
+    )
 }
 
 /// Return whether an argument is a string or template literal.
@@ -268,6 +327,282 @@ pub(super) fn call_arguments_preserve_blank_line_between(
         .any(|line| line.trim().is_empty())
 }
 
+/// Select how call argument expansion heuristics should be evaluated.
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum CallArgumentExpansionMode {
+    /// Apply the standalone call formatting heuristics.
+    Regular,
+    /// Apply chain formatting heuristics.
+    Chain,
+}
+
+/// Store derived call argument expansion flags.
+struct CallArgumentExpansionProfile {
+    /// The final force expand decision.
+    force_expand: bool,
+    /// Whether the call has a non blank infix annotation.
+    has_call_infix_annotations: bool,
+    /// Whether the last argument is a collection literal.
+    trailing_collection_argument: bool,
+}
+
+/// Return whether a single static argument call should expand.
+fn call_force_expand_single_long_with_static_arguments(
+    context: &DestackFormatContext<'_>,
+    call_node_id: LocalNodeId<Expression>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+    mode: CallArgumentExpansionMode,
+) -> bool {
+    if dynamic_arguments.len() != 1
+        || !call_has_static_arguments(context, call_node_id)
+        || argument_has_non_blank_annotation(context, dynamic_arguments[0])
+    {
+        return false;
+    }
+
+    let line_width = usize::from(context.options.line_width);
+    let call_len = expression_source_len(context, call_node_id);
+    if call_len > line_width {
+        return true;
+    }
+
+    mode == CallArgumentExpansionMode::Regular
+        && is_expression_chain(context.tree, call_node_id)
+        && call_len > line_width / 2
+}
+
+/// Return whether a single collection argument should expand for type binary callees.
+fn call_force_expand_single_collection_for_type_binary_callee(
+    context: &DestackFormatContext<'_>,
+    call_node_id: LocalNodeId<Expression>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+) -> bool {
+    dynamic_arguments.len() == 1
+        && argument_is_collection_literal(context, dynamic_arguments[0])
+        && call_like_has_type_binary_callee(context, call_node_id)
+}
+
+/// Return whether any non callback argument is complex.
+fn call_arguments_force_expand_for_complex_non_callback(
+    context: &DestackFormatContext<'_>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+) -> bool {
+    dynamic_arguments.len() > 1
+        && dynamic_arguments.iter().any(|argument_id| {
+            if argument_is_block_callback(context, *argument_id) {
+                return false;
+            }
+
+            let value_id = argument_value_id(context.tree, *argument_id);
+            let value_id = transparent_inner_expression(context, value_id);
+            if matches!(
+                context.tree.get(value_id),
+                Expression::TreeExpression { .. }
+            ) {
+                return false;
+            }
+
+            let argument = context.tree.get(*argument_id);
+            is_complex_argument(context.tree, argument)
+        })
+}
+
+/// Build the expansion profile used for call argument formatting.
+fn build_call_argument_expansion_profile(
+    context: &DestackFormatContext<'_>,
+    call_node_id: LocalNodeId<Expression>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+    mode: CallArgumentExpansionMode,
+    has_line_comment_annotations_override: Option<bool>,
+) -> CallArgumentExpansionProfile {
+    let line_width = usize::from(context.options.line_width);
+    let has_call_infix_annotations = call_has_non_blank_infix_annotation(context, call_node_id);
+    let has_line_comment_annotations = has_line_comment_annotations_override.unwrap_or_else(|| {
+        dynamic_arguments
+            .iter()
+            .any(|argument_id| argument_has_line_comment_annotation(context, *argument_id))
+    });
+    let force_expand_jsx = has_multiline_jsx_argument(context.tree, dynamic_arguments);
+    let trailing_collection_argument = dynamic_arguments
+        .last()
+        .is_some_and(|argument_id| argument_is_collection_literal(context, *argument_id));
+    let has_block_callback_argument = dynamic_arguments
+        .iter()
+        .any(|argument_id| argument_is_block_callback(context, *argument_id));
+    let last_argument_is_block_callback = dynamic_arguments
+        .last()
+        .is_some_and(|argument_id| argument_is_block_callback(context, *argument_id));
+    let first_argument_is_block_callback = dynamic_arguments
+        .first()
+        .is_some_and(|argument_id| argument_is_block_callback(context, *argument_id));
+    let has_non_trivial_non_callback_argument = dynamic_arguments
+        .iter()
+        .take(dynamic_arguments.len().saturating_sub(1))
+        .any(|argument_id| {
+            let argument = context.tree.get(*argument_id);
+            !argument_is_block_callback(context, *argument_id)
+                && !is_trivial_argument(context.tree, argument)
+        });
+    let non_last_block_callback_count = dynamic_arguments
+        .iter()
+        .take(dynamic_arguments.len().saturating_sub(1))
+        .filter(|argument_id| argument_is_block_callback(context, **argument_id))
+        .count();
+    let non_last_block_callback_index = dynamic_arguments
+        .iter()
+        .take(dynamic_arguments.len().saturating_sub(1))
+        .position(|argument_id| argument_is_block_callback(context, *argument_id));
+    let allow_non_last_block_callback_with_collection_tail = !last_argument_is_block_callback
+        && trailing_collection_argument
+        && non_last_block_callback_count == 1
+        && non_last_block_callback_index.is_some_and(|index| index > 0)
+        && argument_is_reference_like(context, dynamic_arguments[0])
+        && !has_non_trivial_non_callback_argument;
+    let force_expand_first_block_callback_with_collection_tail = dynamic_arguments.len() == 2
+        && first_argument_is_block_callback
+        && trailing_collection_argument;
+    let has_leading_block_callback_with_simple_tail =
+        call_has_leading_block_callback_with_simple_tail(context, call_node_id, dynamic_arguments);
+    let should_expand_for_block_callback = dynamic_arguments.len() > 1
+        && has_block_callback_argument
+        && (force_expand_first_block_callback_with_collection_tail
+            || has_non_trivial_non_callback_argument
+            || (!last_argument_is_block_callback
+                && !allow_non_last_block_callback_with_collection_tail
+                && !has_leading_block_callback_with_simple_tail));
+    let arrow_argument_count = dynamic_arguments
+        .iter()
+        .filter(|argument_id| argument_is_lambda_expression(context, **argument_id))
+        .count();
+    let function_argument_count = dynamic_arguments
+        .iter()
+        .filter(|argument_id| argument_is_function_expression(context, **argument_id))
+        .count();
+    let has_any_function_argument = arrow_argument_count > 0 || function_argument_count > 0;
+    let has_multiple_function_arguments = arrow_argument_count >= 2 || function_argument_count >= 2;
+    let has_spread_argument = dynamic_arguments
+        .iter()
+        .any(|argument_id| matches!(context.tree.get(*argument_id), Argument::Spread { .. }));
+    let force_expand_multiline_function_composition = mode == CallArgumentExpansionMode::Regular
+        && context.has_newline(context.get_span(call_node_id))
+        && dynamic_arguments.len() >= 3
+        && has_any_function_argument
+        && !has_spread_argument;
+    let force_expand_single_commented_callback = dynamic_arguments.len() == 1
+        && argument_is_block_callback(context, dynamic_arguments[0])
+        && (argument_has_comment_annotation(context, dynamic_arguments[0])
+            || has_call_infix_annotations);
+    let force_expand_single_multiline_argument =
+        mode == CallArgumentExpansionMode::Regular && dynamic_arguments.len() == 1 && {
+            let argument_id = dynamic_arguments[0];
+            context.has_newline(context.get_span(argument_id))
+                && !argument_is_collection_literal(context, argument_id)
+                && !argument_is_lambda_expression(context, argument_id)
+                && !argument_is_function_expression(context, argument_id)
+                && !argument_is_tree_expression(context, argument_id)
+                && !argument_is_template_literal(context, argument_id)
+        };
+    let force_expand_single_long_with_static_arguments =
+        call_force_expand_single_long_with_static_arguments(
+            context,
+            call_node_id,
+            dynamic_arguments,
+            mode,
+        );
+    let force_expand_single_collection_for_type_binary_callee = mode
+        == CallArgumentExpansionMode::Regular
+        && call_force_expand_single_collection_for_type_binary_callee(
+            context,
+            call_node_id,
+            dynamic_arguments,
+        );
+    let force_expand_complex =
+        call_arguments_force_expand_for_complex_non_callback(context, dynamic_arguments);
+    let force_expand_long = dynamic_arguments.len() > 1 && {
+        let arguments_len = arguments_rendered_len(context, dynamic_arguments);
+        if mode == CallArgumentExpansionMode::Regular {
+            call_has_direct_call_parent(context, call_node_id) && arguments_len >= line_width / 2
+        } else {
+            arguments_len >= line_width / 2
+        }
+    };
+    let force_expand = force_expand_jsx
+        || force_expand_long
+        || force_expand_complex
+        || has_line_comment_annotations
+        || force_expand_single_commented_callback
+        || force_expand_single_multiline_argument
+        || force_expand_single_long_with_static_arguments
+        || force_expand_single_collection_for_type_binary_callee
+        || should_expand_for_block_callback
+        || has_multiple_function_arguments
+        || force_expand_multiline_function_composition
+        || (mode == CallArgumentExpansionMode::Regular && has_call_infix_annotations);
+
+    CallArgumentExpansionProfile {
+        force_expand,
+        has_call_infix_annotations,
+        trailing_collection_argument,
+    }
+}
+
+/// Return whether single argument hugged formatting should force expansion.
+fn call_should_force_hugged_expand(
+    context: &DestackFormatContext<'_>,
+    call_node_id: LocalNodeId<Expression>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+    force_expand_single_collection_for_type_binary_callee: bool,
+) -> bool {
+    if force_expand_single_collection_for_type_binary_callee {
+        return true;
+    }
+
+    if dynamic_arguments.len() != 1 {
+        return false;
+    }
+
+    let argument_id = dynamic_arguments[0];
+    let value_id = argument_value_id(context.tree, argument_id);
+    let value_id = transparent_inner_expression(context, value_id);
+    let is_arrow_argument = matches!(
+        context.tree.get(value_id),
+        Expression::Declaration(declaration_id)
+            if matches!(
+                context.tree.get(*declaration_id),
+                Declaration::Function { signature, .. }
+                    if signature.kind == FunctionKind::Lambda
+            )
+    );
+    if !is_arrow_argument {
+        return false;
+    }
+
+    let threshold = usize::from(context.options.line_width).saturating_sub(1);
+    let call_len = expression_source_len(context, call_node_id);
+    let call_len = match context.tree.get(call_node_id) {
+        Expression::Call { left, .. } => {
+            let is_chain_call = matches!(
+                context.tree.get(*left),
+                Expression::Member { .. }
+                    | Expression::PrivateMember { .. }
+                    | Expression::Call { .. }
+                    | Expression::Index { .. }
+                    | Expression::Maybe { .. }
+                    | Expression::Must { .. }
+            );
+            if is_chain_call {
+                let left_len = expression_source_len(context, *left);
+                call_len.saturating_sub(left_len)
+            } else {
+                call_len
+            }
+        }
+        _ => call_len,
+    };
+
+    call_len >= threshold
+}
+
 /// Format call arguments with list-group awareness.
 pub(super) fn format_call_arguments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -281,64 +616,26 @@ pub(super) fn format_call_arguments<'ast>(
 
     let result = (|| {
         let line_width = usize::from(f.context().options.line_width);
-        let force_expand_single_long_with_static_arguments = dynamic_arguments.len() == 1
-            && call_has_static_arguments(f.context(), call_node_id)
-            && !argument_has_non_blank_annotation(f.context(), dynamic_arguments[0])
-            && {
-                let call_len = expression_source_len(f.context(), call_node_id);
-                call_len > line_width
-                    || (is_expression_chain(f.context().tree, call_node_id)
-                        && call_len > line_width / 2)
-            };
-        let force_expand_single_collection_for_type_binary_callee = dynamic_arguments.len() == 1
-            && argument_is_collection_literal(f.context(), dynamic_arguments[0])
-            && call_like_has_type_binary_callee(f.context(), call_node_id);
-
-        let force_hugged_expand = if dynamic_arguments.len() == 1 {
-            let argument_id = dynamic_arguments[0];
-            let value_id = argument_value_id(f.context().tree, argument_id);
-            let value_id = transparent_inner_expression(f.context(), value_id);
-            let is_arrow_argument = matches!(
-                f.context().tree.get(value_id),
-                Expression::Declaration(declaration_id)
-                    if matches!(
-                        f.context().tree.get(*declaration_id),
-                        Declaration::Function { signature, .. }
-                            if signature.kind == FunctionKind::Lambda
-                    )
+        let force_expand_single_long_with_static_arguments =
+            call_force_expand_single_long_with_static_arguments(
+                f.context(),
+                call_node_id,
+                dynamic_arguments,
+                CallArgumentExpansionMode::Regular,
+            );
+        let force_expand_single_collection_for_type_binary_callee =
+            call_force_expand_single_collection_for_type_binary_callee(
+                f.context(),
+                call_node_id,
+                dynamic_arguments,
             );
 
-            if is_arrow_argument {
-                let line_width = usize::from(f.context().options.line_width);
-                let threshold = line_width.saturating_sub(1);
-                let call_len = expression_source_len(f.context(), call_node_id);
-                let call_len = match f.context().tree.get(call_node_id) {
-                    Expression::Call { left, .. } => {
-                        let is_chain_call = matches!(
-                            f.context().tree.get(*left),
-                            Expression::Member { .. }
-                                | Expression::PrivateMember { .. }
-                                | Expression::Call { .. }
-                                | Expression::Index { .. }
-                                | Expression::Maybe { .. }
-                                | Expression::Must { .. }
-                        );
-                        if is_chain_call {
-                            let left_len = expression_source_len(f.context(), *left);
-                            call_len.saturating_sub(left_len)
-                        } else {
-                            call_len
-                        }
-                    }
-                    _ => call_len,
-                };
-                call_len >= threshold
-            } else {
-                false
-            }
-        } else {
-            false
-        } || force_expand_single_collection_for_type_binary_callee;
+        let force_hugged_expand = call_should_force_hugged_expand(
+            f.context(),
+            call_node_id,
+            dynamic_arguments,
+            force_expand_single_collection_for_type_binary_callee,
+        );
 
         // try hugged format for single object/array arguments
         let can_use_hugged = if dynamic_arguments.len() == 1 {
@@ -483,128 +780,16 @@ pub(super) fn format_call_arguments<'ast>(
         }
 
         // decide if the argument list must expand
-        let force_expand_jsx = has_multiline_jsx_argument(f.context().tree, dynamic_arguments);
-        let has_block_callback_argument = dynamic_arguments
-            .iter()
-            .any(|argument_id| argument_is_block_callback(f.context(), *argument_id));
-        let last_argument_is_block_callback = dynamic_arguments
-            .last()
-            .is_some_and(|argument_id| argument_is_block_callback(f.context(), *argument_id));
-        let first_argument_is_block_callback = dynamic_arguments
-            .first()
-            .is_some_and(|argument_id| argument_is_block_callback(f.context(), *argument_id));
-        let has_non_trivial_non_callback_argument = dynamic_arguments
-            .iter()
-            .take(dynamic_arguments.len().saturating_sub(1))
-            .any(|argument_id| {
-                let argument = f.context().tree.get(*argument_id);
-                !argument_is_block_callback(f.context(), *argument_id)
-                    && !is_trivial_argument(f.context().tree, argument)
-            });
-        let trailing_collection_argument = dynamic_arguments
-            .last()
-            .is_some_and(|argument_id| argument_is_collection_literal(f.context(), *argument_id));
-        let non_last_block_callback_count = dynamic_arguments
-            .iter()
-            .take(dynamic_arguments.len().saturating_sub(1))
-            .filter(|argument_id| argument_is_block_callback(f.context(), **argument_id))
-            .count();
-        let non_last_block_callback_index = dynamic_arguments
-            .iter()
-            .take(dynamic_arguments.len().saturating_sub(1))
-            .position(|argument_id| argument_is_block_callback(f.context(), *argument_id));
-        let allow_non_last_block_callback_with_collection_tail = !last_argument_is_block_callback
-            && trailing_collection_argument
-            && non_last_block_callback_count == 1
-            && non_last_block_callback_index.is_some_and(|index| index > 0)
-            && argument_is_reference_like(f.context(), dynamic_arguments[0])
-            && !has_non_trivial_non_callback_argument;
-        let force_expand_first_block_callback_with_collection_tail = dynamic_arguments.len() == 2
-            && first_argument_is_block_callback
-            && trailing_collection_argument;
-        let has_leading_block_callback_with_simple_tail =
-            call_has_leading_block_callback_with_simple_tail(
-                f.context(),
-                call_node_id,
-                dynamic_arguments,
-            );
-        let should_expand_for_block_callback = dynamic_arguments.len() > 1
-            && has_block_callback_argument
-            && (force_expand_first_block_callback_with_collection_tail
-                || has_non_trivial_non_callback_argument
-                || (!last_argument_is_block_callback
-                    && !allow_non_last_block_callback_with_collection_tail
-                    && !has_leading_block_callback_with_simple_tail));
-        let arrow_argument_count = dynamic_arguments
-            .iter()
-            .filter(|argument_id| argument_is_lambda_expression(f.context(), **argument_id))
-            .count();
-        let function_argument_count = dynamic_arguments
-            .iter()
-            .filter(|argument_id| argument_is_function_expression(f.context(), **argument_id))
-            .count();
-        let has_any_function_argument = arrow_argument_count > 0 || function_argument_count > 0;
-        let has_multiple_function_arguments =
-            arrow_argument_count >= 2 || function_argument_count >= 2;
-        let has_spread_argument = dynamic_arguments.iter().any(|argument_id| {
-            matches!(f.context().tree.get(*argument_id), Argument::Spread { .. })
-        });
-        let force_expand_multiline_function_composition =
-            f.context().has_newline(f.context().get_span(call_node_id))
-                && dynamic_arguments.len() >= 3
-                && has_any_function_argument
-                && !has_spread_argument;
-        let has_call_infix_annotations =
-            call_has_non_blank_infix_annotation(f.context(), call_node_id);
-        let force_expand_single_commented_callback = dynamic_arguments.len() == 1
-            && argument_is_block_callback(f.context(), dynamic_arguments[0])
-            && (argument_has_comment_annotation(f.context(), dynamic_arguments[0])
-                || call_has_non_blank_infix_annotation(f.context(), call_node_id));
-        let force_expand_single_multiline_argument = dynamic_arguments.len() == 1 && {
-            let argument_id = dynamic_arguments[0];
-            f.context().has_newline(f.context().get_span(argument_id))
-                && !argument_is_collection_literal(f.context(), argument_id)
-                && !argument_is_lambda_expression(f.context(), argument_id)
-                && !argument_is_function_expression(f.context(), argument_id)
-                && !argument_is_tree_expression(f.context(), argument_id)
-                && !argument_is_template_literal(f.context(), argument_id)
-        };
-        // expand argument lists when any argument is complex
-        let force_expand_complex = dynamic_arguments.len() > 1
-            && dynamic_arguments.iter().any(|argument_id| {
-                if argument_is_block_callback(f.context(), *argument_id) {
-                    return false;
-                }
-
-                let value_id = argument_value_id(f.context().tree, *argument_id);
-                let value_id = transparent_inner_expression(f.context(), value_id);
-
-                // multiline jsx handling is delegated to force_expand_jsx
-                if matches!(
-                    f.context().tree.get(value_id),
-                    Expression::TreeExpression { .. }
-                ) {
-                    return false;
-                }
-
-                let argument = f.context().tree.get(*argument_id);
-                is_complex_argument(f.context().tree, argument)
-            });
-        let force_expand_long_for_curried_call = dynamic_arguments.len() > 1
-            && call_has_direct_call_parent(f.context(), call_node_id)
-            && arguments_rendered_len(f.context(), dynamic_arguments) >= line_width / 2;
-        let force_expand = force_expand_jsx
-            || force_expand_complex
-            || force_expand_long_for_curried_call
-            || has_line_comment_annotations
-            || force_expand_single_commented_callback
-            || force_expand_single_multiline_argument
-            || force_expand_single_long_with_static_arguments
-            || force_expand_single_collection_for_type_binary_callee
-            || should_expand_for_block_callback
-            || has_multiple_function_arguments
-            || force_expand_multiline_function_composition
-            || has_call_infix_annotations;
+        let expansion_profile = build_call_argument_expansion_profile(
+            f.context(),
+            call_node_id,
+            dynamic_arguments,
+            CallArgumentExpansionMode::Regular,
+            Some(has_line_comment_annotations),
+        );
+        let force_expand = expansion_profile.force_expand;
+        let trailing_collection_argument = expansion_profile.trailing_collection_argument;
+        let has_call_infix_annotations = expansion_profile.has_call_infix_annotations;
 
         let has_single_template_literal_argument = dynamic_arguments.len() == 1
             && argument_is_template_literal(f.context(), dynamic_arguments[0]);
@@ -1179,106 +1364,14 @@ pub(super) fn call_arguments_force_expand_for_chain(
     call_node_id: LocalNodeId<Expression>,
     dynamic_arguments: &[LocalNodeId<Argument>],
 ) -> bool {
-    let force_expand_jsx = has_multiline_jsx_argument(context.tree, dynamic_arguments);
-    let has_block_callback_argument = dynamic_arguments
-        .iter()
-        .any(|argument_id| argument_is_block_callback(context, *argument_id));
-    let last_argument_is_block_callback = dynamic_arguments
-        .last()
-        .is_some_and(|argument_id| argument_is_block_callback(context, *argument_id));
-    let first_argument_is_block_callback = dynamic_arguments
-        .first()
-        .is_some_and(|argument_id| argument_is_block_callback(context, *argument_id));
-    let has_non_trivial_non_callback_argument = dynamic_arguments
-        .iter()
-        .take(dynamic_arguments.len().saturating_sub(1))
-        .any(|argument_id| {
-            let argument = context.tree.get(*argument_id);
-            !argument_is_block_callback(context, *argument_id)
-                && !is_trivial_argument(context.tree, argument)
-        });
-    let trailing_collection_argument = dynamic_arguments
-        .last()
-        .is_some_and(|argument_id| argument_is_collection_literal(context, *argument_id));
-    let non_last_block_callback_count = dynamic_arguments
-        .iter()
-        .take(dynamic_arguments.len().saturating_sub(1))
-        .filter(|argument_id| argument_is_block_callback(context, **argument_id))
-        .count();
-    let non_last_block_callback_index = dynamic_arguments
-        .iter()
-        .take(dynamic_arguments.len().saturating_sub(1))
-        .position(|argument_id| argument_is_block_callback(context, *argument_id));
-    let allow_non_last_block_callback_with_collection_tail = !last_argument_is_block_callback
-        && trailing_collection_argument
-        && non_last_block_callback_count == 1
-        && non_last_block_callback_index.is_some_and(|index| index > 0)
-        && argument_is_reference_like(context, dynamic_arguments[0])
-        && !has_non_trivial_non_callback_argument;
-    let force_expand_first_block_callback_with_collection_tail = dynamic_arguments.len() == 2
-        && first_argument_is_block_callback
-        && trailing_collection_argument;
-    let has_leading_block_callback_with_simple_tail =
-        call_has_leading_block_callback_with_simple_tail(context, call_node_id, dynamic_arguments);
-    let should_expand_for_block_callback = dynamic_arguments.len() > 1
-        && has_block_callback_argument
-        && (force_expand_first_block_callback_with_collection_tail
-            || has_non_trivial_non_callback_argument
-            || (!last_argument_is_block_callback
-                && !allow_non_last_block_callback_with_collection_tail
-                && !has_leading_block_callback_with_simple_tail));
-    let arrow_argument_count = dynamic_arguments
-        .iter()
-        .filter(|argument_id| argument_is_lambda_expression(context, **argument_id))
-        .count();
-    let function_argument_count = dynamic_arguments
-        .iter()
-        .filter(|argument_id| argument_is_function_expression(context, **argument_id))
-        .count();
-    let has_multiple_function_arguments = arrow_argument_count >= 2 || function_argument_count >= 2;
-    let has_line_comment_annotations = dynamic_arguments
-        .iter()
-        .any(|argument_id| argument_has_line_comment_annotation(context, *argument_id));
-    let force_expand_single_commented_callback = dynamic_arguments.len() == 1
-        && argument_is_block_callback(context, dynamic_arguments[0])
-        && (argument_has_comment_annotation(context, dynamic_arguments[0])
-            || call_has_non_blank_infix_annotation(context, call_node_id));
-    let force_expand_single_long_with_static_arguments = dynamic_arguments.len() == 1
-        && call_has_static_arguments(context, call_node_id)
-        && !argument_has_non_blank_annotation(context, dynamic_arguments[0])
-        && expression_source_len(context, call_node_id) > usize::from(context.options.line_width);
-    let line_width = usize::from(context.options.line_width);
-    let arguments_len = arguments_rendered_len(context, dynamic_arguments);
-    let force_expand_long = dynamic_arguments.len() > 1 && arguments_len >= line_width / 2;
-
-    let force_expand_complex = dynamic_arguments.len() > 1
-        && dynamic_arguments.iter().any(|argument_id| {
-            if argument_is_block_callback(context, *argument_id) {
-                return false;
-            }
-
-            let value_id = argument_value_id(context.tree, *argument_id);
-            let value_id = transparent_inner_expression(context, value_id);
-
-            if matches!(
-                context.tree.get(value_id),
-                Expression::TreeExpression { .. }
-            ) {
-                return false;
-            }
-
-            let argument = context.tree.get(*argument_id);
-            is_complex_argument(context.tree, argument)
-        });
-
-    force_expand_jsx
-        || force_expand_long
-        || force_expand_complex
-        || has_line_comment_annotations
-        || force_expand_single_commented_callback
-        || force_expand_single_long_with_static_arguments
-        || should_expand_for_block_callback
-        || has_multiple_function_arguments
+    build_call_argument_expansion_profile(
+        context,
+        call_node_id,
+        dynamic_arguments,
+        CallArgumentExpansionMode::Chain,
+        None,
+    )
+    .force_expand
 }
 
 /// Format call dynamic arguments while honoring deferred callee boundary comments.

@@ -24,6 +24,8 @@ destack_workspace = { workspace = true }
 smallvec = { workspace = true }
 
 [dev-dependencies]
+clap = { workspace = true }
+serde_json = { workspace = true }
 
 [lints]
 workspace = true

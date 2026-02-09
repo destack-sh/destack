@@ -1037,12 +1037,14 @@ dependencies = [
 name = "destack_formatter"
 version = "0.53.0"
 dependencies = [
+ "clap",
  "destack_ast",
  "destack_base",
  "destack_fir",
  "destack_parser",
  "destack_source",
  "destack_workspace",
+ "serde_json",
  "smallvec",
 ]
 

@@ -1,19 +1,15 @@
 pub mod annotation;
 pub mod argument;
 pub mod block;
+pub mod collection;
 pub mod context;
 pub mod declaration;
 pub mod dependency;
 pub mod directive;
 pub mod r#enum;
 pub mod expression;
-pub mod extension;
-pub mod function;
-pub mod r#if;
 pub mod imports;
-pub mod interface;
 pub mod key;
-pub mod r#let;
 pub mod literal;
 pub mod r#match;
 pub mod operator;
@@ -22,7 +18,6 @@ pub mod pattern;
 pub mod property;
 pub mod scan;
 pub mod signature;
-pub mod r#try;
 pub mod r#where;
 
 pub use block::{

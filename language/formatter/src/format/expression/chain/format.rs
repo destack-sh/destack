@@ -8,43 +8,23 @@ struct ChainRootParts {
     deferred_boundary_comments: Vec<String>,
 }
 
-/// Collect all chain nodes from root to leaf.
-fn collect_chain_nodes(
-    tree: &NodeTree,
-    node_id: LocalNodeId<Expression>,
-) -> FormatResult<Vec<LocalNodeId<Expression>>> {
-    // walk from leaf to root through chain links
-    let mut chain = Vec::new();
-    let mut current = node_id;
-    loop {
-        chain.push(current);
-        let next = match tree.get(current) {
-            Expression::Member { left, .. }
-            | Expression::PrivateMember { left, .. }
-            | Expression::Call { left, .. }
-            | Expression::Index { left, .. }
-            | Expression::Instantiation { left, .. }
-            | Expression::Maybe { left, .. }
-            | Expression::Must { left, .. } => Some(*left),
-            _ => None,
-        };
+/// Normalized chain inputs before layout scoring.
+struct NormalizedChainLayout {
+    chain: Vec<LocalNodeId<Expression>>,
+    root_id: LocalNodeId<Expression>,
+    base: ChainExpressionBase,
+    body: Vec<ChainExpression>,
+    deferred_path_boundary_comments: Vec<String>,
+}
 
-        if let Some(next_id) = next {
-            current = next_id;
-        } else {
-            break;
-        }
-    }
-    chain.reverse();
-
-    // sanity check: chain format requires at least one node
-    if chain.is_empty() {
-        return Err(FormatError::SyntaxError {
-            message: "member/call/maybe/index chain must contain at least one node",
-        });
-    }
-
-    Ok(chain)
+/// Planned chain layout used by render-only formatting.
+struct ChainLayoutPlan {
+    base: ChainExpressionBase,
+    lines: Vec<SmallVec<[ChainExpression; 2]>>,
+    deferred_path_boundary_comments: Vec<String>,
+    should_break: bool,
+    has_calls: bool,
+    in_template_literal_interpolation: bool,
 }
 
 /// Build base head and synthetic root operations for a chain root.
@@ -118,76 +98,6 @@ fn collect_chain_root_parts(
     })
 }
 
-/// Convert one chain expression node into a chain operation.
-fn chain_expression_from_node(
-    tree: &NodeTree,
-    expression_id: LocalNodeId<Expression>,
-) -> FormatResult<ChainExpression> {
-    let chain_expression = match tree.get(expression_id) {
-        Expression::Member {
-            name,
-            static_arguments,
-            ..
-        } => ChainExpression::Member {
-            node_id: expression_id,
-            segment: *name,
-            static_arguments: static_arguments.clone(),
-            emit_prefix_annotations: true,
-            emit_postfix_annotations: true,
-        },
-        Expression::PrivateMember {
-            name,
-            static_arguments,
-            ..
-        } => ChainExpression::Member {
-            node_id: expression_id,
-            segment: *name,
-            static_arguments: static_arguments.clone(),
-            emit_prefix_annotations: true,
-            emit_postfix_annotations: true,
-        },
-        Expression::Call {
-            position,
-            static_arguments,
-            dynamic_arguments,
-            ..
-        } => ChainExpression::Call {
-            node_id: expression_id,
-            position: *position,
-            static_arguments: static_arguments.clone(),
-            dynamic_arguments: dynamic_arguments.clone(),
-        },
-        Expression::Instantiation {
-            static_arguments, ..
-        } => ChainExpression::Instantiation {
-            node_id: expression_id,
-            static_arguments: static_arguments.clone(),
-        },
-        Expression::Index {
-            position, index, ..
-        } => ChainExpression::Index {
-            node_id: expression_id,
-            position: *position,
-            index: *index,
-        },
-        Expression::Maybe { position, .. } => ChainExpression::Maybe {
-            node_id: expression_id,
-            position: *position,
-        },
-        Expression::Must { position, .. } => ChainExpression::Must {
-            node_id: expression_id,
-            position: *position,
-        },
-        _ => {
-            return Err(FormatError::SyntaxError {
-                message: "unexpected expression kind for chain expression",
-            });
-        }
-    };
-
-    Ok(chain_expression)
-}
-
 /// Append operation nodes from chain body expressions.
 fn append_chain_operations(
     tree: &NodeTree,
@@ -200,30 +110,19 @@ fn append_chain_operations(
     Ok(())
 }
 
-/// Format a member/call/maybe/index chain with prettier-style breaking.
-pub(crate) fn format_expression_chain<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+/// Normalize a chain root into base and operation inputs for planning.
+fn normalize_chain_layout(
+    context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
-) -> FormatResult<()> {
-    let tree = f.context().tree;
+) -> FormatResult<NormalizedChainLayout> {
+    let tree = context.tree;
 
     // collect chain nodes from root to leaf
-    let chain = collect_chain_nodes(tree, node_id)?;
+    let chain = collect_chain_nodes(tree, node_id);
     let root_id = chain[0];
-    let mut chain_should_break = should_break_chain(f.context(), &chain);
-    let has_chain_intervening_trivia = chain_has_intervening_break_or_comment(f.context(), &chain);
-    let chain_call_summaries = summarize_chain_calls(f.context(), &chain);
-    let has_multiline_nonhead_call = chain_call_summaries
-        .iter()
-        .skip(1)
-        .any(|summary| summary.has_multiline_argument);
-    let has_nonhead_nonlambda_function_call_argument =
-        chain_has_nonhead_nonlambda_function_call_argument(f.context(), &chain);
-    let has_path_tail_deferred_empty_call_boundary_comment =
-        chain_has_deferred_empty_call_boundary_comment_on_path_tail(f.context(), &chain);
 
     // initialize base head and synthetic root path operations
-    let root_parts = collect_chain_root_parts(f.context(), root_id)?;
+    let root_parts = collect_chain_root_parts(context, root_id)?;
     let mut body = root_parts.operations;
     let mut base = ChainExpressionBase {
         head: root_parts.head,
@@ -233,32 +132,6 @@ pub(crate) fn format_expression_chain<'ast>(
 
     // append operation nodes from the original chain
     append_chain_operations(tree, &chain, &mut body)?;
-
-    // member operations with non inline annotations should keep one operation per line
-    let member_has_non_inline_annotation = body.iter().any(|operation| {
-        let ChainExpression::Member { node_id, .. } = operation else {
-            return false;
-        };
-        chain_node_has_breaking_annotation(f.context(), *node_id)
-    });
-    if member_has_non_inline_annotation {
-        chain_should_break = true;
-    }
-    let root_has_line_postfix_boundary_comment =
-        expression_has_line_postfix_boundary_comment(f.context(), root_id);
-    let first_member_has_line_postfix_boundary_comment = body.first().is_some_and(|operation| {
-        let ChainExpression::Member { node_id, .. } = operation else {
-            return false;
-        };
-        expression_has_line_postfix_boundary_comment(f.context(), *node_id)
-    });
-    let starts_with_member_operation = matches!(body.first(), Some(ChainExpression::Member { .. }));
-    let should_avoid_head_promotion_for_boundary_comment =
-        first_member_has_line_postfix_boundary_comment
-            || (root_has_line_postfix_boundary_comment && starts_with_member_operation);
-    if should_avoid_head_promotion_for_boundary_comment {
-        chain_should_break = true;
-    }
 
     // keep a leading call with the base so alignment stays stable
     if let Some(first_op) = body.first()
@@ -274,57 +147,117 @@ pub(crate) fn format_expression_chain<'ast>(
         body.remove(0);
     }
 
+    Ok(NormalizedChainLayout {
+        chain,
+        root_id,
+        base,
+        body,
+        deferred_path_boundary_comments,
+    })
+}
+
+/// Build a scored chain layout plan that rendering can consume directly.
+fn plan_chain_layout(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> FormatResult<ChainLayoutPlan> {
+    let mut normalized = normalize_chain_layout(context, node_id)?;
+    let chain_call_summaries = summarize_chain_calls(context, &normalized.chain);
+    let mut should_break = should_break_chain(context, &normalized.chain);
+    let has_chain_intervening_trivia =
+        chain_has_intervening_break_or_comment(context, &normalized.chain);
+    let has_multiline_nonhead_call = chain_call_summaries
+        .iter()
+        .skip(1)
+        .any(|summary| summary.has_multiline_argument);
+    let has_nonhead_nonlambda_function_call_argument =
+        chain_has_nonhead_nonlambda_function_call_argument(context, &normalized.chain);
+    let has_path_tail_deferred_empty_call_boundary_comment =
+        chain_has_deferred_empty_call_boundary_comment_on_path_tail(context, &normalized.chain);
+
+    // member operations with non inline annotations should keep one operation per line
+    let member_has_non_inline_annotation = normalized.body.iter().any(|operation| {
+        let ChainExpression::Member { node_id, .. } = operation else {
+            return false;
+        };
+        chain_node_has_breaking_annotation(context, *node_id)
+    });
+    if member_has_non_inline_annotation {
+        should_break = true;
+    }
+    let root_has_line_postfix_boundary_comment =
+        expression_has_line_postfix_boundary_comment(context, normalized.root_id);
+    let first_member_has_line_postfix_boundary_comment =
+        normalized.body.first().is_some_and(|operation| {
+            let ChainExpression::Member { node_id, .. } = operation else {
+                return false;
+            };
+            expression_has_line_postfix_boundary_comment(context, *node_id)
+        });
+    let starts_with_member_operation = matches!(
+        normalized.body.first(),
+        Some(ChainExpression::Member { .. })
+    );
+    let should_avoid_head_promotion_for_boundary_comment =
+        first_member_has_line_postfix_boundary_comment
+            || (root_has_line_postfix_boundary_comment && starts_with_member_operation);
+    if should_avoid_head_promotion_for_boundary_comment {
+        should_break = true;
+    }
+
     // keep a small head group with the base for prettier style chains
-    let base_len = chain_base_len(f.context(), &base);
-    let base_has_leading_call_like = match &base.head {
+    let base_len = chain_base_len(context, &normalized.base);
+    let base_has_leading_call_like = match &normalized.base.head {
         ChainExpressionBaseHead::Expression(expression_id) => matches!(
-            f.context().tree.get(*expression_id),
+            context.tree.get(*expression_id),
             Expression::Call { .. } | Expression::Instantiation { .. }
         ),
-        ChainExpressionBaseHead::Path { .. } => base.body.first().is_some_and(|operation| {
-            matches!(
-                operation,
-                ChainExpression::Call { .. } | ChainExpression::Instantiation { .. }
-            )
-        }),
+        ChainExpressionBaseHead::Path { .. } => {
+            normalized.base.body.first().is_some_and(|operation| {
+                matches!(
+                    operation,
+                    ChainExpression::Call { .. } | ChainExpression::Instantiation { .. }
+                )
+            })
+        }
     };
-    let remaining_width = if is_call_like_argument(f.context(), node_id) {
+    let remaining_width = if is_call_like_argument(context, node_id) {
         None
     } else {
-        assignment_like_remaining_width(f.context(), node_id)
+        assignment_like_remaining_width(context, node_id)
     };
-    let root_has_annotation = f.context().has_annotation(root_id);
+    let root_has_annotation = context.has_annotation(normalized.root_id);
     let should_avoid_head_promotion_for_nonhead_callbacks =
         has_nonhead_nonlambda_function_call_argument
             || (has_multiline_nonhead_call && has_chain_intervening_trivia)
             || has_path_tail_deferred_empty_call_boundary_comment
             || root_has_annotation;
-    let allow_wide_head = is_call_like_argument(f.context(), node_id);
+    let allow_wide_head = is_call_like_argument(context, node_id);
     let head_ops_count = if should_avoid_head_promotion_for_nonhead_callbacks
         || should_avoid_head_promotion_for_boundary_comment
     {
         0
     } else {
         split_chain_head_operations(
-            f.context(),
+            context,
             base_len,
             base_has_leading_call_like,
-            &body,
+            &normalized.body,
             remaining_width,
             allow_wide_head,
         )
     };
     if head_ops_count > 0 {
-        let head_ops: Vec<_> = body.drain(..head_ops_count).collect();
-        base.body.extend(head_ops);
+        let head_ops: Vec<_> = normalized.body.drain(..head_ops_count).collect();
+        normalized.base.body.extend(head_ops);
     }
 
     // group the chain operations into lines
-    let mut lines = group_chain_expression_lines(f.context(), body);
+    let mut lines = group_chain_expression_lines(context, normalized.body);
 
     // keep curried call tails attached to an already promoted direct call head:
     // `foo(...)(...)` should not split between the closing and opening parens
-    if base.body.last().is_some_and(|operation| {
+    if normalized.base.body.last().is_some_and(|operation| {
         matches!(
             operation,
             ChainExpression::Call {
@@ -339,16 +272,17 @@ pub(crate) fn format_expression_chain<'ast>(
             position: PostfixPosition::Direct,
             ..
         } = first_line[0]
-        && !chain_node_has_non_inline_annotation(f.context(), node_id)
+        && !chain_node_has_non_inline_annotation(context, node_id)
     {
         let first_line = lines.remove(0);
-        base.body.push(first_line[0].clone());
+        normalized.base.body.push(first_line[0].clone());
     }
 
     // keep short member + call heads compact inside argument positions:
     // `foo.bar.get(...)` should not split before `.get(` by default
-    if is_call_like_argument(f.context(), node_id)
-        && base
+    if is_call_like_argument(context, node_id)
+        && normalized
+            .base
             .body
             .last()
             .is_some_and(|operation| matches!(operation, ChainExpression::Member { .. }))
@@ -358,16 +292,17 @@ pub(crate) fn format_expression_chain<'ast>(
             node_id: call_node_id,
             ..
         } = first_line[0]
-        && !chain_node_has_non_inline_annotation(f.context(), call_node_id)
+        && !chain_node_has_non_inline_annotation(context, call_node_id)
     {
         let first_line = lines.remove(0);
-        base.body.push(first_line[0].clone());
+        normalized.base.body.push(first_line[0].clone());
     }
 
     // keep member + call pairs attached in argument chains:
     // `foo.bar.get(...)` should stay together before optional tails
-    if is_call_like_argument(f.context(), node_id)
-        && base
+    if is_call_like_argument(context, node_id)
+        && normalized
+            .base
             .body
             .last()
             .is_some_and(|operation| matches!(operation, ChainExpression::Member { .. }))
@@ -383,16 +318,16 @@ pub(crate) fn format_expression_chain<'ast>(
                 ..
             },
         ) = (&first_line[0], &first_line[1])
-        && !chain_node_has_non_inline_annotation(f.context(), *member_node_id)
-        && !chain_node_has_non_inline_annotation(f.context(), *call_node_id)
+        && !chain_node_has_non_inline_annotation(context, *member_node_id)
+        && !chain_node_has_non_inline_annotation(context, *call_node_id)
     {
         let first_line = lines.remove(0);
-        base.body.extend(first_line);
+        normalized.base.body.extend(first_line);
     }
 
     // keep short argument chains from fragmenting on their first member hops:
     // `foo.bar` + `.baz(...)` should render as `foo.bar.baz(...)` in argument positions
-    if is_call_like_argument(f.context(), node_id)
+    if is_call_like_argument(context, node_id)
         && lines.len() >= 2
         && matches!(lines[0].as_slice(), [ChainExpression::Member { .. }])
         && matches!(
@@ -405,6 +340,33 @@ pub(crate) fn format_expression_chain<'ast>(
         first_line.extend(second_line);
         lines.insert(0, first_line);
     }
+
+    Ok(ChainLayoutPlan {
+        base: normalized.base,
+        lines,
+        deferred_path_boundary_comments: normalized.deferred_path_boundary_comments,
+        should_break,
+        has_calls: !chain_call_summaries.is_empty(),
+        in_template_literal_interpolation: expression_is_in_template_literal_interpolation(
+            context, node_id,
+        ),
+    })
+}
+
+/// Format a member/call/maybe/index chain with prettier-style breaking.
+pub(crate) fn format_expression_chain<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let plan = plan_chain_layout(f.context(), node_id)?;
+    let ChainLayoutPlan {
+        base,
+        lines,
+        deferred_path_boundary_comments,
+        should_break: chain_should_break,
+        has_calls: chain_has_calls,
+        in_template_literal_interpolation,
+    } = plan;
 
     // indent chain lines consistently, even in assignment rhs positions
     let should_indent_chain = true;
@@ -459,8 +421,7 @@ pub(crate) fn format_expression_chain<'ast>(
         .format(f)
     });
 
-    let chain_has_calls = !chain_call_summaries.is_empty();
-    if expression_is_in_template_literal_interpolation(f.context(), node_id) && !chain_has_calls {
+    if in_template_literal_interpolation && !chain_has_calls {
         format_inline.format(f)?;
         return Ok(());
     }

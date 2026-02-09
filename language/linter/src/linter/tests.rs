@@ -572,18 +572,16 @@ impl<'a> LintResult<'a> {
         let (tokens, side_tokens) = parser.take_tokens();
         let strings = parser.strings.into_immutable();
         let format_options = DestackFormatOptions::default();
-        let context = DestackFormatContext {
-            options: format_options,
-            file: file.as_ref(),
-            tree: &parser.tree,
-            source_map: &parser.tree.source_map,
+        let context = DestackFormatContext::new(
+            format_options,
+            file.as_ref(),
+            &parser.tree,
+            &tokens,
+            &side_tokens,
+            &side_span,
+            &strings,
             parents,
-            tokens: &tokens,
-            side_tokens: &side_tokens,
-            side_span: &side_span,
-            strings: &strings,
-            current_argument_group_id: None,
-        };
+        );
 
         // format
         let mut result = if expressions.is_empty() {

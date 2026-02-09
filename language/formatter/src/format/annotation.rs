@@ -9,9 +9,16 @@ use crate::scan::{
 };
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    Annotation, AnnotationPosition, Argument, Blank, Comment, CommentStyle, Declaration, Decorator,
-    Doc, DocStyle, Expression, IfCondition, IfKind, LocalNodeId, Member, Node, NodeTree,
-    NodeTreeImpl, NodeType, Parameter, PostfixPosition, Property,
+    Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator, Doc, DocStyle,
+    Expression, LocalNodeId, Node, NodeTree, NodeTreeImpl, NodeType,
+};
+
+mod defer;
+
+pub(crate) use defer::{
+    call_argument_inline_boundary_prefix_annotations, declaration_body_boundary_prefix_annotations,
+    declaration_expression_body_boundary_prefix_annotations, is_lambda_arrow_prefix_annotation,
+    parameter_type_separator_prefix_annotations,
 };
 
 impl<'ast> DestackFormatContext<'ast> {
@@ -101,373 +108,6 @@ impl<'ast> DestackFormatContext<'ast> {
             node_id,
         }
     }
-}
-
-/// Return whether an annotation is followed by an `else` keyword.
-fn annotation_followed_by_else_keyword<'ast>(
-    context: &DestackFormatContext<'ast>,
-    annotation_id: LocalNodeId<Annotation>,
-) -> bool {
-    let span = context.get_span::<Annotation>(annotation_id);
-    if span.end >= context.file.len {
-        return false;
-    }
-
-    let tail_span = Span::new(span.file, span.end, context.file.len);
-    let Some(tail_source) = context.file.get_span_str(tail_span) else {
-        return false;
-    };
-    tail_source.trim_start().starts_with("else")
-}
-
-/// Return whether the character can terminate a parameter name or pattern.
-fn is_parameter_prefix_annotation_left_anchor(character: char) -> bool {
-    character.is_ascii_alphanumeric() || matches!(character, '_' | '$' | '?' | ']' | '}' | ')')
-}
-
-/// Return whether this prefix annotation belongs between parameter name and type separator.
-fn is_parameter_type_separator_prefix_annotation<T: Node>(
-    context: &DestackFormatContext<'_>,
-    _node_id: LocalNodeId<T>,
-    annotation_id: LocalNodeId<Annotation>,
-    position: AnnotationPosition,
-) -> bool
-where
-    NodeTree: NodeTreeImpl<T>,
-{
-    if T::TYPE != NodeType::Parameter {
-        return false;
-    }
-
-    if !matches!(
-        position,
-        AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
-    ) {
-        return false;
-    }
-
-    if !matches!(
-        context.tree.get::<Annotation>(annotation_id),
-        Annotation::Comment { .. } | Annotation::Doc { .. }
-    ) {
-        return false;
-    }
-
-    if next_non_whitespace_after_annotation(context, annotation_id) != Some(':') {
-        return false;
-    }
-
-    previous_non_whitespace_before_annotation(context, annotation_id)
-        .is_some_and(is_parameter_prefix_annotation_left_anchor)
-}
-
-/// Collect deferred prefix annotations that belong between parameter names and type separators.
-pub(crate) fn parameter_type_separator_prefix_annotations<'ast>(
-    context: &DestackFormatContext<'ast>,
-    parameter_id: LocalNodeId<Parameter>,
-) -> Vec<LocalNodeId<Annotation>> {
-    let Some(annotations) = context.get_annotations(parameter_id) else {
-        return Vec::new();
-    };
-
-    annotations
-        .into_iter()
-        .filter(|annotation_id| {
-            let annotation = context.tree.get::<Annotation>(*annotation_id);
-            is_parameter_type_separator_prefix_annotation(
-                context,
-                parameter_id,
-                *annotation_id,
-                annotation.position(),
-            )
-        })
-        .collect()
-}
-
-/// Return whether this prefix annotation belongs between lambda parameters and arrow token.
-pub(crate) fn is_lambda_arrow_prefix_annotation<T: Node>(
-    context: &DestackFormatContext<'_>,
-    _node_id: LocalNodeId<T>,
-    annotation_id: LocalNodeId<Annotation>,
-    position: AnnotationPosition,
-) -> bool
-where
-    NodeTree: NodeTreeImpl<T>,
-{
-    if !matches!(
-        position,
-        AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
-    ) {
-        return false;
-    }
-
-    if !matches!(
-        context.tree.get::<Annotation>(annotation_id),
-        Annotation::Comment { .. } | Annotation::Doc { .. }
-    ) {
-        return false;
-    }
-
-    let span = context.get_span::<Annotation>(annotation_id);
-    if span.end >= context.file.len {
-        return false;
-    }
-
-    let tail_span = Span::new(span.file, span.end, context.file.len);
-    let Some(tail_source) = context.file.get_span_str(tail_span) else {
-        return false;
-    };
-    if !tail_source.trim_start().starts_with("=>") {
-        return false;
-    }
-
-    previous_non_whitespace_before_annotation(context, annotation_id)
-        .is_some_and(is_parameter_prefix_annotation_left_anchor)
-}
-
-/// Return whether this argument belongs to call-like dynamic argument lists.
-fn argument_is_call_like_dynamic_argument(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    let Some((parent_id, parent_type)) = context.get_parent(argument_id) else {
-        return false;
-    };
-    if parent_type != NodeType::Expression {
-        return false;
-    }
-
-    let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-    match context.tree.get(parent_expression_id) {
-        Expression::Call {
-            dynamic_arguments, ..
-        } => dynamic_arguments.contains(&argument_id),
-        Expression::New {
-            dynamic_arguments, ..
-        } => dynamic_arguments.contains(&argument_id),
-        _ => false,
-    }
-}
-
-/// Return whether this prefix slash comment should be deferred to call argument separators.
-fn is_call_argument_inline_boundary_prefix_annotation<T: Node>(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<T>,
-    annotation_id: LocalNodeId<Annotation>,
-    position: AnnotationPosition,
-) -> bool
-where
-    NodeTree: NodeTreeImpl<T>,
-{
-    if T::TYPE != NodeType::Argument {
-        return false;
-    }
-
-    if !matches!(
-        position,
-        AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
-    ) {
-        return false;
-    }
-
-    let Annotation::Comment { node, .. } = context.tree.get::<Annotation>(annotation_id) else {
-        return false;
-    };
-    let comment = context.tree.get::<Comment>(*node);
-    if comment.style != CommentStyle::Slash {
-        return false;
-    }
-
-    if annotation_starts_on_own_line(context, annotation_id) {
-        return false;
-    }
-
-    if previous_non_whitespace_before_annotation(context, annotation_id) != Some(',') {
-        return false;
-    }
-
-    let argument_id = LocalNodeId::<Argument>::new(node_id.id);
-    argument_is_call_like_dynamic_argument(context, argument_id)
-}
-
-/// Collect deferred inline boundary prefix comments for a call-like argument.
-pub(crate) fn call_argument_inline_boundary_prefix_annotations<'ast>(
-    context: &DestackFormatContext<'ast>,
-    argument_id: LocalNodeId<Argument>,
-) -> Vec<LocalNodeId<Annotation>> {
-    let Some(annotations) = context.get_annotations(argument_id) else {
-        return Vec::new();
-    };
-
-    annotations
-        .into_iter()
-        .filter(|annotation_id| {
-            let annotation = context.tree.get::<Annotation>(*annotation_id);
-            is_call_argument_inline_boundary_prefix_annotation(
-                context,
-                argument_id,
-                *annotation_id,
-                annotation.position(),
-            )
-        })
-        .collect()
-}
-
-/// Return whether this declaration has a braced body after its header.
-fn declaration_has_braced_body(
-    context: &DestackFormatContext<'_>,
-    declaration_id: LocalNodeId<Declaration>,
-) -> bool {
-    matches!(
-        context.tree.get(declaration_id),
-        Declaration::Global { .. }
-            | Declaration::Struct { .. }
-            | Declaration::Class { .. }
-            | Declaration::Enum { .. }
-            | Declaration::Interface { .. }
-            | Declaration::Extension { .. }
-    )
-}
-
-/// Return whether this annotation belongs between declaration headers and `{`.
-fn is_declaration_body_boundary_prefix_annotation<T: Node>(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<T>,
-    annotation_id: LocalNodeId<Annotation>,
-    position: AnnotationPosition,
-) -> bool
-where
-    NodeTree: NodeTreeImpl<T>,
-{
-    if !matches!(
-        position,
-        AnnotationPosition::BlockPrefix
-            | AnnotationPosition::LinePrefix
-            | AnnotationPosition::BlockInfix
-    ) {
-        return false;
-    }
-
-    if !matches!(
-        context.tree.get::<Annotation>(annotation_id),
-        Annotation::Comment { .. } | Annotation::Doc { .. }
-    ) {
-        return false;
-    }
-
-    let declaration_id = if T::TYPE == NodeType::Declaration {
-        LocalNodeId::<Declaration>::new(node_id.id)
-    } else if T::TYPE == NodeType::Expression {
-        let expression_id = LocalNodeId::<Expression>::new(node_id.id);
-        let Expression::Declaration(declaration_id) = context.tree.get::<Expression>(expression_id)
-        else {
-            return false;
-        };
-        *declaration_id
-    } else {
-        return false;
-    };
-
-    declaration_has_braced_body(context, declaration_id)
-        && next_non_whitespace_after_annotation(context, annotation_id) == Some('{')
-}
-
-/// Collect deferred prefix annotations between declaration headers and `{`.
-pub(crate) fn declaration_body_boundary_prefix_annotations<'ast>(
-    context: &DestackFormatContext<'ast>,
-    declaration_id: LocalNodeId<Declaration>,
-) -> Vec<LocalNodeId<Annotation>> {
-    let Some(annotations) = context.get_annotations(declaration_id) else {
-        return Vec::new();
-    };
-
-    annotations
-        .into_iter()
-        .filter(|annotation_id| {
-            let annotation = context.tree.get::<Annotation>(*annotation_id);
-            is_declaration_body_boundary_prefix_annotation(
-                context,
-                declaration_id,
-                *annotation_id,
-                annotation.position(),
-            )
-        })
-        .collect()
-}
-
-/// Collect deferred annotations between declaration expression headers and `{`.
-pub(crate) fn declaration_expression_body_boundary_prefix_annotations<'ast>(
-    context: &DestackFormatContext<'ast>,
-    expression_id: LocalNodeId<Expression>,
-) -> Vec<LocalNodeId<Annotation>> {
-    let Some(annotations) = context.get_annotations(expression_id) else {
-        return Vec::new();
-    };
-
-    annotations
-        .into_iter()
-        .filter(|annotation_id| {
-            let annotation = context.tree.get::<Annotation>(*annotation_id);
-            is_declaration_body_boundary_prefix_annotation(
-                context,
-                expression_id,
-                *annotation_id,
-                annotation.position(),
-            )
-        })
-        .collect()
-}
-
-/// Return whether parameter type separator prefix annotations should be deferred to parameter output.
-fn should_defer_parameter_type_separator_prefix_annotation<T: Node>(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<T>,
-    annotation_id: LocalNodeId<Annotation>,
-    position: AnnotationPosition,
-) -> bool
-where
-    NodeTree: NodeTreeImpl<T>,
-{
-    is_parameter_type_separator_prefix_annotation(context, node_id, annotation_id, position)
-}
-
-/// Return whether lambda arrow boundary prefix annotations should be deferred to lambda output.
-fn should_defer_lambda_arrow_prefix_annotation<T: Node>(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<T>,
-    annotation_id: LocalNodeId<Annotation>,
-    position: AnnotationPosition,
-) -> bool
-where
-    NodeTree: NodeTreeImpl<T>,
-{
-    is_lambda_arrow_prefix_annotation(context, node_id, annotation_id, position)
-}
-
-/// Return whether call argument separator comments should be deferred to call rendering.
-fn should_defer_call_argument_inline_boundary_prefix_annotation<T: Node>(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<T>,
-    annotation_id: LocalNodeId<Annotation>,
-    position: AnnotationPosition,
-) -> bool
-where
-    NodeTree: NodeTreeImpl<T>,
-{
-    is_call_argument_inline_boundary_prefix_annotation(context, node_id, annotation_id, position)
-}
-
-/// Return whether declaration body boundary prefix annotations should be deferred.
-fn should_defer_declaration_body_boundary_prefix_annotation<T: Node>(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<T>,
-    annotation_id: LocalNodeId<Annotation>,
-    position: AnnotationPosition,
-) -> bool
-where
-    NodeTree: NodeTreeImpl<T>,
-{
-    is_declaration_body_boundary_prefix_annotation(context, node_id, annotation_id, position)
 }
 
 /// Return whether a separator punctuation immediately follows an annotation.
@@ -574,7 +214,7 @@ fn annotation_follows_opening_delimiter<'ast>(
 }
 
 /// Return whether an annotation starts on a line with only leading whitespace.
-fn annotation_starts_on_own_line<'ast>(
+pub(super) fn annotation_starts_on_own_line<'ast>(
     context: &DestackFormatContext<'ast>,
     annotation_id: LocalNodeId<Annotation>,
 ) -> bool {
@@ -622,183 +262,83 @@ fn comment_annotation_starts_on_own_line<'ast>(
     }
 }
 
-/// Return whether a span falls on a ternary separator boundary.
-fn ternary_contains_boundary_annotation_span(
+/// Return comment style for annotation comments.
+fn annotation_comment_style(
     context: &DestackFormatContext<'_>,
-    ternary_id: LocalNodeId<Expression>,
-    annotation_span: Span,
+    annotation: &Annotation,
+) -> Option<CommentStyle> {
+    let Annotation::Comment { node, .. } = annotation else {
+        return None;
+    };
+
+    let comment = context.tree.get::<Comment>(*node);
+    Some(comment.style)
+}
+
+/// Return whether annotation comment should be treated as own-line.
+fn annotation_comment_is_own_line(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+    comment_starts_on_own_line: bool,
 ) -> bool {
-    let Expression::If {
-        kind: IfKind::Ternary,
-        condition,
-        then_expression,
-        else_expression,
-        ..
-    } = context.tree.get(ternary_id)
-    else {
-        return false;
-    };
-
-    let IfCondition::Expression { condition } = condition else {
-        return false;
-    };
-
-    let condition_span = context.get_span(*condition);
-    let then_span = context.get_span(*then_expression);
-
-    if annotation_span.start >= condition_span.end && annotation_span.end <= then_span.start {
-        return true;
-    }
-
-    let Some(else_id) = else_expression else {
-        return false;
-    };
-    let else_span = context.get_span(*else_id);
-    if annotation_span.start >= then_span.end && annotation_span.end <= else_span.start {
-        return true;
-    }
-
-    matches!(
-        context.tree.get(*else_id),
-        Expression::If {
-            kind: IfKind::Ternary,
-            ..
-        }
-    ) && ternary_contains_boundary_annotation_span(context, *else_id, annotation_span)
+    annotation_starts_on_own_line(context, annotation_id)
+        || annotation_has_leading_newline(context, annotation_id)
+        || comment_starts_on_own_line
 }
 
-/// Return whether a statement-level line-prefix star comment should be deferred to ternary output.
-fn should_defer_statement_ternary_boundary_prefix_annotation<T>(
+/// Return the raw annotation line or a trimmed fallback from annotation span text.
+fn annotation_raw_line_or_trimmed_source(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> String {
+    annotation_line_with_indentation(context, annotation_id).unwrap_or_else(|| {
+        let annotation_span = context.get_span::<Annotation>(annotation_id);
+        let annotation_source = context.get_span_str(annotation_span);
+        annotation_source.trim_end().to_string()
+    })
+}
+
+/// Return whether node has an if ancestor and a member ancestor.
+fn annotation_ancestor_flags<T: Node>(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<T>,
-    annotation_id: LocalNodeId<Annotation>,
-    position: AnnotationPosition,
-) -> bool
+) -> (bool, bool)
 where
-    T: Node,
     NodeTree: NodeTreeImpl<T>,
 {
-    if T::TYPE != NodeType::Expression || position != AnnotationPosition::LinePrefix {
-        return false;
-    }
+    let mut has_if_ancestor = false;
+    let mut has_member_ancestor = false;
 
-    let Annotation::Comment { node, .. } = context.tree.get::<Annotation>(annotation_id) else {
-        return false;
-    };
-    let comment = context.tree.get::<Comment>(*node);
-    if comment.style != CommentStyle::Star {
-        return false;
-    }
-
-    let expression_id = LocalNodeId::<Expression>::new(node_id.id);
-    let Expression::Statement(inner_expression_id) = context.tree.get::<Expression>(expression_id)
-    else {
-        return false;
-    };
-    if !matches!(
-        context.tree.get::<Expression>(*inner_expression_id),
-        Expression::If {
-            kind: IfKind::Ternary,
-            ..
+    for (ancestor_id, node_type) in context.get_ancestors(node_id) {
+        if node_type == NodeType::Member {
+            has_member_ancestor = true;
         }
-    ) {
-        return false;
+
+        if node_type == NodeType::Expression
+            && matches!(
+                context
+                    .tree
+                    .get::<Expression>(LocalNodeId::<Expression>::new(ancestor_id)),
+                Expression::If { .. }
+            )
+        {
+            has_if_ancestor = true;
+        }
+
+        if has_if_ancestor && has_member_ancestor {
+            break;
+        }
     }
 
-    let annotation_span = context.get_span::<Annotation>(annotation_id);
-    let inner_span = context.get_span::<Expression>(*inner_expression_id);
-    if annotation_span.start <= inner_span.start || annotation_span.end >= inner_span.end {
-        return false;
-    }
-
-    ternary_contains_boundary_annotation_span(context, *inner_expression_id, annotation_span)
+    (has_if_ancestor, has_member_ancestor)
 }
 
-/// Return whether a postfix star comment should be deferred after a parenthesized close.
-fn should_defer_parenthesized_boundary_annotation<T>(
+/// Return whether node naturally behaves like a member chain root.
+fn node_has_member_shape<T: Node>(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<T>,
-    annotation_id: LocalNodeId<Annotation>,
-    position: AnnotationPosition,
 ) -> bool
 where
-    T: Node,
-    NodeTree: NodeTreeImpl<T>,
-{
-    if T::TYPE != NodeType::Expression {
-        return false;
-    }
-    if !matches!(
-        position,
-        AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary
-    ) {
-        return false;
-    }
-
-    let Annotation::Comment { node, .. } = context.tree.get::<Annotation>(annotation_id) else {
-        return false;
-    };
-    let comment = context.tree.get::<Comment>(*node);
-    if comment.style != CommentStyle::Star {
-        return false;
-    }
-
-    if next_non_whitespace_after_annotation(context, annotation_id) != Some(')') {
-        return false;
-    }
-
-    let expression_id = LocalNodeId::<Expression>::new(node_id.id);
-    let Some((parent_id, parent_type)) = context.get_parent_by_id(node_id.id) else {
-        return false;
-    };
-    if parent_type != NodeType::Expression {
-        return false;
-    }
-
-    let parent_id = LocalNodeId::<Expression>::new(parent_id);
-    if matches!(
-        context.tree.get::<Expression>(parent_id),
-        Expression::Parenthesized { expression } if *expression == expression_id
-    ) {
-        return true;
-    }
-
-    let Expression::Binary { right, .. } = context.tree.get::<Expression>(parent_id) else {
-        return false;
-    };
-    if *right != expression_id {
-        return false;
-    }
-
-    let annotation_span = context.get_span::<Annotation>(annotation_id);
-    let binary_span = context.get_span::<Expression>(parent_id);
-    if annotation_span.start < binary_span.end {
-        return false;
-    }
-
-    let Some((grand_parent_id, grand_parent_type)) = context.get_parent_by_id(parent_id.id) else {
-        return false;
-    };
-    if grand_parent_type != NodeType::Expression {
-        return false;
-    }
-
-    let grand_parent_id = LocalNodeId::<Expression>::new(grand_parent_id);
-    matches!(
-        context.tree.get::<Expression>(grand_parent_id),
-        Expression::Parenthesized { expression } if *expression == parent_id
-    )
-}
-
-/// Return whether a callee boundary comment should be deferred to call rendering.
-fn should_defer_call_boundary_annotation<T>(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<T>,
-    annotation_id: LocalNodeId<Annotation>,
-    position: AnnotationPosition,
-) -> bool
-where
-    T: Node,
     NodeTree: NodeTreeImpl<T>,
 {
     if T::TYPE != NodeType::Expression {
@@ -806,204 +346,90 @@ where
     }
 
     let expression_id = LocalNodeId::<Expression>::new(node_id.id);
-    let Some(call_position) = enclosing_empty_call_position_for_callee(context, expression_id)
-    else {
-        return false;
-    };
-
-    let Annotation::Comment { node, .. } = context.tree.get::<Annotation>(annotation_id) else {
-        return false;
-    };
-    let comment = context.tree.get::<Comment>(*node);
-
-    if comment.style == CommentStyle::Star
-        && position == AnnotationPosition::BlockPostfix
-        && previous_non_whitespace_before_annotation(context, annotation_id) == Some('(')
-        && next_non_whitespace_after_annotation(context, annotation_id) == Some(')')
-    {
-        return true;
-    }
-
-    if comment.style != CommentStyle::Slash {
-        return false;
-    }
-
-    let has_line_postfix_position = matches!(
-        position,
-        AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary
-    );
-    let has_block_postfix_position = position == AnnotationPosition::BlockPostfix;
-
-    // keep empty call argument line comments inside `()`
-    if (has_line_postfix_position || has_block_postfix_position)
-        && previous_non_whitespace_before_annotation(context, annotation_id) == Some('(')
-        && next_non_whitespace_after_annotation(context, annotation_id) == Some(')')
-    {
-        return true;
-    }
-
-    // keep optional call boundary comments at the call expression level
-    has_line_postfix_position
-        && (call_position == PostfixPosition::Indirect
-            || next_non_whitespace_after_annotation(context, annotation_id) == Some('?'))
-        && next_non_whitespace_after_annotation(context, annotation_id) == Some('?')
-}
-
-/// Return the method body expression when `expression_id` is a method return type node.
-fn method_body_for_signature_return_type_expression(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> Option<LocalNodeId<Expression>> {
-    let (parent_id, parent_type) = context.get_parent_by_id(expression_id.id)?;
-    match parent_type {
-        NodeType::Member => {
-            let member_id = LocalNodeId::<Member>::new(parent_id);
-            let Member::Method {
-                signature, body, ..
-            } = context.tree.get(member_id)
-            else {
-                return None;
-            };
-            if signature.return_type == Some(expression_id) {
-                *body
-            } else {
-                None
-            }
-        }
-        NodeType::Property => {
-            let property_id = LocalNodeId::<Property>::new(parent_id);
-            let Property::Method {
-                signature, body, ..
-            } = context.tree.get(property_id)
-            else {
-                return None;
-            };
-            if signature.return_type == Some(expression_id) {
-                *body
-            } else {
-                None
-            }
-        }
-        _ => None,
-    }
-}
-
-/// Return whether expression is the body of a method member/property.
-fn expression_is_method_body(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let Some((parent_id, parent_type)) = context.get_parent_by_id(expression_id.id) else {
-        return false;
-    };
-
-    match parent_type {
-        NodeType::Member => {
-            let member_id = LocalNodeId::<Member>::new(parent_id);
-            let Member::Method { body, .. } = context.tree.get(member_id) else {
-                return false;
-            };
-            *body == Some(expression_id)
-        }
-        NodeType::Property => {
-            let property_id = LocalNodeId::<Property>::new(parent_id);
-            let Property::Method { body, .. } = context.tree.get(property_id) else {
-                return false;
-            };
-            *body == Some(expression_id)
-        }
+    match context.tree.get::<Expression>(expression_id) {
+        Expression::Member { .. } | Expression::PrivateMember { .. } => true,
+        Expression::Path { path, .. } => path.segments.len() > 1,
         _ => false,
     }
 }
 
-/// Return whether a method boundary slash comment should be deferred to method body rendering.
-fn should_defer_method_body_boundary_annotation<T>(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<T>,
-    annotation_id: LocalNodeId<Annotation>,
-    position: AnnotationPosition,
-) -> bool
-where
-    T: Node,
-    NodeTree: NodeTreeImpl<T>,
-{
-    if T::TYPE != NodeType::Expression {
-        return false;
-    }
-
-    let Annotation::Comment { node, .. } = context.tree.get::<Annotation>(annotation_id) else {
-        return false;
-    };
-    let comment = context.tree.get::<Comment>(*node);
-    if comment.style != CommentStyle::Slash {
-        return false;
-    }
-
-    let expression_id = LocalNodeId::<Expression>::new(node_id.id);
-    let expression = context.tree.get::<Expression>(expression_id);
-
-    if position == AnnotationPosition::LinePostfixBoundary
-        && method_body_for_signature_return_type_expression(context, expression_id).is_some_and(
-            |body_id| {
-                matches!(
-                    context.tree.get::<Expression>(body_id),
-                    Expression::Block(_)
-                )
-            },
-        )
-        && next_non_whitespace_after_annotation(context, annotation_id) == Some('{')
-    {
-        return true;
-    }
-
-    position == AnnotationPosition::BlockPrefix
-        && matches!(expression, Expression::Block(_))
-        && expression_is_method_body(context, expression_id)
+/// Node-level context shared by all annotation formatting within one node.
+#[derive(Debug, Clone, Copy)]
+struct AnnotationNodeContext {
+    /// Whether any ancestor expression is an if expression.
+    has_if_ancestor: bool,
+    /// Whether annotation placement should use member-context rules.
+    has_member_context: bool,
 }
 
-/// Return the enclosing empty call position when expression belongs to call callee wrappers.
-fn enclosing_empty_call_position_for_callee(
+/// Return shared annotation rendering context for a node.
+fn annotation_node_context<T: Node>(
     context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> Option<PostfixPosition> {
-    let mut current_id = expression_id;
+    node_id: LocalNodeId<T>,
+) -> AnnotationNodeContext
+where
+    NodeTree: NodeTreeImpl<T>,
+{
+    let node_index = node_id.id;
+    let current_node_id = LocalNodeId::<T>::new(node_index);
+    let (has_if_ancestor, has_member_ancestor) =
+        annotation_ancestor_flags(context, current_node_id);
+    let current_node_id = LocalNodeId::<T>::new(node_index);
+    let has_member_context = has_member_ancestor || node_has_member_shape(context, current_node_id);
 
-    loop {
-        let (parent_id, parent_type) = context.get_parent_by_id(current_id.id)?;
-        if parent_type != NodeType::Expression {
-            return None;
-        }
+    AnnotationNodeContext {
+        has_if_ancestor,
+        has_member_context,
+    }
+}
 
-        let parent_id = LocalNodeId::<Expression>::new(parent_id);
-        match context.tree.get::<Expression>(parent_id) {
-            Expression::Call {
-                left,
-                position,
-                dynamic_arguments,
-                ..
-            } => {
-                if *left != current_id || !dynamic_arguments.is_empty() {
-                    return None;
-                }
+/// Annotation-level rendering facts computed once and reused across branches.
+#[derive(Debug, Clone, Copy)]
+struct AnnotationRenderFacts {
+    /// Whether annotation is a slash comment.
+    is_slash_comment: bool,
+    /// Whether annotation is a star comment.
+    is_star_comment: bool,
+    /// Whether slash comment should be treated as own-line.
+    slash_starts_on_own_line: bool,
+    /// Whether annotation follows a colon.
+    follows_colon: bool,
+    /// Whether annotation follows an opening delimiter.
+    follows_opening_delimiter: bool,
+    /// Whether annotation precedes a separator.
+    precedes_separator: bool,
+    /// First non-whitespace character after the annotation.
+    next_character: Option<char>,
+}
 
-                return Some(*position);
-            }
-            Expression::Maybe { left, .. } | Expression::Must { left, .. } => {
-                if *left != current_id {
-                    return None;
-                }
+/// Return reusable rendering facts for one annotation.
+fn annotation_render_facts(
+    context: &DestackFormatContext<'_>,
+    annotation: &Annotation,
+    annotation_id: LocalNodeId<Annotation>,
+) -> AnnotationRenderFacts {
+    let comment_style = annotation_comment_style(context, annotation);
+    let is_slash_comment = comment_style == Some(CommentStyle::Slash);
+    let is_star_comment = comment_style == Some(CommentStyle::Star);
+    let comment_starts_on_own_line = if is_slash_comment {
+        comment_annotation_starts_on_own_line(context, annotation_id)
+    } else {
+        false
+    };
+    let slash_starts_on_own_line = if is_slash_comment {
+        annotation_comment_is_own_line(context, annotation_id, comment_starts_on_own_line)
+    } else {
+        false
+    };
 
-                current_id = parent_id;
-            }
-            Expression::Parenthesized { expression } => {
-                if *expression != current_id {
-                    return None;
-                }
-
-                current_id = parent_id;
-            }
-            _ => return None,
-        }
+    AnnotationRenderFacts {
+        is_slash_comment,
+        is_star_comment,
+        slash_starts_on_own_line,
+        follows_colon: annotation_follows_colon(context, annotation_id),
+        follows_opening_delimiter: annotation_follows_opening_delimiter(context, annotation_id),
+        precedes_separator: annotation_precedes_separator(context, annotation_id),
+        next_character: next_non_whitespace_after_annotation(context, annotation_id),
     }
 }
 
@@ -1030,6 +456,40 @@ pub struct Annotations<T: Node> {
     node_id: LocalNodeId<T>,
 }
 
+/// Return whether capture mode includes this annotation position.
+fn annotation_capture_includes_position(
+    capture: AnnotationCapture,
+    position: AnnotationPosition,
+) -> bool {
+    match position {
+        AnnotationPosition::BlockInfix => {
+            capture == AnnotationCapture::BlockInfix
+                || capture == AnnotationCapture::AnyInfixOrPostfix
+        }
+        AnnotationPosition::BlockPrefix => {
+            capture == AnnotationCapture::BlockPrefix || capture == AnnotationCapture::AnyPrefix
+        }
+        AnnotationPosition::BlockPostfix => {
+            capture == AnnotationCapture::BlockPostfix
+                || capture == AnnotationCapture::AnyPostfix
+                || capture == AnnotationCapture::AnyInfixOrPostfix
+        }
+        AnnotationPosition::LinePrefix => {
+            capture == AnnotationCapture::LinePrefix || capture == AnnotationCapture::AnyPrefix
+        }
+        AnnotationPosition::LinePostfix => {
+            capture == AnnotationCapture::LinePostfix
+                || capture == AnnotationCapture::AnyPostfix
+                || capture == AnnotationCapture::AnyInfixOrPostfix
+        }
+        AnnotationPosition::LinePostfixBoundary => {
+            capture == AnnotationCapture::LinePostfixBoundary
+                || capture == AnnotationCapture::AnyPostfix
+                || capture == AnnotationCapture::AnyInfixOrPostfix
+        }
+    }
+}
+
 impl<'ast, T> Format<DestackFormatContext<'ast>> for Annotations<T>
 where
     T: Node + Clone,
@@ -1039,6 +499,7 @@ where
         let Some(annotations) = f.context().get_annotations(self.node_id) else {
             return Ok(());
         };
+        let node_context = annotation_node_context(f.context(), self.node_id);
         let mut first_node_type: Option<NodeType> = None;
         let mut previous_was_blank_annotation = false;
         for annotation_id in annotations {
@@ -1050,132 +511,20 @@ where
                 Annotation::Comment { position, .. } => (NodeType::Comment, *position),
                 Annotation::Decorator { position, .. } => (NodeType::Decorator, *position),
             };
-            // defer statement level ternary boundary comments to the ternary formatter
-            if should_defer_statement_ternary_boundary_prefix_annotation(
-                f.context(),
-                self.node_id,
-                annotation_id,
-                position,
-            ) {
-                continue;
-            }
-            if should_defer_parenthesized_boundary_annotation(
-                f.context(),
-                self.node_id,
-                annotation_id,
-                position,
-            ) {
-                continue;
-            }
-            if should_defer_call_boundary_annotation(
-                f.context(),
-                self.node_id,
-                annotation_id,
-                position,
-            ) {
-                continue;
-            }
-            if should_defer_parameter_type_separator_prefix_annotation(
-                f.context(),
-                self.node_id,
-                annotation_id,
-                position,
-            ) {
-                continue;
-            }
-            if should_defer_lambda_arrow_prefix_annotation(
-                f.context(),
-                self.node_id,
-                annotation_id,
-                position,
-            ) {
-                continue;
-            }
-            if should_defer_call_argument_inline_boundary_prefix_annotation(
-                f.context(),
-                self.node_id,
-                annotation_id,
-                position,
-            ) {
-                continue;
-            }
-            if should_defer_declaration_body_boundary_prefix_annotation(
-                f.context(),
-                self.node_id,
-                annotation_id,
-                position,
-            ) {
-                continue;
-            }
-            if should_defer_method_body_boundary_annotation(
-                f.context(),
-                self.node_id,
-                annotation_id,
-                position,
-            ) {
+            // defer boundary-sensitive annotations to specialized formatters
+            if defer::annotation_should_defer(f.context(), self.node_id, annotation_id, position) {
                 continue;
             }
 
             // filter annotation
-            let is_included = match position {
-                AnnotationPosition::BlockInfix => {
-                    self.position == AnnotationCapture::BlockInfix
-                        || self.position == AnnotationCapture::AnyInfixOrPostfix
-                }
-                AnnotationPosition::BlockPrefix => {
-                    self.position == AnnotationCapture::BlockPrefix
-                        || self.position == AnnotationCapture::AnyPrefix
-                }
-                AnnotationPosition::BlockPostfix => {
-                    self.position == AnnotationCapture::BlockPostfix
-                        || self.position == AnnotationCapture::AnyPostfix
-                        || self.position == AnnotationCapture::AnyInfixOrPostfix
-                }
-                AnnotationPosition::LinePrefix => {
-                    self.position == AnnotationCapture::LinePrefix
-                        || self.position == AnnotationCapture::AnyPrefix
-                }
-                AnnotationPosition::LinePostfix => {
-                    self.position == AnnotationCapture::LinePostfix
-                        || self.position == AnnotationCapture::AnyPostfix
-                        || self.position == AnnotationCapture::AnyInfixOrPostfix
-                }
-                AnnotationPosition::LinePostfixBoundary => {
-                    self.position == AnnotationCapture::LinePostfixBoundary
-                        || self.position == AnnotationCapture::AnyPostfix
-                        || self.position == AnnotationCapture::AnyInfixOrPostfix
-                }
-            };
+            let is_included = annotation_capture_includes_position(self.position, position);
             if !is_included {
                 continue;
             }
 
-            // for line comments (// style), use line_postfix to defer to end of line
-            // this keeps `x, // comment` together; block comments stay inline
-            let is_slash_comment = if let Annotation::Comment {
-                node: comment_id, ..
-            } = annotation
-            {
-                let comment = f.context().tree.get::<Comment>(*comment_id);
-                comment.style == CommentStyle::Slash
-            } else {
-                false
-            };
-            let is_star_comment = if let Annotation::Comment {
-                node: comment_id, ..
-            } = annotation
-            {
-                let comment = f.context().tree.get::<Comment>(*comment_id);
-                comment.style == CommentStyle::Star
-            } else {
-                false
-            };
-            let comment_starts_on_own_line = if is_slash_comment {
-                comment_annotation_starts_on_own_line(f.context(), annotation_id)
-            } else {
-                false
-            };
-            let is_ignore_directive_postfix_comment = is_slash_comment
+            // collect annotation-specific rendering facts
+            let render_facts = annotation_render_facts(f.context(), annotation, annotation_id);
+            let is_ignore_directive_postfix_comment = render_facts.is_slash_comment
                 && matches!(
                     position,
                     AnnotationPosition::LinePostfix
@@ -1195,12 +544,7 @@ where
                         ""
                     };
 
-                    let is_own_line_postfix =
-                        annotation_starts_on_own_line(f.context(), annotation_id)
-                            || annotation_has_leading_newline(f.context(), annotation_id)
-                            || comment_starts_on_own_line;
-
-                    if is_own_line_postfix {
+                    if render_facts.slash_starts_on_own_line {
                         is_ignore_directive_comment(annotation_source)
                             || is_ignore_directive_comment(comment_source)
                     } else {
@@ -1211,39 +555,6 @@ where
                 && position == AnnotationPosition::BlockPrefix
                 && f.context().options.language_type.is_typescript()
                 && annotation_next_token_is_on_same_line(f.context(), annotation_id);
-
-            let has_if_ancestor = f.context().get_ancestors(self.node_id).into_iter().any(
-                |(ancestor_id, node_type)| {
-                    if node_type != NodeType::Expression {
-                        return false;
-                    }
-                    matches!(
-                        f.context()
-                            .tree
-                            .get::<Expression>(LocalNodeId::<Expression>::new(ancestor_id)),
-                        Expression::If { .. }
-                    )
-                },
-            );
-            let has_member_ancestor = f
-                .context()
-                .get_ancestors(self.node_id)
-                .into_iter()
-                .any(|(_, node_type)| node_type == NodeType::Member);
-            let node_has_member_shape = if T::TYPE == NodeType::Expression {
-                match f
-                    .context()
-                    .tree
-                    .get::<Expression>(LocalNodeId::<Expression>::new(self.node_id.id))
-                {
-                    Expression::Member { .. } | Expression::PrivateMember { .. } => true,
-                    Expression::Path { path, .. } => path.segments.len() > 1,
-                    _ => false,
-                }
-            } else {
-                false
-            };
-            let has_member_context = has_member_ancestor || node_has_member_shape;
             let is_blank_prefix_annotation = matches!(
                 annotation,
                 Annotation::Blank {
@@ -1256,8 +567,8 @@ where
                 continue;
             }
             if is_blank_prefix_annotation
-                && has_if_ancestor
-                && annotation_followed_by_else_keyword(f.context(), annotation_id)
+                && node_context.has_if_ancestor
+                && defer::annotation_followed_by_else_keyword(f.context(), annotation_id)
             {
                 continue;
             }
@@ -1268,48 +579,39 @@ where
             let is_inline_block_star_comment = matches!(
                 position,
                 AnnotationPosition::BlockPrefix | AnnotationPosition::BlockInfix
-            ) && is_star_comment
+            ) && render_facts.is_star_comment
                 && !annotation_starts_on_own_line(f.context(), annotation_id)
-                && !annotation_follows_colon(f.context(), annotation_id);
+                && !render_facts.follows_colon;
             let is_inline_delimited_block_postfix_star_comment = position
                 == AnnotationPosition::BlockPostfix
-                && is_star_comment
-                && annotation_follows_opening_delimiter(f.context(), annotation_id)
-                && annotation_precedes_separator(f.context(), annotation_id);
-            let inline_block_comment_follows_opening_delimiter = is_inline_block_star_comment
-                && annotation_follows_opening_delimiter(f.context(), annotation_id);
+                && render_facts.is_star_comment
+                && render_facts.follows_opening_delimiter
+                && render_facts.precedes_separator;
+            let inline_block_comment_follows_opening_delimiter =
+                is_inline_block_star_comment && render_facts.follows_opening_delimiter;
 
-            if is_slash_comment
+            if render_facts.is_slash_comment
                 && matches!(
                     position,
                     AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary
                 )
             {
-                let starts_on_own_line = annotation_starts_on_own_line(f.context(), annotation_id)
-                    || annotation_has_leading_newline(f.context(), annotation_id)
-                    || comment_starts_on_own_line;
-                let next_character =
-                    next_non_whitespace_after_annotation(f.context(), annotation_id);
-                let is_member_chain_boundary =
-                    has_member_context && matches!(next_character, Some('.' | '?'));
-                let should_preserve_own_line_indentation = starts_on_own_line
+                let is_member_chain_boundary = node_context.has_member_context
+                    && matches!(render_facts.next_character, Some('.' | '?'));
+                let should_preserve_own_line_indentation = render_facts.slash_starts_on_own_line
                     && (is_member_chain_boundary
-                        || !annotation_precedes_separator(f.context(), annotation_id)
-                        || matches!(next_character, Some(';' | '(')));
+                        || !render_facts.precedes_separator
+                        || matches!(render_facts.next_character, Some(';' | '(')));
                 if should_preserve_own_line_indentation {
-                    let raw_line = annotation_line_with_indentation(f.context(), annotation_id)
-                        .unwrap_or_else(|| {
-                            let annotation_span = f.context().get_span::<Annotation>(annotation_id);
-                            let annotation_source = f.context().get_span_str(annotation_span);
-                            annotation_source.trim_end().to_string()
-                        });
+                    let raw_line =
+                        annotation_raw_line_or_trimmed_source(f.context(), annotation_id);
                     write_annotation_line_with_indentation(f, raw_line.as_str())?;
                     continue;
                 }
 
                 let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
                     write!(f, [space()])?;
-                    if has_if_ancestor {
+                    if node_context.has_if_ancestor {
                         let annotation_span = f.context().get_span::<Annotation>(annotation_id);
                         let annotation_source = f.context().get_span_str(annotation_span);
                         write!(f, [text(annotation_source.trim())])
@@ -1321,36 +623,24 @@ where
                 continue;
             }
 
-            if is_slash_comment
+            if render_facts.is_slash_comment
                 && position == AnnotationPosition::BlockPostfix
-                && !has_member_context
+                && !node_context.has_member_context
             {
-                let starts_on_own_line = annotation_starts_on_own_line(f.context(), annotation_id)
-                    || annotation_has_leading_newline(f.context(), annotation_id)
-                    || comment_starts_on_own_line;
-                let next_character =
-                    next_non_whitespace_after_annotation(f.context(), annotation_id);
-                let should_preserve_own_line_indentation = starts_on_own_line
-                    && (!annotation_precedes_separator(f.context(), annotation_id)
-                        || matches!(next_character, Some(';' | '(')));
+                let should_preserve_own_line_indentation = render_facts.slash_starts_on_own_line
+                    && (!render_facts.precedes_separator
+                        || matches!(render_facts.next_character, Some(';' | '(')));
                 if should_preserve_own_line_indentation {
-                    let raw_line = annotation_line_with_indentation(f.context(), annotation_id)
-                        .unwrap_or_else(|| {
-                            let annotation_span = f.context().get_span::<Annotation>(annotation_id);
-                            let annotation_source = f.context().get_span_str(annotation_span);
-                            annotation_source.trim_end().to_string()
-                        });
+                    let raw_line =
+                        annotation_raw_line_or_trimmed_source(f.context(), annotation_id);
                     write_annotation_line_with_indentation(f, raw_line.as_str())?;
                     continue;
                 }
             }
 
-            if is_slash_comment && position == AnnotationPosition::BlockPrefix {
-                let starts_on_own_line = annotation_starts_on_own_line(f.context(), annotation_id)
-                    || annotation_has_leading_newline(f.context(), annotation_id)
-                    || comment_starts_on_own_line;
+            if render_facts.is_slash_comment && position == AnnotationPosition::BlockPrefix {
                 let should_preserve_member_chain_prefix_line =
-                    has_member_context && starts_on_own_line;
+                    node_context.has_member_context && render_facts.slash_starts_on_own_line;
                 if should_preserve_member_chain_prefix_line {
                     let annotation_span = f.context().get_span::<Annotation>(annotation_id);
                     let annotation_source = f.context().get_span_str(annotation_span);
@@ -1381,7 +671,7 @@ where
                 let comment = f.context().tree.get::<Comment>(*comment_id);
                 comment.style == CommentStyle::Star
                     && position == AnnotationPosition::LinePostfixBoundary
-                    && has_member_context
+                    && node_context.has_member_context
             } else {
                 false
             };
@@ -1403,7 +693,7 @@ where
                 let comment = f.context().tree.get::<Comment>(*comment_id);
                 comment.style == CommentStyle::Star
                     && position == AnnotationPosition::LinePostfixBoundary
-                    && has_if_ancestor
+                    && node_context.has_if_ancestor
                     && !annotation_starts_on_own_line(f.context(), annotation_id)
             } else {
                 false
@@ -1418,7 +708,7 @@ where
                 let annotation_span = f.context().get_span::<Annotation>(annotation_id);
                 let annotation_source = f.context().get_span_str(annotation_span);
                 write!(f, [text(annotation_source.trim())])?;
-                if !annotation_precedes_separator(f.context(), annotation_id) {
+                if !render_facts.precedes_separator {
                     write!(f, [space()])?;
                 }
                 continue;
@@ -1428,8 +718,8 @@ where
             if first_node_type.is_none() {
                 first_node_type = Some(node_type);
                 let is_block_prefix_after_colon = position == AnnotationPosition::BlockPrefix
-                    && is_star_comment
-                    && annotation_follows_colon(f.context(), annotation_id);
+                    && render_facts.is_star_comment
+                    && render_facts.follows_colon;
 
                 // insert space / newline
                 match position {
@@ -1444,7 +734,7 @@ where
                     }
                     AnnotationPosition::BlockPostfix => {
                         if is_inline_delimited_block_postfix_star_comment {
-                            if !annotation_follows_opening_delimiter(f.context(), annotation_id) {
+                            if !render_facts.follows_opening_delimiter {
                                 write!(f, [space()])?;
                             }
                         } else {
@@ -1482,10 +772,7 @@ where
                     let trimmed = annotation_source.trim_start();
                     annotation_source.contains('\n') && !trimmed.starts_with("/**")
                 }
-                && matches!(
-                    next_non_whitespace_after_annotation(f.context(), annotation_id),
-                    Some('|' | '&')
-                );
+                && matches!(render_facts.next_character, Some('|' | '&'));
 
             // format annotation itself
             annotation.format_node(annotation_id, f)?;
@@ -1496,15 +783,13 @@ where
                     write!(f, [space()])?;
                 }
                 AnnotationPosition::LinePostfix => {
-                    if !(is_star_comment
-                        && annotation_precedes_separator(f.context(), annotation_id))
-                    {
+                    if !(render_facts.is_star_comment && render_facts.precedes_separator) {
                         write!(f, [space()])?;
                     }
                 }
                 AnnotationPosition::BlockInfix => {
                     if is_inline_block_star_comment {
-                        if !annotation_precedes_separator(f.context(), annotation_id) {
+                        if !render_facts.precedes_separator {
                             write!(f, [space()])?;
                         }
                     } else {
@@ -1513,7 +798,7 @@ where
                 }
                 AnnotationPosition::BlockPostfix => {
                     if is_inline_delimited_block_postfix_star_comment {
-                        if !annotation_precedes_separator(f.context(), annotation_id) {
+                        if !render_facts.precedes_separator {
                             write!(f, [space()])?;
                         }
                     } else {
@@ -1522,7 +807,7 @@ where
                 }
                 AnnotationPosition::BlockPrefix => {
                     if is_inline_block_star_comment {
-                        if !annotation_precedes_separator(f.context(), annotation_id) {
+                        if !render_facts.precedes_separator {
                             write!(f, [space()])?;
                         }
                     } else if is_inline_decorator_prefix
@@ -1534,9 +819,7 @@ where
                     }
                 }
                 AnnotationPosition::LinePostfixBoundary => {
-                    if !(is_star_comment
-                        && annotation_precedes_separator(f.context(), annotation_id))
-                    {
+                    if !(render_facts.is_star_comment && render_facts.precedes_separator) {
                         write!(f, [soft_line_break()])?;
                     }
                 }
@@ -1844,8 +1127,396 @@ fn is_identifier_or_static_member_only(
 
 #[cfg(test)]
 mod tests {
-    use crate::{DestackFormatOptions, TestFormatter, assert_format};
-    use destack_ast::DeclarationDescriptor;
+    use crate::{DestackFormatContext, DestackFormatOptions, TestFormatter, assert_format};
+    use destack_ast::{
+        Annotation, AnnotationPosition, Argument, Declaration, DeclarationDescriptor, Expression,
+        LocalNodeId, Member, NodeParentIndex, NodeType, Parameter, Property,
+    };
+
+    /// Build a formatter context for annotation routing assertions.
+    fn context_from_formatter(formatter: &TestFormatter) -> DestackFormatContext<'_> {
+        DestackFormatContext::new(
+            DestackFormatOptions::default(),
+            &formatter.file,
+            &formatter.tree,
+            &formatter.tokens,
+            &formatter.side_tokens,
+            &formatter.side_span,
+            &formatter.strings,
+            NodeParentIndex::from_tree(&formatter.tree),
+        )
+    }
+
+    /// Return whether a marker-tagged annotation is routed through defer rules.
+    fn marker_annotation_is_deferred(context: &DestackFormatContext<'_>, marker: &str) -> bool {
+        let mut saw_marker = false;
+
+        for raw_node_id in 0..context.tree.next_id() {
+            let node_type = context.tree.get_node_type(raw_node_id);
+
+            if node_type == NodeType::Expression {
+                let node_id = LocalNodeId::<Expression>::new(raw_node_id);
+                if let Some(annotation_ids) = context.get_annotations(node_id) {
+                    for annotation_id in annotation_ids {
+                        let annotation_span = context.get_span(annotation_id);
+                        let annotation_source = context.get_span_str(annotation_span);
+                        if !annotation_source.contains(marker) {
+                            continue;
+                        }
+
+                        saw_marker = true;
+                        let position = context.tree.get::<Annotation>(annotation_id).position();
+                        if super::defer::annotation_should_defer(
+                            context,
+                            node_id,
+                            annotation_id,
+                            position,
+                        ) {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            if node_type == NodeType::Argument {
+                let node_id = LocalNodeId::<Argument>::new(raw_node_id);
+                if let Some(annotation_ids) = context.get_annotations(node_id) {
+                    for annotation_id in annotation_ids {
+                        let annotation_span = context.get_span(annotation_id);
+                        let annotation_source = context.get_span_str(annotation_span);
+                        if !annotation_source.contains(marker) {
+                            continue;
+                        }
+
+                        saw_marker = true;
+                        let position = context.tree.get::<Annotation>(annotation_id).position();
+                        if super::defer::annotation_should_defer(
+                            context,
+                            node_id,
+                            annotation_id,
+                            position,
+                        ) {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            if node_type == NodeType::Parameter {
+                let node_id = LocalNodeId::<Parameter>::new(raw_node_id);
+                if let Some(annotation_ids) = context.get_annotations(node_id) {
+                    for annotation_id in annotation_ids {
+                        let annotation_span = context.get_span(annotation_id);
+                        let annotation_source = context.get_span_str(annotation_span);
+                        if !annotation_source.contains(marker) {
+                            continue;
+                        }
+
+                        saw_marker = true;
+                        let position = context.tree.get::<Annotation>(annotation_id).position();
+                        if super::defer::annotation_should_defer(
+                            context,
+                            node_id,
+                            annotation_id,
+                            position,
+                        ) {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            if node_type == NodeType::Declaration {
+                let node_id = LocalNodeId::<Declaration>::new(raw_node_id);
+                if let Some(annotation_ids) = context.get_annotations(node_id) {
+                    for annotation_id in annotation_ids {
+                        let annotation_span = context.get_span(annotation_id);
+                        let annotation_source = context.get_span_str(annotation_span);
+                        if !annotation_source.contains(marker) {
+                            continue;
+                        }
+
+                        saw_marker = true;
+                        let position = context.tree.get::<Annotation>(annotation_id).position();
+                        if super::defer::annotation_should_defer(
+                            context,
+                            node_id,
+                            annotation_id,
+                            position,
+                        ) {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            if node_type == NodeType::Member {
+                let node_id = LocalNodeId::<Member>::new(raw_node_id);
+                if let Some(annotation_ids) = context.get_annotations(node_id) {
+                    for annotation_id in annotation_ids {
+                        let annotation_span = context.get_span(annotation_id);
+                        let annotation_source = context.get_span_str(annotation_span);
+                        if !annotation_source.contains(marker) {
+                            continue;
+                        }
+
+                        saw_marker = true;
+                        let position = context.tree.get::<Annotation>(annotation_id).position();
+                        if super::defer::annotation_should_defer(
+                            context,
+                            node_id,
+                            annotation_id,
+                            position,
+                        ) {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            if node_type == NodeType::Property {
+                let node_id = LocalNodeId::<Property>::new(raw_node_id);
+                if let Some(annotation_ids) = context.get_annotations(node_id) {
+                    for annotation_id in annotation_ids {
+                        let annotation_span = context.get_span(annotation_id);
+                        let annotation_source = context.get_span_str(annotation_span);
+                        if !annotation_source.contains(marker) {
+                            continue;
+                        }
+
+                        saw_marker = true;
+                        let position = context.tree.get::<Annotation>(annotation_id).position();
+                        if super::defer::annotation_should_defer(
+                            context,
+                            node_id,
+                            annotation_id,
+                            position,
+                        ) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
+        if !saw_marker {
+            panic!("expected marker-tagged annotation in supported annotation parent nodes");
+        }
+
+        false
+    }
+
+    /// Find a marker-tagged annotation attached to an argument node.
+    fn find_marker_annotation_on_argument(
+        context: &DestackFormatContext<'_>,
+        marker: &str,
+    ) -> Option<(LocalNodeId<Argument>, LocalNodeId<Annotation>)> {
+        for raw_node_id in 0..context.tree.next_id() {
+            if context.tree.get_node_type(raw_node_id) != NodeType::Argument {
+                continue;
+            }
+
+            let argument_id = LocalNodeId::<Argument>::new(raw_node_id);
+            let Some(annotation_ids) = context.get_annotations(argument_id) else {
+                continue;
+            };
+            for annotation_id in annotation_ids {
+                let annotation_span = context.get_span(annotation_id);
+                let annotation_source = context.get_span_str(annotation_span);
+                if annotation_source.contains(marker) {
+                    return Some((argument_id, annotation_id));
+                }
+            }
+        }
+
+        None
+    }
+
+    /// Find an annotation node by source marker text.
+    fn find_annotation_by_marker(
+        context: &DestackFormatContext<'_>,
+        marker: &str,
+    ) -> Option<LocalNodeId<Annotation>> {
+        for raw_node_id in 0..context.tree.next_id() {
+            if context.tree.get_node_type(raw_node_id) != NodeType::Annotation {
+                continue;
+            }
+
+            let annotation_id = LocalNodeId::<Annotation>::new(raw_node_id);
+            let annotation_span = context.get_span(annotation_id);
+            let annotation_source = context.get_span_str(annotation_span);
+            if annotation_source.contains(marker) {
+                return Some(annotation_id);
+            }
+        }
+
+        None
+    }
+
+    /// Find a statement expression whose inner expression is a ternary.
+    fn find_statement_ternary_expression(
+        context: &DestackFormatContext<'_>,
+    ) -> Option<LocalNodeId<Expression>> {
+        for raw_node_id in 0..context.tree.next_id() {
+            if context.tree.get_node_type(raw_node_id) != NodeType::Expression {
+                continue;
+            }
+
+            let expression_id = LocalNodeId::<Expression>::new(raw_node_id);
+            let Expression::Statement(inner_expression_id) = context.tree.get(expression_id) else {
+                continue;
+            };
+            if matches!(
+                context.tree.get(*inner_expression_id),
+                Expression::If {
+                    kind: destack_ast::IfKind::Ternary,
+                    ..
+                }
+            ) {
+                return Some(expression_id);
+            }
+        }
+
+        None
+    }
+
+    /// Statement ternary boundary comments should route through deferral.
+    #[test]
+    fn test_annotation_defer_rule_statement_ternary_boundary_prefix() {
+        let source = "{
+    value
+        ?
+        /* ternary-boundary */
+        on_true
+        : on_false;
+}";
+        let (formatter, _) =
+            TestFormatter::parse(source, |p| p.eat_block()).expect("parse ternary boundary source");
+        let context = context_from_formatter(&formatter);
+        let annotation_id = find_annotation_by_marker(&context, "ternary-boundary")
+            .expect("expected marker-tagged ternary annotation");
+        let expression_id =
+            find_statement_ternary_expression(&context).expect("expected statement ternary node");
+
+        assert!(
+            super::defer::should_defer_statement_ternary_boundary_prefix_annotation(
+                &context,
+                expression_id,
+                annotation_id,
+                AnnotationPosition::LinePrefix,
+            )
+        );
+    }
+
+    /// Parenthesized boundary comments should route through deferral.
+    #[test]
+    fn test_annotation_defer_rule_parenthesized_boundary() {
+        let source = "{
+    const value = (left + right /* paren-boundary */);
+}";
+        let (formatter, _) = TestFormatter::parse(source, |p| p.eat_block())
+            .expect("parse parenthesized boundary source");
+        let context = context_from_formatter(&formatter);
+
+        assert!(marker_annotation_is_deferred(&context, "paren-boundary"));
+    }
+
+    /// Empty-call boundary comments should route through deferral.
+    #[test]
+    fn test_annotation_defer_rule_call_boundary() {
+        let source = "{
+    const value = target(/* call-boundary */);
+}";
+        let (formatter, _) =
+            TestFormatter::parse(source, |p| p.eat_block()).expect("parse call boundary source");
+        let context = context_from_formatter(&formatter);
+
+        assert!(marker_annotation_is_deferred(&context, "call-boundary"));
+    }
+
+    /// Parameter name-to-type comments should route through deferral.
+    #[test]
+    fn test_annotation_defer_rule_parameter_type_separator_prefix() {
+        let source = "{
+    function typed(value /* parameter-type */: number) {}
+}";
+        let (formatter, _) = TestFormatter::parse(source, |p| p.eat_block())
+            .expect("parse parameter type separator source");
+        let context = context_from_formatter(&formatter);
+
+        assert!(marker_annotation_is_deferred(&context, "parameter-type"));
+    }
+
+    /// Lambda parameter-to-arrow comments should route through deferral.
+    #[test]
+    fn test_annotation_defer_rule_lambda_arrow_prefix() {
+        let source = "{
+    const mapper = (value) /* lambda-arrow */ => value;
+}";
+        let (formatter, _) =
+            TestFormatter::parse(source, |p| p.eat_block()).expect("parse lambda arrow source");
+        let context = context_from_formatter(&formatter);
+
+        assert!(marker_annotation_is_deferred(&context, "lambda-arrow"));
+    }
+
+    /// Call argument boundary prefix comments should route through deferral.
+    #[test]
+    fn test_annotation_defer_rule_call_argument_inline_boundary_prefix() {
+        let source = "{
+    target(first, // call-argument-boundary
+        second);
+}";
+        let (formatter, _) = TestFormatter::parse(source, |p| p.eat_block())
+            .expect("parse call argument boundary source");
+        let context = context_from_formatter(&formatter);
+        let (argument_id, annotation_id) =
+            find_marker_annotation_on_argument(&context, "call-argument-boundary")
+                .expect("expected marker-tagged call argument annotation");
+
+        assert!(
+            super::defer::is_call_argument_inline_boundary_prefix_annotation(
+                &context,
+                argument_id,
+                annotation_id,
+                AnnotationPosition::LinePrefix,
+            )
+        );
+    }
+
+    /// Declaration header-to-body comments should route through deferral.
+    #[test]
+    fn test_annotation_defer_rule_declaration_body_boundary_prefix() {
+        let source = "{
+    class Value /* declaration-body */ {}
+}";
+        let (formatter, _) = TestFormatter::parse(source, |p| p.eat_block())
+            .expect("parse declaration body boundary source");
+        let context = context_from_formatter(&formatter);
+
+        assert!(marker_annotation_is_deferred(&context, "declaration-body"));
+    }
+
+    /// Method signature boundary comments should route through deferral.
+    #[test]
+    fn test_annotation_defer_rule_method_body_boundary() {
+        let source = "{
+    class Value {
+        method(): number // method-body-boundary
+        {
+            return 1;
+        }
+    }
+}";
+        let (formatter, _) = TestFormatter::parse(source, |p| p.eat_block())
+            .expect("parse method body boundary source");
+        let context = context_from_formatter(&formatter);
+
+        assert!(marker_annotation_is_deferred(
+            &context,
+            "method-body-boundary"
+        ));
+    }
 
     /// Block comments should retain all their newlines (including leading and trailing newlines).
     #[test]

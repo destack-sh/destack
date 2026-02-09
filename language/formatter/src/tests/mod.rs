@@ -1,3 +1,4 @@
+mod legacy_format_nodes;
 mod tests;
 
 #[cfg(test)]

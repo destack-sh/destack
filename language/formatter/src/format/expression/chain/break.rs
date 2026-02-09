@@ -15,28 +15,7 @@ pub(crate) fn chain_inline_len(
     }
 
     // collect the nodes that belong to this chain
-    let mut chain = Vec::new();
-    let mut current = node_id;
-    loop {
-        chain.push(current);
-        let next = match tree.get(current) {
-            Expression::Member { left, .. }
-            | Expression::PrivateMember { left, .. }
-            | Expression::Call { left, .. }
-            | Expression::Index { left, .. }
-            | Expression::Instantiation { left, .. }
-            | Expression::Maybe { left, .. }
-            | Expression::Must { left, .. } => Some(*left),
-            _ => None,
-        };
-
-        if let Some(next_id) = next {
-            current = next_id;
-        } else {
-            break;
-        }
-    }
-    chain.reverse();
+    let chain = collect_chain_nodes(tree, node_id);
 
     let root_id = *chain.first()?;
 
@@ -61,62 +40,8 @@ pub(crate) fn chain_inline_len(
     };
 
     for &expression_id in &chain[1..] {
-        let chain_expression = match tree.get(expression_id) {
-            Expression::Member {
-                name,
-                static_arguments,
-                ..
-            } => ChainExpression::Member {
-                node_id: expression_id,
-                segment: *name,
-                static_arguments: static_arguments.clone(),
-                emit_prefix_annotations: true,
-                emit_postfix_annotations: true,
-            },
-            Expression::PrivateMember {
-                name,
-                static_arguments,
-                ..
-            } => ChainExpression::Member {
-                node_id: expression_id,
-                segment: *name,
-                static_arguments: static_arguments.clone(),
-                emit_prefix_annotations: true,
-                emit_postfix_annotations: true,
-            },
-            Expression::Call {
-                position,
-                static_arguments,
-                dynamic_arguments,
-                ..
-            } => ChainExpression::Call {
-                node_id: expression_id,
-                position: *position,
-                static_arguments: static_arguments.clone(),
-                dynamic_arguments: dynamic_arguments.clone(),
-            },
-            Expression::Instantiation {
-                static_arguments, ..
-            } => ChainExpression::Instantiation {
-                node_id: expression_id,
-                static_arguments: static_arguments.clone(),
-            },
-            Expression::Index {
-                position, index, ..
-            } => ChainExpression::Index {
-                node_id: expression_id,
-                position: *position,
-                index: *index,
-            },
-            Expression::Maybe { position, .. } => ChainExpression::Maybe {
-                node_id: expression_id,
-                position: *position,
-            },
-            Expression::Must { position, .. } => ChainExpression::Must {
-                node_id: expression_id,
-                position: *position,
-            },
-            _ => continue,
+        let Ok(chain_expression) = chain_expression_from_node(tree, expression_id) else {
+            continue;
         };
 
         let operation_len = chain_operation_len(context, &chain_expression);

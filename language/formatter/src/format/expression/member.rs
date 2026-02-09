@@ -13,8 +13,12 @@ pub(super) fn format_member_expression<'ast>(
             static_arguments,
         } => {
             let left = if let Expression::Parenthesized { expression } = f.context().tree.get(*left)
-                && should_unwrap_parenthesized_member_object(f.context(), *left, *expression)
-            {
+                && parenthesized_should_unwrap(
+                    f.context(),
+                    *left,
+                    *expression,
+                    ParenthesizedUnwrapPolicy::MemberObject,
+                ) {
                 *expression
             } else {
                 *left
@@ -53,8 +57,12 @@ pub(super) fn format_member_expression<'ast>(
             static_arguments,
         } => {
             let left = if let Expression::Parenthesized { expression } = f.context().tree.get(*left)
-                && should_unwrap_parenthesized_member_object(f.context(), *left, *expression)
-            {
+                && parenthesized_should_unwrap(
+                    f.context(),
+                    *left,
+                    *expression,
+                    ParenthesizedUnwrapPolicy::MemberObject,
+                ) {
                 *expression
             } else {
                 *left

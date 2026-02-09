@@ -8,16 +8,7 @@ pub(crate) fn chain_head_id(
     let mut current = node_id;
 
     loop {
-        let next = match tree.get(current) {
-            Expression::Member { left, .. }
-            | Expression::PrivateMember { left, .. }
-            | Expression::Call { left, .. }
-            | Expression::Index { left, .. }
-            | Expression::Instantiation { left, .. }
-            | Expression::Maybe { left, .. }
-            | Expression::Must { left, .. } => Some(*left),
-            _ => None,
-        };
+        let next = chain_node_left_id(tree, current);
 
         match next {
             Some(next_id) if is_chain_expression(tree.get(next_id)) => {
@@ -58,24 +49,34 @@ pub(crate) fn is_short_chain_argument(
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
     let threshold = usize::from(context.options.line_width) / 4;
-    let argument = context.tree.get(argument_id);
+    argument_is_simple_with_options(
+        context,
+        argument_id,
+        ArgumentSimplicityOptions {
+            reject_any_argument_annotation: true,
+            reject_non_blank_argument_annotation: false,
+            reject_value_annotation: true,
+            reject_lambda_values: false,
+            max_value_len: threshold.max(8),
+        },
+    )
+}
 
-    // reject annotated arguments immediately
-    if context.has_annotation(argument_id) {
-        return false;
+/// Check whether a chain call has dynamic arguments that make it breakable.
+fn chain_call_has_breakable_dynamic_arguments(
+    context: &DestackFormatContext<'_>,
+    call_node_id: LocalNodeId<Expression>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+) -> bool {
+    if call_arguments_force_expand_for_chain(context, call_node_id, dynamic_arguments) {
+        return true;
     }
 
-    let value_id = match argument {
-        Argument::Named { value, .. }
-        | Argument::Labeled { value, .. }
-        | Argument::Positional { value, .. }
-        | Argument::Spread { value, .. } => *value,
-    };
-
-    let value = context.tree.get(value_id);
-    is_trivial_expression(context.tree, value)
-        && expression_source_len(context, value_id) <= threshold.max(8)
-        && !context.has_annotation(value_id)
+    match dynamic_arguments.len() {
+        0 => false,
+        1 => !is_short_chain_argument(context, dynamic_arguments[0]),
+        _ => true,
+    }
 }
 
 /// A chain that has no calls at all or only short call arguments.
@@ -122,11 +123,8 @@ pub(crate) fn is_poorly_breakable_chain(
                         _ => true,
                     },
                 };
-                let is_breakable_call = match dynamic_arguments.len() {
-                    0 => false,
-                    1 => !is_short_chain_argument(context, dynamic_arguments[0]),
-                    _ => true,
-                };
+                let is_breakable_call =
+                    chain_call_has_breakable_dynamic_arguments(context, current, dynamic_arguments);
 
                 if static_breakable || is_breakable_call {
                     return false;
@@ -149,16 +147,7 @@ pub(crate) fn is_poorly_breakable_chain(
             _ => break,
         }
 
-        let next = match tree.get(current) {
-            Expression::Member { left, .. }
-            | Expression::PrivateMember { left, .. }
-            | Expression::Call { left, .. }
-            | Expression::Index { left, .. }
-            | Expression::Instantiation { left, .. }
-            | Expression::Maybe { left, .. }
-            | Expression::Must { left, .. } => Some(*left),
-            _ => None,
-        };
+        let next = chain_node_left_id(tree, current);
 
         match next {
             Some(next_id) if is_chain_expression(tree.get(next_id)) => {
@@ -328,16 +317,7 @@ pub(crate) fn expression_chain_should_break(
     loop {
         chain.push(current);
 
-        let next = match tree.get(current) {
-            Expression::Member { left, .. }
-            | Expression::PrivateMember { left, .. }
-            | Expression::Call { left, .. }
-            | Expression::Index { left, .. }
-            | Expression::Instantiation { left, .. }
-            | Expression::Maybe { left, .. }
-            | Expression::Must { left, .. } => Some(*left),
-            _ => None,
-        };
+        let next = chain_node_left_id(tree, current);
 
         match next {
             Some(next_id) if is_chain_expression(tree.get(next_id)) => {
@@ -502,22 +482,17 @@ pub(crate) fn is_simple_chain_argument(
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
     let threshold = usize::from(context.options.line_width) / 4;
-
-    // annotated arguments are never simple
-    if context.has_annotation(argument_id) {
-        return false;
-    }
-
-    let value_id = argument_value_id(context.tree, argument_id);
-
-    // function like arguments make the call complex
-    if is_lambda_expression(context, value_id) || context.has_annotation(value_id) {
-        return false;
-    }
-
-    let value = context.tree.get(value_id);
-    is_trivial_expression(context.tree, value)
-        && expression_source_len(context, value_id) <= threshold.max(10)
+    argument_is_simple_with_options(
+        context,
+        argument_id,
+        ArgumentSimplicityOptions {
+            reject_any_argument_annotation: true,
+            reject_non_blank_argument_annotation: false,
+            reject_value_annotation: true,
+            reject_lambda_values: true,
+            max_value_len: threshold.max(10),
+        },
+    )
 }
 
 /// Sum the source lengths of argument values.
@@ -624,6 +599,10 @@ pub(crate) fn is_simple_chain_call(
 ) -> bool {
     // annotated calls are never simple
     if call_has_non_blank_infix_annotation(context, node_id) {
+        return false;
+    }
+
+    if call_arguments_force_expand_for_chain(context, node_id, dynamic_arguments) {
         return false;
     }
 

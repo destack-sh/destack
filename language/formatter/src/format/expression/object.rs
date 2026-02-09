@@ -1,4 +1,5 @@
 use super::*;
+use crate::collection::{collection_nodes_have_annotations, collection_nodes_have_newline};
 use destack_fir::{format_args, write};
 
 /// Format boundary comments for array-like structures.
@@ -167,14 +168,12 @@ pub(crate) fn format_struct_literal<'ast>(
         .map(|property| f.context().tree.get(*property))
         .collect::<SmallVec<[_; 3]>>();
 
-    // check for conditions that REQUIRE expansion
+    // check for conditions that require expansion
     let has_methods = properties
         .iter()
         .any(|property| matches!(property, Property::Method { body: Some(_), .. }));
     let has_annotations = f.context().has_infix_annotation(expression_id)
-        || properties_ids
-            .iter()
-            .any(|property| f.context().has_annotation(*property));
+        || collection_nodes_have_annotations(f.context(), properties_ids);
     let span = f.context().get_span(expression_id);
     let has_newline_in_source = f.context().has_newline(span);
     let is_typescript = f.context().options.language_type.is_typescript();
@@ -189,9 +188,7 @@ pub(crate) fn format_struct_literal<'ast>(
         );
     let keep_newline =
         has_leading_newline_before_first_property || (has_newline_in_source && in_type_context);
-    let property_has_newline = properties_ids
-        .iter()
-        .any(|property_id| f.context().has_newline(f.context().get_span(*property_id)));
+    let property_has_newline = collection_nodes_have_newline(f.context(), properties_ids);
 
     let comment_tokens = collect_comment_tokens(f.context());
     let has_ignore_ranges = !properties_ids.is_empty()

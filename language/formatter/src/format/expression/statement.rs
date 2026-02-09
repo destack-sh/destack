@@ -1,4 +1,5 @@
 use super::*;
+use crate::imports::sort_dependency_items;
 use destack_fir::write;
 
 /// Return whether a statement wrapper should print a trailing semicolon.
@@ -606,7 +607,7 @@ fn format_return_expression<'ast>(
     if let Some(value_id) = value {
         let value_expr = tree.get(value_id);
 
-        // JSX returns may need wrapping parens to keep multi line layout stable
+        // jsx returns may need wrapping parens to keep multi line layout stable
         if let Expression::TreeExpression { elements, .. } = value_expr {
             let has_children = elements
                 .as_ref()
