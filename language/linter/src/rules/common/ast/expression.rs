@@ -734,7 +734,7 @@ pub fn expression_structural_signature(
 ) -> Vec<u64> {
     let expression = tree.get(expression_id);
     let mut collector = ExpressionSignatureCollector::new(strings);
-    ast::walk_expression(&mut collector, tree, expression_id, expression);
+    ast::NodeVisitor::visit_expression(&mut collector, tree, expression_id, expression);
     collector.finish()
 }
 
