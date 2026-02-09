@@ -8,12 +8,14 @@ mod no_compare_neg_zero;
 mod no_constant_binary_expression;
 mod no_constant_condition;
 mod no_control_regex;
+mod no_deprecated;
 mod no_duplicate_case;
 mod no_empty_range;
 mod no_fallthrough;
 mod no_floating_point_equality;
 mod no_floating_promises;
 mod no_for_in_array;
+mod no_implicit_any;
 mod no_infinite_recursion;
 mod no_invalid_regexp;
 mod no_iterator_invalidation;
@@ -25,11 +27,14 @@ mod no_sparse_arrays;
 mod no_struct_identity_compare;
 mod no_throw_in_result_function;
 mod no_unknown_rule_decorator;
+mod no_unnecessary_condition;
 mod no_unsafe_finally;
 mod no_unsafe_negation;
 mod no_useless_assignment;
 mod no_useless_increment;
 mod require_array_sort_compare;
+mod unbound_method;
+mod unused_must_use;
 mod use_isnan;
 
 use crate::{BoxedLintRule, boxed};
@@ -44,12 +49,14 @@ pub use no_compare_neg_zero::*;
 pub use no_constant_binary_expression::*;
 pub use no_constant_condition::*;
 pub use no_control_regex::*;
+pub use no_deprecated::*;
 pub use no_duplicate_case::*;
 pub use no_empty_range::*;
 pub use no_fallthrough::*;
 pub use no_floating_point_equality::*;
 pub use no_floating_promises::*;
 pub use no_for_in_array::*;
+pub use no_implicit_any::*;
 pub use no_infinite_recursion::*;
 pub use no_invalid_regexp::*;
 pub use no_iterator_invalidation::*;
@@ -61,11 +68,14 @@ pub use no_sparse_arrays::*;
 pub use no_struct_identity_compare::*;
 pub use no_throw_in_result_function::*;
 pub use no_unknown_rule_decorator::*;
+pub use no_unnecessary_condition::*;
 pub use no_unsafe_finally::*;
 pub use no_unsafe_negation::*;
 pub use no_useless_assignment::*;
 pub use no_useless_increment::*;
 pub use require_array_sort_compare::*;
+pub use unbound_method::*;
+pub use unused_must_use::*;
 pub use use_isnan::*;
 
 /// Get all correctness rules.
@@ -81,12 +91,14 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoConstantBinaryExpression),
         boxed(NoConstantCondition),
         boxed(NoControlRegex),
+        boxed(NoDeprecated),
         boxed(NoDuplicateCase),
         boxed(NoEmptyRange),
         boxed(NoFallthrough),
         boxed(NoFloatingPromises),
         boxed(NoFloatingPointEquality),
         boxed(NoForInArray),
+        boxed(NoImplicitAny),
         boxed(NoInfiniteRecursion),
         boxed(NoInvalidRegexp),
         boxed(NoIteratorInvalidation),
@@ -100,9 +112,12 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoUnknownRuleDecorator),
         boxed(NoUnsafeFinally),
         boxed(NoUnsafeNegation),
+        boxed(NoUnnecessaryCondition),
         boxed(NoUselessAssignment),
         boxed(NoUselessIncrement),
         boxed(RequireArraySortCompare),
+        boxed(UnboundMethod),
+        boxed(UnusedMustUse),
         boxed(UseIsnan),
     ]
 }
