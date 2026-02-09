@@ -1,4 +1,5 @@
 use super::*;
+use crate::r#match::{MatchCaseStyle, format_match_case_with_style};
 use destack_fir::{format_args, write};
 
 /// Format a statement body block, preserving wrapper semantics.
@@ -374,6 +375,10 @@ pub(crate) fn format_match<'ast>(
         });
     };
     let kind = *kind;
+    let case_style = match kind {
+        MatchKind::Match => MatchCaseStyle::Match,
+        MatchKind::Switch => MatchCaseStyle::Switch,
+    };
 
     if include_prefix {
         // match/switch <expression>
@@ -404,102 +409,13 @@ pub(crate) fn format_match<'ast>(
                     write!(f, [hard_line_break()])?;
                 }
                 first = false;
-                format_match_case(f, *case_id, kind)?;
+                format_match_case_with_style(f, *case_id, case_style)?;
             }
             Ok(())
         })),])]
     )?;
     write!(f, [f.context().block_infix_annotations(node_id)])?;
     write!(f, [hard_line_break(), token("}")])?;
-
-    Ok(())
-}
-
-/// Format a single match/switch case.
-///
-/// For `match`, uses arrow syntax: `pattern => body`
-/// For `switch`, uses colon syntax: `case pattern:` or `default:`
-/// Format one match case.
-#[allow(clippy::type_complexity)]
-fn format_match_case<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    case_id: LocalNodeId<MatchCase>,
-    kind: MatchKind,
-) -> FormatResult<()> {
-    let case = f.context().tree.get(case_id);
-
-    // extract selector and body based on case variant
-    let (selector, body_format): (
-        &MatchSelector,
-        Box<dyn Fn(&mut DestackFormatter<'ast, '_>) -> FormatResult<()> + '_>,
-    ) = match case {
-        MatchCase::Expression { selector, body } => {
-            (selector, Box::new(move |f| write!(f, [*body])))
-        }
-        MatchCase::Block { selector, body } => (selector, Box::new(move |f| write!(f, [*body]))),
-    };
-
-    // write prefix annotations
-    write!(f, [f.context().any_prefix_annotations(case_id)])?;
-
-    match kind {
-        MatchKind::Match => {
-            // match style: pattern => body
-            match selector {
-                MatchSelector::Pattern { pattern, guard } => {
-                    write!(f, [*pattern])?;
-                    if let Some(guard) = guard {
-                        write!(
-                            f,
-                            [
-                                space(),
-                                Keyword::If,
-                                space(),
-                                token("("),
-                                *guard,
-                                token(")")
-                            ]
-                        )?;
-                    }
-                }
-                MatchSelector::Default => {
-                    // shouldn't happen in match expressions, but handle gracefully
-                    write!(f, [token("_")])?;
-                }
-            }
-            write!(f, [space(), token("=>"), space()])?;
-            body_format(f)?;
-        }
-        MatchKind::Switch => {
-            // switch style: case pattern: or default:
-            match selector {
-                MatchSelector::Pattern { pattern, guard } => {
-                    write!(f, [Keyword::Case, space(), *pattern, token(":")])?;
-                    if let Some(guard) = guard {
-                        write!(
-                            f,
-                            [
-                                space(),
-                                Keyword::If,
-                                space(),
-                                token("("),
-                                *guard,
-                                token(")")
-                            ]
-                        )?;
-                    }
-                }
-                MatchSelector::Default => {
-                    write!(f, [Keyword::Default, token(":")])?;
-                }
-            }
-            write!(f, [space()])?;
-            body_format(f)?;
-        }
-    }
-
-    // write postfix annotations
-    write!(f, [f.context().any_infix_or_postfix_annotations(case_id)])?;
 
     Ok(())
 }

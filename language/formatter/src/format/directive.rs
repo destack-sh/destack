@@ -504,18 +504,16 @@ mod tests {
             FormatterOptions::default(),
             LanguageType::TypeScript,
         );
-        let context = DestackFormatContext {
+        let context = DestackFormatContext::new(
             options,
-            file: &file,
-            tree: &parser.tree,
-            source_map: &parser.tree.source_map,
+            &file,
+            &parser.tree,
+            &tokens,
+            &side_tokens,
+            &side_span,
+            &strings,
             parents,
-            tokens: &tokens,
-            side_tokens: &side_tokens,
-            side_span: &side_span,
-            strings: &strings,
-            current_argument_group_id: None,
-        };
+        );
 
         let comment_tokens = collect_comment_tokens(&context);
         assert!(!comment_tokens.is_empty());

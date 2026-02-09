@@ -1014,18 +1014,19 @@ impl TestProgram {
 
         // format the AST
         let strings = unbound.strings.into_immutable();
-        let context = DestackFormatContext {
-            options: DestackFormatOptions::default(),
-            file: &file,
-            tree: &unbound.tree,
-            source_map: &unbound.tree.source_map,
-            parents: NodeParentIndex::from_tree(&unbound.tree),
-            tokens: &vec![],
-            side_tokens: &vec![],
-            side_span: &MultiSpan::new(vec![]),
-            strings: &strings,
-            current_argument_group_id: None,
-        };
+        let empty_tokens = Vec::new();
+        let empty_side_tokens = Vec::new();
+        let empty_side_span = MultiSpan::new(vec![]);
+        let context = DestackFormatContext::new(
+            DestackFormatOptions::default(),
+            &file,
+            &unbound.tree,
+            &empty_tokens,
+            &empty_side_tokens,
+            &empty_side_span,
+            &strings,
+            NodeParentIndex::from_tree(&unbound.tree),
+        );
 
         // format each root expression and join with blank lines
         let mut results = Vec::new();

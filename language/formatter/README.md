@@ -86,6 +86,15 @@ import { z } from "c";
 Type imports sort before value imports within the same group.
 Natural sort handles numbers correctly: `a1`, `a2`, `a10` instead of `a1`, `a10`, `a2`.
 
+## Benchmarks
+
+Formatter performance is measured with the same `bench_stats` pattern used by other language crates.
+Run `cargo run --release -p destack_formatter --example bench_stats -- --help` for all options.
+Default corpus is `test/fixtures/ecosystem` for better signal on real-world performance.
+For quick smoke runs you can use `--root test/fixtures/formatter/conformance/staging/oxfmt`.
+Use `--output table|csv|json` for human-readable output or machine-readable pipelines.
+The table output includes colorized latency heat, stage breakdowns, throughput, jitter, and hot-file rankings.
+
 ## Destack-Specific Formatting
 
 These are formatting rules that are specific to Destack.

@@ -8,18 +8,23 @@ use crate::expression::{is_expression_breakable, lambda_expression_should_break}
 use crate::key::format_key_with_quote_policy;
 use crate::property::format_block_of_members;
 use crate::signature::{
-    constructor_parameters_should_expand, parameter_is_variadic, single_parameter_should_hug,
+    FunctionHeaderStyle, collect_deferred_function_boundary_line_comments,
+    format_function_body_block_with_deferred_boundary_line_comments,
+    function_body_has_deferred_boundary_line_comments, parameter_is_variadic,
+    signature_parameters_should_expand, signature_should_elide_space_before_body,
+    single_parameter_should_hug, write_function_header_prefix,
+    write_signature_dynamic_parameter_list,
 };
 use crate::r#where::format_where_clause_with_break;
 use crate::{
     DestackFormatContext, DestackFormatter, FormatNode, empty_block_with_infix_annotations,
 };
 use destack_ast::{
-    Annotation, AnnotationPosition, Argument, Asynchrony, Declaration, DeclarationAbstraction,
+    Annotation, AnnotationPosition, Argument, Declaration, DeclarationAbstraction,
     DeclarationDescriptor, DeclarationKind, DependencyKind, DependencyMode, EnumField, EnumKind,
-    Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode, Generics,
-    Heritage, IfKind, ImportAliasTarget, Key, Keyword, LocalNodeId, Member, Mutability, Name,
-    NodeType, Parameter, Pattern, PatternField, TypeKind, Visibility, WhereClause,
+    Expression, FunctionCardinality, FunctionKind, Generics, Heritage, IfKind, ImportAliasTarget,
+    Key, Keyword, LocalNodeId, Member, Mutability, Name, NodeType, Parameter, Pattern, TypeKind,
+    Visibility, WhereClause,
 };
 use destack_fir::format::{BestFittingMode, FormatResult};
 use destack_fir::prelude::*;
@@ -172,85 +177,6 @@ fn write_deferred_declaration_body_boundary_prefix_annotations<'ast>(
     }
     write!(f, [space()])?;
     Ok(true)
-}
-
-/// Return whether an object parameter pattern should expand for readability.
-fn parameter_object_pattern_should_expand(
-    context: &DestackFormatContext<'_>,
-    pattern_id: LocalNodeId<Pattern>,
-) -> bool {
-    let fields = match context.tree.get(pattern_id) {
-        Pattern::Object { fields } | Pattern::TaggedObject { fields, .. } => fields,
-        _ => return false,
-    };
-
-    let has_nested_pattern = fields
-        .iter()
-        .any(|field_id| match context.tree.get(*field_id) {
-            PatternField::Named {
-                pattern: Some(_), ..
-            }
-            | PatternField::Computed {
-                pattern: Some(_), ..
-            }
-            | PatternField::Positional { .. } => true,
-            PatternField::Spread {
-                pattern: Some(_), ..
-            } => true,
-            PatternField::Named { pattern: None, .. }
-            | PatternField::Computed { pattern: None, .. }
-            | PatternField::Alias { .. }
-            | PatternField::Spread { pattern: None, .. }
-            | PatternField::Elision => false,
-        });
-    if has_nested_pattern {
-        return true;
-    }
-
-    if fields.len() >= 3 {
-        return true;
-    }
-
-    if fields.len() <= 1 {
-        return false;
-    }
-
-    fields
-        .iter()
-        .any(|field_id| match context.tree.get(*field_id) {
-            PatternField::Named { default, .. }
-            | PatternField::Computed { default, .. }
-            | PatternField::Alias { default, .. } => default.is_some(),
-            PatternField::Positional { .. }
-            | PatternField::Spread { .. }
-            | PatternField::Elision => false,
-        })
-}
-
-/// Return whether this parameter should force multiline signature formatting.
-fn parameter_should_force_expand_in_signature(
-    context: &DestackFormatContext<'_>,
-    parameter_id: LocalNodeId<Parameter>,
-) -> bool {
-    if context.has_newline(context.get_span(parameter_id)) {
-        return true;
-    }
-
-    let pattern_id = match context.tree.get(parameter_id) {
-        Parameter::Pattern { pattern, .. } | Parameter::VariadicPattern { pattern, .. } => {
-            Some(*pattern)
-        }
-        Parameter::Named { .. } | Parameter::VariadicNamed { .. } => None,
-    };
-    let Some(pattern_id) = pattern_id else {
-        return false;
-    };
-
-    if context.has_newline(context.get_span(pattern_id)) {
-        return true;
-    }
-
-    parameter_object_pattern_should_expand(context, pattern_id)
 }
 
 /// Format a super type clause.
@@ -1233,50 +1159,13 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     write!(f, [Keyword::Declare, space()])?;
                 }
 
-                // abstraction
-                match signature.abstraction {
-                    FunctionAbstraction::Abstract => {
-                        write!(f, [Keyword::Abstract, space()])?;
-                    }
-                    FunctionAbstraction::AbstractOverride => {
-                        write!(f, [Keyword::Abstract, space(), Keyword::Override, space()])?;
-                    }
-                    FunctionAbstraction::ConcreteOverride => {
-                        write!(f, [Keyword::Override, space()])?;
-                    }
-                    FunctionAbstraction::Concrete => {}
-                }
-
-                // asynchrony
-                if signature.asynchrony == Asynchrony::Async {
-                    write!(f, [Keyword::Async, space()])?;
-                }
-
-                // kind
-                if let Some(kind) = signature.mode {
-                    write!(f, [kind.to_keyword()])?;
-                    if descriptor.name.is_some() || kind == FunctionMode::New {
-                        write!(f, [space()])?;
-                    }
-                }
-
-                // keyword
-                if signature.kind == FunctionKind::Function
-                    && signature.mode != Some(FunctionMode::Constructor)
-                    && signature.mode != Some(FunctionMode::New)
-                {
-                    // function keyword
-                    if signature.cardinality == FunctionCardinality::Generator {
-                        write!(f, [Keyword::Function, token("*"), space()])?;
-                    } else {
-                        write!(f, [Keyword::Function, space()])?;
-                    }
-                } else {
-                    // lambda (no keyword, maybe star)
-                    if signature.cardinality == FunctionCardinality::Generator {
-                        write!(f, [token("*"), space()])?;
-                    }
-                }
+                // shared function header prefix
+                write_function_header_prefix(
+                    f,
+                    signature,
+                    FunctionHeaderStyle::Declaration,
+                    descriptor.name.is_some(),
+                )?;
 
                 // name / key
                 if signature.kind == FunctionKind::Function
@@ -1362,27 +1251,24 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                         ]
                     )?;
                 } else {
-                    let force_expand_parameters =
-                        dynamic_parameters.iter().copied().any(|parameter_id| {
-                            parameter_should_force_expand_in_signature(f.context(), parameter_id)
-                        }) || constructor_parameters_should_expand(
-                            f.context(),
-                            signature.mode,
-                            &dynamic_parameters,
-                        );
-                    let mut dynamic_parameters_list = list_like("(", ")", ",", &dynamic_parameters);
-                    dynamic_parameters_list.should_expand(force_expand_parameters);
-
+                    let force_expand_parameters = signature_parameters_should_expand(
+                        f.context(),
+                        signature.mode,
+                        &dynamic_parameters,
+                        signature.return_type,
+                        true,
+                    );
                     let disallow_trailing_parameter_separator =
                         dynamic_parameters.last().is_some_and(|parameter_id| {
                             parameter_is_variadic(f.context(), *parameter_id)
                         }) || (signature.kind == FunctionKind::Lambda
                             && dynamic_parameters.len() == 1);
-                    if disallow_trailing_parameter_separator {
-                        dynamic_parameters_list.disallow_trailing_separator();
-                    }
-
-                    write!(f, [dynamic_parameters_list])?;
+                    write_signature_dynamic_parameter_list(
+                        f,
+                        &dynamic_parameters,
+                        force_expand_parameters,
+                        disallow_trailing_parameter_separator,
+                    )?;
                 }
 
                 // block and line prefix comments between parameters and arrow are emitted here
@@ -1564,6 +1450,25 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                                 )?;
                             }
                         }
+                    } else if function_body_has_deferred_boundary_line_comments(
+                        f.context(),
+                        signature.return_type,
+                        Some(*body),
+                    ) {
+                        let comments = collect_deferred_function_boundary_line_comments(
+                            f.context(),
+                            signature.return_type,
+                            *body,
+                        );
+                        write!(f, [space()])?;
+                        format_function_body_block_with_deferred_boundary_line_comments(
+                            f, *body, &comments,
+                        )?;
+                    } else if signature_should_elide_space_before_body(
+                        f.context(),
+                        signature.return_type,
+                    ) {
+                        write!(f, [body])?;
                     } else {
                         write!(f, [space(), body])?;
                     }

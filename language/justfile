@@ -147,6 +147,22 @@ test-formatter-conformance:
 test-formatter-conformance-update:
     cargo test --release --test formatter-conformance -- --update-known-failures
 
+# snapshot formatter output for a corpus
+formatter-corpus-snapshot root="test/fixtures/formatter/conformance/staging/oxfmt" out="/tmp/destack-formatter-corpus-snapshot":
+    ./formatter/scripts/corpus_snapshot.sh "{{root}}" "{{out}}"
+
+# benchmark formatter parse and print throughput on a corpus
+formatter-corpus-bench root="test/fixtures/ecosystem" runs="5":
+    ./formatter/scripts/corpus_bench.sh "{{root}}" "{{runs}}"
+
+# run formatter bench stats
+bench-formatter-stats args="--help":
+    cargo run --release -p destack_formatter --example bench_stats -- {{args}}
+
+# diff two formatter corpus snapshots
+formatter-corpus-diff baseline candidate:
+    ./formatter/scripts/corpus_diff.sh "{{baseline}}" "{{candidate}}"
+
 # run ecosystem tests
 test-ecosystem:
     cargo test --release --test ecosystem

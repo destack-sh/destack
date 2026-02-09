@@ -5,30 +5,109 @@ use destack_ast::{Keyword, LocalNodeId, MatchCase, MatchSelector};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-/// Format the selector (pattern + guard or default).
-fn format_selector(f: &mut DestackFormatter<'_, '_>, selector: &MatchSelector) -> FormatResult<()> {
-    match selector {
-        MatchSelector::Pattern { pattern, guard } => {
-            write!(f, [*pattern])?;
-            if let Some(guard) = guard {
-                write!(
-                    f,
-                    [
-                        space(),
-                        Keyword::If,
-                        space(),
-                        token("("),
-                        *guard,
-                        token(")")
-                    ]
-                )?;
+/// Match case rendering style.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum MatchCaseStyle {
+    /// Emit `pattern => body`.
+    Match,
+    /// Emit `case pattern: body` and `default: body`.
+    Switch,
+}
+
+/// Format a match selector according to the selected case style.
+fn format_selector_with_style(
+    f: &mut DestackFormatter<'_, '_>,
+    selector: &MatchSelector,
+    style: MatchCaseStyle,
+) -> FormatResult<()> {
+    match style {
+        MatchCaseStyle::Match => match selector {
+            MatchSelector::Pattern { pattern, guard } => {
+                write!(f, [*pattern])?;
+                if let Some(guard) = guard {
+                    write!(
+                        f,
+                        [
+                            space(),
+                            Keyword::If,
+                            space(),
+                            token("("),
+                            *guard,
+                            token(")")
+                        ]
+                    )?;
+                }
+            }
+            MatchSelector::Default => {
+                write!(f, [token("_")])?;
+            }
+        },
+        MatchCaseStyle::Switch => match selector {
+            MatchSelector::Pattern { pattern, guard } => {
+                write!(f, [Keyword::Case, space(), *pattern, token(":")])?;
+                if let Some(guard) = guard {
+                    write!(
+                        f,
+                        [
+                            space(),
+                            Keyword::If,
+                            space(),
+                            token("("),
+                            *guard,
+                            token(")")
+                        ]
+                    )?;
+                }
+            }
+            MatchSelector::Default => {
+                write!(f, [Keyword::Default, token(":")])?;
+            }
+        },
+    }
+
+    Ok(())
+}
+
+/// Format one match case with the selected style.
+pub(crate) fn format_match_case_with_style<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    case_id: LocalNodeId<MatchCase>,
+    style: MatchCaseStyle,
+) -> FormatResult<()> {
+    let case = f.context().tree.get(case_id);
+
+    // case prefix
+    write!(f, [f.context().any_prefix_annotations(case_id)])?;
+
+    // selector, separator, and body
+    match case {
+        MatchCase::Expression { selector, body } => {
+            format_selector_with_style(f, selector, style)?;
+            match style {
+                MatchCaseStyle::Match => {
+                    write!(f, [space(), token("=>"), space(), *body])?;
+                }
+                MatchCaseStyle::Switch => {
+                    write!(f, [space(), *body])?;
+                }
             }
         }
-        MatchSelector::Default => {
-            // for match style formatting, output underscore for default
-            write!(f, [token("_")])?;
+        MatchCase::Block { selector, body } => {
+            format_selector_with_style(f, selector, style)?;
+            match style {
+                MatchCaseStyle::Match => {
+                    write!(f, [space(), token("=>"), space(), *body])?;
+                }
+                MatchCaseStyle::Switch => {
+                    write!(f, [space(), *body])?;
+                }
+            }
         }
     }
+
+    // case postfix
+    write!(f, [f.context().any_infix_or_postfix_annotations(case_id)])?;
+
     Ok(())
 }
 
@@ -38,22 +117,7 @@ impl<'ast> FormatNode<'ast, MatchCase> for MatchCase {
         node_id: LocalNodeId<MatchCase>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        write!(f, [f.context().any_prefix_annotations(node_id)])?;
-
-        match self {
-            MatchCase::Expression { selector, body } => {
-                format_selector(f, selector)?;
-                write!(f, [space(), token("=>"), space(), *body])?;
-            }
-            MatchCase::Block { selector, body } => {
-                format_selector(f, selector)?;
-                write!(f, [space(), token("=>"), space(), *body])?;
-            }
-        }
-
-        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
-
-        Ok(())
+        format_match_case_with_style(f, node_id, MatchCaseStyle::Match)
     }
 }
 

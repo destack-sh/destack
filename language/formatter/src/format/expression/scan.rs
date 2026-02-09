@@ -1,20 +1,12 @@
 use super::*;
+use crate::scan::previous_non_whitespace_before_span as previous_non_whitespace_before_source_span;
 
 /// Return the previous non-whitespace character before a span.
 pub(super) fn previous_non_whitespace_before_span(
     context: &DestackFormatContext<'_>,
     span: Span,
 ) -> Option<char> {
-    if span.start == 0 {
-        return None;
-    }
-
-    let head_span = Span::new(span.file, 0, span.start);
-    let head_source = context.file.get_span_str(head_span)?;
-    head_source
-        .chars()
-        .rev()
-        .find(|character: &char| !character.is_whitespace())
+    previous_non_whitespace_before_source_span(context, span)
 }
 
 /// Return whether expression source is wrapped in a top-level parenthesis pair.

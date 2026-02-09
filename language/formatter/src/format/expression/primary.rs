@@ -1,4 +1,5 @@
 use super::*;
+use crate::collection::{collection_nodes_have_annotations, collection_range_is_inline};
 use destack_fir::{format_args, write};
 
 /// Format primary expression variants.
@@ -358,34 +359,17 @@ pub(super) fn format_primary_expression<'ast>(
                 }
 
                 let span = f.context().get_span(node_id);
+                let has_newline_in_source = f.context().has_newline(span);
                 let elements = elements_ids
                     .iter()
                     .map(|id| tree.get(*id))
                     .collect::<SmallVec<[_; 3]>>();
                 let elements_are_inline_in_source =
-                    if let (Some(first_element), Some(last_element)) =
-                        (elements_ids.first(), elements_ids.last())
-                    {
-                        let first_span = f.context().get_span(*first_element);
-                        let last_span = f.context().get_span(*last_element);
-                        if first_span.file == last_span.file && first_span.start < last_span.end {
-                            !f.context().has_newline(Span::new(
-                                first_span.file,
-                                first_span.start,
-                                last_span.end,
-                            ))
-                        } else {
-                            false
-                        }
-                    } else {
-                        false
-                    };
+                    collection_range_is_inline(f.context(), elements_ids);
 
                 // check for annotations that require expansion
                 let has_annotations = f.context().has_infix_annotation(node_id)
-                    || elements_ids
-                        .iter()
-                        .any(|element| f.context().has_annotation(*element));
+                    || collection_nodes_have_annotations(f.context(), elements_ids);
                 let has_line_comment_annotations = elements_ids.iter().copied().any(|element_id| {
                     argument_has_line_comment_annotation(f.context(), element_id)
                         || argument_has_prefix_line_comment_annotation(f.context(), element_id)
@@ -408,9 +392,9 @@ pub(super) fn format_primary_expression<'ast>(
                             .iter()
                             .any(|element| is_complex_argument(tree, element)))
                     || (elements.len() == 1
-                        && f.context().has_newline(span)
+                        && has_newline_in_source
                         && !is_trivial_argument(tree, elements[0]))
-                    || (f.context().has_newline(span)
+                    || (has_newline_in_source
                         && elements.len() > 1
                         && !elements_are_inline_in_source);
 
@@ -443,9 +427,7 @@ pub(super) fn format_primary_expression<'ast>(
 
                 // check for annotations that require expansion
                 let has_annotations = f.context().has_infix_annotation(node_id)
-                    || elements_ids
-                        .iter()
-                        .any(|element| f.context().has_annotation(*element));
+                    || collection_nodes_have_annotations(f.context(), elements_ids);
 
                 let should_expand = has_annotations
                     || (elements.len() > 1
@@ -520,40 +502,14 @@ pub(super) fn format_primary_expression<'ast>(
                 collect_parenthesized_boundary_comments(f.context(), node_id, *expression);
             let has_parenthesized_leading_inner_trivia =
                 parenthesized_has_leading_inner_trivia(f.context(), node_id, *expression);
-            let should_drop_type_parentheses =
-                should_drop_parenthesized_type_expression(f.context(), node_id, *expression);
+            let should_drop_parentheses = parenthesized_should_drop(
+                f.context(),
+                node_id,
+                *expression,
+                ParenthesizedDropPolicy::ExpressionWrapper,
+            );
             let has_parenthesized_prefix_annotation = f.context().has_prefix_annotation(node_id)
                 || f.context().has_prefix_annotation(*expression);
-            let should_drop_parentheses = if let Some((parent_id, parent_type)) =
-                f.context().get_parent(node_id)
-                && parent_type == NodeType::Expression
-            {
-                let parent_id = LocalNodeId::<Expression>::new(parent_id);
-                let parent_expression = f.context().tree.get(parent_id);
-                let should_drop_assignment_must =
-                    matches!(
-                        parent_expression,
-                        Expression::Assign { left, .. } if *left == node_id
-                    ) && matches!(inner_expression, Expression::Must { .. });
-                let should_drop_statement_lambda = matches!(
-                    parent_expression,
-                    Expression::Statement(inner_id) if inner_id.id == node_id.id
-                ) && matches!(
-                    inner_expression,
-                    Expression::Declaration(declaration_id)
-                        if matches!(
-                            f.context().tree.get(*declaration_id),
-                            Declaration::Function { signature, .. }
-                                if signature.kind == FunctionKind::Lambda
-                        )
-                ) && !f.context().has_annotation(node_id);
-
-                should_drop_assignment_must
-                    || should_drop_statement_lambda
-                    || should_drop_type_parentheses
-            } else {
-                should_drop_type_parentheses
-            };
             let should_expand_assignment_target = match inner_expression {
                 // prefer expanded destructuring targets once they become moderately wide
                 Expression::ObjectExpression { properties, .. } => {

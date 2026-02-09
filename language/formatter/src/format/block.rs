@@ -822,4 +822,61 @@ mod tests {
             options
         );
     }
+
+    /// Side-effect imports should keep source order and stay above regular imports.
+    #[test]
+    fn test_format_block_import_sorting_preserves_side_effect_order() {
+        use destack_workspace::OrganizeImports;
+        let options = DestackFormatOptions {
+            organize_imports: OrganizeImports::On,
+            ..DestackFormatOptions::default()
+        };
+        assert_format!(
+            r#"{
+    import "zeta"
+    import thing from "pkg"
+    import "alpha"
+    import fs from "node:fs"
+}"#,
+            r#"{
+    import "zeta";
+    import "alpha";
+
+    import fs from "node:fs";
+
+    import thing from "pkg";
+}"#,
+            |p| p.eat_block(),
+            options
+        );
+    }
+
+    /// Organized imports should insert blank lines between import groups.
+    #[test]
+    fn test_format_block_import_sorting_inserts_group_blank_lines() {
+        use destack_workspace::OrganizeImports;
+        let options = DestackFormatOptions {
+            organize_imports: OrganizeImports::On,
+            ..DestackFormatOptions::default()
+        };
+        assert_format!(
+            r#"{
+    import rel from "./rel"
+    import pkg from "react"
+    import alias from "~/core"
+    import fs from "node:fs"
+}"#,
+            r#"{
+    import fs from "node:fs";
+
+    import pkg from "react";
+
+    import alias from "~/core";
+
+    import rel from "./rel";
+}"#,
+            |p| p.eat_block(),
+            options
+        );
+    }
 }

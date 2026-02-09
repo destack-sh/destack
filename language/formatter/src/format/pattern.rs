@@ -1,6 +1,7 @@
 use destack_fir::format::FormatResult;
 
 use crate::argument::list_like;
+use crate::collection::{CollectionBreakScore, collection_nodes_have_annotations};
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{Expression, LocalNodeId, Mutability, NodeTree, NodeType, Pattern, PatternField};
 use destack_fir::prelude::*;
@@ -249,12 +250,13 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                     .iter()
                     .copied()
                     .any(|field_id| pattern_field_prefers_multiline(f.context().tree, field_id));
-                let has_field_annotations = fields
-                    .iter()
-                    .copied()
-                    .any(|field_id| f.context().has_annotation(field_id));
-
-                let should_expand = has_newline && (has_nested_fields || has_field_annotations);
+                let has_field_annotations = collection_nodes_have_annotations(f.context(), fields);
+                let should_expand = CollectionBreakScore {
+                    has_newline_in_source: has_newline,
+                    has_item_annotations: has_field_annotations,
+                    has_nested_complexity: has_nested_fields,
+                }
+                .should_expand_multiline();
                 let mut list = list_like("[", "]", ",", fields);
                 list.as_collection().should_expand(should_expand);
 
@@ -268,13 +270,15 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                     .iter()
                     .copied()
                     .any(|field_id| pattern_field_prefers_multiline(f.context().tree, field_id));
-                let has_field_annotations = fields
-                    .iter()
-                    .copied()
-                    .any(|field_id| f.context().has_annotation(field_id));
+                let has_field_annotations = collection_nodes_have_annotations(f.context(), fields);
                 let should_expand_for_parameter =
                     should_expand_parameter_object_pattern(f.context(), node_id, fields);
-                let should_expand_for_comments = has_newline && has_field_annotations;
+                let should_expand_for_comments = CollectionBreakScore {
+                    has_newline_in_source: has_newline,
+                    has_item_annotations: has_field_annotations,
+                    has_nested_complexity: false,
+                }
+                .should_expand_multiline();
 
                 if (has_newline && has_nested_fields)
                     || should_expand_for_comments
@@ -298,13 +302,15 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                     .iter()
                     .copied()
                     .any(|field_id| pattern_field_prefers_multiline(f.context().tree, field_id));
-                let has_field_annotations = fields
-                    .iter()
-                    .copied()
-                    .any(|field_id| f.context().has_annotation(field_id));
+                let has_field_annotations = collection_nodes_have_annotations(f.context(), fields);
                 let should_expand_for_parameter =
                     should_expand_parameter_object_pattern(f.context(), node_id, fields);
-                let should_expand_for_comments = has_newline && has_field_annotations;
+                let should_expand_for_comments = CollectionBreakScore {
+                    has_newline_in_source: has_newline,
+                    has_item_annotations: has_field_annotations,
+                    has_nested_complexity: false,
+                }
+                .should_expand_multiline();
 
                 if (has_newline && has_nested_fields)
                     || should_expand_for_comments

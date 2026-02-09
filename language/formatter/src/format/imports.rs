@@ -1,12 +1,8 @@
-//! Import statement sorting and organization.
-//!
-//! Handles sorting import statements by group and alphabetically within groups,
-//! as well as sorting import specifiers within `{ }`.
-
 use std::cmp::Ordering;
 
-use destack_ast::{Expression, LocalNodeId, NodeTree};
+use destack_ast::{DependencyItem, DependencyKind, Expression, LocalNodeId, NodeTree};
 use destack_base::ImmutableStringPool;
+use destack_workspace::ImportSortOrder;
 
 /// Import group category for sorting.
 ///
@@ -114,6 +110,109 @@ pub fn sort_imports(
     result.extend(side_effects);
     result.extend(regular.into_iter().map(|(_, _, id)| id));
     result
+}
+
+/// Compare two strings using natural sort order (numbers ordered as integers).
+fn natural_cmp(a: &str, b: &str) -> Ordering {
+    let mut a_chars = a.chars().peekable();
+    let mut b_chars = b.chars().peekable();
+
+    loop {
+        match (a_chars.peek(), b_chars.peek()) {
+            (None, None) => return Ordering::Equal,
+            (None, Some(_)) => return Ordering::Less,
+            (Some(_), None) => return Ordering::Greater,
+            (Some(ac), Some(bc)) => {
+                // compare numeric runs as numbers
+                if ac.is_ascii_digit() && bc.is_ascii_digit() {
+                    let mut a_number: u64 = 0;
+                    while let Some(&character) = a_chars.peek()
+                        && character.is_ascii_digit()
+                    {
+                        a_number = a_number
+                            .saturating_mul(10)
+                            .saturating_add((character as u64) - ('0' as u64));
+                        a_chars.next();
+                    }
+
+                    let mut b_number: u64 = 0;
+                    while let Some(&character) = b_chars.peek()
+                        && character.is_ascii_digit()
+                    {
+                        b_number = b_number
+                            .saturating_mul(10)
+                            .saturating_add((character as u64) - ('0' as u64));
+                        b_chars.next();
+                    }
+
+                    match a_number.cmp(&b_number) {
+                        Ordering::Equal => continue,
+                        ordering => return ordering,
+                    }
+                }
+
+                // compare characters case-insensitively
+                let ac_lower = ac.to_ascii_lowercase();
+                let bc_lower = bc.to_ascii_lowercase();
+                match ac_lower.cmp(&bc_lower) {
+                    Ordering::Equal => {
+                        // if only case differs, keep uppercase first
+                        match ac.cmp(bc) {
+                            Ordering::Equal => {
+                                a_chars.next();
+                                b_chars.next();
+                            }
+                            ordering => return ordering,
+                        }
+                    }
+                    ordering => return ordering,
+                }
+            }
+        }
+    }
+}
+
+/// Sort dependency items by kind and configured key order.
+pub fn sort_dependency_items(
+    items: &[LocalNodeId<DependencyItem>],
+    tree: &NodeTree,
+    strings: &ImmutableStringPool,
+    sort_order: ImportSortOrder,
+) -> Vec<LocalNodeId<DependencyItem>> {
+    let mut sorted_items: Vec<_> = items.to_vec();
+
+    sorted_items.sort_by(|a, b| {
+        let a_item = tree.get(*a);
+        let b_item = tree.get(*b);
+
+        // type imports come before value imports
+        let a_is_type = a_item.kind == Some(DependencyKind::Type);
+        let b_is_type = b_item.kind == Some(DependencyKind::Type);
+        match (a_is_type, b_is_type) {
+            (true, false) => return Ordering::Less,
+            (false, true) => return Ordering::Greater,
+            _ => {}
+        }
+
+        // sort by alias first when present, otherwise by item name
+        let a_key = a_item
+            .alias
+            .or(a_item.name.map(|name| name.string()))
+            .map(|string_id| strings.get(string_id))
+            .unwrap_or("");
+        let b_key = b_item
+            .alias
+            .or(b_item.name.map(|name| name.string()))
+            .map(|string_id| strings.get(string_id))
+            .unwrap_or("");
+
+        match sort_order {
+            ImportSortOrder::Natural => natural_cmp(a_key, b_key),
+            ImportSortOrder::Alphabetical => a_key.cmp(b_key),
+        }
+    });
+
+    sorted_items
 }
 
 /// Determine if a blank line should be inserted between two imports.

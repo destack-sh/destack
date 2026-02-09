@@ -1,22 +1,21 @@
 use std::borrow::Cow;
-use std::cmp::Ordering;
 
 use destack_ast::{
     Annotation, AnnotationPosition, Argument, AssignOperator, Asynchrony, BinaryOperator, Block,
     BlockFormat, Declaration, DeclarationDescriptor, DeclarationKind, Declarator, DependencyItem,
     DependencyKind, DependencyMode, Expression, ForEachBinding, ForEachDeclarationKind,
     ForEachKind, FunctionKind, IfCondition, IfKind, ImportAliasTarget, ImportSource, Keyword,
-    LetKind, LocalNodeId, MatchCase, MatchKind, MatchSelector, Member, Mutability, NodeTree,
-    NodeType, OperatorPrecedence, Parameter, Pattern, PatternField, PostfixPosition, Property,
-    ScalarLiteral, TokenType, TypeBinaryOperator, TypeLiteral, TypeModifier, TypePredicateSubject,
-    TypeUnaryOperator, UnaryOperator, WhereClause, WhileKind, YieldCardinality,
+    LetKind, LocalNodeId, MatchKind, Member, Mutability, NodeTree, NodeType, OperatorPrecedence,
+    Parameter, Pattern, PatternField, PostfixPosition, Property, ScalarLiteral, TokenType,
+    TypeBinaryOperator, TypeLiteral, TypeModifier, TypePredicateSubject, TypeUnaryOperator,
+    UnaryOperator, WhereClause, WhileKind, YieldCardinality,
 };
 use destack_base::StringId;
 use destack_fir::best_fitting;
 use destack_fir::format::{BestFittingMode, FormatError, GroupId, text};
 use destack_fir::prelude::*;
 use destack_source::Span;
-use destack_workspace::{ImportSortOrder, TrailingComma};
+use destack_workspace::TrailingComma;
 use smallvec::{SmallVec, smallvec};
 
 use self::binary::*;
@@ -32,6 +31,7 @@ use self::jsx::*;
 use self::member::*;
 use self::object::*;
 use self::operator::*;
+use self::parentheses::*;
 use self::primary::*;
 use self::scan::*;
 use self::sort::*;
@@ -63,6 +63,7 @@ mod jsx;
 mod member;
 mod object;
 mod operator;
+mod parentheses;
 mod primary;
 mod scan;
 mod sort;

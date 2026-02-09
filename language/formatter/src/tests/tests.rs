@@ -83,18 +83,16 @@ impl TestFormatter {
     where
         N: Format<DestackFormatContext<'a>>,
     {
-        let context = DestackFormatContext {
+        let context = DestackFormatContext::new(
             options,
-            file: &self.file,
-            tree: &self.tree,
-            source_map: &self.tree.source_map,
-            parents: NodeParentIndex::from_tree(&self.tree),
-            tokens: &self.tokens,
-            side_tokens: &self.side_tokens,
-            side_span: &self.side_span,
-            strings: &self.strings,
-            current_argument_group_id: None,
-        };
+            &self.file,
+            &self.tree,
+            &self.tokens,
+            &self.side_tokens,
+            &self.side_span,
+            &self.strings,
+            NodeParentIndex::from_tree(&self.tree),
+        );
         let formatted = format!(context, [n]).unwrap();
         let printed = formatted.print();
         printed.unwrap().as_str().to_string()

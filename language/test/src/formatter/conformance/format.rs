@@ -181,18 +181,16 @@ fn format_expressions(
     let strings = parser.strings.clone().into_immutable();
     let parents = NodeParentIndex::from_tree(&parser.tree);
     let format_options = DestackFormatOptions::from_formatter_options(formatter, language_type);
-    let context = DestackFormatContext {
-        options: format_options,
+    let context = DestackFormatContext::new(
+        format_options,
         file,
-        tree: &parser.tree,
-        source_map: &parser.tree.source_map,
-        parents,
+        &parser.tree,
         tokens,
         side_tokens,
-        side_span: &side_span,
-        strings: &strings,
-        current_argument_group_id: None,
-    };
+        &side_span,
+        &strings,
+        parents,
+    );
 
     // format statements
     let mut result = if expressions.is_empty() {

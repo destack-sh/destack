@@ -5,6 +5,69 @@ use destack_ast::{
 };
 use destack_source::{FileType, LanguageType};
 
+/// Build a formatter context for expression classifier assertions.
+fn context_from_formatter(formatter: &TestFormatter) -> DestackFormatContext<'_> {
+    DestackFormatContext::new(
+        DestackFormatOptions::default(),
+        &formatter.file,
+        &formatter.tree,
+        &formatter.tokens,
+        &formatter.side_tokens,
+        &formatter.side_span,
+        &formatter.strings,
+        NodeParentIndex::from_tree(&formatter.tree),
+    )
+}
+
+/// Find the first call expression with the requested dynamic argument count.
+fn find_call_with_dynamic_argument_count(
+    tree: &NodeTree,
+    dynamic_argument_count: usize,
+) -> LocalNodeId<Expression> {
+    for raw_node_id in 0..tree.next_id() {
+        if tree.get_node_type(raw_node_id) != NodeType::Expression {
+            continue;
+        }
+
+        let expression_id = LocalNodeId::<Expression>::new(raw_node_id);
+        let Expression::Call {
+            dynamic_arguments, ..
+        } = tree.get(expression_id)
+        else {
+            continue;
+        };
+
+        if dynamic_arguments.len() == dynamic_argument_count {
+            return expression_id;
+        }
+    }
+
+    panic!("expected call expression with requested dynamic argument count");
+}
+
+/// Find the first parenthesized expression whose inner expression satisfies a predicate.
+fn find_parenthesized_expression_by_inner(
+    tree: &NodeTree,
+    mut predicate: impl FnMut(&Expression) -> bool,
+) -> (LocalNodeId<Expression>, LocalNodeId<Expression>) {
+    for raw_node_id in 0..tree.next_id() {
+        if tree.get_node_type(raw_node_id) != NodeType::Expression {
+            continue;
+        }
+
+        let expression_id = LocalNodeId::<Expression>::new(raw_node_id);
+        let Expression::Parenthesized { expression } = tree.get(expression_id) else {
+            continue;
+        };
+        let inner_expression = tree.get(*expression);
+        if predicate(inner_expression) {
+            return (expression_id, *expression);
+        }
+    }
+
+    panic!("expected parenthesized expression matching predicate");
+}
+
 /// Simple expressions should stay on one line.
 #[test]
 fn test_format_expression_simple() {
@@ -75,18 +138,7 @@ fn test_assignment_target_detection() {
     let (formatter, _expression_id) = TestFormatter::parse(source, |p| p.eat_expression())
         .expect("parse assignment target source");
 
-    let context = DestackFormatContext {
-        options: DestackFormatOptions::default(),
-        file: &formatter.file,
-        tree: &formatter.tree,
-        source_map: &formatter.tree.source_map,
-        parents: NodeParentIndex::from_tree(&formatter.tree),
-        tokens: &formatter.tokens,
-        side_tokens: &formatter.side_tokens,
-        side_span: &formatter.side_span,
-        strings: &formatter.strings,
-        current_argument_group_id: None,
-    };
+    let context = context_from_formatter(&formatter);
 
     let mut found_assignment_target = false;
     for raw_node_id in 0..formatter.tree.next_id() {
@@ -178,6 +230,47 @@ fn test_format_new_expression_wraps_call_member_callee() {
     );
 }
 
+/// Parenthesized member objects with boundary comments should not unwrap.
+#[test]
+fn test_parenthesis_policy_rejects_member_object_boundary_comment() {
+    let source = "(value /* boundary */).member";
+    let (formatter, _) =
+        TestFormatter::parse(source, |p| p.eat_expression()).expect("parse member expression");
+    let context = context_from_formatter(&formatter);
+    let (parenthesized_id, inner_expression_id) =
+        find_parenthesized_expression_by_inner(&formatter.tree, |_| true);
+
+    assert!(!super::parenthesized_should_unwrap(
+        &context,
+        parenthesized_id,
+        inner_expression_id,
+        super::ParenthesizedUnwrapPolicy::MemberObject,
+    ));
+}
+
+/// Parenthesized new callees with optional chains should not unwrap.
+#[test]
+fn test_parenthesis_policy_rejects_optional_new_callee_unwrap() {
+    let source = "new (value?.member)()";
+    let (formatter, _) =
+        TestFormatter::parse(source, |p| p.eat_expression()).expect("parse new expression");
+    let context = context_from_formatter(&formatter);
+    let (parenthesized_id, inner_expression_id) =
+        find_parenthesized_expression_by_inner(&formatter.tree, |inner_expression| {
+            matches!(
+                inner_expression,
+                Expression::Member { .. } | Expression::PrivateMember { .. }
+            )
+        });
+
+    assert!(!super::parenthesized_should_unwrap(
+        &context,
+        parenthesized_id,
+        inner_expression_id,
+        super::ParenthesizedUnwrapPolicy::NewMemberCallee,
+    ));
+}
+
 /// Sparse arrays should preserve elision slots.
 #[test]
 fn test_format_array_expression_sparse_elisions() {
@@ -247,18 +340,7 @@ fn test_tree_child_map_callback_breaks() {
     };
 
     // build a context to run the helper on
-    let context = DestackFormatContext {
-        options: DestackFormatOptions::default(),
-        file: &formatter.file,
-        tree: &formatter.tree,
-        source_map: &formatter.tree.source_map,
-        parents: NodeParentIndex::from_tree(&formatter.tree),
-        tokens: &formatter.tokens,
-        side_tokens: &formatter.side_tokens,
-        side_span: &formatter.side_span,
-        strings: &formatter.strings,
-        current_argument_group_id: None,
-    };
+    let context = context_from_formatter(&formatter);
 
     assert!(super::expression_has_complex_callback(&context, *value));
 }
@@ -362,6 +444,28 @@ fn test_format_member_chain_breaks_before_long_boundary_comment_with_optional_ca
         "this\n  .getParameters /* xxxxxxxxxxxxxxxxxxxxxxxxxxxx */\n  ?.()",
         |p| p.eat_expression(),
         options
+    );
+}
+
+/// Chain planner keeps a short promoted head for call-like argument chains.
+#[test]
+fn test_format_chain_planner_promotes_head_in_call_like_argument() {
+    assert_format!(
+        "render(foo.bar.getResource(id).map(transform).finalize())",
+        "render(foo.bar.getResource(id)\n    .map(transform)\n    .finalize(),)",
+        |p| p.eat_expression(),
+        DestackFormatOptions::default_with_line_width(30)
+    );
+}
+
+/// Chain planner uses assignment rhs width when choosing chain layout.
+#[test]
+fn test_format_chain_planner_respects_assignment_rhs_width() {
+    assert_format!(
+        "veryLongBindingName = source.alpha.beta.gamma().delta().epsilon()",
+        "veryLongBindingName = source.alpha.beta\n    .gamma()\n    .delta()\n    .epsilon()",
+        |p| p.eat_expression(),
+        DestackFormatOptions::default_with_line_width(40)
     );
 }
 
@@ -588,6 +692,53 @@ fn test_format_deeply_nested_callbacks() {
     );
 }
 
+/// Callback-heavy chain calls force expanded argument formatting.
+#[test]
+fn test_call_chain_classifier_expands_callback_heavy_arguments() {
+    let source =
+        "compose((value) => step1(value), (value) => step2(value), (value) => step3(value)).run()";
+    let (formatter, _expression_id) =
+        TestFormatter::parse(source, |p| p.eat_expression()).expect("parse callback-heavy call");
+    let context = context_from_formatter(&formatter);
+
+    let call_id = find_call_with_dynamic_argument_count(&formatter.tree, 3);
+    let Expression::Call {
+        dynamic_arguments, ..
+    } = formatter.tree.get(call_id)
+    else {
+        panic!("expected callback-heavy call expression");
+    };
+
+    assert!(super::call_arguments_force_expand_for_chain(
+        &context,
+        call_id,
+        dynamic_arguments
+    ));
+}
+
+/// Single JSX or tree child arguments in chains force expansion.
+#[test]
+fn test_call_chain_classifier_expands_single_tree_child_argument() {
+    let source = "render(<App><Body /></App>).run()";
+    let (formatter, _expression_id) =
+        TestFormatter::parse(source, |p| p.eat_expression()).expect("parse tree-argument call");
+    let context = context_from_formatter(&formatter);
+
+    let call_id = find_call_with_dynamic_argument_count(&formatter.tree, 1);
+    let Expression::Call {
+        dynamic_arguments, ..
+    } = formatter.tree.get(call_id)
+    else {
+        panic!("expected tree-argument call expression");
+    };
+
+    assert!(super::call_arguments_force_expand_for_chain(
+        &context,
+        call_id,
+        dynamic_arguments
+    ));
+}
+
 #[test]
 fn test_format_optional_chain_with_nullish() {
     assert_format!(
@@ -740,18 +891,7 @@ fn test_type_template_literal_union_is_in_type_context() {
     let (formatter, expression_id) =
         TestFormatter::parse(source, |p| p.eat_expression()).expect("parse template literal type");
 
-    let context = DestackFormatContext {
-        options: DestackFormatOptions::default(),
-        file: &formatter.file,
-        tree: &formatter.tree,
-        source_map: &formatter.tree.source_map,
-        parents: NodeParentIndex::from_tree(&formatter.tree),
-        tokens: &formatter.tokens,
-        side_tokens: &formatter.side_tokens,
-        side_span: &formatter.side_span,
-        strings: &formatter.strings,
-        current_argument_group_id: None,
-    };
+    let context = context_from_formatter(&formatter);
 
     let mut has_union = false;
     let mut has_union_in_type_context = false;
