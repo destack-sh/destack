@@ -87,12 +87,19 @@ pub(crate) fn format_scalar_literal<'ast>(
                 write!(f, [token(quote_str), text(content), token(quote_str)])?;
             } else if span_str.starts_with('"') || span_str.starts_with('\'') {
                 // quoted string: normalize to preferred quote style
-                let inner = &span_str[1..span_str.len() - 1];
-                let mut normalized = String::with_capacity(span_str.len());
-                normalized.push(quote_char);
-                normalized.push_str(inner);
-                normalized.push(quote_char);
-                write!(f, [text(normalized.as_str())])?;
+                let source_quote = span_str.chars().next().unwrap_or_default();
+                let has_matching_quote = span_str.len() >= 2 && span_str.ends_with(source_quote);
+                if has_matching_quote {
+                    let inner = &span_str[1..span_str.len() - 1];
+                    let mut normalized = String::with_capacity(span_str.len());
+                    normalized.push(quote_char);
+                    normalized.push_str(inner);
+                    normalized.push(quote_char);
+                    write!(f, [text(normalized.as_str())])?;
+                } else {
+                    let quote_str = if quote_char == '"' { "\"" } else { "'" };
+                    write!(f, [token(quote_str), text(content), token(quote_str)])?;
+                }
             } else {
                 // jsx text content (unquoted): normalize whitespace
                 let has_newline = span_str.contains(['\n', '\r']);

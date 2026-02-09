@@ -294,8 +294,8 @@ function getX(p: Point): int32 {
             module_id,
             r#"
 struct Point {
-    x: int32,
-    y: int32,
+    x: int32;
+    y: int32;
 }
 
 function getX(p): int32 {
@@ -375,13 +375,13 @@ function getName(person: User | Admin): string {
             module_id,
             r#"
 struct User {
-    name: string,
-    role: string,
+    name: string;
+    role: string;
 }
 
 struct Admin {
-    name: string,
-    level: int32,
+    name: string;
+    level: int32;
 }
 
 function getName(person): string {
@@ -426,14 +426,14 @@ function greet(pet: Cat | Dog): string {
             module_id,
             r#"
 struct Cat {
-    name: string,
+    name: string;
     speak(): string {
         return "meow";
     }
 }
 
 struct Dog {
-    name: string,
+    name: string;
     speak(): string {
         return "woof";
     }
@@ -486,21 +486,21 @@ function greet(pet: Cat | Dog | Bird): string {
             module_id,
             r#"
 struct Cat {
-    name: string,
+    name: string;
     speak(): string {
         return "meow";
     }
 }
 
 struct Dog {
-    name: string,
+    name: string;
     speak(): string {
         return "woof";
     }
 }
 
 struct Bird {
-    name: string,
+    name: string;
     speak(): string {
         return "chirp";
     }
@@ -553,11 +553,11 @@ function greet(pet: Cat | Dog): string {
             module_id,
             r#"
 struct Cat {
-    name: string,
+    name: string;
 }
 
 struct Dog {
-    name: string,
+    name: string;
 }
 
 extension for Cat {
@@ -609,7 +609,7 @@ function bump(c: Counter): Counter {
             module_id,
             r#"
 struct Counter {
-    value: int32,
+    value: int32;
     increment(): Counter {
         return Counter { value: this.value + 1 };
     }
@@ -630,7 +630,7 @@ function bump(c): Counter {
             "test.ds",
             r#"
 interface Counter {
-    increment(): Counter
+    increment(): Counter;
 }
 
 function bump(c: Counter): Counter {
@@ -644,7 +644,7 @@ function bump(c: Counter): Counter {
             module_id,
             r#"
 interface Counter {
-    increment(): Counter
+    increment(): Counter;
 }
 
 function bump(c): Counter {

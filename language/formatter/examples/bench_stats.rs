@@ -188,6 +188,12 @@ struct CounterAggregate {
     value: usize,
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+struct CorpusLoadStats {
+    skipped_non_utf8: usize,
+    skipped_read_errors: usize,
+}
+
 /// Style helpers for table output.
 struct TableStyle {
     bold: &'static str,
@@ -259,7 +265,7 @@ fn main() -> Result<(), String> {
     }
 
     let root = resolve_root_path(args.root.as_path())?;
-    let files = load_corpus_files(root.as_path())?;
+    let (files, load_stats) = load_corpus_files(root.as_path())?;
     if files.is_empty() {
         return Err(format!(
             "no supported source files found under {}",
@@ -283,6 +289,13 @@ fn main() -> Result<(), String> {
             format_count(args.workers.max(1)),
             if args.timings { "on" } else { "off" }
         );
+        if load_stats.skipped_non_utf8 > 0 || load_stats.skipped_read_errors > 0 {
+            eprintln!(
+                "bench_stats: skipped {} non-utf8 files and {} unreadable files",
+                format_count(load_stats.skipped_non_utf8),
+                format_count(load_stats.skipped_read_errors)
+            );
+        }
     }
 
     for warmup_index in 0..args.warmup_runs {
@@ -1517,7 +1530,7 @@ fn print_json(summary: &BenchSummary) {
 }
 
 /// Load all supported source files under a root path.
-fn load_corpus_files(root: &Path) -> Result<Vec<CorpusFile>, String> {
+fn load_corpus_files(root: &Path) -> Result<(Vec<CorpusFile>, CorpusLoadStats), String> {
     if !root.exists() {
         return Err(format!("root path does not exist: {}", root.display()));
     }
@@ -1532,11 +1545,24 @@ fn load_corpus_files(root: &Path) -> Result<Vec<CorpusFile>, String> {
     file_paths.sort();
 
     let mut files = Vec::with_capacity(file_paths.len());
+    let mut stats = CorpusLoadStats::default();
     for path in file_paths {
         let file_type = FileType::from_path(path.as_path())
             .ok_or_else(|| format!("unsupported source file extension: {}", path.display()))?;
-        let source = fs::read_to_string(path.as_path())
-            .map_err(|error| format!("failed to read source file {}: {error}", path.display()))?;
+        let source_bytes = match fs::read(path.as_path()) {
+            Ok(source_bytes) => source_bytes,
+            Err(_) => {
+                stats.skipped_read_errors = stats.skipped_read_errors.saturating_add(1);
+                continue;
+            }
+        };
+        let source = match String::from_utf8(source_bytes) {
+            Ok(source) => source,
+            Err(_) => {
+                stats.skipped_non_utf8 = stats.skipped_non_utf8.saturating_add(1);
+                continue;
+            }
+        };
         let source_bytes = source.len();
         let source_lines = source.lines().count();
         files.push(CorpusFile {
@@ -1547,7 +1573,7 @@ fn load_corpus_files(root: &Path) -> Result<Vec<CorpusFile>, String> {
             source_lines,
         });
     }
-    Ok(files)
+    Ok((files, stats))
 }
 
 /// Recursively collect supported source files.
