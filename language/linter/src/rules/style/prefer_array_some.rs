@@ -1,10 +1,11 @@
 use destack_base::StringId;
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
+use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{const_i64, flip_binary_operator, is_array_type};
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `some()` over `filter().length` or `findIndex()` comparisons.
@@ -18,7 +19,7 @@ declare_lint! {
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -59,12 +60,14 @@ enum ArraySomeCheck {
 }
 
 /// Match info for array some comparisons.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 struct ArraySomeMatch {
     /// The comparison kind.
     kind: ArraySomeKind,
     /// The comparison intent.
     check: ArraySomeCheck,
+    /// The candidate expression under comparison.
+    candidate_expression_id: dir::LocalNodeId<dir::Expression>,
 }
 
 /// Node visitor that flags prefer-array-some patterns.
@@ -79,6 +82,8 @@ struct PreferArraySomeVisitor<'a, 'b> {
     filter_name: StringId,
     /// The string id for the findIndex method name.
     find_index_name: StringId,
+    /// The string id for the some method name.
+    some_name: StringId,
     /// The string id for the length property name.
     length_name: StringId,
     /// The visitor options.
@@ -91,6 +96,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
         let filter_name = ctx.program.strings.intern("filter");
         let find_index_name = ctx.program.strings.intern("findIndex");
+        let some_name = ctx.program.strings.intern("some");
         let length_name = ctx.program.strings.intern("length");
 
         Self {
@@ -99,6 +105,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
             array_symbol,
             filter_name,
             find_index_name,
+            some_name,
             length_name,
             options: NodeVisitorOptions::default(),
         }
@@ -160,6 +167,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
             return Some(ArraySomeMatch {
                 kind: ArraySomeKind::FilterLength,
                 check,
+                candidate_expression_id: candidate_id,
             });
         }
 
@@ -169,6 +177,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
             return Some(ArraySomeMatch {
                 kind: ArraySomeKind::FindIndex,
                 check,
+                candidate_expression_id: candidate_id,
             });
         }
 
@@ -197,20 +206,110 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
             ArraySomeCheck::NoMatch => "use !array.some(...) to check for no matches",
         };
 
-        // report the diagnostic
+        // build diagnostic and attach fix for findIndex rewrites
         let span = self.ctx.get_span(expression_id);
-        self.ctx.report(
-            LintDiagnostic::new(
-                PREFER_ARRAY_SOME.id,
-                PREFER_ARRAY_SOME.code,
-                PREFER_ARRAY_SOME.category,
-                severity,
-                format!("prefer some() over {target} comparison"),
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label(label),
-        );
+        let mut diagnostic = LintDiagnostic::new(
+            PREFER_ARRAY_SOME.id,
+            PREFER_ARRAY_SOME.code,
+            PREFER_ARRAY_SOME.category,
+            severity,
+            format!("prefer some() over {target} comparison"),
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label(label);
+        if match_info.kind == ArraySomeKind::FindIndex
+            && let Some(fix) = self.find_index_fix(expression_id, match_info)
+        {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
+    }
+
+    /// Build a safe fix from findIndex comparison to some.
+    fn find_index_fix(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        match_info: ArraySomeMatch,
+    ) -> Option<LintFix> {
+        let candidate_expression = self.ctx.tree.get(match_info.candidate_expression_id);
+        let dir::Expression::Call {
+            left,
+            static_arguments,
+            dynamic_arguments,
+        } = candidate_expression
+        else {
+            return None;
+        };
+        if static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty())
+        {
+            return None;
+        }
+        if dynamic_arguments.is_empty() || dynamic_arguments.len() > 2 {
+            return None;
+        }
+
+        // require positional callback and optional positional this-arg
+        for argument_id in dynamic_arguments {
+            let argument = self.ctx.tree.get(*argument_id);
+            if !matches!(argument, dir::Argument::Positional { .. }) {
+                return None;
+            }
+        }
+
+        // resolve `.findIndex` member expression
+        let member_expression = self.ctx.tree.get(*left);
+        let dir::Expression::Member {
+            name,
+            static_arguments,
+            ..
+        } = member_expression
+        else {
+            return None;
+        };
+        if *name != self.find_index_name {
+            return None;
+        }
+        if static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty())
+        {
+            return None;
+        }
+
+        // derive receiver text from member expression text
+        let member_span = self.ctx.get_span(*left);
+        let member_text = self.ctx.get_span_text(member_span);
+        let member_text = member_text.as_ref();
+        let receiver_text = strip_dot_member_suffix(member_text, "findIndex")?;
+
+        // preserve callback and optional this-arg source range
+        let first_argument_id = *dynamic_arguments.first()?;
+        let last_argument_id = *dynamic_arguments.last()?;
+        let first_span = self.ctx.get_span(first_argument_id);
+        let last_span = self.ctx.get_span(last_argument_id);
+        let arguments_span = Span::new(first_span.file, first_span.start, last_span.end);
+        let arguments_text = self.ctx.get_span_text(arguments_span);
+
+        let some_name = self.ctx.program.strings.get(self.some_name);
+        let some_call = format!("{receiver_text}.{}({arguments_text})", some_name.as_ref());
+        let replacement = match match_info.check {
+            ArraySomeCheck::AnyMatch => some_call,
+            ArraySomeCheck::NoMatch => format!("!{some_call}"),
+        };
+
+        // replace the full comparison expression
+        let expression_span = self.ctx.get_span(expression_id);
+        let edits = self
+            .ctx
+            .edit_builder()
+            .replace(expression_span, replacement)
+            .into_edits();
+
+        Some(LintFix::safe("Replace findIndex comparison with some()").with_edits(edits))
     }
 
     /// Return true when the expression is a filter().length chain on an array.
@@ -290,6 +389,12 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
 
         is_array_type(self.ctx.types, type_id, Some(self.array_symbol))
     }
+}
+
+/// Strip one `.member` suffix from a member expression text.
+fn strip_dot_member_suffix<'a>(text: &'a str, member: &str) -> Option<&'a str> {
+    let suffix = format!(".{member}");
+    text.strip_suffix(&suffix).map(str::trim_end)
 }
 
 impl NodeVisitor for PreferArraySomeVisitor<'_, '_> {
@@ -403,6 +508,66 @@ let has = items.findIndex(item => item > 1) !== -1;
 "#,
         );
         test.result(result).assert_lint("prefer-array-some");
+    }
+
+    /// Safely rewrite findIndex any-match checks.
+    #[test]
+    fn test_fix_find_index_any_match() {
+        let test = TestProgram::for_rule_with_prelude(PreferArraySome);
+        let result = test.lint_dir(
+            "prefer_array_some/test_fix_find_index_any_match.ds",
+            r#"
+let items = [1, 2, 3];
+let has = items.findIndex(item => item > 1) !== -1;
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-array-some")
+            .assert_has_fix("prefer-array-some")
+            .assert_safe_fixed(
+                r#"
+let items = [1, 2, 3];
+let has = items.some((item) => item > 1);
+"#,
+            );
+    }
+
+    /// Safely rewrite findIndex no-match checks.
+    #[test]
+    fn test_fix_find_index_no_match() {
+        let test = TestProgram::for_rule_with_prelude(PreferArraySome);
+        let result = test.lint_dir(
+            "prefer_array_some/test_fix_find_index_no_match.ds",
+            r#"
+let items = [1, 2, 3];
+let missing = items.findIndex(item => item > 5) === -1;
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-array-some")
+            .assert_has_fix("prefer-array-some")
+            .assert_safe_fixed(
+                r#"
+let items = [1, 2, 3];
+let missing = !items.some((item) => item > 5);
+"#,
+            );
+    }
+
+    /// Keep filter-length diagnostics without fix because some short-circuits.
+    #[test]
+    fn test_no_fix_filter_length_pattern() {
+        let test = TestProgram::for_rule_with_prelude(PreferArraySome);
+        let result = test.lint_dir(
+            "prefer_array_some/test_no_fix_filter_length_pattern.ds",
+            r#"
+let items = [1, 2, 3];
+let has = items.filter(item => item > 1).length > 0;
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-array-some")
+            .assert_has_no_fix("prefer-array-some");
     }
 
     /// Allow filter length comparisons that are not simple existence checks.

@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, BinaryOperator, Expression, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer inclusive range syntax where applicable.
@@ -28,7 +28,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Always,
         recommended = Strict,
         stability = Stable
     )]
@@ -48,7 +48,7 @@ impl LintRule for PreferInclusiveRange {
             // only check exclusive ranges
             let expression = ctx.tree.get(node_id);
             let Expression::RangeExpression {
-                start: _,
+                start,
                 end,
                 is_inclusive,
             } = expression
@@ -60,51 +60,92 @@ impl LintRule for PreferInclusiveRange {
             }
 
             // check for `+ 1` at the end
-            let end_expression = ctx.tree.get(*end);
-            if is_add_one(ctx, end_expression) {
-                let severity = ctx.get_effective_severity(meta, node_id);
-                if !severity.is_enabled() {
-                    continue;
-                }
+            let Some(end_without_one) = add_one_left_expression_id(ctx, *end) else {
+                continue;
+            };
 
-                ctx.report(
-                    LintDiagnostic::new(
-                        PREFER_INCLUSIVE_RANGE.id,
-                        PREFER_INCLUSIVE_RANGE.code,
-                        PREFER_INCLUSIVE_RANGE.category,
-                        severity,
-                        "use inclusive range `..=` instead of exclusive range with `+ 1`",
-                        ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
-                    )
-                    .with_label("replace `..x + 1` with `..=x`"),
-                );
+            let severity = ctx.get_effective_severity(meta, node_id);
+            if !severity.is_enabled() {
+                continue;
             }
+
+            // build a safe fix to convert `..x + 1` into `..=x`
+            let range_span = ctx.tree.get_span(node_id);
+            let start_span = ctx.tree.get_span(*start);
+            let end_without_one_span = ctx.tree.get_span(end_without_one);
+            let start_text = ctx.get_span_text(start_span);
+            let end_without_one_text = ctx.get_span_text(end_without_one_span);
+            let replacement = format!("{start_text}..={end_without_one_text}");
+            let edits = ctx
+                .edit_builder()
+                .replace(range_span, replacement)
+                .into_edits();
+            let fix = LintFix::safe("Replace exclusive range `..x + 1` with inclusive `..=x`")
+                .with_edits(edits);
+
+            ctx.report(
+                LintDiagnostic::new(
+                    PREFER_INCLUSIVE_RANGE.id,
+                    PREFER_INCLUSIVE_RANGE.code,
+                    PREFER_INCLUSIVE_RANGE.category,
+                    severity,
+                    "use inclusive range `..=` instead of exclusive range with `+ 1`",
+                    ctx.module.file_id,
+                    ctx.tree.get_span(node_id),
+                )
+                .with_label("replace `..x + 1` with `..=x`")
+                .with_fix(fix),
+            );
         }
     }
 }
 
-/// Check if the expression is an addition of 1.
-fn is_add_one(ctx: &LintModuleAstContext<'_>, expression: &Expression) -> bool {
+/// Return the left expression when the expression is `left + 1`.
+fn add_one_left_expression_id(
+    ctx: &LintModuleAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> Option<ast::LocalNodeId<ast::Expression>> {
+    let expression_id = unwrap_parenthesized_expression(ctx, expression_id);
+    let expression = ctx.tree.get(expression_id);
+
     let Expression::Binary {
         operator,
-        left: _,
+        left,
         right,
     } = expression
     else {
-        return false;
+        return None;
     };
 
     if *operator != BinaryOperator::Add {
-        return false;
+        return None;
     }
 
     // check if right side is 1
-    let right_expression = ctx.tree.get(*right);
-    matches!(
+    let right_id = unwrap_parenthesized_expression(ctx, *right);
+    let right_expression = ctx.tree.get(right_id);
+    if matches!(
         right_expression,
         Expression::ScalarLiteral(ScalarLiteral::Integer(1))
-    )
+    ) {
+        return Some(*left);
+    }
+
+    None
+}
+
+/// Unwrap one or more parenthesized expressions.
+fn unwrap_parenthesized_expression(
+    ctx: &LintModuleAstContext<'_>,
+    mut expression_id: ast::LocalNodeId<ast::Expression>,
+) -> ast::LocalNodeId<ast::Expression> {
+    loop {
+        let expression = ctx.tree.get(expression_id);
+        let Expression::Parenthesized { expression } = expression else {
+            return expression_id;
+        };
+        expression_id = *expression;
+    }
 }
 
 #[cfg(test)]
@@ -121,7 +162,14 @@ mod tests {
 const range = 0..n + 1
 "#,
         );
-        test.result(result).assert_lint("prefer-inclusive-range");
+        test.result(result)
+            .assert_lint("prefer-inclusive-range")
+            .assert_has_fix("prefer-inclusive-range")
+            .assert_safe_fixed(
+                r#"
+const range = 0..=n;
+"#,
+            );
     }
 
     #[test]
@@ -185,7 +233,37 @@ function foo(n: int32) {
 }
 "#,
         );
-        test.result(result).assert_lint("prefer-inclusive-range");
+        test.result(result)
+            .assert_lint("prefer-inclusive-range")
+            .assert_has_fix("prefer-inclusive-range")
+            .assert_safe_fixed(
+                r#"
+function foo(n: int32) {
+    for (const i of 0..=n) {
+        print(i)
+    }
+}
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_parenthesized_plus_one_endpoint() {
+        let test = TestProgram::for_rule_without_prelude(PreferInclusiveRange);
+        let result = test.lint_ast(
+            "prefer_inclusive_range/test_fix_parenthesized_plus_one_endpoint.ds",
+            r#"
+const range = 0..(n + 1)
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-inclusive-range")
+            .assert_has_fix("prefer-inclusive-range")
+            .assert_safe_fixed(
+                r#"
+const range = 0..=n;
+"#,
+            );
     }
 
     #[test]

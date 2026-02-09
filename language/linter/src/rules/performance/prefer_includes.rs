@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{const_i64, flip_binary_operator, is_array_type, is_string_type};
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `includes()` over `indexOf()` comparisons.
@@ -21,7 +21,7 @@ declare_lint! {
             RequireWellKnownSymbol(WellKnownSymbol::String),
         ],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -52,6 +52,37 @@ enum IncludesCheck {
     NoMatch,
 }
 
+/// The matched index method kind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum IncludesMethod {
+    /// The `indexOf` method.
+    IndexOf,
+    /// The `lastIndexOf` method.
+    LastIndexOf,
+}
+
+/// One normalized includes candidate call.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct IncludesCandidate {
+    /// The method kind.
+    method: IncludesMethod,
+    /// The member expression id.
+    call_member_id: dir::LocalNodeId<dir::Expression>,
+    /// The searched value expression id.
+    search_id: dir::LocalNodeId<dir::Expression>,
+    /// Optional from-index expression id.
+    from_index_id: Option<dir::LocalNodeId<dir::Expression>>,
+}
+
+/// One normalized includes match payload.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct IncludesMatch {
+    /// The comparison intent.
+    check: IncludesCheck,
+    /// The matched includes candidate.
+    candidate: IncludesCandidate,
+}
+
 /// Node visitor that flags prefer-includes patterns.
 struct PreferIncludesVisitor<'a, 'b> {
     /// The lint context.
@@ -66,6 +97,8 @@ struct PreferIncludesVisitor<'a, 'b> {
     index_of_name: StringId,
     /// The string id for the lastIndexOf method name.
     last_index_of_name: StringId,
+    /// The string id for the includes method name.
+    includes_name: StringId,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -77,6 +110,7 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
         let string_symbol = ctx.well_known_symbol(WellKnownSymbol::String);
         let index_of_name = ctx.program.strings.intern("indexOf");
         let last_index_of_name = ctx.program.strings.intern("lastIndexOf");
+        let includes_name = ctx.program.strings.intern("includes");
 
         Self {
             ctx,
@@ -85,6 +119,7 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
             string_symbol,
             index_of_name,
             last_index_of_name,
+            includes_name,
             options: NodeVisitorOptions::default(),
         }
     }
@@ -109,14 +144,14 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
         right: dir::LocalNodeId<dir::Expression>,
     ) {
         // match comparisons with the constant on the right
-        if let Some(check) = self.match_comparison(left, operator, right, false) {
-            self.report_match(expression_id, check);
+        if let Some(includes_match) = self.match_comparison(left, operator, right, false) {
+            self.report_match(expression_id, includes_match);
             return;
         }
 
         // match comparisons with the constant on the left
-        if let Some(check) = self.match_comparison(right, operator, left, true) {
-            self.report_match(expression_id, check);
+        if let Some(includes_match) = self.match_comparison(right, operator, left, true) {
+            self.report_match(expression_id, includes_match);
         }
     }
 
@@ -127,7 +162,7 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
         operator: dir::BinaryOperator,
         constant_id: dir::LocalNodeId<dir::Expression>,
         flipped: bool,
-    ) -> Option<IncludesCheck> {
+    ) -> Option<IncludesMatch> {
         // resolve constant comparisons
         let constant_value = self.ctx.const_value(constant_id)?;
         let constant = const_i64(&constant_value)?;
@@ -140,18 +175,22 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
         };
 
         // check for indexOf and lastIndexOf comparisons
-        if self.is_index_of_call(candidate_id) {
-            return check_index_of_comparison(operator, constant);
+        let candidate = self.index_call_candidate(candidate_id)?;
+        let check = check_index_of_comparison(operator, constant)?;
+
+        // only allow from-index forms that stay equivalent to includes
+        if !self.is_includes_equivalent(candidate) {
+            return None;
         }
 
-        None
+        Some(IncludesMatch { check, candidate })
     }
 
     /// Report a prefer-includes match.
     fn report_match(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        check: IncludesCheck,
+        includes_match: IncludesMatch,
     ) {
         // honor per node severity
         let severity = self.ctx.get_effective_severity(self.meta, expression_id);
@@ -160,54 +199,168 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
         }
 
         // build diagnostic text
-        let label = match check {
+        let label = match includes_match.check {
             IncludesCheck::AnyMatch => "use includes() to check for a match",
             IncludesCheck::NoMatch => "use !includes() to check for no matches",
         };
 
-        // report the diagnostic
+        // build diagnostic and attach fix when safe
         let span = self.ctx.get_span(expression_id);
-        self.ctx.report(
-            LintDiagnostic::new(
-                PREFER_INCLUDES.id,
-                PREFER_INCLUDES.code,
-                PREFER_INCLUDES.category,
-                severity,
-                "prefer includes() over indexOf() comparison",
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label(label),
-        );
+        let mut diagnostic = LintDiagnostic::new(
+            PREFER_INCLUDES.id,
+            PREFER_INCLUDES.code,
+            PREFER_INCLUDES.category,
+            severity,
+            "prefer includes() over indexOf() comparison",
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label(label);
+        if let Some(fix) = self.includes_fix(expression_id, includes_match) {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
     }
 
-    /// Return true when the expression is an indexOf or lastIndexOf call.
-    fn is_index_of_call(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
+    /// Parse one normalized index method call candidate.
+    fn index_call_candidate(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<IncludesCandidate> {
         // match call expression
         let expression = self.ctx.tree.get(expression_id);
         let dir::Expression::Call {
             left,
+            static_arguments,
             dynamic_arguments,
-            ..
         } = expression
         else {
-            return false;
+            return None;
         };
-        if dynamic_arguments.is_empty() {
-            return false;
+        if static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty())
+        {
+            return None;
+        }
+        if dynamic_arguments.is_empty() || dynamic_arguments.len() > 2 {
+            return None;
         }
 
         // match member access for indexOf or lastIndexOf
-        let member_expression = self.ctx.tree.get(*left);
-        let dir::Expression::Member { left, name, .. } = member_expression else {
-            return false;
+        let call_member_id = *left;
+        let member_expression = self.ctx.tree.get(call_member_id);
+        let dir::Expression::Member {
+            left: receiver_id,
+            name,
+            static_arguments,
+        } = member_expression
+        else {
+            return None;
         };
-        let is_index = *name == self.index_of_name || *name == self.last_index_of_name;
-        if !is_index {
-            return false;
+        if static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty())
+        {
+            return None;
+        }
+        let method = if *name == self.index_of_name {
+            IncludesMethod::IndexOf
+        } else if *name == self.last_index_of_name {
+            IncludesMethod::LastIndexOf
+        } else {
+            return None;
+        };
+
+        // require positional search argument
+        let first_argument = self.ctx.tree.get(dynamic_arguments[0]);
+        let dir::Argument::Positional {
+            value: search_id, ..
+        } = first_argument
+        else {
+            return None;
+        };
+
+        // optionally collect one positional from-index argument
+        let from_index_id = if dynamic_arguments.len() == 2 {
+            let second_argument = self.ctx.tree.get(dynamic_arguments[1]);
+            let dir::Argument::Positional { value, .. } = second_argument else {
+                return None;
+            };
+            Some(*value)
+        } else {
+            None
+        };
+
+        // ensure the receiver is supported
+        if !self.is_supported_receiver(*receiver_id) {
+            return None;
         }
 
-        self.is_supported_receiver(*left)
+        Some(IncludesCandidate {
+            method,
+            call_member_id,
+            search_id: *search_id,
+            from_index_id,
+        })
+    }
+
+    /// Return true when an index method candidate is equivalent to includes.
+    fn is_includes_equivalent(&mut self, candidate: IncludesCandidate) -> bool {
+        match candidate.method {
+            // `indexOf(search)` and `indexOf(search, 0)` are equivalent to includes
+            IncludesMethod::IndexOf => match candidate.from_index_id {
+                None => true,
+                Some(from_index_id) => self.is_zero_constant(from_index_id),
+            },
+            // `lastIndexOf` is only equivalent without from-index
+            IncludesMethod::LastIndexOf => candidate.from_index_id.is_none(),
+        }
+    }
+
+    /// Build a safe fix from one index comparison to includes.
+    fn includes_fix(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        includes_match: IncludesMatch,
+    ) -> Option<LintFix> {
+        // derive receiver text from member expression text
+        let member_span = self.ctx.get_span(includes_match.candidate.call_member_id);
+        let member_text = self.ctx.get_span_text(member_span);
+        let member_text = member_text.as_ref();
+        let receiver_text = match includes_match.candidate.method {
+            IncludesMethod::IndexOf => strip_dot_member_suffix(member_text, "indexOf")?,
+            IncludesMethod::LastIndexOf => strip_dot_member_suffix(member_text, "lastIndexOf")?,
+        };
+
+        // preserve search argument source text
+        let search_span = self.ctx.get_span(includes_match.candidate.search_id);
+        let search_text = self.ctx.get_span_text(search_span);
+        let includes_name = self.ctx.program.strings.get(self.includes_name);
+        let includes_call = format!("{receiver_text}.{}({search_text})", includes_name.as_ref());
+        let replacement = match includes_match.check {
+            IncludesCheck::AnyMatch => includes_call,
+            IncludesCheck::NoMatch => format!("!{includes_call}"),
+        };
+
+        // replace the full comparison expression
+        let expression_span = self.ctx.get_span(expression_id);
+        let edits = self
+            .ctx
+            .edit_builder()
+            .replace(expression_span, replacement)
+            .into_edits();
+
+        Some(LintFix::safe("Replace indexOf comparison with includes()").with_edits(edits))
+    }
+
+    /// Return true when an expression resolves to the constant value zero.
+    fn is_zero_constant(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
+        let Some(constant_value) = self.ctx.const_value(expression_id) else {
+            return false;
+        };
+        const_i64(&constant_value) == Some(0)
     }
 
     /// Return true when the receiver expression is an array or string type.
@@ -224,6 +377,12 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
 
         is_string_type(self.ctx.types, type_id, Some(self.string_symbol))
     }
+}
+
+/// Strip one `.member` suffix from a member expression text.
+fn strip_dot_member_suffix<'a>(text: &'a str, member: &str) -> Option<&'a str> {
+    let suffix = format!(".{member}");
+    text.strip_suffix(&suffix).map(str::trim_end)
 }
 
 impl NodeVisitor for PreferIncludesVisitor<'_, '_> {
@@ -314,6 +473,100 @@ let has = text.indexOf("lo") != -1;
             r#"
 let items = [1, 2, 3];
 let first = items.indexOf(2) === 0;
+"#,
+        );
+        test.result(result).assert_no_lint("prefer-includes");
+    }
+
+    /// Safely rewrite indexOf any-match checks.
+    #[test]
+    fn test_fix_index_of_any_match() {
+        let test = TestProgram::for_rule_without_prelude(PreferIncludes);
+        let result = test.lint_dir(
+            "prefer_includes/test_fix_index_of_any_match.ds",
+            r#"
+let items = [1, 2, 3];
+let has = items.indexOf(2) !== -1;
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-includes")
+            .assert_has_fix("prefer-includes")
+            .assert_safe_fixed(
+                r#"
+let items = [1, 2, 3];
+let has = items.includes(2);
+"#,
+            );
+    }
+
+    /// Safely rewrite indexOf no-match checks.
+    #[test]
+    fn test_fix_index_of_no_match() {
+        let test = TestProgram::for_rule_without_prelude(PreferIncludes);
+        let result = test.lint_dir(
+            "prefer_includes/test_fix_index_of_no_match.ds",
+            r#"
+let items = [1, 2, 3];
+let missing = items.indexOf(5) === -1;
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-includes")
+            .assert_has_fix("prefer-includes")
+            .assert_safe_fixed(
+                r#"
+let items = [1, 2, 3];
+let missing = !items.includes(5);
+"#,
+            );
+    }
+
+    /// Safely rewrite lastIndexOf any-match checks without from-index.
+    #[test]
+    fn test_fix_last_index_of_any_match() {
+        let test = TestProgram::for_rule_without_prelude(PreferIncludes);
+        let result = test.lint_dir(
+            "prefer_includes/test_fix_last_index_of_any_match.ds",
+            r#"
+let items = [1, 2, 3];
+let has = items.lastIndexOf(2) >= 0;
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-includes")
+            .assert_has_fix("prefer-includes")
+            .assert_safe_fixed(
+                r#"
+let items = [1, 2, 3];
+let has = items.includes(2);
+"#,
+            );
+    }
+
+    /// Allow indexOf checks with non-zero from-index.
+    #[test]
+    fn test_allows_index_of_non_zero_from_index() {
+        let test = TestProgram::for_rule_without_prelude(PreferIncludes);
+        let result = test.lint_dir(
+            "prefer_includes/test_allows_index_of_non_zero_from_index.ds",
+            r#"
+let items = [1, 2, 3];
+let has = items.indexOf(2, 1) !== -1;
+"#,
+        );
+        test.result(result).assert_no_lint("prefer-includes");
+    }
+
+    /// Allow lastIndexOf checks with explicit from-index.
+    #[test]
+    fn test_allows_last_index_of_with_from_index() {
+        let test = TestProgram::for_rule_without_prelude(PreferIncludes);
+        let result = test.lint_dir(
+            "prefer_includes/test_allows_last_index_of_with_from_index.ds",
+            r#"
+let items = [1, 2, 3];
+let has = items.lastIndexOf(2, 0) !== -1;
 "#,
         );
         test.result(result).assert_no_lint("prefer-includes");

@@ -7,7 +7,7 @@ use crate::rules::common::{
     expression_is_global_qualified_member, expression_target_symbol,
     expression_unwrap_parenthesized,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer object spread over `Object.assign()`.
@@ -20,7 +20,7 @@ declare_lint! {
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Object)],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -95,6 +95,7 @@ impl<'a, 'b> PreferObjectSpreadVisitor<'a, 'b> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         left: dir::LocalNodeId<dir::Expression>,
+        static_arguments: Option<&[dir::LocalNodeId<dir::Argument>]>,
         dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
     ) {
         // ignore non object assign calls
@@ -121,20 +122,86 @@ impl<'a, 'b> PreferObjectSpreadVisitor<'a, 'b> {
             return;
         }
 
-        // report the diagnostic
+        // report the diagnostic and attach fix when safe
         let span = self.ctx.get_span(expression_id);
-        self.ctx.report(
-            LintDiagnostic::new(
-                PREFER_OBJECT_SPREAD.id,
-                PREFER_OBJECT_SPREAD.code,
-                PREFER_OBJECT_SPREAD.category,
-                severity,
-                "prefer object spread over Object.assign()",
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label("use { ...value } instead of Object.assign"),
-        );
+        let mut diagnostic = LintDiagnostic::new(
+            PREFER_OBJECT_SPREAD.id,
+            PREFER_OBJECT_SPREAD.code,
+            PREFER_OBJECT_SPREAD.category,
+            severity,
+            "prefer object spread over Object.assign()",
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label("use { ...value } instead of Object.assign");
+        if let Some(fix) =
+            self.object_spread_fix(expression_id, left, static_arguments, dynamic_arguments)
+        {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
+    }
+
+    /// Build a safe fix from Object.assign({}, ...) to object spread.
+    fn object_spread_fix(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        member_id: dir::LocalNodeId<dir::Expression>,
+        static_arguments: Option<&[dir::LocalNodeId<dir::Argument>]>,
+        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+    ) -> Option<LintFix> {
+        // skip static call arguments until static argument rendering is supported
+        if static_arguments.is_some_and(|arguments| !arguments.is_empty()) {
+            return None;
+        }
+
+        // skip static member arguments for Object.assign<T>(...)
+        let member_expression = self.ctx.tree.get(member_id);
+        let dir::Expression::Member {
+            static_arguments, ..
+        } = member_expression
+        else {
+            return None;
+        };
+        if static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty())
+        {
+            return None;
+        }
+
+        // require at least one source argument after the empty target literal
+        if dynamic_arguments.len() < 2 {
+            return None;
+        }
+
+        // build spread entries from positional arguments only
+        let mut spread_entries = Vec::new();
+        for argument_id in dynamic_arguments.iter().skip(1) {
+            let argument = self.ctx.tree.get(*argument_id);
+            let dir::Argument::Positional { value, .. } = argument else {
+                return None;
+            };
+
+            let value_span = self.ctx.get_span(*value);
+            let value_text = self.ctx.get_span_text(value_span);
+            spread_entries.push(format!("...{value_text}"));
+        }
+        if spread_entries.is_empty() {
+            return None;
+        }
+
+        // replace the full call with an object spread literal
+        let replacement = format!("{{ {} }}", spread_entries.join(", "));
+        let expression_span = self.ctx.get_span(expression_id);
+        let edits = self
+            .ctx
+            .edit_builder()
+            .replace(expression_span, replacement)
+            .into_edits();
+
+        Some(LintFix::safe("Replace Object.assign() with object spread").with_edits(edits))
     }
 
     /// Return the receiver expression for Object.assign calls.
@@ -206,11 +273,12 @@ impl NodeVisitor for PreferObjectSpreadVisitor<'_, '_> {
         // check Object.assign calls
         if let dir::Expression::Call {
             left,
+            static_arguments,
             dynamic_arguments,
             ..
         } = expression
         {
-            self.check_assign_call(id, *left, dynamic_arguments);
+            self.check_assign_call(id, *left, static_arguments.as_deref(), dynamic_arguments);
         }
 
         // walk expression children
@@ -233,7 +301,15 @@ let base = { a: 1 };
 let merged = Object.assign({}, base);
 "#,
         );
-        test.result(result).assert_lint("prefer-object-spread");
+        test.result(result)
+            .assert_lint("prefer-object-spread")
+            .assert_has_fix("prefer-object-spread")
+            .assert_safe_fixed(
+                r#"
+let base = { a: 1 };
+let merged = { ...base };
+"#,
+            );
     }
 
     /// Report global Object.assign with empty object.
@@ -247,7 +323,56 @@ let base = { a: 1 };
 let merged = globalThis.Object.assign({}, base);
 "#,
         );
-        test.result(result).assert_lint("prefer-object-spread");
+        test.result(result)
+            .assert_lint("prefer-object-spread")
+            .assert_has_fix("prefer-object-spread")
+            .assert_safe_fixed(
+                r#"
+let base = { a: 1 };
+let merged = { ...base };
+"#,
+            );
+    }
+
+    /// Fix Object.assign with multiple source values.
+    #[test]
+    fn test_fix_object_assign_with_multiple_sources() {
+        let test = TestProgram::for_rule_with_prelude(PreferObjectSpread);
+        let result = test.lint_dir(
+            "prefer_object_spread/test_fix_object_assign_with_multiple_sources.ds",
+            r#"
+let base = { a: 1 };
+let extra = { b: 2 };
+let merged = Object.assign({}, base, extra);
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-object-spread")
+            .assert_has_fix("prefer-object-spread")
+            .assert_safe_fixed(
+                r#"
+let base = { a: 1 };
+let extra = { b: 2 };
+let merged = { ...base, ...extra };
+"#,
+            );
+    }
+
+    /// Keep lint without fix when call arguments include spread.
+    #[test]
+    fn test_no_fix_for_spread_argument_call() {
+        let test = TestProgram::for_rule_with_prelude(PreferObjectSpread);
+        let result = test.lint_dir(
+            "prefer_object_spread/test_no_fix_for_spread_argument_call.ds",
+            r#"
+let base = { a: 1 };
+let sources = [base];
+let merged = Object.assign({}, ...sources);
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-object-spread")
+            .assert_has_no_fix("prefer-object-spread");
     }
 
     #[test]

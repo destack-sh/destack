@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{const_i64, expression_is_global_qualified_member};
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer numeric literals over `parseInt()`.
@@ -18,7 +18,7 @@ declare_lint! {
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Number)],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -83,6 +83,7 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
         let expression = self.ctx.tree.get(expression_id);
         let dir::Expression::Call {
             left,
+            static_arguments,
             dynamic_arguments,
             ..
         } = expression
@@ -110,15 +111,12 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
         let string_arg = self.ctx.tree.get(dynamic_arguments[0]);
         let string_expr_id = string_arg.value();
         let string_expr = self.ctx.tree.get(string_expr_id);
-        let is_string_literal = matches!(
-            string_expr,
-            dir::Expression::ScalarLiteral {
-                value: dir::ScalarLiteral::String(_)
-            }
-        );
-        if !is_string_literal {
+        let dir::Expression::ScalarLiteral {
+            value: dir::ScalarLiteral::String(string_value),
+        } = string_expr
+        else {
             return;
-        }
+        };
 
         // check if radix is a constant 2, 8, or 16
         let radix_arg = self.ctx.tree.get(dynamic_arguments[1]);
@@ -144,20 +142,73 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
             return;
         }
 
-        // report the diagnostic
+        // report the diagnostic and attach fix when safe
         let span = self.ctx.get_span(expression_id);
-        self.ctx.report(
-            LintDiagnostic::new(
-                PREFER_NUMERIC_LITERALS.id,
-                PREFER_NUMERIC_LITERALS.code,
-                PREFER_NUMERIC_LITERALS.category,
-                severity,
-                format!("prefer {prefix} literal over parseInt"),
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label(format!("use a {prefix} numeric literal instead")),
-        );
+        let mut diagnostic = LintDiagnostic::new(
+            PREFER_NUMERIC_LITERALS.id,
+            PREFER_NUMERIC_LITERALS.code,
+            PREFER_NUMERIC_LITERALS.category,
+            severity,
+            format!("prefer {prefix} literal over parseInt"),
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label(format!("use a {prefix} numeric literal instead"));
+        if let Some(fix) = self.numeric_literal_fix(
+            expression_id,
+            static_arguments.as_deref(),
+            dynamic_arguments.as_slice(),
+            *string_value,
+            radix,
+            prefix,
+        ) {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
+    }
+
+    /// Build a safe fix from Number.parseInt() to a numeric literal.
+    fn numeric_literal_fix(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        static_arguments: Option<&[dir::LocalNodeId<dir::Argument>]>,
+        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+        string_value: StringId,
+        radix: i64,
+        prefix: &str,
+    ) -> Option<LintFix> {
+        // skip static call arguments until static argument rendering is supported
+        if static_arguments.is_some_and(|arguments| !arguments.is_empty()) {
+            return None;
+        }
+
+        // require both call arguments to be positional
+        if dynamic_arguments.len() != 2 {
+            return None;
+        }
+        for argument_id in dynamic_arguments {
+            let argument = self.ctx.tree.get(*argument_id);
+            if !matches!(argument, dir::Argument::Positional { .. }) {
+                return None;
+            }
+        }
+
+        // only fix when the full string maps to one literal value with no partial parse behavior
+        let value = self.ctx.program.strings.get(string_value);
+        let Some(replacement) = preferred_numeric_literal(value.as_ref(), radix, prefix) else {
+            return None;
+        };
+
+        // replace the full parseInt expression
+        let expression_span = self.ctx.get_span(expression_id);
+        let edits = self
+            .ctx
+            .edit_builder()
+            .replace(expression_span, replacement)
+            .into_edits();
+
+        Some(LintFix::safe("Replace parseInt call with numeric literal").with_edits(edits))
     }
 }
 
@@ -182,6 +233,65 @@ impl NodeVisitor for PreferNumericLiteralsVisitor<'_, '_> {
     }
 }
 
+/// Build a numeric literal replacement for a parseInt string when it is fully representable.
+fn preferred_numeric_literal(value: &str, radix: i64, prefix: &str) -> Option<String> {
+    // allow one optional sign at the front
+    let (sign, digits) = if let Some(rest) = value.strip_prefix('+') {
+        ('+', rest)
+    } else if let Some(rest) = value.strip_prefix('-') {
+        ('-', rest)
+    } else {
+        ('\0', value)
+    };
+    if digits.is_empty() {
+        return None;
+    }
+
+    // avoid radix-prefixed strings that parseInt may treat specially
+    if has_radix_prefix(digits, radix) {
+        return None;
+    }
+
+    // require all digits to match the declared radix
+    if !digits
+        .chars()
+        .all(|character| is_valid_radix_digit(character, radix))
+    {
+        return None;
+    }
+
+    // build the replacement literal with preserved sign
+    let literal = format!("{prefix}{digits}");
+    if sign == '-' {
+        return Some(format!("-{literal}"));
+    }
+    if sign == '+' {
+        return Some(format!("+{literal}"));
+    }
+
+    Some(literal)
+}
+
+/// Return true when a string starts with a radix prefix that could alter parseInt behavior.
+fn has_radix_prefix(value: &str, radix: i64) -> bool {
+    match radix {
+        2 => value.starts_with("0b") || value.starts_with("0B"),
+        8 => value.starts_with("0o") || value.starts_with("0O"),
+        16 => value.starts_with("0x") || value.starts_with("0X"),
+        _ => false,
+    }
+}
+
+/// Return true when a character is a valid digit for the radix.
+fn is_valid_radix_digit(character: char, radix: i64) -> bool {
+    match radix {
+        2 => matches!(character, '0' | '1'),
+        8 => matches!(character, '0'..='7'),
+        16 => character.is_ascii_hexdigit(),
+        _ => false,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -197,7 +307,14 @@ mod tests {
 let hex = Number.parseInt("FF", 16);
 "#,
         );
-        test.result(result).assert_lint("prefer-numeric-literals");
+        test.result(result)
+            .assert_lint("prefer-numeric-literals")
+            .assert_has_fix("prefer-numeric-literals")
+            .assert_safe_fixed(
+                r#"
+let hex = 0xFF;
+"#,
+            );
     }
 
     /// Flag Number.parseInt with binary radix.
@@ -210,7 +327,14 @@ let hex = Number.parseInt("FF", 16);
 let bin = Number.parseInt("1010", 2);
 "#,
         );
-        test.result(result).assert_lint("prefer-numeric-literals");
+        test.result(result)
+            .assert_lint("prefer-numeric-literals")
+            .assert_has_fix("prefer-numeric-literals")
+            .assert_safe_fixed(
+                r#"
+let bin = 0b1010;
+"#,
+            );
     }
 
     /// Flag Number.parseInt with octal radix.
@@ -223,7 +347,64 @@ let bin = Number.parseInt("1010", 2);
 let oct = Number.parseInt("777", 8);
 "#,
         );
-        test.result(result).assert_lint("prefer-numeric-literals");
+        test.result(result)
+            .assert_lint("prefer-numeric-literals")
+            .assert_has_fix("prefer-numeric-literals")
+            .assert_safe_fixed(
+                r#"
+let oct = 0o777;
+"#,
+            );
+    }
+
+    /// Fix Number.parseInt with a signed literal.
+    #[test]
+    fn test_fix_parseint_negative_hex() {
+        let test = TestProgram::for_rule_with_prelude(PreferNumericLiterals);
+        let result = test.lint_dir(
+            "prefer_numeric_literals/test_fix_parseint_negative_hex.ds",
+            r#"
+let value = Number.parseInt("-ff", 16);
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-numeric-literals")
+            .assert_has_fix("prefer-numeric-literals")
+            .assert_safe_fixed(
+                r#"
+let value = -0xFF;
+"#,
+            );
+    }
+
+    /// Keep lint without fix when parseInt would rely on partial parsing.
+    #[test]
+    fn test_no_fix_for_invalid_radix_digit() {
+        let test = TestProgram::for_rule_with_prelude(PreferNumericLiterals);
+        let result = test.lint_dir(
+            "prefer_numeric_literals/test_no_fix_for_invalid_radix_digit.ds",
+            r#"
+let value = Number.parseInt("102", 2);
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-numeric-literals")
+            .assert_has_no_fix("prefer-numeric-literals");
+    }
+
+    /// Keep lint without fix when the literal string includes a radix prefix.
+    #[test]
+    fn test_no_fix_for_prefixed_hex_string() {
+        let test = TestProgram::for_rule_with_prelude(PreferNumericLiterals);
+        let result = test.lint_dir(
+            "prefer_numeric_literals/test_no_fix_for_prefixed_hex_string.ds",
+            r#"
+let value = Number.parseInt("0xFF", 16);
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-numeric-literals")
+            .assert_has_no_fix("prefer-numeric-literals");
     }
 
     /// Allow Number.parseInt with radix 10.

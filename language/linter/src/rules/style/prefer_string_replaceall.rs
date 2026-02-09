@@ -1,10 +1,11 @@
 use destack_base::StringId;
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
+use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{expression_unwrap_parenthesized, is_string_type};
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `replaceAll()` over `replace()` with a global regex.
@@ -17,7 +18,7 @@ declare_lint! {
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::String)],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -49,6 +50,8 @@ struct PreferStringReplaceAllVisitor<'a, 'b> {
     string_symbol: dir::GlobalSymbolId,
     /// The string id for the replace method name.
     replace_name: StringId,
+    /// The string id for the replaceAll method name.
+    replace_all_name: StringId,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -58,12 +61,14 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let string_symbol = ctx.well_known_symbol(WellKnownSymbol::String);
         let replace_name = ctx.program.strings.intern("replace");
+        let replace_all_name = ctx.program.strings.intern("replaceAll");
 
         Self {
             ctx,
             meta,
             string_symbol,
             replace_name,
+            replace_all_name,
             options: NodeVisitorOptions::default(),
         }
     }
@@ -84,14 +89,31 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         left: dir::LocalNodeId<dir::Expression>,
+        static_arguments: Option<&[dir::LocalNodeId<dir::Argument>]>,
         dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
     ) {
+        // skip static arguments until we support rendering them
+        if static_arguments.is_some_and(|arguments| !arguments.is_empty()) {
+            return;
+        }
+
         // match member access for replace
         let member_expression = self.ctx.tree.get(left);
-        let dir::Expression::Member { left, name, .. } = member_expression else {
+        let dir::Expression::Member {
+            left,
+            name,
+            static_arguments,
+        } = member_expression
+        else {
             return;
         };
         if *name != self.replace_name {
+            return;
+        }
+        if static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty())
+        {
             return;
         }
 
@@ -116,20 +138,63 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
             return;
         }
 
-        // report the diagnostic
+        // build diagnostic and attach fix when safe
         let span = self.ctx.get_span(expression_id);
-        self.ctx.report(
-            LintDiagnostic::new(
-                PREFER_STRING_REPLACE_ALL.id,
-                PREFER_STRING_REPLACE_ALL.code,
-                PREFER_STRING_REPLACE_ALL.category,
-                severity,
-                "prefer replaceAll() over replace() with a global regex",
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label("use replaceAll() for global replacements"),
+        let mut diagnostic = LintDiagnostic::new(
+            PREFER_STRING_REPLACE_ALL.id,
+            PREFER_STRING_REPLACE_ALL.code,
+            PREFER_STRING_REPLACE_ALL.category,
+            severity,
+            "prefer replaceAll() over replace() with a global regex",
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label("use replaceAll() for global replacements");
+        if let Some(fix) = self.replace_all_fix(expression_id, *left, dynamic_arguments) {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
+    }
+
+    /// Build a safe fix from replace with global regex to replaceAll.
+    fn replace_all_fix(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        member_id: dir::LocalNodeId<dir::Expression>,
+        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+    ) -> Option<LintFix> {
+        // require at least one dynamic argument
+        let first_argument_id = *dynamic_arguments.first()?;
+        let last_argument_id = *dynamic_arguments.last()?;
+
+        // derive receiver text from member expression text
+        let member_span = self.ctx.get_span(member_id);
+        let member_text = self.ctx.get_span_text(member_span);
+        let member_text = member_text.as_ref();
+        let receiver_text = strip_dot_member_suffix(member_text, "replace")?;
+
+        // preserve full argument source range
+        let first_span = self.ctx.get_span(first_argument_id);
+        let last_span = self.ctx.get_span(last_argument_id);
+        let arguments_span = Span::new(first_span.file, first_span.start, last_span.end);
+        let arguments_text = self.ctx.get_span_text(arguments_span);
+
+        let replace_all_name = self.ctx.program.strings.get(self.replace_all_name);
+        let replacement = format!(
+            "{receiver_text}.{}({arguments_text})",
+            replace_all_name.as_ref()
         );
+
+        // replace the full call expression
+        let expression_span = self.ctx.get_span(expression_id);
+        let edits = self
+            .ctx
+            .edit_builder()
+            .replace(expression_span, replacement)
+            .into_edits();
+
+        Some(LintFix::safe("Replace replace() with replaceAll()").with_edits(edits))
     }
 
     /// Return true when the receiver expression is a string type.
@@ -179,16 +244,22 @@ impl NodeVisitor for PreferStringReplaceAllVisitor<'_, '_> {
         // check replace calls
         if let dir::Expression::Call {
             left,
+            static_arguments,
             dynamic_arguments,
-            ..
         } = expression
         {
-            self.check_replace_call(id, *left, dynamic_arguments);
+            self.check_replace_call(id, *left, static_arguments.as_deref(), dynamic_arguments);
         }
 
         // walk expression children
         walk_expression(self, tree, id, expression);
     }
+}
+
+/// Strip one `.member` suffix from a member expression text.
+fn strip_dot_member_suffix<'a>(text: &'a str, member: &str) -> Option<&'a str> {
+    let suffix = format!(".{member}");
+    text.strip_suffix(&suffix).map(str::trim_end)
 }
 
 #[cfg(test)]
@@ -221,5 +292,49 @@ let next = text.replace(/l/, "x");
         );
         test.result(result)
             .assert_no_lint("prefer-string-replaceall");
+    }
+
+    #[test]
+    fn test_fix_global_regex_replace() {
+        let test = TestProgram::for_rule_without_prelude(PreferStringReplaceAll);
+        let result = test.lint_dir(
+            "prefer_string_replaceall/test_fix_global_regex_replace.ds",
+            r#"
+let text = "hello";
+let next = text.replace(/l/g, "x");
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-string-replaceall")
+            .assert_has_fix("prefer-string-replaceall")
+            .assert_safe_fixed(
+                r#"
+let text = "hello";
+let next = text.replaceAll(/l/g, 'x');
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_global_regex_replace_with_multiline_arguments() {
+        let test = TestProgram::for_rule_without_prelude(PreferStringReplaceAll);
+        let result = test.lint_dir(
+            "prefer_string_replaceall/test_fix_global_regex_replace_with_multiline_arguments.ds",
+            r#"
+let text = "hello";
+let next = text.replace(/l/g,
+    "x"
+);
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-string-replaceall")
+            .assert_has_fix("prefer-string-replaceall")
+            .assert_safe_fixed(
+                r#"
+let text = "hello";
+let next = text.replaceAll(/l/g, 'x');
+"#,
+            );
     }
 }

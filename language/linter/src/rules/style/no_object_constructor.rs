@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{expression_is_global_qualified_member, expression_target_symbol};
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow using the Object constructor.
@@ -18,7 +18,7 @@ declare_lint! {
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Object)],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -88,11 +88,10 @@ impl<'a, 'b> ObjectConstructorVisitor<'a, 'b> {
     fn check_object_constructor(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        left: dir::LocalNodeId<dir::Expression>,
-        kind: &'static str,
+        constructor_call: ObjectConstructorCall<'_>,
     ) {
         // ignore non object references
-        if !self.is_object_reference(left) {
+        if !self.is_object_reference(constructor_call.left) {
             return;
         }
 
@@ -102,20 +101,56 @@ impl<'a, 'b> ObjectConstructorVisitor<'a, 'b> {
             return;
         }
 
-        // report the diagnostic
+        // build diagnostic and attach fix when safe
         let span = self.ctx.get_span(expression_id);
-        self.ctx.report(
-            LintDiagnostic::new(
-                NO_OBJECT_CONSTRUCTOR.id,
-                NO_OBJECT_CONSTRUCTOR.code,
-                NO_OBJECT_CONSTRUCTOR.category,
-                severity,
-                "avoid using the Object constructor",
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label(format!("replace this {kind} with an object literal")),
-        );
+        let mut diagnostic = LintDiagnostic::new(
+            NO_OBJECT_CONSTRUCTOR.id,
+            NO_OBJECT_CONSTRUCTOR.code,
+            NO_OBJECT_CONSTRUCTOR.category,
+            severity,
+            "avoid using the Object constructor",
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label(format!(
+            "replace this {} with an object literal",
+            constructor_call.kind
+        ));
+        if let Some(fix) = self.object_constructor_fix(expression_id, constructor_call) {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
+    }
+
+    /// Build a safe fix from a no argument Object constructor call.
+    fn object_constructor_fix(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        constructor_call: ObjectConstructorCall<'_>,
+    ) -> Option<LintFix> {
+        // skip static arguments until we support rendering them
+        if constructor_call
+            .static_arguments
+            .is_some_and(|arguments| !arguments.is_empty())
+        {
+            return None;
+        }
+
+        // only fix no argument calls: `Object(value)` has different semantics
+        if !constructor_call.dynamic_arguments.is_empty() {
+            return None;
+        }
+
+        // replace the full constructor expression
+        let expression_span = self.ctx.get_span(expression_id);
+        let edits = self
+            .ctx
+            .edit_builder()
+            .replace(expression_span, "({})")
+            .into_edits();
+
+        Some(LintFix::safe("Replace Object constructor with object literal").with_edits(edits))
     }
 
     /// Return true when the expression is a reference to Object.
@@ -147,8 +182,8 @@ impl NodeVisitor for ObjectConstructorVisitor<'_, '_> {
         expression: &dir::Expression,
     ) {
         // check for object constructor calls
-        if let Some((kind, left)) = object_constructor_reference(expression) {
-            self.check_object_constructor(id, left, kind);
+        if let Some(constructor_call) = object_constructor_reference(expression) {
+            self.check_object_constructor(id, constructor_call);
         }
 
         // walk expression children
@@ -157,15 +192,44 @@ impl NodeVisitor for ObjectConstructorVisitor<'_, '_> {
 }
 
 /// Identify Object constructor call forms.
-fn object_constructor_reference(
-    expression: &dir::Expression,
-) -> Option<(&'static str, dir::LocalNodeId<dir::Expression>)> {
+fn object_constructor_reference(expression: &dir::Expression) -> Option<ObjectConstructorCall<'_>> {
     // match call and constructor expressions
     match expression {
-        dir::Expression::Call { left, .. } => Some(("call", *left)),
-        dir::Expression::New { left, .. } => Some(("constructor", *left)),
+        dir::Expression::Call {
+            left,
+            static_arguments,
+            dynamic_arguments,
+        } => Some(ObjectConstructorCall {
+            kind: "call",
+            left: *left,
+            static_arguments: static_arguments.as_deref(),
+            dynamic_arguments,
+        }),
+        dir::Expression::New {
+            left,
+            static_arguments,
+            dynamic_arguments,
+        } => Some(ObjectConstructorCall {
+            kind: "constructor",
+            left: *left,
+            static_arguments: static_arguments.as_deref(),
+            dynamic_arguments,
+        }),
         _ => None,
     }
+}
+
+/// Constructor call data normalized across call and new expressions.
+#[derive(Clone, Copy)]
+struct ObjectConstructorCall<'a> {
+    /// The call form used for diagnostics.
+    kind: &'static str,
+    /// The constructor reference expression.
+    left: dir::LocalNodeId<dir::Expression>,
+    /// Optional static arguments.
+    static_arguments: Option<&'a [dir::LocalNodeId<dir::Argument>]>,
+    /// Dynamic arguments.
+    dynamic_arguments: &'a [dir::LocalNodeId<dir::Argument>],
 }
 
 #[cfg(test)]
@@ -220,5 +284,57 @@ let value = { key: "value" };
 "#,
         );
         test.result(result).assert_no_lint("no-object-constructor");
+    }
+
+    #[test]
+    fn test_fix_object_constructor_call() {
+        let test = TestProgram::for_rule_with_prelude(NoObjectConstructor);
+        let result = test.lint_dir(
+            "no_object_constructor/test_fix_object_constructor_call.ds",
+            r#"
+let value = Object();
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-object-constructor")
+            .assert_has_fix("no-object-constructor")
+            .assert_safe_fixed(
+                r#"
+let value = ({});
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_object_constructor_new() {
+        let test = TestProgram::for_rule_with_prelude(NoObjectConstructor);
+        let result = test.lint_dir(
+            "no_object_constructor/test_fix_object_constructor_new.ds",
+            r#"
+let value = new Object();
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-object-constructor")
+            .assert_has_fix("no-object-constructor")
+            .assert_safe_fixed(
+                r#"
+let value = ({});
+"#,
+            );
+    }
+
+    #[test]
+    fn test_no_fix_object_constructor_with_argument() {
+        let test = TestProgram::for_rule_with_prelude(NoObjectConstructor);
+        let result = test.lint_dir(
+            "no_object_constructor/test_no_fix_object_constructor_with_argument.ds",
+            r#"
+let value = Object(input);
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-object-constructor")
+            .assert_has_no_fix("no-object-constructor");
     }
 }
