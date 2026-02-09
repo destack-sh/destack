@@ -289,9 +289,11 @@ let elem = <Fragment><Child /></Fragment>;
             .assert_lint("prefer-fragment-shorthand")
             .assert_safe_fixed(
                 r#"
-let elem = <>
-    <Child />
-</>;
+let elem = (
+    <>
+        <Child />
+    </>
+);
 "#,
             );
     }

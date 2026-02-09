@@ -942,6 +942,7 @@ fn primary_declaration_initializer(
             let member = tree.get(declaration_id.into_local_typed::<dir::Member>());
             match member {
                 dir::Member::Field { value, default, .. } => value.or(*default),
+                dir::Member::ComptimeConst { value, .. } => *value,
                 dir::Member::Method { .. }
                 | dir::Member::Type { .. }
                 | dir::Member::Embed { .. }

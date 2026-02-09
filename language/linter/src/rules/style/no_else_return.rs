@@ -205,9 +205,9 @@ function foo(x: bool): int32 {
                 r#"
 function foo(x: bool): int32 {
     if (x) {
-        return 1
+        return 1;
     }
-    return 2
+    return 2;
 }
 "#,
             );

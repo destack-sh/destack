@@ -297,7 +297,8 @@ if (x === -0) {}
             .assert_safe_fixed(
                 r#"
 let x = 0;
-if (Object.is(x, -0)) { }
+if (Object.is(x, -0)) {
+}
 "#,
             );
     }
@@ -317,7 +318,8 @@ if (x !== -0) {}
             .assert_safe_fixed(
                 r#"
 let x = 0;
-if (!Object.is(x, -0)) { }
+if (!Object.is(x, -0)) {
+}
 "#,
             );
     }
@@ -337,7 +339,8 @@ if (-0 === x) {}
             .assert_safe_fixed(
                 r#"
 let x = 0;
-if (Object.is(x, -0)) { }
+if (Object.is(x, -0)) {
+}
 "#,
             );
     }
