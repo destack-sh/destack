@@ -95,11 +95,11 @@ where
     }
 
     let node_span = context.get_span(node_id);
-    let comment_tokens = collect_comment_tokens(context);
+    let comment_tokens = context.comment_tokens();
     let mut last_prefix_token: Option<TokenSpan> = None;
     for token in comment_tokens {
         if token.span.start <= node_span.start {
-            last_prefix_token = Some(token);
+            last_prefix_token = Some(*token);
         } else {
             break;
         }
@@ -283,24 +283,7 @@ fn extend_span_with_trailing_tokens(context: &DestackFormatContext<'_>, span: Sp
 
 /// Collect comment tokens sorted by source position.
 pub fn collect_comment_tokens(context: &DestackFormatContext<'_>) -> Vec<TokenSpan> {
-    let mut tokens: Vec<TokenSpan> = context
-        .tokens
-        .iter()
-        .copied()
-        .chain(context.side_tokens.iter().copied())
-        .filter(|token| {
-            matches!(
-                token.token.ty,
-                TokenType::LineComment
-                    | TokenType::BlockComment
-                    | TokenType::DocLineComment
-                    | TokenType::DocBlockComment
-            )
-        })
-        .collect();
-
-    tokens.sort_by_key(|token| token.span.start);
-    tokens
+    context.comment_tokens().to_vec()
 }
 
 /// Extract the source for an ignored span.

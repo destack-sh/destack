@@ -1,13 +1,11 @@
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
-use destack_fir::format::{BestFittingMode, FormatResult, GroupId};
+use destack_fir::format::{FormatResult, GroupId};
 use destack_workspace::TrailingComma;
 
 use crate::annotation::parameter_type_separator_prefix_annotations;
-use crate::directive::{
-    collect_comment_tokens, ignore_range_for_node, ignored_span_source, write_ignored_span,
-};
+use crate::directive::{ignore_range_for_node, ignored_span_source, write_ignored_span};
 use crate::property::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
 };
@@ -49,7 +47,7 @@ impl ListKind {
 pub(crate) struct ListLike<'ast, 'e, T>
 where
     T: Node + Clone + FormatNode<'ast, T>,
-    NodeTree: NodeTreeImpl<T>,
+    NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Expression> + NodeTreeImpl<Declaration>,
 {
     start_token: &'static str,
     end_token: &'static str,
@@ -69,7 +67,7 @@ where
 impl<'ast, 'e, T> ListLike<'ast, 'e, T>
 where
     T: Node + Clone + FormatNode<'ast, T>,
-    NodeTree: NodeTreeImpl<T>,
+    NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Expression> + NodeTreeImpl<Declaration>,
 {
     pub(crate) fn force_expand(&mut self) -> &mut Self {
         self.force_expand = true;
@@ -111,20 +109,29 @@ where
 impl<'ast, 'e, T> Format<DestackFormatContext<'ast>> for ListLike<'ast, 'e, T>
 where
     T: Node + Clone + FormatNode<'ast, T>,
-    NodeTree: NodeTreeImpl<T>,
+    NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Expression> + NodeTreeImpl<Declaration>,
 {
     #[inline]
     fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'ast>>) -> FormatResult<()> {
         let options = &f.context().options;
         let trailing_comma_option = options.trailing_comma;
         let has_elements = !self.elements.is_empty();
+
+        // empty lists do not need any layout planning
+        if !has_elements {
+            f.context()
+                .increment_counter("profile.list_like.empty.fast_path", 1);
+            write!(f, [token(self.start_token), token(self.end_token)])?;
+            return Ok(());
+        }
+
         let should_add_trailing = has_elements
             && self.allow_trailing_separator
             && self.kind.should_add_trailing_comma(trailing_comma_option);
         let should_add_space = self.include_space && options.bracket_spacing && has_elements;
 
         let mut ignore_ranges_by_id = HashMap::new();
-        let comment_tokens = collect_comment_tokens(f.context());
+        let comment_tokens = f.context().comment_tokens();
         for element_id in self.elements {
             if let Some(range_span) =
                 ignore_range_for_node(f.context(), *element_id, &comment_tokens)
@@ -133,7 +140,6 @@ where
             }
         }
         let has_ignore_ranges = !ignore_ranges_by_id.is_empty();
-
         let body = &format_with(|f| {
             // leading space
             if should_add_space {
@@ -204,16 +210,201 @@ where
             .format(f)
         });
 
+        // grouped lists can choose inline or expanded shape without best fitting
+        let format_grouped = format_with(|f| {
+            group(&format_args![
+                &token(self.start_token),
+                soft_block_indent(body),
+                &token(self.end_token)
+            ])
+            .with_id(self.group_id)
+            .should_expand(self.force_expand || has_ignore_ranges)
+            .format(f)
+        });
+
+        // small annotation free lists almost always fit inline, skip best fitting probing
+        let can_use_single_element_inline_fast_path = !self.force_expand
+            && !has_ignore_ranges
+            && self.group_id.is_some()
+            && self.elements.len() == 1;
+        if can_use_single_element_inline_fast_path {
+            let element_id = self.elements[0];
+            let element_span = f.context().get_span(element_id);
+            let element_source_len = f.context().span_char_len(element_span);
+            let compact_single_element_limit = usize::from(options.line_width).min(28);
+            let inline_call_parent_fits = if self.start_token == "(" && self.end_token == ")" {
+                f.context()
+                    .get_parent(element_id)
+                    .is_some_and(|(parent_id, parent_type)| {
+                        if parent_type != NodeType::Expression {
+                            return false;
+                        }
+
+                        let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
+                        let parent_span = f.context().get_span::<Expression>(parent_expression_id);
+                        let parent_len = f.context().span_char_len(parent_span);
+                        parent_len <= usize::from(options.line_width)
+                    })
+            } else {
+                true
+            };
+            let can_keep_single_element_inline = !f.context().has_newline(element_span)
+                && !f.context().has_annotation(element_id)
+                && inline_call_parent_fits
+                && element_source_len <= compact_single_element_limit;
+            if can_keep_single_element_inline {
+                f.context()
+                    .increment_counter("profile.list_like.single_inline.fast_path", 1);
+                format_inline.format(f)?;
+                return Ok(());
+            }
+        }
+
+        // grouped lists use one adaptive layout path, except single element call argument lists
+        let is_single_element_parenthesized_list =
+            self.elements.len() == 1 && self.start_token == "(" && self.end_token == ")";
+        if self.group_id.is_some() && !is_single_element_parenthesized_list {
+            format_grouped.format(f)?;
+            return Ok(());
+        }
+
         if self.force_expand || has_ignore_ranges {
             format_indented.format(f)?;
+        } else if self.group_id.is_none() {
+            let no_group_counter = match (self.start_token, self.end_token) {
+                ("(", ")") => "profile.list_like.no_group.paren",
+                ("[", "]") => "profile.list_like.no_group.bracket",
+                ("{", "}") => "profile.list_like.no_group.brace",
+                ("<", ">") => "profile.list_like.no_group.angle",
+                _ => "profile.list_like.no_group.other",
+            };
+            f.context().increment_counter(no_group_counter, 1);
+            if self.start_token == "<" && self.end_token == ">" {
+                if self.elements.len() == 1 {
+                    let element_id = self.elements[0];
+                    let preserve_source_breaks =
+                        parent_expression_has_linebreak_around_element(f.context(), element_id);
+                    if preserve_source_breaks {
+                        format_grouped.format(f)?;
+                    } else {
+                        group(&format_args![
+                            &token(self.start_token),
+                            body,
+                            &token(self.end_token)
+                        ])
+                        .format(f)?;
+                    }
+                } else {
+                    format_grouped.format(f)?;
+                }
+            } else if (self.start_token == "[" && self.end_token == "]")
+                || (self.start_token == "{" && self.end_token == "}")
+            {
+                format_grouped.format(f)?;
+            } else {
+                f.context().record_best_fitting("best_fitting.argument", 2);
+                best_fitting![format_inline, format_indented].format(f)?;
+            }
+        } else if is_single_element_parenthesized_list {
+            // single argument parenthesized lists should keep the opening paren on the same line
+            let element_id = self.elements[0];
+            let element_span = f.context().get_span(element_id);
+            let should_force_inline = f.context().has_newline(element_span)
+                || f.context().has_annotation(element_id)
+                || expression_argument_prefers_inline_parenthesized_layout(f.context(), element_id);
+            if should_force_inline {
+                format_inline.format(f)?;
+            } else {
+                f.context()
+                    .record_best_fitting("best_fitting.argument.single_parenthesized", 2);
+                best_fitting![format_inline, format_indented].format(f)?;
+            }
         } else {
-            best_fitting![format_inline, format_indented]
-                .with_mode(BestFittingMode::AllLines)
-                .format(f)?;
+            format_grouped.format(f)?;
         }
 
         Ok(())
     }
+}
+
+/// Return whether an expression argument should keep a hugged single-parenthesized layout.
+fn expression_argument_prefers_inline_parenthesized_layout<'ast, T>(
+    context: &DestackFormatContext<'ast>,
+    element_id: LocalNodeId<T>,
+) -> bool
+where
+    T: Node + Clone + FormatNode<'ast, T>,
+    NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Expression> + NodeTreeImpl<Declaration>,
+{
+    if T::TYPE != NodeType::Expression {
+        return false;
+    }
+
+    let expression_id = LocalNodeId::<Expression>::new(element_id.id);
+    let expression = context.tree.get(expression_id);
+    if matches!(
+        expression,
+        Expression::ArrayExpression { .. }
+            | Expression::TupleExpression { .. }
+            | Expression::ObjectExpression { .. }
+            | Expression::TreeExpression { .. }
+            | Expression::Call { .. }
+            | Expression::Instantiation { .. }
+            | Expression::Member { .. }
+            | Expression::PrivateMember { .. }
+            | Expression::Index { .. }
+            | Expression::Maybe { .. }
+    ) {
+        return true;
+    }
+
+    matches!(
+        expression,
+        Expression::Declaration(declaration_id)
+            if matches!(
+                context.tree.get(*declaration_id),
+                Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
+            )
+    )
+}
+
+/// Return whether the parent expression includes source line breaks around this element.
+fn parent_expression_has_linebreak_around_element<'ast, T>(
+    context: &DestackFormatContext<'ast>,
+    element_id: LocalNodeId<T>,
+) -> bool
+where
+    T: Node + Clone + FormatNode<'ast, T>,
+    NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Expression>,
+{
+    let Some((parent_id, parent_type)) = context.get_parent(element_id) else {
+        return false;
+    };
+    if parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
+    let parent_span = context.get_span(parent_expression_id);
+    let element_span = context.get_span(element_id);
+    if parent_span.file != element_span.file {
+        return false;
+    }
+
+    let has_leading_break = parent_span.start < element_span.start
+        && context.has_newline(Span::new(
+            parent_span.file,
+            parent_span.start,
+            element_span.start,
+        ));
+    let has_trailing_break = element_span.end < parent_span.end
+        && context.has_newline(Span::new(
+            parent_span.file,
+            element_span.end,
+            parent_span.end,
+        ));
+
+    has_leading_break || has_trailing_break
 }
 
 /// Format a list while preserving any ignore ranges as raw text.

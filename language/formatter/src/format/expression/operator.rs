@@ -1,3 +1,4 @@
+use super::super::timing::tags;
 use super::*;
 use destack_fir::{format_args, write};
 
@@ -13,21 +14,24 @@ fn leading_union_has_ancestor_block_prefix_annotation(
         }
 
         let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-        if let Some(annotation_ids) = context.get_annotations(parent_expression_id)
-            && annotation_ids.iter().any(|annotation_id| {
-                let annotation = context.tree.get::<Annotation>(*annotation_id);
-                if !matches!(annotation.position(), AnnotationPosition::BlockPrefix)
-                    || !matches!(annotation, Annotation::Comment { .. })
-                {
-                    return false;
-                }
+        let has_block_prefix_comment = context
+            .with_annotations(parent_expression_id, |annotation_ids| {
+                annotation_ids.iter().any(|annotation_id| {
+                    let annotation = context.tree.get::<Annotation>(*annotation_id);
+                    if !matches!(annotation.position(), AnnotationPosition::BlockPrefix)
+                        || !matches!(annotation, Annotation::Comment { .. })
+                    {
+                        return false;
+                    }
 
-                let annotation_span = context.get_span::<Annotation>(*annotation_id);
-                let annotation_source = context.get_span_str(annotation_span);
-                let trimmed = annotation_source.trim_start();
-                annotation_source.contains('\n') && !trimmed.starts_with("/**")
+                    let annotation_span = context.get_span::<Annotation>(*annotation_id);
+                    let annotation_source = context.get_span_str(annotation_span);
+                    let trimmed = annotation_source.trim_start();
+                    annotation_source.contains('\n') && !trimmed.starts_with("/**")
+                })
             })
-        {
+            .unwrap_or(false);
+        if has_block_prefix_comment {
             return true;
         }
 
@@ -145,8 +149,14 @@ pub(super) fn format_operator_expression<'ast>(
         // member
         Expression::Member { .. } | Expression::PrivateMember { .. } => {
             if is_expression_chain(tree, node_id) {
+                let _timing = f
+                    .context()
+                    .timing_scope(tags::FORMAT_EXPRESSION_OPERATOR_CHAIN);
                 format_expression_chain(f, node_id)?;
             } else {
+                let _timing = f
+                    .context()
+                    .timing_scope(tags::FORMAT_EXPRESSION_OPERATOR_CALL);
                 format_member_expression(f, node_id)?;
             }
         }
@@ -155,8 +165,14 @@ pub(super) fn format_operator_expression<'ast>(
         Expression::Index { left, .. } => {
             let left_is_instantiation = matches!(tree.get(*left), Expression::Instantiation { .. });
             if is_expression_chain(tree, node_id) && !left_is_instantiation {
+                let _timing = f
+                    .context()
+                    .timing_scope(tags::FORMAT_EXPRESSION_OPERATOR_CHAIN);
                 format_expression_chain(f, node_id)?;
             } else {
+                let _timing = f
+                    .context()
+                    .timing_scope(tags::FORMAT_EXPRESSION_OPERATOR_CALL);
                 format_index_expression(f, node_id)?;
             }
         }
@@ -165,8 +181,14 @@ pub(super) fn format_operator_expression<'ast>(
         Expression::Call { .. } => {
             if is_expression_chain(tree, node_id) || call_prefers_chain_format(f.context(), node_id)
             {
+                let _timing = f
+                    .context()
+                    .timing_scope(tags::FORMAT_EXPRESSION_OPERATOR_CHAIN);
                 format_expression_chain(f, node_id)?;
             } else {
+                let _timing = f
+                    .context()
+                    .timing_scope(tags::FORMAT_EXPRESSION_OPERATOR_CALL);
                 format_call_expression(f, node_id)?;
             }
         }
@@ -174,8 +196,14 @@ pub(super) fn format_operator_expression<'ast>(
         // instantiation
         Expression::Instantiation { .. } => {
             if is_expression_chain(tree, node_id) && has_chain_parent(f.context(), node_id) {
+                let _timing = f
+                    .context()
+                    .timing_scope(tags::FORMAT_EXPRESSION_OPERATOR_CHAIN);
                 format_expression_chain(f, node_id)?;
             } else {
+                let _timing = f
+                    .context()
+                    .timing_scope(tags::FORMAT_EXPRESSION_OPERATOR_CALL);
                 format_instantiation_expression(f, node_id)?;
             }
         }
@@ -186,6 +214,9 @@ pub(super) fn format_operator_expression<'ast>(
             static_arguments,
             dynamic_arguments,
         } => {
+            let _timing = f
+                .context()
+                .timing_scope(tags::FORMAT_EXPRESSION_OPERATOR_CALL);
             let mut left = *left;
             if let Expression::Parenthesized { expression } = tree.get(left)
                 && parenthesized_should_unwrap(
@@ -286,8 +317,14 @@ pub(super) fn format_operator_expression<'ast>(
         // maybe
         Expression::Maybe { .. } => {
             if is_expression_chain(tree, node_id) {
+                let _timing = f
+                    .context()
+                    .timing_scope(tags::FORMAT_EXPRESSION_OPERATOR_CHAIN);
                 format_expression_chain(f, node_id)?;
             } else {
+                let _timing = f
+                    .context()
+                    .timing_scope(tags::FORMAT_EXPRESSION_OPERATOR_CALL);
                 format_maybe_expression(f, node_id)?;
             }
         }
@@ -295,8 +332,14 @@ pub(super) fn format_operator_expression<'ast>(
         // must
         Expression::Must { position, left } => {
             if is_expression_chain(tree, node_id) {
+                let _timing = f
+                    .context()
+                    .timing_scope(tags::FORMAT_EXPRESSION_OPERATOR_CHAIN);
                 format_expression_chain(f, node_id)?;
             } else {
+                let _timing = f
+                    .context()
+                    .timing_scope(tags::FORMAT_EXPRESSION_OPERATOR_CALL);
                 let needs_parentheses = needs_parens_in_postfix_position(tree, *left);
                 if needs_parentheses {
                     write!(f, [token("("), left, token(")")])?;
@@ -316,6 +359,9 @@ pub(super) fn format_operator_expression<'ast>(
             operator,
             right,
         } => {
+            let _timing = f
+                .context()
+                .timing_scope(tags::FORMAT_EXPRESSION_OPERATOR_BINARY);
             let in_type_context = is_type_context(f.context(), node_id);
             let is_destack = f.context().options.language_type.is_destack();
             let is_type_intersection =
@@ -1108,9 +1154,11 @@ pub(super) fn format_operator_expression<'ast>(
                     .format(f)
                 });
 
-                best_fitting![format_inline, format_break_after_operator]
-                    .with_mode(BestFittingMode::AllLines)
-                    .format(f)?;
+                if right_is_long {
+                    format_break_after_operator.format(f)?;
+                } else {
+                    format_inline.format(f)?;
+                }
                 return Ok(true);
             }
 
@@ -1207,9 +1255,7 @@ pub(super) fn format_operator_expression<'ast>(
                 });
 
                 if right_prefers_operator_break {
-                    best_fitting![format_break_after_operator, format_inline]
-                        .with_mode(BestFittingMode::AllLines)
-                        .format(f)?;
+                    format_break_after_operator.format(f)?;
                 } else {
                     format_inline.format(f)?;
                 }

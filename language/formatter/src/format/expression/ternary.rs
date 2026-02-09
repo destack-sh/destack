@@ -199,9 +199,9 @@ pub(super) fn collect_ternary_colon_line_comments(
     final_else: Option<LocalNodeId<Expression>>,
 ) -> Vec<Vec<String>> {
     let mut colon_line_comments: Vec<Vec<(u32, String)>> = vec![Vec::new(); branches.len()];
-    let comment_tokens = collect_comment_tokens(context);
+    let comment_tokens = context.comment_tokens();
 
-    for comment_token in comment_tokens {
+    for comment_token in comment_tokens.iter().copied() {
         if comment_token.token.ty != TokenType::LineComment {
             continue;
         }
@@ -268,8 +268,10 @@ pub(super) fn ternary_then_has_boundary_comment_before_colon(
 ) -> bool {
     let then_span = context.get_span(then_expression_id);
 
-    collect_comment_tokens(context)
-        .into_iter()
+    context
+        .comment_tokens()
+        .iter()
+        .copied()
         .any(|comment_token| {
             if !matches!(
                 comment_token.token.ty,

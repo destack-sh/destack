@@ -183,16 +183,7 @@ pub fn is_pattern_breakable(tree: &NodeTree, pattern_id: LocalNodeId<Pattern>) -
 
 /// Check if a span includes any comment tokens.
 pub(super) fn span_has_comment(context: &DestackFormatContext<'_>, span: Span) -> bool {
-    let is_comment_token = |token: &destack_ast::TokenSpan| is_comment_token_type(token.token.ty);
-
-    context
-        .tokens
-        .iter()
-        .any(|token| span.intersects(token.span) && is_comment_token(token))
-        || context
-            .side_tokens
-            .iter()
-            .any(|token| span.intersects(token.span) && is_comment_token(token))
+    context.has_comment(span)
 }
 
 /// Return whether array elements are simple enough for concise fill formatting.

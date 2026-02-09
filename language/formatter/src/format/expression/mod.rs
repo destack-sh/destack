@@ -40,8 +40,8 @@ use self::ternary::*;
 use crate::annotation::call_argument_inline_boundary_prefix_annotations;
 use crate::argument::list_like;
 use crate::directive::{
-    FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, collect_comment_tokens,
-    directive_for_node, ignore_range_for_node, ignored_node_source,
+    FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
+    ignore_range_for_node, ignored_node_source,
 };
 use crate::literal::{format_scalar_literal, format_template_literal};
 use crate::property::format_block_of_properties;

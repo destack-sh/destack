@@ -94,6 +94,8 @@ Default corpus is `test/fixtures/ecosystem` for better signal on real-world perf
 For quick smoke runs you can use `--root test/fixtures/formatter/conformance/staging/oxfmt`.
 Use `--output table|csv|json` for human-readable output or machine-readable pipelines.
 The table output includes colorized latency heat, stage breakdowns, throughput, jitter, and hot-file rankings.
+Use `--timings` to enable internal formatter instrumentation.
+Timing output includes top timing tags and cache hit rates for span and annotation lookups.
 
 ## Destack-Specific Formatting
 

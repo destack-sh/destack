@@ -667,9 +667,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
         };
         let lambda_has_argument_ancestor = is_lambda_declaration
             && f.context()
-                .get_ancestors(node_id)
-                .into_iter()
-                .any(|(_, node_type)| node_type == NodeType::Argument);
+                .any_ancestor(node_id, |_, node_type| node_type == NodeType::Argument);
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
         match self {
@@ -910,15 +908,21 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     format_soft_break.format(f)?;
                 } else if is_expression_breakable(tree, tree.get(*value_id)) {
                     if value_has_prefix_annotation {
+                        f.context()
+                            .record_best_fitting("best_fitting.declaration", 3);
                         best_fitting![format_inline, format_soft_break, format_indented]
                             .with_mode(BestFittingMode::AllLines)
                             .format(f)?;
                     } else {
+                        f.context()
+                            .record_best_fitting("best_fitting.declaration", 3);
                         best_fitting![format_inline, format_inline_expanded, format_indented]
                             .with_mode(BestFittingMode::AllLines)
                             .format(f)?;
                     }
                 } else {
+                    f.context()
+                        .record_best_fitting("best_fitting.declaration", 2);
                     best_fitting![format_inline, format_indented]
                         .with_mode(BestFittingMode::AllLines)
                         .format(f)?;

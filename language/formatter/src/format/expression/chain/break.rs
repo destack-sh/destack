@@ -346,29 +346,31 @@ pub(crate) fn chain_node_has_breaking_annotation(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
-    context.get_annotations(node_id).is_some_and(|annotations| {
-        annotations.iter().any(|annotation_id| {
-            let annotation = context.tree.get::<Annotation>(*annotation_id);
-            let position = annotation.position();
-            if is_deferred_empty_call_boundary_annotation(
-                context,
-                node_id,
-                *annotation_id,
-                position,
-            ) {
-                return false;
-            }
+    context
+        .with_annotations(node_id, |annotations| {
+            annotations.iter().any(|annotation_id| {
+                let annotation = context.tree.get::<Annotation>(*annotation_id);
+                let position = annotation.position();
+                if is_deferred_empty_call_boundary_annotation(
+                    context,
+                    node_id,
+                    *annotation_id,
+                    position,
+                ) {
+                    return false;
+                }
 
-            matches!(
-                position,
-                AnnotationPosition::LinePrefix
-                    | AnnotationPosition::LinePostfixBoundary
-                    | AnnotationPosition::BlockPrefix
-                    | AnnotationPosition::BlockInfix
-                    | AnnotationPosition::BlockPostfix
-            )
+                matches!(
+                    position,
+                    AnnotationPosition::LinePrefix
+                        | AnnotationPosition::LinePostfixBoundary
+                        | AnnotationPosition::BlockPrefix
+                        | AnnotationPosition::BlockInfix
+                        | AnnotationPosition::BlockPostfix
+                )
+            })
         })
-    })
+        .unwrap_or(false)
 }
 
 /// Check whether a chain node has annotations that prevent head grouping.
@@ -376,34 +378,36 @@ pub(crate) fn chain_node_has_non_inline_annotation(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
-    context.get_annotations(node_id).is_some_and(|annotations| {
-        annotations.iter().any(|annotation_id| {
-            let annotation = context.tree.get::<Annotation>(*annotation_id);
-            let position = annotation.position();
-            if is_deferred_empty_call_boundary_annotation(
-                context,
-                node_id,
-                *annotation_id,
-                position,
-            ) {
-                return false;
-            }
-
-            match annotation {
-                Annotation::Blank { .. } => true,
-                Annotation::Doc { .. }
-                | Annotation::Comment { .. }
-                | Annotation::Decorator { .. } => matches!(
+    context
+        .with_annotations(node_id, |annotations| {
+            annotations.iter().any(|annotation_id| {
+                let annotation = context.tree.get::<Annotation>(*annotation_id);
+                let position = annotation.position();
+                if is_deferred_empty_call_boundary_annotation(
+                    context,
+                    node_id,
+                    *annotation_id,
                     position,
-                    AnnotationPosition::LinePrefix
-                        | AnnotationPosition::LinePostfixBoundary
-                        | AnnotationPosition::BlockPrefix
-                        | AnnotationPosition::BlockInfix
-                        | AnnotationPosition::BlockPostfix
-                ),
-            }
+                ) {
+                    return false;
+                }
+
+                match annotation {
+                    Annotation::Blank { .. } => true,
+                    Annotation::Doc { .. }
+                    | Annotation::Comment { .. }
+                    | Annotation::Decorator { .. } => matches!(
+                        position,
+                        AnnotationPosition::LinePrefix
+                            | AnnotationPosition::LinePostfixBoundary
+                            | AnnotationPosition::BlockPrefix
+                            | AnnotationPosition::BlockInfix
+                            | AnnotationPosition::BlockPostfix
+                    ),
+                }
+            })
         })
-    })
+        .unwrap_or(false)
 }
 
 /// Check whether a chain line starts with block prefix annotations.
@@ -423,14 +427,16 @@ pub(crate) fn chain_line_starts_with_block_prefix_annotation(
         | ChainExpression::Must { node_id, .. } => *node_id,
     };
 
-    context.get_annotations(node_id).is_some_and(|annotations| {
-        annotations.iter().any(|annotation_id| {
-            matches!(
-                context.tree.get::<Annotation>(*annotation_id).position(),
-                AnnotationPosition::BlockPrefix
-            )
+    context
+        .with_annotations(node_id, |annotations| {
+            annotations.iter().any(|annotation_id| {
+                matches!(
+                    context.tree.get::<Annotation>(*annotation_id).position(),
+                    AnnotationPosition::BlockPrefix
+                )
+            })
         })
-    })
+        .unwrap_or(false)
 }
 
 /// Return whether a chain should break because its cast or satisfies parent overflows.
@@ -503,18 +509,15 @@ pub(crate) fn expression_is_in_template_literal_interpolation(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    context
-        .get_ancestors(expression_id)
-        .into_iter()
-        .any(|(ancestor_id, node_type)| {
-            node_type == NodeType::Expression
-                && matches!(
-                    context
-                        .tree
-                        .get(LocalNodeId::<Expression>::new(ancestor_id)),
-                    Expression::TemplateExpression { .. } | Expression::TypeTemplateLiteral { .. }
-                )
-        })
+    context.any_ancestor(expression_id, |ancestor_id, node_type| {
+        node_type == NodeType::Expression
+            && matches!(
+                context
+                    .tree
+                    .get(LocalNodeId::<Expression>::new(ancestor_id)),
+                Expression::TemplateExpression { .. } | Expression::TypeTemplateLiteral { .. }
+            )
+    })
 }
 
 /// Decide whether a chain should proactively break across lines.
@@ -799,21 +802,18 @@ pub(crate) fn expression_is_in_conditional_branch(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    context
-        .get_ancestors(expression_id)
-        .into_iter()
-        .any(|(ancestor_id, node_type)| {
-            node_type == NodeType::Expression
-                && matches!(
-                    context
-                        .tree
-                        .get(LocalNodeId::<Expression>::new(ancestor_id)),
-                    Expression::If {
-                        kind: IfKind::Ternary,
-                        ..
-                    }
-                )
-        })
+    context.any_ancestor(expression_id, |ancestor_id, node_type| {
+        node_type == NodeType::Expression
+            && matches!(
+                context
+                    .tree
+                    .get(LocalNodeId::<Expression>::new(ancestor_id)),
+                Expression::If {
+                    kind: IfKind::Ternary,
+                    ..
+                }
+            )
+    })
 }
 
 /// Check whether an assignment chain ends in a nested lambda expression.

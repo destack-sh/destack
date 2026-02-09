@@ -91,7 +91,7 @@ pub(super) fn collect_parenthesized_boundary_comments(
     let inner_span = context.get_span(inner_expression_id);
     let mut comments: Vec<(u32, String)> = Vec::new();
 
-    for comment_token in collect_comment_tokens(context) {
+    for comment_token in context.comment_tokens().iter().copied() {
         if !matches!(
             comment_token.token.ty,
             TokenType::BlockComment | TokenType::DocBlockComment

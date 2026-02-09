@@ -18,6 +18,7 @@ pub mod pattern;
 pub mod property;
 pub mod scan;
 pub mod signature;
+pub mod timing;
 pub mod r#where;
 
 pub use block::{
@@ -25,3 +26,4 @@ pub use block::{
     statement_list,
 };
 pub use context::*;
+pub use timing::*;

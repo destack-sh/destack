@@ -309,7 +309,7 @@ where
     let mut has_if_ancestor = false;
     let mut has_member_ancestor = false;
 
-    for (ancestor_id, node_type) in context.get_ancestors(node_id) {
+    context.any_ancestor(node_id, |ancestor_id, node_type| {
         if node_type == NodeType::Member {
             has_member_ancestor = true;
         }
@@ -325,10 +325,8 @@ where
             has_if_ancestor = true;
         }
 
-        if has_if_ancestor && has_member_ancestor {
-            break;
-        }
-    }
+        has_if_ancestor && has_member_ancestor
+    });
 
     (has_if_ancestor, has_member_ancestor)
 }
@@ -842,9 +840,7 @@ impl<'ast> FormatNode<'ast, Annotation> for Annotation {
                 // skip blanks at the end of the source
                 let container = f
                     .context()
-                    .get_ancestors(node_id)
-                    .into_iter()
-                    .find(|(_, node_type)| *node_type == NodeType::Declaration);
+                    .find_ancestor(node_id, |_, node_type| node_type == NodeType::Declaration);
                 if let Some((container_id, _)) = container {
                     let container_span = f.context().get_span_by_id(container_id);
                     if container_span.end >= f.context().file.len - 1 {

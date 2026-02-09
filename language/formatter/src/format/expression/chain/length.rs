@@ -37,40 +37,41 @@ pub(crate) fn path_postfix_annotations_emit_on_tail(
     node_id: LocalNodeId<Expression>,
     segments_len: usize,
 ) -> bool {
-    let Some(annotations) = context.get_annotations(node_id) else {
-        return true;
-    };
     let Some(last_segment_start) = path_last_segment_start(context, node_id, segments_len) else {
         return false;
     };
 
-    let mut has_postfix = false;
-    for annotation_id in annotations {
-        let annotation = context.tree.get::<Annotation>(annotation_id);
-        let position = annotation.position();
-        let is_postfix = matches!(
-            position,
-            AnnotationPosition::LinePostfix
-                | AnnotationPosition::LinePostfixBoundary
-                | AnnotationPosition::BlockInfix
-                | AnnotationPosition::BlockPostfix
-        );
-        if !is_postfix {
-            continue;
-        }
+    context
+        .with_annotations(node_id, |annotations| {
+            let mut has_postfix = false;
+            for annotation_id in annotations {
+                let annotation = context.tree.get::<Annotation>(*annotation_id);
+                let position = annotation.position();
+                let is_postfix = matches!(
+                    position,
+                    AnnotationPosition::LinePostfix
+                        | AnnotationPosition::LinePostfixBoundary
+                        | AnnotationPosition::BlockInfix
+                        | AnnotationPosition::BlockPostfix
+                );
+                if !is_postfix {
+                    continue;
+                }
 
-        has_postfix = true;
-        let span = context.get_span(annotation_id);
-        if span.start < last_segment_start {
-            return false;
-        }
-    }
+                has_postfix = true;
+                let span = context.get_span(*annotation_id);
+                if span.start < last_segment_start {
+                    return false;
+                }
+            }
 
-    if !has_postfix {
-        return true;
-    }
+            if !has_postfix {
+                return true;
+            }
 
-    true
+            true
+        })
+        .unwrap_or(true)
 }
 
 /// Find the start byte of the last path segment token.
@@ -109,43 +110,45 @@ pub(crate) fn path_deferred_boundary_line_comments(
     node_id: LocalNodeId<Expression>,
     segments_len: usize,
 ) -> Vec<String> {
-    let Some(annotations) = context.get_annotations(node_id) else {
-        return Vec::new();
-    };
     let Some(last_segment_start) = path_last_segment_start(context, node_id, segments_len) else {
         return Vec::new();
     };
 
-    let mut comments: Vec<String> = Vec::new();
-    for annotation_id in annotations {
-        let Annotation::Comment { node, position } = context.tree.get::<Annotation>(annotation_id)
-        else {
-            continue;
-        };
-        if !matches!(
-            position,
-            AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary
-        ) {
-            continue;
-        }
+    context
+        .with_annotations(node_id, |annotations| {
+            let mut comments: Vec<String> = Vec::new();
+            for annotation_id in annotations {
+                let Annotation::Comment { node, position } =
+                    context.tree.get::<Annotation>(*annotation_id)
+                else {
+                    continue;
+                };
+                if !matches!(
+                    position,
+                    AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary
+                ) {
+                    continue;
+                }
 
-        let comment = context.tree.get::<destack_ast::Comment>(*node);
-        if comment.style != destack_ast::CommentStyle::Slash {
-            continue;
-        }
+                let comment = context.tree.get::<destack_ast::Comment>(*node);
+                if comment.style != destack_ast::CommentStyle::Slash {
+                    continue;
+                }
 
-        let annotation_span = context.get_span(annotation_id);
-        if annotation_span.start >= last_segment_start {
-            continue;
-        }
+                let annotation_span = context.get_span(*annotation_id);
+                if annotation_span.start >= last_segment_start {
+                    continue;
+                }
 
-        let annotation_source = context.get_span_str(annotation_span).trim().to_string();
-        if annotation_source.starts_with("//") {
-            comments.push(annotation_source);
-        }
-    }
+                let annotation_source = context.get_span_str(annotation_span).trim().to_string();
+                if annotation_source.starts_with("//") {
+                    comments.push(annotation_source);
+                }
+            }
 
-    comments
+            comments
+        })
+        .unwrap_or_default()
 }
 
 /// Estimate the rendered length of static arguments.
