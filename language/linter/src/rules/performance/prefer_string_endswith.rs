@@ -7,7 +7,7 @@ use crate::rules::common::{
     const_i64, expression_target_symbol, expression_unwrap_parenthesized, is_string_type,
     string_literal_utf16_length,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `endsWith()` over `slice(-n) === suffix`.
@@ -20,7 +20,7 @@ declare_lint! {
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::String)],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -52,6 +52,8 @@ struct PreferStringEndsWithVisitor<'a, 'b> {
     string_symbol: dir::GlobalSymbolId,
     /// The string id for the slice method name.
     slice_name: StringId,
+    /// The string id for the endsWith method name.
+    ends_with_name: StringId,
     /// The string id for the length property name.
     length_name: StringId,
     /// The visitor options.
@@ -66,6 +68,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
 
         // intern commonly used names
         let slice_name = ctx.program.strings.intern("slice");
+        let ends_with_name = ctx.program.strings.intern("endsWith");
         let length_name = ctx.program.strings.intern("length");
 
         // prepare visitor state
@@ -74,6 +77,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
             meta,
             string_symbol,
             slice_name,
+            ends_with_name,
             length_name,
             options: NodeVisitorOptions::default(),
         }
@@ -107,14 +111,14 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         }
 
         // match slice calls on the left
-        if self.match_slice_comparison(left, right) {
-            self.report_match(expression_id);
+        if let Some(ends_with_match) = self.match_slice_comparison(left, right) {
+            self.report_match(expression_id, ends_with_match);
             return;
         }
 
         // match slice calls on the right
-        if self.match_slice_comparison(right, left) {
-            self.report_match(expression_id);
+        if let Some(ends_with_match) = self.match_slice_comparison(right, left) {
+            self.report_match(expression_id, ends_with_match);
         }
     }
 
@@ -123,63 +127,91 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         &mut self,
         slice_id: dir::LocalNodeId<dir::Expression>,
         suffix_id: dir::LocalNodeId<dir::Expression>,
-    ) -> bool {
+    ) -> Option<EndsWithMatch> {
         // match call expression
         let expression = self.ctx.tree.get(slice_id);
         let dir::Expression::Call {
             left,
+            static_arguments,
             dynamic_arguments,
-            ..
         } = expression
         else {
-            return false;
+            return None;
         };
+        if static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty())
+        {
+            return None;
+        }
         let [argument_id] = dynamic_arguments.as_slice() else {
-            return false;
+            return None;
         };
         let argument = self.ctx.tree.get(*argument_id);
-        let argument_expression_id = argument.value();
+        let dir::Argument::Positional {
+            value: argument_expression_id,
+            ..
+        } = argument
+        else {
+            return None;
+        };
 
         // match member access for slice
         let member_expression = self.ctx.tree.get(*left);
         let dir::Expression::Member { left, name, .. } = member_expression else {
-            return false;
+            return None;
         };
         if *name != self.slice_name {
-            return false;
+            return None;
         }
 
         // ensure the receiver is a string
         if !self.is_string_receiver(*left) {
-            return false;
+            return None;
         }
 
         // ensure the slice argument matches the suffix length
-        self.is_suffix_length_match(argument_expression_id, suffix_id)
+        if !self.is_suffix_length_match(*argument_expression_id, suffix_id) {
+            return None;
+        }
+
+        Some(EndsWithMatch {
+            call_member_id: *left,
+            suffix_id,
+        })
     }
 
     /// Report a prefer-string-endswith match.
-    fn report_match(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) {
+    fn report_match(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        ends_with_match: EndsWithMatch,
+    ) {
         // honor per node severity
         let severity = self.ctx.get_effective_severity(self.meta, expression_id);
         if !severity.is_enabled() {
             return;
         }
 
-        // report the diagnostic
+        // build diagnostic and attach fix
         let span = self.ctx.get_span(expression_id);
-        self.ctx.report(
-            LintDiagnostic::new(
-                PREFER_STRING_ENDS_WITH.id,
-                PREFER_STRING_ENDS_WITH.code,
-                PREFER_STRING_ENDS_WITH.category,
-                severity,
-                "prefer endsWith() over slice(-n) comparison",
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label("use endsWith() to check the suffix"),
-        );
+        let diagnostic = LintDiagnostic::new(
+            PREFER_STRING_ENDS_WITH.id,
+            PREFER_STRING_ENDS_WITH.code,
+            PREFER_STRING_ENDS_WITH.category,
+            severity,
+            "prefer endsWith() over slice(-n) comparison",
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label("use endsWith() to check the suffix");
+
+        let mut diagnostic = diagnostic;
+        if let Some(fix) = self.ends_with_fix(expression_id, ends_with_match) {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
     }
 
     /// Return true when the receiver expression is a string type.
@@ -223,6 +255,33 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         };
 
         suffix_length == absolute as usize
+    }
+
+    /// Build a safe fix from one slice suffix comparison to endsWith.
+    fn ends_with_fix(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        ends_with_match: EndsWithMatch,
+    ) -> Option<LintFix> {
+        // preserve receiver and suffix source text
+        let member_span = self.ctx.get_span(ends_with_match.call_member_id);
+        let member_text = self.ctx.get_span_text(member_span);
+        let member_text = member_text.as_ref();
+        let receiver_text = strip_dot_member_suffix(member_text, "slice")?;
+        let suffix_span = self.ctx.get_span(ends_with_match.suffix_id);
+        let suffix_text = self.ctx.get_span_text(suffix_span);
+        let method_name = self.ctx.program.strings.get(self.ends_with_name);
+        let replacement = format!("{receiver_text}.{}({suffix_text})", method_name.as_ref());
+
+        // replace the full comparison expression
+        let expression_span = self.ctx.get_span(expression_id);
+        let edits = self
+            .ctx
+            .edit_builder()
+            .replace(expression_span, replacement)
+            .into_edits();
+
+        Some(LintFix::safe("Replace slice() suffix check with endsWith()").with_edits(edits))
     }
 
     /// Return true when the argument is `-suffix.length`.
@@ -308,6 +367,21 @@ impl NodeVisitor for PreferStringEndsWithVisitor<'_, '_> {
     }
 }
 
+/// One normalized endsWith match payload.
+#[derive(Clone, Copy)]
+struct EndsWithMatch {
+    /// The member expression for the slice call.
+    call_member_id: dir::LocalNodeId<dir::Expression>,
+    /// The suffix expression.
+    suffix_id: dir::LocalNodeId<dir::Expression>,
+}
+
+/// Strip one `.member` suffix from a member expression text.
+fn strip_dot_member_suffix<'a>(text: &'a str, member: &str) -> Option<&'a str> {
+    let suffix = format!(".{member}");
+    text.strip_suffix(&suffix).map(str::trim_end)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -354,5 +428,75 @@ let ends = text.slice(0) === "hello";
 "#,
         );
         test.result(result).assert_no_lint("prefer-string-endswith");
+    }
+
+    /// Safely rewrite slice suffix comparisons.
+    #[test]
+    fn test_fix_slice_suffix_length_check() {
+        let test = TestProgram::for_rule_without_prelude(PreferStringEndsWith);
+        let result = test.lint_dir(
+            "prefer_string_endswith/test_fix_slice_suffix_length_check.ds",
+            r#"
+let text = "hello";
+let suffix = "lo";
+let ends = text.slice(-suffix.length) === suffix;
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-string-endswith")
+            .assert_has_fix("prefer-string-endswith")
+            .assert_safe_fixed(
+                r#"
+let text = "hello";
+let suffix = "lo";
+let ends = text.endsWith(suffix);
+"#,
+            );
+    }
+
+    /// Safely rewrite literal suffix slice comparisons.
+    #[test]
+    fn test_fix_literal_suffix_check() {
+        let test = TestProgram::for_rule_without_prelude(PreferStringEndsWith);
+        let result = test.lint_dir(
+            "prefer_string_endswith/test_fix_literal_suffix_check.ds",
+            r#"
+let text = "hello";
+let ends = text.slice(-2) === "lo";
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-string-endswith")
+            .assert_has_fix("prefer-string-endswith")
+            .assert_safe_fixed(
+                r#"
+let text = "hello";
+let ends = text.endsWith("lo");
+"#,
+            );
+    }
+
+    /// Safely rewrite flipped slice suffix comparisons.
+    #[test]
+    fn test_fix_flipped_slice_suffix_check() {
+        let test = TestProgram::for_rule_without_prelude(PreferStringEndsWith);
+        let result = test.lint_dir(
+            "prefer_string_endswith/test_fix_flipped_slice_suffix_check.ds",
+            r#"
+let text = "hello";
+let suffix = "lo";
+let ends = suffix === text.slice(-suffix.length);
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-string-endswith")
+            .assert_has_fix("prefer-string-endswith")
+            .assert_safe_fixed(
+                r#"
+let text = "hello";
+let suffix = "lo";
+let ends = text.endsWith(suffix);
+"#,
+            );
     }
 }

@@ -1,10 +1,11 @@
 use destack_base::StringId;
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
+use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{const_i64, expression_method_call, is_array_type};
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest `.flatMap()` over `.map().flat()`.
@@ -18,7 +19,7 @@ declare_lint! {
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -50,6 +51,8 @@ struct PreferFlatMapVisitor<'a, 'b> {
     map_name: StringId,
     /// The string id for the flat method name.
     flat_name: StringId,
+    /// The string id for the flatMap method name.
+    flat_map_name: StringId,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -60,6 +63,7 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
         let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
         let map_name = ctx.program.strings.intern("map");
         let flat_name = ctx.program.strings.intern("flat");
+        let flat_map_name = ctx.program.strings.intern("flatMap");
 
         Self {
             ctx,
@@ -67,6 +71,7 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
             array_symbol,
             map_name,
             flat_name,
+            flat_map_name,
             options: NodeVisitorOptions::default(),
         }
     }
@@ -83,7 +88,17 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
     }
 
     /// Check if this is a map().flat() pattern.
-    fn check_call(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) {
+    fn check_call(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        static_arguments: Option<&[dir::LocalNodeId<dir::Argument>]>,
+        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+    ) {
+        // skip static call arguments until we support rendering them
+        if static_arguments.is_some_and(|arguments| !arguments.is_empty()) {
+            return;
+        }
+
         // match outer .flat() call
         let Some(flat_call) = expression_method_call(self.ctx.tree, expression_id) else {
             return;
@@ -92,15 +107,27 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
             return;
         }
 
-        // check flat() arguments: must be no args or literal 1
-        let expression = self.ctx.tree.get(expression_id);
-        let dir::Expression::Call {
-            dynamic_arguments, ..
-        } = expression
+        // check flat() member static arguments
+        let outer_call_expression = self.ctx.tree.get(expression_id);
+        let dir::Expression::Call { left, .. } = outer_call_expression else {
+            return;
+        };
+        let flat_member = self.ctx.tree.get(*left);
+        let dir::Expression::Member {
+            static_arguments, ..
+        } = flat_member
         else {
             return;
         };
-        if !self.is_valid_flat_depth(dynamic_arguments.as_slice()) {
+        if static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty())
+        {
+            return;
+        }
+
+        // check flat() arguments: must be no args or literal 1
+        if !self.is_valid_flat_depth(dynamic_arguments) {
             return;
         }
 
@@ -115,13 +142,40 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
         // check that map() has at least one argument
         let map_expression = self.ctx.tree.get(flat_call.receiver_id);
         let dir::Expression::Call {
+            static_arguments: map_static_arguments,
             dynamic_arguments: map_args,
             ..
         } = map_expression
         else {
             return;
         };
+        if map_static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty())
+        {
+            return;
+        }
         if map_args.is_empty() {
+            return;
+        }
+
+        // check map() member static arguments
+        let map_call_expression = self.ctx.tree.get(flat_call.receiver_id);
+        let dir::Expression::Call { left, .. } = map_call_expression else {
+            return;
+        };
+        let map_member_id = *left;
+        let map_member = self.ctx.tree.get(map_member_id);
+        let dir::Expression::Member {
+            static_arguments, ..
+        } = map_member
+        else {
+            return;
+        };
+        if static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty())
+        {
             return;
         }
 
@@ -130,8 +184,8 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
             return;
         }
 
-        // report the match
-        self.report(expression_id);
+        // report the match and attach fix when safe
+        self.report(expression_id, map_member_id, map_args);
     }
 
     /// Check if flat() depth argument is valid (none or literal 1).
@@ -171,7 +225,12 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
     }
 
     /// Report a prefer-flat-map match.
-    fn report(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) {
+    fn report(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        map_member_id: dir::LocalNodeId<dir::Expression>,
+        map_arguments: &[dir::LocalNodeId<dir::Argument>],
+    ) {
         // honor per node severity
         let severity = self.ctx.get_effective_severity(self.meta, expression_id);
         if !severity.is_enabled() {
@@ -180,18 +239,61 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
 
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
-        self.ctx.report(
-            LintDiagnostic::new(
-                PREFER_FLAT_MAP.id,
-                PREFER_FLAT_MAP.code,
-                PREFER_FLAT_MAP.category,
-                severity,
-                "prefer flatMap() over map().flat()",
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label("use array.flatMap(...) instead"),
+        let mut diagnostic = LintDiagnostic::new(
+            PREFER_FLAT_MAP.id,
+            PREFER_FLAT_MAP.code,
+            PREFER_FLAT_MAP.category,
+            severity,
+            "prefer flatMap() over map().flat()",
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label("use array.flatMap(...) instead");
+        if let Some(fix) = self.flat_map_fix(expression_id, map_member_id, map_arguments) {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
+    }
+
+    /// Build a safe fix from map().flat() to flatMap().
+    fn flat_map_fix(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        map_member_id: dir::LocalNodeId<dir::Expression>,
+        map_arguments: &[dir::LocalNodeId<dir::Argument>],
+    ) -> Option<LintFix> {
+        // require at least one dynamic argument
+        let first_argument_id = *map_arguments.first()?;
+        let last_argument_id = *map_arguments.last()?;
+
+        // derive receiver text from member expression text
+        let map_member_span = self.ctx.get_span(map_member_id);
+        let map_member_text = self.ctx.get_span_text(map_member_span);
+        let map_member_text = map_member_text.as_ref();
+        let receiver_text = strip_dot_member_suffix(map_member_text, "map")?;
+
+        // preserve original map argument source range
+        let first_span = self.ctx.get_span(first_argument_id);
+        let last_span = self.ctx.get_span(last_argument_id);
+        let arguments_span = Span::new(first_span.file, first_span.start, last_span.end);
+        let arguments_text = self.ctx.get_span_text(arguments_span);
+
+        let flat_map_name = self.ctx.program.strings.get(self.flat_map_name);
+        let replacement = format!(
+            "{receiver_text}.{}({arguments_text})",
+            flat_map_name.as_ref()
         );
+
+        // replace the full map().flat() expression
+        let expression_span = self.ctx.get_span(expression_id);
+        let edits = self
+            .ctx
+            .edit_builder()
+            .replace(expression_span, replacement)
+            .into_edits();
+
+        Some(LintFix::safe("Replace map().flat() with flatMap()").with_edits(edits))
     }
 }
 
@@ -207,13 +309,24 @@ impl NodeVisitor for PreferFlatMapVisitor<'_, '_> {
         expression: &dir::Expression,
     ) {
         // check call expressions
-        if matches!(expression, dir::Expression::Call { .. }) {
-            self.check_call(id);
+        if let dir::Expression::Call {
+            static_arguments,
+            dynamic_arguments,
+            ..
+        } = expression
+        {
+            self.check_call(id, static_arguments.as_deref(), dynamic_arguments);
         }
 
         // walk expression children
         walk_expression(self, tree, id, expression);
     }
+}
+
+/// Strip one `.member` suffix from a member expression text.
+fn strip_dot_member_suffix<'a>(text: &'a str, member: &str) -> Option<&'a str> {
+    let suffix = format!(".{member}");
+    text.strip_suffix(&suffix).map(str::trim_end)
 }
 
 #[cfg(test)]
@@ -235,6 +348,28 @@ let flat = items.map(x => x).flat();
         test.result(result).assert_lint("prefer-flat-map");
     }
 
+    /// Fix map().flat() into flatMap().
+    #[test]
+    fn test_fix_map_flat() {
+        let test = TestProgram::for_rule_with_prelude(PreferFlatMap);
+        let result = test.lint_dir(
+            "prefer_flat_map/test_fix_map_flat.ds",
+            r#"
+let items = [[1, 2], [3, 4]];
+let flat = items.map(x => x).flat();
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-flat-map")
+            .assert_has_fix("prefer-flat-map")
+            .assert_safe_fixed(
+                r#"
+let items = [[1, 2], [3, 4]];
+let flat = items.flatMap((x) => x);
+"#,
+            );
+    }
+
     /// Flag map().flat(1) pattern.
     #[test]
     fn test_flags_map_flat_one() {
@@ -247,6 +382,28 @@ let flat = items.map(x => x).flat(1);
 "#,
         );
         test.result(result).assert_lint("prefer-flat-map");
+    }
+
+    /// Fix map().flat(1) into flatMap().
+    #[test]
+    fn test_fix_map_flat_one() {
+        let test = TestProgram::for_rule_with_prelude(PreferFlatMap);
+        let result = test.lint_dir(
+            "prefer_flat_map/test_fix_map_flat_one.ds",
+            r#"
+let items = [[1, 2], [3, 4]];
+let flat = items.map(x => x).flat(1);
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-flat-map")
+            .assert_has_fix("prefer-flat-map")
+            .assert_safe_fixed(
+                r#"
+let items = [[1, 2], [3, 4]];
+let flat = items.flatMap((x) => x);
+"#,
+            );
     }
 
     /// Allow map().flat(2) since flatMap only flattens one level.

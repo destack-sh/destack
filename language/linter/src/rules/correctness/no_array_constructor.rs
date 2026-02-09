@@ -3,7 +3,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::expression_target_symbol;
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow using the Array constructor.
@@ -17,7 +17,7 @@ declare_lint! {
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Always,
         stability = Stable
     )]
@@ -83,11 +83,11 @@ impl<'a, 'b> ArrayConstructorVisitor<'a, 'b> {
     fn check_array_constructor(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        left: dir::LocalNodeId<dir::Expression>,
-        kind: &'static str,
+        constructor_call: ArrayConstructorCall<'_>,
     ) {
         // ignore non array references
-        let Some(target_symbol) = expression_target_symbol(self.ctx.tree, left) else {
+        let Some(target_symbol) = expression_target_symbol(self.ctx.tree, constructor_call.left)
+        else {
             return;
         };
         if target_symbol != self.array_symbol {
@@ -100,20 +100,76 @@ impl<'a, 'b> ArrayConstructorVisitor<'a, 'b> {
             return;
         }
 
-        // report the diagnostic
+        // build diagnostic and attach fix when safe
         let span = self.ctx.get_span(expression_id);
-        self.ctx.report(
-            LintDiagnostic::new(
-                NO_ARRAY_CONSTRUCTOR.id,
-                NO_ARRAY_CONSTRUCTOR.code,
-                NO_ARRAY_CONSTRUCTOR.category,
-                severity,
-                "avoid using the Array constructor",
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label(format!("replace this {kind} with an array literal")),
-        );
+        let mut diagnostic = LintDiagnostic::new(
+            NO_ARRAY_CONSTRUCTOR.id,
+            NO_ARRAY_CONSTRUCTOR.code,
+            NO_ARRAY_CONSTRUCTOR.category,
+            severity,
+            "avoid using the Array constructor",
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label(format!(
+            "replace this {} with an array literal",
+            constructor_call.kind
+        ));
+        if let Some(fix) = self.array_constructor_fix(expression_id, constructor_call) {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
+    }
+
+    /// Build a safe fix from an Array constructor to a literal.
+    fn array_constructor_fix(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        constructor_call: ArrayConstructorCall<'_>,
+    ) -> Option<LintFix> {
+        // skip static arguments until we support rendering them
+        if constructor_call
+            .static_arguments
+            .is_some_and(|arguments| !arguments.is_empty())
+        {
+            return None;
+        }
+
+        // skip single argument constructors: `Array(3)` is not `[3]`
+        if constructor_call.dynamic_arguments.len() == 1 {
+            return None;
+        }
+
+        // collect positional arguments in order
+        let mut elements = Vec::new();
+        for argument_id in constructor_call.dynamic_arguments {
+            let argument = self.ctx.tree.get(*argument_id);
+            let dir::Argument::Positional { value, .. } = argument else {
+                return None;
+            };
+
+            let value_span = self.ctx.get_span(*value);
+            let value_text = self.ctx.get_span_text(value_span);
+            elements.push(value_text.to_string());
+        }
+
+        // build literal replacement
+        let replacement = if elements.is_empty() {
+            "[]".to_string()
+        } else {
+            format!("[{}]", elements.join(", "))
+        };
+
+        // replace the full constructor expression
+        let expression_span = self.ctx.get_span(expression_id);
+        let edits = self
+            .ctx
+            .edit_builder()
+            .replace(expression_span, replacement)
+            .into_edits();
+
+        Some(LintFix::safe("Replace Array constructor with array literal").with_edits(edits))
     }
 }
 
@@ -129,8 +185,8 @@ impl NodeVisitor for ArrayConstructorVisitor<'_, '_> {
         expression: &dir::Expression,
     ) {
         // check for array constructor calls
-        if let Some((kind, left)) = array_constructor_reference(expression) {
-            self.check_array_constructor(id, left, kind);
+        if let Some(constructor_call) = array_constructor_reference(expression) {
+            self.check_array_constructor(id, constructor_call);
         }
 
         // walk expression children
@@ -139,15 +195,44 @@ impl NodeVisitor for ArrayConstructorVisitor<'_, '_> {
 }
 
 /// Identify Array constructor call forms.
-fn array_constructor_reference(
-    expression: &dir::Expression,
-) -> Option<(&'static str, dir::LocalNodeId<dir::Expression>)> {
+fn array_constructor_reference(expression: &dir::Expression) -> Option<ArrayConstructorCall<'_>> {
     // match call and constructor expressions
     match expression {
-        dir::Expression::Call { left, .. } => Some(("call", *left)),
-        dir::Expression::New { left, .. } => Some(("constructor", *left)),
+        dir::Expression::Call {
+            left,
+            static_arguments,
+            dynamic_arguments,
+        } => Some(ArrayConstructorCall {
+            kind: "call",
+            left: *left,
+            static_arguments: static_arguments.as_deref(),
+            dynamic_arguments,
+        }),
+        dir::Expression::New {
+            left,
+            static_arguments,
+            dynamic_arguments,
+        } => Some(ArrayConstructorCall {
+            kind: "constructor",
+            left: *left,
+            static_arguments: static_arguments.as_deref(),
+            dynamic_arguments,
+        }),
         _ => None,
     }
+}
+
+/// Constructor call data normalized across call and new expressions.
+#[derive(Clone, Copy)]
+struct ArrayConstructorCall<'a> {
+    /// The call form used for diagnostics.
+    kind: &'static str,
+    /// The constructor reference expression.
+    left: dir::LocalNodeId<dir::Expression>,
+    /// Optional static arguments.
+    static_arguments: Option<&'a [dir::LocalNodeId<dir::Argument>]>,
+    /// Dynamic arguments.
+    dynamic_arguments: &'a [dir::LocalNodeId<dir::Argument>],
 }
 
 #[cfg(test)]
@@ -216,5 +301,76 @@ let build = (Array: (value: number) => number): number => {
 "#,
         );
         test.result(result).assert_no_lint("no-array-constructor");
+    }
+
+    #[test]
+    fn test_fix_array_constructor_call_with_multiple_arguments() {
+        let test = TestProgram::for_rule_with_prelude(NoArrayConstructor);
+        let result = test.lint_dir(
+            "no_array_constructor/test_fix_array_constructor_call_with_multiple_arguments.ds",
+            r#"
+let items = Array(1, 2, 3);
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-array-constructor")
+            .assert_has_fix("no-array-constructor")
+            .assert_safe_fixed(
+                r#"
+let items = [1, 2, 3];
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_array_constructor_call_with_no_arguments() {
+        let test = TestProgram::for_rule_with_prelude(NoArrayConstructor);
+        let result = test.lint_dir(
+            "no_array_constructor/test_fix_array_constructor_call_with_no_arguments.ds",
+            r#"
+let items = Array();
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-array-constructor")
+            .assert_has_fix("no-array-constructor")
+            .assert_safe_fixed(
+                r#"
+let items = [];
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_array_constructor_new_with_no_arguments() {
+        let test = TestProgram::for_rule_with_prelude(NoArrayConstructor);
+        let result = test.lint_dir(
+            "no_array_constructor/test_fix_array_constructor_new_with_no_arguments.ds",
+            r#"
+let items = new Array();
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-array-constructor")
+            .assert_has_fix("no-array-constructor")
+            .assert_safe_fixed(
+                r#"
+let items = [];
+"#,
+            );
+    }
+
+    #[test]
+    fn test_no_fix_array_constructor_single_argument() {
+        let test = TestProgram::for_rule_with_prelude(NoArrayConstructor);
+        let result = test.lint_dir(
+            "no_array_constructor/test_no_fix_array_constructor_single_argument.ds",
+            r#"
+let items = Array(3);
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-array-constructor")
+            .assert_has_no_fix("no-array-constructor");
     }
 }

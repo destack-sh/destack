@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{expression_is_global_qualified_member, expression_target_symbol};
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `**` over `Math.pow()`.
@@ -18,7 +18,7 @@ declare_lint! {
         level = Dir,
         requires_all = [RequireLibSymbol("Math", &[])],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -93,6 +93,8 @@ impl<'a, 'b> ExponentiationVisitor<'a, 'b> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         left: dir::LocalNodeId<dir::Expression>,
+        static_arguments: Option<&[dir::LocalNodeId<dir::Argument>]>,
+        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
     ) {
         // match Math.pow calls
         if !self.is_math_pow(left) {
@@ -105,20 +107,69 @@ impl<'a, 'b> ExponentiationVisitor<'a, 'b> {
             return;
         }
 
-        // report the diagnostic
+        // build diagnostic and attach fix when safe
         let span = self.ctx.get_span(expression_id);
-        self.ctx.report(
-            LintDiagnostic::new(
-                PREFER_EXPONENTIATION_OPERATOR.id,
-                PREFER_EXPONENTIATION_OPERATOR.code,
-                PREFER_EXPONENTIATION_OPERATOR.category,
-                severity,
-                "prefer ** operator over Math.pow()",
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label("use base ** exponent instead"),
-        );
+        let mut diagnostic = LintDiagnostic::new(
+            PREFER_EXPONENTIATION_OPERATOR.id,
+            PREFER_EXPONENTIATION_OPERATOR.code,
+            PREFER_EXPONENTIATION_OPERATOR.category,
+            severity,
+            "prefer ** operator over Math.pow()",
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label("use base ** exponent instead");
+        if let Some(fix) = self.math_pow_fix(expression_id, static_arguments, dynamic_arguments) {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
+    }
+
+    /// Build a safe fix from `Math.pow(base, exponent)` to `base ** exponent`.
+    fn math_pow_fix(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        static_arguments: Option<&[dir::LocalNodeId<dir::Argument>]>,
+        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+    ) -> Option<LintFix> {
+        // skip static arguments until we support rendering them
+        if static_arguments.is_some_and(|arguments| !arguments.is_empty()) {
+            return None;
+        }
+
+        // require exactly two positional arguments
+        let [base_argument_id, exponent_argument_id] = dynamic_arguments else {
+            return None;
+        };
+        let base_argument = self.ctx.tree.get(*base_argument_id);
+        let exponent_argument = self.ctx.tree.get(*exponent_argument_id);
+        let dir::Argument::Positional { value: base_id, .. } = base_argument else {
+            return None;
+        };
+        let dir::Argument::Positional {
+            value: exponent_id, ..
+        } = exponent_argument
+        else {
+            return None;
+        };
+
+        // preserve source text and add parentheses for precedence safety
+        let base_span = self.ctx.get_span(*base_id);
+        let base_text = self.ctx.get_span_text(base_span);
+        let exponent_span = self.ctx.get_span(*exponent_id);
+        let exponent_text = self.ctx.get_span_text(exponent_span);
+        let replacement = format!("({base_text}) ** ({exponent_text})");
+
+        // replace the full call expression
+        let expression_span = self.ctx.get_span(expression_id);
+        let edits = self
+            .ctx
+            .edit_builder()
+            .replace(expression_span, replacement)
+            .into_edits();
+
+        Some(LintFix::safe("Replace Math.pow() with **").with_edits(edits))
     }
 
     /// Return true when the expression is Math.pow.
@@ -165,8 +216,13 @@ impl NodeVisitor for ExponentiationVisitor<'_, '_> {
         expression: &dir::Expression,
     ) {
         // check call expressions for Math.pow
-        if let dir::Expression::Call { left, .. } = expression {
-            self.check_call(id, *left);
+        if let dir::Expression::Call {
+            left,
+            static_arguments,
+            dynamic_arguments,
+        } = expression
+        {
+            self.check_call(id, *left, static_arguments.as_deref(), dynamic_arguments);
         }
 
         // walk expression children
@@ -229,5 +285,38 @@ let value = Math.max(1, 2);
         );
         test.result(result)
             .assert_no_lint("prefer-exponentiation-operator");
+    }
+
+    #[test]
+    fn test_fix_math_pow() {
+        let test = TestProgram::for_rule_with_prelude(PreferExponentiationOperator);
+        let result = test.lint_dir(
+            "prefer_exponentiation_operator/test_fix_math_pow.ds",
+            r#"
+let value = Math.pow(2, 3);
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-exponentiation-operator")
+            .assert_has_fix("prefer-exponentiation-operator")
+            .assert_safe_fixed(
+                r#"
+let value = (2) ** (3);
+"#,
+            );
+    }
+
+    #[test]
+    fn test_no_fix_math_pow_single_argument() {
+        let test = TestProgram::for_rule_with_prelude(PreferExponentiationOperator);
+        let result = test.lint_dir(
+            "prefer_exponentiation_operator/test_no_fix_math_pow_single_argument.ds",
+            r#"
+let value = Math.pow(2);
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-exponentiation-operator")
+            .assert_has_no_fix("prefer-exponentiation-operator");
     }
 }

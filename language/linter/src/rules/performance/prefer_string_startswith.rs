@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{const_i64, flip_binary_operator, is_string_type};
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `startsWith()` over `indexOf() === 0`.
@@ -18,7 +18,7 @@ declare_lint! {
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::String)],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -50,6 +50,8 @@ struct PreferStringStartsWithVisitor<'a, 'b> {
     string_symbol: dir::GlobalSymbolId,
     /// The string id for the indexOf method name.
     index_of_name: StringId,
+    /// The string id for the startsWith method name.
+    starts_with_name: StringId,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -59,12 +61,14 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let string_symbol = ctx.well_known_symbol(WellKnownSymbol::String);
         let index_of_name = ctx.program.strings.intern("indexOf");
+        let starts_with_name = ctx.program.strings.intern("startsWith");
 
         Self {
             ctx,
             meta,
             string_symbol,
             index_of_name,
+            starts_with_name,
             options: NodeVisitorOptions::default(),
         }
     }
@@ -89,14 +93,14 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
         right: dir::LocalNodeId<dir::Expression>,
     ) {
         // match comparisons with the constant on the right
-        if self.match_comparison(left, operator, right, false) {
-            self.report_match(expression_id);
+        if let Some(starts_with_match) = self.match_comparison(left, operator, right, false) {
+            self.report_match(expression_id, starts_with_match);
             return;
         }
 
         // match comparisons with the constant on the left
-        if self.match_comparison(right, operator, left, true) {
-            self.report_match(expression_id);
+        if let Some(starts_with_match) = self.match_comparison(right, operator, left, true) {
+            self.report_match(expression_id, starts_with_match);
         }
     }
 
@@ -107,19 +111,19 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
         operator: dir::BinaryOperator,
         constant_id: dir::LocalNodeId<dir::Expression>,
         flipped: bool,
-    ) -> bool {
+    ) -> Option<StartsWithMatch> {
         // resolve constant comparisons
         let Some(constant_value) = self.ctx.const_value(constant_id) else {
-            return false;
+            return None;
         };
         let Some(constant) = const_i64(&constant_value) else {
-            return false;
+            return None;
         };
 
         // normalize operators when constants are on the left
         let operator = if flipped {
             let Some(operator) = flip_binary_operator(operator) else {
-                return false;
+                return None;
             };
             operator
         } else {
@@ -131,65 +135,170 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
             operator,
             dir::BinaryOperator::Equal | dir::BinaryOperator::EqualStrict
         ) {
-            return false;
+            return None;
         }
         if constant != 0 {
-            return false;
+            return None;
         }
 
-        self.is_index_of_call(candidate_id)
+        // require indexOf call forms we can safely rewrite
+        let candidate = self.index_of_call_candidate(candidate_id)?;
+        if let Some(from_index_id) = candidate.from_index_id
+            && !self.is_zero_constant(from_index_id)
+        {
+            return None;
+        }
+
+        Some(StartsWithMatch {
+            call_member_id: candidate.call_member_id,
+            prefix_id: candidate.prefix_id,
+        })
     }
 
     /// Report a prefer-string-startswith match.
-    fn report_match(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) {
+    fn report_match(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        starts_with_match: StartsWithMatch,
+    ) {
         // honor per node severity
         let severity = self.ctx.get_effective_severity(self.meta, expression_id);
         if !severity.is_enabled() {
             return;
         }
 
-        // report the diagnostic
+        // build diagnostic and attach fix
         let span = self.ctx.get_span(expression_id);
-        self.ctx.report(
-            LintDiagnostic::new(
-                PREFER_STRING_STARTS_WITH.id,
-                PREFER_STRING_STARTS_WITH.code,
-                PREFER_STRING_STARTS_WITH.category,
-                severity,
-                "prefer startsWith() over indexOf() === 0",
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label("use startsWith() to check the prefix"),
-        );
+        let diagnostic = LintDiagnostic::new(
+            PREFER_STRING_STARTS_WITH.id,
+            PREFER_STRING_STARTS_WITH.code,
+            PREFER_STRING_STARTS_WITH.category,
+            severity,
+            "prefer startsWith() over indexOf() === 0",
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label("use startsWith() to check the prefix");
+
+        let mut diagnostic = diagnostic;
+        if let Some(fix) = self.starts_with_fix(expression_id, starts_with_match) {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
     }
 
-    /// Return true when the expression is a string indexOf call.
-    fn is_index_of_call(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
+    /// Return one normalized startsWith candidate from an indexOf call.
+    fn index_of_call_candidate(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<StartsWithCandidate> {
         // match call expression
         let expression = self.ctx.tree.get(expression_id);
         let dir::Expression::Call {
             left,
+            static_arguments,
             dynamic_arguments,
-            ..
         } = expression
         else {
-            return false;
+            return None;
         };
-        if dynamic_arguments.is_empty() {
-            return false;
+        if static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty())
+        {
+            return None;
+        }
+        if dynamic_arguments.is_empty() || dynamic_arguments.len() > 2 {
+            return None;
         }
 
         // match member access for indexOf
-        let member_expression = self.ctx.tree.get(*left);
-        let dir::Expression::Member { left, name, .. } = member_expression else {
-            return false;
+        let call_member_id = *left;
+        let member_expression = self.ctx.tree.get(call_member_id);
+        let dir::Expression::Member {
+            left: receiver_id,
+            name,
+            static_arguments,
+        } = member_expression
+        else {
+            return None;
         };
         if *name != self.index_of_name {
-            return false;
+            return None;
+        }
+        if static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty())
+        {
+            return None;
         }
 
-        self.is_string_receiver(*left)
+        // require one positional search argument
+        let first_argument = self.ctx.tree.get(dynamic_arguments[0]);
+        let dir::Argument::Positional {
+            value: prefix_id, ..
+        } = first_argument
+        else {
+            return None;
+        };
+
+        // optionally accept one positional fromIndex argument
+        let from_index_id = if dynamic_arguments.len() == 2 {
+            let second_argument = self.ctx.tree.get(dynamic_arguments[1]);
+            let dir::Argument::Positional { value, .. } = second_argument else {
+                return None;
+            };
+            Some(*value)
+        } else {
+            None
+        };
+
+        // require a string receiver
+        if !self.is_string_receiver(*receiver_id) {
+            return None;
+        }
+
+        Some(StartsWithCandidate {
+            call_member_id,
+            prefix_id: *prefix_id,
+            from_index_id,
+        })
+    }
+
+    /// Build a safe fix from an indexOf comparison to startsWith.
+    fn starts_with_fix(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        starts_with_match: StartsWithMatch,
+    ) -> Option<LintFix> {
+        // preserve receiver and prefix source text
+        let member_span = self.ctx.get_span(starts_with_match.call_member_id);
+        let member_text = self.ctx.get_span_text(member_span);
+        let member_text = member_text.as_ref();
+        let receiver_text = strip_dot_member_suffix(member_text, "indexOf")?;
+        let prefix_span = self.ctx.get_span(starts_with_match.prefix_id);
+        let prefix_text = self.ctx.get_span_text(prefix_span);
+        let method_name = self.ctx.program.strings.get(self.starts_with_name);
+        let replacement = format!("{receiver_text}.{}({prefix_text})", method_name.as_ref());
+
+        // replace the full comparison expression
+        let expression_span = self.ctx.get_span(expression_id);
+        let edits = self
+            .ctx
+            .edit_builder()
+            .replace(expression_span, replacement)
+            .into_edits();
+
+        Some(LintFix::safe("Replace indexOf() === 0 with startsWith()").with_edits(edits))
+    }
+
+    /// Return true when an expression resolves to the constant value zero.
+    fn is_zero_constant(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
+        let Some(constant_value) = self.ctx.const_value(expression_id) else {
+            return false;
+        };
+        const_i64(&constant_value) == Some(0)
     }
 
     /// Return true when the receiver expression is a string type.
@@ -229,6 +338,32 @@ impl NodeVisitor for PreferStringStartsWithVisitor<'_, '_> {
     }
 }
 
+/// One normalized indexOf candidate for startsWith checks.
+#[derive(Clone, Copy)]
+struct StartsWithCandidate {
+    /// The member expression for the indexOf call.
+    call_member_id: dir::LocalNodeId<dir::Expression>,
+    /// The searched prefix expression.
+    prefix_id: dir::LocalNodeId<dir::Expression>,
+    /// Optional fromIndex expression.
+    from_index_id: Option<dir::LocalNodeId<dir::Expression>>,
+}
+
+/// One normalized startsWith match payload.
+#[derive(Clone, Copy)]
+struct StartsWithMatch {
+    /// The member expression for the indexOf call.
+    call_member_id: dir::LocalNodeId<dir::Expression>,
+    /// The searched prefix expression.
+    prefix_id: dir::LocalNodeId<dir::Expression>,
+}
+
+/// Strip one `.member` suffix from a member expression text.
+fn strip_dot_member_suffix<'a>(text: &'a str, member: &str) -> Option<&'a str> {
+    let suffix = format!(".{member}");
+    text.strip_suffix(&suffix).map(str::trim_end)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -261,5 +396,86 @@ let has = text.indexOf("he") !== -1;
         );
         test.result(result)
             .assert_no_lint("prefer-string-startswith");
+    }
+
+    /// Safely rewrite indexOf prefix checks.
+    #[test]
+    fn test_fix_index_of_zero_check() {
+        let test = TestProgram::for_rule_without_prelude(PreferStringStartsWith);
+        let result = test.lint_dir(
+            "prefer_string_startswith/test_fix_index_of_zero_check.ds",
+            r#"
+let text = "hello";
+let has = text.indexOf("he") === 0;
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-string-startswith")
+            .assert_has_fix("prefer-string-startswith")
+            .assert_safe_fixed(
+                r#"
+let text = "hello";
+let has = text.startsWith("he");
+"#,
+            );
+    }
+
+    /// Safely rewrite flipped indexOf prefix checks.
+    #[test]
+    fn test_fix_flipped_index_of_zero_check() {
+        let test = TestProgram::for_rule_without_prelude(PreferStringStartsWith);
+        let result = test.lint_dir(
+            "prefer_string_startswith/test_fix_flipped_index_of_zero_check.ds",
+            r#"
+let text = "hello";
+let has = 0 === text.indexOf("he");
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-string-startswith")
+            .assert_has_fix("prefer-string-startswith")
+            .assert_safe_fixed(
+                r#"
+let text = "hello";
+let has = text.startsWith("he");
+"#,
+            );
+    }
+
+    /// Allow indexOf checks with non zero fromIndex.
+    #[test]
+    fn test_allows_index_of_non_zero_from_index() {
+        let test = TestProgram::for_rule_without_prelude(PreferStringStartsWith);
+        let result = test.lint_dir(
+            "prefer_string_startswith/test_allows_index_of_non_zero_from_index.ds",
+            r#"
+let text = "hello";
+let has = text.indexOf("he", 1) === 0;
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("prefer-string-startswith");
+    }
+
+    /// Report and fix indexOf checks with explicit zero fromIndex.
+    #[test]
+    fn test_fix_index_of_zero_from_index() {
+        let test = TestProgram::for_rule_without_prelude(PreferStringStartsWith);
+        let result = test.lint_dir(
+            "prefer_string_startswith/test_fix_index_of_zero_from_index.ds",
+            r#"
+let text = "hello";
+let has = text.indexOf("he", 0) === 0;
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-string-startswith")
+            .assert_has_fix("prefer-string-startswith")
+            .assert_safe_fixed(
+                r#"
+let text = "hello";
+let has = text.startsWith("he");
+"#,
+            );
     }
 }
