@@ -603,8 +603,10 @@ where
                 if should_preserve_own_line_indentation {
                     let raw_line =
                         annotation_raw_line_or_trimmed_source(f.context(), annotation_id);
-                    write_annotation_line_with_indentation(f, raw_line.as_str())?;
-                    continue;
+                    if !raw_line.trim().is_empty() {
+                        write_annotation_line_with_indentation(f, raw_line.as_str())?;
+                        continue;
+                    }
                 }
 
                 let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
@@ -631,8 +633,10 @@ where
                 if should_preserve_own_line_indentation {
                     let raw_line =
                         annotation_raw_line_or_trimmed_source(f.context(), annotation_id);
-                    write_annotation_line_with_indentation(f, raw_line.as_str())?;
-                    continue;
+                    if !raw_line.trim().is_empty() {
+                        write_annotation_line_with_indentation(f, raw_line.as_str())?;
+                        continue;
+                    }
                 }
             }
 

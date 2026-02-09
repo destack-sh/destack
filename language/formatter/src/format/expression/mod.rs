@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use destack_ast::{
     Annotation, AnnotationPosition, Argument, AssignOperator, Asynchrony, BinaryOperator, Block,
-    BlockFormat, Declaration, DeclarationDescriptor, DeclarationKind, Declarator, DependencyItem,
+    Declaration, DeclarationDescriptor, DeclarationKind, Declarator, DependencyItem,
     DependencyKind, DependencyMode, Expression, ForEachBinding, ForEachDeclarationKind,
     ForEachKind, FunctionKind, IfCondition, IfKind, ImportAliasTarget, ImportSource, Keyword,
     LetKind, LocalNodeId, MatchKind, Member, Mutability, NodeTree, NodeType, OperatorPrecedence,

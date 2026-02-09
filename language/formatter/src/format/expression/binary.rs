@@ -486,8 +486,21 @@ pub(super) fn format_binary_operand_with_grouping_parentheses<'ast>(
     let expression = f.context().tree.get(operand_id);
     let needs_type_grouping_parentheses =
         type_binary_operand_needs_grouping_parentheses(f.context(), parent_operator, operand_id);
+    let suppress_precedence_parentheses_for_type_binary = matches!(
+        (expression, parent_operator),
+        (
+            Expression::TypeBinary {
+                operator: TypeBinaryOperator::Is
+                    | TypeBinaryOperator::In
+                    | TypeBinaryOperator::InstanceOf,
+                ..
+            },
+            BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Coalesce,
+        )
+    );
     let needs_precedence_parentheses = !matches!(expression, Expression::Parenthesized { .. })
-        && expression_precedence(expression) < parent_operator.precedence();
+        && expression_precedence(expression) < parent_operator.precedence()
+        && !suppress_precedence_parentheses_for_type_binary;
     if needs_type_grouping_parentheses || needs_precedence_parentheses {
         write!(f, [token("("), operand_id, token(")")])?;
     } else {

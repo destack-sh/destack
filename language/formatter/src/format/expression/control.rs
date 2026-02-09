@@ -1,5 +1,6 @@
 use super::*;
 use crate::r#match::{MatchCaseStyle, format_match_case_with_style};
+use destack_ast::BlockFormat;
 use destack_fir::{format_args, write};
 
 /// Format a statement body block, preserving wrapper semantics.
@@ -23,13 +24,8 @@ pub(super) fn format_statement_body_block<'ast>(
         write!(f, [expression_id])?;
 
         let expression = f.context().tree.get(expression_id);
-        let expression_source = f
-            .context()
-            .get_span_str(f.context().get_span(expression_id));
-        let expression_has_semicolon = expression_source.trim_end().ends_with(';');
-        let needs_terminator = !expression_has_semicolon
-            && !matches!(expression, Expression::Statement(_))
-            && !expression.is_top_level_statement();
+        let needs_terminator =
+            !matches!(expression, Expression::Statement(_)) && !expression.is_top_level_statement();
         if needs_terminator {
             write!(f, [token(";")])?;
         }
@@ -47,14 +43,7 @@ fn is_statement_wrapper_block<'ast>(
     block_id: LocalNodeId<Block>,
 ) -> bool {
     let block = context.tree.get(block_id);
-    if block.format == BlockFormat::Implicit {
-        return true;
-    }
-
-    let span = context.get_span(block_id);
-    let source = context.get_span_str(span);
-    let source = source.trim();
-    !(source.starts_with('{') && source.ends_with('}'))
+    block.format == BlockFormat::Implicit
 }
 
 /// Return true when this block is an empty statement wrapper.

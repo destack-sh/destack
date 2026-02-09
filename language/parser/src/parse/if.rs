@@ -37,7 +37,7 @@ impl Parser {
         {
             let block_id = self.tree.insert(
                 Block {
-                    format: BlockFormat::Explicit,
+                    format: BlockFormat::Implicit,
                     expressions: vec![expression_id],
                 },
                 self.get_span_from(&start),

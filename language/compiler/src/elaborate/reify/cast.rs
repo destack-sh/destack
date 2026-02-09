@@ -2844,11 +2844,11 @@ function test(value: Foo | Bar): int32 {
             module_id,
             r#"
 struct Foo {
-    x: int32,
+    x: int32;
 }
 
 struct Bar {
-    y: int32,
+    y: int32;
 }
 
 function test(value): int32 {
@@ -2891,11 +2891,11 @@ function test(value: Foo | Bar): int32 {
             module_id,
             r#"
 struct Foo {
-    x: int32,
+    x: int32;
 }
 
 struct Bar {
-    y: int32,
+    y: int32;
 }
 
 function test(value): int32 {
@@ -2938,11 +2938,11 @@ function test(value: Foo | Bar): int32 {
             module_id,
             r#"
 struct Foo {
-    x: int32,
+    x: int32;
 }
 
 struct Bar {
-    y: int32,
+    y: int32;
 }
 
 function test(value): int32 {
@@ -2985,11 +2985,11 @@ function test(value: Foo | Bar): int32 {
             module_id,
             r#"
 struct Foo {
-    x: int32,
+    x: int32;
 }
 
 struct Bar {
-    y: int32,
+    y: int32;
 }
 
 function test(value): int32 {
@@ -3029,11 +3029,11 @@ function isFoo(value: Foo | Bar): boolean {
             module_id,
             r#"
 struct Foo {
-    x: int32,
+    x: int32;
 }
 
 struct Bar {
-    y: int32,
+    y: int32;
 }
 
 function isFoo(value): boolean {
@@ -3104,11 +3104,11 @@ function test(value: Foo | Bar): int32 {
             module_id,
             r#"
 class Foo {
-    x: int32 = 0,
+    x: int32 = 0;
 }
 
 class Bar {
-    y: int32 = 0,
+    y: int32 = 0;
 }
 
 function test(value): int32 {
@@ -3189,11 +3189,11 @@ function test(value: Foo | Bar): int32 {
             module_id,
             r#"
 struct Foo {
-    x: int32,
+    x: int32;
 }
 
 struct Bar {
-    y: int32,
+    y: int32;
 }
 
 function test(value): int32 {
@@ -3232,11 +3232,11 @@ function test(value: Foo | Bar): Foo {
             module_id,
             r#"
 struct Foo {
-    x: int32,
+    x: int32;
 }
 
 struct Bar {
-    y: int32,
+    y: int32;
 }
 
 function test(value): Foo {
@@ -3269,7 +3269,7 @@ function make(value: int32): Counter {
             module_id,
             r#"
 struct Counter {
-    value: int32,
+    value: int32;
 }
 
 function make(value): Counter {
@@ -3316,11 +3316,11 @@ function test(): Greeter {
             module_id,
             r#"
 interface Greeter {
-    greet(): int32
+    greet(): int32;
 }
 
 class GreeterImpl implements Greeter {
-    value: int32,
+    value: int32;
     constructor(value) {
         this.value = value;
         return;
@@ -3366,11 +3366,11 @@ function test(value: Greeter): Speaker {
             module_id,
             r#"
 interface Greeter {
-    greet(): int32
+    greet(): int32;
 }
 
 interface Speaker {
-    greet(): int32
+    greet(): int32;
 }
 
 function test(value): Speaker {
@@ -3771,7 +3771,7 @@ function test(): Foo {
             module_id,
             r#"
 interface Foo {
-    x: int32,
+    x: int32;
 }
 
 function getObject(): object {
