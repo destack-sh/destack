@@ -333,6 +333,8 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
 
     let ignored_failures_path = suite.ignored_failures_path();
     let ignored_failures = load_expected_failures(&ignored_failures_path);
+    let include_known_failures = options.include_known_failures_effective();
+    let include_ignored = options.include_ignored_effective();
     let stale_ignored: Vec<String> = ignored_failures
         .iter()
         .filter(|name| !discovered_names.contains(*name))
@@ -342,7 +344,7 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
     // count how many tests are in ignored list (for display)
     let skipped_count = tests
         .iter()
-        .filter(|t| ignored_failures.contains(&t.name))
+        .filter(|t| ignored_failures.contains(&t.name) && !include_ignored)
         .count();
 
     println!();
@@ -449,8 +451,8 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
     let ignored_failures_are_strict = suite.ignored_failures_are_strict();
 
     for (name, outcome) in results {
-        let is_skipped = ignored_failures.contains(&name);
-        let is_known_failure = known_failures.contains(&name);
+        let is_skipped = ignored_failures.contains(&name) && !include_ignored;
+        let is_known_failure = known_failures.contains(&name) && !include_known_failures;
 
         // extract category from test name (suite-specific)
         let category = suite.category_for_test(&name);

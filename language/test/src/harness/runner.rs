@@ -85,8 +85,9 @@ impl Runner {
 
         let summary = TestSummary::new();
         let start = Instant::now();
-        // decide whether to skip a known failure without running it
-        let skip_known_failures = !context.options.update_known_failures;
+        let skip_known_failures = !context.options.include_known_failures_effective();
+        let skip_ignored = !context.options.include_ignored_effective();
+        let track_expected_failures = !context.options.include_known_failures_effective();
 
         let results: Vec<(TestCase, TestResult, std::time::Duration)> =
             if context.options.parallel() {
@@ -102,12 +103,15 @@ impl Runner {
                         .map(|case| {
                             let case_start = Instant::now();
 
-                            // skip known failures and underscore skipped tests up front
-                            let result =
-                                match skip_reason(case, expected_failures, skip_known_failures) {
-                                    Some(reason) => TestResult::Skipped { reason },
-                                    None => run(case, context),
-                                };
+                            let result = match skip_reason(
+                                case,
+                                expected_failures,
+                                skip_known_failures,
+                                skip_ignored,
+                            ) {
+                                Some(reason) => TestResult::Skipped { reason },
+                                None => run(case, context),
+                            };
 
                             let duration = case_start.elapsed();
 
@@ -138,9 +142,12 @@ impl Runner {
                     .map(|case| {
                         let case_start = Instant::now();
 
-                        // skip known failures and underscore skipped tests up front
-                        let result = match skip_reason(case, expected_failures, skip_known_failures)
-                        {
+                        let result = match skip_reason(
+                            case,
+                            expected_failures,
+                            skip_known_failures,
+                            skip_ignored,
+                        ) {
                             Some(reason) => TestResult::Skipped { reason },
                             None => run(case, context),
                         };
@@ -173,14 +180,20 @@ impl Runner {
 
         let mut final_results: Vec<(TestCase, TestResult)> = Vec::new();
         let mut raw_results: Vec<(TestCase, TestResult)> = Vec::new();
-        let mut expected_summary = ExpectedFailureSummary::new(expected_failures);
+        let mut expected_summary =
+            track_expected_failures.then(|| ExpectedFailureSummary::new(expected_failures));
         for (case, result, duration) in results {
             raw_results.push((case.clone(), result.clone()));
-            let result = if is_known_failure_skip(&result) {
-                expected_summary.record_known_failure(&case);
-                result
-            } else {
-                expected_summary.update(&case, result)
+            let result = match expected_summary.as_mut() {
+                Some(summary) => {
+                    if is_known_failure_skip(&result) {
+                        summary.record_known_failure(&case);
+                        result
+                    } else {
+                        summary.update(&case, result)
+                    }
+                }
+                None => result,
             };
             summary.record(&result);
             print_result(&case, &result, duration, context.options.verbose);
@@ -196,7 +209,11 @@ impl Runner {
             ExitCode::FAILURE
         };
 
-        let expected_summary = expected_failures.map(|_| expected_summary);
+        let expected_summary = if expected_failures.is_some() {
+            expected_summary
+        } else {
+            None
+        };
         (exit_code, final_results, raw_results, expected_summary)
     }
 
@@ -248,13 +265,12 @@ fn skip_reason(
     case: &TestCase,
     expected_failures: Option<&HashSet<String>>,
     skip_known_failures: bool,
+    skip_ignored: bool,
 ) -> Option<String> {
-    // respect underscore-prefixed skips first
-    if case.is_skipped {
+    if case.is_skipped && skip_ignored {
         return Some("marked as skipped".to_string());
     }
 
-    // skip known failures unless we are refreshing the baseline
     if skip_known_failures {
         let full_name = case.full_name();
         let is_known_failure = expected_failures

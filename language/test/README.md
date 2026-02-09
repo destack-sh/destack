@@ -15,7 +15,7 @@ Integration and fixture-based tests for the Destack language toolchain.
 | **Conformance** | `fixtures/conformance/` | Parser conformance against established test suites |
 | **Formatter** | `fixtures/formatter/` | Format roundtrip stability |
 | **Resolver** | `fixtures/resolver/` | Module resolution (from enhanced-resolve) |
-| **Ecosystem** | `fixtures/ecosystem/` | Real-world package parsing |
+| **Ecosystem** | `fixtures/ecosystem/` | Real-world package tests |
 | **Stress** | `fixtures/stress/` | Scale limits: large files, many modules, deep nesting |
 
 ## Running Tests

@@ -3,14 +3,8 @@ name = "valibot"
 description = "Modular schema validation library"
 repo = "https://github.com/fabian-hiller/valibot"
 ref = "v1.0.0"
+language = "ts"
 
 [discovery]
 include = ["library/src/**/*.ts"]
 exclude = ["**/*.test.ts", "**/*.test-d.ts"]
-
-[tiers.parse]
-status = false
-reason = "quoted property shorthand methods: '~run'(dataset) { ... }"
-
-[tiers]
-analyze = false
