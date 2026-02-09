@@ -2,10 +2,7 @@ use destack_source::{ModuleId, Span};
 use destack_workspace::LintSeverity;
 use {destack_ast as ast, destack_dir as dir};
 
-use crate::rules::common::{
-    expression_declared_or_inferred_type_id, expression_structural_signature,
-    symbol_primary_declaration_for,
-};
+use crate::rules::common::{expression_structural_signature, symbol_primary_declaration_for};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -241,16 +238,7 @@ fn argument_matches_default(
     default_module_id: ModuleId,
     default_expression: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    // prefer semantic type equality when both sides are in the current module
-    if default_module_id == ctx.module_id()
-        && let Some(argument_type_id) = local_expression_type_id(ctx, argument_expression)
-        && let Some(default_type_id) = local_expression_type_id(ctx, default_expression)
-        && dir::are_types_equal(argument_type_id, default_type_id, ctx.types)
-    {
-        return true;
-    }
-
-    // fall back to structural ast comparison across modules
+    // compare type argument and default expression structure
     expression_ast_signature_eq_cross_module(
         ctx,
         ctx.module_id(),
@@ -258,15 +246,6 @@ fn argument_matches_default(
         default_module_id,
         default_expression,
     )
-}
-
-/// Resolve one expression type id from the current module.
-fn local_expression_type_id(
-    ctx: &LintModuleDirContext<'_>,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> Option<dir::LocalTypeId> {
-    expression_declared_or_inferred_type_id(ctx.module_id(), ctx.tree, ctx.types, expression_id)
-        .or_else(|| ctx.expression_type_id(expression_id))
 }
 
 /// Compare expressions structurally across modules using AST signatures.
