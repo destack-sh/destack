@@ -553,6 +553,57 @@ impl Parser {
         }
     }
 
+    /// Eat a TypeScript angle bracket type assertion.
+    fn eat_type_assertion_expression(
+        &mut self,
+        start: &ParserMark,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        let operator_start = self.mark();
+        let static_arguments = self.eat_static_arguments()?;
+        let operator_span = self.get_span_from(&operator_start);
+
+        // type assertions require exactly one positional type argument
+        if static_arguments.len() != 1 {
+            let unexpected_span = static_arguments
+                .get(1)
+                .map(|argument_id| self.tree.get_span(*argument_id))
+                .unwrap_or(operator_span);
+            return Err(ParseError::unexpected(unexpected_span));
+        }
+
+        // extract the asserted type expression
+        let asserted_type = match self.tree.get(static_arguments[0]) {
+            Argument::Positional {
+                modifiers: None,
+                value,
+            } => *value,
+            _ => {
+                return Err(ParseError::unexpected(
+                    self.tree.get_span(static_arguments[0]),
+                ));
+            }
+        };
+
+        // parse the asserted value expression
+        let right_options = self
+            .options
+            .not_in_position()
+            .in_left_precedence(TypeBinaryOperator::Cast.precedence());
+        let asserted_value = self.with_options(right_options, |parser| parser.eat_expression())?;
+
+        // lower to the same cast node used by `as`
+        let expression_id = self.tree.insert(
+            Expression::TypeBinary {
+                left: asserted_value,
+                operator: TypeBinaryOperator::Cast,
+                right: asserted_type,
+            },
+            self.get_span_from(start),
+        );
+        self.tree.set_main_span(expression_id, operator_span);
+        Ok(expression_id)
+    }
+
     /// Make an expression from an infix operator.
     #[inline]
     fn make_infix_expression(
@@ -796,6 +847,30 @@ impl Parser {
                 | TokenType::TemplateStringStart
                 | TokenType::TemplateString
         )
+    }
+
+    /// Return true when optional chaining starts after one or more newlines.
+    #[inline]
+    fn optional_chain_starts_after_newlines(&mut self) -> bool {
+        if !self.peek_is(TokenType::Newline) {
+            return false;
+        }
+
+        let next_index = self.next_non_newline_index_from(self.pos_index());
+        self.token_stream.ensure_token(next_index + 1);
+        let Some(next_token) = self.tokens().get(next_index) else {
+            return false;
+        };
+
+        if next_token.token.ty == TokenType::Maybe {
+            return true;
+        }
+
+        next_token.token.ty == TokenType::Dot
+            && self
+                .tokens()
+                .get(next_index + 1)
+                .is_some_and(|token| token.token.ty == TokenType::Maybe)
     }
 
     /// Check whether `asserts` starts a type predicate.
@@ -1341,10 +1416,23 @@ impl Parser {
                     self.get_span_from(start),
                 )))
             }
-            // struct or class declaration
-            Keyword::Struct | Keyword::Class
-                if is_declaration_start || next_token_type == TokenType::Newline =>
+            // struct declaration
+            Keyword::Struct
+                if self.language.is_destack()
+                    && (is_declaration_start || next_token_type == TokenType::Newline) =>
             {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let allow_anonymous_class = !self.options.in_statement_position
+                    || descriptor.export == Some(DependencyMode::Default);
+                let struct_id =
+                    self.eat_struct_or_class(start, descriptor, allow_anonymous_class)?;
+                Ok(Some(self.tree.insert(
+                    Expression::Declaration(struct_id),
+                    self.get_span_from(start),
+                )))
+            }
+            // class declaration
+            Keyword::Class if is_declaration_start || next_token_type == TokenType::Newline => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let allow_anonymous_class = !self.options.in_statement_position
                     || descriptor.export == Some(DependencyMode::Default);
@@ -1438,7 +1526,11 @@ impl Parser {
                 )))
             }
             // extension declaration
-            Keyword::Extension if is_declaration_start => {
+            Keyword::Extension
+                if self.language.is_destack()
+                    && self.options.in_statement_position
+                    && is_declaration_start =>
+            {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let extension_id = self.eat_extension(start, descriptor)?;
                 Ok(Some(self.tree.insert(
@@ -1761,6 +1853,33 @@ impl Parser {
             }
             // type or readonly type alias declaration
             Keyword::Type | Keyword::Readonly => {
+                let next_keyword = if next_token_type == TokenType::Identifier {
+                    self.keyword_for_index(self.index_for_next())
+                } else {
+                    None
+                };
+                let next_index = self.index_for_next();
+                let after_next_index = self.next_non_newline_index_from(next_index + 1);
+                let after_next_token_type = self.token_type_at(after_next_index);
+                let starts_type_operator = matches!(
+                    next_keyword,
+                    Some(
+                        Keyword::As
+                            | Keyword::Satisfies
+                            | Keyword::Extends
+                            | Keyword::Implements
+                            | Keyword::In
+                            | Keyword::InstanceOf
+                            | Keyword::Is
+                    )
+                ) && !matches!(
+                    after_next_token_type,
+                    TokenType::Assign
+                        | TokenType::LessThan
+                        | TokenType::ShiftLeft
+                        | TokenType::SaturatingShiftLeft
+                );
+
                 // require a valid type alias start
                 let can_start_type_alias = matches!(
                     next_token_type,
@@ -1769,7 +1888,7 @@ impl Parser {
                         | TokenType::OpenParenthesis
                         | TokenType::OpenBracket
                         | TokenType::Literal
-                );
+                ) && !starts_type_operator;
 
                 // parse type alias when it can start
                 if can_start_type_alias {
@@ -2805,6 +2924,16 @@ impl Parser {
                             self.get_span_from(&start),
                         )
                     }
+                    // typescript angle bracket type assertion
+                    else if token_type == TokenType::LessThan
+                        && self.language.is_typescript()
+                        && !self.language.supports_jsx()
+                        && !self.options.in_type
+                        && !self.options.in_new_receiver
+                        && !self.options.disallow_ambiguous_tree_literal
+                    {
+                        self.eat_type_assertion_expression(&start)?
+                    }
                     // tree literal
                     else if token_type == TokenType::LessThan && self.can_start_tree_literal() {
                         self.with_options(self.options.not_in_position(), |parser| {
@@ -3172,10 +3301,7 @@ impl Parser {
                 // (like `x?`, `x.?`, `x?.`)
                 else if self.peek_is(TokenType::Maybe)
                     || self.peek_is(TokenType::Dot) && self.peek_next_is(TokenType::Maybe)
-                    || self.peek_is(TokenType::Newline) && self.peek_next_is(TokenType::Maybe)
-                    || self.peek_is(TokenType::Newline)
-                        && self.peek_next_is(TokenType::Dot)
-                        && self.peek_next_next_token(TokenType::Maybe).is_ok()
+                    || self.optional_chain_starts_after_newlines()
                 {
                     // capture type conditional operands when in type contexts
                     let type_conditional_operands = if self.options.in_type {
@@ -3363,6 +3489,19 @@ impl Parser {
         {
             let _timing = self.timing_scope(tags::PARSE_EXPRESSION_INFIX);
             while self.has_more_tokens() {
+                // stop before conditional boundaries so infix lookahead does not lex past `?`
+                if self.peek_is(TokenType::Maybe)
+                    || self.peek_is(TokenType::Newline) && self.peek_next_is(TokenType::Maybe)
+                {
+                    break;
+                }
+                // stop before ternary or match case boundary so infix lookahead does not lex past `:`
+                if (self.options.in_ternary_condition || self.options.in_match_case)
+                    && (self.peek_is(TokenType::Colon)
+                        || self.peek_is(TokenType::Newline) && self.peek_next_is(TokenType::Colon))
+                {
+                    break;
+                }
                 // statement expressions do not continue across newlines
                 if left_is_statement && self.peek_is(TokenType::Newline) {
                     break;
@@ -3657,6 +3796,52 @@ mod tests {
         assert_node!(parser.tree, expression_id, Expression::Member { left, name, .. } => {
             assert_node!(parser.tree, *left, Expression::Super);
             assert_string!(parser, *name, "value");
+        });
+    }
+
+    /// Parse this member access in variant context.
+    #[test]
+    fn test_parse_this_member_expression_in_variant_context() {
+        let mut test =
+            TestParser::new_with_options("this.port1.onmessage", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        parser.options.in_variant = true;
+        let expression_id = parser.eat_expression().unwrap();
+
+        // this.port1.onmessage
+        assert_node!(parser.tree, expression_id, Expression::Member { left, name, .. } => {
+            assert_string!(parser, *name, "onmessage");
+            assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
+                assert_string!(parser, *name, "port1");
+                assert_node!(parser.tree, *left, Expression::This);
+            });
+        });
+    }
+
+    /// Parse this member access in call arguments in variant context.
+    #[test]
+    fn test_parse_call_argument_this_member_expression_in_variant_context() {
+        let mut test = TestParser::new_with_options(
+            "setTimeout(this.port1.onmessage, 0)",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        parser.options.in_variant = true;
+        let expression_id = parser.eat_expression().unwrap();
+
+        // setTimeout(this.port1.onmessage, 0)
+        assert_node!(parser.tree, expression_id, Expression::Call { dynamic_arguments, .. } => {
+            assert_eq!(dynamic_arguments.len(), 2);
+            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                // this.port1.onmessage
+                assert_node!(parser.tree, *value, Expression::Member { left, name, .. } => {
+                    assert_string!(parser, *name, "onmessage");
+                    assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
+                        assert_string!(parser, *name, "port1");
+                        assert_node!(parser.tree, *left, Expression::This);
+                    });
+                });
+            });
         });
     }
 
@@ -4661,6 +4846,37 @@ const shapes = (
         });
     }
 
+    /// Parse optional chaining after comment-separated newlines.
+    #[test]
+    fn test_parse_optional_chain_after_comment_newlines() {
+        let input = "promise\n  .then(noop)\n  // comment\n  // comment\n  ?.catch(noop)";
+        let mut test = TestParser::new_with_options(input, LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert!(parser.errors.is_empty());
+        assert_eq!(expressions.len(), 1);
+
+        let statement_id = match parser.tree.get(expressions[0]) {
+            Expression::Statement(expression_id) => *expression_id,
+            _ => expressions[0],
+        };
+
+        assert_node!(parser.tree, statement_id, Expression::Call { left, dynamic_arguments, .. } => {
+            assert_eq!(dynamic_arguments.len(), 1);
+            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { modifiers: _, value } => {
+                assert_expression_path!(parser, parser.tree.get(*value), "noop");
+            });
+
+            assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
+                assert_string!(parser, *name, "catch");
+                assert_node!(parser.tree, *left, Expression::Maybe { left: maybe_left, position: PostfixPosition::Direct } => {
+                    assert_node!(parser.tree, *maybe_left, Expression::Call { .. });
+                });
+            });
+        });
+    }
+
     #[test]
     fn test_parse_instantiation_expression_with_index() {
         let mut test = TestParser::new_with_options("f[\"g\"]<number>", LanguageType::TypeScript);
@@ -5117,6 +5333,40 @@ f<x> !== g<y>;
                 });
                 assert_node!(parser.tree, signature.return_type.unwrap(), Expression::Path { path, .. } => {
                     assert_path!(parser, *path, "T");
+                });
+                assert_node!(parser.tree, body.unwrap(), Expression::Path { path, .. } => {
+                    assert_path!(parser, *path, "x");
+                });
+            });
+        });
+    }
+
+    /// Parse a generic lambda function with a newline after `<`.
+    #[test]
+    fn test_parse_generic_lambda_function_value_multiline_after_less_than() {
+        let mut test = TestParser::new_with_options(
+            "<\nT extends string\n>(x: T) => x",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body, .. } => {
+                assert_eq!(signature.kind, FunctionKind::Lambda);
+                let generics = signature.generics.as_ref().expect("expected generics");
+                let static_parameters = generics.static_parameters.as_ref().expect("expected static parameters");
+                assert_eq!(static_parameters.len(), 1);
+                assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, ty, .. } => {
+                    assert_string!(parser, *name, "T");
+                    assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::String));
+                });
+                assert_eq!(signature.dynamic_parameters.len(), 1);
+                assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+                    assert_string!(parser, *name, "x");
+                    assert_node!(parser.tree, ty.unwrap(), Expression::Path { path, .. } => {
+                        assert_path!(parser, *path, "T");
+                    });
                 });
                 assert_node!(parser.tree, body.unwrap(), Expression::Path { path, .. } => {
                     assert_path!(parser, *path, "x");
@@ -5779,6 +6029,22 @@ self
         });
     }
 
+    /// Parse default IdentifierName member access in JavaScript.
+    #[test]
+    fn test_parse_member_default_identifier_name_after_parenthesized_await_import() {
+        let mut test = TestParser::new_with_options(
+            r#"(await import(join("file://", process.argv[2]))).default"#,
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // (await import(join("file://", process.argv[2]))).default
+        assert_node!(parser.tree, expr_id, Expression::Member { name, .. } => {
+            assert_string!(parser, *name, "default");
+        });
+    }
+
     /// Parse boolean IdentifierName property keys and accessors in JavaScript.
     #[test]
     fn test_parse_object_boolean_identifier_name_keys() {
@@ -5839,6 +6105,55 @@ self
             assert_eq!(items.len(), 1);
             assert_node!(parser.tree, items[0], DependencyItem { value: Some(value), .. } => {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
+            });
+        });
+    }
+
+    /// Parse regex literal after assign with a newline.
+    #[test]
+    fn test_parse_regex_literal_after_assign_newline() {
+        // source: var match =\n/^foo$/i.exec(str)
+        let mut test = TestParser::new_with_options(
+            "var match =\n/^foo$/i.exec(str)",
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // var match =\n/^foo$/i.exec(str)
+        assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
+            assert_eq!(declarators.len(), 1);
+            assert_node!(parser.tree, declarators[0], Declarator { value, .. } => {
+                assert_node!(parser.tree, value.expect("expected initializer"), Expression::Call { left, dynamic_arguments, .. } => {
+                    assert_eq!(dynamic_arguments.len(), 1);
+                    assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
+                        assert_string!(parser, *name, "exec");
+                        assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse regex literal after an arrow.
+    #[test]
+    fn test_parse_regex_literal_after_arrow() {
+        // source: () => /^foo$/.test(value)
+        let mut test =
+            TestParser::new_with_options("() => /^foo$/.test(value)", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { body, .. } => {
+                let body = body.expect("expected body");
+                assert_node!(parser.tree, body, Expression::Call { left, dynamic_arguments, .. } => {
+                    assert_eq!(dynamic_arguments.len(), 1);
+                    assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
+                        assert_string!(parser, *name, "test");
+                        assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
+                    });
+                });
             });
         });
     }
@@ -5913,6 +6228,21 @@ self
         let error = parser.eat_expression().unwrap_err();
 
         assert_eq!(error.leaf_span().start, 0);
+    }
+
+    /// Parse unicode regex property escapes.
+    #[test]
+    fn test_parse_regex_unicode_property_escape() {
+        // source: /\p{Emoji}/u
+        let mut test = TestParser::new_with_options("/\\p{Emoji}/u", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(
+            parser.tree,
+            expr_id,
+            Expression::ScalarLiteral(ScalarLiteral::RegexString { .. })
+        );
     }
 
     /// Parse regex unicode escapes with long leading-zero code point forms.
@@ -6131,6 +6461,20 @@ self
                 assert_expression_path!(parser, parser.tree.get(*right), "b");
             }
         );
+    }
+
+    /// Parse a TypeScript angle bracket type assertion.
+    #[test]
+    fn test_parse_typescript_angle_type_assertion_expression() {
+        let mut test = TestParser::new_with_options("<any>value", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::TypeBinary { left, operator, right } => {
+            assert_eq!(*operator, TypeBinaryOperator::Cast);
+            assert_expression_path!(parser, parser.tree.get(*left), "value");
+            assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Any));
+        });
     }
 
     /// Type casts bind to the full addition expression on the left.
@@ -6663,6 +7007,136 @@ self
         });
     }
 
+    /// Parse `type as string` as a cast expression.
+    #[test]
+    fn test_parse_type_keyword_as_cast_expression() {
+        let mut test = TestParser::new_with_options("type as string", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::TypeBinary { left, operator, right } => {
+            assert_eq!(*operator, TypeBinaryOperator::Cast);
+            assert_expression_path!(parser, parser.tree.get(*left), "type");
+            assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::String));
+        });
+    }
+
+    /// Parse type aliases named `as` and `satisfies`.
+    #[test]
+    fn test_parse_type_alias_named_as_or_satisfies() {
+        let mut test = TestParser::new_with_options(
+            "type as = 0;\ntype satisfies = 0;",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert_eq!(expressions.len(), 2);
+
+        assert_node!(parser.tree, expressions[0], Expression::Statement(statement_id) => {
+            assert_node!(parser.tree, *statement_id, Expression::Declaration(declaration_id) => {
+                assert_node!(parser.tree, *declaration_id, Declaration::Type { descriptor, value, .. } => {
+                    assert_string!(parser, descriptor.name.unwrap().string(), "as");
+                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+                });
+            });
+        });
+
+        assert_node!(parser.tree, expressions[1], Expression::Statement(statement_id) => {
+            assert_node!(parser.tree, *statement_id, Expression::Declaration(declaration_id) => {
+                assert_node!(parser.tree, *declaration_id, Declaration::Type { descriptor, value, .. } => {
+                    assert_string!(parser, descriptor.name.unwrap().string(), "satisfies");
+                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+                });
+            });
+        });
+    }
+
+    /// Reject angle bracket assertions in disallow ambiguous mode.
+    #[test]
+    fn test_reject_type_assertion_when_disallow_ambiguous_tree_literal() {
+        let mut test = TestParser::new_with_options("<T>x", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        parser.options.disallow_ambiguous_tree_literal = true;
+
+        let result = parser.eat_expression();
+        assert!(result.is_err());
+    }
+
+    /// Reject ambiguous generic arrows in disallow ambiguous mode.
+    #[test]
+    fn test_reject_generic_arrow_when_disallow_ambiguous_tree_literal() {
+        let mut test = TestParser::new_with_options("<T>() => 1", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        parser.options.disallow_ambiguous_tree_literal = true;
+
+        let result = parser.eat_expression();
+        assert!(result.is_err());
+    }
+
+    /// Reject angle bracket assertions in `new` receivers.
+    #[test]
+    fn test_reject_type_assertion_in_new_receiver() {
+        let mut test = TestParser::new_with_options("new <any>Test2();", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+
+        let result = parser.eat_expression();
+        assert!(result.is_err());
+    }
+
+    /// Parse `type instanceof Foo` as a binary expression.
+    #[test]
+    fn test_parse_type_keyword_instanceof_expression() {
+        let mut test =
+            TestParser::new_with_options("type instanceof Foo", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right } => {
+            assert_eq!(*operator, BinaryOperator::InstanceOf);
+            assert_expression_path!(parser, parser.tree.get(*left), "type");
+            assert_expression_path!(parser, parser.tree.get(*right), "Foo");
+        });
+    }
+
+    /// Parse `extension` as an identifier in TypeScript expressions.
+    #[test]
+    fn test_parse_extension_identifier_in_typescript_ternary_expression() {
+        let mut test = TestParser::new_with_options(
+            r#"typeof extension === "function" ? extension(cloned) : extension"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::If { kind, condition, then_expression, else_expression } => {
+            assert_eq!(*kind, IfKind::Ternary);
+            assert_node!(condition, IfCondition::Expression { condition } => {
+                assert_node!(parser.tree, *condition, Expression::Binary { left, operator, right } => {
+                    assert_eq!(*operator, BinaryOperator::EqualStrict);
+                    assert_node!(parser.tree, *left, Expression::Unary { operator, right } => {
+                        assert_eq!(*operator, UnaryOperator::Typeof);
+                        assert_expression_path!(parser, parser.tree.get(*right), "extension");
+                    });
+                    assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::String(string)) => {
+                        assert_string!(parser, *string, "function");
+                    });
+                });
+            });
+
+            assert_node!(parser.tree, *then_expression, Expression::Call { left, dynamic_arguments, .. } => {
+                assert_expression_path!(parser, parser.tree.get(*left), "extension");
+                assert_eq!(dynamic_arguments.len(), 1);
+                assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*value), "cloned");
+                });
+            });
+
+            let else_expression_id = else_expression.expect("expected ternary else expression");
+            assert_expression_path!(parser, parser.tree.get(else_expression_id), "extension");
+        });
+    }
+
     /// Parse a type asserts expression.
     #[test]
     fn test_parse_type_unary_postfix_asserts_expression() {
@@ -7005,6 +7479,26 @@ const value =
                         });
                     });
                 });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_export_const_type_identifier_with_struct_value() {
+        let options = LanguageType::TypeScript;
+        let mut test = TestParser::new_with_options("export const type = struct", options);
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::Let { descriptor, declarators, .. } => {
+            assert_eq!(descriptor.export, Some(DependencyMode::Item));
+            assert_eq!(declarators.len(), 1);
+            assert_node!(parser.tree, declarators[0], Declarator { pattern, value, .. } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                    assert_string!(parser, *name, "type");
+                });
+                let value_id = value.expect("expected initializer");
+                assert_expression_path!(parser, parser.tree.get(value_id), "struct");
             });
         });
     }

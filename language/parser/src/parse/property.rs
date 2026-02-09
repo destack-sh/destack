@@ -1153,9 +1153,9 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        AbstractionModifier, Asynchrony, BinaryOperator, BindingAnchor, BindingKind, Declaration,
-        Expression, FunctionAbstraction, FunctionKind, FunctionMode, IntType, Key, Member, Name,
-        Parameter, Property, ScalarLiteral, TypeLiteral, Visibility,
+        AbstractionModifier, Argument, Asynchrony, BinaryOperator, BindingAnchor, BindingKind,
+        Block, Declaration, Expression, FunctionAbstraction, FunctionKind, FunctionMode, IntType,
+        Key, Member, Name, Parameter, Property, ScalarLiteral, TypeLiteral, Visibility,
     };
     use destack_source::LanguageType;
 
@@ -1198,6 +1198,59 @@ mod tests {
             assert_eq!(modifiers.abstraction, Some(AbstractionModifier::Override));
             assert_string!(parser, *name, "foo");
             assert_expression_path!(parser, parser.tree.get(*value), "int32");
+        });
+    }
+
+    #[test]
+    fn test_parse_member_default_object_arrow_with_this_member_call_argument() {
+        let mut test = TestParser::new_with_options(
+            r"
+port2 = {
+  postMessage: () => {
+    setTimeout(this.port1.onmessage, 0);
+  }
+}
+",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+        parser.options.in_variant = true;
+        let member_id = parser.eat_member().unwrap();
+
+        // port2 = { postMessage: () => { setTimeout(this.port1.onmessage, 0) } }
+        assert_node!(parser.tree, member_id, Member::Field { key: Some(Key::Name(Name::Identifier(name))), value: None, default: Some(default), .. } => {
+            assert_string!(parser, *name, "port2");
+            assert_node!(parser.tree, *default, Expression::ObjectExpression { properties, .. } => {
+                assert_eq!(properties.len(), 1);
+                assert_node!(parser.tree, properties[0], Property::Field { key: Some(Key::Name(Name::Identifier(name))), value: Some(value), default: None, .. } => {
+                    assert_string!(parser, *name, "postMessage");
+                    assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
+                        assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body: Some(body), .. } => {
+                            assert_eq!(signature.kind, FunctionKind::Lambda);
+                            assert_node!(parser.tree, *body, Expression::Block(block_id) => {
+                                assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                                    assert_eq!(expressions.len(), 1);
+                                    assert_node!(parser.tree, expressions[0], Expression::Statement(expression) => {
+                                        assert_node!(parser.tree, *expression, Expression::Call { dynamic_arguments, .. } => {
+                                            assert_eq!(dynamic_arguments.len(), 2);
+                                            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                                                assert_node!(parser.tree, *value, Expression::Member { left, name, .. } => {
+                                                    assert_string!(parser, *name, "onmessage");
+                                                    assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
+                                                        assert_string!(parser, *name, "port1");
+                                                        assert_node!(parser.tree, *left, Expression::This);
+                                                    });
+                                                });
+                                            });
+                                        });
+                                    });
+                                });
+                            });
+                        });
+                    });
+                });
+            });
         });
     }
 

@@ -391,7 +391,12 @@ impl Parser {
             );
 
             // enter tree literal mode when a JSX literal starts at an expression boundary
-            if ty == TokenType::LessThan && tree_literals_allowed && can_start_expression {
+            if ty == TokenType::LessThan
+                && tree_literals_allowed
+                && can_start_expression
+                && (!self.token_stream.in_tree_literal()
+                    || self.token_stream.in_tree_attribute_expression())
+            {
                 let can_start_tree = self.with_pos(pos, |parser| parser.can_start_tree_literal());
                 if can_start_tree {
                     self.token_stream.enter_tree_opening_tag();

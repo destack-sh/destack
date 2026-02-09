@@ -307,6 +307,20 @@ impl Parser {
                     continue;
                 }
 
+                // consume unicode property escapes like \p{Emoji} and \P{Emoji}
+                if next_character == 'p' || next_character == 'P' {
+                    let Some(next_index) =
+                        self.regex_unicode_parse_property_escape(&characters, index)
+                    else {
+                        return false;
+                    };
+
+                    previous_is_quantifiable_atom = true;
+                    previous_is_quantifier = false;
+                    index = next_index;
+                    continue;
+                }
+
                 if next_character.is_ascii_digit() {
                     let mut digit_index = index + 1;
                     while digit_index < characters.len() && characters[digit_index].is_ascii_digit()
@@ -478,6 +492,39 @@ impl Parser {
         }
 
         !in_character_class && group_quantifiability_stack.is_empty()
+    }
+
+    // parse a unicode property escape at `start` and return the next index
+    fn regex_unicode_parse_property_escape(
+        &self,
+        characters: &[char],
+        start: usize,
+    ) -> Option<usize> {
+        // require opening brace after \p or \P
+        if characters.get(start + 2).copied() != Some('{') {
+            return None;
+        }
+
+        let mut index = start + 3;
+        let mut has_content = false;
+        while index < characters.len() && characters[index] != '}' {
+            let character = characters[index];
+            if !(character.is_ascii_alphanumeric()
+                || character == '_'
+                || character == '='
+                || character == '-')
+            {
+                return None;
+            }
+            has_content = true;
+            index += 1;
+        }
+
+        if !has_content || index >= characters.len() {
+            return None;
+        }
+
+        Some(index + 1)
     }
 
     // parse a unicode-mode braced quantifier at `start` and return the next index
