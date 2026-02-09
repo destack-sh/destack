@@ -375,6 +375,63 @@ struct CallArgumentFacts {
     has_complex_non_callback_argument: bool,
 }
 
+/// Store comment and boundary data for call argument layout decisions.
+struct CallArgumentCommentProfile {
+    /// Whether any argument has a line comment annotation.
+    has_line_comment_annotations: bool,
+    /// Whether any argument has a prefix line comment annotation.
+    has_prefix_line_comment_annotations: bool,
+    /// Whether any non-leading argument has deferred boundary comments.
+    has_deferred_inline_boundary_comment: bool,
+    /// Deferred boundary comments keyed by argument index.
+    deferred_boundary_prefix_annotations: Vec<Vec<LocalNodeId<Annotation>>>,
+}
+
+/// Collect one-pass comment data for call arguments.
+fn collect_call_argument_comment_profile(
+    context: &DestackFormatContext<'_>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+) -> CallArgumentCommentProfile {
+    let mut has_line_comment_annotations = false;
+    let mut has_prefix_line_comment_annotations = false;
+    let mut has_deferred_inline_boundary_comment = false;
+    let mut deferred_boundary_prefix_annotations = Vec::with_capacity(dynamic_arguments.len());
+
+    for (index, argument_id) in dynamic_arguments.iter().copied().enumerate() {
+        let argument_has_annotation = context.has_annotation(argument_id);
+        if argument_has_annotation {
+            if !has_line_comment_annotations
+                && argument_has_line_comment_annotation(context, argument_id)
+            {
+                has_line_comment_annotations = true;
+            }
+            if !has_prefix_line_comment_annotations
+                && argument_has_prefix_line_comment_annotation(context, argument_id)
+            {
+                has_prefix_line_comment_annotations = true;
+            }
+        }
+
+        // only non-leading arguments can attach deferred boundary comments
+        let deferred_boundary_comments = if index > 0 && argument_has_annotation {
+            call_argument_inline_boundary_prefix_annotations(context, argument_id)
+        } else {
+            Vec::new()
+        };
+        if !has_deferred_inline_boundary_comment && !deferred_boundary_comments.is_empty() {
+            has_deferred_inline_boundary_comment = true;
+        }
+        deferred_boundary_prefix_annotations.push(deferred_boundary_comments);
+    }
+
+    CallArgumentCommentProfile {
+        has_line_comment_annotations,
+        has_prefix_line_comment_annotations,
+        has_deferred_inline_boundary_comment,
+        deferred_boundary_prefix_annotations,
+    }
+}
+
 /// Collect one-pass facts used by call argument expansion heuristics.
 fn collect_call_argument_facts(
     context: &DestackFormatContext<'_>,
@@ -404,6 +461,7 @@ fn collect_call_argument_facts(
     for (index, argument_id) in dynamic_arguments.iter().copied().enumerate() {
         if !use_line_comment_override
             && !has_line_comment_annotations
+            && context.has_annotation(argument_id)
             && argument_has_line_comment_annotation(context, argument_id)
         {
             has_line_comment_annotations = true;
@@ -540,12 +598,103 @@ fn build_call_argument_expansion_profile(
     mode: CallArgumentExpansionMode,
     has_call_infix_annotations_override: Option<bool>,
     has_line_comment_annotations_override: Option<bool>,
+    force_expand_single_long_with_static_arguments_override: Option<bool>,
+    force_expand_single_collection_for_type_binary_callee_override: Option<bool>,
+    has_leading_block_callback_with_simple_tail_override: Option<bool>,
 ) -> CallArgumentExpansionProfile {
     context.increment_counter("profile.call_arguments.layout.builds", 1);
 
     let line_width = usize::from(context.options.line_width);
     let has_call_infix_annotations = has_call_infix_annotations_override
         .unwrap_or_else(|| call_has_non_blank_infix_annotation(context, call_node_id));
+    if dynamic_arguments.len() == 1 {
+        let argument_id = dynamic_arguments[0];
+        let has_line_comment_annotations =
+            has_line_comment_annotations_override.unwrap_or_else(|| {
+                context.has_annotation(argument_id)
+                    && argument_has_line_comment_annotation(context, argument_id)
+            });
+        let value_id = argument_value_id(context.tree, argument_id);
+        let value_id = transparent_inner_expression(context, value_id);
+        let trailing_collection_argument = matches!(
+            context.tree.get(value_id),
+            Expression::ObjectExpression { .. } | Expression::ArrayExpression { .. }
+        );
+        let force_expand_jsx = has_multiline_jsx_argument(context.tree, dynamic_arguments);
+        let force_expand_single_commented_callback =
+            argument_is_block_callback(context, argument_id)
+                && (argument_has_comment_annotation(context, argument_id)
+                    || has_call_infix_annotations);
+        let force_expand_single_multiline_argument = mode == CallArgumentExpansionMode::Regular
+            && context.has_newline(context.get_span(argument_id))
+            && !argument_is_collection_literal(context, argument_id)
+            && !argument_is_lambda_expression(context, argument_id)
+            && !argument_is_function_expression(context, argument_id)
+            && !argument_is_tree_expression(context, argument_id)
+            && !argument_is_template_literal(context, argument_id);
+        let force_expand_single_long_with_static_arguments =
+            force_expand_single_long_with_static_arguments_override.unwrap_or_else(|| {
+                call_force_expand_single_long_with_static_arguments(
+                    context,
+                    call_node_id,
+                    dynamic_arguments,
+                    mode,
+                )
+            });
+        let force_expand_single_collection_for_type_binary_callee = mode
+            == CallArgumentExpansionMode::Regular
+            && force_expand_single_collection_for_type_binary_callee_override.unwrap_or_else(
+                || {
+                    call_force_expand_single_collection_for_type_binary_callee(
+                        context,
+                        call_node_id,
+                        dynamic_arguments,
+                    )
+                },
+            );
+        let force_expand = force_expand_jsx
+            || has_line_comment_annotations
+            || force_expand_single_commented_callback
+            || force_expand_single_multiline_argument
+            || force_expand_single_long_with_static_arguments
+            || force_expand_single_collection_for_type_binary_callee
+            || (mode == CallArgumentExpansionMode::Regular && has_call_infix_annotations);
+
+        return CallArgumentExpansionProfile {
+            force_expand,
+            has_call_infix_annotations,
+            trailing_collection_argument,
+        };
+    }
+
+    // many short unannotated argument lists can skip the full expansion classifier
+    let short_argument_len_limit = (line_width / 5).max(8);
+    let can_use_simple_multi_argument_fast_path = dynamic_arguments.len() <= 3
+        && !has_call_infix_annotations
+        && dynamic_arguments.iter().copied().all(|argument_id| {
+            !context.has_annotation(argument_id)
+                && !context.has_newline(context.get_span(argument_id))
+                && argument_is_simple_with_options(
+                    context,
+                    argument_id,
+                    ArgumentSimplicityOptions {
+                        reject_any_argument_annotation: true,
+                        reject_non_blank_argument_annotation: true,
+                        reject_value_annotation: true,
+                        reject_lambda_values: true,
+                        max_value_len: short_argument_len_limit,
+                    },
+                )
+        });
+    if can_use_simple_multi_argument_fast_path {
+        context.increment_counter("profile.call_arguments.layout.simple_fast_path", 1);
+        return CallArgumentExpansionProfile {
+            force_expand: false,
+            has_call_infix_annotations,
+            trailing_collection_argument: false,
+        };
+    }
+
     let argument_facts = collect_call_argument_facts(
         context,
         dynamic_arguments,
@@ -571,7 +720,13 @@ fn build_call_argument_expansion_profile(
         && first_argument_is_block_callback
         && trailing_collection_argument;
     let has_leading_block_callback_with_simple_tail =
-        call_has_leading_block_callback_with_simple_tail(context, call_node_id, dynamic_arguments);
+        has_leading_block_callback_with_simple_tail_override.unwrap_or_else(|| {
+            call_has_leading_block_callback_with_simple_tail(
+                context,
+                call_node_id,
+                dynamic_arguments,
+            )
+        });
     let should_expand_for_block_callback = dynamic_arguments.len() > 1
         && has_block_callback_argument
         && (force_expand_first_block_callback_with_collection_tail
@@ -589,34 +744,6 @@ fn build_call_argument_expansion_profile(
         && dynamic_arguments.len() >= 3
         && has_any_function_argument
         && !has_spread_argument;
-    let force_expand_single_commented_callback = dynamic_arguments.len() == 1
-        && argument_is_block_callback(context, dynamic_arguments[0])
-        && (argument_has_comment_annotation(context, dynamic_arguments[0])
-            || has_call_infix_annotations);
-    let force_expand_single_multiline_argument =
-        mode == CallArgumentExpansionMode::Regular && dynamic_arguments.len() == 1 && {
-            let argument_id = dynamic_arguments[0];
-            context.has_newline(context.get_span(argument_id))
-                && !argument_is_collection_literal(context, argument_id)
-                && !argument_is_lambda_expression(context, argument_id)
-                && !argument_is_function_expression(context, argument_id)
-                && !argument_is_tree_expression(context, argument_id)
-                && !argument_is_template_literal(context, argument_id)
-        };
-    let force_expand_single_long_with_static_arguments =
-        call_force_expand_single_long_with_static_arguments(
-            context,
-            call_node_id,
-            dynamic_arguments,
-            mode,
-        );
-    let force_expand_single_collection_for_type_binary_callee = mode
-        == CallArgumentExpansionMode::Regular
-        && call_force_expand_single_collection_for_type_binary_callee(
-            context,
-            call_node_id,
-            dynamic_arguments,
-        );
     let force_expand_complex =
         dynamic_arguments.len() > 1 && argument_facts.has_complex_non_callback_argument;
     let force_expand_long = dynamic_arguments.len() > 1 && {
@@ -631,10 +758,6 @@ fn build_call_argument_expansion_profile(
         || force_expand_long
         || force_expand_complex
         || has_line_comment_annotations
-        || force_expand_single_commented_callback
-        || force_expand_single_multiline_argument
-        || force_expand_single_long_with_static_arguments
-        || force_expand_single_collection_for_type_binary_callee
         || should_expand_for_block_callback
         || has_multiple_function_arguments
         || force_expand_multiline_function_composition
@@ -704,6 +827,24 @@ fn call_should_force_hugged_expand(
     call_len >= threshold
 }
 
+/// Estimate one-line `callee(arg1, arg2)` length for plain call expressions.
+fn call_inline_len_without_static_arguments(
+    context: &DestackFormatContext<'_>,
+    call_node_id: LocalNodeId<Expression>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+) -> Option<usize> {
+    let Expression::Call { left, .. } = context.tree.get(call_node_id) else {
+        return None;
+    };
+    if call_has_static_arguments(context, call_node_id) {
+        return None;
+    }
+
+    let callee_len = expression_source_len(context, *left);
+    let arguments_len = arguments_rendered_len(context, dynamic_arguments);
+    Some(callee_len.saturating_add(arguments_len).saturating_add(2))
+}
+
 /// Format call arguments with list-group awareness.
 pub(super) fn format_call_arguments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -725,10 +866,14 @@ pub(super) fn format_call_arguments<'ast>(
             call_has_non_blank_infix_annotation(f.context(), call_node_id);
 
         // fast path: small simple argument lists should stay inline
+        let simple_inline_max_value_len = if dynamic_arguments.len() <= 3 {
+            line_width / 3
+        } else {
+            line_width / 5
+        };
         let use_fast_simple_inline = dynamic_arguments.len() > 1
-            && dynamic_arguments.len() <= 3
+            && dynamic_arguments.len() <= 4
             && matches!(f.context().tree.get(call_node_id), Expression::Call { .. })
-            && !call_has_static_arguments(f.context(), call_node_id)
             && !has_call_infix_annotations
             && !call_arguments_are_multiline_in_source(f.context(), dynamic_arguments)
             && expression_source_len(f.context(), call_node_id) <= line_width
@@ -741,7 +886,7 @@ pub(super) fn format_call_arguments<'ast>(
                         reject_non_blank_argument_annotation: true,
                         reject_value_annotation: true,
                         reject_lambda_values: true,
-                        max_value_len: line_width / 3,
+                        max_value_len: simple_inline_max_value_len,
                     },
                 )
             });
@@ -754,6 +899,36 @@ pub(super) fn format_call_arguments<'ast>(
                 write!(f, [*argument_id])?;
             }
             write!(f, [token(")")])?;
+            return Ok(());
+        }
+
+        // very common single argument calls can short-circuit before heavier layout profiling
+        let use_single_simple_argument_fast_path = dynamic_arguments.len() == 1
+            && !call_has_static_arguments(f.context(), call_node_id)
+            && !has_call_infix_annotations
+            && !call_arguments_are_multiline_in_source(f.context(), dynamic_arguments)
+            && {
+                let argument_id = dynamic_arguments[0];
+                if f.context().has_annotation(argument_id) {
+                    false
+                } else {
+                    let argument_span = f.context().get_span(argument_id);
+                    if f.context().has_newline(argument_span) {
+                        false
+                    } else {
+                        let value_id = argument_value_id(f.context().tree, argument_id);
+                        let value_id = transparent_inner_expression(f.context(), value_id);
+                        let value = f.context().tree.get(value_id);
+                        is_trivial_expression(f.context().tree, value)
+                            && (argument_is_plain_string_literal(f.context(), argument_id)
+                                || expression_source_len(f.context(), value_id) <= line_width / 2)
+                    }
+                }
+            };
+        if use_single_simple_argument_fast_path {
+            f.context()
+                .increment_counter("profile.call.arguments.single_simple.fast_path", 1);
+            write!(f, [token("("), dynamic_arguments[0], token(")")])?;
             return Ok(());
         }
 
@@ -833,12 +1008,14 @@ pub(super) fn format_call_arguments<'ast>(
             return Ok(());
         }
 
-        let use_leading_block_callback_inline =
+        let has_leading_block_callback_with_simple_tail =
             call_has_leading_block_callback_with_simple_tail(
                 f.context(),
                 call_node_id,
                 dynamic_arguments,
-            ) && arguments_rendered_len(f.context(), dynamic_arguments)
+            );
+        let use_leading_block_callback_inline = has_leading_block_callback_with_simple_tail
+            && arguments_rendered_len(f.context(), dynamic_arguments)
                 <= line_width.saturating_sub(8);
 
         if use_leading_block_callback_inline {
@@ -853,31 +1030,20 @@ pub(super) fn format_call_arguments<'ast>(
             return Ok(());
         }
 
-        let (has_line_comment_annotations, has_prefix_line_comment_annotations) = dynamic_arguments
-            .iter()
-            .copied()
-            .fold((false, false), |(has_line, has_prefix), argument_id| {
-                (
-                    has_line || argument_has_line_comment_annotation(f.context(), argument_id),
-                    has_prefix
-                        || argument_has_prefix_line_comment_annotation(f.context(), argument_id),
-                )
-            });
+        let comment_profile = collect_call_argument_comment_profile(f.context(), dynamic_arguments);
+        let has_line_comment_annotations = comment_profile.has_line_comment_annotations;
+        let has_prefix_line_comment_annotations =
+            comment_profile.has_prefix_line_comment_annotations;
         let has_deferred_inline_boundary_comment =
-            dynamic_arguments
-                .iter()
-                .skip(1)
-                .copied()
-                .any(|argument_id| {
-                    !call_argument_inline_boundary_prefix_annotations(f.context(), argument_id)
-                        .is_empty()
-                });
+            comment_profile.has_deferred_inline_boundary_comment;
         if dynamic_arguments.len() > 1
             && (has_line_comment_annotations
                 || has_prefix_line_comment_annotations
                 || has_deferred_inline_boundary_comment)
         {
             let use_trailing_comma = f.context().options.trailing_comma == TrailingComma::All;
+            let deferred_boundary_prefix_annotations =
+                &comment_profile.deferred_boundary_prefix_annotations;
 
             write!(f, [token("("), hard_line_break()])?;
             let format_result = write!(
@@ -887,11 +1053,11 @@ pub(super) fn format_call_arguments<'ast>(
                         for (index, argument_id) in dynamic_arguments.iter().enumerate() {
                             if index > 0 {
                                 let deferred_boundary_comments =
-                                    call_argument_inline_boundary_prefix_annotations(
-                                        f.context(),
-                                        *argument_id,
-                                    );
-                                for annotation_id in deferred_boundary_comments {
+                                    deferred_boundary_prefix_annotations
+                                        .get(index)
+                                        .map(|annotations| annotations.as_slice())
+                                        .unwrap_or(&[]);
+                                for annotation_id in deferred_boundary_comments.iter().copied() {
                                     let content = format_with(|f| {
                                         write!(f, [space(), annotation_id])?;
                                         Ok(())
@@ -932,6 +1098,9 @@ pub(super) fn format_call_arguments<'ast>(
             CallArgumentExpansionMode::Regular,
             Some(has_call_infix_annotations),
             Some(has_line_comment_annotations),
+            Some(force_expand_single_long_with_static_arguments),
+            Some(force_expand_single_collection_for_type_binary_callee),
+            Some(has_leading_block_callback_with_simple_tail),
         );
         let force_expand = expansion_profile.force_expand;
         let trailing_collection_argument = expansion_profile.trailing_collection_argument;
@@ -1022,7 +1191,19 @@ pub(super) fn format_call_arguments<'ast>(
                         !f.context().has_newline(argument_span)
                             && !f.context().has_annotation(argument_id)
                     });
-                if call_source_len <= line_width && all_arguments_are_single_line_and_unannotated {
+                let inline_call_len = if all_arguments_are_single_line_and_unannotated {
+                    call_inline_len_without_static_arguments(
+                        f.context(),
+                        call_node_id,
+                        dynamic_arguments,
+                    )
+                } else {
+                    None
+                };
+                if all_arguments_are_single_line_and_unannotated
+                    && (call_source_len <= line_width
+                        || inline_call_len.is_some_and(|inline_len| inline_len <= line_width))
+                {
                     f.context()
                         .increment_counter("profile.call.arguments.hug_last.fast_path", 1);
                     hug_last_format.format(f)?;
@@ -1275,20 +1456,7 @@ pub(super) fn call_has_non_blank_infix_annotation(
     context: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
 ) -> bool {
-    context
-        .with_annotations(call_node_id, |annotations| {
-            annotations.iter().any(|annotation_id| {
-                match context.tree.get::<Annotation>(*annotation_id) {
-                    Annotation::Blank { .. } => false,
-                    Annotation::Doc { position, .. }
-                    | Annotation::Comment { position, .. }
-                    | Annotation::Decorator { position, .. } => {
-                        *position == AnnotationPosition::BlockInfix
-                    }
-                }
-            })
-        })
-        .unwrap_or(false)
+    context.has_non_blank_infix_annotation(call_node_id)
 }
 
 /// Return whether an argument has a non-blank annotation.
@@ -1296,16 +1464,7 @@ pub(super) fn argument_has_non_blank_annotation(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    context
-        .with_annotations(argument_id, |annotations| {
-            annotations.iter().any(|annotation_id| {
-                !matches!(
-                    context.tree.get::<Annotation>(*annotation_id),
-                    Annotation::Blank { .. }
-                )
-            })
-        })
-        .unwrap_or(false)
+    context.has_non_blank_annotation(argument_id)
 }
 
 /// Return whether an argument has multiline non-blank prefix annotations.
@@ -1370,26 +1529,9 @@ pub(super) fn argument_has_line_comment_annotation(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    let argument_span = context.get_span(argument_id);
-
     context
-        .with_annotations(argument_id, |annotations| {
-            annotations.iter().any(|annotation_id| {
-                let Annotation::Comment { node, .. } =
-                    context.tree.get::<Annotation>(*annotation_id)
-                else {
-                    return false;
-                };
-                let comment = context.tree.get::<destack_ast::Comment>(*node);
-                if comment.style != destack_ast::CommentStyle::Slash {
-                    return false;
-                }
-
-                let annotation_span = context.get_span::<Annotation>(*annotation_id);
-                annotation_span.start >= argument_span.end
-            })
-        })
-        .unwrap_or(false)
+        .argument_annotation_profile(argument_id)
+        .has_line_comment
 }
 
 /// Return whether an argument has slash comments in prefix annotation positions.
@@ -1398,22 +1540,8 @@ pub(super) fn argument_has_prefix_line_comment_annotation(
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
     context
-        .with_annotations(argument_id, |annotations| {
-            annotations.iter().any(|annotation_id| {
-                let Annotation::Comment { node, position } =
-                    context.tree.get::<Annotation>(*annotation_id)
-                else {
-                    return false;
-                };
-                let comment = context.tree.get::<destack_ast::Comment>(*node);
-                comment.style == destack_ast::CommentStyle::Slash
-                    && matches!(
-                        position,
-                        AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
-                    )
-            })
-        })
-        .unwrap_or(false)
+        .argument_annotation_profile(argument_id)
+        .has_prefix_line_comment
 }
 
 /// Return whether an argument has any comment annotation.
@@ -1421,16 +1549,7 @@ pub(super) fn argument_has_comment_annotation(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    context
-        .with_annotations(argument_id, |annotations| {
-            annotations.iter().any(|annotation_id| {
-                matches!(
-                    context.tree.get::<Annotation>(*annotation_id),
-                    Annotation::Comment { .. }
-                )
-            })
-        })
-        .unwrap_or(false)
+    context.argument_annotation_profile(argument_id).has_comment
 }
 
 /// Return whether a call-like expression has static type arguments.
@@ -1547,6 +1666,9 @@ pub(super) fn call_arguments_force_expand_for_chain(
         call_node_id,
         dynamic_arguments,
         CallArgumentExpansionMode::Chain,
+        None,
+        None,
+        None,
         None,
         None,
     )
