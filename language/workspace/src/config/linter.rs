@@ -264,6 +264,12 @@ pub struct LinterOptions {
     pub catch_error_name: String,
     /// Required filename case style.
     pub filename_case: FilenameCase,
+    /// Allowed uppercase keyword prefixes for inline comments.
+    pub comment_keywords: Vec<String>,
+    /// Allowed tags for keyword comments.
+    pub comment_keyword_tags: Vec<String>,
+    /// Minimum non empty lines required for separator heading comments.
+    pub comment_separator_heading_min_lines: usize,
 
     // restriction options
     /// Magic numbers to allow.
@@ -315,6 +321,18 @@ impl Default for LinterOptions {
             type_definition_style: TypeDefinitionStyle::default(),
             catch_error_name: "error".to_string(),
             filename_case: FilenameCase::default(),
+            comment_keywords: vec!["NOTE".to_string(), "TODO".to_string(), "FUGU".to_string()],
+            comment_keyword_tags: vec![
+                "#Performance".to_string(),
+                "#Robustness".to_string(),
+                "#Broken".to_string(),
+                "#Cleanup".to_string(),
+                "#Incomplete".to_string(),
+                "#Suspicious".to_string(),
+                "#Security".to_string(),
+                "#Architecture".to_string(),
+            ],
+            comment_separator_heading_min_lines: 3,
             // restriction
             allowed_magic_numbers: vec![-1.0, 0.0, 1.0, 2.0],
             restricted_globals: Vec::new(),
@@ -385,6 +403,24 @@ impl LinterOptions {
         prefixes: impl IntoIterator<Item = String>,
     ) -> Self {
         self.ignored_unused_parameter_prefixes = prefixes.into_iter().collect();
+        self
+    }
+
+    /// Set allowed keyword prefixes for comment keyword comments.
+    pub fn with_comment_keywords(mut self, keywords: impl IntoIterator<Item = String>) -> Self {
+        self.comment_keywords = keywords.into_iter().collect();
+        self
+    }
+
+    /// Set allowed tags for comment keyword comments.
+    pub fn with_comment_keyword_tags(mut self, tags: impl IntoIterator<Item = String>) -> Self {
+        self.comment_keyword_tags = tags.into_iter().collect();
+        self
+    }
+
+    /// Set the minimum line count for separator heading comments.
+    pub fn with_comment_separator_heading_min_lines(mut self, min_lines: usize) -> Self {
+        self.comment_separator_heading_min_lines = min_lines;
         self
     }
 

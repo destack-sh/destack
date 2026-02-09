@@ -1,13 +1,17 @@
-use destack_ast::{self as ast, AnnotationPosition};
+use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::{
+    has_doc_terminal_punctuation, is_directive_comment, is_non_prose_doc_line,
+    is_separator_comment, parse_keyword_comment_with_options,
+};
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce comment punctuation conventions.
     ///
-    /// Short inline comments should not end with a period.
-    /// Doc comments should end with proper punctuation.
+    /// Inline comments should avoid trailing periods.
+    /// Documentation comment prose lines should end with punctuation.
     #[lint(
         id = "comment-punctuation",
         code = "LY004",
@@ -23,18 +27,13 @@ declare_lint! {
     "Enforce comment punctuation"
 }
 
-/// Check if text is a short comment (single sentence, < ~80 chars).
-fn is_short_comment(text: &str) -> bool {
-    let trimmed = text.trim();
-    // short if no newlines and under typical line length
-    !trimmed.contains('\n') && trimmed.len() < 80
-}
-
 impl LintRule for CommentPunctuation {
+    /// Return lint metadata.
     fn meta(&self) -> &'static crate::LintMeta {
         CommentPunctuation::meta()
     }
 
+    /// Check module AST annotations for punctuation consistency.
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
 
@@ -42,38 +41,40 @@ impl LintRule for CommentPunctuation {
             let annotation = ctx.tree.get(node_id);
 
             match annotation {
-                // inline comments: short ones should not end with period
-                ast::Annotation::Comment { node, position } => {
-                    // skip block-level comments
-                    if matches!(
-                        position,
-                        AnnotationPosition::BlockPrefix | AnnotationPosition::BlockPostfix
-                    ) {
-                        continue;
-                    }
-
+                // inline comments should not end with periods
+                ast::Annotation::Comment { node, .. } => {
                     let comment = ctx.tree.get(*node);
                     let text = ctx.strings.get(comment.string);
-                    let trimmed = text.as_ref().trim();
+                    let text = text.as_ref().trim();
 
-                    // skip empty or special comments
-                    if trimmed.is_empty() || trimmed.starts_with(['@', '#', '!', '*']) {
+                    // skip comments that have explicit exceptions
+                    if text.is_empty()
+                        || is_directive_comment(text)
+                        || is_separator_comment(text)
+                        || parse_keyword_comment_with_options(
+                            text,
+                            &ctx.options.comment_keywords,
+                            &ctx.options.comment_keyword_tags,
+                        )
+                        .is_some()
+                    {
                         continue;
                     }
 
-                    // short inline comments should not end with period
-                    if is_short_comment(trimmed) && trimmed.ends_with('.') {
+                    // report trailing periods
+                    if text.ends_with('.') {
                         let severity = ctx.get_effective_severity(meta, node_id);
                         if !severity.is_enabled() {
                             continue;
                         }
+
                         ctx.report(
                             LintDiagnostic::new(
                                 COMMENT_PUNCTUATION.id,
                                 COMMENT_PUNCTUATION.code,
                                 COMMENT_PUNCTUATION.category,
                                 severity,
-                                "short inline comment should not end with period",
+                                "inline comment should not end with a period",
                                 ctx.module.file_id,
                                 ctx.tree.get_span(node_id),
                             )
@@ -82,50 +83,44 @@ impl LintRule for CommentPunctuation {
                     }
                 }
 
-                // doc comments should end with proper punctuation
+                // doc comments should end each prose line with punctuation
                 ast::Annotation::Doc { node, .. } => {
                     let doc = ctx.tree.get(*node);
                     let text = ctx.strings.get(doc.string);
+                    let mut has_missing_punctuation = false;
 
-                    // get last non-empty, non-annotation line
-                    let last_content_line = text
-                        .as_ref()
-                        .lines()
-                        .rev()
-                        .find(|line| {
-                            let trimmed = line.trim();
-                            !trimmed.is_empty()
-                                && !trimmed.starts_with('@')
-                                && !trimmed.starts_with("```")
-                        })
-                        .map(|line| line.trim());
+                    // inspect each prose line
+                    for line in text.as_ref().lines() {
+                        if is_non_prose_doc_line(line) {
+                            continue;
+                        }
 
-                    let Some(last_line) = last_content_line else {
-                        continue;
-                    };
+                        if has_doc_terminal_punctuation(line) {
+                            continue;
+                        }
 
-                    // skip code snippets and special markers
-                    if last_line.starts_with('`') || last_line.starts_with('*') {
-                        continue;
+                        has_missing_punctuation = true;
+                        break;
                     }
 
-                    // doc comments should end with punctuation
-                    if !last_line.ends_with(['.', '!', '?', ':', ')']) {
+                    // report missing punctuation once per comment
+                    if has_missing_punctuation {
                         let severity = ctx.get_effective_severity(meta, node_id);
                         if !severity.is_enabled() {
                             continue;
                         }
+
                         ctx.report(
                             LintDiagnostic::new(
                                 COMMENT_PUNCTUATION.id,
                                 COMMENT_PUNCTUATION.code,
                                 COMMENT_PUNCTUATION.category,
                                 severity,
-                                "doc comment should end with punctuation",
+                                "doc comment lines should end with punctuation",
                                 ctx.module.file_id,
                                 ctx.tree.get_span(node_id),
                             )
-                            .with_label("add period or other punctuation"),
+                            .with_label("add punctuation to each sentence line"),
                         );
                     }
                 }
@@ -141,6 +136,7 @@ mod tests {
     use super::*;
     use crate::linter::TestProgram;
 
+    /// Allow inline comments without trailing periods.
     #[test]
     fn test_inline_no_period_allowed() {
         let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
@@ -153,6 +149,7 @@ let x = 1 // increment counter
         test.result(result).assert_no_lint("comment-punctuation");
     }
 
+    /// Detect trailing periods on inline comments.
     #[test]
     fn test_inline_with_period_detected() {
         let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
@@ -165,6 +162,7 @@ let x = 1 // increment counter.
         test.result(result).assert_lint("comment-punctuation");
     }
 
+    /// Allow doc comments with periods.
     #[test]
     fn test_doc_with_period_allowed() {
         let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
@@ -178,6 +176,7 @@ function foo() {}
         test.result(result).assert_no_lint("comment-punctuation");
     }
 
+    /// Detect missing punctuation in doc comments.
     #[test]
     fn test_doc_without_punctuation_detected() {
         let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
@@ -191,6 +190,7 @@ function foo() {}
         test.result(result).assert_lint("comment-punctuation");
     }
 
+    /// Allow doc comment lines ending with question marks.
     #[test]
     fn test_doc_with_question_allowed() {
         let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
@@ -204,6 +204,7 @@ function foo() {}
         test.result(result).assert_no_lint("comment-punctuation");
     }
 
+    /// Allow doc comment lines ending with exclamation marks.
     #[test]
     fn test_doc_with_exclamation_allowed() {
         let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
@@ -212,6 +213,80 @@ function foo() {}
             r#"
 /// Do not call this!
 function foo() {}
+"#,
+        );
+        test.result(result).assert_no_lint("comment-punctuation");
+    }
+
+    /// Skip NOTE style comments with keyword tags.
+    #[test]
+    fn test_keyword_comment_skipped() {
+        let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
+        let result = test.lint_ast(
+            "comment_punctuation/test_keyword_comment_skipped.ds",
+            r#"
+let x = 1 // NOTE #Cleanup: remove fallback
+"#,
+        );
+        test.result(result).assert_no_lint("comment-punctuation");
+    }
+
+    /// Enforce punctuation for each doc prose line.
+    #[test]
+    fn test_doc_each_line_requires_punctuation() {
+        let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
+        let result = test.lint_ast(
+            "comment_punctuation/test_doc_each_line_requires_punctuation.ds",
+            r#"
+/// Send a message.
+/// Include metadata
+function foo() {}
+"#,
+        );
+        test.result(result).assert_lint("comment-punctuation");
+    }
+
+    /// Skip non prose lines inside doc comments.
+    #[test]
+    fn test_doc_non_prose_lines_ignored() {
+        let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
+        let result = test.lint_ast(
+            "comment_punctuation/test_doc_non_prose_lines_ignored.ds",
+            r#"
+/// Send a message.
+/// @param message
+/// - one
+/// - two
+function foo(message: string) {}
+"#,
+        );
+        test.result(result).assert_no_lint("comment-punctuation");
+    }
+
+    /// Allow doc lines ending with a colon.
+    #[test]
+    fn test_doc_line_with_colon_allowed() {
+        let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
+        let result = test.lint_ast(
+            "comment_punctuation/test_doc_line_with_colon_allowed.ds",
+            r#"
+/// Send a message:
+/// Use the default transport.
+function foo() {}
+"#,
+        );
+        test.result(result).assert_no_lint("comment-punctuation");
+    }
+
+    /// Skip separator comments for punctuation checks.
+    #[test]
+    fn test_separator_comment_skipped() {
+        let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
+        let result = test.lint_ast(
+            "comment_punctuation/test_separator_comment_skipped.ds",
+            r#"
+// ================================================================================
+const value = 1;
 "#,
         );
         test.result(result).assert_no_lint("comment-punctuation");
