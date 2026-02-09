@@ -373,6 +373,12 @@ define_language_symbols! {
         /// `@taint` marker
         Taint => (Newtype, "intrinsic/decorator", "taint"),
 
+        /// `@sink` marker
+        Sink => (Newtype, "intrinsic/decorator", "sink"),
+
+        /// `@sanitizer` marker
+        Sanitizer => (Newtype, "intrinsic/decorator", "sanitizer"),
+
         /// `@tag` marker
         Tag => (Newtype, "intrinsic/decorator", "tag"),
 

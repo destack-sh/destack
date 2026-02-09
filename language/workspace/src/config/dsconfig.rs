@@ -3428,8 +3428,7 @@ pub struct DsConfigLinterJson {
     pub min_duplicate_code_lines: Option<usize>,
     /// Minimum tokens required to consider a block for duplicate code checks.
     pub min_duplicate_code_tokens: Option<usize>,
-    /// Minimum similarity percent for near duplicate code matching (0-100).
-    /// A value of 0 disables near duplicate matching.
+    /// Minimum similarity percent for near duplicate code matching (0-100, 0=disabled).
     pub min_duplicate_code_near_similarity: Option<u8>,
     /// Maximum statements in a try block.
     pub max_try_block_statements: Option<usize>,

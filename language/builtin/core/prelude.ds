@@ -76,6 +76,8 @@ export {
     unsafe,
     transmute,
     taint,
+    sink,
+    sanitizer,
     tag,
     lifetime,
     addrspace,

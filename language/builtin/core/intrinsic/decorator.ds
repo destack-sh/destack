@@ -268,6 +268,26 @@ export newtype transmute = ();
 /// ```
 export newtype taint = (string,) | ();
 
+/// Mark a declaration as a taint sink.
+///
+/// Sinks represent security sensitive endpoints that must not receive tainted input.
+///
+/// ```
+/// @sink("url")
+/// function redirect(value: string) { }
+/// ```
+export newtype sink = (string,) | ();
+
+/// Mark a declaration as a taint sanitizer.
+///
+/// Sanitizers remove taint for matching labels.
+///
+/// ```
+/// @sanitizer("url")
+/// function sanitizeURL(value: string): string { value }
+/// ```
+export newtype sanitizer = (string,) | ();
+
 /// Tag a value or expression.
 ///
 /// Tags are used for general purpose metadata when more specific decorators are not available.
