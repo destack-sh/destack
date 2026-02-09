@@ -50,6 +50,20 @@ pub struct TaintMarker {
     pub label: Option<StringId>,
 }
 
+/// Sink marker metadata for a symbol.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SinkMarker {
+    /// The optional sink label.
+    pub label: Option<StringId>,
+}
+
+/// Sanitizer marker metadata for a symbol.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SanitizerMarker {
+    /// The optional sanitizer label.
+    pub label: Option<StringId>,
+}
+
 /// Tag marker metadata for a symbol.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TagMarker {
@@ -111,6 +125,10 @@ pub struct SymbolDecorators {
     pub is_transmute: bool,
     /// The taint markers.
     pub taints: Vec<TaintMarker>,
+    /// The sink markers.
+    pub sinks: Vec<SinkMarker>,
+    /// The sanitizer markers.
+    pub sanitizers: Vec<SanitizerMarker>,
     /// The tag markers.
     pub tags: Vec<TagMarker>,
 }

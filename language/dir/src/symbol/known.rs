@@ -164,6 +164,10 @@ pub enum WellKnownDecorator {
     Transmute,
     /// The `@taint` decorator marker.
     Taint,
+    /// The `@sink` decorator marker.
+    Sink,
+    /// The `@sanitizer` decorator marker.
+    Sanitizer,
     /// The `@tag` decorator marker.
     Tag,
     /// The `@lifetime` decorator marker.
@@ -207,6 +211,8 @@ impl WellKnownDecorator {
             WellKnownDecorator::Unsafe => "unsafe",
             WellKnownDecorator::Transmute => "transmute",
             WellKnownDecorator::Taint => "taint",
+            WellKnownDecorator::Sink => "sink",
+            WellKnownDecorator::Sanitizer => "sanitizer",
             WellKnownDecorator::Tag => "tag",
             WellKnownDecorator::Lifetime => "lifetime",
             WellKnownDecorator::Addrspace => "addrspace",
@@ -242,6 +248,8 @@ impl WellKnownDecorator {
             WellKnownDecorator::Unsafe,
             WellKnownDecorator::Transmute,
             WellKnownDecorator::Taint,
+            WellKnownDecorator::Sink,
+            WellKnownDecorator::Sanitizer,
             WellKnownDecorator::Tag,
             WellKnownDecorator::Lifetime,
             WellKnownDecorator::Addrspace,

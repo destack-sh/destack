@@ -1,12 +1,13 @@
 use std::collections::{HashMap, HashSet};
 
+use destack_base::StringId;
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
     Annotation, Argument, CaptureDirective, CaptureKind, CapturePolicy, CaptureRule, CaptureTable,
     Declaration, DeprecatedNotice, DynamicKey, ExperimentalNotice, Expression, ExternBinding,
     GlobalSymbolId, IntrinsicBinding, LanguageItemBinding, LifetimeAnnotation, LocalNodeId,
-    LocalNodeIdAny, NodeTree, Property, ScalarLiteral, SymbolDecorators, SymbolTable, TagMarker,
-    TaintMarker, UnrollHint, WellKnownDecorator,
+    LocalNodeIdAny, NodeTree, Property, SanitizerMarker, ScalarLiteral, SinkMarker,
+    SymbolDecorators, SymbolTable, TagMarker, TaintMarker, UnrollHint, WellKnownDecorator,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -179,6 +180,14 @@ impl Compiler {
         decorators.insert(
             self.language_symbol(profile, LanguageSymbol::Taint),
             WellKnownDecorator::Taint,
+        );
+        decorators.insert(
+            self.language_symbol(profile, LanguageSymbol::Sink),
+            WellKnownDecorator::Sink,
+        );
+        decorators.insert(
+            self.language_symbol(profile, LanguageSymbol::Sanitizer),
+            WellKnownDecorator::Sanitizer,
         );
         decorators.insert(
             self.language_symbol(profile, LanguageSymbol::Tag),
@@ -848,7 +857,7 @@ impl Compiler {
                 decorators.is_transmute = true;
             }
             WellKnownDecorator::Taint => {
-                let Some(label) = self.decorator_string_argument(
+                let Some(labels) = self.decorator_string_arguments(
                     module,
                     profile,
                     tree,
@@ -859,8 +868,83 @@ impl Compiler {
                     return;
                 };
 
-                let marker = TaintMarker { label };
-                decorators.taints.push(marker);
+                // unlabeled taint marks a generic source
+                if labels.is_empty() {
+                    let marker = TaintMarker { label: None };
+                    if !decorators.taints.contains(&marker) {
+                        decorators.taints.push(marker);
+                    }
+
+                    return;
+                }
+
+                // each label becomes one taint marker
+                for label in labels {
+                    let marker = TaintMarker { label: Some(label) };
+                    if !decorators.taints.contains(&marker) {
+                        decorators.taints.push(marker);
+                    }
+                }
+            }
+            WellKnownDecorator::Sink => {
+                let Some(labels) = self.decorator_string_arguments(
+                    module,
+                    profile,
+                    tree,
+                    annotation_id,
+                    decorator_name,
+                    &values,
+                ) else {
+                    return;
+                };
+
+                // unlabeled sink accepts any taint label
+                if labels.is_empty() {
+                    let marker = SinkMarker { label: None };
+                    if !decorators.sinks.contains(&marker) {
+                        decorators.sinks.push(marker);
+                    }
+
+                    return;
+                }
+
+                // each label becomes one sink marker
+                for label in labels {
+                    let marker = SinkMarker { label: Some(label) };
+                    if !decorators.sinks.contains(&marker) {
+                        decorators.sinks.push(marker);
+                    }
+                }
+            }
+            WellKnownDecorator::Sanitizer => {
+                let Some(labels) = self.decorator_string_arguments(
+                    module,
+                    profile,
+                    tree,
+                    annotation_id,
+                    decorator_name,
+                    &values,
+                ) else {
+                    return;
+                };
+
+                // unlabeled sanitizer clears all taint labels
+                if labels.is_empty() {
+                    let marker = SanitizerMarker { label: None };
+                    if !decorators.sanitizers.contains(&marker) {
+                        decorators.sanitizers.push(marker);
+                    }
+
+                    return;
+                }
+
+                // each label becomes one sanitizer marker
+                for label in labels {
+                    let marker = SanitizerMarker { label: Some(label) };
+                    if !decorators.sanitizers.contains(&marker) {
+                        decorators.sanitizers.push(marker);
+                    }
+                }
             }
             WellKnownDecorator::Tag => {
                 let Some(label) = self.decorator_string_argument(
@@ -956,7 +1040,7 @@ impl Compiler {
         annotation_id: LocalNodeId<Annotation>,
         decorator_name: &str,
         values: &[LocalNodeId<Expression>],
-    ) -> Option<Option<destack_base::StringId>> {
+    ) -> Option<Option<StringId>> {
         // validate arity
         if values.is_empty() {
             return Some(None);
@@ -987,6 +1071,46 @@ impl Compiler {
         };
 
         Some(Some(*string_id))
+    }
+
+    /// Parse zero or more string arguments for a decorator.
+    fn decorator_string_arguments(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        annotation_id: LocalNodeId<Annotation>,
+        decorator_name: &str,
+        values: &[LocalNodeId<Expression>],
+    ) -> Option<Vec<StringId>> {
+        // allow empty argument lists
+        if values.is_empty() {
+            return Some(Vec::new());
+        }
+
+        // collect unique string literal arguments
+        let mut labels = Vec::new();
+        for value_id in values {
+            let expression = tree.get(*value_id);
+            let Expression::ScalarLiteral {
+                value: ScalarLiteral::String(string_id),
+            } = expression
+            else {
+                self.report_invalid_well_known_decorator(
+                    module,
+                    profile,
+                    annotation_id,
+                    &format!("{decorator_name} decorator arguments must be string literals"),
+                );
+                return None;
+            };
+
+            if !labels.contains(string_id) {
+                labels.push(*string_id);
+            }
+        }
+
+        Some(labels)
     }
 
     /// Parse a single integer argument for a decorator.
@@ -1259,7 +1383,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         annotation_id: LocalNodeId<Annotation>,
-        value: destack_base::StringId,
+        value: StringId,
     ) -> Option<CapturePolicy> {
         // compare without holding the string pool lock during diagnostics
         let value = self.program.strings.get(value);
@@ -1293,7 +1417,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         annotation_id: LocalNodeId<Annotation>,
-        value: destack_base::StringId,
+        value: StringId,
     ) -> Option<CaptureKind> {
         // compare without holding the string pool lock during diagnostics
         let value = self.program.strings.get(value);
