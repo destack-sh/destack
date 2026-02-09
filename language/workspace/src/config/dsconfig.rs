@@ -3442,6 +3442,12 @@ pub struct DsConfigLinterJson {
     pub catch_error_name: Option<String>,
     /// Required filename case style.
     pub filename_case: Option<FilenameCaseJson>,
+    /// Allowed uppercase keyword prefixes for inline comments.
+    pub comment_keywords: Option<Vec<String>>,
+    /// Allowed tags for keyword comments.
+    pub comment_keyword_tags: Option<Vec<String>>,
+    /// Minimum non-empty lines required for separator heading comments.
+    pub comment_separator_heading_min_lines: Option<usize>,
 
     // restriction options
     /// Magic numbers to allow.
@@ -3546,6 +3552,16 @@ impl DsConfigLinterJson {
         }
         if let Some(filename_case) = self.filename_case {
             options.filename_case = filename_case.into();
+        }
+        if let Some(ref comment_keywords) = self.comment_keywords {
+            options.comment_keywords = comment_keywords.clone();
+        }
+        if let Some(ref comment_keyword_tags) = self.comment_keyword_tags {
+            options.comment_keyword_tags = comment_keyword_tags.clone();
+        }
+        if let Some(comment_separator_heading_min_lines) = self.comment_separator_heading_min_lines
+        {
+            options.comment_separator_heading_min_lines = comment_separator_heading_min_lines;
         }
 
         // restriction options
