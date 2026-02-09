@@ -22,6 +22,13 @@ let isConfigRestartInFlight = false;
 
 const DEBUG = false;
 const FALLBACK_COMMANDS = ["destack", "ds", "dsc"];
+const WORKSPACE_BINARY_CANDIDATES =
+    process.platform == "win32"
+        ? [
+              path.join("target", "release", "destack.exe"),
+              path.join("target", "debug", "destack.exe"),
+          ]
+        : [path.join("target", "release", "destack"), path.join("target", "debug", "destack")];
 const SERVER_SETTING_KEYS = [
     "destack.server.command",
     "destack.server.args",
@@ -108,6 +115,25 @@ function resolveCommandPath(command: string): string | undefined {
     return resolveOnPath(command);
 }
 
+function withLspSubcommand(args: string[]): string[] {
+    if (args[0] == "lsp") {
+        return args;
+    }
+
+    return ["lsp", ...args];
+}
+
+function resolveWorkspaceBinary(workspaceRoot: string): string | undefined {
+    for (const relativePath of WORKSPACE_BINARY_CANDIDATES) {
+        const candidate = path.join(workspaceRoot, relativePath);
+        if (fs.existsSync(candidate)) {
+            return candidate;
+        }
+    }
+
+    return undefined;
+}
+
 function shouldInjectLsp(command: string, args: string[]): boolean {
     const base = path.basename(command).toLowerCase();
     const normalized = base.endsWith(".exe") ? base.slice(0, -4) : base;
@@ -126,6 +152,7 @@ function resolveServerCommand(
     const rawArgs = cfg.get<string[]>("server.args") ?? [];
     const rawCwd = cfg.get<string>("server.cwd") ?? "";
     const cwd = rawCwd ? expandPath(rawCwd, workspaceFolder) : workspaceFolder?.uri.fsPath;
+    const workspaceRoot = workspaceFolder?.uri.fsPath;
 
     if (rawCommand) {
         const expanded = expandPath(rawCommand, workspaceFolder);
@@ -135,42 +162,30 @@ function resolveServerCommand(
         }
 
         const command = resolved ?? expanded;
-        const args = shouldInjectLsp(command, rawArgs) ? ["lsp", ...rawArgs] : rawArgs;
+        const args = shouldInjectLsp(command, rawArgs) ? withLspSubcommand(rawArgs) : rawArgs;
         return { command, args, cwd };
+    }
+
+    if (workspaceRoot) {
+        const workspaceBinary = resolveWorkspaceBinary(workspaceRoot);
+        if (workspaceBinary) {
+            return {
+                command: workspaceBinary,
+                args: withLspSubcommand(rawArgs),
+                cwd: workspaceRoot,
+            };
+        }
     }
 
     for (const fallback of FALLBACK_COMMANDS) {
         const resolved = resolveOnPath(fallback);
         if (resolved) {
-            return { command: resolved, args: ["lsp", ...rawArgs], cwd };
-        }
-    }
-
-    const cargo = resolveOnPath("cargo");
-    const cargoRoot = workspaceFolder?.uri.fsPath;
-    if (cargo && cargoRoot) {
-        const cargoToml = path.join(cargoRoot, "Cargo.toml");
-        if (fs.existsSync(cargoToml)) {
-            return {
-                command: cargo,
-                args: [
-                    "run",
-                    "-q",
-                    "-p",
-                    "destack_cli",
-                    "--bin",
-                    "destack",
-                    "--",
-                    "lsp",
-                    ...rawArgs,
-                ],
-                cwd: cargoRoot,
-            };
+            return { command: resolved, args: withLspSubcommand(rawArgs), cwd };
         }
     }
 
     throw new Error(
-        "destack.server.command is unset and no Destack CLI found on PATH (destack, ds, dsc).",
+        "destack.server.command is unset and no Destack binary was found in the workspace (`target/debug` or `target/release`) or PATH (destack, ds, dsc).",
     );
 }
 

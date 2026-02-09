@@ -8,6 +8,10 @@
         "vscode": "^1.90.0"
     },
     "publisher": "symbol-industries",
+    "author": {
+        "name": "Florian Cäsar",
+        "email": "florian@symbol.industries"
+    },
     "categories": [
         "AI",
         "Debuggers",
@@ -51,7 +55,7 @@
                 "destack.server.command": {
                     "type": "string",
                     "default": "",
-                    "markdownDescription": "Command for the Destack LSP. If empty, tries `destack`, `ds`, or `dsc` on PATH, then Cargo in the workspace. Supports `~` and `${workspaceFolder}`."
+                    "markdownDescription": "Command for the Destack LSP. If empty, prefers a workspace-built binary (`target/release/destack` or `target/debug/destack`), then tries `destack`, `ds`, or `dsc` on PATH. Supports `~` and `${workspaceFolder}`."
                 },
                 "destack.server.args": {
                     "type": "array",
