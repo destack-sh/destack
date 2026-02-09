@@ -10,7 +10,7 @@ declare_lint! {
     /// being used and can lead to namespace pollution. Use named imports instead.
     #[lint(
         id = "no-wildcard-imports",
-        code = "LR034",
+        code = "LR031",
         category = Restriction,
         level = Ast,
         requires_all = [],

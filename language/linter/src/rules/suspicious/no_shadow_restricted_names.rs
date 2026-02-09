@@ -14,7 +14,7 @@ declare_lint! {
     /// Destack language items like `Add`, `Type`, or `Range`.
     #[lint(
         id = "no-shadow-restricted-names",
-        code = "LU040",
+        code = "LU029",
         category = Suspicious,
         level = Ast,
         requires_all = [],

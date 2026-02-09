@@ -11,7 +11,7 @@ declare_lint! {
     /// `type X = object` instead. If it extends a single type, use a type alias.
     #[lint(
         id = "no-empty-interface",
-        code = "LY022",
+        code = "LY018",
         category = Style,
         level = Ast,
         requires_all = [],

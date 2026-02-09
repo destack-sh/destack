@@ -10,7 +10,7 @@ declare_lint! {
     /// written as `else if` instead.
     #[lint(
         id = "no-lonely-if",
-        code = "LY025",
+        code = "LY019",
         category = Style,
         level = Ast,
         requires_all = [],

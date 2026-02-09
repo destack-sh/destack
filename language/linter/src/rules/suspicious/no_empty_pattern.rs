@@ -10,7 +10,7 @@ declare_lint! {
     /// don't bind any values and are likely mistakes.
     #[lint(
         id = "no-empty-pattern",
-        code = "LU016",
+        code = "LU014",
         category = Suspicious,
         level = Ast,
         requires_all = [],

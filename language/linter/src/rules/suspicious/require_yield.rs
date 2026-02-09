@@ -10,7 +10,7 @@ declare_lint! {
     /// expression. A generator without `yield` is likely a mistake.
     #[lint(
         id = "require-yield",
-        code = "LU064",
+        code = "LU044",
         category = Suspicious,
         level = Ast,
         requires_all = [],

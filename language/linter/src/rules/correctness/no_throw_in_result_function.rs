@@ -11,7 +11,7 @@ declare_lint! {
     /// of throwing. The Result type is designed for recoverable errors.
     #[lint(
         id = "no-throw-in-result-function",
-        code = "LC042",
+        code = "LC028",
         category = Correctness,
         level = Dir,
         requires_all = [],

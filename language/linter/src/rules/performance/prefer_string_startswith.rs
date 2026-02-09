@@ -13,7 +13,7 @@ declare_lint! {
     /// numeric sentinel values.
     #[lint(
         id = "prefer-string-startswith",
-        code = "LP022",
+        code = "LP017",
         category = Performance,
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::String)],

@@ -9,7 +9,7 @@ declare_lint! {
     /// Comparisons like `x >= y + 1` can be simplified to `x > y` for clarity.
     #[lint(
         id = "prefer-simplified-comparison",
-        code = "LX027",
+        code = "LX026",
         category = Complexity,
         level = Ast,
         requires_all = [],

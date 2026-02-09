@@ -10,7 +10,7 @@ declare_lint! {
     /// This also applies to saturating and wrapping multiplication variants.
     #[lint(
         id = "prefer-unary-negation",
-        code = "LY073",
+        code = "LY061",
         category = Style,
         level = Ast,
         requires_all = [],

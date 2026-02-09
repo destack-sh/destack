@@ -10,7 +10,7 @@ declare_lint! {
     /// usually a mistake. If intentional, consider restructuring the code.
     #[lint(
         id = "no-constant-condition",
-        code = "LC014",
+        code = "LC009",
         category = Correctness,
         level = Ast,
         requires_all = [],

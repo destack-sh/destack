@@ -28,7 +28,7 @@ declare_lint! {
     /// to be skipped or processed multiple times, leading to bugs.
     #[lint(
         id = "no-iterator-invalidation",
-        code = "LC030",
+        code = "LC021",
         category = Correctness,
         level = Dir,
         requires_all = [],

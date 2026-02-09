@@ -10,7 +10,7 @@ declare_lint! {
     /// since the function would return anyway.
     #[lint(
         id = "no-useless-return",
-        code = "LU056",
+        code = "LU041",
         category = Suspicious,
         level = Ast,
         requires_all = [],

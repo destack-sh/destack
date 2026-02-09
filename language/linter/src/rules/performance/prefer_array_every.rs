@@ -13,7 +13,7 @@ declare_lint! {
     /// on the first failing element.
     #[lint(
         id = "prefer-array-every",
-        code = "LP015",
+        code = "LP012",
         category = Performance,
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],

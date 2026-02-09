@@ -13,7 +13,7 @@ declare_lint! {
     /// unexpected behavior by overriding the return value or exception from the try/catch.
     #[lint(
         id = "no-unsafe-finally",
-        code = "LC047",
+        code = "LC033",
         category = Correctness,
         level = Ast,
         requires_all = [],

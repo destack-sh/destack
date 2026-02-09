@@ -10,7 +10,7 @@ declare_lint! {
     /// it `(!a) == b` rather than `!(a == b)`. Use `a != b` or `!(a == b)` instead.
     #[lint(
         id = "no-negation-in-equality-check",
-        code = "LU031",
+        code = "LU024",
         category = Suspicious,
         level = Ast,
         requires_all = [],

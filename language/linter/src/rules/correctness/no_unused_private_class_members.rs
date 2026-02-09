@@ -10,7 +10,7 @@ declare_lint! {
     /// Unused private members create maintenance overhead and can hide dead code.
     #[lint(
         id = "no-unused-private-class-members",
-        code = "LC103",
+        code = "LC037",
         category = Correctness,
         level = Dir,
         requires_all = [],

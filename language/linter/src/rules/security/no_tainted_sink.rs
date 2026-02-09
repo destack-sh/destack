@@ -15,7 +15,7 @@ declare_lint! {
     /// Pair it with dedicated rules like `no-open-redirect` for well known platform sink families.
     #[lint(
         id = "no-tainted-sink",
-        code = "LS006",
+        code = "LS010",
         category = Security,
         level = Dir,
         requires_all = [],

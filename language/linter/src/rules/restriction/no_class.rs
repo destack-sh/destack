@@ -11,7 +11,7 @@ declare_lint! {
     /// Use structs with interface implementations instead.
     #[lint(
         id = "no-class",
-        code = "LR007",
+        code = "LR006",
         category = Restriction,
         level = Ast,
         requires_all = [],

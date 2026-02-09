@@ -11,7 +11,7 @@ declare_lint! {
     /// better clarity and easier modification.
     #[lint(
         id = "no-multi-declarators",
-        code = "LX021",
+        code = "LX020",
         category = Complexity,
         level = Ast,
         requires_all = [],

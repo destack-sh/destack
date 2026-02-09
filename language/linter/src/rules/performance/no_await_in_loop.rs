@@ -13,7 +13,7 @@ declare_lint! {
     /// good: `await Promise.all(urls.map(url => fetch(url)));`
     #[lint(
         id = "no-await-in-loop",
-        code = "LP005",
+        code = "LP004",
         category = Performance,
         level = Ast,
         requires_all = [],

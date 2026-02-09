@@ -12,7 +12,7 @@ declare_lint! {
     /// it without using the first value is likely a bug or dead code.
     #[lint(
         id = "no-useless-assignment",
-        code = "LC051",
+        code = "LC038",
         category = Correctness,
         level = Dir,
         requires_all = [],

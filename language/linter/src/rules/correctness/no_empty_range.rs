@@ -10,7 +10,7 @@ declare_lint! {
     /// the end. This is almost always a mistake.
     #[lint(
         id = "no-empty-range",
-        code = "LC020",
+        code = "LC013",
         category = Correctness,
         level = Ast,
         requires_all = [],

@@ -16,7 +16,7 @@ declare_lint! {
     /// Using `unknown` preserves type safety and forces explicit narrowing.
     #[lint(
         id = "use-unknown-in-catch-callback-variable",
-        code = "LC073",
+        code = "LC044",
         category = Correctness,
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Promise)],

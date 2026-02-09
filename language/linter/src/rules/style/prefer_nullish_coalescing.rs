@@ -16,7 +16,7 @@ declare_lint! {
     /// cannot produce other falsy values, so `a ?? b` is clearer and preserves intent.
     #[lint(
         id = "prefer-nullish-coalescing",
-        code = "LY081",
+        code = "LY046",
         category = Style,
         level = Dir,
         requires_all = [],

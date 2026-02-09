@@ -9,7 +9,7 @@ declare_lint! {
     /// Shadowing can hide outer variables and makes control flow harder to read.
     #[lint(
         id = "no-shadow",
-        code = "LR029",
+        code = "LR026",
         category = Restriction,
         level = Dir,
         requires_all = [],

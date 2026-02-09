@@ -14,7 +14,7 @@ declare_lint! {
     /// due to repeated reallocations.
     #[lint(
         id = "no-string-concat-in-loop",
-        code = "LP013",
+        code = "LP010",
         category = Performance,
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::String)],

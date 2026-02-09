@@ -14,7 +14,7 @@ declare_lint! {
     /// a different approach like `JSON.stringify()`.
     #[lint(
         id = "no-base-to-string",
-        code = "LC008",
+        code = "LC006",
         category = Correctness,
         level = Dir,
         requires_all = [],

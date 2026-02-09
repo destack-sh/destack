@@ -13,7 +13,7 @@ declare_lint! {
     /// Redundant assertions reduce readability and can hide real type issues.
     #[lint(
         id = "no-unnecessary-type-assertion",
-        code = "LC104",
+        code = "LC032",
         category = Correctness,
         level = Dir,
         requires_all = [],

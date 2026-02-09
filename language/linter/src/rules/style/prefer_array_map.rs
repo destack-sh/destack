@@ -12,7 +12,7 @@ declare_lint! {
     /// Using `map` is more declarative and avoids manual array mutation.
     #[lint(
         id = "prefer-array-map",
-        code = "LY085",
+        code = "LY031",
         category = Style,
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],

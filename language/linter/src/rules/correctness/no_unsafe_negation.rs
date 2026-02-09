@@ -10,7 +10,7 @@ declare_lint! {
     /// instead of the intended `!(a in b)`. The same applies to `instanceof`.
     #[lint(
         id = "no-unsafe-negation",
-        code = "LC048",
+        code = "LC034",
         category = Correctness,
         level = Ast,
         requires_all = [],

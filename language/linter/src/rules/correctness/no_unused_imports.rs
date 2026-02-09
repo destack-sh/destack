@@ -16,7 +16,7 @@ declare_lint! {
     /// Unused imports add noise and can hide stale dependencies.
     #[lint(
         id = "no-unused-imports",
-        code = "LC101",
+        code = "LC035",
         category = Correctness,
         level = Dir,
         requires_all = [],

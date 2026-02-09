@@ -11,7 +11,7 @@ declare_lint! {
     /// Decorators with different arguments are allowed, supporting stackable decorators.
     #[lint(
         id = "no-duplicate-decorators",
-        code = "LU012",
+        code = "LU009",
         category = Suspicious,
         level = Ast,
         requires_all = [],

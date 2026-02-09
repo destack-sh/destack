@@ -10,7 +10,7 @@ declare_lint! {
     /// `while(true)`, `while(1)`, or `for(;;)` patterns.
     #[lint(
         id = "prefer-loop",
-        code = "LY050",
+        code = "LY043",
         category = Style,
         level = Ast,
         requires_all = [],

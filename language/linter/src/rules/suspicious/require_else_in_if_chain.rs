@@ -10,7 +10,7 @@ declare_lint! {
     /// missing logic for unhandled cases.
     #[lint(
         id = "require-else-in-if-chain",
-        code = "LU063",
+        code = "LU043",
         category = Suspicious,
         level = Ast,
         requires_all = [],

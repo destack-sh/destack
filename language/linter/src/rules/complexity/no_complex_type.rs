@@ -13,7 +13,7 @@ declare_lint! {
     /// Consider using a type alias to give a name to complex types.
     #[lint(
         id = "no-complex-type",
-        code = "LX017",
+        code = "LX016",
         category = Complexity,
         level = Ast,
         requires_all = [],

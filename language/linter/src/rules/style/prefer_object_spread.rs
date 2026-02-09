@@ -15,7 +15,7 @@ declare_lint! {
     /// Object spread is more idiomatic and avoids verbose calls.
     #[lint(
         id = "prefer-object-spread",
-        code = "LY055",
+        code = "LY048",
         category = Style,
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Object)],

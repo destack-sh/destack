@@ -10,7 +10,7 @@ declare_lint! {
     /// Configure the expected name via `catch_error_name` option.
     #[lint(
         id = "catch-error-name",
-        code = "LY002",
+        code = "LY001",
         category = Style,
         level = Ast,
         requires_all = [],

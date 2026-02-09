@@ -10,7 +10,7 @@ declare_lint! {
     /// Consider extracting logic into helper functions.
     #[lint(
         id = "max-statements",
-        code = "LX011",
+        code = "LX010",
         category = Complexity,
         level = Ast,
         requires_all = [],

@@ -18,7 +18,7 @@ declare_lint! {
     /// is less efficient and less readable than using an array literal.
     #[lint(
         id = "prefer-array-literal",
-        code = "LP016",
+        code = "LP013",
         category = Performance,
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],

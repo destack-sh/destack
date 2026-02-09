@@ -11,7 +11,7 @@ declare_lint! {
     /// on each iteration. Move the regex outside the loop or use a regex literal.
     #[lint(
         id = "no-regex-in-loop",
-        code = "LP011",
+        code = "LP009",
         category = Performance,
         level = Dir,
         requires_all = [],

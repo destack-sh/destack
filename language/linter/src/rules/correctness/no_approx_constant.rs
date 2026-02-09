@@ -11,7 +11,7 @@ declare_lint! {
     /// library constants instead.
     #[lint(
         id = "no-approx-constant",
-        code = "LC003",
+        code = "LC002",
         category = Correctness,
         level = Ast,
         requires_all = [],

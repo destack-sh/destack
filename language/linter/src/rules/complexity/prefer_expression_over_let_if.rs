@@ -10,7 +10,7 @@ declare_lint! {
     /// use an if expression or ternary to initialize directly.
     #[lint(
         id = "prefer-expression-over-let-if",
-        code = "LX025",
+        code = "LX024",
         category = Complexity,
         level = Ast,
         requires_all = [],

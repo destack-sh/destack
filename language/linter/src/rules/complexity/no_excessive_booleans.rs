@@ -16,7 +16,7 @@ declare_lint! {
     /// good: `fn process(options: ProcessOptions) { ... }`
     #[lint(
         id = "no-excessive-booleans",
-        code = "LX019",
+        code = "LX018",
         category = Complexity,
         level = Ast,
         requires_all = [],

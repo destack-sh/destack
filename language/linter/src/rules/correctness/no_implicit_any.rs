@@ -11,7 +11,7 @@ declare_lint! {
     /// context can silently produce `any` and weaken type safety.
     #[lint(
         id = "no-implicit-any",
-        code = "LC061",
+        code = "LC018",
         category = Correctness,
         level = Dir,
         requires_all = [],

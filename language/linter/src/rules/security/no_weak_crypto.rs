@@ -13,7 +13,7 @@ declare_lint! {
     /// and should not be used for security purposes.
     #[lint(
         id = "no-weak-crypto",
-        code = "LS015",
+        code = "LS011",
         category = Security,
         level = Dir,
         requires_all = [RequireLibSymbol("crypto", &["dom"])],

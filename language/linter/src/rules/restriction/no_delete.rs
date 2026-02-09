@@ -10,7 +10,7 @@ declare_lint! {
     /// and can hurt performance due to object shape changes.
     #[lint(
         id = "no-delete",
-        code = "LR036",
+        code = "LR010",
         category = Restriction,
         level = Ast,
         requires_all = [],

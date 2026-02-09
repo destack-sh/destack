@@ -15,7 +15,7 @@ declare_lint! {
     /// into named functions.
     #[lint(
         id = "max-nested-callbacks",
-        code = "LX008",
+        code = "LX007",
         category = Complexity,
         level = Ast,
         requires_all = [],

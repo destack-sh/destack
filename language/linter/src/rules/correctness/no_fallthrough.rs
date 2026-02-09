@@ -10,7 +10,7 @@ declare_lint! {
     /// If fallthrough is intentional, add a `// fallthrough` comment.
     #[lint(
         id = "no-fallthrough",
-        code = "LC021",
+        code = "LC014",
         category = Correctness,
         level = Ast,
         requires_all = [],

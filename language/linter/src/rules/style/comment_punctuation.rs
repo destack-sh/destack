@@ -10,7 +10,7 @@ declare_lint! {
     /// Doc comments should end with proper punctuation.
     #[lint(
         id = "comment-punctuation",
-        code = "LY005",
+        code = "LY004",
         category = Style,
         level = Ast,
         requires_all = [],

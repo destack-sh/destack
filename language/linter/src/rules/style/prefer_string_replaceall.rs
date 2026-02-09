@@ -12,7 +12,7 @@ declare_lint! {
     /// `replaceAll()` avoids regex overhead and better communicates intent.
     #[lint(
         id = "prefer-string-replaceall",
-        code = "LY067",
+        code = "LY054",
         category = Style,
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::String)],

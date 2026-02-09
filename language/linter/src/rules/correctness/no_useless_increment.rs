@@ -11,7 +11,7 @@ declare_lint! {
     /// This often indicates dead code or a logic error.
     #[lint(
         id = "no-useless-increment",
-        code = "LC052",
+        code = "LC039",
         category = Correctness,
         level = Dir,
         requires_all = [],

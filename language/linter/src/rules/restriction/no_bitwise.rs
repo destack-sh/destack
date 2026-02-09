@@ -11,7 +11,7 @@ declare_lint! {
     /// disabled for specific files or projects.
     #[lint(
         id = "no-bitwise",
-        code = "LR005",
+        code = "LR004",
         category = Restriction,
         level = Ast,
         requires_all = [],

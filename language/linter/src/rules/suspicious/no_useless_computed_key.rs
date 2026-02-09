@@ -12,7 +12,7 @@ declare_lint! {
     /// `{x: 1}`.
     #[lint(
         id = "no-useless-computed-key",
-        code = "LU051",
+        code = "LU036",
         category = Suspicious,
         level = Ast,
         requires_all = [],

@@ -14,7 +14,7 @@ declare_lint! {
     /// Consider restructuring with early returns or extracting logic.
     #[lint(
         id = "max-return-statements",
-        code = "LX010",
+        code = "LX009",
         category = Complexity,
         level = Ast,
         requires_all = [],

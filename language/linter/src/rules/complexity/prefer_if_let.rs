@@ -10,7 +10,7 @@ declare_lint! {
     /// can be more clearly written as an if-let expression.
     #[lint(
         id = "prefer-if-let",
-        code = "LX026",
+        code = "LX025",
         category = Complexity,
         level = Ast,
         requires_all = [],

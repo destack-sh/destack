@@ -10,7 +10,7 @@ declare_lint! {
     /// Documentation comments should begin with uppercase (proper sentences).
     #[lint(
         id = "comment-casing",
-        code = "LY003",
+        code = "LY002",
         category = Style,
         level = Ast,
         requires_all = [],

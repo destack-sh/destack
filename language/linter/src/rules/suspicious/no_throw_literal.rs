@@ -10,7 +10,7 @@ declare_lint! {
     /// Throwing literals loses stack information and is harder to handle.
     #[lint(
         id = "no-throw-literal",
-        code = "LU043",
+        code = "LU032",
         category = Suspicious,
         level = Dir,
         requires_all = [],

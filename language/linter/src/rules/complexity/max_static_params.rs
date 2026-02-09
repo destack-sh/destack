@@ -10,7 +10,7 @@ declare_lint! {
     /// Consider splitting into smaller components or using associated types.
     #[lint(
         id = "max-static-params",
-        code = "LX005",
+        code = "LX011",
         category = Complexity,
         level = Ast,
         requires_all = [],

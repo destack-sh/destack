@@ -17,7 +17,7 @@ declare_lint! {
     /// Use direct mutation with assignment instead.
     #[lint(
         id = "no-object-spread-in-reduce",
-        code = "LP010",
+        code = "LP008",
         category = Performance,
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],

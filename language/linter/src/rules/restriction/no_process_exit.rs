@@ -12,7 +12,7 @@ declare_lint! {
     /// Exiting the process abruptly can skip cleanup and is hard to test.
     #[lint(
         id = "no-process-exit",
-        code = "LR025",
+        code = "LR023",
         category = Restriction,
         level = Dir,
         requires_all = [RequireLibSymbol("process", &["node"])],

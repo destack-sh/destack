@@ -10,7 +10,7 @@ declare_lint! {
     /// Configure via `type_definition_style` option.
     #[lint(
         id = "consistent-type-definitions",
-        code = "LY007",
+        code = "LY006",
         category = Style,
         level = Ast,
         requires_all = [],

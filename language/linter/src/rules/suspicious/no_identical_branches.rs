@@ -11,7 +11,7 @@ declare_lint! {
     /// is pointless and indicates a copy-paste error or unfinished logic.
     #[lint(
         id = "no-identical-branches",
-        code = "LU021",
+        code = "LU018",
         category = Suspicious,
         level = Ast,
         requires_all = [],

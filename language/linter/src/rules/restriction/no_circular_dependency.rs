@@ -12,7 +12,7 @@ declare_lint! {
     /// Import cycles make code harder to reason about and can hide order dependent behavior.
     #[lint(
         id = "no-circular-dependency",
-        code = "LR006",
+        code = "LR005",
         category = Restriction,
         level = Dir,
         scope = Program,

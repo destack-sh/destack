@@ -9,7 +9,7 @@ declare_lint! {
     /// Use `() => x` instead of `() => { return x }` for concise arrow functions.
     #[lint(
         id = "prefer-implicit-return",
-        code = "LY048",
+        code = "LY041",
         category = Style,
         level = Ast,
         requires_all = [],

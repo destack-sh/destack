@@ -13,7 +13,7 @@ declare_lint! {
     /// `Math.pow()`. It also handles BigInt values correctly.
     #[lint(
         id = "prefer-exponentiation-operator",
-        code = "LY043",
+        code = "LY036",
         category = Style,
         level = Dir,
         requires_all = [RequireLibSymbol("Math", &[])],

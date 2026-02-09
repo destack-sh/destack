@@ -12,7 +12,7 @@ declare_lint! {
     /// correct. Use an epsilon-based comparison instead.
     #[lint(
         id = "no-floating-point-equality",
-        code = "LC019",
+        code = "LC015",
         category = Correctness,
         level = Dir,
         requires_all = [],

@@ -16,7 +16,7 @@ declare_lint! {
     /// the receiver and break `this` dependent logic.
     #[lint(
         id = "unbound-method",
-        code = "LC055",
+        code = "LC041",
         category = Correctness,
         level = Dir,
         requires_all = [],

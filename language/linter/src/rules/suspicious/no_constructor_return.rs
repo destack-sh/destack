@@ -13,7 +13,7 @@ declare_lint! {
     /// override the newly created object. Use a factory function instead.
     #[lint(
         id = "no-constructor-return",
-        code = "LU009",
+        code = "LU007",
         category = Suspicious,
         level = Ast,
         requires_all = [],

@@ -13,7 +13,7 @@ declare_lint! {
     /// - Contradictions: `a && !a` (always false) or `a || !a` (always true)
     #[lint(
         id = "no-complex-boolean-expression",
-        code = "LX016",
+        code = "LX015",
         category = Complexity,
         level = Ast,
         requires_all = [],

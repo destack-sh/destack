@@ -12,7 +12,7 @@ declare_lint! {
     /// dead or misplaced API boundaries.
     #[lint(
         id = "no-unused-modules",
-        code = "LR044",
+        code = "LR029",
         category = Restriction,
         level = Dir,
         scope = Program,

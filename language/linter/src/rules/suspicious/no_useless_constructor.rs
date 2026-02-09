@@ -9,7 +9,7 @@ declare_lint! {
     /// An empty constructor is unnecessary and can be removed.
     #[lint(
         id = "no-useless-constructor",
-        code = "LU053",
+        code = "LU038",
         category = Suspicious,
         level = Ast,
         requires_all = [],

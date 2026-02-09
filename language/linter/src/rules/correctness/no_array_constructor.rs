@@ -12,7 +12,7 @@ declare_lint! {
     /// create sparse arrays instead of arrays with values.
     #[lint(
         id = "no-array-constructor",
-        code = "LC005",
+        code = "LC003",
         category = Correctness,
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],

@@ -10,7 +10,7 @@ declare_lint! {
     /// Consider using named exports instead of default exports.
     #[lint(
         id = "no-default-export",
-        code = "LR011",
+        code = "LR009",
         category = Restriction,
         level = Dir,
         requires_all = [],
