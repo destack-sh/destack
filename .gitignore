@@ -108,3 +108,5 @@ destack-infra/.*
 *.tfstate.*
 *.tfvars
 .DS_Store
+
+*.destack
