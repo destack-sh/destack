@@ -352,12 +352,12 @@ export async function activate(ctx: vscode.ExtensionContext) {
     const clientOptions: LanguageClientOptions = {
         documentSelector: [
             { language: "destack" },
-            { language: "dst" },
-            { language: "dsb" },
+            { language: "javascript" },
+            { language: "javascriptreact" },
+            { language: "typescript" },
+            { language: "typescriptreact" },
             { pattern: "**/*.ds" },
             { pattern: "**/*.d.ds" },
-            { pattern: "**/*.dst" },
-            { pattern: "**/*.dsb" },
         ],
         outputChannel: clientLog,
         traceOutputChannel: clientLog,

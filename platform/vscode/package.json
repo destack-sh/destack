@@ -1,7 +1,7 @@
 {
     "name": "destack",
     "displayName": "Destack",
-    "description": "Destack for VSCode (.ds, .d.ds, .dst, .mir, .dsmir)",
+    "description": "Destack for VSCode (.ds, .d.ds, .mir)",
     "version": "0.53.0",
     "license": "MIT",
     "engines": {
@@ -25,8 +25,10 @@
     },
     "activationEvents": [
         "onLanguage:destack",
-        "onLanguage:dst",
-        "onLanguage:dsb",
+        "onLanguage:javascript",
+        "onLanguage:javascriptreact",
+        "onLanguage:typescript",
+        "onLanguage:typescriptreact",
         "onLanguage:destack-mir",
         "workspaceContains:dsconfig.json"
     ],
@@ -121,32 +123,12 @@
                 "configuration": "./destack.json"
             },
             {
-                "id": "dst",
-                "aliases": [
-                    "Destack Text Format"
-                ],
-                "extensions": [
-                    ".dst"
-                ],
-                "configuration": "./destack.json"
-            },
-            {
-                "id": "dsb",
-                "aliases": [
-                    "Destack Binary Format"
-                ],
-                "extensions": [
-                    ".dsb"
-                ]
-            },
-            {
                 "id": "destack-mir",
                 "aliases": [
                     "Destack MIR"
                 ],
                 "extensions": [
-                    ".mir",
-                    ".dsmir"
+                    ".mir"
                 ],
                 "configuration": "./destack-mir.json"
             }
@@ -154,11 +136,6 @@
         "grammars": [
             {
                 "language": "destack",
-                "scopeName": "source.ds",
-                "path": "./destack.tmLanguage.json"
-            },
-            {
-                "language": "dst",
                 "scopeName": "source.ds",
                 "path": "./destack.tmLanguage.json"
             },
@@ -177,37 +154,101 @@
         "semanticTokenScopes": [
             {
                 "scopes": {
-                    "namespace": ["entity.name.namespace.ds"],
-                    "type": ["entity.name.type.ds"],
-                    "class": ["entity.name.type.class.ds", "entity.name.type.ds"],
-                    "enum": ["entity.name.type.enum.ds", "entity.name.type.ds"],
-                    "interface": ["entity.name.type.interface.ds", "entity.name.type.ds"],
-                    "struct": ["entity.name.type.struct.ds", "entity.name.type.ds"],
-                    "typeParameter": ["entity.name.type.parameter.ds"],
-                    "parameter": ["variable.parameter.ds", "variable.other.binding.ds"],
-                    "variable": ["variable.other.binding.ds"],
-                    "variable.readonly": ["variable.other.binding.readonly.ds", "variable.other.binding.ds"],
-                    "variable.mutable": ["variable.other.binding.mutable.ds", "variable.other.binding.ds"],
-                    "property": ["variable.other.property.ds"],
-                    "property.readonly": ["variable.other.property.readonly.ds", "variable.other.property.ds"],
-                    "enumMember": ["variable.other.member.ds", "variable.other.property.ds"],
-                    "function": ["entity.name.function.ds"],
-                    "method": ["entity.name.function.member.ds", "entity.name.function.ds"],
-                    "macro": ["entity.name.function.ds"],
-                    "keyword": ["keyword.ds"],
-                    "modifier": ["keyword.other.modifier.ds"],
-                    "comment": ["comment.ds"],
-                    "string": ["string.quoted.double.ds", "string.quoted.single.ds"],
-                    "number": ["constant.numeric.ds"],
-                    "regexp": ["string.regexp.ds"],
-                    "operator": ["keyword.operator.ds"],
-                    "decorator": ["entity.name.type.decorator.ds"]
+                    "namespace": [
+                        "entity.name.namespace.ds"
+                    ],
+                    "type": [
+                        "entity.name.type.ds"
+                    ],
+                    "class": [
+                        "entity.name.type.class.ds",
+                        "entity.name.type.ds"
+                    ],
+                    "enum": [
+                        "entity.name.type.enum.ds",
+                        "entity.name.type.ds"
+                    ],
+                    "interface": [
+                        "entity.name.type.interface.ds",
+                        "entity.name.type.ds"
+                    ],
+                    "struct": [
+                        "entity.name.type.struct.ds",
+                        "entity.name.type.ds"
+                    ],
+                    "typeParameter": [
+                        "entity.name.type.parameter.ds"
+                    ],
+                    "parameter": [
+                        "variable.parameter.ds",
+                        "variable.other.binding.ds"
+                    ],
+                    "variable": [
+                        "variable.other.binding.ds"
+                    ],
+                    "variable.readonly": [
+                        "variable.other.binding.readonly.ds",
+                        "variable.other.binding.ds"
+                    ],
+                    "variable.mutable": [
+                        "variable.other.binding.mutable.ds",
+                        "variable.other.binding.ds"
+                    ],
+                    "property": [
+                        "variable.other.property.ds"
+                    ],
+                    "property.readonly": [
+                        "variable.other.property.readonly.ds",
+                        "variable.other.property.ds"
+                    ],
+                    "enumMember": [
+                        "variable.other.member.ds",
+                        "variable.other.property.ds"
+                    ],
+                    "function": [
+                        "entity.name.function.ds"
+                    ],
+                    "method": [
+                        "entity.name.function.member.ds",
+                        "entity.name.function.ds"
+                    ],
+                    "macro": [
+                        "entity.name.function.ds"
+                    ],
+                    "keyword": [
+                        "keyword.ds"
+                    ],
+                    "modifier": [
+                        "keyword.other.modifier.ds"
+                    ],
+                    "comment": [
+                        "comment.ds"
+                    ],
+                    "string": [
+                        "string.quoted.double.ds",
+                        "string.quoted.single.ds"
+                    ],
+                    "number": [
+                        "constant.numeric.ds"
+                    ],
+                    "regexp": [
+                        "string.regexp.ds"
+                    ],
+                    "operator": [
+                        "keyword.operator.ds"
+                    ],
+                    "decorator": [
+                        "entity.name.type.decorator.ds"
+                    ]
                 }
             }
         ],
         "jsonValidation": [
             {
-                "fileMatch": ["dsconfig.json", "*.dsconfig.json"],
+                "fileMatch": [
+                    "dsconfig.json",
+                    "*.dsconfig.json"
+                ],
                 "url": "./dsconfig.schema.json"
             }
         ]

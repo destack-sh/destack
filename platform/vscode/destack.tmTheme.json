@@ -2,8 +2,7 @@
   "name": "Dyst",
   "scopeName": "source.ds",
   "fileTypes": [
-    "ds",
-    "dst"
+    "ds"
   ],
   "uuid": "C35A154D-5792-4136-8CE8-8C0E0A3E8CD0",
   "patterns": [
