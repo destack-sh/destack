@@ -1,0 +1,12 @@
+# tree sitter generated parser sources
+language/grammar/destack/destack/src/parser.c linguist-generated -diff
+language/grammar/destack/typescript/src/parser.c linguist-generated -diff
+language/grammar/destack/tsx/src/parser.c linguist-generated -diff
+
+# tree sitter generated metadata
+language/grammar/destack/destack/src/grammar.json linguist-generated
+language/grammar/destack/destack/src/node-types.json linguist-generated
+language/grammar/destack/typescript/src/grammar.json linguist-generated
+language/grammar/destack/typescript/src/node-types.json linguist-generated
+language/grammar/destack/tsx/src/grammar.json linguist-generated
+language/grammar/destack/tsx/src/node-types.json linguist-generated
