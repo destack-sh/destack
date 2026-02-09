@@ -2,8 +2,7 @@
   "name": "Destack MIR",
   "scopeName": "source.dsmir",
   "fileTypes": [
-    "mir",
-    "dsmir"
+    "mir"
   ],
   "patterns": [
     {
