@@ -295,7 +295,8 @@ if (x === NaN) {}
             .assert_safe_fixed(
                 r#"
 let x = 1.0;
-if (Number.isNaN(x)) { }
+if (Number.isNaN(x)) {
+}
 "#,
             );
     }
@@ -315,7 +316,8 @@ if (x !== NaN) {}
             .assert_safe_fixed(
                 r#"
 let x = 1.0;
-if (!Number.isNaN(x)) { }
+if (!Number.isNaN(x)) {
+}
 "#,
             );
     }
@@ -335,7 +337,8 @@ if (NaN === x) {}
             .assert_safe_fixed(
                 r#"
 let x = 1.0;
-if (Number.isNaN(x)) { }
+if (Number.isNaN(x)) {
+}
 "#,
             );
     }

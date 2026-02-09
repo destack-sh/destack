@@ -1608,6 +1608,12 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
                 self.push_debug_optional("member_modifiers", *modifiers);
                 self.push_identifier_id("member_name", *name);
             }
+            ast::Member::ComptimeConst {
+                modifiers, name, ..
+            } => {
+                self.push_debug_optional("member_modifiers", *modifiers);
+                self.push_identifier_id("member_name", *name);
+            }
             ast::Member::Field { modifiers, key, .. } => {
                 self.push_debug_optional("member_modifiers", *modifiers);
                 if let Some(key) = key {

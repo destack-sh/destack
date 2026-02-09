@@ -221,7 +221,7 @@ let result = !x instanceof Foo
             .assert_lint("no-unsafe-negation")
             .assert_safe_fixed(
                 r#"
-class Foo { }
+class Foo {}
 let x = new Foo();
 let result = !(x instanceof Foo);
 "#,

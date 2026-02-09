@@ -205,7 +205,7 @@ items.map(function(x) { return x + 1 });
             .assert_safe_fixed(
                 r#"
 items.map((x) => {
-    return x + 1
+    return x + 1;
 });
 "#,
             );

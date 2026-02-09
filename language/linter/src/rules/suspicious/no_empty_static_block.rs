@@ -138,7 +138,7 @@ class Foo {
             .assert_lint("no-empty-static-block")
             .assert_safe_fixed(
                 r#"
-class Foo { }
+class Foo {}
 "#,
             );
     }

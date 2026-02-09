@@ -240,7 +240,7 @@ async function foo() {
             .assert_unsafe_fixed(
                 r#"
 function foo() {
-    return 42
+    return 42;
 }
 "#,
             );
