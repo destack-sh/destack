@@ -723,9 +723,18 @@ fn expression_signature(
     ctx: &LintModuleAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Vec<u64> {
-    let expression = ctx.tree.get(expression_id);
-    let mut collector = ExpressionSignatureCollector::new(ctx.strings);
-    ast::walk_expression(&mut collector, ctx.tree, expression_id, expression);
+    expression_structural_signature(ctx.tree, ctx.strings, expression_id)
+}
+
+/// Build a structural signature for one expression subtree.
+pub fn expression_structural_signature(
+    tree: &ast::NodeTree,
+    strings: &ast::StringPool,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> Vec<u64> {
+    let expression = tree.get(expression_id);
+    let mut collector = ExpressionSignatureCollector::new(strings);
+    ast::walk_expression(&mut collector, tree, expression_id, expression);
     collector.finish()
 }
 

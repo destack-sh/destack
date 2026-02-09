@@ -124,6 +124,25 @@ pub fn is_any_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
     is_any_type_inner(types, normalized_type_id, &mut visited)
 }
 
+/// Return true when the type tree contains explicit `any` (but not `unknown`).
+pub fn is_explicit_any_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
+    // prefer flow-normalized types when available
+    let normalized_type_id = types
+        .normalized_type(
+            dir::NormalizationMode::Flow,
+            DEFAULT_RELATION_CACHE_KEY,
+            type_id,
+        )
+        .map(|entry| entry.normalized_type)
+        .unwrap_or(type_id);
+
+    // track visited nodes to avoid recursion cycles
+    let mut visited = Vec::new();
+
+    // resolve the type tree
+    is_explicit_any_type_inner(types, normalized_type_id, &mut visited)
+}
+
 /// Return true when the type is a Promise.
 pub fn is_promise_type(
     types: &dir::TypeTable,
@@ -578,6 +597,49 @@ fn is_any_type_inner(
             // fall back to value types for aliases
             if let Some(value_type_id) = types.get_value_type_id(*symbol) {
                 return is_any_type_inner(types, value_type_id, visited);
+            }
+
+            false
+        }
+        _ => false,
+    }
+}
+
+/// Return true when the type tree contains explicit `any` with cycle protection.
+fn is_explicit_any_type_inner(
+    types: &dir::TypeTable,
+    type_id: dir::LocalTypeId,
+    visited: &mut Vec<dir::LocalTypeId>,
+) -> bool {
+    // guard against cycles
+    if visited.contains(&type_id) {
+        return false;
+    }
+    visited.push(type_id);
+
+    // inspect the type node
+    let ty = types.get_type(type_id);
+    match ty {
+        dir::Type::TypeLiteral {
+            value: dir::TypeLiteral::Any,
+        } => true,
+        dir::Type::TypeLiteral { .. } => false,
+        dir::Type::Value { value } => is_explicit_any_type_inner(types, *value, visited),
+        dir::Type::ValueOf { right, .. }
+        | dir::Type::ReferenceOf { right, .. }
+        | dir::Type::PointerOf { right, .. } => is_explicit_any_type_inner(types, *right, visited),
+        dir::Type::Union { elements } | dir::Type::Intersection { elements } => elements
+            .iter()
+            .any(|element| is_explicit_any_type_inner(types, *element, visited)),
+        dir::Type::Reference { symbol, .. } => {
+            // follow instance types when available
+            if let Some(instance_type_id) = types.get_instance_type_id(*symbol) {
+                return is_explicit_any_type_inner(types, instance_type_id, visited);
+            }
+
+            // fall back to value types for aliases
+            if let Some(value_type_id) = types.get_value_type_id(*symbol) {
+                return is_explicit_any_type_inner(types, value_type_id, visited);
             }
 
             false

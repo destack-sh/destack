@@ -102,6 +102,18 @@ fn collect_required_libs_from_rules(rules: &[BoxedLintRule]) -> Vec<String> {
     libs
 }
 
+/// Build a module list for multi-module linter tests.
+macro_rules! test_modules {
+    ($($path:expr => $source:expr),+ $(,)?) => {
+        &[
+            $(
+                ($path, $source),
+            )+
+        ]
+    };
+}
+pub(crate) use test_modules;
+
 #[allow(dead_code)]
 impl TestProgram {
     /// Create a new test program with the given rules and options.
@@ -358,6 +370,61 @@ impl TestProgram {
         self.import_module(module);
         self.compile();
         self.lint_module(module, LintLevel::Ast)
+    }
+
+    /// Add modules, analyze them at DIR level, and return module ids by path.
+    fn prepare_dir_modules(&self, modules: &[(&str, &str)]) -> Vec<(String, ModuleId)> {
+        let mut module_entries = Vec::new();
+
+        // add modules and track ids
+        for (path, source) in modules {
+            let module_id = self.add_module(path, source);
+            module_entries.push(((*path).to_string(), module_id));
+        }
+
+        // import all modules
+        for (_, module_id) in &module_entries {
+            self.import_module(*module_id);
+        }
+
+        // resolve profile symbols once
+        self.enqueue_profile_resolution_once();
+
+        // analyze all modules
+        for (_, module_id) in &module_entries {
+            self.analyze_module(*module_id);
+        }
+
+        // compile all queued tasks
+        self.compile();
+
+        module_entries
+    }
+
+    /// Add modules, analyze them at DIR level, and lint one target module.
+    pub(crate) fn lint_module_dir_with_modules(
+        &self,
+        modules: &[(&str, &str)],
+        target_path: &str,
+    ) -> Vec<LintDiagnostic> {
+        let module_entries = self.prepare_dir_modules(modules);
+
+        // resolve target module id from path
+        let target_module_id = module_entries
+            .iter()
+            .find_map(|(path, module_id)| (path == target_path).then_some(*module_id))
+            .unwrap_or_else(|| panic!("missing target module path {target_path}"));
+
+        self.lint_module(target_module_id, LintLevel::Dir)
+    }
+
+    /// Add modules, analyze them at DIR level, and lint program-scope DIR rules.
+    pub(crate) fn lint_program_dir_with_modules(
+        &self,
+        modules: &[(&str, &str)],
+    ) -> Vec<LintDiagnostic> {
+        self.prepare_dir_modules(modules);
+        self.lint_program_dir()
     }
 
     /// Lint the full program with program-scope rules.
