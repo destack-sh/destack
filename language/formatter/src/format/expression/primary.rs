@@ -140,8 +140,8 @@ pub(super) fn format_primary_expression<'ast>(
                 )
             });
             let is_nested_inside_type_conditional =
-                f.context().get_ancestors(node_id).into_iter().any(
-                    |(ancestor_id, ancestor_type)| {
+                f.context()
+                    .any_ancestor(node_id, |ancestor_id, ancestor_type| {
                         ancestor_type == NodeType::Expression
                             && matches!(
                                 f.context()
@@ -149,8 +149,7 @@ pub(super) fn format_primary_expression<'ast>(
                                     .get(LocalNodeId::<Expression>::new(ancestor_id)),
                                 Expression::TypeConditional { .. }
                             )
-                    },
-                );
+                    });
             let should_double_indent_tail =
                 expression_is_in_template_literal_interpolation(f.context(), node_id)
                     && is_nested_inside_type_conditional;
@@ -593,9 +592,9 @@ pub(super) fn format_primary_expression<'ast>(
                     ])]
                 )?;
             } else if has_parenthesized_prefix_annotation {
-                let format_inline =
-                    format_with(|f| write!(f, [token("("), expression, token(")")]));
-                let format_multiline = format_with(|f| {
+                if f.context().has_newline(f.context().get_span(*expression))
+                    || has_parenthesized_leading_inner_trivia
+                {
                     write!(
                         f,
                         [
@@ -604,16 +603,23 @@ pub(super) fn format_primary_expression<'ast>(
                             hard_line_break(),
                             token(")")
                         ]
-                    )
-                });
-                if f.context().has_newline(f.context().get_span(*expression))
-                    || has_parenthesized_leading_inner_trivia
-                {
-                    format_multiline.format(f)?;
+                    )?;
                 } else {
-                    best_fitting![format_inline, format_multiline]
-                        .with_mode(BestFittingMode::AllLines)
-                        .format(f)?;
+                    let line_width = usize::from(f.context().options.line_width);
+                    let inline_width = expression_source_len(f.context(), *expression) + 2;
+                    if inline_width <= line_width {
+                        write!(f, [token("("), expression, token(")")])?;
+                    } else {
+                        write!(
+                            f,
+                            [
+                                token("("),
+                                block_indent(&group(expression).should_expand(true)),
+                                hard_line_break(),
+                                token(")")
+                            ]
+                        )?;
+                    }
                 }
             } else if matches!(inner_expression, Expression::TypeConditional { .. }) {
                 write!(f, [token("("), soft_block_indent(&expression), token(")")])?;

@@ -1,10 +1,10 @@
-use destack_fir::format::{BestFittingMode, FormatResult};
+use destack_fir::format::FormatResult;
 
 use crate::argument::list_like;
 use crate::{DestackFormatter, FormatNode};
 use destack_ast::{Keyword, LocalNodeId, WhereClause};
 use destack_fir::prelude::*;
-use destack_fir::{best_fitting, write};
+use destack_fir::write;
 
 /// Format a where clause list.
 pub(crate) fn format_where_clause<'ast>(
@@ -34,18 +34,13 @@ pub(crate) fn format_where_clause_with_break<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     clauses: &[LocalNodeId<WhereClause>],
 ) -> FormatResult<()> {
-    let inline = format_with(|f| {
-        write!(f, [space()])?;
-        format_where_clause(f, clauses)
-    });
-    let break_line = format_with(|f| {
-        write!(f, [hard_line_break()])?;
-        format_where_clause(f, clauses)
-    });
-
-    best_fitting![inline, break_line]
-        .with_mode(BestFittingMode::AllLines)
-        .format(f)?;
+    write!(
+        f,
+        [group(&destack_fir::format_args![
+            soft_line_break_or_space(),
+            format_with(|f| format_where_clause(f, clauses)),
+        ])]
+    )?;
 
     Ok(())
 }

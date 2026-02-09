@@ -10,9 +10,10 @@ use destack_fir::{format_args, write};
 use destack_source::{FileId, Span};
 
 use super::imports;
+use super::timing::tags;
 use crate::directive::{
-    FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, collect_comment_tokens,
-    directive_for_node, ignore_range_for_node, ignored_span_source, write_ignored_span,
+    FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
+    ignore_range_for_node, ignored_span_source, write_ignored_span,
 };
 use crate::expression::format_expression;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
@@ -35,6 +36,7 @@ pub struct StatementList<'a> {
 
 impl<'ast, 'a> Format<DestackFormatContext<'ast>> for StatementList<'a> {
     fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'ast>>) -> FormatResult<()> {
+        let _timing = f.context().timing_scope(tags::FORMAT_STATEMENT_LIST);
         format_block_of_statements(f, self.expressions)?;
         if !self.expressions.is_empty() {
             write!(f, [hard_line_break()])?;
@@ -259,10 +261,11 @@ pub(crate) fn format_block_of_statements<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expressions: &[LocalNodeId<Expression>],
 ) -> FormatResult<()> {
+    let _timing = f.context().timing_scope(tags::FORMAT_BLOCK_STATEMENTS);
     let organize = f.context().options.organize_imports.is_enabled();
     let tree = f.context().tree;
     let strings = f.context().strings;
-    let comment_tokens = collect_comment_tokens(f.context());
+    let comment_tokens = f.context().comment_tokens();
 
     let mut ignore_ranges: HashMap<u32, Span> = HashMap::new();
     for &expression_id in expressions {

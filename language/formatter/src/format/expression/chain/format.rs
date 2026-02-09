@@ -161,6 +161,8 @@ fn plan_chain_layout(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<ChainLayoutPlan> {
+    context.increment_counter("profile.chain.layout.builds", 1);
+
     let mut normalized = normalize_chain_layout(context, node_id)?;
     let chain_call_summaries = summarize_chain_calls(context, &normalized.chain);
     let mut should_break = should_break_chain(context, &normalized.chain);
@@ -426,6 +428,22 @@ pub(crate) fn format_expression_chain<'ast>(
         return Ok(());
     }
 
+    // keep compact source chains inline without probing best fitting variants
+    let line_width = usize::from(f.context().options.line_width);
+    let chain_span = f.context().get_span(node_id);
+    let source_chain_len = f.context().span_char_len(chain_span);
+    let can_use_inline_fast_path = !chain_should_break
+        && deferred_path_boundary_comments.is_empty()
+        && !f.context().has_newline(chain_span)
+        && lines.len() <= 2
+        && source_chain_len.saturating_add(8) <= line_width;
+    if can_use_inline_fast_path {
+        f.context()
+            .increment_counter("profile.chain.inline.fast_path", 1);
+        format_inline.format(f)?;
+        return Ok(());
+    }
+
     // chains that are clearly complex should not try the inline layout first
     if chain_should_break {
         write!(f, [group(&format_chain).should_expand(true)])?;
@@ -433,6 +451,8 @@ pub(crate) fn format_expression_chain<'ast>(
     }
 
     // prefer inline, otherwise chain
+    f.context()
+        .record_best_fitting("best_fitting.expression.chain", 2);
     best_fitting![format_inline, format_chain]
         .with_mode(BestFittingMode::AllLines)
         .format(f)
@@ -617,17 +637,19 @@ fn expression_has_line_postfix_boundary_comment(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
-    context.get_annotations(node_id).is_some_and(|annotations| {
-        annotations.iter().any(|annotation_id| {
-            matches!(
-                context.tree.get::<Annotation>(*annotation_id),
-                Annotation::Comment {
-                    position: AnnotationPosition::LinePostfixBoundary,
-                    ..
-                }
-            )
+    context
+        .with_annotations(node_id, |annotations| {
+            annotations.iter().any(|annotation_id| {
+                matches!(
+                    context.tree.get::<Annotation>(*annotation_id),
+                    Annotation::Comment {
+                        position: AnnotationPosition::LinePostfixBoundary,
+                        ..
+                    }
+                )
+            })
         })
-    })
+        .unwrap_or(false)
 }
 
 /// Return whether a chain call has exactly one template literal argument.

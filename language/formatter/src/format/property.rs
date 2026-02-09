@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use crate::argument::list_like;
 use crate::directive::{
-    FormatterDirectiveKind, FormatterDirectivePosition, collect_comment_tokens, directive_for_node,
-    ignore_range_for_node, ignored_node_source, write_ignored_span,
+    FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node, ignore_range_for_node,
+    ignored_node_source, write_ignored_span,
 };
 use crate::key::{format_key_with_quote_policy, is_identifier_for_quotes};
 use crate::signature::{
@@ -149,7 +149,7 @@ pub(crate) fn format_block_of_properties<'ast>(
     properties: &[LocalNodeId<Property>],
     separator: &'static str,
 ) -> FormatResult<()> {
-    let comment_tokens = collect_comment_tokens(f.context());
+    let comment_tokens = f.context().comment_tokens();
     let mut ignore_ranges: HashMap<u32, Span> = HashMap::new();
     for &property_id in properties {
         if let Some(range_span) = ignore_range_for_node(f.context(), property_id, &comment_tokens) {
@@ -199,7 +199,7 @@ pub(crate) fn format_block_of_members<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     members: &[LocalNodeId<Member>],
 ) -> FormatResult<()> {
-    let comment_tokens = collect_comment_tokens(f.context());
+    let comment_tokens = f.context().comment_tokens();
     let mut ignore_ranges: HashMap<u32, Span> = HashMap::new();
     for &member_id in members {
         if let Some(range_span) = ignore_range_for_node(f.context(), member_id, &comment_tokens) {

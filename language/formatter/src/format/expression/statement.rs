@@ -1,3 +1,4 @@
+use super::super::timing::tags;
 use super::*;
 use crate::imports::sort_dependency_items;
 use destack_fir::write;
@@ -131,14 +132,14 @@ fn format_import_expression<'ast>(
     else if let Some(first_item) = first_item
         && first_item.mode == DependencyMode::Default
     {
-        let rest_items: Vec<LocalNodeId<DependencyItem>> = items.iter().skip(1).copied().collect();
+        let rest_items = &items[1..];
         write!(f, [first_item.alias])?;
         if !rest_items.is_empty() {
             // sort named imports when organize_imports is enabled
             let sorted_rest = if organize && !items_have_annotations {
-                sort_dependency_items(&rest_items, tree, f.context().strings, sort_order)
+                sort_dependency_items(rest_items, tree, f.context().strings, sort_order)
             } else {
-                rest_items
+                rest_items.to_vec()
             };
             write!(f, [token(","), space()])?;
             write!(
@@ -624,8 +625,11 @@ fn format_return_expression<'ast>(
                     ]
                 )?;
             } else {
-                let format_inline = format_with(|f| write!(f, [space(), value_id]));
-                let format_wrapped = format_with(|f| {
+                let line_width = usize::from(f.context().options.line_width);
+                let inline_width = "return ".len() + expression_source_len(f.context(), value_id);
+                if inline_width <= line_width {
+                    write!(f, [space(), value_id])?;
+                } else {
                     write!(
                         f,
                         [
@@ -635,11 +639,8 @@ fn format_return_expression<'ast>(
                             hard_line_break(),
                             token(")")
                         ]
-                    )
-                });
-                best_fitting![format_inline, format_wrapped]
-                    .with_mode(BestFittingMode::AllLines)
-                    .format(f)?;
+                    )?;
+                }
             }
         } else {
             write!(f, [space(), value_id])?;
@@ -689,6 +690,9 @@ pub(super) fn format_statement_expression<'ast>(
             items,
             arguments,
         } => {
+            let _timing = f
+                .context()
+                .timing_scope(tags::FORMAT_EXPRESSION_STATEMENT_IMPORT);
             format_import_expression(f, *source, *kind, *target, items, arguments.as_ref())?;
         }
 
@@ -699,6 +703,9 @@ pub(super) fn format_statement_expression<'ast>(
             items,
             arguments,
         } => {
+            let _timing = f
+                .context()
+                .timing_scope(tags::FORMAT_EXPRESSION_STATEMENT_EXPORT);
             format_export_expression(f, *kind, *target, items, arguments.as_ref())?;
         }
 
@@ -724,20 +731,33 @@ pub(super) fn format_statement_expression<'ast>(
             descriptor,
             declarators,
             ..
-        } => format_let_expression(f, *kind, descriptor, declarators)?,
+        } => {
+            let _timing = f
+                .context()
+                .timing_scope(tags::FORMAT_EXPRESSION_STATEMENT_LET);
+            format_let_expression(f, *kind, descriptor, declarators)?;
+        }
 
         // using
         Expression::Using {
             asynchrony,
             descriptor,
             declarators,
-        } => format_using_expression(f, *asynchrony, descriptor, declarators)?,
+        } => {
+            let _timing = f
+                .context()
+                .timing_scope(tags::FORMAT_EXPRESSION_STATEMENT_LET);
+            format_using_expression(f, *asynchrony, descriptor, declarators)?;
+        }
 
         // if (ternary)
         Expression::If {
             kind: IfKind::Ternary,
             ..
         } => {
+            let _timing = f
+                .context()
+                .timing_scope(tags::FORMAT_EXPRESSION_STATEMENT_CONTROL);
             format_ternary(f, node_id)?;
         }
 
@@ -745,6 +765,9 @@ pub(super) fn format_statement_expression<'ast>(
         Expression::If {
             kind: IfKind::If, ..
         } => {
+            let _timing = f
+                .context()
+                .timing_scope(tags::FORMAT_EXPRESSION_STATEMENT_CONTROL);
             write!(
                 f,
                 [group(&format_with(|f| format_if_else_chain(f, node_id)))]
@@ -756,7 +779,12 @@ pub(super) fn format_statement_expression<'ast>(
             kind,
             condition,
             body,
-        } => format_while_expression(f, *kind, *condition, *body)?,
+        } => {
+            let _timing = f
+                .context()
+                .timing_scope(tags::FORMAT_EXPRESSION_STATEMENT_CONTROL);
+            format_while_expression(f, *kind, *condition, *body)?;
+        }
 
         // for each
         Expression::ForEach {
@@ -765,7 +793,12 @@ pub(super) fn format_statement_expression<'ast>(
             binding,
             iterator,
             body,
-        } => format_for_each_expression(f, node_id, *asynchrony, *kind, binding, *iterator, *body)?,
+        } => {
+            let _timing = f
+                .context()
+                .timing_scope(tags::FORMAT_EXPRESSION_STATEMENT_CONTROL);
+            format_for_each_expression(f, node_id, *asynchrony, *kind, binding, *iterator, *body)?;
+        }
 
         // for condition
         Expression::For {
@@ -773,10 +806,20 @@ pub(super) fn format_statement_expression<'ast>(
             condition,
             increment,
             body,
-        } => format_for_expression(f, *initialization, *condition, *increment, *body)?,
+        } => {
+            let _timing = f
+                .context()
+                .timing_scope(tags::FORMAT_EXPRESSION_STATEMENT_CONTROL);
+            format_for_expression(f, *initialization, *condition, *increment, *body)?;
+        }
 
         // loop
-        Expression::Loop { body } => format_loop_expression(f, *body)?,
+        Expression::Loop { body } => {
+            let _timing = f
+                .context()
+                .timing_scope(tags::FORMAT_EXPRESSION_STATEMENT_CONTROL);
+            format_loop_expression(f, *body)?;
+        }
 
         // try
         Expression::Try {
@@ -784,16 +827,24 @@ pub(super) fn format_statement_expression<'ast>(
             catch_pattern,
             catch_expression,
             finally_expression,
-        } => format_try_expression(
-            f,
-            *try_expression,
-            *catch_pattern,
-            *catch_expression,
-            *finally_expression,
-        )?,
+        } => {
+            let _timing = f
+                .context()
+                .timing_scope(tags::FORMAT_EXPRESSION_STATEMENT_CONTROL);
+            format_try_expression(
+                f,
+                *try_expression,
+                *catch_pattern,
+                *catch_expression,
+                *finally_expression,
+            )?;
+        }
 
         // match
         Expression::Match { .. } => {
+            let _timing = f
+                .context()
+                .timing_scope(tags::FORMAT_EXPRESSION_STATEMENT_CONTROL);
             format_match(f, node_id, true)?;
         }
 
@@ -867,7 +918,12 @@ pub(super) fn format_statement_expression<'ast>(
         }
 
         // return
-        Expression::Return { value } => format_return_expression(f, node_id, *value)?,
+        Expression::Return { value } => {
+            let _timing = f
+                .context()
+                .timing_scope(tags::FORMAT_EXPRESSION_STATEMENT_RETURN);
+            format_return_expression(f, node_id, *value)?;
+        }
         _ => return Ok(false),
     }
 

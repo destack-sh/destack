@@ -1,5 +1,85 @@
+use super::super::timing::tags;
 use super::*;
 use destack_fir::{format_args, write};
+
+enum ExpressionFormatRoute {
+    Statement,
+    Primary,
+    Operator,
+}
+
+fn expression_format_route(expression: &Expression) -> ExpressionFormatRoute {
+    match expression {
+        Expression::Declaration(_)
+        | Expression::Block(_)
+        | Expression::Statement(_)
+        | Expression::Labelled { .. }
+        | Expression::Import { .. }
+        | Expression::Export { .. }
+        | Expression::ExportNamespace { .. }
+        | Expression::Let { .. }
+        | Expression::Using { .. }
+        | Expression::If { .. }
+        | Expression::While { .. }
+        | Expression::ForEach { .. }
+        | Expression::For { .. }
+        | Expression::Loop { .. }
+        | Expression::Try { .. }
+        | Expression::Match { .. }
+        | Expression::Break { .. }
+        | Expression::Continue { .. }
+        | Expression::Await { .. }
+        | Expression::AwaitMaybe { .. }
+        | Expression::Yield { .. }
+        | Expression::Throw { .. }
+        | Expression::Return { .. }
+        | Expression::Comptime { .. } => ExpressionFormatRoute::Statement,
+
+        Expression::Path { .. }
+        | Expression::PrivateIdentifier { .. }
+        | Expression::This
+        | Expression::Super
+        | Expression::ScalarLiteral(_)
+        | Expression::TypeLiteral(_)
+        | Expression::TemplateExpression { .. }
+        | Expression::TaggedTemplateExpression { .. }
+        | Expression::RangeExpression { .. }
+        | Expression::ArrayExpression { .. }
+        | Expression::TupleExpression { .. }
+        | Expression::SequenceExpression { .. }
+        | Expression::ObjectExpression { .. }
+        | Expression::TreeExpression { .. }
+        | Expression::Parenthesized { .. }
+        | Expression::TypeConditional { .. }
+        | Expression::TypeMapped { .. }
+        | Expression::TypeIndex { .. }
+        | Expression::TypeTemplateLiteral { .. }
+        | Expression::TypeImport { .. }
+        | Expression::TypeInfer { .. }
+        | Expression::TypePredicate { .. } => ExpressionFormatRoute::Primary,
+
+        Expression::Unary { .. }
+        | Expression::TypeUnary { .. }
+        | Expression::TypeBinary { .. }
+        | Expression::ValueOf { .. }
+        | Expression::ReferenceOf { .. }
+        | Expression::PointerOf { .. }
+        | Expression::Member { .. }
+        | Expression::PrivateMember { .. }
+        | Expression::Index { .. }
+        | Expression::Instantiation { .. }
+        | Expression::Call { .. }
+        | Expression::New { .. }
+        | Expression::Delete { .. }
+        | Expression::Maybe { .. }
+        | Expression::Must { .. }
+        | Expression::Binary { .. }
+        | Expression::Assign { .. }
+        | Expression::Debugger
+        | Expression::Stub
+        | Expression::Error => ExpressionFormatRoute::Operator,
+    }
+}
 
 /// Return whether an expression tree contains static type arguments.
 fn expression_has_static_type_arguments(
@@ -121,16 +201,28 @@ pub(crate) fn format_expression<'ast>(
         return Ok(());
     }
 
-    if format_statement_expression(f, node_id, expression)? {
-        return Ok(());
-    }
-
-    if format_primary_expression(f, node_id, expression)? {
-        return Ok(());
-    }
-
-    if format_operator_expression(f, node_id, expression)? {
-        return Ok(());
+    match expression_format_route(expression) {
+        ExpressionFormatRoute::Statement => {
+            let _timing = f.context().timing_scope(tags::FORMAT_EXPRESSION_STATEMENT);
+            let statement_formatted = format_statement_expression(f, node_id, expression)?;
+            if statement_formatted {
+                return Ok(());
+            }
+        }
+        ExpressionFormatRoute::Primary => {
+            let _timing = f.context().timing_scope(tags::FORMAT_EXPRESSION_PRIMARY);
+            let primary_formatted = format_primary_expression(f, node_id, expression)?;
+            if primary_formatted {
+                return Ok(());
+            }
+        }
+        ExpressionFormatRoute::Operator => {
+            let _timing = f.context().timing_scope(tags::FORMAT_EXPRESSION_OPERATOR);
+            let operator_formatted = format_operator_expression(f, node_id, expression)?;
+            if operator_formatted {
+                return Ok(());
+            }
+        }
     }
 
     Err(FormatError::SyntaxError {
@@ -144,6 +236,9 @@ pub(super) fn format_declarator<'ast>(
     tree: &NodeTree,
     declarator_id: LocalNodeId<Declarator>,
 ) -> FormatResult<()> {
+    f.context()
+        .increment_counter("profile.declarator.layout.builds", 1);
+
     let declarator = tree.get(declarator_id);
     let Declarator { pattern, ty, value } = declarator;
 
@@ -300,7 +395,7 @@ pub(super) fn format_declarator<'ast>(
     // estimate remaining width if the declarator stayed inline
     let line_width = usize::from(f.context().options.line_width);
     let pattern_span = f.context().get_span(*pattern);
-    let pattern_source_len = f.context().get_span_str(pattern_span).chars().count();
+    let pattern_source_len = f.context().span_char_len(pattern_span);
     let type_source_len = ty.map(|ty_id| expression_source_len(f.context(), ty_id));
     let header_source_len = type_source_len.map_or(pattern_source_len, |type_len| {
         pattern_source_len
@@ -330,15 +425,17 @@ pub(super) fn format_declarator<'ast>(
         None
     };
     let between_source_len = between_span
-        .map(|span| f.context().get_span_str(span).chars().count())
+        .map(|span| f.context().span_char_len(span))
         .unwrap_or(0);
     let value_has_newline = f.context().has_newline(value_span);
+    let value_is_parenthesized = matches!(value_expr, Expression::Parenthesized { .. });
     let value_has_generic_class_heritage =
         value_has_generic_class_heritage(f.context(), value_inner_id);
     let value_has_existing_operator_break =
         between_span.is_some_and(|span| f.context().has_newline(span));
     let value_has_between_comment =
         between_span.is_some_and(|span| span_has_comment(f.context(), span));
+    let value_has_internal_comment = span_has_comment(f.context(), value_span);
     let value_binary_operand_count = match value_inner_expr {
         Expression::Binary { operator, .. } => {
             flatten_binary_expression(tree, value_inner_id, *operator).len()
@@ -350,6 +447,23 @@ pub(super) fn format_declarator<'ast>(
         && value_is_long
         && value_is_very_long_binary
         && value_binary_operand_count > 2;
+    let inline_declarator_fits = estimated_inline_declarator_len <= line_width;
+
+    // fast path: trivial declarators should stay inline without best fitting variants
+    let simple_inline_declarator = !pattern_breakable
+        && !value_breakable
+        && !value_is_long
+        && !value_has_newline
+        && !value_has_prefix_annotation
+        && !value_has_between_comment
+        && !value_has_generic_class_heritage
+        && !f.context().has_annotation(*pattern)
+        && !f.context().has_annotation(*value_id)
+        && !f.context().has_annotation(value_inner_id);
+    if simple_inline_declarator {
+        write!(f, [header, space(), token("="), space(), *value_id])?;
+        return Ok(());
+    }
 
     // prefer keeping the value on a single line
     let format_inline = format_with(|f| {
@@ -468,24 +582,32 @@ pub(super) fn format_declarator<'ast>(
     // for string literals, never break at `=`: let them exceed line width
     if is_string_literal {
         if value_is_long && !pattern_breakable {
-            best_fitting![
-                format_break_after_operator_for_binary,
-                format_indented,
-                format_inline
-            ]
-            .with_mode(BestFittingMode::AllLines)
-            .format(f)?;
+            write!(f, [format_break_after_operator_for_binary])?;
         } else if pattern_breakable {
-            best_fitting![format_inline, format_header_expanded]
-                .with_mode(BestFittingMode::AllLines)
-                .format(f)?;
+            if inline_declarator_fits {
+                write!(f, [format_inline])?;
+            } else {
+                write!(f, [format_header_expanded])?;
+            }
         } else {
             write!(f, [format_inline])?;
         }
     } else if value_is_long_binary {
-        best_fitting![format_inline, format_break_after_operator_for_binary]
-            .with_mode(BestFittingMode::AllLines)
-            .format(f)?;
+        // comment-heavy logical chains read better with the first operand kept inline
+        let prefer_inline_for_internal_binary_comment = value_has_internal_comment
+            && !value_has_between_comment
+            && !value_has_existing_operator_break;
+
+        // long binary declarators generally break after `=`
+        let prefer_operator_break = (value_has_existing_operator_break
+            || value_has_between_comment
+            || !inline_declarator_fits)
+            && !prefer_inline_for_internal_binary_comment;
+        if prefer_operator_break {
+            write!(f, [format_break_after_operator_for_binary])?;
+        } else {
+            write!(f, [format_inline])?;
+        }
     } else if value_handles_its_own_breaking {
         let source_rhs_has_newline = value_has_newline && allow_source_operator_break_preservation;
         let source_operator_has_newline =
@@ -545,6 +667,10 @@ pub(super) fn format_declarator<'ast>(
                     || has_significant_between_comment
                     || should_try_operator_break_before_header_expand
                 {
+                    f.context().record_best_fitting(
+                        "best_fitting.expression.core.own_break.pattern_breakable.operator_first",
+                        4,
+                    );
                     best_fitting![
                         format_inline,
                         format_break_after_operator_for_binary,
@@ -554,6 +680,10 @@ pub(super) fn format_declarator<'ast>(
                     .with_mode(BestFittingMode::AllLines)
                     .format(f)?;
                 } else {
+                    f.context().record_best_fitting(
+                        "best_fitting.expression.core.own_break.pattern_breakable.header_first",
+                        3,
+                    );
                     best_fitting![
                         format_inline,
                         format_header_expanded,
@@ -571,23 +701,22 @@ pub(super) fn format_declarator<'ast>(
                         {
                             write!(f, [format_break_after_operator_for_binary])?;
                         } else {
-                            best_fitting![
-                                format_break_after_operator_for_binary,
-                                format_inline,
-                                format_value_expanded_strict
-                            ]
-                            .format(f)?;
+                            // when rhs should lead with a break, prefer operator-first layout
+                            write!(f, [format_break_after_operator_for_binary])?;
                         }
                     } else {
-                        best_fitting![
-                            format_inline,
-                            format_break_after_operator_for_binary,
-                            format_value_expanded_strict
-                        ]
-                        .format(f)?;
+                        if inline_declarator_fits {
+                            write!(f, [format_inline])?;
+                        } else {
+                            write!(f, [format_break_after_operator_for_binary])?;
+                        }
                     }
                 } else {
-                    best_fitting![format_inline, format_value_expanded_strict].format(f)?;
+                    if inline_declarator_fits {
+                        write!(f, [format_inline])?;
+                    } else {
+                        write!(f, [format_value_expanded_strict])?;
+                    }
                 }
             }
         }
@@ -595,6 +724,8 @@ pub(super) fn format_declarator<'ast>(
         match (pattern_breakable, value_breakable) {
             (true, true) => {
                 // both sides breakable: prefer inline, then expanded variants
+                f.context()
+                    .record_best_fitting("best_fitting.expression.core.both_breakable", 4);
                 best_fitting![
                     format_inline,
                     format_value_expanded,
@@ -611,11 +742,19 @@ pub(super) fn format_declarator<'ast>(
 
                 // keep long atomic rhs values inline when possible
                 if pattern_has_newline {
+                    f.context().record_best_fitting(
+                        "best_fitting.expression.core.pattern_breakable.pattern_newline",
+                        3,
+                    );
                     best_fitting![format_header_expanded, format_inline, format_indented]
                         .with_mode(BestFittingMode::AllLines)
                         .format(f)?;
                 } else if value_is_long {
                     if pattern_has_comments_or_annotations {
+                        f.context().record_best_fitting(
+                            "best_fitting.expression.core.pattern_breakable.long_with_comments",
+                            3,
+                        );
                         best_fitting![
                             format_inline,
                             format_break_after_operator_for_binary,
@@ -624,39 +763,59 @@ pub(super) fn format_declarator<'ast>(
                         .with_mode(BestFittingMode::AllLines)
                         .format(f)?;
                     } else {
-                        best_fitting![format_inline, format_header_expanded]
-                            .with_mode(BestFittingMode::AllLines)
-                            .format(f)?;
+                        if inline_declarator_fits {
+                            write!(f, [format_inline])?;
+                        } else {
+                            write!(f, [format_header_expanded])?;
+                        }
                     }
                 } else {
-                    best_fitting![format_inline, format_header_expanded, format_indented]
-                        .with_mode(BestFittingMode::AllLines)
-                        .format(f)?;
+                    if inline_declarator_fits {
+                        write!(f, [format_inline])?;
+                    } else {
+                        write!(f, [format_header_expanded])?;
+                    }
                 }
             }
             (false, true) => {
-                let prefers_operator_break = value_has_between_comment
-                    || (value_has_prefix_annotation
-                        && estimated_inline_declarator_len.saturating_add(between_source_len)
-                            >= line_width.saturating_sub(DECLARATOR_PREFIX_PADDING));
+                // only force operator break when there is an explicit boundary comment near `=`
+                let prefers_operator_break = value_has_between_comment;
                 let prefer_declaration_operator_break =
                     value_is_declaration && (value_is_long || value_has_newline);
 
                 if prefers_operator_break || prefer_declaration_operator_break {
-                    best_fitting![format_indented, format_inline, format_value_expanded]
-                        .with_mode(BestFittingMode::AllLines)
-                        .format(f)?;
+                    if inline_declarator_fits
+                        && !value_is_long
+                        && !value_has_between_comment
+                        && !value_has_prefix_annotation
+                    {
+                        write!(f, [format_inline])?;
+                    } else {
+                        write!(f, [format_indented])?;
+                    }
                 } else {
-                    best_fitting![format_inline, format_value_expanded, format_indented]
-                        .with_mode(BestFittingMode::AllLines)
-                        .format(f)?;
+                    if value_is_parenthesized && value_has_newline {
+                        write!(f, [format_inline])?;
+                    } else if inline_declarator_fits {
+                        write!(f, [format_inline])?;
+                    } else if value_has_newline || value_has_prefix_annotation || value_is_long {
+                        write!(f, [format_value_expanded])?;
+                    } else {
+                        write!(f, [format_indented])?;
+                    }
                 }
             }
             (false, false) => {
                 if value_has_generic_class_heritage && value_is_long {
-                    best_fitting![format_indented, format_inline].format(f)?;
+                    write!(f, [format_indented])?;
+                } else if value_is_parenthesized && value_has_newline {
+                    write!(f, [format_inline])?;
                 } else {
-                    best_fitting![format_inline, format_indented].format(f)?;
+                    if inline_declarator_fits {
+                        write!(f, [format_inline])?;
+                    } else {
+                        write!(f, [format_indented])?;
+                    }
                 }
             }
         }
@@ -687,6 +846,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
         node_id: LocalNodeId<Expression>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        let _timing = f.context().timing_scope(tags::FORMAT_EXPRESSION);
         let directive = directive_for_node(f.context(), node_id);
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 

@@ -25,8 +25,7 @@ pub(super) fn expression_has_prefix_comment_annotation(
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     context
-        .get_annotations(expression_id)
-        .is_some_and(|annotations| {
+        .with_annotations(expression_id, |annotations| {
             annotations.iter().any(|annotation_id| {
                 matches!(
                     context.tree.get::<Annotation>(*annotation_id),
@@ -37,6 +36,7 @@ pub(super) fn expression_has_prefix_comment_annotation(
                 )
             })
         })
+        .unwrap_or(false)
 }
 
 /// Return whether an expression has a leading prefix comment in its left spine.

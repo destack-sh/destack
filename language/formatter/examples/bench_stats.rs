@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -9,13 +10,17 @@ use clap::{Parser, ValueEnum};
 use serde_json::json;
 
 use destack_ast::{Expression, LocalNodeId, NodeParentIndex};
-use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
+use destack_formatter::{
+    DestackFormatContext, DestackFormatOptions, FormatterCacheStatsSnapshot, FormatterCounterEntry,
+    FormatterTimingEntry, statement_list,
+};
 use destack_parser::Parser as DestackParser;
 use destack_source::{File, FileId, FileType, LanguageType, MultiSpan, Uri};
 
 const DEFAULT_ROOT: &str = "test/fixtures/ecosystem";
 const SHARE_BAR_WIDTH: usize = 16;
 const HOT_FILE_NAME_WIDTH: usize = 52;
+const TIMING_TAG_WIDTH: usize = 34;
 
 const RESET: &str = "\x1b[0m";
 const BOLD: &str = "\x1b[1m";
@@ -63,6 +68,14 @@ struct Args {
     /// Disable run progress output on stderr.
     #[arg(long)]
     no_progress: bool,
+
+    /// Enable formatter internal timing and cache instrumentation.
+    #[arg(long)]
+    timings: bool,
+
+    /// Number of top timing tags to print when timings are enabled.
+    #[arg(long, default_value_t = 20)]
+    timings_top: usize,
 }
 
 /// Output format for benchmark results.
@@ -95,6 +108,9 @@ struct FileRunStat {
     format: Duration,
     print: Duration,
     total: Duration,
+    cache: FormatterCacheStatsSnapshot,
+    timings: Vec<FormatterTimingEntry>,
+    counters: Vec<FormatterCounterEntry>,
 }
 
 #[derive(Debug, Clone)]
@@ -108,6 +124,9 @@ struct BenchRunStats {
     source_lines: usize,
     output_bytes: usize,
     sink: usize,
+    cache: FormatterCacheStatsSnapshot,
+    timings: Vec<FormatterTimingEntry>,
+    counters: Vec<FormatterCounterEntry>,
     files: Vec<FileRunStat>,
 }
 
@@ -149,8 +168,24 @@ struct BenchSummary {
     lines_per_second: f64,
     input_mib_per_second: f64,
     output_mib_per_second: f64,
+    cache: FormatterCacheStatsSnapshot,
+    timing_tags: Vec<TimingAggregate>,
+    counters: Vec<CounterAggregate>,
     runs: Vec<BenchRunStats>,
     top_files: Vec<FileAggregate>,
+}
+
+#[derive(Debug, Clone)]
+struct TimingAggregate {
+    name: &'static str,
+    duration: Duration,
+    count: usize,
+}
+
+#[derive(Debug, Clone)]
+struct CounterAggregate {
+    name: &'static str,
+    value: usize,
 }
 
 /// Style helpers for table output.
@@ -239,18 +274,19 @@ fn main() -> Result<(), String> {
 
     if progress {
         eprintln!(
-            "bench_stats: corpus {} ({} files, {} lines), warmup {}, measured {}, workers {}",
+            "bench_stats: corpus {} ({} files, {} lines), warmup {}, measured {}, workers {}, timings {}",
             root.display(),
             format_count(files.len()),
             format_count(corpus_lines),
             args.warmup_runs,
             args.runs,
-            format_count(args.workers.max(1))
+            format_count(args.workers.max(1)),
+            if args.timings { "on" } else { "off" }
         );
     }
 
     for warmup_index in 0..args.warmup_runs {
-        let run = run_single_benchmark(&files, args.workers)?;
+        let run = run_single_benchmark(&files, args.workers, args.timings)?;
         if progress {
             eprintln!(
                 "  run {}/{} warmup   total {}",
@@ -263,7 +299,7 @@ fn main() -> Result<(), String> {
 
     let mut measured_runs = Vec::with_capacity(args.runs);
     for run_index in 0..args.runs {
-        let run = run_single_benchmark(&files, args.workers)?;
+        let run = run_single_benchmark(&files, args.workers, args.timings)?;
         if progress {
             eprintln!(
                 "  run {}/{} measured total {}",
@@ -282,7 +318,13 @@ fn main() -> Result<(), String> {
         );
     }
 
-    let summary = summarize(root.as_path(), args.warmup_runs, args.top, measured_runs);
+    let summary = summarize(
+        root.as_path(),
+        args.warmup_runs,
+        args.top,
+        args.timings_top,
+        measured_runs,
+    );
     let color =
         !args.no_color && std::env::var_os("NO_COLOR").is_none() && std::io::stdout().is_terminal();
     print_output(&summary, args.output, color);
@@ -313,7 +355,11 @@ fn resolve_root_path(root: &Path) -> Result<PathBuf, String> {
 }
 
 /// Execute one full corpus benchmark run.
-fn run_single_benchmark(files: &[CorpusFile], workers: usize) -> Result<BenchRunStats, String> {
+fn run_single_benchmark(
+    files: &[CorpusFile],
+    workers: usize,
+    timings_enabled: bool,
+) -> Result<BenchRunStats, String> {
     let run_started_at = Instant::now();
     if files.is_empty() {
         return Ok(BenchRunStats {
@@ -326,6 +372,9 @@ fn run_single_benchmark(files: &[CorpusFile], workers: usize) -> Result<BenchRun
             source_lines: 0,
             output_bytes: 0,
             sink: 0,
+            cache: FormatterCacheStatsSnapshot::default(),
+            timings: Vec::new(),
+            counters: Vec::new(),
             files: Vec::new(),
         });
     }
@@ -334,7 +383,7 @@ fn run_single_benchmark(files: &[CorpusFile], workers: usize) -> Result<BenchRun
     if worker_count == 1 {
         let mut file_stats = Vec::with_capacity(files.len());
         for (index, corpus_file) in files.iter().enumerate() {
-            let file_stat = benchmark_file(index as u32, corpus_file)?;
+            let file_stat = benchmark_file(index as u32, corpus_file, timings_enabled)?;
             file_stats.push(file_stat);
         }
 
@@ -357,13 +406,14 @@ fn run_single_benchmark(files: &[CorpusFile], workers: usize) -> Result<BenchRun
                     }
 
                     let corpus_file = &files[file_index];
-                    let file_stat = match benchmark_file(file_index as u32, corpus_file) {
-                        Ok(file_stat) => file_stat,
-                        Err(error) => {
-                            let _ = sender.send(Err(error));
-                            return;
-                        }
-                    };
+                    let file_stat =
+                        match benchmark_file(file_index as u32, corpus_file, timings_enabled) {
+                            Ok(file_stat) => file_stat,
+                            Err(error) => {
+                                let _ = sender.send(Err(error));
+                                return;
+                            }
+                        };
                     chunk_stats.push((file_index, file_stat));
                 }
 
@@ -409,6 +459,9 @@ fn aggregate_run_stats(file_stats: Vec<FileRunStat>, wall_total: Duration) -> Be
     let mut source_lines = 0usize;
     let mut output_bytes = 0usize;
     let mut sink = 0usize;
+    let mut cache = FormatterCacheStatsSnapshot::default();
+    let mut timing_totals = HashMap::<&'static str, (Duration, usize)>::new();
+    let mut counter_totals = HashMap::<&'static str, usize>::new();
     for file_stat in &file_stats {
         parse_total += file_stat.parse;
         format_total += file_stat.format;
@@ -419,7 +472,61 @@ fn aggregate_run_stats(file_stats: Vec<FileRunStat>, wall_total: Duration) -> Be
         source_lines = source_lines.saturating_add(file_stat.source_lines);
         output_bytes = output_bytes.saturating_add(file_stat.output_bytes);
         sink ^= file_stat.output_bytes;
+
+        cache.span_text_hits = cache
+            .span_text_hits
+            .saturating_add(file_stat.cache.span_text_hits);
+        cache.span_text_misses = cache
+            .span_text_misses
+            .saturating_add(file_stat.cache.span_text_misses);
+        cache.span_has_newline_hits = cache
+            .span_has_newline_hits
+            .saturating_add(file_stat.cache.span_has_newline_hits);
+        cache.span_has_newline_misses = cache
+            .span_has_newline_misses
+            .saturating_add(file_stat.cache.span_has_newline_misses);
+        cache.span_has_comment_hits = cache
+            .span_has_comment_hits
+            .saturating_add(file_stat.cache.span_has_comment_hits);
+        cache.span_has_comment_misses = cache
+            .span_has_comment_misses
+            .saturating_add(file_stat.cache.span_has_comment_misses);
+        cache.annotation_cache_hits = cache
+            .annotation_cache_hits
+            .saturating_add(file_stat.cache.annotation_cache_hits);
+        cache.annotation_cache_misses = cache
+            .annotation_cache_misses
+            .saturating_add(file_stat.cache.annotation_cache_misses);
+
+        for entry in &file_stat.timings {
+            let aggregate = timing_totals
+                .entry(entry.name)
+                .or_insert((Duration::ZERO, 0usize));
+            aggregate.0 += entry.duration;
+            aggregate.1 = aggregate.1.saturating_add(entry.count);
+        }
+
+        for entry in &file_stat.counters {
+            let aggregate = counter_totals.entry(entry.name).or_insert(0);
+            *aggregate = aggregate.saturating_add(entry.value);
+        }
     }
+
+    let mut timings = timing_totals
+        .into_iter()
+        .map(|(name, (duration, count))| FormatterTimingEntry {
+            name,
+            duration,
+            count,
+        })
+        .collect::<Vec<_>>();
+    timings.sort_by_key(|entry| std::cmp::Reverse(entry.duration));
+
+    let mut counters = counter_totals
+        .into_iter()
+        .map(|(name, value)| FormatterCounterEntry { name, value })
+        .collect::<Vec<_>>();
+    counters.sort_by_key(|entry| std::cmp::Reverse(entry.value));
 
     BenchRunStats {
         parse: parse_total,
@@ -431,12 +538,19 @@ fn aggregate_run_stats(file_stats: Vec<FileRunStat>, wall_total: Duration) -> Be
         source_lines,
         output_bytes,
         sink,
+        cache,
+        timings,
+        counters,
         files: file_stats,
     }
 }
 
 /// Benchmark one source file through parse, format, and print stages.
-fn benchmark_file(file_id: u32, corpus_file: &CorpusFile) -> Result<FileRunStat, String> {
+fn benchmark_file(
+    file_id: u32,
+    corpus_file: &CorpusFile,
+    timings_enabled: bool,
+) -> Result<FileRunStat, String> {
     let total_started_at = Instant::now();
 
     let parse_started_at = Instant::now();
@@ -461,7 +575,7 @@ fn benchmark_file(file_id: u32, corpus_file: &CorpusFile) -> Result<FileRunStat,
     let parse = parse_started_at.elapsed();
 
     let options = DestackFormatOptions::default();
-    let context = DestackFormatContext::new(
+    let context = DestackFormatContext::new_with_timings(
         options,
         file.as_ref(),
         &tree,
@@ -470,7 +584,11 @@ fn benchmark_file(file_id: u32, corpus_file: &CorpusFile) -> Result<FileRunStat,
         &side_span,
         &strings,
         parents,
+        timings_enabled,
     );
+    let timing_collector = context.timings.clone();
+    let cache_collector = context.cache_stats.clone();
+    let counter_collector = context.counters.clone();
 
     let format_started_at = Instant::now();
     let formatted = destack_fir::format!(context, [statement_list(&expressions)])
@@ -485,6 +603,20 @@ fn benchmark_file(file_id: u32, corpus_file: &CorpusFile) -> Result<FileRunStat,
 
     let output_bytes = printed.as_str().len();
     let total = total_started_at.elapsed();
+    let cache = FormatterCacheStatsSnapshot {
+        span_text_hits: cache_collector.span_text_hits.get(),
+        span_text_misses: cache_collector.span_text_misses.get(),
+        span_has_newline_hits: cache_collector.span_has_newline_hits.get(),
+        span_has_newline_misses: cache_collector.span_has_newline_misses.get(),
+        span_has_comment_hits: cache_collector.span_has_comment_hits.get(),
+        span_has_comment_misses: cache_collector.span_has_comment_misses.get(),
+        annotation_cache_hits: cache_collector.annotation_cache_hits.get(),
+        annotation_cache_misses: cache_collector.annotation_cache_misses.get(),
+    };
+    let timings = timing_collector
+        .as_ref()
+        .map_or_else(Vec::new, |timings| timings.snapshot());
+    let counters = counter_collector.snapshot();
 
     Ok(FileRunStat {
         path: corpus_file.path.clone(),
@@ -495,6 +627,9 @@ fn benchmark_file(file_id: u32, corpus_file: &CorpusFile) -> Result<FileRunStat,
         format,
         print,
         total,
+        cache,
+        timings,
+        counters,
     })
 }
 
@@ -503,6 +638,7 @@ fn summarize(
     root: &Path,
     warmup_runs: usize,
     top: usize,
+    timings_top: usize,
     runs: Vec<BenchRunStats>,
 ) -> BenchSummary {
     let measured_runs = runs.len();
@@ -568,6 +704,46 @@ fn summarize(
         (output_bytes_per_run as f64 / (1024.0 * 1024.0)) / mean.as_secs_f64()
     };
 
+    let mut cache_total = FormatterCacheStatsSnapshot::default();
+    for run in &runs {
+        cache_total.span_text_hits = cache_total
+            .span_text_hits
+            .saturating_add(run.cache.span_text_hits);
+        cache_total.span_text_misses = cache_total
+            .span_text_misses
+            .saturating_add(run.cache.span_text_misses);
+        cache_total.span_has_newline_hits = cache_total
+            .span_has_newline_hits
+            .saturating_add(run.cache.span_has_newline_hits);
+        cache_total.span_has_newline_misses = cache_total
+            .span_has_newline_misses
+            .saturating_add(run.cache.span_has_newline_misses);
+        cache_total.span_has_comment_hits = cache_total
+            .span_has_comment_hits
+            .saturating_add(run.cache.span_has_comment_hits);
+        cache_total.span_has_comment_misses = cache_total
+            .span_has_comment_misses
+            .saturating_add(run.cache.span_has_comment_misses);
+        cache_total.annotation_cache_hits = cache_total
+            .annotation_cache_hits
+            .saturating_add(run.cache.annotation_cache_hits);
+        cache_total.annotation_cache_misses = cache_total
+            .annotation_cache_misses
+            .saturating_add(run.cache.annotation_cache_misses);
+    }
+    let cache = FormatterCacheStatsSnapshot {
+        span_text_hits: cache_total.span_text_hits / measured_runs.max(1),
+        span_text_misses: cache_total.span_text_misses / measured_runs.max(1),
+        span_has_newline_hits: cache_total.span_has_newline_hits / measured_runs.max(1),
+        span_has_newline_misses: cache_total.span_has_newline_misses / measured_runs.max(1),
+        span_has_comment_hits: cache_total.span_has_comment_hits / measured_runs.max(1),
+        span_has_comment_misses: cache_total.span_has_comment_misses / measured_runs.max(1),
+        annotation_cache_hits: cache_total.annotation_cache_hits / measured_runs.max(1),
+        annotation_cache_misses: cache_total.annotation_cache_misses / measured_runs.max(1),
+    };
+
+    let timing_tags = summarize_timing_tags(&runs, timings_top);
+    let counters = summarize_counters(&runs, timings_top);
     let top_files = summarize_files(&runs, top);
 
     BenchSummary {
@@ -594,6 +770,9 @@ fn summarize(
         lines_per_second,
         input_mib_per_second,
         output_mib_per_second,
+        cache,
+        timing_tags,
+        counters,
         runs,
         top_files,
     }
@@ -641,6 +820,54 @@ fn summarize_files(runs: &[BenchRunStats], top: usize) -> Vec<FileAggregate> {
             .unwrap_or(std::cmp::Ordering::Equal)
     });
 
+    aggregates.truncate(top.min(aggregates.len()));
+    aggregates
+}
+
+/// Aggregate timing tags across runs and keep the top slow tags.
+fn summarize_timing_tags(runs: &[BenchRunStats], top: usize) -> Vec<TimingAggregate> {
+    let mut timing_totals = HashMap::<&'static str, (Duration, usize)>::new();
+    for run in runs {
+        for entry in &run.timings {
+            let aggregate = timing_totals
+                .entry(entry.name)
+                .or_insert((Duration::ZERO, 0usize));
+            aggregate.0 += entry.duration;
+            aggregate.1 = aggregate.1.saturating_add(entry.count);
+        }
+    }
+
+    let mut aggregates = timing_totals
+        .into_iter()
+        .map(|(name, (duration, count))| TimingAggregate {
+            name,
+            duration: duration / runs.len().max(1) as u32,
+            count: count / runs.len().max(1),
+        })
+        .collect::<Vec<_>>();
+    aggregates.sort_by_key(|entry| std::cmp::Reverse(entry.duration));
+    aggregates.truncate(top.min(aggregates.len()));
+    aggregates
+}
+
+/// Aggregate instrumentation counters across runs and keep the top counters.
+fn summarize_counters(runs: &[BenchRunStats], top: usize) -> Vec<CounterAggregate> {
+    let mut counter_totals = HashMap::<&'static str, usize>::new();
+    for run in runs {
+        for entry in &run.counters {
+            let aggregate = counter_totals.entry(entry.name).or_insert(0);
+            *aggregate = aggregate.saturating_add(entry.value);
+        }
+    }
+
+    let mut aggregates = counter_totals
+        .into_iter()
+        .map(|(name, value)| CounterAggregate {
+            name,
+            value: value / runs.len().max(1),
+        })
+        .collect::<Vec<_>>();
+    aggregates.sort_by_key(|entry| std::cmp::Reverse(entry.value));
     aggregates.truncate(top.min(aggregates.len()));
     aggregates
 }
@@ -716,6 +943,94 @@ fn print_table(summary: &BenchSummary, color: bool) {
         dim = style.dim,
         reset = style.reset
     );
+
+    if !summary.timing_tags.is_empty() {
+        println!();
+        println!(
+            "{bold}timing tags (avg per run){reset}",
+            bold = style.bold,
+            reset = style.reset
+        );
+        println!(
+            "  {bold}{:<tag_width$} {:>10} {:>9} {:>8} {:>10}{reset}",
+            "tag",
+            "total",
+            "share",
+            "count",
+            "avg",
+            tag_width = TIMING_TAG_WIDTH,
+            bold = style.bold,
+            reset = style.reset
+        );
+        println!(
+            "  {dim}{}{reset}",
+            "-".repeat(TIMING_TAG_WIDTH + 47),
+            dim = style.dim,
+            reset = style.reset
+        );
+
+        for entry in &summary.timing_tags {
+            let share =
+                entry.duration.as_secs_f64() / summary.mean_work.as_secs_f64().max(0.000_001);
+            let heat = style.color_for_ratio(share);
+            let avg_duration = entry.duration / entry.count.max(1) as u32;
+            let name = truncate_middle(entry.name, TIMING_TAG_WIDTH);
+
+            println!(
+                "  {cyan}{:<tag_width$}{reset} {heat}{:>10}{reset} {:>8} {:>8} {:>10}",
+                name,
+                format_duration(entry.duration),
+                format_percent(share),
+                format_count(entry.count),
+                format_duration(avg_duration),
+                tag_width = TIMING_TAG_WIDTH,
+                cyan = style.cyan,
+                heat = heat,
+                reset = style.reset
+            );
+        }
+
+        println!(
+            "  {dim}share is timing tag mean total divided by run mean work total, nested tags may exceed 100%{reset}",
+            dim = style.dim,
+            reset = style.reset
+        );
+    }
+
+    if !summary.counters.is_empty() {
+        println!();
+        println!(
+            "{bold}instrumentation counters (avg per run){reset}",
+            bold = style.bold,
+            reset = style.reset
+        );
+        println!(
+            "  {bold}{:<tag_width$} {:>12}{reset}",
+            "counter",
+            "value",
+            tag_width = TIMING_TAG_WIDTH,
+            bold = style.bold,
+            reset = style.reset
+        );
+        println!(
+            "  {dim}{}{reset}",
+            "-".repeat(TIMING_TAG_WIDTH + 15),
+            dim = style.dim,
+            reset = style.reset
+        );
+
+        for entry in &summary.counters {
+            let name = truncate_middle(entry.name, TIMING_TAG_WIDTH);
+            println!(
+                "  {cyan}{:<tag_width$}{reset} {:>12}",
+                name,
+                format_count(entry.value),
+                tag_width = TIMING_TAG_WIDTH,
+                cyan = style.cyan,
+                reset = style.reset
+            );
+        }
+    }
 
     if !summary.top_files.is_empty() {
         println!();
@@ -913,16 +1228,72 @@ fn print_table(summary: &BenchSummary, color: bool) {
         ratio_heat = output_ratio_heat,
         reset = style.reset
     );
+
+    let span_text_lookups = summary
+        .cache
+        .span_text_hits
+        .saturating_add(summary.cache.span_text_misses);
+    let span_newline_lookups = summary
+        .cache
+        .span_has_newline_hits
+        .saturating_add(summary.cache.span_has_newline_misses);
+    let span_comment_lookups = summary
+        .cache
+        .span_has_comment_hits
+        .saturating_add(summary.cache.span_has_comment_misses);
+    let annotation_lookups = summary
+        .cache
+        .annotation_cache_hits
+        .saturating_add(summary.cache.annotation_cache_misses);
+    if span_text_lookups > 0
+        || span_newline_lookups > 0
+        || span_comment_lookups > 0
+        || annotation_lookups > 0
+    {
+        println!(
+            "  cache span text:   {} / {} ({})",
+            format_count(summary.cache.span_text_hits),
+            format_count(span_text_lookups),
+            format_hit_rate(summary.cache.span_text_hits, summary.cache.span_text_misses)
+        );
+        println!(
+            "  cache newline:     {} / {} ({})",
+            format_count(summary.cache.span_has_newline_hits),
+            format_count(span_newline_lookups),
+            format_hit_rate(
+                summary.cache.span_has_newline_hits,
+                summary.cache.span_has_newline_misses
+            )
+        );
+        println!(
+            "  cache comment:     {} / {} ({})",
+            format_count(summary.cache.span_has_comment_hits),
+            format_count(span_comment_lookups),
+            format_hit_rate(
+                summary.cache.span_has_comment_hits,
+                summary.cache.span_has_comment_misses
+            )
+        );
+        println!(
+            "  cache annotation:  {} / {} ({})",
+            format_count(summary.cache.annotation_cache_hits),
+            format_count(annotation_lookups),
+            format_hit_rate(
+                summary.cache.annotation_cache_hits,
+                summary.cache.annotation_cache_misses
+            )
+        );
+    }
     println!("  sink:              {:>10}", format_count(summary.sink));
 }
 
 /// Print csv benchmark output.
 fn print_csv(summary: &BenchSummary) {
     println!(
-        "root,files,warmup_runs,measured_runs,source_lines_per_run,source_bytes_per_run,output_bytes_per_run,min_ms,mean_ms,median_ms,p95_ms,max_ms,stddev_ms,cv_pct,parse_mean_ms,format_mean_ms,print_mean_ms,files_per_sec,lines_per_sec,input_mib_per_sec,output_mib_per_sec,sink"
+        "root,files,warmup_runs,measured_runs,source_lines_per_run,source_bytes_per_run,output_bytes_per_run,min_ms,mean_ms,median_ms,p95_ms,max_ms,stddev_ms,cv_pct,parse_mean_ms,format_mean_ms,print_mean_ms,files_per_sec,lines_per_sec,input_mib_per_sec,output_mib_per_sec,span_text_hits,span_text_misses,span_newline_hits,span_newline_misses,span_comment_hits,span_comment_misses,annotation_hits,annotation_misses,sink"
     );
     println!(
-        "\"{}\",{},{},{},{},{},{},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{}",
+        "\"{}\",{},{},{},{},{},{},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{},{},{},{},{},{},{},{},{}",
         summary.root.display(),
         summary.files,
         summary.warmup_runs,
@@ -944,6 +1315,14 @@ fn print_csv(summary: &BenchSummary) {
         summary.lines_per_second,
         summary.input_mib_per_second,
         summary.output_mib_per_second,
+        summary.cache.span_text_hits,
+        summary.cache.span_text_misses,
+        summary.cache.span_has_newline_hits,
+        summary.cache.span_has_newline_misses,
+        summary.cache.span_has_comment_hits,
+        summary.cache.span_has_comment_misses,
+        summary.cache.annotation_cache_hits,
+        summary.cache.annotation_cache_misses,
         summary.sink,
     );
 
@@ -983,6 +1362,32 @@ fn print_csv(summary: &BenchSummary) {
             file.source_lines,
             file.source_bytes,
         );
+    }
+
+    if !summary.timing_tags.is_empty() {
+        println!();
+        println!("timing_tag,total_ms,share_pct,samples,avg_ms");
+        for entry in &summary.timing_tags {
+            let share =
+                entry.duration.as_secs_f64() / summary.mean_work.as_secs_f64().max(0.000_001);
+            let avg_duration = entry.duration / entry.count.max(1) as u32;
+            println!(
+                "\"{}\",{:.3},{:.3},{},{:.3}",
+                entry.name,
+                duration_ms(entry.duration),
+                share * 100.0,
+                entry.count,
+                duration_ms(avg_duration),
+            );
+        }
+    }
+
+    if !summary.counters.is_empty() {
+        println!();
+        println!("counter,value");
+        for entry in &summary.counters {
+            println!("\"{}\",{}", entry.name, entry.value);
+        }
     }
 }
 
@@ -1031,6 +1436,34 @@ fn print_json(summary: &BenchSummary) {
         })
         .collect::<Vec<_>>();
 
+    let timing_tags = summary
+        .timing_tags
+        .iter()
+        .map(|entry| {
+            let share =
+                entry.duration.as_secs_f64() / summary.mean_work.as_secs_f64().max(0.000_001);
+            let avg_duration = entry.duration / entry.count.max(1) as u32;
+            json!({
+                "name": entry.name,
+                "total_ms": duration_ms(entry.duration),
+                "share_pct": share * 100.0,
+                "samples": entry.count,
+                "avg_ms": duration_ms(avg_duration),
+            })
+        })
+        .collect::<Vec<_>>();
+
+    let counters = summary
+        .counters
+        .iter()
+        .map(|entry| {
+            json!({
+                "name": entry.name,
+                "value": entry.value,
+            })
+        })
+        .collect::<Vec<_>>();
+
     let payload = json!({
         "root": summary.root.display().to_string(),
         "files": summary.files,
@@ -1061,8 +1494,20 @@ fn print_json(summary: &BenchSummary) {
             "input_mib_per_sec": summary.input_mib_per_second,
             "output_mib_per_sec": summary.output_mib_per_second,
         },
+        "cache": {
+            "span_text_hits": summary.cache.span_text_hits,
+            "span_text_misses": summary.cache.span_text_misses,
+            "span_newline_hits": summary.cache.span_has_newline_hits,
+            "span_newline_misses": summary.cache.span_has_newline_misses,
+            "span_comment_hits": summary.cache.span_has_comment_hits,
+            "span_comment_misses": summary.cache.span_has_comment_misses,
+            "annotation_hits": summary.cache.annotation_cache_hits,
+            "annotation_misses": summary.cache.annotation_cache_misses,
+        },
         "runs": runs,
         "top_files": top_files,
+        "timing_tags": timing_tags,
+        "counters": counters,
     });
 
     println!(
@@ -1191,6 +1636,16 @@ fn duration_ms(duration: Duration) -> f64 {
 /// Format a ratio as a percentage string.
 fn format_percent(ratio: f64) -> String {
     format!("{:.1}%", ratio * 100.0)
+}
+
+/// Format cache hit rate from hit and miss counts.
+fn format_hit_rate(hits: usize, misses: usize) -> String {
+    let total = hits.saturating_add(misses);
+    if total == 0 {
+        return "n/a".to_string();
+    }
+
+    format_percent(hits as f64 / total as f64)
 }
 
 /// Build a fixed-width share bar.

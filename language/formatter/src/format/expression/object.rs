@@ -190,7 +190,7 @@ pub(crate) fn format_struct_literal<'ast>(
         has_leading_newline_before_first_property || (has_newline_in_source && in_type_context);
     let property_has_newline = collection_nodes_have_newline(f.context(), properties_ids);
 
-    let comment_tokens = collect_comment_tokens(f.context());
+    let comment_tokens = f.context().comment_tokens();
     let has_ignore_ranges = !properties_ids.is_empty()
         && properties_ids.iter().any(|property_id| {
             ignore_range_for_node(f.context(), *property_id, &comment_tokens).is_some()

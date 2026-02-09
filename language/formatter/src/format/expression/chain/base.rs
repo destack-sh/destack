@@ -489,7 +489,7 @@ pub(crate) fn assignment_like_remaining_width(
         NodeType::Declarator => {
             let declarator = context.tree.get(LocalNodeId::<Declarator>::new(parent_id));
             let pattern_span = context.get_span(declarator.pattern);
-            let pattern_source_len = context.get_span_str(pattern_span).chars().count();
+            let pattern_source_len = context.span_char_len(pattern_span);
             let type_source_len = declarator
                 .ty
                 .map(|ty_id| expression_source_len(context, ty_id));
@@ -514,26 +514,25 @@ pub(crate) fn expression_prefix_annotation_source_len(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> usize {
-    let Some(annotations) = context.get_annotations(expression_id) else {
-        return 0;
-    };
+    context
+        .with_annotations(expression_id, |annotations| {
+            let mut total_len = 0usize;
+            for annotation_id in annotations {
+                let position = context.tree.get::<Annotation>(*annotation_id).position();
+                if !matches!(
+                    position,
+                    AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+                ) {
+                    continue;
+                }
 
-    let mut total_len = 0usize;
-    for annotation_id in annotations {
-        let position = context.tree.get::<Annotation>(annotation_id).position();
-        if !matches!(
-            position,
-            AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
-        ) {
-            continue;
-        }
-
-        let span = context.get_span(annotation_id);
-        let annotation_len = context.get_span_str(span).chars().count();
-        total_len = total_len.saturating_add(annotation_len);
-    }
-
-    total_len
+                let span = context.get_span(*annotation_id);
+                let annotation_len = context.span_char_len(span);
+                total_len = total_len.saturating_add(annotation_len);
+            }
+            total_len
+        })
+        .unwrap_or(0)
 }
 
 /// Estimate the leading declaration header width before a declarator.
@@ -668,7 +667,7 @@ pub(crate) fn expression_source_len(
     expression_id: LocalNodeId<Expression>,
 ) -> usize {
     let span = context.get_span(expression_id);
-    context.get_span_str(span).chars().count()
+    context.span_char_len(span)
 }
 
 /// Decide whether static argument lists should expand at the list level.
