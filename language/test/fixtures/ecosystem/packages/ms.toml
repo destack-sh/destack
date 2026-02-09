@@ -3,11 +3,8 @@ name = "ms"
 description = "Tiny millisecond conversion utility"
 repo = "https://github.com/vercel/ms"
 ref = "3.0.0-canary.1"
+language = "ts"
 
 [discovery]
 include = ["src/**/*.ts"]
 exclude = ["**/*.test.ts"]
-
-[tiers]
-parse = true
-analyze = false

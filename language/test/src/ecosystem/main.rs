@@ -3,11 +3,11 @@ use std::process::ExitCode;
 use clap::Parser;
 
 use destack_test::ecosystem::{
-    EcosystemRunOptions, FetchOptions, Tier, fetch_all_packages, run_ecosystem_tests,
+    EcosystemPhase, EcosystemRunOptions, FetchOptions, fetch_all_packages, run_ecosystem_tests,
 };
 use destack_test::harness::TestOptions;
 
-/// CLI options for the `ecosystem` test binary.
+/// CLI options for the ecosystem test binary.
 #[derive(Parser, Debug, Clone)]
 #[command(name = "ecosystem", about = "Run Destack ecosystem tests")]
 struct EcosystemOptions {
@@ -15,25 +15,29 @@ struct EcosystemOptions {
     #[arg(long)]
     fetch: bool,
 
-    /// Refresh packages during fetch (re-clone even if already present).
+    /// Refresh packages during fetch.
     #[arg(long)]
     refresh: bool,
 
-    /// Only run parse tier.
-    #[arg(long)]
-    parse: bool,
+    /// Select one or more phases.
+    #[arg(long, value_enum, value_name = "PHASE")]
+    phase: Vec<EcosystemPhase>,
 
-    /// Only run analyze tier.
+    /// Run all phases in order.
     #[arg(long)]
-    analyze: bool,
+    all_phases: bool,
 
-    /// Override include patterns (glob, relative to package root).
+    /// Override include patterns.
     #[arg(long, value_name = "PATTERN")]
     include: Vec<String>,
 
-    /// Add extra exclude patterns (glob, relative to package root).
+    /// Add extra exclude patterns.
     #[arg(long, value_name = "PATTERN")]
     exclude: Vec<String>,
+
+    /// Override max discovered files per package and phase.
+    #[arg(long, value_name = "COUNT")]
+    max_files: Option<usize>,
 
     /// Common test options.
     #[command(flatten)]
@@ -50,20 +54,31 @@ fn main() -> ExitCode {
         });
     }
 
-    // determine tier filter
-    let tier = if options.parse {
-        Some(Tier::Parse)
-    } else if options.analyze {
-        Some(Tier::Analyze)
-    } else {
-        None // run default (parse)
-    };
+    let phases = collect_phases(&options);
 
     let run_options = EcosystemRunOptions {
-        tier,
+        phases,
         include: options.include,
         exclude: options.exclude,
+        max_files: options.max_files,
     };
 
     run_ecosystem_tests(&options.test, &run_options)
+}
+
+/// Collect selected phases from cli flags.
+fn collect_phases(options: &EcosystemOptions) -> Vec<EcosystemPhase> {
+    if options.all_phases {
+        return EcosystemPhase::all().to_vec();
+    }
+
+    if options.phase.is_empty() {
+        return Vec::new();
+    }
+
+    EcosystemPhase::all()
+        .iter()
+        .copied()
+        .filter(|phase| options.phase.contains(phase))
+        .collect()
 }

@@ -1,44 +1,93 @@
 use std::path::{Path, PathBuf};
 
+use clap::ValueEnum;
 use serde::Deserialize;
 
-/// A tier of ecosystem testing.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Tier {
-    /// Parse source files and ensure no errors are produced.
+/// A phase tier for ecosystem validation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, ValueEnum)]
+pub enum EcosystemPhase {
+    /// Parse source files with parser level validation only.
     Parse = 1,
-    /// Analyze entrypoints and ensure no errors are produced.
-    Analyze = 2,
+    /// Run import phase tasks.
+    Import = 2,
+    /// Run resolve phase tasks.
+    Resolve = 3,
+    /// Run analyze phase tasks.
+    Analyze = 4,
+    /// Run elaborate phase tasks.
+    Elaborate = 5,
+    /// Run execute phase tasks.
+    Execute = 6,
+    /// Run lower phase tasks.
+    Lower = 7,
+    /// Run optimize phase tasks.
+    Optimize = 8,
 }
 
-impl Tier {
+impl EcosystemPhase {
+    /// Return the stable lowercase phase name.
     pub fn name(&self) -> &'static str {
         match self {
-            Tier::Parse => "parse",
-            Tier::Analyze => "analyze",
+            Self::Parse => "parse",
+            Self::Import => "import",
+            Self::Resolve => "resolve",
+            Self::Analyze => "analyze",
+            Self::Elaborate => "elaborate",
+            Self::Execute => "execute",
+            Self::Lower => "lower",
+            Self::Optimize => "optimize",
         }
+    }
+
+    /// Parse a phase name.
+    pub fn from_name(value: &str) -> Option<Self> {
+        match value {
+            "parse" => Some(Self::Parse),
+            "import" => Some(Self::Import),
+            "resolve" => Some(Self::Resolve),
+            "analyze" => Some(Self::Analyze),
+            "elaborate" => Some(Self::Elaborate),
+            "execute" => Some(Self::Execute),
+            "lower" => Some(Self::Lower),
+            "optimize" => Some(Self::Optimize),
+            _ => None,
+        }
+    }
+
+    /// Return all implemented phases in execution order.
+    pub fn all() -> [Self; 8] {
+        [
+            Self::Parse,
+            Self::Import,
+            Self::Resolve,
+            Self::Analyze,
+            Self::Elaborate,
+            Self::Execute,
+            Self::Lower,
+            Self::Optimize,
+        ]
     }
 }
 
-/// A single ecosystem package manifest (parsed from TOML).
+/// A single ecosystem package manifest parsed from TOML.
 #[derive(Debug, Clone, Deserialize)]
 pub struct EcosystemManifest {
     /// Package metadata.
     pub package: PackageInfo,
-    /// File discovery configuration.
+    /// Base file discovery configuration used by all phases.
     #[serde(default)]
     pub discovery: DiscoveryConfig,
-    /// Per-tier expected status configuration.
+    /// Per-phase workload settings for discovery and caps.
     #[serde(default)]
-    pub tiers: TierConfig,
+    pub workloads: WorkloadConfig,
 }
 
 /// Package metadata used for fetching and display.
 #[derive(Debug, Clone, Deserialize)]
 pub struct PackageInfo {
-    /// Package name (used as directory name).
+    /// Package name used as the checkouts directory name.
     pub name: String,
-    /// Human-readable description.
+    /// Human-readable package description.
     #[serde(default)]
     pub description: String,
     /// Git repository URL.
@@ -46,9 +95,29 @@ pub struct PackageInfo {
     /// Git ref (tag, branch, or commit), required for reproducibility.
     #[serde(rename = "ref")]
     pub git_ref: String,
+    /// Primary source language used by this package.
+    pub language: PackageLanguage,
+    /// Optional category labels for filtering and reporting.
+    #[serde(default)]
+    pub tags: Vec<String>,
 }
 
-/// File discovery configuration for ecosystem tiers.
+/// Primary source language for one ecosystem package.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PackageLanguage {
+    /// JavaScript first package.
+    #[serde(alias = "javascript")]
+    Js,
+    /// TypeScript first package.
+    #[serde(alias = "typescript")]
+    Ts,
+    /// Destack source package.
+    #[serde(alias = "destack")]
+    Ds,
+}
+
+/// Base file discovery configuration used by all phases.
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct DiscoveryConfig {
     /// Glob patterns to include when discovering files.
@@ -59,81 +128,80 @@ pub struct DiscoveryConfig {
     pub exclude: Vec<String>,
 }
 
-/// Expected status configuration for each tier.
+/// Per-phase workload configuration.
 #[derive(Debug, Clone, Deserialize, Default)]
-pub struct TierConfig {
-    /// Expected status of the parse tier.
+pub struct WorkloadConfig {
+    /// Parse workload overrides.
     #[serde(default)]
-    pub parse: TierStatus,
-    /// Expected status of the analyze tier.
+    pub parse: PhaseWorkload,
+    /// Import workload overrides.
     #[serde(default)]
-    pub analyze: TierStatus,
+    pub import: PhaseWorkload,
+    /// Resolve workload overrides.
+    #[serde(default)]
+    pub resolve: PhaseWorkload,
+    /// Analyze workload overrides.
+    #[serde(default)]
+    pub analyze: PhaseWorkload,
+    /// Elaborate workload overrides.
+    #[serde(default)]
+    pub elaborate: PhaseWorkload,
+    /// Execute workload overrides.
+    #[serde(default)]
+    pub execute: PhaseWorkload,
+    /// Lower workload overrides.
+    #[serde(default)]
+    pub lower: PhaseWorkload,
+    /// Optimize workload overrides.
+    #[serde(default)]
+    pub optimize: PhaseWorkload,
 }
 
-/// Status of a tier: either passing (true), failing with a reason, or not tested.
+impl WorkloadConfig {
+    /// Return workload settings for one phase.
+    pub fn for_phase(&self, phase: EcosystemPhase) -> &PhaseWorkload {
+        match phase {
+            EcosystemPhase::Parse => &self.parse,
+            EcosystemPhase::Import => &self.import,
+            EcosystemPhase::Resolve => &self.resolve,
+            EcosystemPhase::Analyze => &self.analyze,
+            EcosystemPhase::Elaborate => &self.elaborate,
+            EcosystemPhase::Execute => &self.execute,
+            EcosystemPhase::Lower => &self.lower,
+            EcosystemPhase::Optimize => &self.optimize,
+        }
+    }
+}
+
+/// Workload settings for one phase.
 #[derive(Debug, Clone, Deserialize, Default)]
-#[serde(untagged)]
-pub enum TierStatus {
-    /// Tier passes.
-    /// `true` means the tier is expected to pass, and `false` means it is expected to fail.
-    Pass(bool),
-    /// Tier fails with a reason.
-    Fail {
-        /// Whether the tier is expected to pass.
-        status: bool,
-        /// Human-readable reason for the expected status.
-        reason: String,
-    },
-    /// Not tested yet.
-    #[default]
-    NotTested,
-}
-
-impl TierStatus {
-    pub fn expects_pass(&self) -> bool {
-        match self {
-            TierStatus::Pass(v) => *v,
-            TierStatus::Fail { status, .. } => *status,
-            TierStatus::NotTested => false,
-        }
-    }
-
-    pub fn reason(&self) -> Option<&str> {
-        match self {
-            TierStatus::Fail { reason, .. } => Some(reason),
-            _ => None,
-        }
-    }
-}
-
-impl TierConfig {
-    pub fn get(&self, tier: Tier) -> &TierStatus {
-        match tier {
-            Tier::Parse => &self.parse,
-            Tier::Analyze => &self.analyze,
-        }
-    }
-
-    pub fn expects_pass(&self, tier: Tier) -> bool {
-        self.get(tier).expects_pass()
-    }
+pub struct PhaseWorkload {
+    /// Phase specific include patterns that replace base includes when set.
+    #[serde(default)]
+    pub include: Vec<String>,
+    /// Phase specific exclude patterns added on top of base excludes.
+    #[serde(default)]
+    pub exclude: Vec<String>,
+    /// Generic cap on discovered files for this phase.
+    pub max_files: Option<usize>,
 }
 
 impl EcosystemManifest {
-    /// Load manifest from TOML file.
+    /// Load a manifest from a TOML file.
     pub fn load(path: &Path) -> Result<Self, String> {
         let content = std::fs::read_to_string(path)
-            .map_err(|e| format!("failed to read {}: {e}", path.display()))?;
-        toml::from_str(&content).map_err(|e| format!("failed to parse {}: {e}", path.display()))
+            .map_err(|error| format!("failed to read {}: {error}", path.display()))?;
+        toml::from_str(&content)
+            .map_err(|error| format!("failed to parse {}: {error}", path.display()))
     }
 
-    /// Discover all manifests in a directory.
+    /// Discover all manifest files in a directory.
     pub fn discover_all(dir: &Path) -> Vec<PathBuf> {
         let mut manifests = Vec::new();
         if let Ok(entries) = std::fs::read_dir(dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.extension().is_some_and(|e| e == "toml") {
+                if path.extension().is_some_and(|ext| ext == "toml") {
                     manifests.push(path);
                 }
             }

@@ -39,6 +39,18 @@ pub struct TestOptions {
     /// Update known-failures lists for mdtest suites.
     #[arg(long)]
     pub update_known_failures: bool,
+
+    /// Run tests even when they are listed in known-failures files.
+    #[arg(long)]
+    pub include_known_failures: bool,
+
+    /// Run tests even when they are explicitly marked as ignored/skipped.
+    #[arg(long)]
+    pub include_ignored: bool,
+
+    /// Run all skipped tests (equivalent to include known failures and ignored).
+    #[arg(long)]
+    pub include_skipped: bool,
 }
 
 impl Default for TestOptions {
@@ -53,6 +65,9 @@ impl Default for TestOptions {
             list: false,
             continue_on_timeout: false,
             update_known_failures: false,
+            include_known_failures: false,
+            include_ignored: false,
+            include_skipped: false,
         }
     }
 }
@@ -66,6 +81,16 @@ impl TestOptions {
     /// Whether timeouts should abort the entire run.
     pub fn abort_on_timeout(&self) -> bool {
         !self.continue_on_timeout
+    }
+
+    /// Whether known failures should be executed instead of auto-skipped.
+    pub fn include_known_failures_effective(&self) -> bool {
+        self.include_skipped || self.include_known_failures || self.update_known_failures
+    }
+
+    /// Whether explicitly skipped cases should be executed.
+    pub fn include_ignored_effective(&self) -> bool {
+        self.include_skipped || self.include_ignored
     }
 
     /// Get the parse timeout as a Duration.
