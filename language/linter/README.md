@@ -131,7 +131,7 @@ High-confidence issues that are almost always wrong.
 | `LC055` | `unbound-method` | TS-ESLint | DIR | ✓ | Safe | Disallow unbound methods as callbacks |
 | `LC056` | `unused-must-use` | Destack | DIR | ✓ | Suggestion | Disallow ignoring return values of `@mustUse` functions |
 | `LC057` | `use-isnan` | ESLint | AST | ✓ | Safe | Require `Number.isNaN()` instead of comparisons with `NaN` |
-| `LC073` | `use-unknown-in-catch-callback-variable` | TS-ESLint | DIR |  | Safe | Require `unknown` for catch callback variables instead of `any` |
+| `LC073` | `use-unknown-in-catch-callback-variable` | TS-ESLint | DIR | ✓ | None | Require `unknown` for catch callback variables instead of `any` |
 
 ## Suspicious (U)
 
@@ -164,11 +164,10 @@ Code that is likely unintentional but may occasionally be intentional.
 | `LU026` | `no-large-try-block` | DeepSource | AST | ✓ | None | Warn when try block contains much more than throwing code |
 | `LU027` | `no-loop-func` | ESLint | DIR |  | None | Disallow functions that capture loop variables |
 | `LU028` | `no-method-shadowing` | Destack | DIR |  | None | Warn when a method shadows an inherited method |
-| `LU066` | `no-mixed-key-types` | Destack | DIR |  | Suggestion | Warn on objects that mix string, symbol, and numeric keys |
+| `LU066` | `no-mixed-key-types` | Destack | DIR | ✓ | None | Warn on objects that mix string, symbol, and numeric keys |
 | `LU029` | `no-misleading-character-class` | ESLint | AST | ✓ | Suggestion | Disallow characters that behave unexpectedly in regex |
 | `LU030` | `no-missing-override` | ErrorProne | DIR |  | Safe | Warn when method overrides parent without `override` keyword |
 | `LU031` | `no-negation-in-equality-check` | Unicorn | AST | ✓ | Safe | Disallow negation in the left operand of equality tests |
-| `LU032` | `no-prototype-builtins` | ESLint | DIR |  | Safe | Disallow calling Object.prototype methods directly on objects |
 | `LU033` | `no-pointer-arithmetic` | Destack | DIR |  | Suggestion | Warn on pointer arithmetic without explicit offset helpers |
 | `LU034` | `no-pointer-comparison` | Destack | DIR |  | Suggestion | Warn on pointer comparisons outside explicit address checks |
 | `LU036` | `no-redundant-match-guard` | Destack | AST | ✓ | None | Disallow match guards that are always true or false |
@@ -183,7 +182,7 @@ Code that is likely unintentional but may occasionally be intentional.
 | `LU044` | `no-unnecessary-clone` | TS-ESLint | DIR |  | Safe | Warn on cloning values that are not used afterward |
 | `LU045` | `no-unnecessary-type-assertion` | TS-ESLint | DIR |  | Safe | Disallow type assertions that do not change the type |
 | `LU068` | `no-unstable-iteration-order` | Go | DIR |  | Suggestion | Warn on map iteration order where determinism is required |
-| `LU047` | `no-unused-except-recursion` | Destack | DIR |  | Suggestion | Warn on function arguments only used for recursion |
+| `LU047` | `no-unused-except-recursion` | Destack | DIR | ✓ | None | Warn on function arguments only used for recursion |
 | `LU048` | `no-useless-backreference` | ESLint | AST | ✓ | Safe | Disallow useless backreferences in regular expressions |
 | `LU049` | `no-useless-cast` | Clippy | DIR |  | Safe | Disallow casts that do not change the type |
 | `LU050` | `no-useless-catch` | ESLint | AST | ✓ | Safe | Disallow catch clauses that only rethrow |
@@ -196,7 +195,7 @@ Code that is likely unintentional but may occasionally be intentional.
 | `LU062` | `require-await` | TS-ESLint | AST | ✓ | Safe | Disallow async functions with no await expressions |
 | `LU063` | `require-else-in-if-chain` | Destack | AST | ✓ | Suggestion | Require final else in if-else-if chains |
 | `LU064` | `require-yield` | ESLint | AST | ✓ | None | Require generator functions to contain yield |
-| `LU065` | `return-await` | TS-ESLint | DIR |  | Safe | Enforce consistent `return await` usage |
+| `LU065` | `return-await` | TS-ESLint | DIR | ✓ | Safe | Enforce consistent `return await` usage |
 
 ## Security (S)
 
