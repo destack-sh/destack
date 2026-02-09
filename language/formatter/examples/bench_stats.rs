@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -17,7 +17,28 @@ use destack_formatter::{
 use destack_parser::Parser as DestackParser;
 use destack_source::{File, FileId, FileType, LanguageType, MultiSpan, Uri};
 
-const DEFAULT_ROOT: &str = "test/fixtures/ecosystem";
+const DEFAULT_ROOT: &str = "test/fixtures/ecosystem/checkouts";
+const QUICK_CORPUS_PACKAGES: &[&str] = &[
+    "valibot",
+    "zod",
+    "react-hook-form",
+    "preact",
+    "nest",
+    "rxjs",
+    "typebox",
+    "vite",
+    "vitest",
+    "graphql-js",
+    "react-query",
+];
+const STANDARD_CORPUS_PACKAGES: &[&str] = &[
+    "typescript",
+    "nextjs",
+    "angular",
+    "eslint",
+    "typescript-eslint",
+    "vitest",
+];
 const SHARE_BAR_WIDTH: usize = 16;
 const HOT_FILE_NAME_WIDTH: usize = 52;
 const TIMING_TAG_WIDTH: usize = 34;
@@ -37,9 +58,17 @@ const RED: &str = "\x1b[31m";
     about = "Formatter corpus performance benchmarks"
 )]
 struct Args {
-    /// Corpus root directory or source file.
+    /// Corpus checkout root directory or source file.
     #[arg(long, default_value = DEFAULT_ROOT)]
     root: PathBuf,
+
+    /// Preset corpus package profile.
+    #[arg(long, value_enum, default_value_t = CorpusProfile::Standard)]
+    corpus: CorpusProfile,
+
+    /// Extra package directories under --root, comma separated.
+    #[arg(long, value_delimiter = ',')]
+    packages: Vec<String>,
 
     /// Number of measured benchmark runs.
     #[arg(long, default_value_t = 7)]
@@ -87,6 +116,28 @@ enum Output {
     Csv,
     /// Json output.
     Json,
+}
+
+/// Corpus package profile selection.
+#[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
+enum CorpusProfile {
+    /// Run the small representative set for fast local checks.
+    Quick,
+    /// Run the larger representative set for daily formatter perf iteration.
+    Standard,
+    /// Run all supported files under --root.
+    Full,
+}
+
+impl CorpusProfile {
+    /// Return the profile label.
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Quick => "quick",
+            Self::Standard => "standard",
+            Self::Full => "full",
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -197,6 +248,12 @@ struct CorpusLoadStats {
     skipped_read_errors: usize,
 }
 
+#[derive(Debug, Clone)]
+struct CorpusSelection {
+    roots: Vec<PathBuf>,
+    package_names: Vec<String>,
+}
+
 /// Style helpers for table output.
 struct TableStyle {
     bold: &'static str,
@@ -268,7 +325,8 @@ fn main() -> Result<(), String> {
     }
 
     let root = resolve_root_path(args.root.as_path())?;
-    let (files, load_stats) = load_corpus_files(root.as_path())?;
+    let selection = resolve_corpus_selection(root.as_path(), args.corpus, &args.packages)?;
+    let (files, load_stats) = load_corpus_files(&selection.roots)?;
     if files.is_empty() {
         return Err(format!(
             "no supported source files found under {}",
@@ -283,8 +341,9 @@ fn main() -> Result<(), String> {
 
     if progress {
         eprintln!(
-            "bench_stats: corpus {} ({} files, {} lines), warmup {}, measured {}, workers {}, timings {}",
+            "bench_stats: corpus {} [{}] ({} files, {} lines), warmup {}, measured {}, workers {}, timings {}",
             root.display(),
+            args.corpus.as_str(),
             format_count(files.len()),
             format_count(corpus_lines),
             args.warmup_runs,
@@ -292,6 +351,13 @@ fn main() -> Result<(), String> {
             format_count(args.workers.max(1)),
             if args.timings { "on" } else { "off" }
         );
+        if !selection.package_names.is_empty() {
+            eprintln!(
+                "bench_stats: packages ({}) {}",
+                format_count(selection.package_names.len()),
+                format_package_list(selection.package_names.as_slice())
+            );
+        }
         if load_stats.skipped_non_utf8 > 0 || load_stats.skipped_read_errors > 0 {
             eprintln!(
                 "bench_stats: skipped {} non-utf8 files and {} unreadable files",
@@ -368,6 +434,105 @@ fn resolve_root_path(root: &Path) -> Result<PathBuf, String> {
     }
 
     Err(format!("root path does not exist: {}", root.display()))
+}
+
+/// Resolve selected roots from corpus profile and optional package list.
+fn resolve_corpus_selection(
+    root: &Path,
+    profile: CorpusProfile,
+    extra_packages: &[String],
+) -> Result<CorpusSelection, String> {
+    if root.is_file() {
+        return Ok(CorpusSelection {
+            roots: vec![root.to_path_buf()],
+            package_names: Vec::new(),
+        });
+    }
+
+    if !root.is_dir() {
+        return Err(format!(
+            "corpus root is not a directory: {}",
+            root.display()
+        ));
+    }
+
+    let mut package_names = BTreeSet::new();
+    for package in profile_package_names(profile) {
+        package_names.insert((*package).to_string());
+    }
+    for package in extra_packages {
+        let package = package.trim();
+        if package.is_empty() {
+            continue;
+        }
+        package_names.insert(package.to_string());
+    }
+
+    if profile == CorpusProfile::Full && package_names.is_empty() {
+        return Ok(CorpusSelection {
+            roots: vec![root.to_path_buf()],
+            package_names: Vec::new(),
+        });
+    }
+
+    if package_names.is_empty() {
+        return Ok(CorpusSelection {
+            roots: vec![root.to_path_buf()],
+            package_names: Vec::new(),
+        });
+    }
+
+    let mut roots = Vec::with_capacity(package_names.len());
+    let mut missing = Vec::new();
+    for package in &package_names {
+        let package_root = root.join(package);
+        if package_root.exists() {
+            roots.push(package_root);
+        } else {
+            missing.push(package.to_string());
+        }
+    }
+
+    if !missing.is_empty() {
+        return Err(format!(
+            "missing package directories under {}: {}",
+            root.display(),
+            missing.join(", ")
+        ));
+    }
+
+    Ok(CorpusSelection {
+        roots,
+        package_names: package_names.into_iter().collect(),
+    })
+}
+
+/// Return package names for a built-in corpus profile.
+fn profile_package_names(profile: CorpusProfile) -> &'static [&'static str] {
+    match profile {
+        CorpusProfile::Quick => QUICK_CORPUS_PACKAGES,
+        CorpusProfile::Standard => STANDARD_CORPUS_PACKAGES,
+        CorpusProfile::Full => &[],
+    }
+}
+
+/// Format a package list for progress output.
+fn format_package_list(package_names: &[String]) -> String {
+    const MAX_DISPLAYED_PACKAGES: usize = 16;
+    if package_names.len() <= MAX_DISPLAYED_PACKAGES {
+        return package_names.join(", ");
+    }
+
+    let shown = package_names
+        .iter()
+        .take(MAX_DISPLAYED_PACKAGES)
+        .cloned()
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        "{shown}, ... (+{})",
+        format_count(package_names.len() - MAX_DISPLAYED_PACKAGES)
+    )
 }
 
 /// Execute one full corpus benchmark run.
@@ -1576,20 +1741,27 @@ fn print_json(summary: &BenchSummary) {
     );
 }
 
-/// Load all supported source files under a root path.
-fn load_corpus_files(root: &Path) -> Result<(Vec<CorpusFile>, CorpusLoadStats), String> {
-    if !root.exists() {
-        return Err(format!("root path does not exist: {}", root.display()));
+/// Load all supported source files under one or more roots.
+fn load_corpus_files(roots: &[PathBuf]) -> Result<(Vec<CorpusFile>, CorpusLoadStats), String> {
+    if roots.is_empty() {
+        return Err("no corpus roots selected".to_string());
     }
 
     let mut file_paths = Vec::new();
-    collect_supported_files(root, &mut file_paths).map_err(|error| {
-        format!(
-            "failed collecting source files under {}: {error}",
-            root.display()
-        )
-    })?;
+    for root in roots {
+        if !root.exists() {
+            return Err(format!("root path does not exist: {}", root.display()));
+        }
+
+        collect_supported_files(root.as_path(), &mut file_paths).map_err(|error| {
+            format!(
+                "failed collecting source files under {}: {error}",
+                root.display()
+            )
+        })?;
+    }
     file_paths.sort();
+    file_paths.dedup();
 
     let mut files = Vec::with_capacity(file_paths.len());
     let mut stats = CorpusLoadStats::default();
