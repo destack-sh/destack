@@ -207,6 +207,8 @@ pub struct LinterOptions {
     pub check_misused_promises_in_callbacks: bool,
     /// Check conditionals in `no-misused-promises`.
     pub check_misused_promises_in_conditionals: bool,
+    /// Parameter name prefixes ignored by `no-unused-parameters`.
+    pub ignored_unused_parameter_prefixes: Vec<String>,
 
     // complexity thresholds
     /// Maximum boolean parameters or fields.
@@ -285,6 +287,7 @@ impl Default for LinterOptions {
             allow_void_discard: true,
             check_misused_promises_in_callbacks: true,
             check_misused_promises_in_conditionals: true,
+            ignored_unused_parameter_prefixes: vec!["_".to_string()],
             // complexity
             max_booleans: 3,
             max_branching_factor: 10,
@@ -374,6 +377,15 @@ impl LinterOptions {
     /// Get a rule's configured severity (returns None if not overridden).
     pub fn get_rule_severity(&self, rule: &str) -> Option<LintSeverity> {
         self.overrides.get(rule).copied()
+    }
+
+    /// Set prefixes ignored by `no-unused-parameters`.
+    pub fn with_ignored_unused_parameter_prefixes(
+        mut self,
+        prefixes: impl IntoIterator<Item = String>,
+    ) -> Self {
+        self.ignored_unused_parameter_prefixes = prefixes.into_iter().collect();
+        self
     }
 
     /// Get a category's configured severity (returns None if not overridden).
