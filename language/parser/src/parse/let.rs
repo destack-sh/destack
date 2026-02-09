@@ -236,10 +236,9 @@ impl Parser {
                 } else {
                     self.keyword_for_index(self.pos_index())
                 };
-                let is_mutability_keyword = matches!(
-                    keyword,
-                    Some(Keyword::Var | Keyword::Const | Keyword::Readonly | Keyword::Let)
-                );
+                let is_mutability_keyword =
+                    matches!(keyword, Some(Keyword::Var | Keyword::Const | Keyword::Let))
+                        || self.language.is_destack() && keyword == Some(Keyword::Readonly);
                 let is_underscore_identifier =
                     self.identifier_for_index(self.pos_index()) == Some(self.underscore_identifier);
                 let allow_underscore_binding =
@@ -519,6 +518,35 @@ using x = open()
                             assert_path!(parser, *path, "T");
                         });
                     });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_let_readonly_identifier_with_type_annotation_typescript() {
+        let mut test = TestParser::new_with_options(
+            "const readonly: <A>(value: A) => Readonly<A> = identity",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+
+        let start = parser.mark();
+        let let_id = parser
+            .eat_let(&start, DeclarationDescriptor::default())
+            .unwrap();
+
+        assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability, .. } => {
+            assert_eq!(*mutability, Mutability::Immutable);
+            assert_eq!(declarators.len(), 1);
+            assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, value } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                    assert_string!(parser, *name, "readonly");
+                });
+                assert!(ty.is_some());
+                let value_id = value.expect("expected initializer");
+                assert_node!(parser.tree, value_id, Expression::Path { path, .. } => {
+                    assert_path!(parser, *path, "identity");
                 });
             });
         });

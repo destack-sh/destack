@@ -86,33 +86,43 @@ impl Parser {
                 )
                 .is_ok()
         {
+            // C style for clauses always allow comma operator expressions
+            let mut clause_options = self.options.nested();
+            clause_options.allow_sequence_expression = true;
+
             // open parenthesis
             self.bump();
+            self.eat_newlines_maybe()?;
 
             // initialization
             let initialization_id = if self.peek_is(TokenType::Semicolon) {
                 None
             } else {
-                Some(self.with_options(self.options.nested(), |parser| parser.eat_expression())?)
+                Some(self.with_options(clause_options, |parser| parser.eat_expression())?)
             };
+            self.eat_newlines_maybe()?;
             self.eat_token(TokenType::Semicolon)?;
+            self.eat_newlines_maybe()?;
 
             // condition
             let condition_id = if self.peek_is(TokenType::Semicolon) {
                 None
             } else {
-                Some(self.with_options(self.options.nested(), |parser| parser.eat_expression())?)
+                Some(self.with_options(clause_options, |parser| parser.eat_expression())?)
             };
+            self.eat_newlines_maybe()?;
             self.eat_token(TokenType::Semicolon)?;
+            self.eat_newlines_maybe()?;
 
             // increment
             let increment_id = if self.peek_is(TokenType::CloseParenthesis) {
                 None
             } else {
-                Some(self.with_options(self.options.nested(), |parser| parser.eat_expression())?)
+                Some(self.with_options(clause_options, |parser| parser.eat_expression())?)
             };
 
             // close parenthesis
+            self.eat_newlines_maybe()?;
             self.eat_token(TokenType::CloseParenthesis)?;
 
             // body
@@ -694,6 +704,61 @@ for (var x = 0; x < 10; x++) {
                 assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
                     assert_path!(parser, path, "x");
                 });
+            });
+        });
+    }
+
+    /// Parse multiline C style for loop headers in JavaScript.
+    #[test]
+    fn test_parse_for_loop_condition_multiline_header() {
+        let mut test = TestParser::new_with_options(
+            r###"
+for (
+  start = 0, end = Math.min(len, newLen);
+  start < end && items[start] === newItems[start];
+  start++
+) {
+  work();
+}
+"###,
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let for_id = parser.eat_for().unwrap();
+        assert_node!(parser.tree, for_id, Expression::For { initialization, condition, increment, body } => {
+            assert!(initialization.is_some());
+            assert!(condition.is_some());
+            assert!(increment.is_some());
+            assert_node!(parser.tree, *body, Block { expressions, .. } => {
+                assert_eq!(expressions.len(), 1);
+            });
+        });
+    }
+
+    /// Parse C style for headers with comma operator in init and increment.
+    #[test]
+    fn test_parse_for_loop_condition_with_sequence_clauses() {
+        let mut test = TestParser::new_with_options(
+            r###"
+for (start = 0, end = 10; start < end; start++, end--) {}
+"###,
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let for_id = parser.eat_for().unwrap();
+        assert_node!(parser.tree, for_id, Expression::For { initialization, condition, increment, .. } => {
+            assert_node!(parser.tree, initialization.expect("expected initialization"), Expression::SequenceExpression { expressions } => {
+                assert_eq!(expressions.len(), 2);
+            });
+            assert_node!(parser.tree, condition.expect("expected condition"), Expression::Binary { operator, .. } => {
+                assert_eq!(*operator, BinaryOperator::LessThan);
+            });
+            assert_node!(parser.tree, increment.expect("expected increment"), Expression::SequenceExpression { expressions } => {
+                assert_eq!(expressions.len(), 2);
             });
         });
     }

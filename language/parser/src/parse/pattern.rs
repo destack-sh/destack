@@ -522,7 +522,12 @@ impl Parser {
             if in_js_or_ts && matches!(self.tree.get(pattern_field_id), PatternField::Spread { .. })
             {
                 has_spread_field = true;
-                if self.peek_token_type() == seperator || self.peek_is(TokenType::Newline) {
+                let has_separator_after_spread = self.peek_token_type() == seperator;
+                let has_non_terminal_newline_after_spread = self.peek_is(TokenType::Newline)
+                    && self
+                        .peek_token_after_newlines(self.pos(), terminator)
+                        .is_err();
+                if has_separator_after_spread || has_non_terminal_newline_after_spread {
                     return Err(ParseError::unexpected(self.peek()?.span));
                 }
             }
@@ -884,6 +889,26 @@ mod tests {
                     assert_node!(parser.tree, fields[1], PatternField::Named { name, pattern: None, .. } => {
                         assert_name!(parser, *name, "y");
                     });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_pattern_object_spread_newline_before_terminator_typescript() {
+        let mut test =
+            TestParser::new_with_options("{\n  onSuccess,\n  ...rest\n}", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
+            assert_eq!(fields.len(), 2);
+            assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: None, mutability: None, default: None } => {
+                assert_name!(parser, *name, "onSuccess");
+            });
+            assert_node!(parser.tree, fields[1], PatternField::Spread { mutability: None, pattern: Some(pattern) } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None, .. } => {
+                    assert_string!(parser, *name, "rest");
                 });
             });
         });

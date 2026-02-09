@@ -800,7 +800,10 @@ impl Parser {
         let _timing = self.timing_scope(tags::PARSE_LITERAL);
         self.eat_token(TokenType::OpenBrace)?;
         self.eat_newlines_maybe()?;
-        let properties = self.eat_properties()?;
+        // object literal properties are always expression properties, not variant members
+        let mut property_options = self.options;
+        property_options.in_variant = false;
+        let properties = self.with_options(property_options, |parser| parser.eat_properties())?;
 
         // JS/TS object shorthand only supports identifier names
         if (self.language.is_javascript() || self.language.is_typescript()) && !self.options.in_type
@@ -843,26 +846,25 @@ impl Parser {
         // require an identifier in the type parameter list
         let has_identifier = self.peek_next_token(TokenType::Identifier).is_ok();
 
-        // allow multiline identifiers in type context
-        let has_multiline_identifier =
-            if self.options.in_type && self.peek_next_token(TokenType::Newline).is_ok() {
-                let mut pos = self.pos() as usize;
-                loop {
-                    self.token_stream.ensure_token(pos + 1);
-                    let Some(token) = self.tokens().get(pos + 1) else {
-                        break;
-                    };
-                    if token.token.ty != TokenType::Newline {
-                        break;
-                    }
-                    pos += 1;
+        // allow multiline identifiers in generic parameter lists
+        let has_multiline_identifier = if self.peek_next_token(TokenType::Newline).is_ok() {
+            let mut pos = self.pos() as usize;
+            loop {
+                self.token_stream.ensure_token(pos + 1);
+                let Some(token) = self.tokens().get(pos + 1) else {
+                    break;
+                };
+                if token.token.ty != TokenType::Newline {
+                    break;
                 }
-                self.tokens()
-                    .get(pos + 1)
-                    .is_some_and(|token| token.token.ty == TokenType::Identifier)
-            } else {
-                false
-            };
+                pos += 1;
+            }
+            self.tokens()
+                .get(pos + 1)
+                .is_some_and(|token| token.token.ty == TokenType::Identifier)
+        } else {
+            false
+        };
         if !has_identifier && !has_multiline_identifier {
             return false;
         }
@@ -938,7 +940,7 @@ impl Parser {
         }
 
         // skip newlines after the type parameters
-        let after_close_pos = if self.options.in_type {
+        let after_close_pos = {
             let mut pos = close_pos as usize;
             loop {
                 self.token_stream.ensure_token(pos + 1);
@@ -951,8 +953,6 @@ impl Parser {
                 pos += 1;
             }
             pos as u32
-        } else {
-            close_pos
         };
 
         // require `(` after the type parameters
@@ -974,7 +974,7 @@ impl Parser {
         };
 
         // skip newlines after the parameter list
-        let after_parenthesis_pos = if self.options.in_type {
+        let after_parenthesis_pos = {
             let mut pos = parenthesis_close as usize;
             loop {
                 self.token_stream.ensure_token(pos + 1);
@@ -987,8 +987,6 @@ impl Parser {
                 pos += 1;
             }
             pos as u32
-        } else {
-            parenthesis_close
         };
 
         // require `:` or `=>` after the parameters
@@ -1013,8 +1011,10 @@ impl Parser {
             }
             let unexpected_span = self.peek()?.span;
 
-            // prime opening tag mode for tree literal lookahead when lexer won't do it
-            if !self.options.in_tree_literal {
+            // prime opening tag mode for tree literal lookahead
+            if !self.token_stream.in_tree_literal()
+                || self.token_stream.in_tree_attribute_expression()
+            {
                 self.token_stream.enter_tree_opening_tag();
             }
 
@@ -1036,7 +1036,7 @@ impl Parser {
                 .token_ref_at(pos + 1)
                 .ok_or(ParseError::unexpected(unexpected_span))?;
             // closing tags should only appear inside tree content
-            if next.token.ty == TokenType::Divide && !self.options.in_tree_literal {
+            if next.token.ty == TokenType::Divide && !self.token_stream.in_tree_literal() {
                 return Err(ParseError::unexpected(unexpected_span));
             }
             if !matches!(
@@ -1120,7 +1120,8 @@ impl Parser {
         let _timing = self.timing_scope(tags::PARSE_LITERAL);
         let start = self.mark();
         self.eat_token(TokenType::LessThan)?;
-        if !self.options.in_tree_literal {
+        if !self.token_stream.in_tree_literal() || self.token_stream.in_tree_attribute_expression()
+        {
             self.token_stream.enter_tree_opening_tag();
         }
         self.eat_newlines_maybe()?;
@@ -1345,11 +1346,9 @@ impl Parser {
             return false;
         }
 
-        let Some(first_segment) = path.segments.first() else {
-            return false;
-        };
-
-        self.strings.get(*first_segment).contains(':')
+        path.segments
+            .iter()
+            .any(|segment| self.strings.get(*segment).contains(':'))
     }
 }
 
@@ -1675,6 +1674,55 @@ mod tests {
                 });
                 // LIMIT 10
                 assert_string!(parser, strings[2], " LIMIT 10");
+            }
+            other => panic!("unexpected {other:?}"),
+        }
+    }
+
+    /// Parse template interpolation with a TypeScript `as` cast.
+    #[test]
+    fn test_parse_template_literal_as_cast_expression() {
+        let mut test =
+            TestParser::new_with_options("`${type as string}`", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let literal = parser.eat_template_literal().unwrap();
+
+        match literal {
+            TemplateLiteral::InterpolatedString { strings, arguments } => {
+                assert_eq!(strings.len(), 2);
+                assert_eq!(arguments.len(), 1);
+                assert_string!(parser, strings[0], "");
+                assert_string!(parser, strings[1], "");
+
+                assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
+                    assert_node!(parser.tree, *value, Expression::TypeBinary { left, operator, right } => {
+                        assert_eq!(*operator, TypeBinaryOperator::Cast);
+                        assert_expression_path!(parser, parser.tree.get(*left), "type");
+                        assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::String));
+                    });
+                });
+            }
+            other => panic!("unexpected {other:?}"),
+        }
+    }
+
+    /// Parse template literals with escaped `${` text before interpolation.
+    #[test]
+    fn test_parse_template_literal_with_escaped_interpolation_prefix() {
+        let mut test = TestParser::new(r"`\${${value}}`");
+        let mut parser = test.prepare();
+        let literal = parser.eat_template_literal().unwrap();
+
+        match literal {
+            TemplateLiteral::InterpolatedString { strings, arguments } => {
+                assert_eq!(strings.len(), 2);
+                assert_eq!(arguments.len(), 1);
+                assert_string!(parser, strings[0], r"\${");
+                assert_string!(parser, strings[1], "}");
+
+                assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*value), "value");
+                });
             }
             other => panic!("unexpected {other:?}"),
         }
@@ -2363,6 +2411,35 @@ mod tests {
         });
     }
 
+    /// Tree fragment text in attribute expression containers parses as tree string.
+    #[test]
+    fn test_parse_tree_fragment_text_in_attribute_expression() {
+        let mut test = TestParser::new_with_options(
+            r#"<Show when={shouldShow()} fallback={<>off</>}><>{props.children}</></Show>"#,
+            LanguageType::TypeScriptXml,
+        );
+        let mut parser = test.prepare();
+        let expr = parser.eat_tree_literal().unwrap();
+        assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), arguments, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "Show");
+            let arguments = arguments.as_ref().expect("expected arguments");
+            assert!(arguments.len() >= 2);
+            assert_node!(parser.tree, arguments[1], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
+                assert_string!(parser, *name, "fallback");
+                assert_node!(parser.tree, *value, Expression::TreeExpression { left, elements, .. } => {
+                    assert!(left.is_none());
+                    let elements = elements.as_ref().expect("expected fragment elements");
+                    assert_eq!(elements.len(), 1);
+                    assert_node!(parser.tree, elements[0], Argument::Positional { modifiers: _, value } => {
+                        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+                            assert_string!(parser, *string_id, "off");
+                        });
+                    });
+                });
+            });
+        });
+    }
+
     #[test]
     fn test_parse_tree_attribute_spread_with_cast() {
         let mut test = TestParser::new_with_options(
@@ -2762,6 +2839,110 @@ mod tests {
                 });
             });
         });
+    }
+
+    /// Parse tsx siblings after map callback returning a parenthesized tree literal.
+    #[test]
+    fn test_parse_tsx_after_parenthesized_tree_in_expression_container() {
+        let input = r#"<div>
+  {items.map((item) => (
+    <option>{item}</option>
+  ))}
+  <button />
+</div>"#;
+
+        let mut test = TestParser::new_with_options(input, LanguageType::TypeScriptXml);
+        let mut parser = test.prepare();
+        let expression = parser.eat_tree_literal().unwrap();
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), elements, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "div");
+
+            let elements = elements.as_ref().expect("expected elements");
+            assert_eq!(elements.len(), 2);
+
+            assert_node!(parser.tree, elements[0], Argument::Positional { modifiers: _, value } => {
+                assert_node!(parser.tree, *value, Expression::Call { dynamic_arguments, .. } => {
+                    assert_eq!(dynamic_arguments.len(), 1);
+                    assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { modifiers: _, value } => {
+                        assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
+                            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body, .. } => {
+                                assert_eq!(signature.kind, FunctionKind::Lambda);
+
+                                let body = body.expect("expected lambda body");
+                                assert_node!(parser.tree, body, Expression::Parenthesized { expression } => {
+                                    assert_node!(parser.tree, *expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+                                        assert_expression_path!(parser, parser.tree.get(*left), "option");
+                                        assert!(arguments.is_none());
+
+                                        let elements = elements.as_ref().expect("expected option children");
+                                        assert_eq!(elements.len(), 1);
+                                        assert_node!(parser.tree, elements[0], Argument::Positional { modifiers: _, value } => {
+                                            assert_expression_path!(parser, parser.tree.get(*value), "item");
+                                        });
+                                    });
+                                });
+                            });
+                        });
+                    });
+                });
+            });
+
+            assert_node!(parser.tree, elements[1], Argument::Positional { modifiers: _, value } => {
+                assert_node!(parser.tree, *value, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "button");
+                    assert!(arguments.is_none());
+                    assert!(elements.is_none());
+                });
+            });
+        });
+    }
+
+    /// Parse ternary fragments with text fallback in tsx.
+    #[test]
+    fn test_parse_tsx_ternary_fragment_with_text_fallback() {
+        let input = "shouldShow ? <>{children}</> : <>off</>";
+        let mut test = TestParser::new_with_options(input, LanguageType::TypeScriptXml);
+        let mut parser = test.prepare();
+        let expression = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expression, Expression::If { kind, condition, then_expression, else_expression } => {
+            assert_eq!(*kind, IfKind::Ternary);
+            assert_node!(condition, IfCondition::Expression { condition } => {
+                assert_expression_path!(parser, parser.tree.get(*condition), "shouldShow");
+            });
+
+            assert_node!(parser.tree, *then_expression, Expression::TreeExpression { left, elements, .. } => {
+                assert!(left.is_none());
+                let elements = elements.as_ref().expect("expected then elements");
+                assert_eq!(elements.len(), 1);
+                assert_node!(parser.tree, elements[0], Argument::Positional { modifiers: _, value } => {
+                    assert_expression_path!(parser, parser.tree.get(*value), "children");
+                });
+            });
+
+            let else_expression = else_expression.expect("expected else expression");
+            assert_node!(parser.tree, else_expression, Expression::TreeExpression { left, elements, .. } => {
+                assert!(left.is_none());
+                let elements = elements.as_ref().expect("expected else elements");
+                assert_eq!(elements.len(), 1);
+                assert_node!(parser.tree, elements[0], Argument::Positional { modifiers: _, value } => {
+                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+                        assert_string!(parser, *string_id, "off");
+                    });
+                });
+            });
+        });
+    }
+
+    /// Reject tree literal namespace and member combinations during parse.
+    #[test]
+    fn test_reject_tree_literal_namespace_member_path_parse_error() {
+        let mut test = TestParser::new_with_options("<a.b:c />", LanguageType::JavaScriptXml);
+        let mut parser = test.prepare();
+
+        let error = parser
+            .eat_tree_literal()
+            .expect_err("expected parse failure for namespace member path");
+        assert_eq!(parser.get_span_str(error.leaf_span()), "/");
     }
 
     /// Parse JSX elements after newline-terminated let and var declarations.
