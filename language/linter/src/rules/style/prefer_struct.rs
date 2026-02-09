@@ -25,7 +25,7 @@ declare_lint! {
     /// ```
     #[lint(
         id = "prefer-struct",
-        code = "LY066",
+        code = "LY055",
         category = Style,
         level = Ast,
         requires_all = [],

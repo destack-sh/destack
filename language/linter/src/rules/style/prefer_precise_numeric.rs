@@ -10,7 +10,7 @@ declare_lint! {
     /// types like `int32`, `int64`, or `float64` for clearer intent.
     #[lint(
         id = "prefer-precise-numeric",
-        code = "LY057",
+        code = "LY050",
         category = Style,
         level = Ast,
         requires_all = [],

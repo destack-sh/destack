@@ -11,7 +11,7 @@ declare_lint! {
     /// semantics harder to reason about and can hide subtle runtime behavior.
     #[lint(
         id = "no-mixed-key-types",
-        code = "LU066",
+        code = "LU023",
         category = Suspicious,
         level = Dir,
         requires_all = [],

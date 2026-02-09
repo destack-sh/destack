@@ -10,7 +10,7 @@ declare_lint! {
     /// Consider grouping related variants or simplifying the design.
     #[lint(
         id = "max-type-variants",
-        code = "LX015",
+        code = "LX014",
         category = Complexity,
         level = Ast,
         requires_all = [],

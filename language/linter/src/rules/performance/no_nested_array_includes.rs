@@ -13,7 +13,7 @@ declare_lint! {
     /// complexity. Consider using a Set for O(1) lookups instead.
     #[lint(
         id = "no-nested-array-includes",
-        code = "LP009",
+        code = "LP007",
         category = Performance,
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],

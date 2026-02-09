@@ -10,7 +10,7 @@ declare_lint! {
     /// that is hard to read and likely indicates a logic error.
     #[lint(
         id = "no-confusing-non-null-assertion",
-        code = "LU007",
+        code = "LU005",
         category = Suspicious,
         level = Ast,
         requires_all = [],

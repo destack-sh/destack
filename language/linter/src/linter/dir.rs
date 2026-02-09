@@ -529,7 +529,7 @@ impl<'a> LintModuleDirContext<'a> {
 #[cfg(test)]
 mod tests {
     use crate::linter::TestProgram;
-    use crate::rules::correctness::NoSelfCompare;
+    use crate::rules::correctness::{NO_SELF_COMPARE, NoSelfCompare};
 
     #[test]
     fn test_allow_suppresses_by_id() {
@@ -551,16 +551,17 @@ function foo() {
     #[test]
     fn test_allow_suppresses_by_code() {
         let test = TestProgram::for_rule_with_prelude(NoSelfCompare);
-        let result = test.lint_dir(
-            "dir/test_allow_suppresses_by_code.ds",
+        let source = format!(
             r#"
-@allow("LC038")
-function foo() {
+@allow("{code}")
+function foo() {{
     let x = 1
     x == x
-}
+}}
 "#,
+            code = NO_SELF_COMPARE.code
         );
+        let result = test.lint_dir("dir/test_allow_suppresses_by_code.ds", source.as_str());
         test.check_clean();
         test.result(result).assert_no_lint("no-self-compare");
     }

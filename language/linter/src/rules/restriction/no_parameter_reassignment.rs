@@ -12,7 +12,7 @@ declare_lint! {
     /// Reassigning parameters makes control flow harder to reason about and can hide bugs.
     #[lint(
         id = "no-parameter-reassignment",
-        code = "LR022",
+        code = "LR020",
         category = Restriction,
         level = Dir,
         requires_all = [],

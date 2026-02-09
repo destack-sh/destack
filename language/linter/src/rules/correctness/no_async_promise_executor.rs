@@ -12,7 +12,7 @@ declare_lint! {
     /// Async executors add an extra promise layer and can swallow errors.
     #[lint(
         id = "no-async-promise-executor",
-        code = "LC007",
+        code = "LC005",
         category = Correctness,
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Promise)],

@@ -9,7 +9,7 @@ declare_lint! {
     /// Use `===` and `!==` instead of `==` and `!=`.
     #[lint(
         id = "eqeqeq",
-        code = "LY012",
+        code = "LY010",
         category = Style,
         level = Ast,
         requires_all = [],

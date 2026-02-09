@@ -12,7 +12,7 @@ declare_lint! {
     /// unrelated code.
     #[lint(
         id = "no-large-try-block",
-        code = "LU026",
+        code = "LU021",
         category = Suspicious,
         level = Ast,
         requires_all = [],

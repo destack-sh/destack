@@ -10,7 +10,7 @@ declare_lint! {
     /// This enforces explicit comparisons instead of relying on truthy and falsy coercion.
     #[lint(
         id = "strict-boolean-expressions",
-        code = "LR035",
+        code = "LR032",
         category = Restriction,
         level = Dir,
         requires_all = [],

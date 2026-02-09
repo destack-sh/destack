@@ -10,7 +10,7 @@ declare_lint! {
     /// They also provide better IDE support and documentation.
     #[lint(
         id = "explicit-function-return-type",
-        code = "LY013",
+        code = "LY011",
         category = Style,
         level = Ast,
         requires_all = [],

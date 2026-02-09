@@ -11,7 +11,7 @@ declare_lint! {
     /// cannot be compared by reference. Use `==` or `!=` for value comparison.
     #[lint(
         id = "no-struct-identity-compare",
-        code = "LC040",
+        code = "LC027",
         category = Correctness,
         level = Dir,
         requires_all = [],

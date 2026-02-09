@@ -11,7 +11,7 @@ declare_lint! {
     /// Common values like 0, 1, and -1 are allowed by default.
     #[lint(
         id = "no-magic-numbers",
-        code = "LR018",
+        code = "LR016",
         category = Restriction,
         level = Ast,
         requires_all = [],

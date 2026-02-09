@@ -10,7 +10,7 @@ declare_lint! {
     /// to understand. Consider restructuring with functions or different loop patterns.
     #[lint(
         id = "no-labels",
-        code = "LR016",
+        code = "LR015",
         category = Restriction,
         level = Ast,
         requires_all = [],

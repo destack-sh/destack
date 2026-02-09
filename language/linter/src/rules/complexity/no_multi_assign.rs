@@ -11,7 +11,7 @@ declare_lint! {
     /// for clarity.
     #[lint(
         id = "no-multi-assign",
-        code = "LX020",
+        code = "LX019",
         category = Complexity,
         level = Ast,
         requires_all = [],

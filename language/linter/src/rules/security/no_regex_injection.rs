@@ -12,7 +12,7 @@ declare_lint! {
     /// - Regex injection where attackers craft malicious patterns
     #[lint(
         id = "no-regex-injection",
-        code = "LS008",
+        code = "LS007",
         category = Security,
         level = Dir,
         requires_all = [],

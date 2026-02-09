@@ -28,7 +28,7 @@ declare_lint! {
     /// ```
     #[lint(
         id = "grouped-accessor-pairs",
-        code = "LY016",
+        code = "LY013",
         category = Style,
         level = Ast,
         requires_all = [],

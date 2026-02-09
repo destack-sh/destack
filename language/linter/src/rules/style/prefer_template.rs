@@ -10,7 +10,7 @@ declare_lint! {
     /// Template literals are more readable for string interpolation.
     #[lint(
         id = "prefer-template",
-        code = "LY069",
+        code = "LY057",
         category = Style,
         level = Ast,
         requires_all = [],

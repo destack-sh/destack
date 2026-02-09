@@ -26,7 +26,7 @@ declare_lint! {
     /// ```
     #[lint(
         id = "no-unused-expressions",
-        code = "LX023",
+        code = "LX022",
         category = Complexity,
         level = Ast,
         requires_all = [],

@@ -20,7 +20,7 @@ declare_lint! {
     /// ```
     #[lint(
         id = "prefer-self-closing-tree",
-        code = "LY064",
+        code = "LY053",
         category = Style,
         level = Ast,
         requires_all = [],

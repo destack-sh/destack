@@ -10,7 +10,7 @@ declare_lint! {
     /// Swap the branches and remove the negation for clearer code.
     #[lint(
         id = "no-negated-condition",
-        code = "LY026",
+        code = "LY020",
         category = Style,
         level = Ast,
         requires_all = [],

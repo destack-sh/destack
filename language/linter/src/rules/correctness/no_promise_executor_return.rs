@@ -11,7 +11,7 @@ declare_lint! {
     /// Promise executors should call resolve or reject instead of returning values.
     #[lint(
         id = "no-promise-executor-return",
-        code = "LC037",
+        code = "LC024",
         category = Correctness,
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Promise)],

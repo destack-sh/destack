@@ -11,7 +11,7 @@ declare_lint! {
     /// Deleting array elements creates sparse arrays and keeps the length unchanged.
     #[lint(
         id = "no-array-delete",
-        code = "LC006",
+        code = "LC004",
         category = Correctness,
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],

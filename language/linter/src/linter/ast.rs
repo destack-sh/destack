@@ -382,7 +382,7 @@ impl<'a> LintModuleAstContext<'a> {
 #[cfg(test)]
 mod tests {
     use crate::linter::TestProgram;
-    use crate::rules::suspicious::NoEmpty;
+    use crate::rules::suspicious::{NO_EMPTY, NoEmpty};
 
     #[test]
     fn test_allow_suppresses_by_id() {
@@ -400,13 +400,14 @@ function foo() {}
     #[test]
     fn test_allow_suppresses_by_code() {
         let test = TestProgram::for_rule_with_prelude(NoEmpty);
-        let result = test.lint_ast(
-            "ast/test_allow_suppresses_by_code.ds",
+        let source = format!(
             r#"
-@allow("LU014")
-function foo() {}
+@allow("{code}")
+function foo() {{}}
 "#,
+            code = NO_EMPTY.code
         );
+        let result = test.lint_ast("ast/test_allow_suppresses_by_code.ds", source.as_str());
         test.result(result).assert_no_lint("no-empty");
     }
 

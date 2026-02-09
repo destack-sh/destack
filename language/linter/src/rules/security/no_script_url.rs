@@ -10,7 +10,7 @@ declare_lint! {
     /// as it allows arbitrary code execution. It's commonly used in XSS attacks.
     #[lint(
         id = "no-script-url",
-        code = "LS009",
+        code = "LS008",
         category = Security,
         level = Ast,
         requires_all = [],

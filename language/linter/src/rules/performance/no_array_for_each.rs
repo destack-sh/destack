@@ -14,7 +14,7 @@ declare_lint! {
     /// and `return` statements.
     #[lint(
         id = "no-array-for-each",
-        code = "LP003",
+        code = "LP002",
         category = Performance,
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],

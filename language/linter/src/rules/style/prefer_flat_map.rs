@@ -13,7 +13,7 @@ declare_lint! {
     /// and avoids creating an intermediate array.
     #[lint(
         id = "prefer-flat-map",
-        code = "LY086",
+        code = "LY038",
         category = Style,
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],

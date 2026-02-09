@@ -11,7 +11,7 @@ declare_lint! {
     /// `Number.isNaN(x)` instead.
     #[lint(
         id = "use-isnan",
-        code = "LC057",
+        code = "LC043",
         category = Correctness,
         level = Ast,
         requires_all = [],

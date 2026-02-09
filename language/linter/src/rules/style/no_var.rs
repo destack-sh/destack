@@ -10,7 +10,7 @@ declare_lint! {
     /// The `var` keyword is a legacy syntax; prefer `let` or `const`.
     #[lint(
         id = "no-var",
-        code = "LY036",
+        code = "LY026",
         category = Style,
         level = Ast,
         requires_all = [],

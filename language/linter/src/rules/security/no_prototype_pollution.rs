@@ -13,7 +13,7 @@ declare_lint! {
     /// attackers to modify object prototypes and affect all objects.
     #[lint(
         id = "no-prototype-pollution",
-        code = "LS007",
+        code = "LS006",
         category = Security,
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Object)],

@@ -19,7 +19,7 @@ declare_lint! {
     /// or build artifacts. Use environment variables or secret management systems.
     #[lint(
         id = "no-secrets",
-        code = "LS010",
+        code = "LS009",
         category = Security,
         level = Ast,
         requires_all = [],

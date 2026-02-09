@@ -14,7 +14,7 @@ declare_lint! {
     /// numeric arrays: `[10, 2, 1].sort()` produces `[1, 10, 2]`.
     #[lint(
         id = "require-array-sort-compare",
-        code = "LC053",
+        code = "LC040",
         category = Correctness,
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],

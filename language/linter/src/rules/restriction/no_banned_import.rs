@@ -12,7 +12,7 @@ declare_lint! {
     /// `linter.restrictedImports` patterns.
     #[lint(
         id = "no-banned-import",
-        code = "LR004",
+        code = "LR003",
         category = Restriction,
         level = Dir,
         requires_all = [],

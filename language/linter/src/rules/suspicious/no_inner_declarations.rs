@@ -11,7 +11,7 @@ declare_lint! {
     /// function or module level instead.
     #[lint(
         id = "no-inner-declarations",
-        code = "LU025",
+        code = "LU020",
         category = Suspicious,
         level = Ast,
         requires_all = [],

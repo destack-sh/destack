@@ -11,7 +11,7 @@ declare_lint! {
     /// is almost always a bug since the later branch will never be reached.
     #[lint(
         id = "no-duplicate-else-if",
-        code = "LU011",
+        code = "LU010",
         category = Suspicious,
         level = Ast,
         requires_all = [],

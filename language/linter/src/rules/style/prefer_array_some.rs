@@ -13,7 +13,7 @@ declare_lint! {
     /// any element matches a predicate.
     #[lint(
         id = "prefer-array-some",
-        code = "LY082",
+        code = "LY032",
         category = Style,
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],

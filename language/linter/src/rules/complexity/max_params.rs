@@ -10,7 +10,7 @@ declare_lint! {
     /// Consider using an options object or breaking the function into smaller pieces.
     #[lint(
         id = "max-params",
-        code = "LX009",
+        code = "LX008",
         category = Complexity,
         level = Ast,
         requires_all = [],

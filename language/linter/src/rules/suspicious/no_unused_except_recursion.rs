@@ -12,7 +12,7 @@ declare_lint! {
     /// API shape and can usually be converted into local temporaries.
     #[lint(
         id = "no-unused-except-recursion",
-        code = "LU047",
+        code = "LU033",
         category = Suspicious,
         level = Dir,
         requires_all = [],

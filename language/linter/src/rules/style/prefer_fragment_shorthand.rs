@@ -28,7 +28,7 @@ declare_lint! {
     /// ```
     #[lint(
         id = "prefer-fragment-shorthand",
-        code = "LY046",
+        code = "LY039",
         category = Style,
         level = Ast,
         requires_all = [],

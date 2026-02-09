@@ -12,7 +12,7 @@ declare_lint! {
     /// Passing a description makes it easier to identify the symbol.
     #[lint(
         id = "symbol-description",
-        code = "LY079",
+        code = "LY065",
         category = Style,
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Symbol)],

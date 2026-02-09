@@ -11,7 +11,7 @@ declare_lint! {
     /// makes error handling explicit and type-safe.
     #[lint(
         id = "no-exceptions",
-        code = "LR037",
+        code = "LR012",
         category = Restriction,
         level = Dir,
         requires_all = [],

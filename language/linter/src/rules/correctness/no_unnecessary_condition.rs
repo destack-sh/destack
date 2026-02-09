@@ -15,7 +15,7 @@ declare_lint! {
     /// static type and nullish coalescing where the left side is known.
     #[lint(
         id = "no-unnecessary-condition",
-        code = "LC071",
+        code = "LC030",
         category = Correctness,
         level = Dir,
         requires_all = [],

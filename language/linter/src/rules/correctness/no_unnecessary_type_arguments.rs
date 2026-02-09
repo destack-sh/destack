@@ -11,7 +11,7 @@ declare_lint! {
     /// Repeating default generic arguments adds noise without changing behavior.
     #[lint(
         id = "no-unnecessary-type-arguments",
-        code = "LC105",
+        code = "LC031",
         category = Correctness,
         level = Dir,
         requires_all = [],

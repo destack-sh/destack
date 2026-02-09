@@ -17,7 +17,7 @@ declare_lint! {
     /// intent and can catch accidental reassignments.
     #[lint(
         id = "prefer-const",
-        code = "LY041",
+        code = "LY035",
         category = Style,
         level = Dir,
         requires_all = [],

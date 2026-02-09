@@ -13,7 +13,7 @@ declare_lint! {
     /// clearer about the radix being used.
     #[lint(
         id = "prefer-numeric-literals",
-        code = "LY053",
+        code = "LY047",
         category = Style,
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Number)],

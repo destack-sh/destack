@@ -9,7 +9,7 @@ declare_lint! {
     /// groups that haven't been captured yet will never match anything useful.
     #[lint(
         id = "no-useless-backreference",
-        code = "LU048",
+        code = "LU034",
         category = Suspicious,
         level = Ast,
         requires_all = [],

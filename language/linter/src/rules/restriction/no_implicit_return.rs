@@ -10,7 +10,7 @@ declare_lint! {
     /// in larger functions. Use explicit `return` for clarity.
     #[lint(
         id = "no-implicit-return",
-        code = "LR015",
+        code = "LR014",
         category = Restriction,
         level = Ast,
         requires_all = [],

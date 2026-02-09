@@ -11,7 +11,7 @@ declare_lint! {
     /// migrated to supported alternatives.
     #[lint(
         id = "no-deprecated",
-        code = "LC016",
+        code = "LC011",
         category = Correctness,
         level = Dir,
         requires_all = [],

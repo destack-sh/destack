@@ -13,7 +13,7 @@ declare_lint! {
     /// making it more efficient and expressing intent more clearly.
     #[lint(
         id = "prefer-array-find",
-        code = "LY084",
+        code = "LY030",
         category = Style,
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],

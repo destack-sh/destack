@@ -11,7 +11,7 @@ declare_lint! {
     /// into separate variables or functions.
     #[lint(
         id = "no-nested-ternary",
-        code = "LY029",
+        code = "LY022",
         category = Style,
         level = Ast,
         requires_all = [],

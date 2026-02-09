@@ -12,7 +12,7 @@ declare_lint! {
     /// Unused parameters usually indicate dead API surface or an implementation mismatch.
     #[lint(
         id = "no-unused-parameters",
-        code = "LC102",
+        code = "LC036",
         category = Correctness,
         level = Dir,
         requires_all = [],

@@ -11,7 +11,7 @@ declare_lint! {
     /// harder.
     #[lint(
         id = "no-ex-assign",
-        code = "LU018",
+        code = "LU016",
         category = Suspicious,
         level = Ast,
         requires_all = [],

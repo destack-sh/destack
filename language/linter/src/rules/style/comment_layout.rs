@@ -12,7 +12,7 @@ declare_lint! {
     /// Non-trivial logic blocks should have preceding comments.
     #[lint(
         id = "comment-layout",
-        code = "LY004",
+        code = "LY003",
         category = Style,
         level = Ast,
         requires_all = [],

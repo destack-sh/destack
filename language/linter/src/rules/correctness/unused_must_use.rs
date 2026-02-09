@@ -11,7 +11,7 @@ declare_lint! {
     /// is almost always a bug.
     #[lint(
         id = "unused-must-use",
-        code = "LC056",
+        code = "LC042",
         category = Correctness,
         level = Dir,
         requires_all = [],

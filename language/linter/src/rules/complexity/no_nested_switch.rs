@@ -11,7 +11,7 @@ declare_lint! {
     /// different control flow structure.
     #[lint(
         id = "no-nested-switch",
-        code = "LX022",
+        code = "LX021",
         category = Complexity,
         level = Ast,
         requires_all = [],

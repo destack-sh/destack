@@ -13,7 +13,7 @@ declare_lint! {
     /// object literals.
     #[lint(
         id = "no-object-constructor",
-        code = "LY031",
+        code = "LY023",
         category = Style,
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Object)],

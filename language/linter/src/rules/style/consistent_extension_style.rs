@@ -10,7 +10,7 @@ declare_lint! {
     /// This rule prefers named extensions for better discoverability and debugging.
     #[lint(
         id = "consistent-extension-style",
-        code = "LY006",
+        code = "LY005",
         category = Style,
         level = Ast,
         requires_all = [],

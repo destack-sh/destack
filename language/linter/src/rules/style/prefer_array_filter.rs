@@ -12,7 +12,7 @@ declare_lint! {
     /// Using `filter` is more declarative and avoids manual array mutation.
     #[lint(
         id = "prefer-array-filter",
-        code = "LY083",
+        code = "LY029",
         category = Style,
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],

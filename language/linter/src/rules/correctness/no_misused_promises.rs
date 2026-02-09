@@ -19,7 +19,7 @@ declare_lint! {
     /// positions that expect synchronous values.
     #[lint(
         id = "no-misused-promises",
-        code = "LC032",
+        code = "LC023",
         category = Correctness,
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Promise)],

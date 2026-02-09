@@ -25,7 +25,7 @@ declare_lint! {
     /// ```
     #[lint(
         id = "prefer-pattern-over-guard",
-        code = "LY056",
+        code = "LY049",
         category = Style,
         level = Ast,
         requires_all = [],

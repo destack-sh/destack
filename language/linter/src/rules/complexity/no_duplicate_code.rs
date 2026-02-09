@@ -17,7 +17,7 @@ declare_lint! {
     /// indicates missing abstractions.
     #[lint(
         id = "no-duplicate-code",
-        code = "LX018",
+        code = "LX017",
         category = Complexity,
         level = Ast,
         scope = Program,
@@ -2524,7 +2524,7 @@ function second(x: int32): int32 {
         assert!(
             diagnostics
                 .iter()
-                .all(|diagnostic| diagnostic.code == "LX018")
+                .all(|diagnostic| diagnostic.code == NO_DUPLICATE_CODE.code)
         );
         assert!(
             diagnostics

@@ -13,7 +13,7 @@ declare_lint! {
     /// with `.then()`, `.catch()`, or `.finally()`.
     #[lint(
         id = "no-floating-promises",
-        code = "LC022",
+        code = "LC016",
         category = Correctness,
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Promise)],

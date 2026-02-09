@@ -12,7 +12,7 @@ declare_lint! {
     /// Console statements are often left behind and should be removed.
     #[lint(
         id = "no-console",
-        code = "LR008",
+        code = "LR007",
         category = Restriction,
         level = Dir,
         requires_all = [RequireLibSymbol("console", &["dom", "node"])],

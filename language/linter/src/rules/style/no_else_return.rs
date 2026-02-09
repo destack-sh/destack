@@ -11,7 +11,7 @@ declare_lint! {
     /// because the remaining code will only execute if the condition is false.
     #[lint(
         id = "no-else-return",
-        code = "LY021",
+        code = "LY017",
         category = Style,
         level = Ast,
         requires_all = [],

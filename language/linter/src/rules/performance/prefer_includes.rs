@@ -13,7 +13,7 @@ declare_lint! {
     /// against sentinel values.
     #[lint(
         id = "prefer-includes",
-        code = "LP019",
+        code = "LP015",
         category = Performance,
         level = Dir,
         requires_all = [

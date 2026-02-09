@@ -10,7 +10,7 @@ declare_lint! {
     /// Assignments like `x = x` have no effect and are likely mistakes.
     #[lint(
         id = "no-self-assign",
-        code = "LU039",
+        code = "LU028",
         category = Suspicious,
         level = Ast,
         requires_all = [],

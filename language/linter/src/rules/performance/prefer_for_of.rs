@@ -16,7 +16,7 @@ declare_lint! {
     /// a `for-of` loop is cleaner and less error-prone.
     #[lint(
         id = "prefer-for-of",
-        code = "LP018",
+        code = "LP014",
         category = Performance,
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],

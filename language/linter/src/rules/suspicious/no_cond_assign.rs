@@ -11,7 +11,7 @@ declare_lint! {
     /// it in parentheses: `if ((x = getValue()))`.
     #[lint(
         id = "no-cond-assign",
-        code = "LU004",
+        code = "LU003",
         category = Suspicious,
         level = Ast,
         requires_all = [],

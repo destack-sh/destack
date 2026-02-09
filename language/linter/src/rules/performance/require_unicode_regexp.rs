@@ -18,7 +18,7 @@ declare_lint! {
     /// good: `/foo/u` or `/foo/v`
     #[lint(
         id = "require-unicode-regexp",
-        code = "LP024",
+        code = "LP018",
         category = Performance,
         level = Ast,
         requires_all = [],

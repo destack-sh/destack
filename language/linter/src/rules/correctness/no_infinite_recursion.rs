@@ -11,7 +11,7 @@ declare_lint! {
     /// infinitely and cause a stack overflow.
     #[lint(
         id = "no-infinite-recursion",
-        code = "LC028",
+        code = "LC019",
         category = Correctness,
         level = Dir,
         requires_all = [],

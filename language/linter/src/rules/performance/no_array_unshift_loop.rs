@@ -13,7 +13,7 @@ declare_lint! {
     /// because each `unshift` shifts all existing elements.
     #[lint(
         id = "no-array-unshift-loop",
-        code = "LP004",
+        code = "LP003",
         category = Performance,
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],

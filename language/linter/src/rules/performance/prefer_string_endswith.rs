@@ -15,7 +15,7 @@ declare_lint! {
     /// `endsWith()` communicates intent and avoids manual slicing.
     #[lint(
         id = "prefer-string-endswith",
-        code = "LP021",
+        code = "LP016",
         category = Performance,
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::String)],

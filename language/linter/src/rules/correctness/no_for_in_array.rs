@@ -12,7 +12,7 @@ declare_lint! {
     /// This is almost never what you want for arrays. Use `for-of` instead.
     #[lint(
         id = "no-for-in-array",
-        code = "LC023",
+        code = "LC017",
         category = Correctness,
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],

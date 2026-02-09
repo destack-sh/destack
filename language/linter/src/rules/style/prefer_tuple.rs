@@ -25,7 +25,7 @@ declare_lint! {
     /// This lint only applies to Destack files (.ds).
     #[lint(
         id = "prefer-tuple",
-        code = "LY070",
+        code = "LY058",
         category = Style,
         level = Ast,
         requires_all = [],

@@ -15,7 +15,7 @@ declare_lint! {
     /// JSON cloning is slow, lossy, and fails for many types.
     #[lint(
         id = "no-json-clone",
-        code = "LP008",
+        code = "LP006",
         category = Performance,
         level = Dir,
         requires_all = [RequireLibSymbol("JSON", &[])],

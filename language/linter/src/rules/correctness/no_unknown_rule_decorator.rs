@@ -16,7 +16,7 @@ declare_lint! {
     /// Compiler warning codes are not checked as they reside in a separate crate.
     #[lint(
         id = "no-unknown-rule-decorator",
-        code = "LC049",
+        code = "LC029",
         category = Correctness,
         level = Ast,
         requires_all = [],

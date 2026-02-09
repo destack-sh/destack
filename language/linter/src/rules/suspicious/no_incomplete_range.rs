@@ -24,7 +24,7 @@ declare_lint! {
     /// ```
     #[lint(
         id = "no-incomplete-range",
-        code = "LU024",
+        code = "LU019",
         category = Suspicious,
         level = Ast,
         requires_all = [],

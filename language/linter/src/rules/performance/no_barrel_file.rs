@@ -20,7 +20,7 @@ declare_lint! {
     /// good: Import directly from the source modules.
     #[lint(
         id = "no-barrel-file",
-        code = "LP006",
+        code = "LP005",
         category = Performance,
         level = Ast,
         requires_all = [],

@@ -10,7 +10,7 @@ declare_lint! {
     /// simplified to `return value` when it is not inside a try context.
     #[lint(
         id = "return-await",
-        code = "LU065",
+        code = "LU045",
         category = Suspicious,
         level = Dir,
         requires_all = [],
