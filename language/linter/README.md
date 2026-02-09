@@ -324,7 +324,7 @@ Subjective preferences for consistent coding style.
 | `LY049` | `prefer-inclusive-range` | Destack | AST | ✓ | Safe | Prefer inclusive range syntax where applicable |
 | `LY050` | `prefer-loop` | Destack | AST | ✓ | Safe | Prefer `loop` keyword over `while(true)` or `for(;;)` |
 | `LY052` | `prefer-named-extension` | Destack | AST | ✓ | Unsafe | Prefer named extensions for foreign types |
-| `LY081` | `prefer-nullish-coalescing` | TS-ESLint | DIR |  | Safe | Prefer `??` over `\|\|` for default values |
+| `LY081` | `prefer-nullish-coalescing` | TS-ESLint | DIR | ✓ | Safe | Prefer `??` over `\|\|` for default values |
 | `LY053` | `prefer-numeric-literals` | ESLint | DIR | ✓ | Safe | Prefer numeric literals over `parseInt()` |
 | `LY054` | `prefer-object-has-own` | ESLint | DIR |  | Safe | Prefer `Object.hasOwn()` over `Object.prototype.hasOwnProperty` |
 | `LY055` | `prefer-object-spread` | ESLint | DIR | ✓ | Safe | Prefer spread operator over `Object.assign()` |
@@ -404,7 +404,7 @@ Opt-in rules that ban certain patterns by project choice. These rules may confli
 |------|------|--------|-------|--------|------------|-------------|
 | `LR001` | `no-alert` | ESLint | DIR | ✓ | None | Disallow the use of `alert`, `confirm`, and `prompt` |
 | `LR002` | `no-anonymous-default-export` | Unicorn | AST | ✓ | Suggestion | Disallow anonymous default exports |
-| `LR004` | `no-banned-import` | ESLint | DIR |  | None | Disallow imports from specified modules |
+| `LR004` | `no-banned-import` | ESLint | DIR | ✓ | None | Disallow imports from specified modules |
 | `LR005` | `no-bitwise` | ESLint | AST | ✓ | None | Disallow bitwise operators |
 | `LR006` | `no-circular-dependency` | Import | DIR | ✓ | None | Disallow circular module dependencies |
 | `LR007` | `no-class` | Destack | AST | ✓ | Unsafe | Disallow class declarations (prefer structs) |
@@ -425,7 +425,7 @@ Opt-in rules that ban certain patterns by project choice. These rules may confli
 | `LR020` | `no-non-null-assertion` | TS-ESLint | AST | ✓ | Suggestion | Disallow non-null assertions using the `!` postfix |
 | `LR021` | `no-null` | Unicorn | AST | ✓ | Safe | Disallow `null` (prefer `undefined`) |
 | `LR040` | `no-orphans` | dependency-cruiser | DIR |  | None | Disallow modules that are not reachable from configured entry points |
-| `LR022` | `no-parameter-reassignment` | SonarQube | DIR |  | None | Disallow reassigning function parameters |
+| `LR022` | `no-parameter-reassignment` | SonarQube | DIR | ✓ | None | Disallow reassigning function parameters |
 | `LR023` | `no-placeholder-implementation` | ESLint | AST | ✓ | None | Disallow placeholder implementations (throw "not implemented", etc.) |
 | `LR024` | `no-plusplus` | ESLint | AST | ✓ | Safe | Disallow `++` and `--` operators |
 | `LR041` | `no-private-api-import` | Destack | DIR |  | None | Disallow importing package private internal APIs from outside their scope |
@@ -435,10 +435,10 @@ Opt-in rules that ban certain patterns by project choice. These rules may confli
 | `LR026` | `no-require-imports` | TS-ESLint | DIR |  | Safe | Disallow `require()` imports |
 | `LR027` | `no-runtime-reflection` | Destack | DIR |  | None | Disallow runtime reflection (ban RTTI) |
 | `LR028` | `no-sequences` | ESLint | AST | ✓ | None | Disallow comma operators |
-| `LR029` | `no-shadow` | Destack | DIR |  | Suggestion | Disallow shadowing by rebinding a value |
+| `LR029` | `no-shadow` | ESLint | DIR | ✓ | None | Disallow shadowing by rebinding a value |
 | `LR030` | `no-struct` | Destack | AST | ✓ | Unsafe | Disallow struct declarations (prefer classes) |
 | `LR031` | `no-ternary` | ESLint | AST | ✓ | Unsafe | Disallow ternary operators |
-| `LR044` | `no-unused-modules` | Import | DIR |  | None | Disallow exports that are never imported by any module |
+| `LR044` | `no-unused-modules` | Import | DIR | ✓ | None | Disallow exports that are never imported by any module |
 | `LR033` | `no-warning-comments` | ESLint | AST | ✓ | None | Disallow specified warning terms in comments (TODO, FIXME, etc.) |
 | `LR034` | `no-wildcard-imports` | Destack | AST | ✓ | Unsafe | Disallow wildcard imports |
 | `LR035` | `strict-boolean-expressions` | TS-ESLint | DIR | ✓ | Unsafe | Disallow truthy/falsy coercion in conditions |

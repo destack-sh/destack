@@ -5,6 +5,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, Program};
 
+use crate::rules::common::glob_matches;
+
 use super::{
     expression_candidate_symbols, expression_unwrap_parenthesized, symbol_decorators_for,
     symbol_primary_declaration_for,
@@ -860,58 +862,6 @@ fn label_matches_glob_pattern(program: &Program, source: StringId, sink: StringI
     let sink_text = sink_text.as_ref();
 
     glob_matches(sink_text, source_text)
-}
-
-/// Return true when one glob pattern matches one text value.
-///
-/// This supports `*` as a wildcard over zero or more bytes.
-fn glob_matches(pattern: &str, text: &str) -> bool {
-    // fast path: exact match or global wildcard
-    if pattern == text || pattern == "*" {
-        return true;
-    }
-
-    let pattern_bytes = pattern.as_bytes();
-    let text_bytes = text.as_bytes();
-
-    let mut pattern_index = 0usize;
-    let mut text_index = 0usize;
-    let mut last_star_index: Option<usize> = None;
-    let mut last_star_match_index = 0usize;
-
-    // scan text with star-backtracking
-    while text_index < text_bytes.len() {
-        if pattern_index < pattern_bytes.len()
-            && pattern_bytes[pattern_index] == text_bytes[text_index]
-        {
-            pattern_index += 1;
-            text_index += 1;
-            continue;
-        }
-
-        if pattern_index < pattern_bytes.len() && pattern_bytes[pattern_index] == b'*' {
-            last_star_index = Some(pattern_index);
-            pattern_index += 1;
-            last_star_match_index = text_index;
-            continue;
-        }
-
-        if let Some(star_index) = last_star_index {
-            pattern_index = star_index + 1;
-            last_star_match_index += 1;
-            text_index = last_star_match_index;
-            continue;
-        }
-
-        return false;
-    }
-
-    // trailing stars can match an empty suffix
-    while pattern_index < pattern_bytes.len() && pattern_bytes[pattern_index] == b'*' {
-        pattern_index += 1;
-    }
-
-    pattern_index == pattern_bytes.len()
 }
 
 /// Resolve one initializer expression for a symbol declaration.

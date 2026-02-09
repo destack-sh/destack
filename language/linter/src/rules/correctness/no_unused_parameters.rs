@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::collect_module_symbol_usage;
+use crate::rules::common::{collect_module_symbol_usage, collect_parameter_value_binding_symbols};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -89,17 +89,19 @@ impl LintRule for NoUnusedParameters {
                         .with_label("this parameter is never used"),
                     );
                 }
-                dir::Parameter::Pattern { pattern, .. }
-                | dir::Parameter::VariadicPattern { pattern, .. } => {
+                dir::Parameter::Pattern { .. } | dir::Parameter::VariadicPattern { .. } => {
                     let mut bindings = HashSet::new();
 
                     // collect nested pattern bindings from this parameter
-                    collect_value_binding_symbols_for_pattern(
+                    collect_parameter_value_binding_symbols(
                         ctx.tree,
-                        *pattern,
                         ctx.symbols,
+                        parameter_id,
                         &mut bindings,
                     );
+
+                    // keep only pattern-local bindings
+                    bindings.remove(&symbol_id);
 
                     // report each unused binding in the parameter pattern
                     for binding_symbol in bindings {
@@ -234,107 +236,6 @@ fn parameter_name_is_ignored(ctx: &LintModuleDirContext<'_>, name: dir::StringId
         .ignored_unused_parameter_prefixes
         .iter()
         .any(|prefix| !prefix.is_empty() && text.starts_with(prefix))
-}
-
-/// Collect value-space binding symbols for a pattern subtree.
-fn collect_value_binding_symbols_for_pattern(
-    tree: &dir::NodeTree,
-    pattern_id: dir::LocalNodeId<dir::Pattern>,
-    symbols: &dir::SymbolTable,
-    bindings: &mut HashSet<dir::LocalSymbolId>,
-) {
-    let pattern = tree.get(pattern_id);
-
-    // record the current pattern binding
-    if let Some(symbol_id) = pattern.symbol() {
-        let symbol = symbols.get_symbol(symbol_id);
-        if matches!(
-            symbol.space,
-            dir::SymbolSpace::Value | dir::SymbolSpace::TypeValue
-        ) {
-            bindings.insert(symbol_id);
-        }
-    }
-
-    // recurse into nested patterns
-    match pattern {
-        dir::Pattern::Wildcard | dir::Pattern::Expression { .. } => {}
-        dir::Pattern::Must(inner)
-        | dir::Pattern::ReferenceOf { right: inner, .. }
-        | dir::Pattern::ValueOf { right: inner, .. } => {
-            collect_value_binding_symbols_for_pattern(tree, *inner, symbols, bindings);
-        }
-        dir::Pattern::Range { start, end, .. } => {
-            if let Some(start) = start {
-                collect_value_binding_symbols_for_pattern(tree, *start, symbols, bindings);
-            }
-            if let Some(end) = end {
-                collect_value_binding_symbols_for_pattern(tree, *end, symbols, bindings);
-            }
-        }
-        dir::Pattern::Tuple { fields }
-        | dir::Pattern::TaggedTuple { fields, .. }
-        | dir::Pattern::Array { fields }
-        | dir::Pattern::Object { fields }
-        | dir::Pattern::TaggedObject { fields, .. } => {
-            for field_id in fields {
-                collect_value_binding_symbols_for_field(tree, *field_id, symbols, bindings);
-            }
-        }
-        dir::Pattern::Union { patterns } => {
-            for pattern_id in patterns {
-                collect_value_binding_symbols_for_pattern(tree, *pattern_id, symbols, bindings);
-            }
-        }
-        dir::Pattern::Binding { pattern, .. } => {
-            if let Some(pattern) = pattern {
-                collect_value_binding_symbols_for_pattern(tree, *pattern, symbols, bindings);
-            }
-        }
-    }
-}
-
-/// Collect value-space binding symbols for a pattern field.
-fn collect_value_binding_symbols_for_field(
-    tree: &dir::NodeTree,
-    field_id: dir::LocalNodeId<dir::PatternField>,
-    symbols: &dir::SymbolTable,
-    bindings: &mut HashSet<dir::LocalSymbolId>,
-) {
-    let field = tree.get(field_id);
-
-    // record direct field bindings
-    if let Some(symbol_id) = field.symbol() {
-        let symbol = symbols.get_symbol(symbol_id);
-        if matches!(
-            symbol.space,
-            dir::SymbolSpace::Value | dir::SymbolSpace::TypeValue
-        ) {
-            bindings.insert(symbol_id);
-        }
-    }
-
-    // recurse into nested field patterns
-    match field {
-        dir::PatternField::Named {
-            pattern: Some(pattern),
-            ..
-        }
-        | dir::PatternField::Computed {
-            pattern: Some(pattern),
-            ..
-        }
-        | dir::PatternField::Positional { pattern } => {
-            collect_value_binding_symbols_for_pattern(tree, *pattern, symbols, bindings);
-        }
-        dir::PatternField::Spread {
-            pattern: Some(pattern),
-            ..
-        } => {
-            collect_value_binding_symbols_for_pattern(tree, *pattern, symbols, bindings);
-        }
-        _ => {}
-    }
 }
 
 #[cfg(test)]
