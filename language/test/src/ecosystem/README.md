@@ -56,10 +56,10 @@ Ignored cases include known failures and explicit ignore entries.
 | graphql-codegen | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
 | graphql-js | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
 | hono    | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| io-ts   | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| io-ts   |  pass  | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     1  |     0  |       7  |     8 | 100.00% |    12.50% |
 | jest    | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| jotai   | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| ms      | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| jotai   |  pass  | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     1  |     0  |       7  |     8 | 100.00% |    12.50% |
+| ms      |  pass  | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     1  |     0  |       7  |     8 | 100.00% |    12.50% |
 | nest    | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
 | nextjs  | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
 | nuxt    | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
@@ -74,8 +74,8 @@ Ignored cases include known failures and explicit ignore entries.
 | react-query | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
 | redux-toolkit | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
 | remix   | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| runtypes | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| rxjs    | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| runtypes |  pass  | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     1  |     0  |       7  |     8 | 100.00% |    12.50% |
+| rxjs    |  pass  | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     1  |     0  |       7  |     8 | 100.00% |    12.50% |
 | solid   | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
 | storybook | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
 | sveltekit | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
@@ -93,18 +93,18 @@ Ignored cases include known failures and explicit ignore entries.
 | typegpu | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
 | typescript | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
 | typescript-eslint | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| valibot | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| valibot |  pass  | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     1  |     0  |       7  |     8 | 100.00% |    12.50% |
 | vite    | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
 | vitest  | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
 | vscode  | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
 | vue     | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
 | yarn-berry | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| zod     | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
+| zod     |  pass  | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     1  |     0  |       7  |     8 | 100.00% |    12.50% |
 | zustand | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
 |---------|--------|--------|--------|--------|--------|--------|--------|--------|--------|--------|---------|-------|---------|------------|
-| total   |   -    |   -    |   -    |   -    |   -    |   -    |   -    |   -    |     0  |     0  |     464  |   464 |       - |     0.00% |
+| total   |   -    |   -    |   -    |   -    |   -    |   -    |   -    |   -    |     7  |     0  |     457  |   464 | 100.00% |     1.51% |
 
-Total Blended Pass Rate: **-** (0.00% incl. ignored)
+Total Blended Pass Rate: **100.00%** (1.51% incl. ignored)
 <!-- end:summary-results -->
 
 ## Manifest Schema
