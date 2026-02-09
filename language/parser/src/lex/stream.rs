@@ -101,6 +101,12 @@ impl TokenStream {
         self.lexer.tree_state() != TreeState::None
     }
 
+    /// Return true when the lexer is inside a tree attribute expression container.
+    #[inline]
+    pub fn in_tree_attribute_expression(&self) -> bool {
+        self.lexer.in_tree_attribute_expression()
+    }
+
     /// Return true when tree literal lexing is enabled.
     #[inline]
     pub fn allow_tree_literals(&self) -> bool {
