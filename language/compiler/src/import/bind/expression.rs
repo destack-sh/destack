@@ -164,10 +164,29 @@ impl Compiler {
                 items,
                 arguments,
             } => {
-                let target = self
-                    .program
-                    .strings
-                    .intern_from(&ast.strings, *target);
+                let (target, dependency_target) = match target {
+                    ast::ImportTarget::String(target) => {
+                        let target = self.program.strings.intern_from(&ast.strings, *target);
+                        (destack_dir::ImportTarget::String(target), Some(target))
+                    }
+                    ast::ImportTarget::Expression { target } => {
+                        let target = self.bind_expression(
+                            module,
+                            ast,
+                            scope,
+                            *target,
+                            Some(expression_id),
+                            tree,
+                            symbols,
+                            types,
+                            space_order,
+                        );
+                        (
+                            destack_dir::ImportTarget::Expression { target },
+                            None,
+                        )
+                    }
+                };
                 let source = self.bind_dependency_source(*source);
                 // items
                 let items: Vec<_> = items
@@ -179,7 +198,7 @@ impl Compiler {
                             scope,
                             source,
                             *kind,
-                            Some(target),
+                            dependency_target,
                             *item,
                             Some(expression_id),
                             tree,

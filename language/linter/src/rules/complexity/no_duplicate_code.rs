@@ -1308,7 +1308,14 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
             } => {
                 self.push_debug("expr_import_source", *source);
                 self.push_debug("expr_import_kind", *kind);
-                self.push_literal_id("expr_import_target", *target, "$str");
+                match target {
+                    ast::ImportTarget::String(target) => {
+                        self.push_literal_id("expr_import_target", *target, "$str");
+                    }
+                    ast::ImportTarget::Expression { .. } => {
+                        self.push_same("expr_import_target", "$expr");
+                    }
+                }
             }
             ast::Expression::Export { kind, target, .. } => {
                 self.push_debug("expr_export_kind", *kind);

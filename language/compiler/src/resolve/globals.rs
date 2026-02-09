@@ -574,10 +574,26 @@ impl Compiler {
                 continue;
             }
             match tree.get(expression_id) {
-                Expression::UnresolvedImport { target, kind, .. }
-                | Expression::UnresolvedReExport { target, kind, .. }
-                | Expression::Import { target, kind, .. }
+                Expression::UnresolvedImport { target, kind, .. } => {
+                    let target = match target {
+                        destack_dir::ImportTarget::String(target) => *target,
+                        destack_dir::ImportTarget::Expression { .. } => continue,
+                    };
+                    targets.push(DependencyTarget {
+                        target,
+                        node: expression_id.into_global_any(module_id),
+                        kind: *kind,
+                    });
+                }
+                Expression::UnresolvedReExport { target, kind, .. }
                 | Expression::ReExport { target, kind, .. } => {
+                    targets.push(DependencyTarget {
+                        target: *target,
+                        node: expression_id.into_global_any(module_id),
+                        kind: *kind,
+                    });
+                }
+                Expression::Import { target, kind, .. } => {
                     targets.push(DependencyTarget {
                         target: *target,
                         node: expression_id.into_global_any(module_id),

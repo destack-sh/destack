@@ -3,7 +3,8 @@ use crate::{ParseError, ParseResult, Parser};
 
 use destack_ast::{
     Argument, Declaration, DeclarationDescriptor, DependencyItem, DependencyKind, DependencyMode,
-    Expression, ImportAliasTarget, ImportSource, Keyword, LocalNodeId, Name, TokenType,
+    Expression, ImportAliasTarget, ImportSource, ImportTarget, Keyword, LocalNodeId, Name,
+    TokenType,
 };
 use destack_base::StringId;
 use destack_source::NodeSpanType;
@@ -17,9 +18,35 @@ impl Parser {
         // keyword
         self.eat_keyword(Keyword::Import)?;
 
-        // target
+        // open call
         self.eat_token(TokenType::OpenParenthesis)?;
-        let (target, target_span) = self.eat_string_literal_with_span()?;
+        self.eat_newlines_maybe()?;
+
+        // dynamic imports require at least one argument
+        if self.peek_is(TokenType::CloseParenthesis) {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
+
+        // parse the first argument as the import target
+        let target_expression = self.with_options(
+            self.options
+                .nested()
+                .not_in_position()
+                .not_in_sequence_expression(),
+            |parser| parser.eat_expression(),
+        )?;
+
+        // keep static string targets as interned strings
+        let target = match self.tree.get(target_expression) {
+            Expression::ScalarLiteral(destack_ast::ScalarLiteral::String(target)) => {
+                ImportTarget::String(*target)
+            }
+            _ => ImportTarget::Expression {
+                target: target_expression,
+            },
+        };
+
+        // parse optional import attributes argument(s)
         self.eat_newlines_maybe()?;
         let arguments = if self.is_item_stop() {
             self.eat_item_stop_with_newlines()?;
@@ -34,6 +61,7 @@ impl Parser {
         } else {
             None
         };
+        self.eat_newlines_maybe()?;
         self.eat_token(TokenType::CloseParenthesis)?;
 
         // import
@@ -48,7 +76,8 @@ impl Parser {
             self.get_span_from(start),
         );
 
-        // set main span to the import target string
+        // set main span to the first argument
+        let target_span = self.tree.get_span(target_expression);
         self.tree.set_main_span(import_id, target_span);
 
         Ok(import_id)
@@ -143,7 +172,7 @@ impl Parser {
             Expression::Import {
                 source: ImportSource::ImportStatement,
                 kind: kind.unwrap_or(DependencyKind::Value),
-                target,
+                target: ImportTarget::String(target),
                 items,
                 arguments,
             },
@@ -809,11 +838,17 @@ impl Parser {
 mod tests {
     use destack_ast::{
         Argument, Declaration, DependencyItem, DependencyKind, DependencyMode, Expression,
-        ImportAliasTarget, ImportSource, Name, ScalarLiteral,
+        ImportAliasTarget, ImportSource, ImportTarget, Name, ScalarLiteral,
     };
     use destack_source::LanguageType;
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
+
+    fn assert_import_target_string(parser: &crate::Parser, target: &ImportTarget, expected: &str) {
+        assert_node!(target, ImportTarget::String(target) => {
+            assert_string!(parser, *target, expected);
+        });
+    }
 
     #[test]
     fn test_parse_import_simple() {
@@ -827,7 +862,7 @@ mod tests {
             assert_eq!(*source, ImportSource::ImportStatement);
             assert_eq!(*kind, DependencyKind::Value);
             assert_eq!(items.len(), 0);
-            assert_string!(parser, *target, "destack");
+            assert_import_target_string(&parser, target, "destack");
         });
     }
 
@@ -846,7 +881,7 @@ mod tests {
                 assert_eq!(*mode, DependencyMode::Default);
                 assert_string!(parser, *alias, "os");
             });
-            assert_string!(parser, *target, "os");
+            assert_import_target_string(&parser, target, "os");
         });
     }
 
@@ -862,7 +897,7 @@ mod tests {
             assert_eq!(*source, ImportSource::ImportStatement);
             assert_eq!(*kind, DependencyKind::Value);
             assert_eq!(items.len(), 0);
-            assert_string!(parser, *target, "destack.geometry");
+            assert_import_target_string(&parser, target, "destack.geometry");
             // with { bar: true }
             let arguments = arguments.as_ref().expect("expected arguments");
             assert_eq!(arguments.len(), 1);
@@ -893,7 +928,7 @@ mod tests {
                 assert_string!(parser, name.string(), "Vector3");
                 assert_string!(parser, *alias, "V3");
             });
-            assert_string!(parser, *target, "ds.geometry");
+            assert_import_target_string(&parser, target, "ds.geometry");
         });
     }
 
@@ -912,7 +947,7 @@ mod tests {
                 assert_eq!(*mode, DependencyMode::Namespace);
                 assert_string!(parser, *alias, "geom");
             });
-            assert_string!(parser, *target, "ds/geometry");
+            assert_import_target_string(&parser, target, "ds/geometry");
         });
     }
 
@@ -933,7 +968,7 @@ import {
         assert_node!(parser.tree, import_id, Expression::Import { source, kind, target, items, .. } => {
             assert_eq!(*source, ImportSource::ImportStatement);
             assert_eq!(*kind, DependencyKind::Value);
-            assert_string!(parser, *target, "./lib/object.ng");
+            assert_import_target_string(&parser, target, "./lib/object.ng");
 
             assert_eq!(items.len(), 2);
             assert_node!(parser.tree, items[0], DependencyItem { kind, name: Some(name), alias,.. } => {
@@ -971,7 +1006,7 @@ import {
                 assert_string!(parser, name.string(), "Item");
             });
             // `foo`
-            assert_string!(parser, *target, "foo");
+            assert_import_target_string(&parser, target, "foo");
         });
     }
 
@@ -1000,7 +1035,7 @@ import {
 
         assert_node!(parser.tree, import_id, Expression::Import { items, target, .. } => {
             assert_eq!(items.len(), 1);
-            assert_string!(parser, *target, "./a");
+            assert_import_target_string(&parser, target, "./a");
             assert_node!(parser.tree, items[0], DependencyItem { mode, name: None, alias: Some(alias), .. } => {
                 assert_eq!(*mode, DependencyMode::Default);
                 assert_string!(parser, *alias, "type");
@@ -1016,7 +1051,7 @@ import {
 
         assert_node!(parser.tree, import_id, Expression::Import { items, target, .. } => {
             assert!(items.is_empty());
-            assert_string!(parser, *target, "foo");
+            assert_import_target_string(&parser, target, "foo");
         });
     }
 
@@ -1028,7 +1063,7 @@ import {
 
         assert_node!(parser.tree, import_id, Expression::Import { items, target, .. } => {
             assert_eq!(items.len(), 1);
-            assert_string!(parser, *target, "foo");
+            assert_import_target_string(&parser, target, "foo");
             assert_node!(parser.tree, items[0], DependencyItem { kind, name: Some(name), alias: Some(alias), .. } => {
                 assert_eq!(*kind, Some(DependencyKind::Type));
                 assert!(matches!(name, Name::String(_)));
@@ -1118,7 +1153,7 @@ import {
                 assert_eq!(*mode, DependencyMode::Namespace);
                 assert_string!(parser, *alias, "b");
             });
-            assert_string!(parser, *target, "foo");
+            assert_import_target_string(&parser, target, "foo");
         });
     }
 
@@ -1279,7 +1314,7 @@ export type { CreateUIMessage, UIMessage }
         parser.eat_newline().unwrap();
 
         let export_id = parser.eat_export().unwrap();
-        assert_node!(parser.tree, export_id, Expression::Export { kind, target, items } => {
+        assert_node!(parser.tree, export_id, Expression::Export { kind, target, items, .. } => {
             assert_eq!(*kind, DependencyKind::Type);
             assert!(target.is_none());
             assert_eq!(items.len(), 2);

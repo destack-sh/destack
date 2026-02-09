@@ -34,27 +34,32 @@ impl Compiler {
                 items,
                 arguments,
             } => {
-                let loader_override = self.loader_from_import_attributes(arguments.as_ref(), tree);
-                let Some(remote_target) = self.resolve_import_maybe(
-                    module,
-                    dir,
-                    profile,
-                    expression_id.into_global_any(module.id),
-                    *source,
-                    *target,
-                    *kind,
-                    loader_override,
-                )?
-                else {
-                    return Ok(());
-                };
-                Expression::Import {
-                    source: *source,
-                    kind: *kind,
-                    target: *target,
-                    target_module: remote_target,
-                    items: items.clone(),
-                    arguments: arguments.clone(),
+                if let destack_dir::ImportTarget::String(target) = target {
+                    let loader_override =
+                        self.loader_from_import_attributes(arguments.as_ref(), tree);
+                    let Some(remote_target) = self.resolve_import_maybe(
+                        module,
+                        dir,
+                        profile,
+                        expression_id.into_global_any(module.id),
+                        *source,
+                        *target,
+                        *kind,
+                        loader_override,
+                    )?
+                    else {
+                        return Ok(());
+                    };
+                    Expression::Import {
+                        source: *source,
+                        kind: *kind,
+                        target: *target,
+                        target_module: remote_target,
+                        items: items.clone(),
+                        arguments: arguments.clone(),
+                    }
+                } else {
+                    expression.clone()
                 }
             }
 

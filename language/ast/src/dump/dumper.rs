@@ -478,6 +478,26 @@ impl Dump for ImportSource {
     }
 }
 
+/// Dump an ImportTarget as a structured representation.
+impl Dump for ImportTarget {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        match self {
+            ImportTarget::String(target) => {
+                dumper
+                    .object("ImportTarget::String")
+                    .field("target", target)
+                    .end();
+            }
+            ImportTarget::Expression { target } => {
+                dumper
+                    .object("ImportTarget::Expression")
+                    .field("target_id", &target.id)
+                    .end();
+            }
+        }
+    }
+}
+
 /// Dump an ImportAliasTarget as a structured representation.
 impl Dump for ImportAliasTarget {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {

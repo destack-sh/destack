@@ -241,10 +241,19 @@ fn collect_organize_imports_action(session: &Session, file: FileId, actions: &mu
         // stop once we hit the first non import expression after imports
         let expr = ctx.ast.tree.get(*expr_id);
         let target = match expr {
-            ast::Expression::Import { target, .. } => Some(*target),
+            ast::Expression::Import {
+                source: ast::ImportSource::ImportStatement | ast::ImportSource::ImportEquals,
+                target: ast::ImportTarget::String(target),
+                ..
+            } => Some(*target),
             ast::Expression::Statement(inner_id) => {
                 let inner = ctx.ast.tree.get(*inner_id);
-                if let ast::Expression::Import { target, .. } = inner {
+                if let ast::Expression::Import {
+                    source: ast::ImportSource::ImportStatement | ast::ImportSource::ImportEquals,
+                    target: ast::ImportTarget::String(target),
+                    ..
+                } = inner
+                {
                     Some(*target)
                 } else {
                     None

@@ -1236,6 +1236,9 @@ fn detect_import_context(
             let ast::Expression::Import { target, .. } = expr else {
                 continue;
             };
+            let ast::ImportTarget::String(target) = target else {
+                continue;
+            };
 
             // resolve the target module from the import specifier
             let target_specifier = ctx.ast.strings.get(*target).to_string();
