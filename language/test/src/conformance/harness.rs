@@ -123,8 +123,8 @@ impl Suite for ConformanceHarnessSuite {
         };
 
         let Some(suite_result) = suite_result else {
-            return TestResult::Skipped {
-                reason: "suite not found (run: just language/install-fixtures)".to_string(),
+            return TestResult::Failed {
+                message: format!("conformance fixture setup failed for suite '{}'", case.name),
             };
         };
 

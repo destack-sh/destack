@@ -108,7 +108,6 @@ io-ts-execute
 io-ts-import
 io-ts-lower
 io-ts-optimize
-io-ts-parse
 io-ts-resolve
 jest-analyze
 jest-elaborate
@@ -124,7 +123,6 @@ jotai-execute
 jotai-import
 jotai-lower
 jotai-optimize
-jotai-parse
 jotai-resolve
 ms-analyze
 ms-elaborate
@@ -247,7 +245,6 @@ runtypes-execute
 runtypes-import
 runtypes-lower
 runtypes-optimize
-runtypes-parse
 runtypes-resolve
 rxjs-analyze
 rxjs-elaborate
@@ -255,7 +252,6 @@ rxjs-execute
 rxjs-import
 rxjs-lower
 rxjs-optimize
-rxjs-parse
 rxjs-resolve
 solid-analyze
 solid-elaborate

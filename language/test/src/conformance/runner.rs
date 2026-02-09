@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc;
 use std::thread;
@@ -279,21 +280,75 @@ pub struct SuiteResult {
     pub duration: Duration,
 }
 
+/// Ensure the fixture root exists, auto-fetching with the suite fetch script when missing.
+fn ensure_suite_root_exists<S: ConformanceSuite>(suite: &S) -> Result<(), String> {
+    if suite.root().exists() {
+        return Ok(());
+    }
+
+    let Some(conformance_dir) = suite.root().parent() else {
+        return Err(format!(
+            "invalid suite root without parent: {}",
+            suite.root().display()
+        ));
+    };
+
+    let fetch_script = conformance_dir.join(format!("{}-fetch.sh", suite.name()));
+    if !fetch_script.exists() {
+        return Err(format!(
+            "fixture fetch script not found: {}",
+            fetch_script.display()
+        ));
+    }
+
+    eprintln!(
+        "{}: {} not found at {}",
+        color::yellow("warning"),
+        suite.name(),
+        suite.root().display()
+    );
+    eprintln!("attempting auto-fetch using {}", fetch_script.display());
+
+    let status = Command::new("bash")
+        .arg(&fetch_script)
+        .status()
+        .map_err(|error| format!("failed to run {}: {error}", fetch_script.display()))?;
+
+    if !status.success() {
+        return Err(format!(
+            "fetch script failed with status {}: {}",
+            status,
+            fetch_script.display()
+        ));
+    }
+
+    if !suite.root().exists() {
+        return Err(format!(
+            "suite still missing after auto-fetch: {}",
+            suite.root().display()
+        ));
+    }
+
+    Ok(())
+}
+
 /// Run a conformance suite with the standard test harness.
-/// Returns Some(SuiteResult) on success, None if suite not found.
+/// Returns Some(SuiteResult) on success.
+/// Returns None only in list mode or when fixture setup failed.
 pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
     suite: &S,
     options: &TestOptions,
     update_known_failures: bool,
 ) -> Option<SuiteResult> {
-    // check suite exists
-    if !suite.root().exists() {
+    // ensure suite fixtures exist, try auto-fetch when missing
+    if let Err(error) = ensure_suite_root_exists(suite) {
         eprintln!(
             "{}: {} not found at {}",
             color::red("error"),
             suite.name(),
             suite.root().display()
         );
+        eprintln!("{error}");
         eprintln!();
         eprintln!("{}", suite.download_instructions());
         return None;
@@ -1531,5 +1586,131 @@ fn format_rate_delta(delta: f64) -> String {
         color::red(&format!("{delta:.2}%"))
     } else {
         color::dim("±0.00%")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+    use std::path::{Path, PathBuf};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    use destack_source::FileType;
+
+    use super::{ConformanceSuite, Test, TestOutcome, ensure_suite_root_exists};
+
+    #[derive(Clone)]
+    struct FakeSuite {
+        name: &'static str,
+        root: PathBuf,
+    }
+
+    impl ConformanceSuite for FakeSuite {
+        fn name(&self) -> &str {
+            self.name
+        }
+
+        fn root(&self) -> &Path {
+            &self.root
+        }
+
+        fn known_failures_path(&self) -> PathBuf {
+            self.root.join("known-failures.txt")
+        }
+
+        fn discover(&self) -> Vec<Test> {
+            vec![Test::pass("sample.js", FileType::JavaScript)]
+        }
+
+        fn run(&self, _test: &Test) -> TestOutcome {
+            TestOutcome::Passed
+        }
+
+        fn download_instructions(&self) -> String {
+            "run fixture fetch".to_string()
+        }
+    }
+
+    fn unique_temp_dir(label: &str) -> PathBuf {
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock before unix epoch")
+            .as_nanos();
+        let process_id = std::process::id();
+        std::env::temp_dir().join(format!(
+            "destack-conformance-runner-{label}-{process_id}-{timestamp}"
+        ))
+    }
+
+    #[test]
+    fn test_ensure_suite_root_exists_when_present() {
+        let temp_dir = unique_temp_dir("present");
+        fs::create_dir_all(&temp_dir).expect("failed to create temp directory");
+
+        let suite = FakeSuite {
+            name: "present",
+            root: temp_dir.join("present"),
+        };
+        fs::create_dir_all(&suite.root).expect("failed to create suite root");
+
+        let result = ensure_suite_root_exists(&suite);
+        assert!(result.is_ok(), "expected success, got: {result:?}");
+
+        fs::remove_dir_all(&temp_dir).expect("failed to remove temp directory");
+    }
+
+    #[test]
+    fn test_ensure_suite_root_exists_auto_fetches_when_missing() {
+        let temp_dir = unique_temp_dir("autofetch");
+        fs::create_dir_all(&temp_dir).expect("failed to create temp directory");
+
+        let suite_name = "autofetch";
+        let conformance_dir = temp_dir.join("conformance");
+        fs::create_dir_all(&conformance_dir).expect("failed to create conformance directory");
+
+        let suite = FakeSuite {
+            name: suite_name,
+            root: conformance_dir.join(suite_name),
+        };
+
+        let script_path = conformance_dir.join(format!("{suite_name}-fetch.sh"));
+        let script = format!(
+            "#!/usr/bin/env bash\nset -euo pipefail\nSCRIPT_DIR=\"$(cd \"$(dirname \"${{BASH_SOURCE[0]}}\")\" && pwd)\"\nmkdir -p \"$SCRIPT_DIR/{suite_name}\"\n"
+        );
+        fs::write(&script_path, script).expect("failed to write fetch script");
+
+        let result = ensure_suite_root_exists(&suite);
+        assert!(result.is_ok(), "expected success, got: {result:?}");
+        assert!(
+            suite.root.exists(),
+            "suite root should exist after auto-fetch"
+        );
+
+        fs::remove_dir_all(&temp_dir).expect("failed to remove temp directory");
+    }
+
+    #[test]
+    fn test_ensure_suite_root_exists_errors_without_fetch_script() {
+        let temp_dir = unique_temp_dir("missing-script");
+        fs::create_dir_all(&temp_dir).expect("failed to create temp directory");
+
+        let suite_name = "missing-script";
+        let conformance_dir = temp_dir.join("conformance");
+        fs::create_dir_all(&conformance_dir).expect("failed to create conformance directory");
+
+        let suite = FakeSuite {
+            name: suite_name,
+            root: conformance_dir.join(suite_name),
+        };
+
+        let result = ensure_suite_root_exists(&suite);
+        assert!(result.is_err(), "expected an error when script is missing");
+        let message = result.err().expect("expected error message");
+        assert!(
+            message.contains("fixture fetch script not found"),
+            "unexpected error message: {message}"
+        );
+
+        fs::remove_dir_all(&temp_dir).expect("failed to remove temp directory");
     }
 }

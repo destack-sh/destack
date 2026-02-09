@@ -22,6 +22,8 @@ However, we do not expect or need to reach 100% _general_ conformance across all
 The pass rate intentionally excludes the explicitly ignored tests.
 As described above, we exclude a small subset of legacy, non-standard and mutually conflicting test expectations.
 (See the individual *-ignored.txt files for details.)
+When conformance fixtures are missing, the runner attempts to fetch them automatically with the suite fetch scripts.
+If auto-fetch cannot satisfy a suite, the run fails with an explicit error instead of skipping.
 
 <!-- (results are automatically updated by the conformance test runner) -->
 <!-- begin:summary-results -->
