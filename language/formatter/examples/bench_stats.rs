@@ -166,6 +166,9 @@ struct BenchSummary {
     mean_work: Duration,
     files_per_second: f64,
     lines_per_second: f64,
+    parse_lines_per_second: f64,
+    format_lines_per_second: f64,
+    print_lines_per_second: f64,
     input_mib_per_second: f64,
     output_mib_per_second: f64,
     cache: FormatterCacheStatsSnapshot,
@@ -706,6 +709,21 @@ fn summarize(
     } else {
         source_lines_per_run as f64 / mean.as_secs_f64()
     };
+    let parse_lines_per_second = if mean_parse.is_zero() {
+        f64::INFINITY
+    } else {
+        source_lines_per_run as f64 / mean_parse.as_secs_f64()
+    };
+    let format_lines_per_second = if mean_format.is_zero() {
+        f64::INFINITY
+    } else {
+        source_lines_per_run as f64 / mean_format.as_secs_f64()
+    };
+    let print_lines_per_second = if mean_print.is_zero() {
+        f64::INFINITY
+    } else {
+        source_lines_per_run as f64 / mean_print.as_secs_f64()
+    };
     let input_mib_per_second = if mean.is_zero() {
         f64::INFINITY
     } else {
@@ -781,6 +799,9 @@ fn summarize(
         mean_work,
         files_per_second,
         lines_per_second,
+        parse_lines_per_second,
+        format_lines_per_second,
+        print_lines_per_second,
         input_mib_per_second,
         output_mib_per_second,
         cache,
@@ -915,7 +936,7 @@ fn print_table(summary: &BenchSummary, color: bool) {
         reset = style.reset
     );
     println!(
-        "  {bold}{:<5} {:>10} {:>10} {:>10} {:>10} {:>9} {:>10}{reset}",
+        "  {bold}{:<5} {:>10} {:>10} {:>10} {:>10} {:>9} {:>10} {:>10}{reset}",
         "run",
         "parse",
         "format",
@@ -923,12 +944,13 @@ fn print_table(summary: &BenchSummary, color: bool) {
         "total",
         "share",
         "lines/s",
+        "fmt l/s",
         bold = style.bold,
         reset = style.reset
     );
     println!(
         "  {dim}{}{reset}",
-        "-".repeat(76),
+        "-".repeat(87),
         dim = style.dim,
         reset = style.reset
     );
@@ -937,8 +959,10 @@ fn print_table(summary: &BenchSummary, color: bool) {
         let share = run.total.as_secs_f64() / summary.mean.as_secs_f64().max(0.000_001);
         let heat = style.color_for_range(run.total, summary.min, summary.max);
         let run_lines_per_second = run.source_lines as f64 / run.total.as_secs_f64().max(0.000_001);
+        let run_format_lines_per_second =
+            run.source_lines as f64 / run.format.as_secs_f64().max(0.000_001);
         println!(
-            "  {:<5} {:>10} {:>10} {:>10} {heat}{:>10}{reset} {:>8} {:>10}",
+            "  {:<5} {:>10} {:>10} {:>10} {heat}{:>10}{reset} {:>8} {:>10} {:>10}",
             index + 1,
             format_duration(run.parse),
             format_duration(run.format),
@@ -946,6 +970,7 @@ fn print_table(summary: &BenchSummary, color: bool) {
             format_duration(run.total),
             format_percent(share),
             format_count_rate_per_second(run_lines_per_second),
+            format_count_rate_per_second(run_format_lines_per_second),
             heat = heat,
             reset = style.reset
         );
@@ -1218,6 +1243,18 @@ fn print_table(summary: &BenchSummary, color: bool) {
         print_heat = style.color_for_ratio(print_ratio),
         reset = style.reset
     );
+    println!(
+        "  parse lines/s:     {:>10}",
+        format_count_rate_per_second(summary.parse_lines_per_second)
+    );
+    println!(
+        "  format lines/s:    {:>10}",
+        format_count_rate_per_second(summary.format_lines_per_second)
+    );
+    println!(
+        "  print lines/s:     {:>10}",
+        format_count_rate_per_second(summary.print_lines_per_second)
+    );
 
     println!(
         "  files/s:           {:>10}",
@@ -1303,10 +1340,10 @@ fn print_table(summary: &BenchSummary, color: bool) {
 /// Print csv benchmark output.
 fn print_csv(summary: &BenchSummary) {
     println!(
-        "root,files,warmup_runs,measured_runs,source_lines_per_run,source_bytes_per_run,output_bytes_per_run,min_ms,mean_ms,median_ms,p95_ms,max_ms,stddev_ms,cv_pct,parse_mean_ms,format_mean_ms,print_mean_ms,files_per_sec,lines_per_sec,input_mib_per_sec,output_mib_per_sec,span_text_hits,span_text_misses,span_newline_hits,span_newline_misses,span_comment_hits,span_comment_misses,annotation_hits,annotation_misses,sink"
+        "root,files,warmup_runs,measured_runs,source_lines_per_run,source_bytes_per_run,output_bytes_per_run,min_ms,mean_ms,median_ms,p95_ms,max_ms,stddev_ms,cv_pct,parse_mean_ms,format_mean_ms,print_mean_ms,files_per_sec,lines_per_sec,parse_lines_per_sec,format_lines_per_sec,print_lines_per_sec,input_mib_per_sec,output_mib_per_sec,span_text_hits,span_text_misses,span_newline_hits,span_newline_misses,span_comment_hits,span_comment_misses,annotation_hits,annotation_misses,sink"
     );
     println!(
-        "\"{}\",{},{},{},{},{},{},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{},{},{},{},{},{},{},{},{}",
+        "\"{}\",{},{},{},{},{},{},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{},{},{},{},{},{},{},{},{},{}",
         summary.root.display(),
         summary.files,
         summary.warmup_runs,
@@ -1326,6 +1363,9 @@ fn print_csv(summary: &BenchSummary) {
         duration_ms(summary.mean_print),
         summary.files_per_second,
         summary.lines_per_second,
+        summary.parse_lines_per_second,
+        summary.format_lines_per_second,
+        summary.print_lines_per_second,
         summary.input_mib_per_second,
         summary.output_mib_per_second,
         summary.cache.span_text_hits,
@@ -1340,11 +1380,13 @@ fn print_csv(summary: &BenchSummary) {
     );
 
     println!();
-    println!("run,total_ms,work_ms,parse_ms,format_ms,print_ms,lines_per_sec");
+    println!("run,total_ms,work_ms,parse_ms,format_ms,print_ms,lines_per_sec,format_lines_per_sec");
     for (index, run) in summary.runs.iter().enumerate() {
         let run_lines_per_second = run.source_lines as f64 / run.total.as_secs_f64().max(0.000_001);
+        let run_format_lines_per_second =
+            run.source_lines as f64 / run.format.as_secs_f64().max(0.000_001);
         println!(
-            "{},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3}",
+            "{},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3}",
             index + 1,
             duration_ms(run.total),
             duration_ms(run.work_total),
@@ -1352,6 +1394,7 @@ fn print_csv(summary: &BenchSummary) {
             duration_ms(run.format),
             duration_ms(run.print),
             run_lines_per_second,
+            run_format_lines_per_second,
         );
     }
 
@@ -1417,6 +1460,7 @@ fn print_json(summary: &BenchSummary) {
                 "format_ms": duration_ms(run.format),
                 "print_ms": duration_ms(run.print),
                 "lines_per_sec": run.source_lines as f64 / run.total.as_secs_f64().max(0.000_001),
+                "format_lines_per_sec": run.source_lines as f64 / run.format.as_secs_f64().max(0.000_001),
                 "source_lines": run.source_lines,
                 "source_bytes": run.source_bytes,
                 "output_bytes": run.output_bytes,
@@ -1504,6 +1548,9 @@ fn print_json(summary: &BenchSummary) {
         "throughput": {
             "files_per_sec": summary.files_per_second,
             "lines_per_sec": summary.lines_per_second,
+            "parse_lines_per_sec": summary.parse_lines_per_second,
+            "format_lines_per_sec": summary.format_lines_per_second,
+            "print_lines_per_sec": summary.print_lines_per_second,
             "input_mib_per_sec": summary.input_mib_per_second,
             "output_mib_per_sec": summary.output_mib_per_second,
         },

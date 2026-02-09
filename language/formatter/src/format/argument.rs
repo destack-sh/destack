@@ -302,8 +302,7 @@ where
             {
                 format_grouped.format(f)?;
             } else {
-                f.context().record_best_fitting("best_fitting.argument", 2);
-                best_fitting![format_inline, format_indented].format(f)?;
+                format_grouped.format(f)?;
             }
         } else if is_single_element_parenthesized_list {
             // single argument parenthesized lists should keep the opening paren on the same line
@@ -315,9 +314,34 @@ where
             if should_force_inline {
                 format_inline.format(f)?;
             } else {
-                f.context()
-                    .record_best_fitting("best_fitting.argument.single_parenthesized", 2);
-                best_fitting![format_inline, format_indented].format(f)?;
+                // non-ascii spans can mislead source-width heuristics, keep adaptive probing for them
+                let element_source = f.context().get_span_str(element_span);
+                let line_width = usize::from(options.line_width);
+                let can_skip_best_fitting = element_source.is_ascii()
+                    && element_source.len() <= line_width.saturating_sub(2)
+                    && f.context().get_parent(element_id).is_some_and(
+                        |(parent_id, parent_type)| {
+                            if parent_type != NodeType::Expression {
+                                return false;
+                            }
+
+                            let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
+                            let parent_span =
+                                f.context().get_span::<Expression>(parent_expression_id);
+                            let parent_source = f.context().get_span_str(parent_span);
+                            parent_source.is_ascii() && parent_source.len() <= line_width
+                        },
+                    );
+
+                if can_skip_best_fitting {
+                    f.context()
+                        .increment_counter("profile.argument.single_parenthesized.fast_path", 1);
+                    format_inline.format(f)?;
+                } else {
+                    f.context()
+                        .record_best_fitting("best_fitting.argument.single_parenthesized", 2);
+                    best_fitting![format_inline, format_indented].format(f)?;
+                }
             }
         } else {
             format_grouped.format(f)?;

@@ -115,10 +115,14 @@ impl FormatterCountersCollector {
 pub struct CachedAnnotationData {
     /// Annotation ids attached to the node.
     pub ids: Vec<LocalNodeId<Annotation>>,
+    /// Whether any annotation is non-blank.
+    pub has_non_blank: bool,
     /// Whether any annotation is a prefix annotation.
     pub has_prefix: bool,
     /// Whether any annotation is an infix annotation.
     pub has_infix: bool,
+    /// Whether any annotation is a non-blank infix annotation.
+    pub has_non_blank_infix: bool,
     /// Whether any annotation is a postfix annotation.
     pub has_postfix: bool,
     /// Whether any annotation is a blank prefix annotation.
@@ -130,8 +134,10 @@ pub struct CachedAnnotationData {
 impl CachedAnnotationData {
     /// Build cached annotation metadata from annotation ids.
     pub fn from_ids(tree: &NodeTree, ids: Vec<LocalNodeId<Annotation>>) -> Self {
+        let mut has_non_blank = false;
         let mut has_prefix = false;
         let mut has_infix = false;
+        let mut has_non_blank_infix = false;
         let mut has_postfix = false;
         let mut has_blank_prefix = false;
         let mut has_blank_prefix_first = false;
@@ -139,6 +145,11 @@ impl CachedAnnotationData {
         for (index, annotation_id) in ids.iter().enumerate() {
             let annotation = tree.get::<Annotation>(*annotation_id);
             let position = annotation.position();
+            let is_non_blank = !matches!(annotation, Annotation::Blank { .. });
+
+            if is_non_blank {
+                has_non_blank = true;
+            }
 
             // general position flags
             if position == AnnotationPosition::BlockPrefix
@@ -149,6 +160,9 @@ impl CachedAnnotationData {
 
             if position == AnnotationPosition::BlockInfix {
                 has_infix = true;
+                if is_non_blank {
+                    has_non_blank_infix = true;
+                }
             }
 
             if position == AnnotationPosition::BlockPostfix
@@ -172,13 +186,26 @@ impl CachedAnnotationData {
 
         Self {
             ids,
+            has_non_blank,
             has_prefix,
             has_infix,
+            has_non_blank_infix,
             has_postfix,
             has_blank_prefix,
             has_blank_prefix_first,
         }
     }
+}
+
+/// Cached argument annotation facts used by hot call formatting paths.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct CachedArgumentAnnotationProfile {
+    /// Whether the argument has any comment annotation.
+    pub has_comment: bool,
+    /// Whether the argument has a trailing slash style comment annotation.
+    pub has_line_comment: bool,
+    /// Whether the argument has a slash style prefix comment annotation.
+    pub has_prefix_line_comment: bool,
 }
 
 /// Destack format options.
@@ -369,6 +396,8 @@ pub struct DestackFormatContext<'a> {
     pub span_has_comment_cache: RefCell<HashMap<Span, bool>>,
     /// Cached call argument expand decisions for chain planning keyed by call node id.
     pub call_chain_argument_expand_cache: RefCell<HashMap<u32, bool>>,
+    /// Cached call argument annotation profiles keyed by argument node id.
+    pub argument_annotation_profile_cache: RefCell<Vec<Option<CachedArgumentAnnotationProfile>>>,
     /// Cached sorted comment tokens for ignore-range and comment-boundary scans.
     pub comment_tokens_cache: OnceCell<Vec<TokenSpan>>,
     /// Comment spans for this file, sorted by start position.
@@ -458,6 +487,7 @@ impl<'a> DestackFormatContext<'a> {
             span_has_newline_cache: RefCell::new(HashMap::new()),
             span_has_comment_cache: RefCell::new(HashMap::new()),
             call_chain_argument_expand_cache: RefCell::new(HashMap::new()),
+            argument_annotation_profile_cache: RefCell::new(vec![None; tree.next_id() as usize]),
             comment_tokens_cache: OnceCell::new(),
             comment_spans,
             timings: timings_enabled.then(|| Rc::new(FormatterTimings::default())),
@@ -536,7 +566,12 @@ impl<'a> DestackFormatContext<'a> {
             }
         }
 
-        let len = self.get_span_str(span).chars().count();
+        let span_str = self.get_span_str(span);
+        let len = if span_str.is_ascii() {
+            span_str.len()
+        } else {
+            span_str.chars().count()
+        };
         self.span_char_len_cache.borrow_mut().insert(span, len);
         len
     }
@@ -959,6 +994,28 @@ impl<'a> DestackFormatContext<'a> {
             .is_some_and(|annotation_data| annotation_data.has_infix)
     }
 
+    /// Check if a node has a non-blank annotation.
+    #[inline]
+    pub fn has_non_blank_annotation<T>(&self, node_id: LocalNodeId<T>) -> bool
+    where
+        T: Node,
+        NodeTree: NodeTreeImpl<T>,
+    {
+        self.annotation_data_for_node(node_id)
+            .is_some_and(|annotation_data| annotation_data.has_non_blank)
+    }
+
+    /// Check if a node has a non-blank block infix annotation.
+    #[inline]
+    pub fn has_non_blank_infix_annotation<T>(&self, node_id: LocalNodeId<T>) -> bool
+    where
+        T: Node,
+        NodeTree: NodeTreeImpl<T>,
+    {
+        self.annotation_data_for_node(node_id)
+            .is_some_and(|annotation_data| annotation_data.has_non_blank_infix)
+    }
+
     /// Check if a node has a postfix annotation.
     #[inline]
     pub fn has_postfix_annotation<T>(&self, node_id: LocalNodeId<T>) -> bool
@@ -990,6 +1047,84 @@ impl<'a> DestackFormatContext<'a> {
     {
         self.annotation_data_for_node(node_id)
             .is_some_and(|annotation_data| annotation_data.has_blank_prefix_first)
+    }
+
+    /// Return cached annotation facts for one argument node.
+    #[inline]
+    pub fn argument_annotation_profile(
+        &self,
+        argument_id: LocalNodeId<Argument>,
+    ) -> CachedArgumentAnnotationProfile {
+        {
+            let cache = self.argument_annotation_profile_cache.borrow();
+            if let Some(profile) = cache
+                .get(argument_id.id as usize)
+                .and_then(|entry| entry.as_ref())
+            {
+                self.increment_counter("cache.argument_annotation_profile.hits", 1);
+                return *profile;
+            }
+        }
+
+        self.increment_counter("cache.argument_annotation_profile.misses", 1);
+        let profile = self.compute_argument_annotation_profile(argument_id);
+
+        let mut cache = self.argument_annotation_profile_cache.borrow_mut();
+        if argument_id.id as usize >= cache.len() {
+            cache.resize((argument_id.id + 1) as usize, None);
+        }
+        cache[argument_id.id as usize] = Some(profile);
+
+        profile
+    }
+
+    /// Compute annotation facts for one argument node.
+    fn compute_argument_annotation_profile(
+        &self,
+        argument_id: LocalNodeId<Argument>,
+    ) -> CachedArgumentAnnotationProfile {
+        if !self.has_annotation(argument_id) {
+            return CachedArgumentAnnotationProfile::default();
+        }
+
+        let argument_span = self.get_span(argument_id);
+        let mut profile = CachedArgumentAnnotationProfile::default();
+
+        self.with_annotations(argument_id, |annotations| {
+            for annotation_id in annotations {
+                let annotation = self.tree.get::<Annotation>(*annotation_id);
+
+                match annotation {
+                    Annotation::Blank { .. } => {}
+                    Annotation::Doc { position, .. }
+                    | Annotation::Decorator { position, .. }
+                    | Annotation::Comment { position, .. } => {
+                        let Annotation::Comment { node, .. } = annotation else {
+                            continue;
+                        };
+                        profile.has_comment = true;
+
+                        let comment = self.tree.get::<Comment>(*node);
+                        if comment.style != destack_ast::CommentStyle::Slash {
+                            continue;
+                        }
+
+                        let annotation_span = self.get_span::<Annotation>(*annotation_id);
+                        if annotation_span.start >= argument_span.end {
+                            profile.has_line_comment = true;
+                        }
+                        if matches!(
+                            position,
+                            AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+                        ) {
+                            profile.has_prefix_line_comment = true;
+                        }
+                    }
+                }
+            }
+        });
+
+        profile
     }
 
     /// Start a formatter timing scope.

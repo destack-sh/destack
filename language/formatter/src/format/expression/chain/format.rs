@@ -164,18 +164,19 @@ fn plan_chain_layout(
     context.increment_counter("profile.chain.layout.builds", 1);
 
     let mut normalized = normalize_chain_layout(context, node_id)?;
-    let chain_call_summaries = summarize_chain_calls(context, &normalized.chain);
-    let mut should_break = should_break_chain(context, &normalized.chain);
-    let has_chain_intervening_trivia =
-        chain_has_intervening_break_or_comment(context, &normalized.chain);
+    let ChainBreakAnalysis {
+        should_break: break_analysis_should_break,
+        call_summaries: chain_call_summaries,
+        has_chain_intervening_trivia,
+        has_path_tail_deferred_empty_call_boundary_comment,
+    } = analyze_chain_break(context, &normalized.chain);
+    let mut should_break = break_analysis_should_break;
     let has_multiline_nonhead_call = chain_call_summaries
         .iter()
         .skip(1)
         .any(|summary| summary.has_multiline_argument);
     let has_nonhead_nonlambda_function_call_argument =
         chain_has_nonhead_nonlambda_function_call_argument(context, &normalized.chain);
-    let has_path_tail_deferred_empty_call_boundary_comment =
-        chain_has_deferred_empty_call_boundary_comment_on_path_tail(context, &normalized.chain);
 
     // member operations with non inline annotations should keep one operation per line
     let member_has_non_inline_annotation = normalized.body.iter().any(|operation| {

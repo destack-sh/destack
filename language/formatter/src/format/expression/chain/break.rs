@@ -304,6 +304,14 @@ pub(crate) struct ChainCallSummary {
     pub(crate) has_multiline_argument: bool,
 }
 
+/// Collect break-relevant signals for one chain.
+pub(crate) struct ChainBreakAnalysis {
+    pub(crate) should_break: bool,
+    pub(crate) call_summaries: Vec<ChainCallSummary>,
+    pub(crate) has_chain_intervening_trivia: bool,
+    pub(crate) has_path_tail_deferred_empty_call_boundary_comment: bool,
+}
+
 /// Build call summaries for a chain in source order.
 pub(crate) fn summarize_chain_calls(
     context: &DestackFormatContext<'_>,
@@ -332,13 +340,140 @@ pub(crate) fn summarize_chain_calls(
                     .copied()
                     .any(|argument_id| argument_forces_multiline(context, argument_id))
             });
-
         summaries.push(ChainCallSummary {
             has_multiline_argument,
         });
     }
 
     summaries
+}
+
+/// Build chain break signals once so callers can reuse them.
+pub(crate) fn analyze_chain_break(
+    context: &DestackFormatContext<'_>,
+    chain: &[LocalNodeId<Expression>],
+) -> ChainBreakAnalysis {
+    if chain.is_empty() {
+        return ChainBreakAnalysis {
+            should_break: false,
+            call_summaries: Vec::new(),
+            has_chain_intervening_trivia: false,
+            has_path_tail_deferred_empty_call_boundary_comment: false,
+        };
+    }
+
+    let line_width = usize::from(context.options.line_width);
+    let chain_root = chain[0];
+    let chain_tail = chain[chain.len() - 1];
+    let chain_head = chain_head_id(context.tree, chain_root);
+    let call_summaries = summarize_chain_calls(context, chain);
+    let has_chain_intervening_trivia = chain_has_intervening_break_or_comment(context, chain);
+    let has_deferred_empty_call_boundary_comment = chain.iter().copied().any(|expression_id| {
+        expression_is_in_deferred_empty_call_boundary_chain(context, expression_id)
+    });
+    let root_has_path_tail_segments = matches!(
+        context.tree.get(chain_root),
+        Expression::Path { path, .. } if path.segments.len() > 1
+    );
+    let has_path_tail_deferred_empty_call_boundary_comment =
+        root_has_path_tail_segments && has_deferred_empty_call_boundary_comment;
+    let has_optional_tail = chain.iter().copied().any(|expression_id| {
+        matches!(
+            context.tree.get(expression_id),
+            Expression::Maybe { .. }
+                | Expression::Call {
+                    position: PostfixPosition::Indirect,
+                    ..
+                }
+        )
+    });
+    let has_member_access = chain.iter().copied().any(|expression_id| {
+        matches!(
+            context.tree.get(expression_id),
+            Expression::Member { .. } | Expression::PrivateMember { .. }
+        )
+    });
+    let has_chain_annotations = chain
+        .iter()
+        .copied()
+        .any(|expression_id| chain_node_has_breaking_annotation(context, expression_id))
+        || chain_node_has_breaking_annotation(context, chain_head);
+    let should_break_for_annotation_or_trivia =
+        has_chain_annotations || (has_chain_intervening_trivia && has_member_access);
+    if should_break_for_annotation_or_trivia {
+        return ChainBreakAnalysis {
+            should_break: true,
+            call_summaries,
+            has_chain_intervening_trivia,
+            has_path_tail_deferred_empty_call_boundary_comment,
+        };
+    }
+
+    let should_break_for_path_tail_comment =
+        has_path_tail_deferred_empty_call_boundary_comment && has_member_access;
+    if should_break_for_path_tail_comment {
+        return ChainBreakAnalysis {
+            should_break: true,
+            call_summaries,
+            has_chain_intervening_trivia,
+            has_path_tail_deferred_empty_call_boundary_comment,
+        };
+    }
+
+    let should_break_for_path_optional_tail =
+        has_chain_intervening_trivia && root_has_path_tail_segments && has_optional_tail;
+    if should_break_for_path_optional_tail {
+        return ChainBreakAnalysis {
+            should_break: true,
+            call_summaries,
+            has_chain_intervening_trivia,
+            has_path_tail_deferred_empty_call_boundary_comment,
+        };
+    }
+
+    // chains with no calls stay inline unless they overflow
+    if call_summaries.is_empty() {
+        return ChainBreakAnalysis {
+            should_break: false,
+            call_summaries,
+            has_chain_intervening_trivia,
+            has_path_tail_deferred_empty_call_boundary_comment,
+        };
+    }
+
+    let calls_count = call_summaries.len();
+    let has_multiline_call = call_summaries
+        .iter()
+        .any(|summary| summary.has_multiline_argument);
+    if calls_count > 1 && has_multiline_call {
+        return ChainBreakAnalysis {
+            should_break: true,
+            call_summaries,
+            has_chain_intervening_trivia,
+            has_path_tail_deferred_empty_call_boundary_comment,
+        };
+    }
+
+    let in_template_literal_interpolation = chain.iter().copied().any(|expression_id| {
+        expression_is_in_template_literal_interpolation(context, expression_id)
+    });
+    let available_width =
+        if is_call_like_argument(context, chain_tail) || in_template_literal_interpolation {
+            line_width
+        } else {
+            assignment_like_remaining_width(context, chain_root).unwrap_or(line_width)
+        };
+    let inline_len = chain_inline_len(context, chain_tail).unwrap_or(0);
+    let overflow_in_type_binary_left =
+        chain_overflows_in_type_binary_left(context, chain_tail, available_width);
+    let should_break = inline_len > available_width || overflow_in_type_binary_left;
+
+    ChainBreakAnalysis {
+        should_break,
+        call_summaries,
+        has_chain_intervening_trivia,
+        has_path_tail_deferred_empty_call_boundary_comment,
+    }
 }
 
 /// Check whether a chain node has an annotation that should force breaking.
@@ -525,86 +660,7 @@ pub(crate) fn should_break_chain(
     context: &DestackFormatContext<'_>,
     chain: &[LocalNodeId<Expression>],
 ) -> bool {
-    if chain.is_empty() {
-        return false;
-    }
-
-    let line_width = usize::from(context.options.line_width);
-    let chain_root = chain[0];
-    let chain_tail = chain[chain.len() - 1];
-    let call_summaries = summarize_chain_calls(context, chain);
-    let chain_head = chain_head_id(context.tree, chain_root);
-    let has_chain_annotations = chain
-        .iter()
-        .copied()
-        .any(|expression_id| chain_node_has_breaking_annotation(context, expression_id))
-        || chain_node_has_breaking_annotation(context, chain_head);
-    let has_chain_intervening_trivia = chain_has_intervening_break_or_comment(context, chain);
-    let has_deferred_empty_call_boundary_comment = chain.iter().copied().any(|expression_id| {
-        expression_is_in_deferred_empty_call_boundary_chain(context, expression_id)
-    });
-    let chain_root_has_multiple_path_segments = matches!(
-        context.tree.get(chain_root),
-        Expression::Path { path, .. } if path.segments.len() > 1
-    );
-    let has_optional_tail = chain.iter().copied().any(|expression_id| {
-        matches!(
-            context.tree.get(expression_id),
-            Expression::Maybe { .. }
-                | Expression::Call {
-                    position: PostfixPosition::Indirect,
-                    ..
-                }
-        )
-    });
-    let has_member_access = chain.iter().copied().any(|expression_id| {
-        matches!(
-            context.tree.get(expression_id),
-            Expression::Member { .. } | Expression::PrivateMember { .. }
-        )
-    });
-    if has_chain_annotations || (has_chain_intervening_trivia && has_member_access) {
-        return true;
-    }
-    if has_deferred_empty_call_boundary_comment && has_member_access {
-        return true;
-    }
-    if has_chain_intervening_trivia && chain_root_has_multiple_path_segments && has_optional_tail {
-        return true;
-    }
-
-    // chains with no calls stay inline unless they overflow
-    if call_summaries.is_empty() {
-        return false;
-    }
-
-    let calls_count = call_summaries.len();
-    let has_multiline_call = call_summaries
-        .iter()
-        .any(|summary| summary.has_multiline_argument);
-
-    if calls_count > 1 && has_multiline_call {
-        return true;
-    }
-
-    let in_template_literal_interpolation = chain.iter().copied().any(|expression_id| {
-        expression_is_in_template_literal_interpolation(context, expression_id)
-    });
-    let available_width =
-        if is_call_like_argument(context, chain_tail) || in_template_literal_interpolation {
-            line_width
-        } else {
-            assignment_like_remaining_width(context, chain_root).unwrap_or(line_width)
-        };
-    let inline_len = chain_inline_len(context, chain_tail).unwrap_or(0);
-    let overflow_in_type_binary_left =
-        chain_overflows_in_type_binary_left(context, chain_tail, available_width);
-
-    // avoid forcing breaks when the chain fits inline
-    if inline_len <= available_width && !overflow_in_type_binary_left {
-        return false;
-    }
-    true
+    analyze_chain_break(context, chain).should_break
 }
 
 /// Return whether a chain contains trivia between adjacent chain operations.
@@ -668,27 +724,6 @@ pub(crate) fn chain_has_nonhead_nonlambda_function_call_argument(
     }
 
     false
-}
-
-/// Return whether a path-rooted chain has deferred empty-call boundary comments.
-pub(crate) fn chain_has_deferred_empty_call_boundary_comment_on_path_tail(
-    context: &DestackFormatContext<'_>,
-    chain: &[LocalNodeId<Expression>],
-) -> bool {
-    let Some(chain_root) = chain.first().copied() else {
-        return false;
-    };
-    let root_has_path_tail_segments = matches!(
-        context.tree.get(chain_root),
-        Expression::Path { path, .. } if path.segments.len() > 1
-    );
-    if !root_has_path_tail_segments {
-        return false;
-    }
-
-    chain.iter().copied().any(|expression_id| {
-        expression_is_in_deferred_empty_call_boundary_chain(context, expression_id)
-    })
 }
 
 /// Return whether a path root should be split into synthetic chain segments.
