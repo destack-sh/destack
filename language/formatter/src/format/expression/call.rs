@@ -1,5 +1,6 @@
 use super::super::timing::tags;
 use super::*;
+use crate::CachedCallArgumentFacts;
 use destack_ast::TemplateLiteral;
 use destack_fir::write;
 
@@ -315,17 +316,29 @@ pub(super) fn call_arguments_preserve_blank_line_between(
     }
 
     let between = context.get_span_str(Span::new(left_span.file, left_span.end, right_span.start));
-    let normalized_between = between.replace("\r\n", "\n");
-    let lines: Vec<&str> = normalized_between.split('\n').collect();
-    if lines.len() < 3 {
-        return false;
+    let mut has_first_newline = false;
+    let mut current_line_has_content = false;
+
+    for character in between.chars() {
+        match character {
+            '\r' => {}
+            '\n' => {
+                if has_first_newline && !current_line_has_content {
+                    return true;
+                }
+                has_first_newline = true;
+                current_line_has_content = false;
+            }
+            c if c.is_whitespace() => {}
+            _ => {
+                if has_first_newline {
+                    current_line_has_content = true;
+                }
+            }
+        }
     }
 
-    lines
-        .iter()
-        .skip(1)
-        .take(lines.len().saturating_sub(2))
-        .any(|line| line.trim().is_empty())
+    false
 }
 
 /// Select how call argument expansion heuristics should be evaluated.
@@ -348,6 +361,7 @@ struct CallArgumentExpansionProfile {
 }
 
 /// Store one-pass facts for call argument expansion heuristics.
+#[derive(Debug, Clone, Copy, Default)]
 struct CallArgumentFacts {
     /// Whether any argument has a line comment annotation.
     has_line_comment_annotations: bool,
@@ -375,6 +389,44 @@ struct CallArgumentFacts {
     has_complex_non_callback_argument: bool,
 }
 
+impl From<CachedCallArgumentFacts> for CallArgumentFacts {
+    fn from(cached: CachedCallArgumentFacts) -> Self {
+        Self {
+            has_line_comment_annotations: cached.has_line_comment_annotations,
+            trailing_collection_argument: cached.trailing_collection_argument,
+            has_block_callback_argument: cached.has_block_callback_argument,
+            first_argument_is_block_callback: cached.first_argument_is_block_callback,
+            last_argument_is_block_callback: cached.last_argument_is_block_callback,
+            has_non_trivial_non_callback_argument: cached.has_non_trivial_non_callback_argument,
+            non_last_block_callback_count: cached.non_last_block_callback_count,
+            non_last_block_callback_index: cached.non_last_block_callback_index,
+            arrow_argument_count: cached.arrow_argument_count,
+            function_argument_count: cached.function_argument_count,
+            has_spread_argument: cached.has_spread_argument,
+            has_complex_non_callback_argument: cached.has_complex_non_callback_argument,
+        }
+    }
+}
+
+impl From<CallArgumentFacts> for CachedCallArgumentFacts {
+    fn from(facts: CallArgumentFacts) -> Self {
+        Self {
+            has_line_comment_annotations: facts.has_line_comment_annotations,
+            trailing_collection_argument: facts.trailing_collection_argument,
+            has_block_callback_argument: facts.has_block_callback_argument,
+            first_argument_is_block_callback: facts.first_argument_is_block_callback,
+            last_argument_is_block_callback: facts.last_argument_is_block_callback,
+            has_non_trivial_non_callback_argument: facts.has_non_trivial_non_callback_argument,
+            non_last_block_callback_count: facts.non_last_block_callback_count,
+            non_last_block_callback_index: facts.non_last_block_callback_index,
+            arrow_argument_count: facts.arrow_argument_count,
+            function_argument_count: facts.function_argument_count,
+            has_spread_argument: facts.has_spread_argument,
+            has_complex_non_callback_argument: facts.has_complex_non_callback_argument,
+        }
+    }
+}
+
 /// Store comment and boundary data for call argument layout decisions.
 struct CallArgumentCommentProfile {
     /// Whether any argument has a line comment annotation.
@@ -384,7 +436,7 @@ struct CallArgumentCommentProfile {
     /// Whether any non-leading argument has deferred boundary comments.
     has_deferred_inline_boundary_comment: bool,
     /// Deferred boundary comments keyed by argument index.
-    deferred_boundary_prefix_annotations: Vec<Vec<LocalNodeId<Annotation>>>,
+    deferred_boundary_prefix_annotations: Option<Vec<Vec<LocalNodeId<Annotation>>>>,
 }
 
 /// Collect one-pass comment data for call arguments.
@@ -395,7 +447,7 @@ fn collect_call_argument_comment_profile(
     let mut has_line_comment_annotations = false;
     let mut has_prefix_line_comment_annotations = false;
     let mut has_deferred_inline_boundary_comment = false;
-    let mut deferred_boundary_prefix_annotations = Vec::with_capacity(dynamic_arguments.len());
+    let mut deferred_boundary_prefix_annotations = None;
 
     for (index, argument_id) in dynamic_arguments.iter().copied().enumerate() {
         let argument_has_annotation = context.has_annotation(argument_id);
@@ -413,15 +465,16 @@ fn collect_call_argument_comment_profile(
         }
 
         // only non-leading arguments can attach deferred boundary comments
-        let deferred_boundary_comments = if index > 0 && argument_has_annotation {
-            call_argument_inline_boundary_prefix_annotations(context, argument_id)
-        } else {
-            Vec::new()
-        };
-        if !has_deferred_inline_boundary_comment && !deferred_boundary_comments.is_empty() {
-            has_deferred_inline_boundary_comment = true;
+        if index > 0 && argument_has_annotation {
+            let deferred_boundary_comments =
+                call_argument_inline_boundary_prefix_annotations(context, argument_id);
+            if !deferred_boundary_comments.is_empty() {
+                has_deferred_inline_boundary_comment = true;
+                let comments_by_index = deferred_boundary_prefix_annotations
+                    .get_or_insert_with(|| vec![Vec::new(); dynamic_arguments.len()]);
+                comments_by_index[index] = deferred_boundary_comments;
+            }
         }
-        deferred_boundary_prefix_annotations.push(deferred_boundary_comments);
     }
 
     CallArgumentCommentProfile {
@@ -554,6 +607,33 @@ fn collect_call_argument_facts(
     }
 }
 
+/// Return call argument facts with optional per-call caching and line-comment override.
+fn resolve_call_argument_facts(
+    context: &DestackFormatContext<'_>,
+    call_node_id: LocalNodeId<Expression>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+    has_line_comment_annotations_override: Option<bool>,
+) -> CallArgumentFacts {
+    let base_facts = if let Some(cached) = context.cached_call_argument_facts(call_node_id) {
+        context.increment_counter("profile.call_arguments.layout.cache.hits", 1);
+        CallArgumentFacts::from(cached)
+    } else {
+        context.increment_counter("profile.call_arguments.layout.cache.misses", 1);
+        let facts = collect_call_argument_facts(context, dynamic_arguments, None);
+        context.cache_call_argument_facts(call_node_id, CachedCallArgumentFacts::from(facts));
+        facts
+    };
+
+    if let Some(has_line_comment_annotations) = has_line_comment_annotations_override {
+        CallArgumentFacts {
+            has_line_comment_annotations,
+            ..base_facts
+        }
+    } else {
+        base_facts
+    }
+}
+
 /// Return whether a single static argument call should expand.
 fn call_force_expand_single_long_with_static_arguments(
     context: &DestackFormatContext<'_>,
@@ -626,7 +706,7 @@ fn build_call_argument_expansion_profile(
                 && (argument_has_comment_annotation(context, argument_id)
                     || has_call_infix_annotations);
         let force_expand_single_multiline_argument = mode == CallArgumentExpansionMode::Regular
-            && context.has_newline(context.get_span(argument_id))
+            && context.node_has_newline(argument_id)
             && !argument_is_collection_literal(context, argument_id)
             && !argument_is_lambda_expression(context, argument_id)
             && !argument_is_function_expression(context, argument_id)
@@ -673,7 +753,7 @@ fn build_call_argument_expansion_profile(
         && !has_call_infix_annotations
         && dynamic_arguments.iter().copied().all(|argument_id| {
             !context.has_annotation(argument_id)
-                && !context.has_newline(context.get_span(argument_id))
+                && !context.node_has_newline(argument_id)
                 && argument_is_simple_with_options(
                     context,
                     argument_id,
@@ -695,8 +775,9 @@ fn build_call_argument_expansion_profile(
         };
     }
 
-    let argument_facts = collect_call_argument_facts(
+    let argument_facts = resolve_call_argument_facts(
         context,
+        call_node_id,
         dynamic_arguments,
         has_line_comment_annotations_override,
     );
@@ -740,7 +821,7 @@ fn build_call_argument_expansion_profile(
     let has_multiple_function_arguments = arrow_argument_count >= 2 || function_argument_count >= 2;
     let has_spread_argument = argument_facts.has_spread_argument;
     let force_expand_multiline_function_composition = mode == CallArgumentExpansionMode::Regular
-        && context.has_newline(context.get_span(call_node_id))
+        && context.node_has_newline(call_node_id)
         && dynamic_arguments.len() >= 3
         && has_any_function_argument
         && !has_spread_argument;
@@ -862,8 +943,11 @@ pub(super) fn format_call_arguments<'ast>(
 
     let result = (|| {
         let line_width = usize::from(f.context().options.line_width);
+        let call_has_static_arguments = call_has_static_arguments(f.context(), call_node_id);
         let has_call_infix_annotations =
             call_has_non_blank_infix_annotation(f.context(), call_node_id);
+        let arguments_are_multiline_in_source =
+            call_arguments_are_multiline_in_source(f.context(), dynamic_arguments);
 
         // fast path: small simple argument lists should stay inline
         let simple_inline_max_value_len = if dynamic_arguments.len() <= 3 {
@@ -875,7 +959,7 @@ pub(super) fn format_call_arguments<'ast>(
             && dynamic_arguments.len() <= 4
             && matches!(f.context().tree.get(call_node_id), Expression::Call { .. })
             && !has_call_infix_annotations
-            && !call_arguments_are_multiline_in_source(f.context(), dynamic_arguments)
+            && !arguments_are_multiline_in_source
             && expression_source_len(f.context(), call_node_id) <= line_width
             && dynamic_arguments.iter().copied().all(|argument_id| {
                 argument_is_simple_with_options(
@@ -904,16 +988,15 @@ pub(super) fn format_call_arguments<'ast>(
 
         // very common single argument calls can short-circuit before heavier layout profiling
         let use_single_simple_argument_fast_path = dynamic_arguments.len() == 1
-            && !call_has_static_arguments(f.context(), call_node_id)
+            && !call_has_static_arguments
             && !has_call_infix_annotations
-            && !call_arguments_are_multiline_in_source(f.context(), dynamic_arguments)
+            && !arguments_are_multiline_in_source
             && {
                 let argument_id = dynamic_arguments[0];
                 if f.context().has_annotation(argument_id) {
                     false
                 } else {
-                    let argument_span = f.context().get_span(argument_id);
-                    if f.context().has_newline(argument_span) {
+                    if f.context().node_has_newline(argument_id) {
                         false
                     } else {
                         let value_id = argument_value_id(f.context().tree, argument_id);
@@ -984,8 +1067,7 @@ pub(super) fn format_call_arguments<'ast>(
                 if argument_has_non_blank_annotation(f.context(), argument_id) {
                     false
                 } else {
-                    let argument_span = f.context().get_span(argument_id);
-                    if f.context().has_newline(argument_span) {
+                    if f.context().node_has_newline(argument_id) {
                         false
                     } else {
                         let value_id = argument_value_id(f.context().tree, argument_id);
@@ -994,7 +1076,7 @@ pub(super) fn format_call_arguments<'ast>(
                         let line_width = usize::from(f.context().options.line_width);
                         is_trivial_expression(f.context().tree, value)
                             && ((argument_is_plain_string_literal(f.context(), argument_id)
-                                && !call_has_static_arguments(f.context(), call_node_id))
+                                && !call_has_static_arguments)
                                 || expression_source_len(f.context(), value_id) <= line_width / 2)
                     }
                 }
@@ -1042,8 +1124,9 @@ pub(super) fn format_call_arguments<'ast>(
                 || has_deferred_inline_boundary_comment)
         {
             let use_trailing_comma = f.context().options.trailing_comma == TrailingComma::All;
-            let deferred_boundary_prefix_annotations =
-                &comment_profile.deferred_boundary_prefix_annotations;
+            let deferred_boundary_prefix_annotations = comment_profile
+                .deferred_boundary_prefix_annotations
+                .as_ref();
 
             write!(f, [token("("), hard_line_break()])?;
             let format_result = write!(
@@ -1054,7 +1137,7 @@ pub(super) fn format_call_arguments<'ast>(
                             if index > 0 {
                                 let deferred_boundary_comments =
                                     deferred_boundary_prefix_annotations
-                                        .get(index)
+                                        .and_then(|comments_by_index| comments_by_index.get(index))
                                         .map(|annotations| annotations.as_slice())
                                         .unwrap_or(&[]);
                                 for annotation_id in deferred_boundary_comments.iter().copied() {
@@ -1183,12 +1266,10 @@ pub(super) fn format_call_arguments<'ast>(
                 hug_last_format.format(f)?;
             } else {
                 let line_width = usize::from(f.context().options.line_width);
-                let call_span = f.context().get_span(call_node_id);
-                let call_source_len = f.context().span_char_len(call_span);
+                let call_source_len = f.context().node_span_char_len(call_node_id);
                 let all_arguments_are_single_line_and_unannotated =
                     dynamic_arguments.iter().copied().all(|argument_id| {
-                        let argument_span = f.context().get_span(argument_id);
-                        !f.context().has_newline(argument_span)
+                        !f.context().node_has_newline(argument_id)
                             && !f.context().has_annotation(argument_id)
                     });
                 let inline_call_len = if all_arguments_are_single_line_and_unannotated {
@@ -1472,8 +1553,7 @@ pub(super) fn argument_has_multiline_prefix_annotation(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    let argument_span = context.get_span(argument_id);
-    if !context.has_newline(argument_span) {
+    if !context.node_has_newline(argument_id) {
         return false;
     }
 

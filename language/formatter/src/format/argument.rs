@@ -131,12 +131,14 @@ where
         let should_add_space = self.include_space && options.bracket_spacing && has_elements;
 
         let mut ignore_ranges_by_id = HashMap::new();
-        let comment_tokens = f.context().comment_tokens();
-        for element_id in self.elements {
-            if let Some(range_span) =
-                ignore_range_for_node(f.context(), *element_id, &comment_tokens)
-            {
-                ignore_ranges_by_id.insert(element_id.id, range_span);
+        if f.context().has_ignore_directive_markers() {
+            let comment_tokens = f.context().comment_tokens();
+            for element_id in self.elements {
+                if let Some(range_span) =
+                    ignore_range_for_node(f.context(), *element_id, &comment_tokens)
+                {
+                    ignore_ranges_by_id.insert(element_id.id, range_span);
+                }
             }
         }
         let has_ignore_ranges = !ignore_ranges_by_id.is_empty();

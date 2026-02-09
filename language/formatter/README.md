@@ -90,8 +90,14 @@ Natural sort handles numbers correctly: `a1`, `a2`, `a10` instead of `a1`, `a10`
 
 Formatter performance is measured with the same `bench_stats` pattern used by other language crates.
 Run `cargo run --release -p destack_formatter --example bench_stats -- --help` for all options.
-Default corpus is `test/fixtures/ecosystem` for better signal on real-world performance.
+Default corpus root is `test/fixtures/ecosystem/checkouts`.
+Default corpus profile is `standard`, which targets a larger representative workload for iterative perf work.
+Use `--corpus full` to benchmark all fetched ecosystem checkouts under `--root`.
+Use `--corpus quick` for a smaller representative set.
 For quick smoke runs you can use `--root test/fixtures/formatter/conformance/staging/oxfmt`.
+Use `--mode real-world` to respect file-level ignore directives and report product behavior.
+Use `--mode engine` to disable file-level ignore directives for cross-tool fairness.
+Benchmark output reports both total corpus throughput and formatted-only throughput.
 Use `--output table|csv|json` for human-readable output or machine-readable pipelines.
 The table output includes colorized latency heat, stage breakdowns, throughput, jitter, and hot-file rankings.
 Use `--timings` to enable internal formatter instrumentation.

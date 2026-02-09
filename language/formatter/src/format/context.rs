@@ -208,6 +208,35 @@ pub struct CachedArgumentAnnotationProfile {
     pub has_prefix_line_comment: bool,
 }
 
+/// Cached call argument expansion facts keyed by call expression node id.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct CachedCallArgumentFacts {
+    /// Whether any argument has a line comment annotation.
+    pub has_line_comment_annotations: bool,
+    /// Whether the last argument is a collection literal.
+    pub trailing_collection_argument: bool,
+    /// Whether any argument is a block callback.
+    pub has_block_callback_argument: bool,
+    /// Whether the first argument is a block callback.
+    pub first_argument_is_block_callback: bool,
+    /// Whether the last argument is a block callback.
+    pub last_argument_is_block_callback: bool,
+    /// Whether any non-last, non-callback argument is non-trivial.
+    pub has_non_trivial_non_callback_argument: bool,
+    /// Number of block callback arguments before the last argument.
+    pub non_last_block_callback_count: usize,
+    /// Index of the first block callback before the last argument.
+    pub non_last_block_callback_index: Option<usize>,
+    /// Number of lambda arguments.
+    pub arrow_argument_count: usize,
+    /// Number of function expression arguments.
+    pub function_argument_count: usize,
+    /// Whether any argument is a spread argument.
+    pub has_spread_argument: bool,
+    /// Whether any non-callback argument is complex and non-tree.
+    pub has_complex_non_callback_argument: bool,
+}
+
 /// Destack format options.
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct DestackFormatOptions {
@@ -248,6 +277,8 @@ pub struct DestackFormatOptions {
     pub organize_imports: OrganizeImports = OrganizeImports::Off,
     /// Sort order for import/export specifiers within `{ }`.
     pub import_sort_order: ImportSortOrder = ImportSortOrder::Natural,
+    /// Respect file-level formatter ignore directives.
+    pub respect_file_ignore: bool = true,
 }
 
 impl DestackFormatOptions {
@@ -300,6 +331,12 @@ impl DestackFormatOptions {
         self
     }
 
+    /// Set whether file-level formatter ignore directives are respected.
+    pub fn with_respect_file_ignore(mut self, respect_file_ignore: bool) -> Self {
+        self.respect_file_ignore = respect_file_ignore;
+        self
+    }
+
     /// Convert to print options (clamps line_width to u8 max).
     pub fn as_print_options(&self) -> PrintOptions {
         PrintOptions {
@@ -327,6 +364,7 @@ impl DestackFormatOptions {
             single_attribute_per_line: options.single_attribute_per_line,
             organize_imports: options.organize_imports,
             import_sort_order: options.import_sort_order,
+            respect_file_ignore: true,
         }
     }
 }
@@ -394,18 +432,28 @@ pub struct DestackFormatContext<'a> {
     pub span_has_newline_cache: RefCell<HashMap<Span, bool>>,
     /// Cached comment checks for repeated span comment predicates.
     pub span_has_comment_cache: RefCell<HashMap<Span, bool>>,
+    /// Cached span char lengths for node ids.
+    pub node_span_char_len_cache: RefCell<HashMap<u32, usize>>,
+    /// Cached node span newline predicates keyed by node id.
+    pub node_has_newline_cache: RefCell<HashMap<u32, bool>>,
     /// Cached call argument expand decisions for chain planning keyed by call node id.
     pub call_chain_argument_expand_cache: RefCell<HashMap<u32, bool>>,
     /// Cached call argument annotation profiles keyed by argument node id.
     pub argument_annotation_profile_cache: RefCell<Vec<Option<CachedArgumentAnnotationProfile>>>,
+    /// Cached call argument expansion facts keyed by call expression node id.
+    pub call_argument_facts_cache: RefCell<Vec<Option<CachedCallArgumentFacts>>>,
     /// Cached sorted comment tokens for ignore-range and comment-boundary scans.
     pub comment_tokens_cache: OnceCell<Vec<TokenSpan>>,
     /// Comment spans for this file, sorted by start position.
     pub comment_spans: Vec<Span>,
     /// Optional formatter timing collector.
     pub timings: Option<Rc<FormatterTimings>>,
+    /// Whether file text contains formatter ignore directive markers.
+    pub has_ignore_directive_markers: bool,
     /// Whether instrumentation counters should be collected.
     pub instrumentation_enabled: bool,
+    /// Whether file-level ignore was applied during formatting.
+    pub file_ignore_applied: Rc<Cell<bool>>,
     /// Shared cache instrumentation counters.
     pub cache_stats: Rc<FormatterCacheStatsCollector>,
     /// Shared generic instrumentation counters.
@@ -450,6 +498,13 @@ impl<'a> DestackFormatContext<'a> {
         timings_enabled: bool,
     ) -> Self {
         let timings_enabled = timings_enabled || timings_enabled_from_env();
+        let file_text = file.text();
+        let has_ignore_directive_markers = file_text.contains("format-ignore")
+            || file_text.contains("fmt-ignore")
+            || file_text.contains("deno-fmt-ignore")
+            || file_text.contains("prettier-ignore")
+            || file_text.contains("biome-ignore format")
+            || file_text.contains("oxfmt-ignore");
         let mut comment_spans = tokens
             .iter()
             .chain(side_tokens.iter())
@@ -486,15 +541,38 @@ impl<'a> DestackFormatContext<'a> {
             span_char_len_cache: RefCell::new(HashMap::new()),
             span_has_newline_cache: RefCell::new(HashMap::new()),
             span_has_comment_cache: RefCell::new(HashMap::new()),
+            node_span_char_len_cache: RefCell::new(HashMap::new()),
+            node_has_newline_cache: RefCell::new(HashMap::new()),
             call_chain_argument_expand_cache: RefCell::new(HashMap::new()),
             argument_annotation_profile_cache: RefCell::new(vec![None; tree.next_id() as usize]),
+            call_argument_facts_cache: RefCell::new(vec![None; tree.next_id() as usize]),
             comment_tokens_cache: OnceCell::new(),
             comment_spans,
             timings: timings_enabled.then(|| Rc::new(FormatterTimings::default())),
+            has_ignore_directive_markers,
             instrumentation_enabled: timings_enabled,
+            file_ignore_applied: Rc::new(Cell::new(false)),
             cache_stats: Rc::new(FormatterCacheStatsCollector::default()),
             counters: Rc::new(FormatterCountersCollector::default()),
         }
+    }
+
+    /// Return whether this file may contain formatter ignore directives.
+    #[inline]
+    pub fn has_ignore_directive_markers(&self) -> bool {
+        self.has_ignore_directive_markers
+    }
+
+    /// Mark that file-level ignore was applied.
+    #[inline]
+    pub fn mark_file_ignore_applied(&self) {
+        self.file_ignore_applied.set(true);
+    }
+
+    /// Return whether file-level ignore was applied.
+    #[inline]
+    pub fn file_ignore_applied(&self) -> bool {
+        self.file_ignore_applied.get()
     }
 
     /// Gets the str source backing a Span.
@@ -574,6 +652,54 @@ impl<'a> DestackFormatContext<'a> {
         };
         self.span_char_len_cache.borrow_mut().insert(span, len);
         len
+    }
+
+    /// Get the Unicode scalar count for one node span.
+    #[inline]
+    pub fn node_span_char_len<T>(&self, node_id: LocalNodeId<T>) -> usize
+    where
+        T: Node,
+        NodeTree: NodeTreeImpl<T>,
+    {
+        let node_index = node_id.id;
+
+        {
+            let cache = self.node_span_char_len_cache.borrow();
+            if let Some(len) = cache.get(&node_index) {
+                return *len;
+            }
+        }
+
+        let len = self.span_char_len(self.get_span(node_id));
+        self.node_span_char_len_cache
+            .borrow_mut()
+            .insert(node_index, len);
+
+        len
+    }
+
+    /// Return whether one node span contains a newline.
+    #[inline]
+    pub fn node_has_newline<T>(&self, node_id: LocalNodeId<T>) -> bool
+    where
+        T: Node,
+        NodeTree: NodeTreeImpl<T>,
+    {
+        let node_index = node_id.id;
+
+        {
+            let cache = self.node_has_newline_cache.borrow();
+            if let Some(has_newline) = cache.get(&node_index) {
+                return *has_newline;
+            }
+        }
+
+        let has_newline = self.has_newline(self.get_span(node_id));
+        self.node_has_newline_cache
+            .borrow_mut()
+            .insert(node_index, has_newline);
+
+        has_newline
     }
 
     /// Get a Node from the tree.
@@ -1076,6 +1202,32 @@ impl<'a> DestackFormatContext<'a> {
         cache[argument_id.id as usize] = Some(profile);
 
         profile
+    }
+
+    /// Return cached call argument expansion facts for one call expression node.
+    #[inline]
+    pub fn cached_call_argument_facts(
+        &self,
+        call_node_id: LocalNodeId<Expression>,
+    ) -> Option<CachedCallArgumentFacts> {
+        self.call_argument_facts_cache
+            .borrow()
+            .get(call_node_id.id as usize)
+            .and_then(|entry| *entry)
+    }
+
+    /// Cache call argument expansion facts for one call expression node.
+    #[inline]
+    pub fn cache_call_argument_facts(
+        &self,
+        call_node_id: LocalNodeId<Expression>,
+        facts: CachedCallArgumentFacts,
+    ) {
+        let mut cache = self.call_argument_facts_cache.borrow_mut();
+        if call_node_id.id as usize >= cache.len() {
+            cache.resize((call_node_id.id + 1) as usize, None);
+        }
+        cache[call_node_id.id as usize] = Some(facts);
     }
 
     /// Compute annotation facts for one argument node.

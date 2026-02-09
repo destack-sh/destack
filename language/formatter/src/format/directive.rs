@@ -41,6 +41,8 @@ pub struct FormatterDirective {
 enum FormatterDirectiveToken {
     /// Ignore formatting for the next node.
     Ignore,
+    /// Ignore formatting for the current file.
+    IgnoreFile,
     /// Begin ignoring formatting until the matching end token.
     IgnoreStart,
     /// End the current ignore range.
@@ -55,6 +57,10 @@ pub fn directive_for_node<T: Node + Clone>(
 where
     NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Annotation> + NodeTreeImpl<Comment>,
 {
+    if !context.has_ignore_directive_markers() {
+        return None;
+    }
+
     let annotations = context.get_annotations(node_id).unwrap_or_default();
 
     // use only prefix directives for ignore behavior
@@ -78,7 +84,7 @@ where
             FormatterDirectiveToken::Ignore | FormatterDirectiveToken::IgnoreStart => {
                 FormatterDirectiveKind::IgnoreFormat
             }
-            FormatterDirectiveToken::IgnoreEnd => {
+            FormatterDirectiveToken::IgnoreEnd | FormatterDirectiveToken::IgnoreFile => {
                 continue;
             }
         };
@@ -148,6 +154,10 @@ pub fn ignore_range_for_node<T: Node + Clone>(
 where
     NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Annotation> + NodeTreeImpl<Comment>,
 {
+    if !context.has_ignore_directive_markers() {
+        return None;
+    }
+
     let annotations = context.get_annotations(node_id).unwrap_or_default();
     let node_span = context.get_span(node_id);
 
@@ -286,6 +296,45 @@ pub fn collect_comment_tokens(context: &DestackFormatContext<'_>) -> Vec<TokenSp
     context.comment_tokens().to_vec()
 }
 
+/// Return whether this file has a formatter ignore-file directive comment.
+pub fn has_file_ignore_directive(context: &DestackFormatContext<'_>) -> bool {
+    if !context.has_ignore_directive_markers() {
+        return false;
+    }
+
+    let mut tokens = context
+        .tokens
+        .iter()
+        .copied()
+        .chain(context.side_tokens.iter().copied())
+        .collect::<Vec<_>>();
+    tokens.sort_by_key(|token| token.span.start);
+
+    for token in tokens {
+        match token.token.ty {
+            TokenType::Whitespace | TokenType::Newline => {
+                continue;
+            }
+            TokenType::LineComment
+            | TokenType::BlockComment
+            | TokenType::DocLineComment
+            | TokenType::DocBlockComment => {
+                let raw_comment = context.get_token_str(token);
+                if matches!(
+                    parse_directive_token_from_raw(raw_comment),
+                    Some(FormatterDirectiveToken::IgnoreFile)
+                ) {
+                    return true;
+                }
+                continue;
+            }
+            _ => return false,
+        }
+    }
+
+    false
+}
+
 /// Extract the source for an ignored span.
 pub fn ignored_span_source(context: &DestackFormatContext<'_>, span: Span) -> String {
     let raw = context.get_span_str(span);
@@ -421,6 +470,18 @@ fn parse_directive_token(comment: &str) -> Option<FormatterDirectiveToken> {
             "prettier-ignore" | "oxfmt-ignore" | "deno-fmt-ignore" | "fmt-ignore" | "format-ignore"
         ) {
             return Some(FormatterDirectiveToken::Ignore);
+        }
+
+        // check for file-level ignore directives
+        if matches!(
+            trimmed,
+            "prettier-ignore-file"
+                | "oxfmt-ignore-file"
+                | "deno-fmt-ignore-file"
+                | "fmt-ignore-file"
+                | "format-ignore-file"
+        ) {
+            return Some(FormatterDirectiveToken::IgnoreFile);
         }
 
         // check for range start directives
