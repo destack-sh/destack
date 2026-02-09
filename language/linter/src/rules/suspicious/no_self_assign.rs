@@ -1,6 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expression_is_equal;
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -29,9 +30,8 @@ impl LintRule for NoSelfAssign {
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
-        let file = ctx.program.files.get(ctx.module.file_id);
-        let source = file.text();
 
+        // inspect direct assignments
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expr = ctx.tree.get(node_id);
 
@@ -44,55 +44,46 @@ impl LintRule for NoSelfAssign {
                 continue;
             };
 
-            // compare source text of left and right
+            // compare assignment operands structurally
             let left_span = ctx.tree.get_span(*left);
-            let right_span = ctx.tree.get_span(*right);
-
-            let left_text = get_span_text(source, left_span);
-            let right_text = get_span_text(source, right_span);
-
-            if left_text == right_text && !left_text.is_empty() {
-                let severity = ctx.get_effective_severity(meta, node_id);
-                if !severity.is_enabled() {
-                    continue;
-                }
-
-                let expression_span = ctx.tree.get_span(node_id);
-
-                // fix: replace `x = x` with just `x`
-                let replacement = left_text.to_string();
-                let edits = ctx
-                    .edit_builder()
-                    .replace(expression_span, replacement)
-                    .into_edits();
-                let fix = LintFix::safe("Remove self-assignment").with_edits(edits);
-
-                ctx.report(
-                    LintDiagnostic::new(
-                        NO_SELF_ASSIGN.id,
-                        NO_SELF_ASSIGN.code,
-                        NO_SELF_ASSIGN.category,
-                        severity,
-                        format!("self-assignment: `{left_text} = {right_text}`"),
-                        ctx.module.file_id,
-                        expression_span,
-                    )
-                    .with_label("this assignment has no effect")
-                    .with_fix(fix),
-                );
+            if !expression_is_equal(ctx, *left, *right) {
+                continue;
             }
-        }
-    }
-}
 
-/// Get the source text for a span.
-fn get_span_text(source: &str, span: destack_source::Span) -> &str {
-    let start = span.start as usize;
-    let end = span.end as usize;
-    if start < source.len() && end <= source.len() && start <= end {
-        &source[start..end]
-    } else {
-        ""
+            let severity = ctx.get_effective_severity(meta, node_id);
+            if !severity.is_enabled() {
+                continue;
+            }
+
+            let expression_span = ctx.tree.get_span(node_id);
+
+            let mut diagnostic = LintDiagnostic::new(
+                NO_SELF_ASSIGN.id,
+                NO_SELF_ASSIGN.code,
+                NO_SELF_ASSIGN.category,
+                severity,
+                "self-assignment",
+                ctx.module.file_id,
+                expression_span,
+            )
+            .with_label("this assignment has no effect");
+
+            // add fix when source extraction is valid
+            if !left_span.is_empty() {
+                let left_text = ctx.get_span_text(left_span);
+                if !left_text.is_empty() {
+                    let replacement = left_text.to_string();
+                    let edits = ctx
+                        .edit_builder()
+                        .replace(expression_span, replacement)
+                        .into_edits();
+                    let fix = LintFix::safe("Remove self-assignment").with_edits(edits);
+                    diagnostic = diagnostic.with_fix(fix);
+                }
+            }
+
+            ctx.report(diagnostic);
+        }
     }
 }
 

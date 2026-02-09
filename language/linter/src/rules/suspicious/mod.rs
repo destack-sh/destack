@@ -20,6 +20,7 @@ mod no_incomplete_range;
 mod no_inner_declarations;
 mod no_large_try_block;
 mod no_misleading_character_class;
+mod no_mixed_key_types;
 mod no_negation_in_equality_check;
 mod no_redundant_match_guard;
 mod no_redundant_pattern;
@@ -29,6 +30,7 @@ mod no_shadow_restricted_names;
 mod no_single_element_tuple;
 mod no_template_curly_in_string;
 mod no_throw_literal;
+mod no_unused_except_recursion;
 mod no_useless_backreference;
 mod no_useless_catch;
 mod no_useless_computed_key;
@@ -40,6 +42,7 @@ mod no_useless_return;
 mod require_await;
 mod require_else_in_if_chain;
 mod require_yield;
+mod return_await;
 
 use crate::{BoxedLintRule, boxed};
 
@@ -65,6 +68,7 @@ pub use no_incomplete_range::*;
 pub use no_inner_declarations::*;
 pub use no_large_try_block::*;
 pub use no_misleading_character_class::*;
+pub use no_mixed_key_types::*;
 pub use no_negation_in_equality_check::*;
 pub use no_redundant_match_guard::*;
 pub use no_redundant_pattern::*;
@@ -74,6 +78,7 @@ pub use no_shadow_restricted_names::*;
 pub use no_single_element_tuple::*;
 pub use no_template_curly_in_string::*;
 pub use no_throw_literal::*;
+pub use no_unused_except_recursion::*;
 pub use no_useless_backreference::*;
 pub use no_useless_catch::*;
 pub use no_useless_computed_key::*;
@@ -85,6 +90,7 @@ pub use no_useless_return::*;
 pub use require_await::*;
 pub use require_else_in_if_chain::*;
 pub use require_yield::*;
+pub use return_await::*;
 
 /// Get all suspicious rules.
 pub fn rules() -> Vec<BoxedLintRule> {
@@ -111,6 +117,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoInnerDeclarations),
         boxed(NoLargeTryBlock),
         boxed(NoMisleadingCharacterClass),
+        boxed(NoMixedKeyTypes),
         boxed(NoNegationInEqualityCheck),
         boxed(NoRedundantMatchGuard),
         boxed(NoRedundantPattern),
@@ -120,6 +127,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoSingleElementTuple),
         boxed(NoTemplateCurlyInString),
         boxed(NoThrowLiteral),
+        boxed(NoUnusedExceptRecursion),
         boxed(NoUselessBackreference),
         boxed(NoUselessCatch),
         boxed(NoUselessComputedKey),
@@ -128,6 +136,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoUselessEscape),
         boxed(NoUselessRename),
         boxed(NoUselessReturn),
+        boxed(ReturnAwait),
         boxed(RequireAwait),
         boxed(RequireElseInIfChain),
         boxed(RequireYield),

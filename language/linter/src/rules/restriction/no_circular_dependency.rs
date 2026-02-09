@@ -259,21 +259,7 @@ mod tests {
     ) -> (TestProgram, Vec<LintDiagnostic>) {
         let test = TestProgram::new_without_prelude(vec![crate::boxed(NoCircularDependency)])
             .with_options(configure);
-        let mut module_ids = Vec::new();
-        for (path, source) in modules {
-            module_ids.push(test.add_module(path, source));
-        }
-
-        for module_id in &module_ids {
-            test.import_module(*module_id);
-        }
-        test.enqueue_profile_resolution_once();
-        for module_id in &module_ids {
-            test.analyze_module(*module_id);
-        }
-        test.compile();
-
-        let diagnostics = test.lint_program_dir();
+        let diagnostics = test.lint_program_dir_with_modules(modules);
         (test, diagnostics)
     }
 

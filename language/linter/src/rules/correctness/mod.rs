@@ -28,14 +28,20 @@ mod no_struct_identity_compare;
 mod no_throw_in_result_function;
 mod no_unknown_rule_decorator;
 mod no_unnecessary_condition;
+mod no_unnecessary_type_arguments;
+mod no_unnecessary_type_assertion;
 mod no_unsafe_finally;
 mod no_unsafe_negation;
+mod no_unused_imports;
+mod no_unused_parameters;
+mod no_unused_private_class_members;
 mod no_useless_assignment;
 mod no_useless_increment;
 mod require_array_sort_compare;
 mod unbound_method;
 mod unused_must_use;
 mod use_isnan;
+mod use_unknown_in_catch_callback_variable;
 
 use crate::{BoxedLintRule, boxed};
 
@@ -69,14 +75,20 @@ pub use no_struct_identity_compare::*;
 pub use no_throw_in_result_function::*;
 pub use no_unknown_rule_decorator::*;
 pub use no_unnecessary_condition::*;
+pub use no_unnecessary_type_arguments::*;
+pub use no_unnecessary_type_assertion::*;
 pub use no_unsafe_finally::*;
 pub use no_unsafe_negation::*;
+pub use no_unused_imports::*;
+pub use no_unused_parameters::*;
+pub use no_unused_private_class_members::*;
 pub use no_useless_assignment::*;
 pub use no_useless_increment::*;
 pub use require_array_sort_compare::*;
 pub use unbound_method::*;
 pub use unused_must_use::*;
 pub use use_isnan::*;
+pub use use_unknown_in_catch_callback_variable::*;
 
 /// Get all correctness rules.
 pub fn rules() -> Vec<BoxedLintRule> {
@@ -112,12 +124,18 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoUnknownRuleDecorator),
         boxed(NoUnsafeFinally),
         boxed(NoUnsafeNegation),
+        boxed(NoUnusedImports),
+        boxed(NoUnusedParameters),
+        boxed(NoUnusedPrivateClassMembers),
+        boxed(NoUnnecessaryTypeAssertion),
+        boxed(NoUnnecessaryTypeArguments),
         boxed(NoUnnecessaryCondition),
         boxed(NoUselessAssignment),
         boxed(NoUselessIncrement),
         boxed(RequireArraySortCompare),
         boxed(UnboundMethod),
         boxed(UnusedMustUse),
+        boxed(UseUnknownInCatchCallbackVariable),
         boxed(UseIsnan),
     ]
 }
