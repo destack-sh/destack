@@ -53,6 +53,7 @@ members = [
 	"platform/lsp/server",
 	"platform/lsp/types",
 	"platform/vscode",
+	"platform/zed",
 ]
 
 [workspace.package]
@@ -100,6 +101,7 @@ destack_lsp = { path = "platform/lsp" }
 destack_lsp_server = { path = "platform/lsp/server" }
 destack_lsp_types = { path = "platform/lsp/types" }
 destack_vscode = { path = "platform/vscode" }
+destack_zed = { path = "platform/zed" }
 
 # codegen
 cranelift-assembler-x64 = { path = "language/codegen/native/cranelift/assembler-x64" }

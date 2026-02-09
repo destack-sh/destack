@@ -60,12 +60,6 @@ extension<T> for Slice<T> implements Index<number, T>, IndexSet<number, T>, Iter
         [this, this]
     }
 
-    /// Create an iterator.
-    [Symbol.iterator](): Iterator<T> {
-        // #Incomplete
-        undefined!
-    }
-
     /// Copy slice contents to an owned array.
     toArray(): Array<T> {
         // #Incomplete
@@ -98,11 +92,5 @@ extension<T> for Slice<T> implements Index<number, T>, IndexSet<number, T>, Iter
     /// Reverse in place.
     reverse(this: &Slice<T>): void {
         // #Incomplete
-    }
-
-    /// Create an iterator.
-    [Symbol.iterator](): Iterator<T> {
-        // #Incomplete
-        undefined!
     }
 }
