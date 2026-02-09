@@ -1,0 +1,993 @@
+use std::collections::HashMap;
+
+use destack_base::StringId;
+use destack_dir as dir;
+use destack_source::ModuleId;
+use destack_workspace::{ProfileId, Program};
+
+use super::{
+    expression_candidate_symbols, expression_unwrap_parenthesized, symbol_decorators_for,
+    symbol_primary_declaration_for,
+};
+
+/// Label set for taint tracking.
+///
+/// `matches_all` represents unlabeled taint and can match any sink label.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct TaintLabels {
+    /// Whether this taint set contains an unlabeled marker.
+    matches_all: bool,
+    /// The explicit taint labels.
+    labels: Vec<StringId>,
+}
+
+impl TaintLabels {
+    /// Return true when this set has no labels.
+    pub fn is_empty(&self) -> bool {
+        !self.matches_all && self.labels.is_empty()
+    }
+
+    /// Return true when this set has at least one label.
+    pub fn is_tainted(&self) -> bool {
+        !self.is_empty()
+    }
+
+    /// Add an unlabeled marker.
+    pub fn add_unlabeled(&mut self) {
+        self.matches_all = true;
+    }
+
+    /// Add one explicit label.
+    pub fn add_label(&mut self, label: StringId) {
+        if self.labels.contains(&label) {
+            return;
+        }
+        self.labels.push(label);
+    }
+
+    /// Merge another set into this one.
+    pub fn merge(&mut self, other: &Self) {
+        if other.matches_all {
+            self.matches_all = true;
+        }
+
+        for label in other.labels.iter().copied() {
+            self.add_label(label);
+        }
+    }
+
+    /// Return true when this source set can flow into the sink set.
+    pub fn matches_sink(&self, sink: &Self, program: &Program) -> bool {
+        if self.is_empty() || sink.is_empty() {
+            return false;
+        }
+
+        if self.matches_all || sink.matches_all {
+            return true;
+        }
+
+        for source_label in self.labels.iter().copied() {
+            if sink
+                .labels
+                .iter()
+                .copied()
+                .any(|sink_label| label_matches_glob_pattern(program, source_label, sink_label))
+            {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Remove labels covered by a sanitizer set.
+    pub fn apply_sanitizer(&mut self, sanitizer: &Self, program: &Program) {
+        if sanitizer.is_empty() {
+            return;
+        }
+
+        if sanitizer.matches_all {
+            *self = Self::default();
+            return;
+        }
+
+        self.labels.retain(|source_label| {
+            !sanitizer.labels.iter().copied().any(|sanitizer_label| {
+                label_matches_glob_pattern(program, *source_label, sanitizer_label)
+            })
+        });
+    }
+}
+
+/// Cached taint state for one module analysis run.
+#[derive(Debug, Default)]
+pub struct TaintCache {
+    /// Cached labels for expressions.
+    expression_labels: HashMap<u32, TaintLabels>,
+    /// Cached labels for symbols.
+    symbol_labels: HashMap<dir::GlobalSymbolId, TaintLabels>,
+}
+
+/// One taint analysis session over a DIR module.
+#[derive(Debug)]
+pub struct TaintAnalysis<'a> {
+    /// Program handle for symbol and string lookups.
+    program: &'a Program,
+    /// Active profile id.
+    profile_id: ProfileId,
+    /// Active module id.
+    module_id: ModuleId,
+    /// Active module tree.
+    tree: &'a dir::NodeTree,
+    /// Active module symbols.
+    symbols: &'a dir::SymbolTable,
+    /// Active module types.
+    types: &'a dir::TypeTable,
+    /// Mutable cache reused across checks.
+    cache: &'a mut TaintCache,
+    /// Whether heuristic taint sources should be included.
+    include_heuristic_sources: bool,
+}
+
+impl<'a> TaintAnalysis<'a> {
+    /// Build a taint analysis session.
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        program: &'a Program,
+        profile_id: ProfileId,
+        module_id: ModuleId,
+        tree: &'a dir::NodeTree,
+        symbols: &'a dir::SymbolTable,
+        types: &'a dir::TypeTable,
+        cache: &'a mut TaintCache,
+        include_heuristic_sources: bool,
+    ) -> Self {
+        Self {
+            program,
+            profile_id,
+            module_id,
+            tree,
+            symbols,
+            types,
+            cache,
+            include_heuristic_sources,
+        }
+    }
+
+    /// Return taint labels for one expression.
+    pub fn expression_taint_labels(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> TaintLabels {
+        let mut expression_stack = Vec::new();
+        let mut symbol_stack = Vec::new();
+        self.expression_taint_labels_inner(expression_id, &mut expression_stack, &mut symbol_stack)
+    }
+
+    /// Return true when an expression is tainted.
+    pub fn expression_is_tainted(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> bool {
+        self.expression_taint_labels(expression_id).is_tainted()
+    }
+
+    /// Resolve one expression with recursion guards.
+    fn expression_taint_labels_inner(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        expression_stack: &mut Vec<dir::LocalNodeId<dir::Expression>>,
+        symbol_stack: &mut Vec<dir::GlobalSymbolId>,
+    ) -> TaintLabels {
+        let expression_id = expression_unwrap_parenthesized(self.tree, expression_id);
+        if let Some(labels) = self.cache.expression_labels.get(&expression_id.id) {
+            return labels.clone();
+        }
+        if expression_stack.contains(&expression_id) {
+            return TaintLabels::default();
+        }
+        expression_stack.push(expression_id);
+
+        let expression = self.tree.get(expression_id);
+        let mut labels = self.expression_decorator_taint_labels(expression_id, expression);
+
+        if self.include_heuristic_sources
+            && expression_is_heuristically_tainted(self.tree, expression_id)
+        {
+            labels.add_unlabeled();
+        }
+
+        match expression {
+            dir::Expression::Statement { statement } => {
+                // statement wrappers preserve value taint
+                let statement_labels =
+                    self.expression_taint_labels_inner(*statement, expression_stack, symbol_stack);
+                labels.merge(&statement_labels);
+            }
+            dir::Expression::Block { block } => {
+                // block expressions taint from their last expression value
+                let block = self.tree.get(*block);
+                if let Some(last_expression_id) = block.expressions.last() {
+                    let block_labels = self.expression_taint_labels_inner(
+                        *last_expression_id,
+                        expression_stack,
+                        symbol_stack,
+                    );
+                    labels.merge(&block_labels);
+                }
+            }
+            dir::Expression::Cast { value, .. } | dir::Expression::OwnershipCast { value, .. } => {
+                // casts do not sanitize by default
+                let value_labels =
+                    self.expression_taint_labels_inner(*value, expression_stack, symbol_stack);
+                labels.merge(&value_labels);
+            }
+            dir::Expression::Unary { right, .. }
+            | dir::Expression::ValueOf { right, .. }
+            | dir::Expression::ReferenceOf { right, .. }
+            | dir::Expression::PointerOf { right, .. } => {
+                // unary wrappers preserve operand taint
+                let right_labels =
+                    self.expression_taint_labels_inner(*right, expression_stack, symbol_stack);
+                labels.merge(&right_labels);
+            }
+            dir::Expression::Binary { left, right, .. }
+            | dir::Expression::Assign { left, right }
+            | dir::Expression::AssignBinary { left, right, .. } => {
+                // binary expressions taint from both operands
+                let left_labels =
+                    self.expression_taint_labels_inner(*left, expression_stack, symbol_stack);
+                labels.merge(&left_labels);
+
+                let right_labels =
+                    self.expression_taint_labels_inner(*right, expression_stack, symbol_stack);
+                labels.merge(&right_labels);
+            }
+            dir::Expression::Member { left, .. }
+            | dir::Expression::PrivateMember { left, .. }
+            | dir::Expression::Maybe { left }
+            | dir::Expression::Must { left }
+            | dir::Expression::Instantiation { left, .. } => {
+                // member and wrapper expressions preserve receiver taint
+                let left_labels =
+                    self.expression_taint_labels_inner(*left, expression_stack, symbol_stack);
+                labels.merge(&left_labels);
+            }
+            dir::Expression::Index { left, right } => {
+                // indexing taints from receiver and optional index
+                let left_labels =
+                    self.expression_taint_labels_inner(*left, expression_stack, symbol_stack);
+                labels.merge(&left_labels);
+
+                if let Some(right) = right {
+                    let right_labels =
+                        self.expression_taint_labels_inner(*right, expression_stack, symbol_stack);
+                    labels.merge(&right_labels);
+                }
+            }
+            dir::Expression::Call {
+                left,
+                dynamic_arguments,
+                ..
+            }
+            | dir::Expression::New {
+                left,
+                dynamic_arguments,
+                ..
+            } => {
+                // call results can be marked tainted by callee decorators
+                let callee_expression = self.tree.get(*left);
+                let callee_labels =
+                    self.expression_decorator_taint_labels(*left, callee_expression);
+                labels.merge(&callee_labels);
+
+                // propagate taint from call arguments
+                for argument_id in dynamic_arguments.iter().copied() {
+                    let argument = self.tree.get(argument_id);
+                    let argument_labels = self.expression_taint_labels_inner(
+                        argument.value(),
+                        expression_stack,
+                        symbol_stack,
+                    );
+                    labels.merge(&argument_labels);
+                }
+
+                // apply opt-in sanitizer tags on the callee
+                let sanitizer_labels = expression_sanitizer_taint_labels(
+                    self.program,
+                    self.profile_id,
+                    self.module_id,
+                    self.symbols,
+                    self.types,
+                    *left,
+                    callee_expression,
+                );
+                labels.apply_sanitizer(&sanitizer_labels, self.program);
+            }
+            dir::Expression::Await { expression } | dir::Expression::AwaitMaybe { expression } => {
+                // awaits preserve taint
+                let awaited_labels =
+                    self.expression_taint_labels_inner(*expression, expression_stack, symbol_stack);
+                labels.merge(&awaited_labels);
+            }
+            dir::Expression::Throw { value } => {
+                // thrown values preserve taint
+                let value_labels =
+                    self.expression_taint_labels_inner(*value, expression_stack, symbol_stack);
+                labels.merge(&value_labels);
+            }
+            dir::Expression::Delete { value } => {
+                // delete expressions taint from the deleted operand
+                let value_labels =
+                    self.expression_taint_labels_inner(*value, expression_stack, symbol_stack);
+                labels.merge(&value_labels);
+            }
+            dir::Expression::TemplateExpression { value } => {
+                // template expressions taint from interpolations
+                let template_labels =
+                    self.template_literal_taint_labels(value, expression_stack, symbol_stack);
+                labels.merge(&template_labels);
+            }
+            dir::Expression::TaggedTemplateExpression { tag, value } => {
+                // tagged templates taint from tag and interpolation values
+                let tag_labels =
+                    self.expression_taint_labels_inner(*tag, expression_stack, symbol_stack);
+                labels.merge(&tag_labels);
+
+                let template_labels =
+                    self.template_literal_taint_labels(value, expression_stack, symbol_stack);
+                labels.merge(&template_labels);
+            }
+            dir::Expression::ArrayExpression { elements }
+            | dir::Expression::TupleExpression { elements } => {
+                // aggregate values taint from their elements
+                for argument_id in elements.iter().copied() {
+                    let argument = self.tree.get(argument_id);
+                    let element_labels = self.expression_taint_labels_inner(
+                        argument.value(),
+                        expression_stack,
+                        symbol_stack,
+                    );
+                    labels.merge(&element_labels);
+                }
+            }
+            dir::Expression::SequenceExpression { expressions } => {
+                // sequence expression result is the last value
+                if let Some(last) = expressions.last() {
+                    let last_labels =
+                        self.expression_taint_labels_inner(*last, expression_stack, symbol_stack);
+                    labels.merge(&last_labels);
+                }
+            }
+            dir::Expression::ObjectExpression { properties } => {
+                // object literals taint from field values and spreads
+                for property_id in properties.iter().copied() {
+                    let property = self.tree.get(property_id);
+                    match property {
+                        dir::Property::Field { value, default, .. } => {
+                            if let Some(value) = value {
+                                let value_labels = self.expression_taint_labels_inner(
+                                    *value,
+                                    expression_stack,
+                                    symbol_stack,
+                                );
+                                labels.merge(&value_labels);
+                            }
+
+                            if let Some(default) = default {
+                                let default_labels = self.expression_taint_labels_inner(
+                                    *default,
+                                    expression_stack,
+                                    symbol_stack,
+                                );
+                                labels.merge(&default_labels);
+                            }
+                        }
+                        dir::Property::Method { .. } => {}
+                        dir::Property::Spread { value, .. } => {
+                            let value_labels = self.expression_taint_labels_inner(
+                                *value,
+                                expression_stack,
+                                symbol_stack,
+                            );
+                            labels.merge(&value_labels);
+                        }
+                    }
+                }
+            }
+            dir::Expression::TreeExpression {
+                arguments,
+                elements,
+                ..
+            } => {
+                // tree expressions taint from arguments and children
+                if let Some(arguments) = arguments {
+                    for argument_id in arguments.iter().copied() {
+                        let argument = self.tree.get(argument_id);
+                        let argument_labels = self.expression_taint_labels_inner(
+                            argument.value(),
+                            expression_stack,
+                            symbol_stack,
+                        );
+                        labels.merge(&argument_labels);
+                    }
+                }
+
+                if let Some(elements) = elements {
+                    for element_id in elements.iter().copied() {
+                        let element = self.tree.get(element_id);
+                        let element_labels = self.expression_taint_labels_inner(
+                            element.value(),
+                            expression_stack,
+                            symbol_stack,
+                        );
+                        labels.merge(&element_labels);
+                    }
+                }
+            }
+            dir::Expression::TaggedScalarExpression { value, .. } => {
+                // tagged scalar values taint from the payload
+                let value_labels =
+                    self.expression_taint_labels_inner(*value, expression_stack, symbol_stack);
+                labels.merge(&value_labels);
+            }
+            dir::Expression::TaggedTupleExpression { elements, .. } => {
+                // tagged tuple values taint from all payload elements
+                for element_id in elements.iter().copied() {
+                    let element = self.tree.get(element_id);
+                    let element_labels = self.expression_taint_labels_inner(
+                        element.value(),
+                        expression_stack,
+                        symbol_stack,
+                    );
+                    labels.merge(&element_labels);
+                }
+            }
+            dir::Expression::TaggedObjectExpression { properties, .. } => {
+                // tagged object values taint from all payload fields
+                for property_id in properties.iter().copied() {
+                    let property = self.tree.get(property_id);
+                    match property {
+                        dir::Property::Field { value, default, .. } => {
+                            if let Some(value) = value {
+                                let value_labels = self.expression_taint_labels_inner(
+                                    *value,
+                                    expression_stack,
+                                    symbol_stack,
+                                );
+                                labels.merge(&value_labels);
+                            }
+
+                            if let Some(default) = default {
+                                let default_labels = self.expression_taint_labels_inner(
+                                    *default,
+                                    expression_stack,
+                                    symbol_stack,
+                                );
+                                labels.merge(&default_labels);
+                            }
+                        }
+                        dir::Property::Method { .. } => {}
+                        dir::Property::Spread { value, .. } => {
+                            let value_labels = self.expression_taint_labels_inner(
+                                *value,
+                                expression_stack,
+                                symbol_stack,
+                            );
+                            labels.merge(&value_labels);
+                        }
+                    }
+                }
+            }
+            dir::Expression::If {
+                then_expression,
+                else_expression,
+                ..
+            } => {
+                // if expressions taint from branch values
+                let then_labels = self.expression_taint_labels_inner(
+                    *then_expression,
+                    expression_stack,
+                    symbol_stack,
+                );
+                labels.merge(&then_labels);
+
+                if let Some(else_expression) = else_expression {
+                    let else_labels = self.expression_taint_labels_inner(
+                        *else_expression,
+                        expression_stack,
+                        symbol_stack,
+                    );
+                    labels.merge(&else_labels);
+                }
+            }
+            dir::Expression::Try {
+                try_expression,
+                catch_expression,
+                ..
+            } => {
+                // try expressions taint from try and catch branches
+                let try_labels = self.expression_taint_labels_inner(
+                    *try_expression,
+                    expression_stack,
+                    symbol_stack,
+                );
+                labels.merge(&try_labels);
+
+                if let Some(catch_expression) = catch_expression {
+                    let catch_labels = self.expression_taint_labels_inner(
+                        *catch_expression,
+                        expression_stack,
+                        symbol_stack,
+                    );
+                    labels.merge(&catch_labels);
+                }
+            }
+            dir::Expression::Match { cases, .. } => {
+                // match expressions taint from case body values
+                for case_id in cases.iter().copied() {
+                    let case = self.tree.get(case_id);
+                    match case {
+                        dir::MatchCase::Expression { body, .. } => {
+                            let case_labels = self.expression_taint_labels_inner(
+                                *body,
+                                expression_stack,
+                                symbol_stack,
+                            );
+                            labels.merge(&case_labels);
+                        }
+                        dir::MatchCase::Block { body, .. } => {
+                            let block = self.tree.get(*body);
+                            if let Some(last_expression_id) = block.expressions.last() {
+                                let case_labels = self.expression_taint_labels_inner(
+                                    *last_expression_id,
+                                    expression_stack,
+                                    symbol_stack,
+                                );
+                                labels.merge(&case_labels);
+                            }
+                        }
+                    }
+                }
+            }
+            dir::Expression::Return { value } | dir::Expression::Yield { value, .. } => {
+                // return and yield values preserve taint
+                if let Some(value) = value {
+                    let value_labels =
+                        self.expression_taint_labels_inner(*value, expression_stack, symbol_stack);
+                    labels.merge(&value_labels);
+                }
+            }
+            dir::Expression::RangeExpression { start, end, .. } => {
+                // range expressions taint from both endpoints
+                let start_labels =
+                    self.expression_taint_labels_inner(*start, expression_stack, symbol_stack);
+                labels.merge(&start_labels);
+
+                let end_labels =
+                    self.expression_taint_labels_inner(*end, expression_stack, symbol_stack);
+                labels.merge(&end_labels);
+            }
+            dir::Expression::Comptime { body } => {
+                // comptime wrappers preserve inner value taint
+                let body_labels =
+                    self.expression_taint_labels_inner(*body, expression_stack, symbol_stack);
+                labels.merge(&body_labels);
+            }
+            _ => {}
+        }
+
+        let candidate_symbols = expression_candidate_symbols(
+            self.program,
+            self.profile_id,
+            self.module_id,
+            self.symbols,
+            self.types,
+            expression_id,
+            expression,
+        );
+        for symbol_id in candidate_symbols {
+            let symbol_labels =
+                self.symbol_taint_labels_inner(symbol_id, expression_stack, symbol_stack);
+            labels.merge(&symbol_labels);
+        }
+
+        expression_stack.pop();
+        self.cache
+            .expression_labels
+            .insert(expression_id.id, labels.clone());
+        labels
+    }
+
+    /// Resolve taint labels for one symbol with recursion guards.
+    fn symbol_taint_labels_inner(
+        &mut self,
+        symbol_id: dir::GlobalSymbolId,
+        expression_stack: &mut Vec<dir::LocalNodeId<dir::Expression>>,
+        symbol_stack: &mut Vec<dir::GlobalSymbolId>,
+    ) -> TaintLabels {
+        if let Some(labels) = self.cache.symbol_labels.get(&symbol_id) {
+            return labels.clone();
+        }
+        if symbol_stack.contains(&symbol_id) {
+            return TaintLabels::default();
+        }
+        symbol_stack.push(symbol_id);
+
+        let mut labels = symbol_taint_labels_from_decorators(
+            self.program,
+            self.profile_id,
+            self.module_id,
+            self.symbols,
+            symbol_id,
+        );
+
+        if let Some(initializer) =
+            self.symbol_initializer_expression(symbol_id, expression_stack, symbol_stack)
+        {
+            labels.merge(&initializer);
+        }
+
+        symbol_stack.pop();
+        self.cache.symbol_labels.insert(symbol_id, labels.clone());
+        labels
+    }
+
+    /// Resolve taint from expression-level decorators.
+    fn expression_decorator_taint_labels(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        expression: &dir::Expression,
+    ) -> TaintLabels {
+        let candidate_symbols = expression_candidate_symbols(
+            self.program,
+            self.profile_id,
+            self.module_id,
+            self.symbols,
+            self.types,
+            expression_id,
+            expression,
+        );
+
+        let mut labels = TaintLabels::default();
+        for symbol_id in candidate_symbols {
+            let symbol_labels = symbol_taint_labels_from_decorators(
+                self.program,
+                self.profile_id,
+                self.module_id,
+                self.symbols,
+                symbol_id,
+            );
+            labels.merge(&symbol_labels);
+        }
+
+        labels
+    }
+
+    /// Resolve taint labels from a template literal payload.
+    fn template_literal_taint_labels(
+        &mut self,
+        value: &dir::TemplateLiteral,
+        expression_stack: &mut Vec<dir::LocalNodeId<dir::Expression>>,
+        symbol_stack: &mut Vec<dir::GlobalSymbolId>,
+    ) -> TaintLabels {
+        let mut labels = TaintLabels::default();
+
+        let dir::TemplateLiteral::InterpolatedString { arguments, .. } = value else {
+            return labels;
+        };
+        for argument_id in arguments.iter().copied() {
+            let argument = self.tree.get(argument_id);
+            let argument_labels = self.expression_taint_labels_inner(
+                argument.value(),
+                expression_stack,
+                symbol_stack,
+            );
+            labels.merge(&argument_labels);
+        }
+
+        labels
+    }
+
+    /// Resolve taint from one symbol initializer when available.
+    fn symbol_initializer_expression(
+        &mut self,
+        symbol_id: dir::GlobalSymbolId,
+        expression_stack: &mut Vec<dir::LocalNodeId<dir::Expression>>,
+        symbol_stack: &mut Vec<dir::GlobalSymbolId>,
+    ) -> Option<TaintLabels> {
+        let declaration_id = symbol_primary_declaration_for(
+            self.program,
+            self.profile_id,
+            self.module_id,
+            self.symbols,
+            symbol_id,
+        )?;
+        if declaration_id.module_id != self.module_id {
+            return None;
+        }
+
+        let value_expression_id =
+            primary_declaration_initializer(self.tree, declaration_id, symbol_id.local_id)?;
+        Some(self.expression_taint_labels_inner(
+            value_expression_id,
+            expression_stack,
+            symbol_stack,
+        ))
+    }
+}
+
+/// Return sink taint labels declared on expression target symbols.
+pub fn expression_sink_taint_labels(
+    program: &Program,
+    profile_id: ProfileId,
+    module_id: ModuleId,
+    symbols: &dir::SymbolTable,
+    types: &dir::TypeTable,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    expression: &dir::Expression,
+) -> TaintLabels {
+    let candidate_symbols = expression_candidate_symbols(
+        program,
+        profile_id,
+        module_id,
+        symbols,
+        types,
+        expression_id,
+        expression,
+    );
+
+    let mut labels = TaintLabels::default();
+    for symbol_id in candidate_symbols {
+        let Some(decorators) =
+            symbol_decorators_for(program, profile_id, module_id, symbols, symbol_id)
+        else {
+            continue;
+        };
+        let sink_labels =
+            decorator_marker_taint_labels(decorators.sinks.iter().map(|marker| marker.label));
+        labels.merge(&sink_labels);
+    }
+
+    labels
+}
+
+/// Return sanitizer taint labels declared on expression target symbols.
+pub fn expression_sanitizer_taint_labels(
+    program: &Program,
+    profile_id: ProfileId,
+    module_id: ModuleId,
+    symbols: &dir::SymbolTable,
+    types: &dir::TypeTable,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    expression: &dir::Expression,
+) -> TaintLabels {
+    let candidate_symbols = expression_candidate_symbols(
+        program,
+        profile_id,
+        module_id,
+        symbols,
+        types,
+        expression_id,
+        expression,
+    );
+
+    let mut labels = TaintLabels::default();
+    for symbol_id in candidate_symbols {
+        let Some(decorators) =
+            symbol_decorators_for(program, profile_id, module_id, symbols, symbol_id)
+        else {
+            continue;
+        };
+        let sanitizer_labels =
+            decorator_marker_taint_labels(decorators.sanitizers.iter().map(|marker| marker.label));
+        labels.merge(&sanitizer_labels);
+    }
+
+    labels
+}
+
+/// Return true when expression shape looks like user-controlled data.
+fn expression_is_heuristically_tainted(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
+    let expression = tree.get(expression_id);
+
+    if matches!(expression, dir::Expression::ScalarLiteral { .. }) {
+        return false;
+    }
+
+    matches!(
+        expression,
+        dir::Expression::LocalReference { .. }
+            | dir::Expression::ModuleReference { .. }
+            | dir::Expression::Member { .. }
+            | dir::Expression::Call { .. }
+            | dir::Expression::Index { .. }
+            | dir::Expression::Binary { .. }
+            | dir::Expression::TemplateExpression { .. }
+    )
+}
+
+/// Resolve taint labels from symbol decorators.
+fn symbol_taint_labels_from_decorators(
+    program: &Program,
+    profile_id: ProfileId,
+    module_id: ModuleId,
+    symbols: &dir::SymbolTable,
+    symbol_id: dir::GlobalSymbolId,
+) -> TaintLabels {
+    let Some(decorators) =
+        symbol_decorators_for(program, profile_id, module_id, symbols, symbol_id)
+    else {
+        return TaintLabels::default();
+    };
+
+    let mut labels = TaintLabels::default();
+    for marker in decorators.taints {
+        if let Some(label) = marker.label {
+            labels.add_label(label);
+        } else {
+            labels.add_unlabeled();
+        }
+    }
+
+    labels
+}
+
+/// Resolve labels from decorator markers.
+fn decorator_marker_taint_labels(markers: impl Iterator<Item = Option<StringId>>) -> TaintLabels {
+    let mut labels = TaintLabels::default();
+
+    for marker_label in markers {
+        if let Some(label) = marker_label {
+            labels.add_label(label);
+        } else {
+            labels.add_unlabeled();
+        }
+    }
+
+    labels
+}
+
+/// Return true when one source label matches one sink or sanitizer glob pattern.
+fn label_matches_glob_pattern(program: &Program, source: StringId, sink: StringId) -> bool {
+    let source_text = program.strings.get(source);
+    let sink_text = program.strings.get(sink);
+    let source_text = source_text.as_ref();
+    let sink_text = sink_text.as_ref();
+
+    glob_matches(sink_text, source_text)
+}
+
+/// Return true when one glob pattern matches one text value.
+///
+/// This supports `*` as a wildcard over zero or more bytes.
+fn glob_matches(pattern: &str, text: &str) -> bool {
+    // fast path: exact match or global wildcard
+    if pattern == text || pattern == "*" {
+        return true;
+    }
+
+    let pattern_bytes = pattern.as_bytes();
+    let text_bytes = text.as_bytes();
+
+    let mut pattern_index = 0usize;
+    let mut text_index = 0usize;
+    let mut last_star_index: Option<usize> = None;
+    let mut last_star_match_index = 0usize;
+
+    // scan text with star-backtracking
+    while text_index < text_bytes.len() {
+        if pattern_index < pattern_bytes.len()
+            && pattern_bytes[pattern_index] == text_bytes[text_index]
+        {
+            pattern_index += 1;
+            text_index += 1;
+            continue;
+        }
+
+        if pattern_index < pattern_bytes.len() && pattern_bytes[pattern_index] == b'*' {
+            last_star_index = Some(pattern_index);
+            pattern_index += 1;
+            last_star_match_index = text_index;
+            continue;
+        }
+
+        if let Some(star_index) = last_star_index {
+            pattern_index = star_index + 1;
+            last_star_match_index += 1;
+            text_index = last_star_match_index;
+            continue;
+        }
+
+        return false;
+    }
+
+    // trailing stars can match an empty suffix
+    while pattern_index < pattern_bytes.len() && pattern_bytes[pattern_index] == b'*' {
+        pattern_index += 1;
+    }
+
+    pattern_index == pattern_bytes.len()
+}
+
+/// Resolve one initializer expression for a symbol declaration.
+fn primary_declaration_initializer(
+    tree: &dir::NodeTree,
+    declaration_id: dir::GlobalNodeIdAny,
+    symbol_id: dir::LocalSymbolId,
+) -> Option<dir::LocalNodeId<dir::Expression>> {
+    match declaration_id.local_id.ty {
+        dir::NodeType::Declarator => {
+            let declarator = tree.get(declaration_id.into_local_typed::<dir::Declarator>());
+            declarator.value
+        }
+        dir::NodeType::Pattern | dir::NodeType::PatternField => {
+            let declarator_id = enclosing_declarator(tree, declaration_id.local_id.id)?;
+            let declarator = tree.get(declarator_id);
+            declarator.value
+        }
+        dir::NodeType::Property => {
+            let property = tree.get(declaration_id.into_local_typed::<dir::Property>());
+            match property {
+                dir::Property::Field { value, default, .. } => value.or(*default),
+                dir::Property::Method { .. } => None,
+                dir::Property::Spread { value, .. } => Some(*value),
+            }
+        }
+        dir::NodeType::Member => {
+            let member = tree.get(declaration_id.into_local_typed::<dir::Member>());
+            match member {
+                dir::Member::Field { value, default, .. } => value.or(*default),
+                dir::Member::Method { .. }
+                | dir::Member::Type { .. }
+                | dir::Member::Embed { .. }
+                | dir::Member::StaticBlock { .. }
+                | dir::Member::ComptimeBlock { .. } => None,
+            }
+        }
+        dir::NodeType::Parameter => {
+            let parameter = tree.get(declaration_id.into_local_typed::<dir::Parameter>());
+            match parameter {
+                dir::Parameter::Named { default, .. } | dir::Parameter::Pattern { default, .. } => {
+                    *default
+                }
+                dir::Parameter::VariadicNamed { .. } | dir::Parameter::VariadicPattern { .. } => {
+                    None
+                }
+            }
+        }
+        dir::NodeType::Expression => {
+            let expression = tree.get(declaration_id.into_local_typed::<dir::Expression>());
+            match expression {
+                dir::Expression::Let { declarators, .. }
+                | dir::Expression::Using { declarators, .. } => declarators.iter().find_map(|id| {
+                    let declarator = tree.get(*id);
+                    let pattern = tree.get(declarator.pattern);
+                    (pattern.symbol() == Some(symbol_id))
+                        .then_some(declarator.value)
+                        .flatten()
+                }),
+                _ => None,
+            }
+        }
+        _ => None,
+    }
+}
+
+/// Find the nearest declarator parent for a node id.
+fn enclosing_declarator(
+    tree: &dir::NodeTree,
+    mut node_id: u32,
+) -> Option<dir::LocalNodeId<dir::Declarator>> {
+    loop {
+        let parent = tree.get_parent(node_id)?;
+        if parent.ty == dir::NodeType::Declarator {
+            return Some(parent.into_typed());
+        }
+        node_id = parent.id;
+    }
+}

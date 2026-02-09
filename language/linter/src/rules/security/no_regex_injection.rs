@@ -1,11 +1,11 @@
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{expression_is_potentially_tainted, expression_target_symbol};
+use crate::rules::common::{TaintAnalysis, TaintCache, expression_target_symbol};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
-    /// Disallow tainted data in regular expression patterns.
+    /// Disallow tainted values in dynamic regular expression patterns.
     ///
     /// Using user-controlled input in `new RegExp()` can lead to:
     /// - ReDoS (Regular Expression Denial of Service) attacks
@@ -45,6 +45,8 @@ struct NoRegexInjectionVisitor<'a, 'b> {
     meta: &'a LintMeta,
     /// The RegExp symbol if available.
     regexp_symbol: Option<dir::GlobalSymbolId>,
+    /// Cached taint analysis state.
+    taint_cache: TaintCache,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -60,6 +62,7 @@ impl<'a, 'b> NoRegexInjectionVisitor<'a, 'b> {
             ctx,
             meta,
             regexp_symbol,
+            taint_cache: TaintCache::default(),
             options: NodeVisitorOptions::default(),
         }
     }
@@ -94,7 +97,7 @@ impl<'a, 'b> NoRegexInjectionVisitor<'a, 'b> {
 
         // check if the pattern argument is potentially tainted
         let argument = self.ctx.tree.get(*first_arg);
-        if !expression_is_potentially_tainted(self.ctx.tree, argument.value()) {
+        if !self.expression_is_tainted(argument.value()) {
             return;
         }
 
@@ -120,7 +123,7 @@ impl<'a, 'b> NoRegexInjectionVisitor<'a, 'b> {
 
         // check if the pattern argument is potentially tainted
         let argument = self.ctx.tree.get(*first_arg);
-        if !expression_is_potentially_tainted(self.ctx.tree, argument.value()) {
+        if !self.expression_is_tainted(argument.value()) {
             return;
         }
 
@@ -158,6 +161,21 @@ impl<'a, 'b> NoRegexInjectionVisitor<'a, 'b> {
             )
             .with_label("user-controlled input in RegExp may cause ReDoS"),
         );
+    }
+
+    /// Return true when an expression is tainted.
+    fn expression_is_tainted(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
+        let mut taint = TaintAnalysis::new(
+            self.ctx.program.as_ref(),
+            self.ctx.profile_id,
+            self.ctx.module_id(),
+            self.ctx.tree,
+            self.ctx.symbols,
+            self.ctx.types,
+            &mut self.taint_cache,
+            true,
+        );
+        taint.expression_is_tainted(expression_id)
     }
 }
 
@@ -267,5 +285,23 @@ let regex = RegExp("\\d+");
 "#,
         );
         test.result(result).assert_no_lint("no-regex-injection");
+    }
+
+    /// Flag regex patterns from explicit decorator taint sources.
+    #[test]
+    fn test_flags_decorator_taint_source() {
+        let test = TestProgram::for_rule_with_prelude(NoRegexInjection);
+        let result = test.lint_dir(
+            "no_regex_injection/test_flags_decorator_taint_source.ds",
+            r#"
+@taint("regex")
+function userPattern(): string {
+    return "a+"
+}
+
+let regex = new RegExp(userPattern());
+"#,
+        );
+        test.result(result).assert_lint("no-regex-injection");
     }
 }

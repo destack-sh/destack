@@ -4,13 +4,12 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
-    expression_is_global_qualified_member, expression_is_potentially_tainted,
-    expression_target_symbol,
+    TaintAnalysis, TaintCache, expression_is_global_qualified_member, expression_target_symbol,
 };
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
-    /// Disallow redirects using user-controlled URLs.
+    /// Disallow tainted values in browser redirect APIs.
     ///
     /// Open redirects can be exploited for phishing attacks by redirecting
     /// users to malicious sites while appearing to come from a trusted domain.
@@ -61,6 +60,8 @@ struct NoOpenRedirectVisitor<'a, 'b> {
     replace_name: StringId,
     /// Global qualifier symbols for matching `globalThis.location`.
     global_qualifiers: Vec<dir::GlobalSymbolId>,
+    /// Cached taint analysis state.
+    taint_cache: TaintCache,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -89,6 +90,7 @@ impl<'a, 'b> NoOpenRedirectVisitor<'a, 'b> {
             assign_name,
             replace_name,
             global_qualifiers,
+            taint_cache: TaintCache::default(),
             options: NodeVisitorOptions::default(),
         }
     }
@@ -117,7 +119,7 @@ impl<'a, 'b> NoOpenRedirectVisitor<'a, 'b> {
         }
 
         // check if right side is potentially tainted
-        if !expression_is_potentially_tainted(self.ctx.tree, right) {
+        if !self.expression_is_tainted(right) {
             return;
         }
 
@@ -143,7 +145,7 @@ impl<'a, 'b> NoOpenRedirectVisitor<'a, 'b> {
 
         // check if argument is potentially tainted
         let argument = self.ctx.tree.get(*first_arg);
-        if !expression_is_potentially_tainted(self.ctx.tree, argument.value()) {
+        if !self.expression_is_tainted(argument.value()) {
             return;
         }
 
@@ -255,6 +257,21 @@ impl<'a, 'b> NoOpenRedirectVisitor<'a, 'b> {
             self.window_name,
         )
     }
+
+    /// Return true when an expression is tainted.
+    fn expression_is_tainted(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
+        let mut taint = TaintAnalysis::new(
+            self.ctx.program.as_ref(),
+            self.ctx.profile_id,
+            self.ctx.module_id(),
+            self.ctx.tree,
+            self.ctx.symbols,
+            self.ctx.types,
+            &mut self.taint_cache,
+            true,
+        );
+        taint.expression_is_tainted(expression_id)
+    }
 }
 
 impl NodeVisitor for NoOpenRedirectVisitor<'_, '_> {
@@ -358,5 +375,23 @@ location.assign("/dashboard");
 "#,
         );
         test.result(result).assert_no_lint("no-open-redirect");
+    }
+
+    /// Flag redirects from explicit decorator taint sources.
+    #[test]
+    fn test_flags_decorator_taint_source() {
+        let test = TestProgram::for_rule_with_prelude(NoOpenRedirect);
+        let result = test.lint_dir(
+            "no_open_redirect/test_flags_decorator_taint_source.ds",
+            r#"
+@taint("url")
+function readRedirect(): string {
+    return "/next"
+}
+
+location.assign(readRedirect());
+"#,
+        );
+        test.result(result).assert_lint("no-open-redirect");
     }
 }
