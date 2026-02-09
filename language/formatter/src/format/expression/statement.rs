@@ -1,6 +1,7 @@
 use super::super::timing::tags;
 use super::*;
 use crate::imports::sort_dependency_items;
+use destack_ast::ImportTarget;
 use destack_fir::write;
 
 /// Return whether a statement wrapper should print a trailing semicolon.
@@ -53,7 +54,7 @@ fn format_import_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     source: ImportSource,
     kind: DependencyKind,
-    target: StringId,
+    target: &ImportTarget,
     items: &[LocalNodeId<DependencyItem>],
     arguments: Option<&Vec<LocalNodeId<Argument>>>,
 ) -> FormatResult<()> {
@@ -64,19 +65,35 @@ fn format_import_expression<'ast>(
 
     // import call
     if source == ImportSource::ImportCall {
-        write!(
-            f,
-            [
-                Keyword::Import,
-                token("("),
-                token("\""),
-                target,
-                token("\""),
-                token(")")
-            ]
-        )?;
+        write!(f, [Keyword::Import, token("(")])?;
+
+        match target {
+            ImportTarget::String(target) => {
+                write!(f, [token("\""), *target, token("\"")])?;
+            }
+            ImportTarget::Expression { target } => {
+                write!(f, [*target])?;
+            }
+        }
+
+        if let Some(arguments) = arguments {
+            for argument in arguments {
+                write!(f, [token(","), space(), *argument])?;
+            }
+        }
+
+        write!(f, [token(")")])?;
         return Ok(());
     }
+
+    let target = match target {
+        ImportTarget::String(target) => *target,
+        ImportTarget::Expression { .. } => {
+            return Err(FormatError::SyntaxError {
+                message: "import declarations require string targets",
+            });
+        }
+    };
 
     // keyword
     write!(f, [Keyword::Import, space()])?;
@@ -693,7 +710,7 @@ pub(super) fn format_statement_expression<'ast>(
             let _timing = f
                 .context()
                 .timing_scope(tags::FORMAT_EXPRESSION_STATEMENT_IMPORT);
-            format_import_expression(f, *source, *kind, *target, items, arguments.as_ref())?;
+            format_import_expression(f, *source, *kind, target, items, arguments.as_ref())?;
         }
 
         // export

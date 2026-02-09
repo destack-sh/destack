@@ -3748,8 +3748,8 @@ mod tests {
         Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration,
         DeclarationDescriptor, Declarator, DependencyItem, DependencyKind, DependencyMode,
         EnumField, EnumKind, Expression, FunctionKind, IfCondition, IfKind, ImportAliasTarget,
-        ImportSource, IntType, Key, Mutability, Name, Parameter, Pattern, PatternField,
-        PostfixPosition, Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral,
+        ImportSource, ImportTarget, IntType, Key, Mutability, Name, Parameter, Pattern,
+        PatternField, PostfixPosition, Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral,
         TypePredicateSubject, TypeUnaryOperator, UnaryOperator, VarianceBound,
     };
     use destack_source::LanguageType;
@@ -3757,6 +3757,12 @@ mod tests {
     use crate::{
         TestParser, assert_expression_path, assert_name, assert_node, assert_path, assert_string,
     };
+
+    fn assert_import_target_string(parser: &crate::Parser, target: &ImportTarget, expected: &str) {
+        assert_node!(target, ImportTarget::String(target) => {
+            assert_string!(parser, *target, expected);
+        });
+    }
 
     /// Disambiguate using import meta as a path.
     #[test]
@@ -4285,7 +4291,7 @@ React = require("react")
         assert_node!(parser.tree, expression_id, Expression::Import { source, kind, target, items, arguments: None, .. } => {
             assert_eq!(*source, ImportSource::ImportStatement);
             assert_eq!(*kind, DependencyKind::Value);
-            assert_string!(parser, *target, "foo");
+            assert_import_target_string(&parser, target, "foo");
             assert_eq!(items.len(), 2);
             // bar
             assert_node!(parser.tree, items[0], DependencyItem { mode, name: Some(name), alias, .. } => {
@@ -4313,7 +4319,7 @@ React = require("react")
         assert_node!(parser.tree, expression_id, Expression::Import { source, kind, target, items, arguments: Some(arguments), .. } => {
             assert_eq!(*source, ImportSource::ImportStatement);
             assert_eq!(*kind, DependencyKind::Value);
-            assert_string!(parser, *target, "foo");
+            assert_import_target_string(&parser, target, "foo");
             assert_eq!(items.len(), 1);
             // * as baz
             assert_node!(parser.tree, items[0], DependencyItem { mode, name: None, alias: Some(alias), .. } => {
@@ -4394,7 +4400,7 @@ React = require("react")
         assert_node!(parser.tree, expression_id, Expression::Import { source, kind, target, items, arguments: None, .. } => {
             assert_eq!(*source, ImportSource::ImportCall);
             assert_eq!(*kind, DependencyKind::Value);
-            assert_string!(parser, *target, "foo");
+            assert_import_target_string(&parser, target, "foo");
             assert!(items.is_empty());
         });
     }
@@ -4409,9 +4415,26 @@ React = require("react")
         assert_node!(parser.tree, expression_id, Expression::Import { source, kind, target, items, arguments: Some(arguments), .. } => {
             assert_eq!(*source, ImportSource::ImportCall);
             assert_eq!(*kind, DependencyKind::Value);
-            assert_string!(parser, *target, "foo");
+            assert_import_target_string(&parser, target, "foo");
             assert!(items.is_empty());
             assert_eq!(arguments.len(), 1);
+        });
+    }
+
+    /// Parse dynamic import calls with non-literal targets.
+    #[test]
+    fn test_parse_import_call_with_expression_target() {
+        let mut test = TestParser::new(r#"import(join("file://", process.argv[2]))"#);
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::Import { source, kind, target, items, arguments: None, .. } => {
+            assert_eq!(*source, ImportSource::ImportCall);
+            assert_eq!(*kind, DependencyKind::Value);
+            assert!(items.is_empty());
+            assert_node!(target, ImportTarget::Expression { target } => {
+                assert_node!(parser.tree, *target, Expression::Call { .. });
+            });
         });
     }
 

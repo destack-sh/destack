@@ -1028,11 +1028,40 @@ impl Compiler {
                 target_module: _,
                 items,
                 arguments,
+            } => {
+                // reject dynamic imports when configured
+                if ctx.options.no_dynamic_import
+                    && matches!(module.source, ModuleSource::User)
+                    && matches!(
+                        source,
+                        DependencySource::ImportCall | DependencySource::RequireCall
+                    )
+                {
+                    self.error(AnalyzeError::DynamicImportDisabled {
+                        node: expression_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(ctx.profile)),
+                    });
+                }
+
+                for item_id in items {
+                    self.infer_dependency_item(module, *item_id, tree, symbols, types, infer, ctx)?;
+                }
+                if let Some(arguments) = arguments {
+                    for argument_id in arguments {
+                        self.infer_argument(module, *argument_id, None, tree, symbols, types, infer, ctx)?;
+                    }
+                }
+
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Void,
+                };
+                types.insert_type_from(ty, expression_id)
             }
-            | Expression::UnresolvedImport {
+            Expression::UnresolvedImport {
                 kind: _,
                 source,
-                target: _,
+                target,
                 items,
                 arguments,
                 ..
@@ -1050,6 +1079,10 @@ impl Compiler {
                             .into_global_any(module.id)
                             .into_anchored(Some(ctx.profile)),
                     });
+                }
+
+                if let destack_dir::ImportTarget::Expression { target } = target {
+                    self.infer_expression(module, *target, tree, symbols, types, infer, ctx)?;
                 }
 
                 for item_id in items {

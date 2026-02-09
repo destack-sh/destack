@@ -1,8 +1,9 @@
 use crate::{
-    CodegenJsError, CodegenJsResult, CodegenJsResultExt, Declarator, Expression, LocalNodeId,
-    LocalNodeIdAny, ModuleLowerer, NodeType, PostfixPosition, Statement, Type,
+    Argument, CodegenJsError, CodegenJsResult, CodegenJsResultExt, Declarator, Expression,
+    LocalNodeId, LocalNodeIdAny, ModuleLowerer, NodeType, Path, PostfixPosition, Statement, Type,
 };
 use destack_dir::{self as dir, Node};
+use smallvec::smallvec;
 
 impl ModuleLowerer<'_> {
     /// Get the position of a postfix expression.
@@ -78,41 +79,190 @@ impl ModuleLowerer<'_> {
             }
 
             dir::Expression::UnresolvedImport {
-                source: _,
+                source,
                 kind,
                 target,
                 items,
                 arguments,
+            } => {
+                // lower dynamic import calls as expression calls
+                if *source == dir::DependencySource::ImportCall {
+                    let target_expression = match target {
+                        dir::ImportTarget::String(target) => {
+                            let target = self.strings.intern_from(&self.ast.strings, *target);
+                            self.tree.insert_from_source(
+                                Expression::ScalarLiteral {
+                                    value: crate::ScalarLiteral::String(target),
+                                },
+                                self.module.id,
+                                expression_id,
+                            )
+                        }
+                        dir::ImportTarget::Expression { target } => {
+                            let lowered = self.lower_expression(*target)?;
+                            if lowered.ty != NodeType::Expression {
+                                return Err(CodegenJsError::UnsupportedConstruct {
+                                    node: expression_id.into_global_any(self.module.id),
+                                    message: None,
+                                });
+                            }
+                            lowered.try_into().unwrap()
+                        }
+                    };
+
+                    let mut dynamic_arguments = Vec::new();
+                    dynamic_arguments.push(self.tree.insert_from_source(
+                        Argument::Positional {
+                            value: target_expression,
+                        },
+                        self.module.id,
+                        expression_id,
+                    ));
+                    if let Some(arguments) = arguments {
+                        let lowered_arguments = arguments
+                            .iter()
+                            .map(|argument| self.lower_argument(*argument))
+                            .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                        dynamic_arguments.extend(lowered_arguments);
+                    }
+
+                    let import_name = self.strings.intern("import");
+                    let receiver = self.tree.insert_from_source(
+                        Expression::Path {
+                            path: Path {
+                                segments: smallvec![import_name],
+                            },
+                            static_arguments: None,
+                        },
+                        self.module.id,
+                        expression_id,
+                    );
+                    self.tree
+                        .insert_from_source(
+                            Expression::Call {
+                                position: PostfixPosition::Direct,
+                                left: receiver,
+                                static_arguments: None,
+                                dynamic_arguments,
+                            },
+                            self.module.id,
+                            expression_id,
+                        )
+                        .into_any()
+                } else {
+                    let target = match target {
+                        dir::ImportTarget::String(target) => {
+                            self.strings.intern_from(&self.ast.strings, *target)
+                        }
+                        dir::ImportTarget::Expression { .. } => {
+                            return Err(CodegenJsError::UnsupportedConstruct {
+                                node: expression_id.into_global_any(self.module.id),
+                                message: None,
+                            });
+                        }
+                    };
+                    let items = self.lower_dependency_items(*kind, items.as_slice())?;
+                    let arguments = arguments
+                        .as_ref()
+                        .map(|arguments| {
+                            arguments
+                                .iter()
+                                .map(|argument| self.lower_argument(*argument))
+                                .collect::<Result<Vec<_>, CodegenJsError>>()
+                        })
+                        .transpose()?;
+                    let kind = self.lower_dependency_kind(*kind);
+                    let statement = Statement::Import {
+                        kind,
+                        target,
+                        items,
+                        arguments,
+                    };
+                    self.tree
+                        .insert_from_source(statement, self.module.id, expression_id)
+                        .into_any()
+                }
             }
-            | dir::Expression::Import {
-                source: _,
+            dir::Expression::Import {
+                source,
                 kind,
                 target,
                 target_module: _,
                 items,
                 arguments,
             } => {
-                let target = self.strings.intern_from(&self.ast.strings, *target);
-                let items = self.lower_dependency_items(*kind, items.as_slice())?;
-                let arguments = arguments
-                    .as_ref()
-                    .map(|arguments| {
-                        arguments
+                // resolved import calls keep expression semantics
+                if *source == dir::DependencySource::ImportCall {
+                    let target = self.strings.intern_from(&self.ast.strings, *target);
+                    let target_expression = self.tree.insert_from_source(
+                        Expression::ScalarLiteral {
+                            value: crate::ScalarLiteral::String(target),
+                        },
+                        self.module.id,
+                        expression_id,
+                    );
+                    let mut dynamic_arguments = Vec::new();
+                    dynamic_arguments.push(self.tree.insert_from_source(
+                        Argument::Positional {
+                            value: target_expression,
+                        },
+                        self.module.id,
+                        expression_id,
+                    ));
+                    if let Some(arguments) = arguments {
+                        let lowered_arguments = arguments
                             .iter()
                             .map(|argument| self.lower_argument(*argument))
-                            .collect::<Result<Vec<_>, CodegenJsError>>()
-                    })
-                    .transpose()?;
-                let kind = self.lower_dependency_kind(*kind);
-                let statement = Statement::Import {
-                    kind,
-                    target,
-                    items,
-                    arguments,
-                };
-                self.tree
-                    .insert_from_source(statement, self.module.id, expression_id)
-                    .into_any()
+                            .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                        dynamic_arguments.extend(lowered_arguments);
+                    }
+
+                    let import_name = self.strings.intern("import");
+                    let receiver = self.tree.insert_from_source(
+                        Expression::Path {
+                            path: Path {
+                                segments: smallvec![import_name],
+                            },
+                            static_arguments: None,
+                        },
+                        self.module.id,
+                        expression_id,
+                    );
+                    self.tree
+                        .insert_from_source(
+                            Expression::Call {
+                                position: PostfixPosition::Direct,
+                                left: receiver,
+                                static_arguments: None,
+                                dynamic_arguments,
+                            },
+                            self.module.id,
+                            expression_id,
+                        )
+                        .into_any()
+                } else {
+                    let target = self.strings.intern_from(&self.ast.strings, *target);
+                    let items = self.lower_dependency_items(*kind, items.as_slice())?;
+                    let arguments = arguments
+                        .as_ref()
+                        .map(|arguments| {
+                            arguments
+                                .iter()
+                                .map(|argument| self.lower_argument(*argument))
+                                .collect::<Result<Vec<_>, CodegenJsError>>()
+                        })
+                        .transpose()?;
+                    let kind = self.lower_dependency_kind(*kind);
+                    let statement = Statement::Import {
+                        kind,
+                        target,
+                        items,
+                        arguments,
+                    };
+                    self.tree
+                        .insert_from_source(statement, self.module.id, expression_id)
+                        .into_any()
+                }
             }
             dir::Expression::UnresolvedReExport {
                 kind,

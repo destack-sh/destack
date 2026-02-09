@@ -1,6 +1,8 @@
 use std::cmp::Ordering;
 
-use destack_ast::{DependencyItem, DependencyKind, Expression, LocalNodeId, NodeTree};
+use destack_ast::{
+    DependencyItem, DependencyKind, Expression, ImportSource, ImportTarget, LocalNodeId, NodeTree,
+};
 use destack_base::ImmutableStringPool;
 use destack_workspace::ImportSortOrder;
 
@@ -55,10 +57,27 @@ pub fn get_import_expression(
 ) -> Option<&Expression> {
     let expr = tree.get(expr_id);
     match expr {
-        Expression::Import { .. } => Some(expr),
+        Expression::Import {
+            source: ImportSource::ImportCall,
+            ..
+        } => None,
+        Expression::Import { target, .. } => {
+            if matches!(target, ImportTarget::String(_)) {
+                Some(expr)
+            } else {
+                None
+            }
+        }
         Expression::Statement(inner_id) => {
             let inner = tree.get(*inner_id);
-            if matches!(inner, Expression::Import { .. }) {
+            if matches!(
+                inner,
+                Expression::Import {
+                    source: ImportSource::ImportStatement | ImportSource::ImportEquals,
+                    target: ImportTarget::String(_),
+                    ..
+                }
+            ) {
                 Some(inner)
             } else {
                 None
@@ -88,6 +107,9 @@ pub fn sort_imports(
     for &expr_id in imports {
         if let Some(Expression::Import { items, target, .. }) = get_import_expression(expr_id, tree)
         {
+            let ImportTarget::String(target) = target else {
+                continue;
+            };
             let target_str = strings.get(*target);
             if items.is_empty() {
                 // side effect import: preserve relative order
@@ -228,6 +250,9 @@ pub fn should_insert_blank_between(
 ) -> bool {
     let (prev_is_side_effect, prev_group) = match get_import_expression(prev_expr_id, tree) {
         Some(Expression::Import { items, target, .. }) => {
+            let ImportTarget::String(target) = target else {
+                return false;
+            };
             let target_str = strings.get(*target);
             (items.is_empty(), categorize_import(target_str))
         }
@@ -236,6 +261,9 @@ pub fn should_insert_blank_between(
 
     let (curr_is_side_effect, curr_group) = match get_import_expression(curr_expr_id, tree) {
         Some(Expression::Import { items, target, .. }) => {
+            let ImportTarget::String(target) = target else {
+                return false;
+            };
             let target_str = strings.get(*target);
             (items.is_empty(), categorize_import(target_str))
         }

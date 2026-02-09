@@ -52,8 +52,46 @@ impl Compiler {
                     target,
                     items,
                     arguments,
+                } => {
+                    let source = self.unbind_import_source(*source);
+                    let kind = self.unbind_dependency_kind(context, *kind);
+                    let target = match target {
+                        dir::ImportTarget::String(target) => {
+                            ast::ImportTarget::String(
+                                ast_strings.intern_from(&self.program.strings, *target),
+                            )
+                        }
+                        dir::ImportTarget::Expression { target } => {
+                            let target = self.unbind_expression(
+                                module,
+                                *target,
+                                tree,
+                                symbols,
+                                ast_tree,
+                                ast_strings,
+                                context,
+                            );
+                            ast::ImportTarget::Expression { target }
+                        }
+                    };
+                    let items = items.iter().map(|item| {
+                        self.unbind_dependency_item(module, *item, tree, symbols, ast_tree, ast_strings, context)
+                    }).collect();
+                    let arguments = arguments.as_ref().map(|args| {
+                        args.iter().map(|arg| {
+                            self.unbind_argument(module, *arg, tree, symbols, ast_tree, ast_strings, context)
+                        }).collect()
+                    });
+                    ast::Expression::Import {
+                        source,
+                        kind,
+                        target,
+                        items,
+                        arguments,
+                    }
                 }
-                | dir::Expression::Import {
+
+                dir::Expression::Import {
                     source,
                     kind,
                     target,
@@ -63,7 +101,9 @@ impl Compiler {
                 } => {
                     let source = self.unbind_import_source(*source);
                     let kind = self.unbind_dependency_kind(context, *kind);
-                    let target = ast_strings.intern_from(&self.program.strings, *target);
+                    let target = ast::ImportTarget::String(
+                        ast_strings.intern_from(&self.program.strings, *target),
+                    );
                     let items = items.iter().map(|item| {
                         self.unbind_dependency_item(module, *item, tree, symbols, ast_tree, ast_strings, context)
                     }).collect();

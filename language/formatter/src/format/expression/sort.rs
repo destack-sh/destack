@@ -1,4 +1,5 @@
 use super::*;
+use destack_ast::ImportTarget;
 use destack_fir::write;
 
 /// Format `export import ... = require(...)` when modeled as an export let.
@@ -45,6 +46,12 @@ pub(super) fn format_export_import_equals(
     if *source != ImportSource::ImportEquals {
         return Ok(false);
     }
+    let target = match target {
+        ImportTarget::String(target) => *target,
+        ImportTarget::Expression { .. } => {
+            return Ok(false);
+        }
+    };
 
     let alias =
         items

@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, CastOperator, CastSource,
     Declaration, DeclarationDescriptor, Declarator, DependencyItem, DependencyKind,
-    DependencySource, GlobalSymbolId, LocalNodeId, LocalScopeId, LocalSymbolId, LocalTypeId,
-    MatchCase, MatchKind, MatchSource, ModuleTarget, Mutability, Node, NodeType,
+    DependencySource, GlobalSymbolId, ImportTarget, LocalNodeId, LocalScopeId, LocalSymbolId,
+    LocalTypeId, MatchCase, MatchKind, MatchSource, ModuleTarget, Mutability, Node, NodeType,
     OwnershipCastOperator, OwnershipCastSource, Path, Pattern, Property, ScalarLiteral,
     StaticArgument, StaticProperty, SymbolSpaceOrder, TemplateLiteral, TypeBinaryOperator,
     TypeLiteral, TypeMappedModifiers, TypePredicateSubject, TypeUnaryOperator, UnaryOperator,
@@ -37,7 +37,7 @@ pub enum Expression {
     UnresolvedImport {
         source: DependencySource,
         kind: DependencyKind,
-        target: StringId,
+        target: ImportTarget,
         items: Vec<LocalNodeId<DependencyItem>>,
         arguments: Option<Vec<LocalNodeId<Argument>>>,
     },

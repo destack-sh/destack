@@ -809,7 +809,14 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
             } => {
                 self.push_debug("expression_import_source", *source);
                 self.push_debug("expression_import_kind", *kind);
-                self.push_string_id("expression_import_target", *target);
+                match target {
+                    ast::ImportTarget::String(target) => {
+                        self.push_string_id("expression_import_target", *target);
+                    }
+                    ast::ImportTarget::Expression { .. } => {
+                        self.push_debug("expression_import_target_expression", true);
+                    }
+                }
             }
             ast::Expression::Export { kind, target, .. } => {
                 self.push_debug("expression_export_kind", *kind);

@@ -1,6 +1,8 @@
 use std::path::Path;
 
-use destack_ast::{DependencyKind, DependencyMode, Expression, NodeTree, ScalarLiteral, TokenType};
+use destack_ast::{
+    DependencyKind, DependencyMode, Expression, ImportTarget, NodeTree, ScalarLiteral, TokenType,
+};
 use destack_base::StringId;
 use destack_source::{Edit, FileId, PathExt, Span};
 
@@ -155,7 +157,11 @@ pub fn module_specifier_in_expression(
     expression: &Expression,
 ) -> Option<(StringId, DependencyKind)> {
     match expression {
-        Expression::Import { target, kind, .. } => Some((*target, *kind)),
+        Expression::Import {
+            target: ImportTarget::String(target),
+            kind,
+            ..
+        } => Some((*target, *kind)),
         Expression::Export { target, kind, .. } => target.map(|target| (target, *kind)),
         Expression::TypeImport { target, .. } => {
             if let Expression::ScalarLiteral(ScalarLiteral::String(target)) = tree.get(*target) {
@@ -193,6 +199,10 @@ pub fn collect_existing_imports(session: &Session, file_id: FileId) -> Vec<Exist
             ..
         } = expr
         {
+            let ImportTarget::String(target) = target else {
+                continue;
+            };
+
             // resolve import path, span, and kind
             let path = ctx.ast.strings.get(*target).to_string();
             let span = ctx.ast.tree.source_map.get(node_id.id);

@@ -1,8 +1,9 @@
 use crate::{
     Annotation, Argument, Block, Declaration, Declarator, DependencyItem, DynamicKey, EnumField,
     Expression, ForEachBinding, FunctionSignature, Generics, Heritage, IfCondition,
-    ImportAliasTarget, LocalNodeId, MatchCase, MatchSelector, Member, NodeTree, NodeType,
-    NodeVisitor, Parameter, Pattern, PatternField, Property, TemplateLiteral, WhereClause,
+    ImportAliasTarget, ImportTarget, LocalNodeId, MatchCase, MatchSelector, Member, NodeTree,
+    NodeType, NodeVisitor, Parameter, Pattern, PatternField, Property, TemplateLiteral,
+    WhereClause,
 };
 
 /// Walk any node.
@@ -175,10 +176,14 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             Expression::UnresolvedImport {
                 source: _,
                 kind: _,
-                target: _,
+                target,
                 items,
                 arguments,
             } => {
+                if let ImportTarget::Expression { target } = target {
+                    let target_expression = tree.get(*target);
+                    visitor.visit_expression(tree, *target, target_expression);
+                }
                 for item_id in items {
                     let item = tree.get(*item_id);
                     visitor.visit_dependency_item(tree, *item_id, item);

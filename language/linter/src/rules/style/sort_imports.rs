@@ -99,7 +99,13 @@ impl LintRule for SortImports {
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
 
-            if let Expression::Import { target, items, .. } = expression {
+            if let Expression::Import {
+                source: ast::ImportSource::ImportStatement | ast::ImportSource::ImportEquals,
+                target: ast::ImportTarget::String(target),
+                items,
+                ..
+            } = expression
+            {
                 let target_str = ctx.strings.get(*target).to_string();
                 let group = ImportGroup::from_target(&target_str);
                 imports.push(ImportInfo {

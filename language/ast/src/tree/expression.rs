@@ -22,6 +22,15 @@ pub enum ImportSource {
     ImportCall,
 }
 
+/// The target of an import declaration.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum ImportTarget {
+    /// Static import target string (like `"foo"`).
+    String(StringId),
+    /// Dynamic import target expression (like `join(base, name)`).
+    Expression { target: LocalNodeId<Expression> },
+}
+
 /// An Expression is a generic container for all constructs.
 /// Unlike most languages, we don't differentiate "statements" and "expressions" up-front.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -64,7 +73,7 @@ pub enum Expression {
     Import {
         source: ImportSource,
         kind: DependencyKind,
-        target: StringId,
+        target: ImportTarget,
         items: Vec<LocalNodeId<DependencyItem>>,
         arguments: Option<Vec<LocalNodeId<Argument>>>,
     },

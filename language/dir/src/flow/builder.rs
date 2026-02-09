@@ -5,9 +5,9 @@ use destack_source::ModuleId;
 use crate::{
     Argument, BinaryOperator, Block, Declaration, Declarator, DynamicKey, Expression, FlowBlock,
     FlowBlockId, FlowEdge, FlowEdgeKind, FlowGraph, FlowGuard, ForEachBinding, GlobalSymbolId,
-    IfCondition, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LoopKind, MatchCase, MatchKind,
-    MatchSelector, MatchSource, NodeTree, Pattern, PatternField, Property, TemplateLiteral,
-    UnaryOperator,
+    IfCondition, ImportTarget, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LoopKind, MatchCase,
+    MatchKind, MatchSelector, MatchSource, NodeTree, Pattern, PatternField, Property,
+    TemplateLiteral, UnaryOperator,
 };
 
 /// Describe what kind of control target we are tracking.
@@ -1625,8 +1625,21 @@ impl<'tree> FlowGraphBuilder<'tree> {
             Expression::Declaration { declaration } => {
                 self.build_declaration_expression(*declaration, current_block_id)
             }
-            Expression::UnresolvedImport { arguments, .. }
-            | Expression::Import { arguments, .. } => {
+            Expression::UnresolvedImport {
+                target, arguments, ..
+            } => {
+                let current_block_id = match target {
+                    ImportTarget::String(_) => Some(current_block_id),
+                    ImportTarget::Expression { target } => {
+                        self.build_expression(*target, current_block_id)
+                    }
+                };
+                let Some(current_block_id) = current_block_id else {
+                    return None;
+                };
+                self.build_arguments(arguments.as_deref(), current_block_id)
+            }
+            Expression::Import { arguments, .. } => {
                 self.build_arguments(arguments.as_deref(), current_block_id)
             }
             Expression::UnresolvedReExport { .. }

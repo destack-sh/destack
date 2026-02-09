@@ -494,6 +494,26 @@ impl Dump for ImportAliasTarget {
     }
 }
 
+/// Dump an ImportTarget as a structured representation.
+impl Dump for ImportTarget {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        match self {
+            ImportTarget::String(target) => {
+                dumper
+                    .object("ImportTarget::String")
+                    .field("target", target)
+                    .end();
+            }
+            ImportTarget::Expression { target } => {
+                dumper
+                    .object("ImportTarget::Expression")
+                    .field("target_id", &target.id)
+                    .end();
+            }
+        }
+    }
+}
+
 /// Dump a BindingModifier as a string.
 impl Dump for BindingModifier {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
