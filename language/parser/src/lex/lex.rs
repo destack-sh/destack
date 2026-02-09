@@ -44,7 +44,7 @@ pub const TRIVIA_TOKEN_TYPES: [TokenType; 5] = [
     TokenType::DocBlockComment,
 ];
 
-pub const EXPRESSION_START_TOKEN_TYPES: [TokenType; 18] = [
+pub const EXPRESSION_START_TOKEN_TYPES: [TokenType; 20] = [
     TokenType::Assign,
     TokenType::Comma,
     TokenType::Colon,
@@ -63,6 +63,8 @@ pub const EXPRESSION_START_TOKEN_TYPES: [TokenType; 18] = [
     TokenType::OpenParenthesis,
     TokenType::OpenBracket,
     TokenType::OpenBrace,
+    TokenType::Arrow,
+    TokenType::ArrowWide,
 ];
 
 /// Check if a token is semantic (not whitespace or comment).
@@ -1666,8 +1668,8 @@ impl Lexer {
                         }
                         continue;
                     }
-                    // skip escaped backslash or backtick
-                    if escaped == '\\' || escaped == '`' {
+                    // skip the escaped code unit so `\${` stays literal text
+                    if escaped != '\0' {
                         self.eat();
                     }
                 }
@@ -1892,11 +1894,35 @@ impl Lexer {
             let Some(last_semantic) = self.options.last_semantic_token.as_ref() else {
                 return true;
             };
-            return self.is_statement_boundary_after_newline(
+            if self.is_statement_boundary_after_newline(
                 Some(last_non_whitespace),
                 last_semantic,
                 self.options.prev_semantic_token.as_ref(),
-            );
+            ) {
+                return true;
+            }
+
+            // continue expression context across newline
+            if last_semantic.token.ty == TokenType::CloseParenthesis
+                && self.close_parenthesis_ends_control_header()
+            {
+                return true;
+            }
+            if EXPRESSION_START_TOKEN_TYPES.contains(&last_semantic.token.ty) {
+                return true;
+            }
+            if last_semantic.token.ty == TokenType::Identifier {
+                return Keyword::from_str(self.get_span_str(last_semantic.span))
+                    .map(|keyword| {
+                        keyword.is_control()
+                            || keyword == Keyword::Delete
+                            || UnaryOperator::from_prefix_keyword(keyword).is_some()
+                            || keyword == Keyword::Default && self.default_follows_export()
+                    })
+                    .unwrap_or(false);
+            }
+
+            return false;
         }
 
         // control statement headers can be followed by expression statements

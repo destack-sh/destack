@@ -608,6 +608,83 @@ fn test_lex_regex_literal_after_colon() {
 }
 
 #[test]
+fn test_lex_regex_literal_after_assign_newline() {
+    let (semantic_tokens, side_tokens) =
+        lex_source_tokens("var match =\n/^foo$/i.exec(str)", LanguageType::JavaScript);
+
+    assert_eq!(
+        semantic_tokens,
+        vec![
+            Token::new(TokenType::Identifier, 3, None),
+            Token::new(TokenType::Identifier, 5, None),
+            Token::new(TokenType::Assign, 1, None),
+            Token::new(TokenType::Newline, 1, None),
+            Token::new(
+                TokenType::Literal,
+                8,
+                Some(LiteralType::RegexString { has_flags: true })
+            ),
+            Token::new(TokenType::Dot, 1, None),
+            Token::new(TokenType::Identifier, 4, None),
+            Token::new(TokenType::OpenParenthesis, 1, None),
+            Token::new(TokenType::Identifier, 3, None),
+            Token::new(TokenType::CloseParenthesis, 1, None),
+            Token::end(),
+        ],
+    );
+
+    assert_eq!(
+        side_tokens,
+        vec![
+            Token::new(TokenType::Whitespace, 1, None),
+            Token::new(TokenType::Whitespace, 1, None),
+        ],
+    );
+}
+
+#[test]
+fn test_lex_regex_literal_after_arrow() {
+    let (semantic_tokens, side_tokens) = lex_source_tokens(
+        "const f = () => /foo/.test(value)",
+        LanguageType::JavaScript,
+    );
+
+    assert_eq!(
+        semantic_tokens,
+        vec![
+            Token::new(TokenType::Identifier, 5, None),
+            Token::new(TokenType::Identifier, 1, None),
+            Token::new(TokenType::Assign, 1, None),
+            Token::new(TokenType::OpenParenthesis, 1, None),
+            Token::new(TokenType::CloseParenthesis, 1, None),
+            Token::new(TokenType::ArrowWide, 2, None),
+            Token::new(
+                TokenType::Literal,
+                5,
+                Some(LiteralType::RegexString { has_flags: false })
+            ),
+            Token::new(TokenType::Dot, 1, None),
+            Token::new(TokenType::Identifier, 4, None),
+            Token::new(TokenType::OpenParenthesis, 1, None),
+            Token::new(TokenType::Identifier, 5, None),
+            Token::new(TokenType::CloseParenthesis, 1, None),
+            Token::end(),
+        ],
+    );
+
+    assert_eq!(
+        side_tokens,
+        vec![
+            Token::new(TokenType::Whitespace, 1, None),
+            Token::new(TokenType::Whitespace, 1, None),
+            Token::new(TokenType::Whitespace, 1, None),
+            Token::new(TokenType::Whitespace, 1, None),
+            Token::new(TokenType::Whitespace, 1, None),
+        ],
+    );
+}
+
+#[test]
 fn test_lex_regex_literal_after_if_header() {
     assert_tokenize_eq_roundtrip!(
         "if (1) /foo/;",
@@ -1009,6 +1086,16 @@ fn test_lex_template_strings_with_interpolation_adjacent() {
         Token::new(TokenType::TemplateStringMiddle, 3, None),
         Token::new(TokenType::Identifier, 1, None),
         Token::new(TokenType::TemplateStringEnd, 2, None),
+    );
+}
+
+#[test]
+fn test_lex_template_strings_with_escaped_interpolation_prefix() {
+    assert_tokenize_eq_roundtrip!(
+        r"`\${${value}}`",
+        Token::new(TokenType::TemplateStringStart, 6, None),
+        Token::new(TokenType::Identifier, 5, None),
+        Token::new(TokenType::TemplateStringEnd, 3, None),
     );
 }
 
@@ -1732,6 +1819,45 @@ fn test_lex_tree_nested_multiline_with_text() {
         .filter(|t| t.token.ty == TokenType::CloseParenthesis)
         .count();
     assert_eq!(open_parens, close_parens, "parentheses should be balanced");
+}
+
+/// Complex tree text after map callbacks should stay in tree content mode.
+#[test]
+fn test_lex_tree_text_after_map_callback_blocks() {
+    let input = r#"<div>
+  <Show when={selectedView() === 'queries'}>
+    <select
+      value={sort()}
+      onChange={(e) => {
+        props.setLocalStore('sort', e.currentTarget.value)
+      }}
+    >
+      {Object.keys(sortFns).map((key) => (
+        <option value={key}>Sort by {key}</option>
+      ))}
+    </select>
+  </Show>
+  <button>
+    <Show
+      when={
+        (selectedView() === 'queries'
+          ? sortOrder()
+          : mutationSortOrder()) === 1
+      }
+    >
+      <span>Asc</span>
+      <ArrowUp />
+    </Show>
+  </button>
+</div>"#;
+    let (tokens, _, _) = lex_source_with_tree_literals(input, LanguageType::TypeScriptXml);
+
+    let asc_token = tokens
+        .iter()
+        .find(|token| &input[token.span.start as usize..token.span.end as usize] == "Asc")
+        .expect("expected Asc token");
+    assert_eq!(asc_token.token.ty, TokenType::Literal);
+    assert_eq!(asc_token.token.literal, Some(LiteralType::TreeString));
 }
 
 /// Tree literal with JSX comment syntax {/* */}.

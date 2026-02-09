@@ -54,5 +54,3 @@ Full JSX/TSX compatibility for "tree literals":
     {expression}
 </Component>
 ```
-
-The lexer maintains a state stack to handle nested elements and expression containers (`{...}`).
