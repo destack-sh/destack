@@ -7,7 +7,7 @@ use destack_vm as vm;
 /// Stub for destack.resource.close.
 pub(super) fn destack_resource_close(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     id: ResourceId,
 ) -> RuntimeResult<()> {
     let _ = id;
@@ -20,7 +20,7 @@ pub(super) fn destack_resource_close(
 /// Stub for destack.resource.kind.
 pub(super) fn destack_resource_kind(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     id: ResourceId,
 ) -> RuntimeResult<ResourceKindVm> {
     let _ = id;
@@ -33,7 +33,7 @@ pub(super) fn destack_resource_kind(
 /// Stub for destack.resource.remove.
 pub(super) fn destack_resource_remove(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     id: ResourceId,
 ) -> RuntimeResult<()> {
     let _ = id;
@@ -46,7 +46,7 @@ pub(super) fn destack_resource_remove(
 /// Stub for destack.resource.transfer.
 pub(super) fn destack_resource_transfer(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     id: ResourceId,
     ownership: ResourceOwnership,
 ) -> RuntimeResult<()> {

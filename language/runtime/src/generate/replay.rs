@@ -414,7 +414,7 @@ impl<'a> DomainWriter<'a> {
             output.push_str("#[inline]\n");
             output.push_str(&format!("fn {fn_name}(\n"));
             output.push_str("    runtime: &RuntimeCallContext,\n");
-            output.push_str("    context: &mut vm::RuntimeContext<'_>,\n");
+            output.push_str("    context: &mut vm::ExternalCallContext<'_>,\n");
             for param in &params {
                 output.push_str(&format!("    {param},\n"));
             }

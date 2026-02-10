@@ -50,7 +50,7 @@ fn decode_string(
 /// Decode arguments for destack.console.console.error.
 #[inline]
 fn decode_destack_console_console_error_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     // ignore unused context
@@ -64,7 +64,7 @@ fn decode_destack_console_console_error_args(
 /// Encode the result for destack.console.console.error.
 #[inline]
 fn encode_destack_console_console_error_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -76,7 +76,7 @@ fn encode_destack_console_console_error_result(
 /// Decode arguments for destack.console.console.info.
 #[inline]
 fn decode_destack_console_console_info_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     // ignore unused context
@@ -90,7 +90,7 @@ fn decode_destack_console_console_info_args(
 /// Encode the result for destack.console.console.info.
 #[inline]
 fn encode_destack_console_console_info_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -102,7 +102,7 @@ fn encode_destack_console_console_info_result(
 /// Decode arguments for destack.console.console.log.
 #[inline]
 fn decode_destack_console_console_log_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     // ignore unused context
@@ -116,7 +116,7 @@ fn decode_destack_console_console_log_args(
 /// Encode the result for destack.console.console.log.
 #[inline]
 fn encode_destack_console_console_log_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -128,7 +128,7 @@ fn encode_destack_console_console_log_result(
 /// Decode arguments for destack.console.console.warn.
 #[inline]
 fn decode_destack_console_console_warn_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     // ignore unused context
@@ -142,7 +142,7 @@ fn decode_destack_console_console_warn_args(
 /// Encode the result for destack.console.console.warn.
 #[inline]
 fn encode_destack_console_console_warn_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -464,7 +464,7 @@ pub unsafe extern "C" fn destack_console_console_warn(value: NativeStringRef) ->
 #[inline]
 fn destack_console_console_error_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     value: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -507,7 +507,7 @@ fn destack_console_console_error_vm_replay(
 #[inline]
 fn destack_console_console_info_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     value: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -550,7 +550,7 @@ fn destack_console_console_info_vm_replay(
 #[inline]
 fn destack_console_console_log_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     value: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -593,7 +593,7 @@ fn destack_console_console_log_vm_replay(
 #[inline]
 fn destack_console_console_warn_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     value: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(

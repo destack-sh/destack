@@ -159,7 +159,7 @@ fn decode_string(
 
 /// Decode a slice argument.
 fn decode_slice<T>(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -169,7 +169,7 @@ fn decode_slice<T>(
 
 /// Decode an array argument.
 fn decode_array<T>(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -180,7 +180,7 @@ fn decode_array<T>(
 /// Decode arguments for destack.net.accept.
 #[inline]
 fn decode_destack_net_accept_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ListenerHandle, AcceptFlags)> {
     // ignore unused context
@@ -200,7 +200,7 @@ fn decode_destack_net_accept_args(
 /// Encode the result for destack.net.accept.
 #[inline]
 fn encode_destack_net_accept_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SocketHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -212,7 +212,7 @@ fn encode_destack_net_accept_result(
 /// Decode arguments for destack.net.address.localAddress.
 #[inline]
 fn decode_destack_net_address_local_address_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle,)> {
     // ignore unused context
@@ -228,7 +228,7 @@ fn decode_destack_net_address_local_address_args(
 /// Encode the result for destack.net.address.localAddress.
 #[inline]
 fn encode_destack_net_address_local_address_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SocketAddressVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -242,7 +242,7 @@ fn encode_destack_net_address_local_address_result(
 /// Decode arguments for destack.net.address.peerAddress.
 #[inline]
 fn decode_destack_net_address_peer_address_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle,)> {
     // ignore unused context
@@ -258,7 +258,7 @@ fn decode_destack_net_address_peer_address_args(
 /// Encode the result for destack.net.address.peerAddress.
 #[inline]
 fn encode_destack_net_address_peer_address_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SocketAddressVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -272,7 +272,7 @@ fn encode_destack_net_address_peer_address_result(
 /// Decode arguments for destack.net.bind.
 #[inline]
 fn decode_destack_net_bind_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, SocketAddressVm)> {
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
@@ -313,7 +313,7 @@ fn decode_destack_net_bind_args(
 /// Encode the result for destack.net.bind.
 #[inline]
 fn encode_destack_net_bind_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -325,7 +325,7 @@ fn encode_destack_net_bind_result(
 /// Decode arguments for destack.net.close.
 #[inline]
 fn decode_destack_net_close_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle,)> {
     // ignore unused context
@@ -341,7 +341,7 @@ fn decode_destack_net_close_args(
 /// Encode the result for destack.net.close.
 #[inline]
 fn encode_destack_net_close_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -353,7 +353,7 @@ fn encode_destack_net_close_result(
 /// Decode arguments for destack.net.closeListener.
 #[inline]
 fn decode_destack_net_close_listener_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ListenerHandle,)> {
     // ignore unused context
@@ -369,7 +369,7 @@ fn decode_destack_net_close_listener_args(
 /// Encode the result for destack.net.closeListener.
 #[inline]
 fn encode_destack_net_close_listener_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -381,7 +381,7 @@ fn encode_destack_net_close_listener_result(
 /// Decode arguments for destack.net.connect.
 #[inline]
 fn decode_destack_net_connect_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, SocketAddressVm)> {
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
@@ -422,7 +422,7 @@ fn decode_destack_net_connect_args(
 /// Encode the result for destack.net.connect.
 #[inline]
 fn encode_destack_net_connect_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -434,7 +434,7 @@ fn encode_destack_net_connect_result(
 /// Encode the result for destack.net.interface.listInterfaces.
 #[inline]
 fn encode_destack_net_interface_list_interfaces_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<NetInterfaceVm>>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| value.to_value(context))
@@ -443,7 +443,7 @@ fn encode_destack_net_interface_list_interfaces_result(
 /// Decode arguments for destack.net.interfaceIndex.
 #[inline]
 fn decode_destack_net_interface_index_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     // ignore unused context
@@ -457,7 +457,7 @@ fn decode_destack_net_interface_index_args(
 /// Encode the result for destack.net.interfaceIndex.
 #[inline]
 fn encode_destack_net_interface_index_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -469,7 +469,7 @@ fn encode_destack_net_interface_index_result(
 /// Decode arguments for destack.net.interfaceName.
 #[inline]
 fn decode_destack_net_interface_name_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u32,)> {
     // ignore unused context
@@ -483,7 +483,7 @@ fn decode_destack_net_interface_name_args(
 /// Encode the result for destack.net.interfaceName.
 #[inline]
 fn encode_destack_net_interface_name_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<vm::StringHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -495,7 +495,7 @@ fn encode_destack_net_interface_name_result(
 /// Decode arguments for destack.net.joinMulticastV4.
 #[inline]
 fn decode_destack_net_join_multicast_v4_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, vm::StringHandle, vm::StringHandle)> {
     // ignore unused context
@@ -515,7 +515,7 @@ fn decode_destack_net_join_multicast_v4_args(
 /// Encode the result for destack.net.joinMulticastV4.
 #[inline]
 fn encode_destack_net_join_multicast_v4_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -527,7 +527,7 @@ fn encode_destack_net_join_multicast_v4_result(
 /// Decode arguments for destack.net.joinMulticastV6.
 #[inline]
 fn decode_destack_net_join_multicast_v6_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, vm::StringHandle, u32)> {
     // ignore unused context
@@ -547,7 +547,7 @@ fn decode_destack_net_join_multicast_v6_args(
 /// Encode the result for destack.net.joinMulticastV6.
 #[inline]
 fn encode_destack_net_join_multicast_v6_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -559,7 +559,7 @@ fn encode_destack_net_join_multicast_v6_result(
 /// Decode arguments for destack.net.leaveMulticastV4.
 #[inline]
 fn decode_destack_net_leave_multicast_v4_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, vm::StringHandle, vm::StringHandle)> {
     // ignore unused context
@@ -579,7 +579,7 @@ fn decode_destack_net_leave_multicast_v4_args(
 /// Encode the result for destack.net.leaveMulticastV4.
 #[inline]
 fn encode_destack_net_leave_multicast_v4_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -591,7 +591,7 @@ fn encode_destack_net_leave_multicast_v4_result(
 /// Decode arguments for destack.net.leaveMulticastV6.
 #[inline]
 fn decode_destack_net_leave_multicast_v6_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, vm::StringHandle, u32)> {
     // ignore unused context
@@ -611,7 +611,7 @@ fn decode_destack_net_leave_multicast_v6_args(
 /// Encode the result for destack.net.leaveMulticastV6.
 #[inline]
 fn encode_destack_net_leave_multicast_v6_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -623,7 +623,7 @@ fn encode_destack_net_leave_multicast_v6_result(
 /// Decode arguments for destack.net.listen.
 #[inline]
 fn decode_destack_net_listen_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(SocketAddressVm, u32)> {
     let address_value = arg_value(args, 0, "address", "SocketAddress")?;
@@ -662,7 +662,7 @@ fn decode_destack_net_listen_args(
 /// Encode the result for destack.net.listen.
 #[inline]
 fn encode_destack_net_listen_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::ListenerHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -674,7 +674,7 @@ fn encode_destack_net_listen_result(
 /// Decode arguments for destack.net.options.getBroadcast.
 #[inline]
 fn decode_destack_net_options_get_broadcast_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle,)> {
     // ignore unused context
@@ -690,7 +690,7 @@ fn decode_destack_net_options_get_broadcast_args(
 /// Encode the result for destack.net.options.getBroadcast.
 #[inline]
 fn encode_destack_net_options_get_broadcast_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -702,7 +702,7 @@ fn encode_destack_net_options_get_broadcast_result(
 /// Decode arguments for destack.net.options.getLinger.
 #[inline]
 fn decode_destack_net_options_get_linger_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle,)> {
     // ignore unused context
@@ -718,7 +718,7 @@ fn decode_destack_net_options_get_linger_args(
 /// Encode the result for destack.net.options.getLinger.
 #[inline]
 fn encode_destack_net_options_get_linger_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<LingerVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -731,7 +731,7 @@ fn encode_destack_net_options_get_linger_result(
 /// Decode arguments for destack.net.options.getOnlyV6.
 #[inline]
 fn decode_destack_net_options_get_only_v6_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle,)> {
     // ignore unused context
@@ -747,7 +747,7 @@ fn decode_destack_net_options_get_only_v6_args(
 /// Encode the result for destack.net.options.getOnlyV6.
 #[inline]
 fn encode_destack_net_options_get_only_v6_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -759,7 +759,7 @@ fn encode_destack_net_options_get_only_v6_result(
 /// Decode arguments for destack.net.options.getPacketMark.
 #[inline]
 fn decode_destack_net_options_get_packet_mark_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle,)> {
     // ignore unused context
@@ -775,7 +775,7 @@ fn decode_destack_net_options_get_packet_mark_args(
 /// Encode the result for destack.net.options.getPacketMark.
 #[inline]
 fn encode_destack_net_options_get_packet_mark_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -787,7 +787,7 @@ fn encode_destack_net_options_get_packet_mark_result(
 /// Decode arguments for destack.net.options.getReadTimeout.
 #[inline]
 fn decode_destack_net_options_get_read_timeout_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle,)> {
     // ignore unused context
@@ -803,7 +803,7 @@ fn decode_destack_net_options_get_read_timeout_args(
 /// Encode the result for destack.net.options.getReadTimeout.
 #[inline]
 fn encode_destack_net_options_get_read_timeout_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -815,7 +815,7 @@ fn encode_destack_net_options_get_read_timeout_result(
 /// Decode arguments for destack.net.options.getRecvBuffer.
 #[inline]
 fn decode_destack_net_options_get_recv_buffer_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle,)> {
     // ignore unused context
@@ -831,7 +831,7 @@ fn decode_destack_net_options_get_recv_buffer_args(
 /// Encode the result for destack.net.options.getRecvBuffer.
 #[inline]
 fn encode_destack_net_options_get_recv_buffer_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -843,7 +843,7 @@ fn encode_destack_net_options_get_recv_buffer_result(
 /// Decode arguments for destack.net.options.getSendBuffer.
 #[inline]
 fn decode_destack_net_options_get_send_buffer_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle,)> {
     // ignore unused context
@@ -859,7 +859,7 @@ fn decode_destack_net_options_get_send_buffer_args(
 /// Encode the result for destack.net.options.getSendBuffer.
 #[inline]
 fn encode_destack_net_options_get_send_buffer_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -871,7 +871,7 @@ fn encode_destack_net_options_get_send_buffer_result(
 /// Decode arguments for destack.net.options.getSockOptRaw.
 #[inline]
 fn decode_destack_net_options_get_sock_opt_raw_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
     resource::SocketHandle,
@@ -900,7 +900,7 @@ fn decode_destack_net_options_get_sock_opt_raw_args(
 /// Encode the result for destack.net.options.getSockOptRaw.
 #[inline]
 fn encode_destack_net_options_get_sock_opt_raw_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<u8>>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| value.to_value(context))
@@ -909,7 +909,7 @@ fn encode_destack_net_options_get_sock_opt_raw_result(
 /// Decode arguments for destack.net.options.getTimestamping.
 #[inline]
 fn decode_destack_net_options_get_timestamping_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle,)> {
     // ignore unused context
@@ -925,7 +925,7 @@ fn decode_destack_net_options_get_timestamping_args(
 /// Encode the result for destack.net.options.getTimestamping.
 #[inline]
 fn encode_destack_net_options_get_timestamping_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SocketTimestampingMode>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -937,7 +937,7 @@ fn encode_destack_net_options_get_timestamping_result(
 /// Decode arguments for destack.net.options.getTos.
 #[inline]
 fn decode_destack_net_options_get_tos_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle,)> {
     // ignore unused context
@@ -953,7 +953,7 @@ fn decode_destack_net_options_get_tos_args(
 /// Encode the result for destack.net.options.getTos.
 #[inline]
 fn encode_destack_net_options_get_tos_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -965,7 +965,7 @@ fn encode_destack_net_options_get_tos_result(
 /// Decode arguments for destack.net.options.getTtl.
 #[inline]
 fn decode_destack_net_options_get_ttl_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle,)> {
     // ignore unused context
@@ -981,7 +981,7 @@ fn decode_destack_net_options_get_ttl_args(
 /// Encode the result for destack.net.options.getTtl.
 #[inline]
 fn encode_destack_net_options_get_ttl_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -993,7 +993,7 @@ fn encode_destack_net_options_get_ttl_result(
 /// Decode arguments for destack.net.options.getWriteTimeout.
 #[inline]
 fn decode_destack_net_options_get_write_timeout_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle,)> {
     // ignore unused context
@@ -1009,7 +1009,7 @@ fn decode_destack_net_options_get_write_timeout_args(
 /// Encode the result for destack.net.options.getWriteTimeout.
 #[inline]
 fn encode_destack_net_options_get_write_timeout_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1021,7 +1021,7 @@ fn encode_destack_net_options_get_write_timeout_result(
 /// Decode arguments for destack.net.options.setBroadcast.
 #[inline]
 fn decode_destack_net_options_set_broadcast_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, bool)> {
     // ignore unused context
@@ -1039,7 +1039,7 @@ fn decode_destack_net_options_set_broadcast_args(
 /// Encode the result for destack.net.options.setBroadcast.
 #[inline]
 fn encode_destack_net_options_set_broadcast_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1051,7 +1051,7 @@ fn encode_destack_net_options_set_broadcast_result(
 /// Decode arguments for destack.net.options.setLinger.
 #[inline]
 fn decode_destack_net_options_set_linger_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, LingerVm)> {
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
@@ -1089,7 +1089,7 @@ fn decode_destack_net_options_set_linger_args(
 /// Encode the result for destack.net.options.setLinger.
 #[inline]
 fn encode_destack_net_options_set_linger_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1101,7 +1101,7 @@ fn encode_destack_net_options_set_linger_result(
 /// Decode arguments for destack.net.options.setOnlyV6.
 #[inline]
 fn decode_destack_net_options_set_only_v6_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, bool)> {
     // ignore unused context
@@ -1119,7 +1119,7 @@ fn decode_destack_net_options_set_only_v6_args(
 /// Encode the result for destack.net.options.setOnlyV6.
 #[inline]
 fn encode_destack_net_options_set_only_v6_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1131,7 +1131,7 @@ fn encode_destack_net_options_set_only_v6_result(
 /// Decode arguments for destack.net.options.setPacketMark.
 #[inline]
 fn decode_destack_net_options_set_packet_mark_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, u32)> {
     // ignore unused context
@@ -1149,7 +1149,7 @@ fn decode_destack_net_options_set_packet_mark_args(
 /// Encode the result for destack.net.options.setPacketMark.
 #[inline]
 fn encode_destack_net_options_set_packet_mark_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1161,7 +1161,7 @@ fn encode_destack_net_options_set_packet_mark_result(
 /// Decode arguments for destack.net.options.setReadTimeout.
 #[inline]
 fn decode_destack_net_options_set_read_timeout_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, u32)> {
     // ignore unused context
@@ -1179,7 +1179,7 @@ fn decode_destack_net_options_set_read_timeout_args(
 /// Encode the result for destack.net.options.setReadTimeout.
 #[inline]
 fn encode_destack_net_options_set_read_timeout_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1191,7 +1191,7 @@ fn encode_destack_net_options_set_read_timeout_result(
 /// Decode arguments for destack.net.options.setRecvBuffer.
 #[inline]
 fn decode_destack_net_options_set_recv_buffer_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, u32)> {
     // ignore unused context
@@ -1209,7 +1209,7 @@ fn decode_destack_net_options_set_recv_buffer_args(
 /// Encode the result for destack.net.options.setRecvBuffer.
 #[inline]
 fn encode_destack_net_options_set_recv_buffer_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1221,7 +1221,7 @@ fn encode_destack_net_options_set_recv_buffer_result(
 /// Decode arguments for destack.net.options.setSendBuffer.
 #[inline]
 fn decode_destack_net_options_set_send_buffer_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, u32)> {
     // ignore unused context
@@ -1239,7 +1239,7 @@ fn decode_destack_net_options_set_send_buffer_args(
 /// Encode the result for destack.net.options.setSendBuffer.
 #[inline]
 fn encode_destack_net_options_set_send_buffer_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1251,7 +1251,7 @@ fn encode_destack_net_options_set_send_buffer_result(
 /// Decode arguments for destack.net.options.setSockOptRaw.
 #[inline]
 fn decode_destack_net_options_set_sock_opt_raw_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
     resource::SocketHandle,
@@ -1277,7 +1277,7 @@ fn decode_destack_net_options_set_sock_opt_raw_args(
 /// Encode the result for destack.net.options.setSockOptRaw.
 #[inline]
 fn encode_destack_net_options_set_sock_opt_raw_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1289,7 +1289,7 @@ fn encode_destack_net_options_set_sock_opt_raw_result(
 /// Decode arguments for destack.net.options.setTimestamping.
 #[inline]
 fn decode_destack_net_options_set_timestamping_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, SocketTimestampingMode)> {
     // ignore unused context
@@ -1319,7 +1319,7 @@ fn decode_destack_net_options_set_timestamping_args(
 /// Encode the result for destack.net.options.setTimestamping.
 #[inline]
 fn encode_destack_net_options_set_timestamping_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1331,7 +1331,7 @@ fn encode_destack_net_options_set_timestamping_result(
 /// Decode arguments for destack.net.options.setTos.
 #[inline]
 fn decode_destack_net_options_set_tos_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, u32)> {
     // ignore unused context
@@ -1349,7 +1349,7 @@ fn decode_destack_net_options_set_tos_args(
 /// Encode the result for destack.net.options.setTos.
 #[inline]
 fn encode_destack_net_options_set_tos_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1361,7 +1361,7 @@ fn encode_destack_net_options_set_tos_result(
 /// Decode arguments for destack.net.options.setTtl.
 #[inline]
 fn decode_destack_net_options_set_ttl_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, u32)> {
     // ignore unused context
@@ -1379,7 +1379,7 @@ fn decode_destack_net_options_set_ttl_args(
 /// Encode the result for destack.net.options.setTtl.
 #[inline]
 fn encode_destack_net_options_set_ttl_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1391,7 +1391,7 @@ fn encode_destack_net_options_set_ttl_result(
 /// Decode arguments for destack.net.options.setWriteTimeout.
 #[inline]
 fn decode_destack_net_options_set_write_timeout_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, u32)> {
     // ignore unused context
@@ -1409,7 +1409,7 @@ fn decode_destack_net_options_set_write_timeout_args(
 /// Encode the result for destack.net.options.setWriteTimeout.
 #[inline]
 fn encode_destack_net_options_set_write_timeout_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1421,7 +1421,7 @@ fn encode_destack_net_options_set_write_timeout_result(
 /// Decode arguments for destack.net.raw.packetOpen.
 #[inline]
 fn decode_destack_net_raw_packet_open_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(PacketCaptureOptionsVm,)> {
     let options_value = arg_value(args, 0, "options", "PacketCaptureOptions")?;
@@ -1461,7 +1461,7 @@ fn decode_destack_net_raw_packet_open_args(
 /// Encode the result for destack.net.raw.packetOpen.
 #[inline]
 fn encode_destack_net_raw_packet_open_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SocketHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1473,7 +1473,7 @@ fn encode_destack_net_raw_packet_open_result(
 /// Decode arguments for destack.net.raw.packetReceive.
 #[inline]
 fn decode_destack_net_raw_packet_receive_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, VmSlice<u8>)> {
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
@@ -1488,7 +1488,7 @@ fn decode_destack_net_raw_packet_receive_args(
 /// Encode the result for destack.net.raw.packetReceive.
 #[inline]
 fn encode_destack_net_raw_packet_receive_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<PacketCaptureRecordVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -1503,7 +1503,7 @@ fn encode_destack_net_raw_packet_receive_result(
 /// Decode arguments for destack.net.raw.packetSend.
 #[inline]
 fn decode_destack_net_raw_packet_send_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, VmSlice<u8>)> {
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
@@ -1518,7 +1518,7 @@ fn decode_destack_net_raw_packet_send_args(
 /// Encode the result for destack.net.raw.packetSend.
 #[inline]
 fn encode_destack_net_raw_packet_send_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1530,7 +1530,7 @@ fn encode_destack_net_raw_packet_send_result(
 /// Decode arguments for destack.net.raw.packetSetTimestampMode.
 #[inline]
 fn decode_destack_net_raw_packet_set_timestamp_mode_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, PacketTimestampMode)> {
     // ignore unused context
@@ -1560,7 +1560,7 @@ fn decode_destack_net_raw_packet_set_timestamp_mode_args(
 /// Encode the result for destack.net.raw.packetSetTimestampMode.
 #[inline]
 fn encode_destack_net_raw_packet_set_timestamp_mode_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1572,7 +1572,7 @@ fn encode_destack_net_raw_packet_set_timestamp_mode_result(
 /// Decode arguments for destack.net.rawSetHeaderIncluded.
 #[inline]
 fn decode_destack_net_raw_set_header_included_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, bool)> {
     // ignore unused context
@@ -1590,7 +1590,7 @@ fn decode_destack_net_raw_set_header_included_args(
 /// Encode the result for destack.net.rawSetHeaderIncluded.
 #[inline]
 fn encode_destack_net_raw_set_header_included_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1602,7 +1602,7 @@ fn encode_destack_net_raw_set_header_included_result(
 /// Decode arguments for destack.net.rawSocket.
 #[inline]
 fn decode_destack_net_raw_socket_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(SocketFamily, i32)> {
     // ignore unused context
@@ -1630,7 +1630,7 @@ fn decode_destack_net_raw_socket_args(
 /// Encode the result for destack.net.rawSocket.
 #[inline]
 fn encode_destack_net_raw_socket_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SocketHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1642,7 +1642,7 @@ fn encode_destack_net_raw_socket_result(
 /// Decode arguments for destack.net.read.
 #[inline]
 fn decode_destack_net_read_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, VmSlice<u8>)> {
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
@@ -1657,7 +1657,7 @@ fn decode_destack_net_read_args(
 /// Encode the result for destack.net.read.
 #[inline]
 fn encode_destack_net_read_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1669,7 +1669,7 @@ fn encode_destack_net_read_result(
 /// Decode arguments for destack.net.readv.
 #[inline]
 fn decode_destack_net_readv_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, VmSlice<VmSlice<u8>>)> {
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
@@ -1685,7 +1685,7 @@ fn decode_destack_net_readv_args(
 /// Encode the result for destack.net.readv.
 #[inline]
 fn encode_destack_net_readv_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1697,7 +1697,7 @@ fn encode_destack_net_readv_result(
 /// Decode arguments for destack.net.recvFrom.
 #[inline]
 fn decode_destack_net_recv_from_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, VmSlice<u8>, SocketMessageFlags)> {
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
@@ -1715,7 +1715,7 @@ fn decode_destack_net_recv_from_args(
 /// Encode the result for destack.net.recvFrom.
 #[inline]
 fn encode_destack_net_recv_from_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SocketRecvFromVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -1734,7 +1734,7 @@ fn encode_destack_net_recv_from_result(
 /// Decode arguments for destack.net.recvMmsg.
 #[inline]
 fn decode_destack_net_recv_mmsg_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
     resource::SocketHandle,
@@ -1766,7 +1766,7 @@ fn decode_destack_net_recv_mmsg_args(
 /// Encode the result for destack.net.recvMmsg.
 #[inline]
 fn encode_destack_net_recv_mmsg_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<SocketRecvMessageVm>>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| value.to_value(context))
@@ -1775,7 +1775,7 @@ fn encode_destack_net_recv_mmsg_result(
 /// Decode arguments for destack.net.recvMsg.
 #[inline]
 fn decode_destack_net_recv_msg_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
     resource::SocketHandle,
@@ -1813,7 +1813,7 @@ fn decode_destack_net_recv_msg_args(
 /// Encode the result for destack.net.recvMsg.
 #[inline]
 fn encode_destack_net_recv_msg_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SocketRecvMessageVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -1847,7 +1847,7 @@ fn encode_destack_net_recv_msg_result(
 /// Decode arguments for destack.net.resolve.resolve.
 #[inline]
 fn decode_destack_net_resolve_resolve_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ResolveQueryVm,)> {
     let query_value = arg_value(args, 0, "query", "ResolveQuery")?;
@@ -1903,7 +1903,7 @@ fn decode_destack_net_resolve_resolve_args(
 /// Encode the result for destack.net.resolve.resolve.
 #[inline]
 fn encode_destack_net_resolve_resolve_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<SocketAddressVm>>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| value.to_value(context))
@@ -1912,7 +1912,7 @@ fn encode_destack_net_resolve_resolve_result(
 /// Decode arguments for destack.net.resolve.reverseLookup.
 #[inline]
 fn decode_destack_net_resolve_reverse_lookup_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(SocketAddressVm, ReverseLookupFlags)> {
     let address_value = arg_value(args, 0, "address", "SocketAddress")?;
@@ -1952,7 +1952,7 @@ fn decode_destack_net_resolve_reverse_lookup_args(
 /// Encode the result for destack.net.resolve.reverseLookup.
 #[inline]
 fn encode_destack_net_resolve_reverse_lookup_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<ReverseLookupNameVm>>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| value.to_value(context))
@@ -1961,7 +1961,7 @@ fn encode_destack_net_resolve_reverse_lookup_result(
 /// Decode arguments for destack.net.reuse.getReuseAddr.
 #[inline]
 fn decode_destack_net_reuse_get_reuse_addr_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle,)> {
     // ignore unused context
@@ -1977,7 +1977,7 @@ fn decode_destack_net_reuse_get_reuse_addr_args(
 /// Encode the result for destack.net.reuse.getReuseAddr.
 #[inline]
 fn encode_destack_net_reuse_get_reuse_addr_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1989,7 +1989,7 @@ fn encode_destack_net_reuse_get_reuse_addr_result(
 /// Decode arguments for destack.net.reuse.getReusePort.
 #[inline]
 fn decode_destack_net_reuse_get_reuse_port_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle,)> {
     // ignore unused context
@@ -2005,7 +2005,7 @@ fn decode_destack_net_reuse_get_reuse_port_args(
 /// Encode the result for destack.net.reuse.getReusePort.
 #[inline]
 fn encode_destack_net_reuse_get_reuse_port_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -2017,7 +2017,7 @@ fn encode_destack_net_reuse_get_reuse_port_result(
 /// Decode arguments for destack.net.reuse.setReuseAddr.
 #[inline]
 fn decode_destack_net_reuse_set_reuse_addr_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, bool)> {
     // ignore unused context
@@ -2035,7 +2035,7 @@ fn decode_destack_net_reuse_set_reuse_addr_args(
 /// Encode the result for destack.net.reuse.setReuseAddr.
 #[inline]
 fn encode_destack_net_reuse_set_reuse_addr_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -2047,7 +2047,7 @@ fn encode_destack_net_reuse_set_reuse_addr_result(
 /// Decode arguments for destack.net.reuse.setReusePort.
 #[inline]
 fn decode_destack_net_reuse_set_reuse_port_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, bool)> {
     // ignore unused context
@@ -2065,7 +2065,7 @@ fn decode_destack_net_reuse_set_reuse_port_args(
 /// Encode the result for destack.net.reuse.setReusePort.
 #[inline]
 fn encode_destack_net_reuse_set_reuse_port_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -2077,7 +2077,7 @@ fn encode_destack_net_reuse_set_reuse_port_result(
 /// Decode arguments for destack.net.routeAdd.
 #[inline]
 fn decode_destack_net_route_add_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(RouteEntryVm,)> {
     let route_value = arg_value(args, 0, "route", "RouteEntry")?;
@@ -2205,7 +2205,7 @@ fn decode_destack_net_route_add_args(
 /// Encode the result for destack.net.routeAdd.
 #[inline]
 fn encode_destack_net_route_add_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -2217,7 +2217,7 @@ fn encode_destack_net_route_add_result(
 /// Decode arguments for destack.net.routeDelete.
 #[inline]
 fn decode_destack_net_route_delete_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(RouteEntryVm,)> {
     let route_value = arg_value(args, 0, "route", "RouteEntry")?;
@@ -2345,7 +2345,7 @@ fn decode_destack_net_route_delete_args(
 /// Encode the result for destack.net.routeDelete.
 #[inline]
 fn encode_destack_net_route_delete_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -2357,7 +2357,7 @@ fn encode_destack_net_route_delete_result(
 /// Decode arguments for destack.net.routeList.
 #[inline]
 fn decode_destack_net_route_list_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(SocketFamily,)> {
     // ignore unused context
@@ -2383,7 +2383,7 @@ fn decode_destack_net_route_list_args(
 /// Encode the result for destack.net.routeList.
 #[inline]
 fn encode_destack_net_route_list_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<RouteEntryVm>>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| value.to_value(context))
@@ -2392,7 +2392,7 @@ fn encode_destack_net_route_list_result(
 /// Decode arguments for destack.net.sendMmsg.
 #[inline]
 fn decode_destack_net_send_mmsg_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, VmSlice<SocketSendBatchEntryVm>)> {
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
@@ -2412,7 +2412,7 @@ fn decode_destack_net_send_mmsg_args(
 /// Encode the result for destack.net.sendMmsg.
 #[inline]
 fn encode_destack_net_send_mmsg_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -2424,7 +2424,7 @@ fn encode_destack_net_send_mmsg_result(
 /// Decode arguments for destack.net.sendMsg.
 #[inline]
 fn decode_destack_net_send_msg_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, VmSlice<u8>, SocketSendMessageVm)> {
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
@@ -2540,7 +2540,7 @@ fn decode_destack_net_send_msg_args(
 /// Encode the result for destack.net.sendMsg.
 #[inline]
 fn encode_destack_net_send_msg_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -2552,7 +2552,7 @@ fn encode_destack_net_send_msg_result(
 /// Decode arguments for destack.net.sendTo.
 #[inline]
 fn decode_destack_net_send_to_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, VmSlice<u8>, SocketSendToVm)> {
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
@@ -2623,7 +2623,7 @@ fn decode_destack_net_send_to_args(
 /// Encode the result for destack.net.sendTo.
 #[inline]
 fn encode_destack_net_send_to_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -2635,7 +2635,7 @@ fn encode_destack_net_send_to_result(
 /// Decode arguments for destack.net.setMulticastLoop.
 #[inline]
 fn decode_destack_net_set_multicast_loop_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, bool)> {
     // ignore unused context
@@ -2653,7 +2653,7 @@ fn decode_destack_net_set_multicast_loop_args(
 /// Encode the result for destack.net.setMulticastLoop.
 #[inline]
 fn encode_destack_net_set_multicast_loop_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -2665,7 +2665,7 @@ fn encode_destack_net_set_multicast_loop_result(
 /// Decode arguments for destack.net.setMulticastTtl.
 #[inline]
 fn decode_destack_net_set_multicast_ttl_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, u32)> {
     // ignore unused context
@@ -2683,7 +2683,7 @@ fn decode_destack_net_set_multicast_ttl_args(
 /// Encode the result for destack.net.setMulticastTtl.
 #[inline]
 fn encode_destack_net_set_multicast_ttl_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -2695,7 +2695,7 @@ fn encode_destack_net_set_multicast_ttl_result(
 /// Decode arguments for destack.net.setNonblocking.
 #[inline]
 fn decode_destack_net_set_nonblocking_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, bool)> {
     // ignore unused context
@@ -2713,7 +2713,7 @@ fn decode_destack_net_set_nonblocking_args(
 /// Encode the result for destack.net.setNonblocking.
 #[inline]
 fn encode_destack_net_set_nonblocking_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -2725,7 +2725,7 @@ fn encode_destack_net_set_nonblocking_result(
 /// Decode arguments for destack.net.shutdown.
 #[inline]
 fn decode_destack_net_shutdown_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, SocketShutdown)> {
     // ignore unused context
@@ -2755,7 +2755,7 @@ fn decode_destack_net_shutdown_args(
 /// Encode the result for destack.net.shutdown.
 #[inline]
 fn encode_destack_net_shutdown_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -2767,7 +2767,7 @@ fn encode_destack_net_shutdown_result(
 /// Decode arguments for destack.net.socket.
 #[inline]
 fn decode_destack_net_socket_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(SocketFamily, SocketType, SocketProtocol)> {
     // ignore unused context
@@ -2799,7 +2799,7 @@ fn decode_destack_net_socket_args(
 /// Encode the result for destack.net.socket.
 #[inline]
 fn encode_destack_net_socket_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SocketHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -2811,7 +2811,7 @@ fn encode_destack_net_socket_result(
 /// Decode arguments for destack.net.socketPair.
 #[inline]
 fn decode_destack_net_socket_pair_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(SocketFamily, SocketType, SocketProtocol)> {
     // ignore unused context
@@ -2843,7 +2843,7 @@ fn decode_destack_net_socket_pair_args(
 /// Encode the result for destack.net.socketPair.
 #[inline]
 fn encode_destack_net_socket_pair_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SocketPairVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -2856,7 +2856,7 @@ fn encode_destack_net_socket_pair_result(
 /// Decode arguments for destack.net.tcp.getKeepAlive.
 #[inline]
 fn decode_destack_net_tcp_get_keep_alive_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle,)> {
     // ignore unused context
@@ -2872,7 +2872,7 @@ fn decode_destack_net_tcp_get_keep_alive_args(
 /// Encode the result for destack.net.tcp.getKeepAlive.
 #[inline]
 fn encode_destack_net_tcp_get_keep_alive_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<KeepAliveConfigVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -2887,7 +2887,7 @@ fn encode_destack_net_tcp_get_keep_alive_result(
 /// Decode arguments for destack.net.tcp.getNoDelay.
 #[inline]
 fn decode_destack_net_tcp_get_no_delay_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle,)> {
     // ignore unused context
@@ -2903,7 +2903,7 @@ fn decode_destack_net_tcp_get_no_delay_args(
 /// Encode the result for destack.net.tcp.getNoDelay.
 #[inline]
 fn encode_destack_net_tcp_get_no_delay_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -2915,7 +2915,7 @@ fn encode_destack_net_tcp_get_no_delay_result(
 /// Decode arguments for destack.net.tcp.setKeepAlive.
 #[inline]
 fn decode_destack_net_tcp_set_keep_alive_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, KeepAliveConfigVm)> {
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
@@ -2959,7 +2959,7 @@ fn decode_destack_net_tcp_set_keep_alive_args(
 /// Encode the result for destack.net.tcp.setKeepAlive.
 #[inline]
 fn encode_destack_net_tcp_set_keep_alive_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -2971,7 +2971,7 @@ fn encode_destack_net_tcp_set_keep_alive_result(
 /// Decode arguments for destack.net.tcp.setNoDelay.
 #[inline]
 fn decode_destack_net_tcp_set_no_delay_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, bool)> {
     // ignore unused context
@@ -2989,7 +2989,7 @@ fn decode_destack_net_tcp_set_no_delay_args(
 /// Encode the result for destack.net.tcp.setNoDelay.
 #[inline]
 fn encode_destack_net_tcp_set_no_delay_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -3001,7 +3001,7 @@ fn encode_destack_net_tcp_set_no_delay_result(
 /// Decode arguments for destack.net.udpBind.
 #[inline]
 fn decode_destack_net_udp_bind_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, SocketAddressVm)> {
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
@@ -3042,7 +3042,7 @@ fn decode_destack_net_udp_bind_args(
 /// Encode the result for destack.net.udpBind.
 #[inline]
 fn encode_destack_net_udp_bind_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -3054,7 +3054,7 @@ fn encode_destack_net_udp_bind_result(
 /// Decode arguments for destack.net.udpConnect.
 #[inline]
 fn decode_destack_net_udp_connect_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, SocketAddressVm)> {
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
@@ -3095,7 +3095,7 @@ fn decode_destack_net_udp_connect_args(
 /// Encode the result for destack.net.udpConnect.
 #[inline]
 fn encode_destack_net_udp_connect_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -3107,7 +3107,7 @@ fn encode_destack_net_udp_connect_result(
 /// Decode arguments for destack.net.udpRecvFrom.
 #[inline]
 fn decode_destack_net_udp_recv_from_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, VmSlice<u8>, UdpMessageFlags)> {
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
@@ -3125,7 +3125,7 @@ fn decode_destack_net_udp_recv_from_args(
 /// Encode the result for destack.net.udpRecvFrom.
 #[inline]
 fn encode_destack_net_udp_recv_from_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UdpReceiveVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -3144,7 +3144,7 @@ fn encode_destack_net_udp_recv_from_result(
 /// Decode arguments for destack.net.udpSendTo.
 #[inline]
 fn decode_destack_net_udp_send_to_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
     resource::SocketHandle,
@@ -3195,7 +3195,7 @@ fn decode_destack_net_udp_send_to_args(
 /// Encode the result for destack.net.udpSendTo.
 #[inline]
 fn encode_destack_net_udp_send_to_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -3207,7 +3207,7 @@ fn encode_destack_net_udp_send_to_result(
 /// Decode arguments for destack.net.udpSocket.
 #[inline]
 fn decode_destack_net_udp_socket_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(SocketFamily,)> {
     // ignore unused context
@@ -3233,7 +3233,7 @@ fn decode_destack_net_udp_socket_args(
 /// Encode the result for destack.net.udpSocket.
 #[inline]
 fn encode_destack_net_udp_socket_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SocketHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -3245,7 +3245,7 @@ fn encode_destack_net_udp_socket_result(
 /// Decode arguments for destack.net.udsAccept.
 #[inline]
 fn decode_destack_net_uds_accept_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ListenerHandle,)> {
     // ignore unused context
@@ -3262,7 +3262,7 @@ fn decode_destack_net_uds_accept_args(
 /// Encode the result for destack.net.udsAccept.
 #[inline]
 fn encode_destack_net_uds_accept_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SocketHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -3274,7 +3274,7 @@ fn encode_destack_net_uds_accept_result(
 /// Decode arguments for destack.net.udsCloseListener.
 #[inline]
 fn decode_destack_net_uds_close_listener_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ListenerHandle,)> {
     // ignore unused context
@@ -3290,7 +3290,7 @@ fn decode_destack_net_uds_close_listener_args(
 /// Encode the result for destack.net.udsCloseListener.
 #[inline]
 fn encode_destack_net_uds_close_listener_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -3302,7 +3302,7 @@ fn encode_destack_net_uds_close_listener_result(
 /// Decode arguments for destack.net.udsConnect.
 #[inline]
 fn decode_destack_net_uds_connect_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(UdsAddressVm,)> {
     let address_value = arg_value(args, 0, "address", "UdsAddress")?;
@@ -3392,7 +3392,7 @@ fn decode_destack_net_uds_connect_args(
 /// Encode the result for destack.net.udsConnect.
 #[inline]
 fn encode_destack_net_uds_connect_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SocketHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -3404,7 +3404,7 @@ fn encode_destack_net_uds_connect_result(
 /// Decode arguments for destack.net.udsListen.
 #[inline]
 fn decode_destack_net_uds_listen_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(UdsAddressVm, u32)> {
     let address_value = arg_value(args, 0, "address", "UdsAddress")?;
@@ -3496,7 +3496,7 @@ fn decode_destack_net_uds_listen_args(
 /// Encode the result for destack.net.udsListen.
 #[inline]
 fn encode_destack_net_uds_listen_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::ListenerHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -3508,7 +3508,7 @@ fn encode_destack_net_uds_listen_result(
 /// Decode arguments for destack.net.udsSocketPair.
 #[inline]
 fn decode_destack_net_uds_socket_pair_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(SocketType,)> {
     // ignore unused context
@@ -3523,7 +3523,7 @@ fn decode_destack_net_uds_socket_pair_args(
 /// Encode the result for destack.net.udsSocketPair.
 #[inline]
 fn encode_destack_net_uds_socket_pair_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SocketPairVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -3536,7 +3536,7 @@ fn encode_destack_net_uds_socket_pair_result(
 /// Decode arguments for destack.net.write.
 #[inline]
 fn decode_destack_net_write_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, VmSlice<u8>)> {
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
@@ -3551,7 +3551,7 @@ fn decode_destack_net_write_args(
 /// Encode the result for destack.net.write.
 #[inline]
 fn encode_destack_net_write_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -3563,7 +3563,7 @@ fn encode_destack_net_write_result(
 /// Decode arguments for destack.net.writev.
 #[inline]
 fn decode_destack_net_writev_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, VmSlice<VmSlice<u8>>)> {
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
@@ -3579,7 +3579,7 @@ fn decode_destack_net_writev_args(
 /// Encode the result for destack.net.writev.
 #[inline]
 fn encode_destack_net_writev_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -11819,7 +11819,7 @@ pub unsafe extern "C" fn destack_net_writev(
 #[inline]
 fn destack_net_accept_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     listener: resource::ListenerHandle,
     flags: AcceptFlags,
 ) -> RuntimeResult<vm::Value> {
@@ -11867,7 +11867,7 @@ fn destack_net_accept_vm_replay(
 #[inline]
 fn destack_net_address_local_address_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -11928,7 +11928,7 @@ fn destack_net_address_local_address_vm_replay(
 #[inline]
 fn destack_net_address_peer_address_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -11989,7 +11989,7 @@ fn destack_net_address_peer_address_vm_replay(
 #[inline]
 fn destack_net_bind_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     address: SocketAddressVm,
 ) -> RuntimeResult<vm::Value> {
@@ -12033,7 +12033,7 @@ fn destack_net_bind_vm_replay(
 #[inline]
 fn destack_net_close_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -12076,7 +12076,7 @@ fn destack_net_close_vm_replay(
 #[inline]
 fn destack_net_close_listener_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ListenerHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -12119,7 +12119,7 @@ fn destack_net_close_listener_vm_replay(
 #[inline]
 fn destack_net_connect_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     address: SocketAddressVm,
 ) -> RuntimeResult<vm::Value> {
@@ -12163,7 +12163,7 @@ fn destack_net_connect_vm_replay(
 #[inline]
 fn destack_net_interface_list_interfaces_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
         NET_INTERFACE_LIST_INTERFACES,
@@ -12433,7 +12433,7 @@ fn destack_net_interface_list_interfaces_vm_replay(
 #[inline]
 fn destack_net_interface_index_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -12480,7 +12480,7 @@ fn destack_net_interface_index_vm_replay(
 #[inline]
 fn destack_net_interface_name_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     index: u32,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -12533,7 +12533,7 @@ fn destack_net_interface_name_vm_replay(
 #[inline]
 fn destack_net_join_multicast_v4_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     group: vm::StringHandle,
     interfaceaddress: vm::StringHandle,
@@ -12586,7 +12586,7 @@ fn destack_net_join_multicast_v4_vm_replay(
 #[inline]
 fn destack_net_join_multicast_v6_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     group: vm::StringHandle,
     interfaceindex: u32,
@@ -12639,7 +12639,7 @@ fn destack_net_join_multicast_v6_vm_replay(
 #[inline]
 fn destack_net_leave_multicast_v4_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     group: vm::StringHandle,
     interfaceaddress: vm::StringHandle,
@@ -12692,7 +12692,7 @@ fn destack_net_leave_multicast_v4_vm_replay(
 #[inline]
 fn destack_net_leave_multicast_v6_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     group: vm::StringHandle,
     interfaceindex: u32,
@@ -12745,7 +12745,7 @@ fn destack_net_leave_multicast_v6_vm_replay(
 #[inline]
 fn destack_net_listen_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     address: SocketAddressVm,
     backlog: u32,
 ) -> RuntimeResult<vm::Value> {
@@ -12793,7 +12793,7 @@ fn destack_net_listen_vm_replay(
 #[inline]
 fn destack_net_options_get_broadcast_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -12840,7 +12840,7 @@ fn destack_net_options_get_broadcast_vm_replay(
 #[inline]
 fn destack_net_options_get_linger_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -12897,7 +12897,7 @@ fn destack_net_options_get_linger_vm_replay(
 #[inline]
 fn destack_net_options_get_only_v6_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -12944,7 +12944,7 @@ fn destack_net_options_get_only_v6_vm_replay(
 #[inline]
 fn destack_net_options_get_packet_mark_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -12991,7 +12991,7 @@ fn destack_net_options_get_packet_mark_vm_replay(
 #[inline]
 fn destack_net_options_get_read_timeout_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -13038,7 +13038,7 @@ fn destack_net_options_get_read_timeout_vm_replay(
 #[inline]
 fn destack_net_options_get_recv_buffer_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -13085,7 +13085,7 @@ fn destack_net_options_get_recv_buffer_vm_replay(
 #[inline]
 fn destack_net_options_get_send_buffer_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -13132,7 +13132,7 @@ fn destack_net_options_get_send_buffer_vm_replay(
 #[inline]
 fn destack_net_options_get_sock_opt_raw_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     level: SocketOptionLevel,
     name: SocketOptionName,
@@ -13186,7 +13186,7 @@ fn destack_net_options_get_sock_opt_raw_vm_replay(
 #[inline]
 fn destack_net_options_get_timestamping_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -13233,7 +13233,7 @@ fn destack_net_options_get_timestamping_vm_replay(
 #[inline]
 fn destack_net_options_get_tos_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -13280,7 +13280,7 @@ fn destack_net_options_get_tos_vm_replay(
 #[inline]
 fn destack_net_options_get_ttl_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -13327,7 +13327,7 @@ fn destack_net_options_get_ttl_vm_replay(
 #[inline]
 fn destack_net_options_get_write_timeout_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -13374,7 +13374,7 @@ fn destack_net_options_get_write_timeout_vm_replay(
 #[inline]
 fn destack_net_options_set_broadcast_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
@@ -13418,7 +13418,7 @@ fn destack_net_options_set_broadcast_vm_replay(
 #[inline]
 fn destack_net_options_set_linger_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     linger: LingerVm,
 ) -> RuntimeResult<vm::Value> {
@@ -13462,7 +13462,7 @@ fn destack_net_options_set_linger_vm_replay(
 #[inline]
 fn destack_net_options_set_only_v6_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
@@ -13506,7 +13506,7 @@ fn destack_net_options_set_only_v6_vm_replay(
 #[inline]
 fn destack_net_options_set_packet_mark_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     mark: u32,
 ) -> RuntimeResult<vm::Value> {
@@ -13550,7 +13550,7 @@ fn destack_net_options_set_packet_mark_vm_replay(
 #[inline]
 fn destack_net_options_set_read_timeout_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     timeoutms: u32,
 ) -> RuntimeResult<vm::Value> {
@@ -13594,7 +13594,7 @@ fn destack_net_options_set_read_timeout_vm_replay(
 #[inline]
 fn destack_net_options_set_recv_buffer_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     size: u32,
 ) -> RuntimeResult<vm::Value> {
@@ -13638,7 +13638,7 @@ fn destack_net_options_set_recv_buffer_vm_replay(
 #[inline]
 fn destack_net_options_set_send_buffer_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     size: u32,
 ) -> RuntimeResult<vm::Value> {
@@ -13682,7 +13682,7 @@ fn destack_net_options_set_send_buffer_vm_replay(
 #[inline]
 fn destack_net_options_set_sock_opt_raw_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     level: SocketOptionLevel,
     name: SocketOptionName,
@@ -13730,7 +13730,7 @@ fn destack_net_options_set_sock_opt_raw_vm_replay(
 #[inline]
 fn destack_net_options_set_timestamping_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     mode: SocketTimestampingMode,
 ) -> RuntimeResult<vm::Value> {
@@ -13774,7 +13774,7 @@ fn destack_net_options_set_timestamping_vm_replay(
 #[inline]
 fn destack_net_options_set_tos_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     tos: u32,
 ) -> RuntimeResult<vm::Value> {
@@ -13818,7 +13818,7 @@ fn destack_net_options_set_tos_vm_replay(
 #[inline]
 fn destack_net_options_set_ttl_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     ttl: u32,
 ) -> RuntimeResult<vm::Value> {
@@ -13862,7 +13862,7 @@ fn destack_net_options_set_ttl_vm_replay(
 #[inline]
 fn destack_net_options_set_write_timeout_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     timeoutms: u32,
 ) -> RuntimeResult<vm::Value> {
@@ -13906,7 +13906,7 @@ fn destack_net_options_set_write_timeout_vm_replay(
 #[inline]
 fn destack_net_raw_packet_open_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     options: PacketCaptureOptionsVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -13953,7 +13953,7 @@ fn destack_net_raw_packet_open_vm_replay(
 #[inline]
 fn destack_net_raw_packet_receive_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     payload: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
@@ -14019,7 +14019,7 @@ fn destack_net_raw_packet_receive_vm_replay(
 #[inline]
 fn destack_net_raw_packet_send_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     payload: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
@@ -14067,7 +14067,7 @@ fn destack_net_raw_packet_send_vm_replay(
 #[inline]
 fn destack_net_raw_packet_set_timestamp_mode_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     mode: PacketTimestampMode,
 ) -> RuntimeResult<vm::Value> {
@@ -14113,7 +14113,7 @@ fn destack_net_raw_packet_set_timestamp_mode_vm_replay(
 #[inline]
 fn destack_net_raw_set_header_included_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
@@ -14159,7 +14159,7 @@ fn destack_net_raw_set_header_included_vm_replay(
 #[inline]
 fn destack_net_raw_socket_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     family: SocketFamily,
     protocol: i32,
 ) -> RuntimeResult<vm::Value> {
@@ -14207,7 +14207,7 @@ fn destack_net_raw_socket_vm_replay(
 #[inline]
 fn destack_net_read_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
@@ -14255,7 +14255,7 @@ fn destack_net_read_vm_replay(
 #[inline]
 fn destack_net_readv_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
@@ -14303,7 +14303,7 @@ fn destack_net_readv_vm_replay(
 #[inline]
 fn destack_net_recv_from_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     buffer: VmSlice<u8>,
     recvflags: SocketMessageFlags,
@@ -14381,7 +14381,7 @@ fn destack_net_recv_from_vm_replay(
 #[inline]
 fn destack_net_recv_mmsg_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     requests: VmSlice<SocketRecvBatchRequestVm>,
     maxfds: u32,
@@ -14775,7 +14775,7 @@ fn destack_net_recv_mmsg_vm_replay(
 #[inline]
 fn destack_net_recv_msg_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     buffer: VmSlice<u8>,
     recvflags: SocketMessageFlags,
@@ -14934,7 +14934,7 @@ fn destack_net_recv_msg_vm_replay(
 #[inline]
 fn destack_net_resolve_resolve_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     query: ResolveQueryVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -15054,7 +15054,7 @@ fn destack_net_resolve_resolve_vm_replay(
 #[inline]
 fn destack_net_resolve_reverse_lookup_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     address: SocketAddressVm,
     flags: ReverseLookupFlags,
 ) -> RuntimeResult<vm::Value> {
@@ -15177,7 +15177,7 @@ fn destack_net_resolve_reverse_lookup_vm_replay(
 #[inline]
 fn destack_net_reuse_get_reuse_addr_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -15224,7 +15224,7 @@ fn destack_net_reuse_get_reuse_addr_vm_replay(
 #[inline]
 fn destack_net_reuse_get_reuse_port_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -15271,7 +15271,7 @@ fn destack_net_reuse_get_reuse_port_vm_replay(
 #[inline]
 fn destack_net_reuse_set_reuse_addr_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
@@ -15315,7 +15315,7 @@ fn destack_net_reuse_set_reuse_addr_vm_replay(
 #[inline]
 fn destack_net_reuse_set_reuse_port_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
@@ -15359,7 +15359,7 @@ fn destack_net_reuse_set_reuse_port_vm_replay(
 #[inline]
 fn destack_net_route_add_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     route: RouteEntryVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -15402,7 +15402,7 @@ fn destack_net_route_add_vm_replay(
 #[inline]
 fn destack_net_route_delete_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     route: RouteEntryVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -15445,7 +15445,7 @@ fn destack_net_route_delete_vm_replay(
 #[inline]
 fn destack_net_route_list_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     family: SocketFamily,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -15777,7 +15777,7 @@ fn destack_net_route_list_vm_replay(
 #[inline]
 fn destack_net_send_mmsg_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     messages: VmSlice<SocketSendBatchEntryVm>,
 ) -> RuntimeResult<vm::Value> {
@@ -15825,7 +15825,7 @@ fn destack_net_send_mmsg_vm_replay(
 #[inline]
 fn destack_net_send_msg_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     buffer: VmSlice<u8>,
     message: SocketSendMessageVm,
@@ -15874,7 +15874,7 @@ fn destack_net_send_msg_vm_replay(
 #[inline]
 fn destack_net_send_to_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     buffer: VmSlice<u8>,
     message: SocketSendToVm,
@@ -15923,7 +15923,7 @@ fn destack_net_send_to_vm_replay(
 #[inline]
 fn destack_net_set_multicast_loop_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
@@ -15967,7 +15967,7 @@ fn destack_net_set_multicast_loop_vm_replay(
 #[inline]
 fn destack_net_set_multicast_ttl_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     ttl: u32,
 ) -> RuntimeResult<vm::Value> {
@@ -16011,7 +16011,7 @@ fn destack_net_set_multicast_ttl_vm_replay(
 #[inline]
 fn destack_net_set_nonblocking_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
@@ -16055,7 +16055,7 @@ fn destack_net_set_nonblocking_vm_replay(
 #[inline]
 fn destack_net_shutdown_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     how: SocketShutdown,
 ) -> RuntimeResult<vm::Value> {
@@ -16099,7 +16099,7 @@ fn destack_net_shutdown_vm_replay(
 #[inline]
 fn destack_net_socket_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     family: SocketFamily,
     sockettype: SocketType,
     protocol: SocketProtocol,
@@ -16148,7 +16148,7 @@ fn destack_net_socket_vm_replay(
 #[inline]
 fn destack_net_socket_pair_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     family: SocketFamily,
     sockettype: SocketType,
     protocol: SocketProtocol,
@@ -16209,7 +16209,7 @@ fn destack_net_socket_pair_vm_replay(
 #[inline]
 fn destack_net_tcp_get_keep_alive_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -16274,7 +16274,7 @@ fn destack_net_tcp_get_keep_alive_vm_replay(
 #[inline]
 fn destack_net_tcp_get_no_delay_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -16321,7 +16321,7 @@ fn destack_net_tcp_get_no_delay_vm_replay(
 #[inline]
 fn destack_net_tcp_set_keep_alive_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     config: KeepAliveConfigVm,
 ) -> RuntimeResult<vm::Value> {
@@ -16365,7 +16365,7 @@ fn destack_net_tcp_set_keep_alive_vm_replay(
 #[inline]
 fn destack_net_tcp_set_no_delay_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
@@ -16409,7 +16409,7 @@ fn destack_net_tcp_set_no_delay_vm_replay(
 #[inline]
 fn destack_net_udp_bind_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     address: SocketAddressVm,
 ) -> RuntimeResult<vm::Value> {
@@ -16453,7 +16453,7 @@ fn destack_net_udp_bind_vm_replay(
 #[inline]
 fn destack_net_udp_connect_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     address: SocketAddressVm,
 ) -> RuntimeResult<vm::Value> {
@@ -16497,7 +16497,7 @@ fn destack_net_udp_connect_vm_replay(
 #[inline]
 fn destack_net_udp_recv_from_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     buffer: VmSlice<u8>,
     recvflags: UdpMessageFlags,
@@ -16577,7 +16577,7 @@ fn destack_net_udp_recv_from_vm_replay(
 #[inline]
 fn destack_net_udp_send_to_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     address: SocketAddressVm,
     buffer: VmSlice<u8>,
@@ -16631,7 +16631,7 @@ fn destack_net_udp_send_to_vm_replay(
 #[inline]
 fn destack_net_udp_socket_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     family: SocketFamily,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -16678,7 +16678,7 @@ fn destack_net_udp_socket_vm_replay(
 #[inline]
 fn destack_net_uds_accept_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     listener: resource::ListenerHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -16725,7 +16725,7 @@ fn destack_net_uds_accept_vm_replay(
 #[inline]
 fn destack_net_uds_close_listener_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ListenerHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -16768,7 +16768,7 @@ fn destack_net_uds_close_listener_vm_replay(
 #[inline]
 fn destack_net_uds_connect_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     address: UdsAddressVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -16815,7 +16815,7 @@ fn destack_net_uds_connect_vm_replay(
 #[inline]
 fn destack_net_uds_listen_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     address: UdsAddressVm,
     backlog: u32,
 ) -> RuntimeResult<vm::Value> {
@@ -16863,7 +16863,7 @@ fn destack_net_uds_listen_vm_replay(
 #[inline]
 fn destack_net_uds_socket_pair_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     sockettype: SocketType,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -16920,7 +16920,7 @@ fn destack_net_uds_socket_pair_vm_replay(
 #[inline]
 fn destack_net_write_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
@@ -16968,7 +16968,7 @@ fn destack_net_write_vm_replay(
 #[inline]
 fn destack_net_writev_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {

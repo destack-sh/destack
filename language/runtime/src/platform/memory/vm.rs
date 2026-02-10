@@ -7,7 +7,7 @@ use destack_vm as vm;
 /// Stub for destack.memory.advise.advise.
 pub(super) fn destack_memory_advise(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
     advice: u32,
@@ -22,7 +22,7 @@ pub(super) fn destack_memory_advise(
 /// Stub for destack.memory.advise.discard.
 pub(super) fn destack_memory_discard(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
@@ -36,7 +36,7 @@ pub(super) fn destack_memory_discard(
 /// Stub for destack.memory.advise.hugePage.
 pub(super) fn destack_memory_huge_page(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
     enabled: bool,
@@ -51,7 +51,7 @@ pub(super) fn destack_memory_huge_page(
 /// Stub for destack.memory.lock.lock.
 pub(super) fn destack_memory_lock(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
@@ -65,7 +65,7 @@ pub(super) fn destack_memory_lock(
 /// Stub for destack.memory.lock.unlock.
 pub(super) fn destack_memory_unlock(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
@@ -79,7 +79,7 @@ pub(super) fn destack_memory_unlock(
 /// Stub for destack.memory.map.commit.
 pub(super) fn destack_memory_commit(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
     flags: u32,
@@ -94,7 +94,7 @@ pub(super) fn destack_memory_commit(
 /// Stub for destack.memory.map.decommit.
 pub(super) fn destack_memory_decommit(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
@@ -108,7 +108,7 @@ pub(super) fn destack_memory_decommit(
 /// Stub for destack.memory.map.numaBind.
 pub(super) fn destack_memory_numa_bind(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
     policy: u32,
@@ -124,7 +124,7 @@ pub(super) fn destack_memory_numa_bind(
 /// Stub for destack.memory.map.release.
 pub(super) fn destack_memory_release(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
@@ -138,7 +138,7 @@ pub(super) fn destack_memory_release(
 /// Stub for destack.memory.map.reserve.
 pub(super) fn destack_memory_reserve(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     length: u64,
     flags: u32,
 ) -> RuntimeResult<MemoryRangeVm> {
@@ -152,7 +152,7 @@ pub(super) fn destack_memory_reserve(
 /// Stub for destack.memory.protect.execute.
 pub(super) fn destack_memory_protect_execute(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
     enabled: bool,
@@ -167,7 +167,7 @@ pub(super) fn destack_memory_protect_execute(
 /// Stub for destack.memory.protect.flushInstructionCache.
 pub(super) fn destack_memory_flush_instruction_cache(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
@@ -181,7 +181,7 @@ pub(super) fn destack_memory_flush_instruction_cache(
 /// Stub for destack.memory.protect.protect.
 pub(super) fn destack_memory_protect(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
     protection: u32,
@@ -196,7 +196,7 @@ pub(super) fn destack_memory_protect(
 /// Stub for destack.memory.protect.remap.
 pub(super) fn destack_memory_remap(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     oldlength: u64,
     newlength: u64,
@@ -212,7 +212,7 @@ pub(super) fn destack_memory_remap(
 /// Stub for destack.memory.protect.setWriteXorExecute.
 pub(super) fn destack_memory_set_write_xor_execute(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     enabled: bool,
 ) -> RuntimeResult<()> {
     let _ = enabled;

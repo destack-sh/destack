@@ -7,7 +7,7 @@ use destack_vm as vm;
 /// Take a runtime platform error by id.
 pub(super) fn destack_error_take_platform_error(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     error_id: u64,
 ) -> RuntimeResult<PlatformErrorVm> {
     let error = take_platform_error(

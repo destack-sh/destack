@@ -94,10 +94,10 @@ pub(crate) struct FsHarnessContext<'call> {
 impl<'call> FsHarnessContext<'call> {
     /// Return the VM context if available.
     #[allow(clippy::mut_from_ref)]
-    fn vm_context_mut(&self) -> Option<&mut vm::RuntimeContext<'_>> {
+    fn vm_context_mut(&self) -> Option<&mut vm::ExternalCallContext<'_>> {
         // safety: the harness guarantees the VM context pointer is valid for the callback
         self.vm_context
-            .map(|context| unsafe { &mut *(context as *mut vm::RuntimeContext<'_>) })
+            .map(|context| unsafe { &mut *(context as *mut vm::ExternalCallContext<'_>) })
     }
     /// Return the harness kind for this context.
     pub(crate) fn kind(&self) -> FsHarnessKind {
@@ -2572,7 +2572,7 @@ impl FsHarnessHandle {
                 harness
                     .runtime
                     .with_vm_call_context(|call_context, vm_context| {
-                        let vm_context = vm_context as *mut vm::RuntimeContext<'_> as *mut ();
+                        let vm_context = vm_context as *mut vm::ExternalCallContext<'_> as *mut ();
                         callback(FsHarnessContext {
                             runtime: &harness.runtime,
                             call_context,
@@ -2845,7 +2845,10 @@ fn utf16_units_from_le_bytes(bytes: &[u8]) -> RuntimeResult<Vec<u16>> {
 }
 
 /// Decode raw bytes from a VM path reference.
-fn path_ref_bytes_vm(context: &vm::RuntimeContext<'_>, path: OsPathVm) -> RuntimeResult<Vec<u8>> {
+fn path_ref_bytes_vm(
+    context: &vm::ExternalCallContext<'_>,
+    path: OsPathVm,
+) -> RuntimeResult<Vec<u8>> {
     match path.encoding {
         PathEncoding::Bytes => path.data.0.read_bytes(context),
         PathEncoding::Utf16 => Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -2857,7 +2860,10 @@ fn path_ref_bytes_vm(context: &vm::RuntimeContext<'_>, path: OsPathVm) -> Runtim
 }
 
 /// Decode a VM path reference into a string.
-fn path_ref_string_vm(context: &vm::RuntimeContext<'_>, path: OsPathVm) -> RuntimeResult<String> {
+fn path_ref_string_vm(
+    context: &vm::ExternalCallContext<'_>,
+    path: OsPathVm,
+) -> RuntimeResult<String> {
     match path.encoding {
         PathEncoding::Bytes => {
             let bytes = path.data.0.read_bytes(context)?;
@@ -2873,7 +2879,7 @@ fn path_ref_string_vm(context: &vm::RuntimeContext<'_>, path: OsPathVm) -> Runti
 
 /// Decode a VM path reference from an aggregate value.
 fn decode_path_ref_vm(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     value: vm::Value,
 ) -> RuntimeResult<OsPathVm> {
     let slots = context
@@ -2916,7 +2922,7 @@ fn decode_path_ref_vm(
 
 /// Decode a VM directory entry from an aggregate value.
 fn decode_dirent_vm(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     value: vm::Value,
 ) -> RuntimeResult<DirentVm> {
     let slots = context
@@ -2951,7 +2957,7 @@ fn decode_dirent_vm(
 }
 
 fn decode_string_value(
-    _context: &vm::RuntimeContext<'_>,
+    _context: &vm::ExternalCallContext<'_>,
     value: vm::Value,
 ) -> RuntimeResult<vm::StringHandle> {
     if value.tag() != vm::ValueTag::String {
@@ -2962,7 +2968,7 @@ fn decode_string_value(
     Ok(vm::StringHandle::new(value))
 }
 
-fn vm_string(context: &mut vm::RuntimeContext<'_>, value: &str) -> vm::StringHandle {
+fn vm_string(context: &mut vm::ExternalCallContext<'_>, value: &str) -> vm::StringHandle {
     let value = context.intern_string(value);
     vm::StringHandle::new(value)
 }
@@ -3237,7 +3243,7 @@ fn socket_address_native_from_host_port(
 #[cfg(any(unix, windows))]
 fn socket_address_vm_from_host_port(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     host: &str,
     port: u16,
     family: SocketFamily,
@@ -3284,7 +3290,7 @@ fn array_u8_native(values: NativeArray<u8>) -> RuntimeResult<Vec<u8>> {
 }
 
 fn array_u8_vm(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     values: VmArray<u8>,
 ) -> RuntimeResult<Vec<u8>> {
     values.read_bytes(context)
@@ -3300,7 +3306,7 @@ fn array_string_native(values: NativeArray<NativeStringRef>) -> RuntimeResult<Ve
 }
 
 fn array_string_vm(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     values: VmArray<vm::StringHandle>,
 ) -> RuntimeResult<Vec<String>> {
     let values = values.raw_values(context)?;

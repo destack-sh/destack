@@ -10,7 +10,7 @@ use destack_vm as vm;
 /// Stub for destack.io.completion.cancel.
 pub(super) fn destack_io_completion_cancel(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CompletionHandle,
     target: resource::ResourceId,
 ) -> RuntimeResult<u32> {
@@ -24,7 +24,7 @@ pub(super) fn destack_io_completion_cancel(
 /// Stub for destack.io.completion.close.
 pub(super) fn destack_io_completion_close(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CompletionHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -37,7 +37,7 @@ pub(super) fn destack_io_completion_close(
 /// Stub for destack.io.completion.enter.
 pub(super) fn destack_io_completion_enter(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CompletionHandle,
     mincomplete: u32,
     timeoutns: u64,
@@ -53,7 +53,7 @@ pub(super) fn destack_io_completion_enter(
 /// Stub for destack.io.completion.open.
 pub(super) fn destack_io_completion_open(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     entries: u32,
 ) -> RuntimeResult<resource::CompletionHandle> {
     let _ = entries;
@@ -66,7 +66,7 @@ pub(super) fn destack_io_completion_open(
 /// Stub for destack.io.completion.submit.
 pub(super) fn destack_io_completion_submit(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CompletionHandle,
     operation: CompletionOperationVm,
 ) -> RuntimeResult<()> {
@@ -80,7 +80,7 @@ pub(super) fn destack_io_completion_submit(
 /// Stub for destack.io.completion.submitBatch.
 pub(super) fn destack_io_completion_submit_batch(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CompletionHandle,
     operationwords: VmSlice<u64>,
     operationcount: u32,
@@ -96,7 +96,7 @@ pub(super) fn destack_io_completion_submit_batch(
 /// Stub for destack.io.completion.wait.
 pub(super) fn destack_io_completion_wait(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CompletionHandle,
     timeoutns: u64,
     maxevents: u32,
@@ -111,7 +111,7 @@ pub(super) fn destack_io_completion_wait(
 /// Stub for destack.io.event.attach.
 pub(super) fn destack_io_event_attach(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     token: EventToken,
     target: resource::ResourceId,
     key: u64,
@@ -126,7 +126,7 @@ pub(super) fn destack_io_event_attach(
 /// Stub for destack.io.event.close.
 pub(super) fn destack_io_event_close(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     token: EventToken,
 ) -> RuntimeResult<()> {
     let _ = token;
@@ -139,7 +139,7 @@ pub(super) fn destack_io_event_close(
 /// Stub for destack.io.event.open.
 pub(super) fn destack_io_event_open(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     initial: u64,
 ) -> RuntimeResult<EventToken> {
     let _ = initial;
@@ -152,7 +152,7 @@ pub(super) fn destack_io_event_open(
 /// Stub for destack.io.event.signal.
 pub(super) fn destack_io_event_signal(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     token: EventToken,
     value: u64,
 ) -> RuntimeResult<()> {
@@ -166,7 +166,7 @@ pub(super) fn destack_io_event_signal(
 /// Stub for destack.io.poll.close.
 pub(super) fn destack_io_poll_close(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::PollHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -179,7 +179,7 @@ pub(super) fn destack_io_poll_close(
 /// Stub for destack.io.poll.deregister.
 pub(super) fn destack_io_poll_deregister(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::PollHandle,
     target: resource::ResourceId,
 ) -> RuntimeResult<()> {
@@ -193,7 +193,7 @@ pub(super) fn destack_io_poll_deregister(
 /// Stub for destack.io.poll.open.
 pub(super) fn destack_io_poll_open(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     backend: PollBackend,
 ) -> RuntimeResult<resource::PollHandle> {
     let _ = backend;
@@ -206,7 +206,7 @@ pub(super) fn destack_io_poll_open(
 /// Stub for destack.io.poll.register.
 pub(super) fn destack_io_poll_register(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::PollHandle,
     target: resource::ResourceId,
     key: u64,
@@ -222,7 +222,7 @@ pub(super) fn destack_io_poll_register(
 /// Stub for destack.io.poll.update.
 pub(super) fn destack_io_poll_update(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::PollHandle,
     target: resource::ResourceId,
     key: u64,
@@ -238,7 +238,7 @@ pub(super) fn destack_io_poll_update(
 /// Stub for destack.io.poll.wait.
 pub(super) fn destack_io_poll_wait(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::PollHandle,
     timeoutns: u64,
     maxevents: u32,
@@ -253,7 +253,7 @@ pub(super) fn destack_io_poll_wait(
 /// Stub for destack.io.uring.close.
 pub(super) fn destack_io_uring_close(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -266,7 +266,7 @@ pub(super) fn destack_io_uring_close(
 /// Stub for destack.io.uring.features.
 pub(super) fn destack_io_uring_features(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UringHandle,
 ) -> RuntimeResult<UringFeaturesVm> {
     let _ = handle;
@@ -279,7 +279,7 @@ pub(super) fn destack_io_uring_features(
 /// Stub for destack.io.uring.open.
 pub(super) fn destack_io_uring_open(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     parameters: UringParametersVm,
 ) -> RuntimeResult<resource::UringHandle> {
     let _ = parameters;
@@ -292,7 +292,7 @@ pub(super) fn destack_io_uring_open(
 /// Stub for destack.io.uring.registerBuffers.
 pub(super) fn destack_io_uring_register_buffers(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UringHandle,
     addresses: VmSlice<u64>,
     lengths: VmSlice<u32>,
@@ -307,7 +307,7 @@ pub(super) fn destack_io_uring_register_buffers(
 /// Stub for destack.io.uring.registerFiles.
 pub(super) fn destack_io_uring_register_files(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UringHandle,
     files: VmSlice<resource::ResourceId>,
 ) -> RuntimeResult<()> {
@@ -321,7 +321,7 @@ pub(super) fn destack_io_uring_register_files(
 /// Stub for destack.io.uring.unregisterBuffers.
 pub(super) fn destack_io_uring_unregister_buffers(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -334,7 +334,7 @@ pub(super) fn destack_io_uring_unregister_buffers(
 /// Stub for destack.io.uring.unregisterFiles.
 pub(super) fn destack_io_uring_unregister_files(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;

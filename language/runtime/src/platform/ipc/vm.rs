@@ -9,7 +9,7 @@ use destack_vm as vm;
 /// Stub for destack.ipc.message.queueClose.
 pub(super) fn destack_ipc_message_queue_close(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::MessageQueueHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -22,7 +22,7 @@ pub(super) fn destack_ipc_message_queue_close(
 /// Stub for destack.ipc.message.queueOpen.
 pub(super) fn destack_ipc_message_queue_open(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     name: vm::StringHandle,
     flags: u32,
     mode: u32,
@@ -39,7 +39,7 @@ pub(super) fn destack_ipc_message_queue_open(
 /// Stub for destack.ipc.message.queueReceive.
 pub(super) fn destack_ipc_message_queue_receive(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::MessageQueueHandle,
     timeoutns: u64,
     buffer: VmSlice<u8>,
@@ -54,7 +54,7 @@ pub(super) fn destack_ipc_message_queue_receive(
 /// Stub for destack.ipc.message.queueSend.
 pub(super) fn destack_ipc_message_queue_send(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::MessageQueueHandle,
     priority: u32,
     timeoutns: u64,
@@ -70,7 +70,7 @@ pub(super) fn destack_ipc_message_queue_send(
 /// Stub for destack.ipc.message.queueUnlink.
 pub(super) fn destack_ipc_message_queue_unlink(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     name: vm::StringHandle,
 ) -> RuntimeResult<()> {
     let _ = name;
@@ -83,7 +83,7 @@ pub(super) fn destack_ipc_message_queue_unlink(
 /// Stub for destack.ipc.pipe.close.
 pub(super) fn destack_ipc_pipe_close(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::PipeHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -96,7 +96,7 @@ pub(super) fn destack_ipc_pipe_close(
 /// Stub for destack.ipc.pipe.open.
 pub(super) fn destack_ipc_pipe_open(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     flags: u32,
 ) -> RuntimeResult<PipePairVm> {
     let _ = flags;
@@ -109,7 +109,7 @@ pub(super) fn destack_ipc_pipe_open(
 /// Stub for destack.ipc.pipe.read.
 pub(super) fn destack_ipc_pipe_read(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::PipeHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
@@ -123,7 +123,7 @@ pub(super) fn destack_ipc_pipe_read(
 /// Stub for destack.ipc.pipe.write.
 pub(super) fn destack_ipc_pipe_write(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::PipeHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
@@ -137,7 +137,7 @@ pub(super) fn destack_ipc_pipe_write(
 /// Stub for destack.ipc.sharedMemory.close.
 pub(super) fn destack_ipc_shared_memory_close(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SharedMemoryHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -150,7 +150,7 @@ pub(super) fn destack_ipc_shared_memory_close(
 /// Stub for destack.ipc.sharedMemory.create.
 pub(super) fn destack_ipc_shared_memory_create(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     name: vm::StringHandle,
     size: u64,
     flags: u32,
@@ -165,7 +165,7 @@ pub(super) fn destack_ipc_shared_memory_create(
 /// Stub for destack.ipc.sharedMemory.map.
 pub(super) fn destack_ipc_shared_memory_map(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SharedMemoryHandle,
     offset: u64,
     length: u64,
@@ -181,7 +181,7 @@ pub(super) fn destack_ipc_shared_memory_map(
 /// Stub for destack.ipc.sharedMemory.open.
 pub(super) fn destack_ipc_shared_memory_open(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     name: vm::StringHandle,
     flags: u32,
 ) -> RuntimeResult<resource::SharedMemoryHandle> {
@@ -195,7 +195,7 @@ pub(super) fn destack_ipc_shared_memory_open(
 /// Stub for destack.ipc.sharedMemory.unmap.
 pub(super) fn destack_ipc_shared_memory_unmap(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
@@ -209,7 +209,7 @@ pub(super) fn destack_ipc_shared_memory_unmap(
 /// Stub for destack.ipc.sync.futexWait.
 pub(super) fn destack_ipc_futex_wait(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     sharedmemory: resource::SharedMemoryHandle,
     offset: u64,
     expected: u32,
@@ -225,7 +225,7 @@ pub(super) fn destack_ipc_futex_wait(
 /// Stub for destack.ipc.sync.futexWake.
 pub(super) fn destack_ipc_futex_wake(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     sharedmemory: resource::SharedMemoryHandle,
     offset: u64,
     count: u32,
@@ -240,7 +240,7 @@ pub(super) fn destack_ipc_futex_wake(
 /// Stub for destack.ipc.sync.semaphoreCreate.
 pub(super) fn destack_ipc_semaphore_create(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     name: vm::StringHandle,
     initial: u32,
     flags: u32,
@@ -255,7 +255,7 @@ pub(super) fn destack_ipc_semaphore_create(
 /// Stub for destack.ipc.sync.semaphorePost.
 pub(super) fn destack_ipc_semaphore_post(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SemaphoreHandle,
     count: u32,
 ) -> RuntimeResult<()> {
@@ -269,7 +269,7 @@ pub(super) fn destack_ipc_semaphore_post(
 /// Stub for destack.ipc.sync.semaphoreWait.
 pub(super) fn destack_ipc_semaphore_wait(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SemaphoreHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
@@ -283,7 +283,7 @@ pub(super) fn destack_ipc_semaphore_wait(
 /// Stub for destack.ipc.unix.receive.
 pub(super) fn destack_ipc_unix_receive(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     socket: resource::SocketHandle,
     maxhandles: u32,
 ) -> RuntimeResult<UnixReceiveAncillaryVm> {
@@ -297,7 +297,7 @@ pub(super) fn destack_ipc_unix_receive(
 /// Stub for destack.ipc.unix.send.
 pub(super) fn destack_ipc_unix_send(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     socket: resource::SocketHandle,
     payload: VmSlice<u8>,
     handles: VmSlice<resource::TransferredHandle>,

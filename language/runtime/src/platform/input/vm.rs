@@ -7,7 +7,7 @@ use destack_vm as vm;
 /// Stub for destack.input.device.close.
 pub(super) fn destack_input_close(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -20,7 +20,7 @@ pub(super) fn destack_input_close(
 /// Stub for destack.input.device.list.
 pub(super) fn destack_input_list(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<InputDeviceInfoVm>> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.input.device.list is not available in the VM yet",
@@ -31,7 +31,7 @@ pub(super) fn destack_input_list(
 /// Stub for destack.input.device.open.
 pub(super) fn destack_input_open(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<resource::InputDeviceHandle> {
     let _ = id;
@@ -44,7 +44,7 @@ pub(super) fn destack_input_open(
 /// Stub for destack.input.event.read.
 pub(super) fn destack_input_read(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<InputEventVm> {
     let _ = handle;
@@ -57,7 +57,7 @@ pub(super) fn destack_input_read(
 /// Stub for destack.input.event.setGrab.
 pub(super) fn destack_input_set_grab(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
     enable: bool,
 ) -> RuntimeResult<()> {
@@ -71,7 +71,7 @@ pub(super) fn destack_input_set_grab(
 /// Stub for destack.input.event.tryRead.
 pub(super) fn destack_input_try_read(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<InputEventVm> {
     let _ = handle;

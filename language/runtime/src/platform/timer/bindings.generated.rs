@@ -91,7 +91,7 @@ fn decode_uint64(
 /// Decode arguments for destack.timer.control.cancel.
 #[inline]
 fn decode_destack_timer_control_cancel_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TimerHandle,)> {
     // ignore unused context
@@ -107,7 +107,7 @@ fn decode_destack_timer_control_cancel_args(
 /// Encode the result for destack.timer.control.cancel.
 #[inline]
 fn encode_destack_timer_control_cancel_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -119,7 +119,7 @@ fn encode_destack_timer_control_cancel_result(
 /// Decode arguments for destack.timer.control.isActive.
 #[inline]
 fn decode_destack_timer_control_is_active_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TimerHandle,)> {
     // ignore unused context
@@ -135,7 +135,7 @@ fn decode_destack_timer_control_is_active_args(
 /// Encode the result for destack.timer.control.isActive.
 #[inline]
 fn encode_destack_timer_control_is_active_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -147,7 +147,7 @@ fn encode_destack_timer_control_is_active_result(
 /// Decode arguments for destack.timer.control.pause.
 #[inline]
 fn decode_destack_timer_control_pause_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TimerHandle,)> {
     // ignore unused context
@@ -163,7 +163,7 @@ fn decode_destack_timer_control_pause_args(
 /// Encode the result for destack.timer.control.pause.
 #[inline]
 fn encode_destack_timer_control_pause_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -175,7 +175,7 @@ fn encode_destack_timer_control_pause_result(
 /// Decode arguments for destack.timer.control.remainingNs.
 #[inline]
 fn decode_destack_timer_control_remaining_ns_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TimerHandle,)> {
     // ignore unused context
@@ -191,7 +191,7 @@ fn decode_destack_timer_control_remaining_ns_args(
 /// Encode the result for destack.timer.control.remainingNs.
 #[inline]
 fn encode_destack_timer_control_remaining_ns_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -203,7 +203,7 @@ fn encode_destack_timer_control_remaining_ns_result(
 /// Decode arguments for destack.timer.control.reset.
 #[inline]
 fn decode_destack_timer_control_reset_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TimerHandle, u64)> {
     // ignore unused context
@@ -221,7 +221,7 @@ fn decode_destack_timer_control_reset_args(
 /// Encode the result for destack.timer.control.reset.
 #[inline]
 fn encode_destack_timer_control_reset_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -233,7 +233,7 @@ fn encode_destack_timer_control_reset_result(
 /// Decode arguments for destack.timer.control.resume.
 #[inline]
 fn decode_destack_timer_control_resume_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TimerHandle,)> {
     // ignore unused context
@@ -249,7 +249,7 @@ fn decode_destack_timer_control_resume_args(
 /// Encode the result for destack.timer.control.resume.
 #[inline]
 fn encode_destack_timer_control_resume_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -261,7 +261,7 @@ fn encode_destack_timer_control_resume_result(
 /// Decode arguments for destack.timer.control.updateInterval.
 #[inline]
 fn decode_destack_timer_control_update_interval_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TimerHandle, u64)> {
     // ignore unused context
@@ -279,7 +279,7 @@ fn decode_destack_timer_control_update_interval_args(
 /// Encode the result for destack.timer.control.updateInterval.
 #[inline]
 fn encode_destack_timer_control_update_interval_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -291,7 +291,7 @@ fn encode_destack_timer_control_update_interval_result(
 /// Decode arguments for destack.timer.schedule.at.
 #[inline]
 fn decode_destack_timer_schedule_at_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64,)> {
     // ignore unused context
@@ -305,7 +305,7 @@ fn decode_destack_timer_schedule_at_args(
 /// Encode the result for destack.timer.schedule.at.
 #[inline]
 fn encode_destack_timer_schedule_at_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::TimerHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -317,7 +317,7 @@ fn encode_destack_timer_schedule_at_result(
 /// Decode arguments for destack.timer.schedule.atWithOptions.
 #[inline]
 fn decode_destack_timer_schedule_at_with_options_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, TimerOptionsVm)> {
     let deadlinens_value = arg_value(args, 0, "deadlinens", "uint64")?;
@@ -366,7 +366,7 @@ fn decode_destack_timer_schedule_at_with_options_args(
 /// Encode the result for destack.timer.schedule.atWithOptions.
 #[inline]
 fn encode_destack_timer_schedule_at_with_options_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::TimerHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -378,7 +378,7 @@ fn encode_destack_timer_schedule_at_with_options_result(
 /// Decode arguments for destack.timer.schedule.interval.
 #[inline]
 fn decode_destack_timer_schedule_interval_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64,)> {
     // ignore unused context
@@ -392,7 +392,7 @@ fn decode_destack_timer_schedule_interval_args(
 /// Encode the result for destack.timer.schedule.interval.
 #[inline]
 fn encode_destack_timer_schedule_interval_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::TimerHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -404,7 +404,7 @@ fn encode_destack_timer_schedule_interval_result(
 /// Decode arguments for destack.timer.schedule.intervalWithOptions.
 #[inline]
 fn decode_destack_timer_schedule_interval_with_options_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, TimerOptionsVm)> {
     let periodns_value = arg_value(args, 0, "periodns", "uint64")?;
@@ -453,7 +453,7 @@ fn decode_destack_timer_schedule_interval_with_options_args(
 /// Encode the result for destack.timer.schedule.intervalWithOptions.
 #[inline]
 fn encode_destack_timer_schedule_interval_with_options_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::TimerHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -465,7 +465,7 @@ fn encode_destack_timer_schedule_interval_with_options_result(
 /// Decode arguments for destack.timer.schedule.once.
 #[inline]
 fn decode_destack_timer_schedule_once_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64,)> {
     // ignore unused context
@@ -479,7 +479,7 @@ fn decode_destack_timer_schedule_once_args(
 /// Encode the result for destack.timer.schedule.once.
 #[inline]
 fn encode_destack_timer_schedule_once_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::TimerHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -491,7 +491,7 @@ fn encode_destack_timer_schedule_once_result(
 /// Decode arguments for destack.timer.schedule.onceWithOptions.
 #[inline]
 fn decode_destack_timer_schedule_once_with_options_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, TimerOptionsVm)> {
     let delayns_value = arg_value(args, 0, "delayns", "uint64")?;
@@ -540,7 +540,7 @@ fn decode_destack_timer_schedule_once_with_options_args(
 /// Encode the result for destack.timer.schedule.onceWithOptions.
 #[inline]
 fn encode_destack_timer_schedule_once_with_options_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::TimerHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1706,7 +1706,7 @@ pub unsafe extern "C" fn destack_timer_schedule_once_with_options(
 #[inline]
 fn destack_timer_control_cancel_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -1749,7 +1749,7 @@ fn destack_timer_control_cancel_vm_replay(
 #[inline]
 fn destack_timer_control_is_active_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -1796,7 +1796,7 @@ fn destack_timer_control_is_active_vm_replay(
 #[inline]
 fn destack_timer_control_pause_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -1839,7 +1839,7 @@ fn destack_timer_control_pause_vm_replay(
 #[inline]
 fn destack_timer_control_remaining_ns_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -1886,7 +1886,7 @@ fn destack_timer_control_remaining_ns_vm_replay(
 #[inline]
 fn destack_timer_control_reset_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TimerHandle,
     delayns: u64,
 ) -> RuntimeResult<vm::Value> {
@@ -1930,7 +1930,7 @@ fn destack_timer_control_reset_vm_replay(
 #[inline]
 fn destack_timer_control_resume_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -1973,7 +1973,7 @@ fn destack_timer_control_resume_vm_replay(
 #[inline]
 fn destack_timer_control_update_interval_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TimerHandle,
     periodns: u64,
 ) -> RuntimeResult<vm::Value> {
@@ -2017,7 +2017,7 @@ fn destack_timer_control_update_interval_vm_replay(
 #[inline]
 fn destack_timer_schedule_at_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     deadlinens: u64,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -2064,7 +2064,7 @@ fn destack_timer_schedule_at_vm_replay(
 #[inline]
 fn destack_timer_schedule_at_with_options_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     deadlinens: u64,
     options: TimerOptionsVm,
 ) -> RuntimeResult<vm::Value> {
@@ -2112,7 +2112,7 @@ fn destack_timer_schedule_at_with_options_vm_replay(
 #[inline]
 fn destack_timer_schedule_interval_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     periodns: u64,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -2159,7 +2159,7 @@ fn destack_timer_schedule_interval_vm_replay(
 #[inline]
 fn destack_timer_schedule_interval_with_options_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     periodns: u64,
     options: TimerOptionsVm,
 ) -> RuntimeResult<vm::Value> {
@@ -2209,7 +2209,7 @@ fn destack_timer_schedule_interval_with_options_vm_replay(
 #[inline]
 fn destack_timer_schedule_once_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     delayns: u64,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -2256,7 +2256,7 @@ fn destack_timer_schedule_once_vm_replay(
 #[inline]
 fn destack_timer_schedule_once_with_options_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     delayns: u64,
     options: TimerOptionsVm,
 ) -> RuntimeResult<vm::Value> {

@@ -71,7 +71,7 @@ pub struct VmArray<T> {
 impl<T> VmArray<T> {
     /// Decode a VM array from an aggregate value.
     pub fn from_value(
-        context: &mut vm::RuntimeContext<'_>,
+        context: &mut vm::ExternalCallContext<'_>,
         value: vm::Value,
         name: &str,
         expected: &str,
@@ -125,7 +125,7 @@ impl<T> VmArray<T> {
     }
 
     /// Encode this VM array into an aggregate value.
-    pub fn to_value(self, context: &mut vm::RuntimeContext<'_>) -> vm::Value {
+    pub fn to_value(self, context: &mut vm::ExternalCallContext<'_>) -> vm::Value {
         let len = vm::Value::uint(self.len as u64, 32);
         let capacity = vm::Value::uint(self.capacity as u64, 32);
         let data = vm::Value::raw_pointer(self.data);
@@ -133,7 +133,10 @@ impl<T> VmArray<T> {
     }
 
     /// Read the raw VM values stored in this array.
-    pub fn raw_values(&self, context: &vm::RuntimeContext<'_>) -> RuntimeResult<Vec<vm::Value>> {
+    pub fn raw_values(
+        &self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<Vec<vm::Value>> {
         VmSlice {
             data: self.data,
             len: self.len,
@@ -145,7 +148,10 @@ impl<T> VmArray<T> {
 
 impl<T: VmValueCodec> VmArray<T> {
     /// Allocate a VM array from decoded values.
-    pub fn from_values(context: &mut vm::RuntimeContext<'_>, values: &[T]) -> RuntimeResult<Self> {
+    pub fn from_values(
+        context: &mut vm::ExternalCallContext<'_>,
+        values: &[T],
+    ) -> RuntimeResult<Self> {
         let slice = VmSlice::from_values(context, values)?;
         Ok(Self {
             data: slice.data,
@@ -156,7 +162,7 @@ impl<T: VmValueCodec> VmArray<T> {
     }
 
     /// Read the VM array into a Vec of decoded values.
-    pub fn read_values(&self, context: &vm::RuntimeContext<'_>) -> RuntimeResult<Vec<T>> {
+    pub fn read_values(&self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<Vec<T>> {
         VmSlice {
             data: self.data,
             len: self.len,
@@ -168,7 +174,7 @@ impl<T: VmValueCodec> VmArray<T> {
     /// Write decoded values into the VM array.
     pub fn write_values(
         &self,
-        context: &mut vm::RuntimeContext<'_>,
+        context: &mut vm::ExternalCallContext<'_>,
         values: &[T],
     ) -> RuntimeResult<()> {
         VmSlice {
@@ -182,7 +188,7 @@ impl<T: VmValueCodec> VmArray<T> {
 
 impl VmArray<u8> {
     /// Allocate a VM array from raw bytes.
-    pub fn from_bytes(context: &mut vm::RuntimeContext<'_>, bytes: &[u8]) -> Self {
+    pub fn from_bytes(context: &mut vm::ExternalCallContext<'_>, bytes: &[u8]) -> Self {
         let slice = VmSlice::from_bytes(context, bytes);
         Self {
             data: slice.data,
@@ -193,7 +199,7 @@ impl VmArray<u8> {
     }
 
     /// Read a byte array from the VM.
-    pub fn read_bytes(&self, context: &vm::RuntimeContext<'_>) -> RuntimeResult<Vec<u8>> {
+    pub fn read_bytes(&self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<Vec<u8>> {
         VmSlice {
             data: self.data,
             len: self.len,
@@ -205,7 +211,7 @@ impl VmArray<u8> {
     /// Write a byte array into the VM.
     pub fn write_bytes(
         &self,
-        context: &mut vm::RuntimeContext<'_>,
+        context: &mut vm::ExternalCallContext<'_>,
         bytes: &[u8],
     ) -> RuntimeResult<()> {
         VmSlice {

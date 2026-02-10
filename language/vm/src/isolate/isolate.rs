@@ -3,7 +3,7 @@ use std::fmt;
 use destack_base::ImmutableStringPool;
 use destack_mir as mir;
 
-use super::{ExternalHandler, IsolateState, RuntimeContext, StringRef};
+use super::{ExternalCallContext, ExternalHandler, IsolateState, StringRef};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::execute::{Continuation, ExecutionOutcome, ExecutionOutput};
 use crate::interpreter::{Interpreter, InterpreterContext};
@@ -114,9 +114,9 @@ impl Isolate {
     /// Run a callback with a runtime context for this isolate.
     pub fn with_runtime_context<F, R>(&mut self, run: F) -> R
     where
-        F: for<'ctx> FnOnce(&mut RuntimeContext<'ctx>) -> R,
+        F: for<'ctx> FnOnce(&mut ExternalCallContext<'ctx>) -> R,
     {
-        let mut context = RuntimeContext::new(&mut self.state);
+        let mut context = ExternalCallContext::new(&mut self.state);
         run(&mut context)
     }
 

@@ -82,7 +82,7 @@ fn decode_uint64(
 /// Decode arguments for destack.time.clock.info.
 #[inline]
 fn decode_destack_time_clock_info_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ClockId,)> {
     // ignore unused context
@@ -111,7 +111,7 @@ fn decode_destack_time_clock_info_args(
 /// Encode the result for destack.time.clock.info.
 #[inline]
 fn encode_destack_time_clock_info_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ClockInfoVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -126,7 +126,7 @@ fn encode_destack_time_clock_info_result(
 /// Encode the result for destack.time.clock.monoNs.
 #[inline]
 fn encode_destack_time_clock_mono_ns_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -138,7 +138,7 @@ fn encode_destack_time_clock_mono_ns_result(
 /// Decode arguments for destack.time.clock.nowNs.
 #[inline]
 fn decode_destack_time_clock_now_ns_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ClockId,)> {
     // ignore unused context
@@ -167,7 +167,7 @@ fn decode_destack_time_clock_now_ns_args(
 /// Encode the result for destack.time.clock.nowNs.
 #[inline]
 fn encode_destack_time_clock_now_ns_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -179,7 +179,7 @@ fn encode_destack_time_clock_now_ns_result(
 /// Encode the result for destack.time.clock.processCpuNs.
 #[inline]
 fn encode_destack_time_clock_process_cpu_ns_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -191,7 +191,7 @@ fn encode_destack_time_clock_process_cpu_ns_result(
 /// Encode the result for destack.time.clock.threadCpuNs.
 #[inline]
 fn encode_destack_time_clock_thread_cpu_ns_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -203,7 +203,7 @@ fn encode_destack_time_clock_thread_cpu_ns_result(
 /// Encode the result for destack.time.clock.wallNs.
 #[inline]
 fn encode_destack_time_clock_wall_ns_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -215,7 +215,7 @@ fn encode_destack_time_clock_wall_ns_result(
 /// Decode arguments for destack.time.sleep.ns.
 #[inline]
 fn decode_destack_time_sleep_ns_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64,)> {
     // ignore unused context
@@ -229,7 +229,7 @@ fn decode_destack_time_sleep_ns_args(
 /// Encode the result for destack.time.sleep.ns.
 #[inline]
 fn encode_destack_time_sleep_ns_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -241,7 +241,7 @@ fn encode_destack_time_sleep_ns_result(
 /// Decode arguments for destack.time.sleep.onNs.
 #[inline]
 fn decode_destack_time_sleep_on_ns_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, SleepClock)> {
     // ignore unused context
@@ -268,7 +268,7 @@ fn decode_destack_time_sleep_on_ns_args(
 /// Encode the result for destack.time.sleep.onNs.
 #[inline]
 fn encode_destack_time_sleep_on_ns_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -280,7 +280,7 @@ fn encode_destack_time_sleep_on_ns_result(
 /// Decode arguments for destack.time.sleep.untilNs.
 #[inline]
 fn decode_destack_time_sleep_until_ns_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64,)> {
     // ignore unused context
@@ -294,7 +294,7 @@ fn decode_destack_time_sleep_until_ns_args(
 /// Encode the result for destack.time.sleep.untilNs.
 #[inline]
 fn encode_destack_time_sleep_until_ns_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -306,7 +306,7 @@ fn encode_destack_time_sleep_until_ns_result(
 /// Decode arguments for destack.time.sleep.untilOnNs.
 #[inline]
 fn decode_destack_time_sleep_until_on_ns_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, SleepClock)> {
     // ignore unused context
@@ -333,7 +333,7 @@ fn decode_destack_time_sleep_until_on_ns_args(
 /// Encode the result for destack.time.sleep.untilOnNs.
 #[inline]
 fn encode_destack_time_sleep_until_on_ns_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1114,7 +1114,7 @@ pub unsafe extern "C" fn destack_time_sleep_until_on_ns(
 #[inline]
 fn destack_time_clock_info_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     clock: ClockId,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -1179,7 +1179,7 @@ fn destack_time_clock_info_vm_replay(
 #[inline]
 fn destack_time_clock_now_ns_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     clock: ClockId,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -1226,7 +1226,7 @@ fn destack_time_clock_now_ns_vm_replay(
 #[inline]
 fn destack_time_clock_process_cpu_ns_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
         TIME_CLOCK_PROCESS_CPU_NS,
@@ -1272,7 +1272,7 @@ fn destack_time_clock_process_cpu_ns_vm_replay(
 #[inline]
 fn destack_time_clock_thread_cpu_ns_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
         TIME_CLOCK_THREAD_CPU_NS,
@@ -1318,7 +1318,7 @@ fn destack_time_clock_thread_cpu_ns_vm_replay(
 #[inline]
 fn destack_time_sleep_ns_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     duration: u64,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -1361,7 +1361,7 @@ fn destack_time_sleep_ns_vm_replay(
 #[inline]
 fn destack_time_sleep_on_ns_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     duration: u64,
     clock: SleepClock,
 ) -> RuntimeResult<vm::Value> {
@@ -1405,7 +1405,7 @@ fn destack_time_sleep_on_ns_vm_replay(
 #[inline]
 fn destack_time_sleep_until_ns_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     deadline: u64,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -1448,7 +1448,7 @@ fn destack_time_sleep_until_ns_vm_replay(
 #[inline]
 fn destack_time_sleep_until_on_ns_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     deadline: u64,
     clock: SleepClock,
 ) -> RuntimeResult<vm::Value> {

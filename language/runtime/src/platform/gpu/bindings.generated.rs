@@ -113,7 +113,7 @@ fn decode_string(
 
 /// Decode a slice argument.
 fn decode_slice<T>(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -124,7 +124,7 @@ fn decode_slice<T>(
 /// Decode arguments for destack.gpu.adapter.close.
 #[inline]
 fn decode_destack_gpu_adapter_close_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::GpuAdapterHandle,)> {
     // ignore unused context
@@ -140,7 +140,7 @@ fn decode_destack_gpu_adapter_close_args(
 /// Encode the result for destack.gpu.adapter.close.
 #[inline]
 fn encode_destack_gpu_adapter_close_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -152,7 +152,7 @@ fn encode_destack_gpu_adapter_close_result(
 /// Encode the result for destack.gpu.adapter.list.
 #[inline]
 fn encode_destack_gpu_adapter_list_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<GpuAdapterInfoVm>>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| value.to_value(context))
@@ -161,7 +161,7 @@ fn encode_destack_gpu_adapter_list_result(
 /// Decode arguments for destack.gpu.adapter.open.
 #[inline]
 fn decode_destack_gpu_adapter_open_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     // ignore unused context
@@ -175,7 +175,7 @@ fn decode_destack_gpu_adapter_open_args(
 /// Encode the result for destack.gpu.adapter.open.
 #[inline]
 fn encode_destack_gpu_adapter_open_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuAdapterHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -187,7 +187,7 @@ fn encode_destack_gpu_adapter_open_result(
 /// Decode arguments for destack.gpu.command.bindPipeline.
 #[inline]
 fn decode_destack_gpu_command_bind_pipeline_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::GpuCommandListHandle, resource::GpuPipelineHandle)> {
     // ignore unused context
@@ -209,7 +209,7 @@ fn decode_destack_gpu_command_bind_pipeline_args(
 /// Encode the result for destack.gpu.command.bindPipeline.
 #[inline]
 fn encode_destack_gpu_command_bind_pipeline_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -221,7 +221,7 @@ fn encode_destack_gpu_command_bind_pipeline_result(
 /// Decode arguments for destack.gpu.command.copyBuffer.
 #[inline]
 fn decode_destack_gpu_command_copy_buffer_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
     resource::GpuCommandListHandle,
@@ -259,7 +259,7 @@ fn decode_destack_gpu_command_copy_buffer_args(
 /// Encode the result for destack.gpu.command.copyBuffer.
 #[inline]
 fn encode_destack_gpu_command_copy_buffer_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -271,7 +271,7 @@ fn encode_destack_gpu_command_copy_buffer_result(
 /// Decode arguments for destack.gpu.command.dispatch.
 #[inline]
 fn decode_destack_gpu_command_dispatch_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::GpuCommandListHandle, u32, u32, u32)> {
     // ignore unused context
@@ -294,7 +294,7 @@ fn decode_destack_gpu_command_dispatch_args(
 /// Encode the result for destack.gpu.command.dispatch.
 #[inline]
 fn encode_destack_gpu_command_dispatch_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -306,7 +306,7 @@ fn encode_destack_gpu_command_dispatch_result(
 /// Decode arguments for destack.gpu.command.listBegin.
 #[inline]
 fn decode_destack_gpu_command_list_begin_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::GpuCommandListHandle,)> {
     // ignore unused context
@@ -323,7 +323,7 @@ fn decode_destack_gpu_command_list_begin_args(
 /// Encode the result for destack.gpu.command.listBegin.
 #[inline]
 fn encode_destack_gpu_command_list_begin_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -335,7 +335,7 @@ fn encode_destack_gpu_command_list_begin_result(
 /// Decode arguments for destack.gpu.command.listClose.
 #[inline]
 fn decode_destack_gpu_command_list_close_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::GpuCommandListHandle,)> {
     // ignore unused context
@@ -352,7 +352,7 @@ fn decode_destack_gpu_command_list_close_args(
 /// Encode the result for destack.gpu.command.listClose.
 #[inline]
 fn encode_destack_gpu_command_list_close_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -364,7 +364,7 @@ fn encode_destack_gpu_command_list_close_result(
 /// Decode arguments for destack.gpu.command.listEnd.
 #[inline]
 fn decode_destack_gpu_command_list_end_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::GpuCommandListHandle,)> {
     // ignore unused context
@@ -381,7 +381,7 @@ fn decode_destack_gpu_command_list_end_args(
 /// Encode the result for destack.gpu.command.listEnd.
 #[inline]
 fn encode_destack_gpu_command_list_end_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -393,7 +393,7 @@ fn encode_destack_gpu_command_list_end_result(
 /// Decode arguments for destack.gpu.command.listOpen.
 #[inline]
 fn decode_destack_gpu_command_list_open_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::GpuDeviceHandle, GpuCommandListOptionsVm)> {
     let device_value = arg_value(args, 0, "device", "GpuDeviceHandle")?;
@@ -430,7 +430,7 @@ fn decode_destack_gpu_command_list_open_args(
 /// Encode the result for destack.gpu.command.listOpen.
 #[inline]
 fn encode_destack_gpu_command_list_open_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuCommandListHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -442,7 +442,7 @@ fn encode_destack_gpu_command_list_open_result(
 /// Decode arguments for destack.gpu.command.queueSubmit.
 #[inline]
 fn decode_destack_gpu_command_queue_submit_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
     resource::GpuQueueHandle,
@@ -492,7 +492,7 @@ fn decode_destack_gpu_command_queue_submit_args(
 /// Encode the result for destack.gpu.command.queueSubmit.
 #[inline]
 fn encode_destack_gpu_command_queue_submit_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -504,7 +504,7 @@ fn encode_destack_gpu_command_queue_submit_result(
 /// Decode arguments for destack.gpu.command.queueWaitIdle.
 #[inline]
 fn decode_destack_gpu_command_queue_wait_idle_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::GpuQueueHandle, u64)> {
     // ignore unused context
@@ -522,7 +522,7 @@ fn decode_destack_gpu_command_queue_wait_idle_args(
 /// Encode the result for destack.gpu.command.queueWaitIdle.
 #[inline]
 fn encode_destack_gpu_command_queue_wait_idle_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -534,7 +534,7 @@ fn encode_destack_gpu_command_queue_wait_idle_result(
 /// Decode arguments for destack.gpu.device.close.
 #[inline]
 fn decode_destack_gpu_device_close_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::GpuDeviceHandle,)> {
     // ignore unused context
@@ -550,7 +550,7 @@ fn decode_destack_gpu_device_close_args(
 /// Encode the result for destack.gpu.device.close.
 #[inline]
 fn encode_destack_gpu_device_close_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -562,7 +562,7 @@ fn encode_destack_gpu_device_close_result(
 /// Decode arguments for destack.gpu.device.open.
 #[inline]
 fn decode_destack_gpu_device_open_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::GpuAdapterHandle, GpuDeviceOptionsVm)> {
     let adapter_value = arg_value(args, 0, "adapter", "GpuAdapterHandle")?;
@@ -606,7 +606,7 @@ fn decode_destack_gpu_device_open_args(
 /// Encode the result for destack.gpu.device.open.
 #[inline]
 fn encode_destack_gpu_device_open_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuDeviceHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -618,7 +618,7 @@ fn encode_destack_gpu_device_open_result(
 /// Decode arguments for destack.gpu.device.queue.
 #[inline]
 fn decode_destack_gpu_device_queue_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::GpuDeviceHandle, u32, u32)> {
     // ignore unused context
@@ -638,7 +638,7 @@ fn decode_destack_gpu_device_queue_args(
 /// Encode the result for destack.gpu.device.queue.
 #[inline]
 fn encode_destack_gpu_device_queue_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuQueueHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -650,7 +650,7 @@ fn encode_destack_gpu_device_queue_result(
 /// Decode arguments for destack.gpu.pipeline.create.
 #[inline]
 fn decode_destack_gpu_pipeline_create_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
     resource::GpuDeviceHandle,
@@ -700,7 +700,7 @@ fn decode_destack_gpu_pipeline_create_args(
 /// Encode the result for destack.gpu.pipeline.create.
 #[inline]
 fn encode_destack_gpu_pipeline_create_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuPipelineHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -712,7 +712,7 @@ fn encode_destack_gpu_pipeline_create_result(
 /// Decode arguments for destack.gpu.pipeline.destroy.
 #[inline]
 fn decode_destack_gpu_pipeline_destroy_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::GpuPipelineHandle,)> {
     // ignore unused context
@@ -729,7 +729,7 @@ fn decode_destack_gpu_pipeline_destroy_args(
 /// Encode the result for destack.gpu.pipeline.destroy.
 #[inline]
 fn encode_destack_gpu_pipeline_destroy_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -741,7 +741,7 @@ fn encode_destack_gpu_pipeline_destroy_result(
 /// Decode arguments for destack.gpu.pipeline.shaderCreate.
 #[inline]
 fn decode_destack_gpu_pipeline_shader_create_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::GpuDeviceHandle, GpuShaderOptionsVm, VmSlice<u8>)> {
     let device_value = arg_value(args, 0, "device", "GpuDeviceHandle")?;
@@ -796,7 +796,7 @@ fn decode_destack_gpu_pipeline_shader_create_args(
 /// Encode the result for destack.gpu.pipeline.shaderCreate.
 #[inline]
 fn encode_destack_gpu_pipeline_shader_create_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuShaderHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -808,7 +808,7 @@ fn encode_destack_gpu_pipeline_shader_create_result(
 /// Decode arguments for destack.gpu.pipeline.shaderDestroy.
 #[inline]
 fn decode_destack_gpu_pipeline_shader_destroy_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::GpuShaderHandle,)> {
     // ignore unused context
@@ -824,7 +824,7 @@ fn decode_destack_gpu_pipeline_shader_destroy_args(
 /// Encode the result for destack.gpu.pipeline.shaderDestroy.
 #[inline]
 fn encode_destack_gpu_pipeline_shader_destroy_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -836,7 +836,7 @@ fn encode_destack_gpu_pipeline_shader_destroy_result(
 /// Decode arguments for destack.gpu.present.queuePresent.
 #[inline]
 fn decode_destack_gpu_present_queue_present_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
     resource::GpuQueueHandle,
@@ -883,7 +883,7 @@ fn decode_destack_gpu_present_queue_present_args(
 /// Encode the result for destack.gpu.present.queuePresent.
 #[inline]
 fn encode_destack_gpu_present_queue_present_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -895,7 +895,7 @@ fn encode_destack_gpu_present_queue_present_result(
 /// Decode arguments for destack.gpu.resource.bufferCreate.
 #[inline]
 fn decode_destack_gpu_resource_buffer_create_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::GpuDeviceHandle, GpuBufferOptionsVm)> {
     let device_value = arg_value(args, 0, "device", "GpuDeviceHandle")?;
@@ -936,7 +936,7 @@ fn decode_destack_gpu_resource_buffer_create_args(
 /// Encode the result for destack.gpu.resource.bufferCreate.
 #[inline]
 fn encode_destack_gpu_resource_buffer_create_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuBufferHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -948,7 +948,7 @@ fn encode_destack_gpu_resource_buffer_create_result(
 /// Decode arguments for destack.gpu.resource.bufferDestroy.
 #[inline]
 fn decode_destack_gpu_resource_buffer_destroy_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::GpuBufferHandle,)> {
     // ignore unused context
@@ -964,7 +964,7 @@ fn decode_destack_gpu_resource_buffer_destroy_args(
 /// Encode the result for destack.gpu.resource.bufferDestroy.
 #[inline]
 fn encode_destack_gpu_resource_buffer_destroy_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -976,7 +976,7 @@ fn encode_destack_gpu_resource_buffer_destroy_result(
 /// Decode arguments for destack.gpu.resource.bufferRead.
 #[inline]
 fn decode_destack_gpu_resource_buffer_read_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::GpuBufferHandle, u64, u64)> {
     // ignore unused context
@@ -996,7 +996,7 @@ fn decode_destack_gpu_resource_buffer_read_args(
 /// Encode the result for destack.gpu.resource.bufferRead.
 #[inline]
 fn encode_destack_gpu_resource_buffer_read_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| value.to_value(context))
@@ -1005,7 +1005,7 @@ fn encode_destack_gpu_resource_buffer_read_result(
 /// Decode arguments for destack.gpu.resource.bufferWrite.
 #[inline]
 fn decode_destack_gpu_resource_buffer_write_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::GpuBufferHandle, u64, VmSlice<u8>)> {
     let handle_value = arg_value(args, 0, "handle", "GpuBufferHandle")?;
@@ -1022,7 +1022,7 @@ fn decode_destack_gpu_resource_buffer_write_args(
 /// Encode the result for destack.gpu.resource.bufferWrite.
 #[inline]
 fn encode_destack_gpu_resource_buffer_write_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1034,7 +1034,7 @@ fn encode_destack_gpu_resource_buffer_write_result(
 /// Decode arguments for destack.gpu.resource.memoryMap.
 #[inline]
 fn decode_destack_gpu_resource_memory_map_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::GpuMemoryHandle, u64, u64)> {
     // ignore unused context
@@ -1054,7 +1054,7 @@ fn decode_destack_gpu_resource_memory_map_args(
 /// Encode the result for destack.gpu.resource.memoryMap.
 #[inline]
 fn encode_destack_gpu_resource_memory_map_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GpuMappedMemoryVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -1067,7 +1067,7 @@ fn encode_destack_gpu_resource_memory_map_result(
 /// Decode arguments for destack.gpu.resource.memoryUnmap.
 #[inline]
 fn decode_destack_gpu_resource_memory_unmap_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::GpuMemoryHandle,)> {
     // ignore unused context
@@ -1083,7 +1083,7 @@ fn decode_destack_gpu_resource_memory_unmap_args(
 /// Encode the result for destack.gpu.resource.memoryUnmap.
 #[inline]
 fn encode_destack_gpu_resource_memory_unmap_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1095,7 +1095,7 @@ fn encode_destack_gpu_resource_memory_unmap_result(
 /// Decode arguments for destack.gpu.resource.samplerCreate.
 #[inline]
 fn decode_destack_gpu_resource_sampler_create_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::GpuDeviceHandle, GpuSamplerOptionsVm)> {
     let device_value = arg_value(args, 0, "device", "GpuDeviceHandle")?;
@@ -1140,7 +1140,7 @@ fn decode_destack_gpu_resource_sampler_create_args(
 /// Encode the result for destack.gpu.resource.samplerCreate.
 #[inline]
 fn encode_destack_gpu_resource_sampler_create_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuSamplerHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1152,7 +1152,7 @@ fn encode_destack_gpu_resource_sampler_create_result(
 /// Decode arguments for destack.gpu.resource.samplerDestroy.
 #[inline]
 fn decode_destack_gpu_resource_sampler_destroy_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::GpuSamplerHandle,)> {
     // ignore unused context
@@ -1168,7 +1168,7 @@ fn decode_destack_gpu_resource_sampler_destroy_args(
 /// Encode the result for destack.gpu.resource.samplerDestroy.
 #[inline]
 fn encode_destack_gpu_resource_sampler_destroy_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1180,7 +1180,7 @@ fn encode_destack_gpu_resource_sampler_destroy_result(
 /// Decode arguments for destack.gpu.resource.textureCreate.
 #[inline]
 fn decode_destack_gpu_resource_texture_create_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::GpuDeviceHandle, GpuTextureOptionsVm)> {
     let device_value = arg_value(args, 0, "device", "GpuDeviceHandle")?;
@@ -1230,7 +1230,7 @@ fn decode_destack_gpu_resource_texture_create_args(
 /// Encode the result for destack.gpu.resource.textureCreate.
 #[inline]
 fn encode_destack_gpu_resource_texture_create_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuTextureHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1242,7 +1242,7 @@ fn encode_destack_gpu_resource_texture_create_result(
 /// Decode arguments for destack.gpu.resource.textureDestroy.
 #[inline]
 fn decode_destack_gpu_resource_texture_destroy_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::GpuTextureHandle,)> {
     // ignore unused context
@@ -1258,7 +1258,7 @@ fn decode_destack_gpu_resource_texture_destroy_args(
 /// Encode the result for destack.gpu.resource.textureDestroy.
 #[inline]
 fn encode_destack_gpu_resource_texture_destroy_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -3858,7 +3858,7 @@ pub unsafe extern "C" fn destack_gpu_resource_texture_destroy(
 #[inline]
 fn destack_gpu_adapter_close_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -3901,7 +3901,7 @@ fn destack_gpu_adapter_close_vm_replay(
 #[inline]
 fn destack_gpu_adapter_list_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
         GPU_ADAPTER_LIST,
@@ -4074,7 +4074,7 @@ fn destack_gpu_adapter_list_vm_replay(
 #[inline]
 fn destack_gpu_adapter_open_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -4121,7 +4121,7 @@ fn destack_gpu_adapter_open_vm_replay(
 #[inline]
 fn destack_gpu_command_bind_pipeline_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuCommandListHandle,
     pipeline: resource::GpuPipelineHandle,
 ) -> RuntimeResult<vm::Value> {
@@ -4167,7 +4167,7 @@ fn destack_gpu_command_bind_pipeline_vm_replay(
 #[inline]
 fn destack_gpu_command_copy_buffer_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuCommandListHandle,
     src: resource::GpuBufferHandle,
     srcoffset: u64,
@@ -4219,7 +4219,7 @@ fn destack_gpu_command_copy_buffer_vm_replay(
 #[inline]
 fn destack_gpu_command_dispatch_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuCommandListHandle,
     groupx: u32,
     groupy: u32,
@@ -4269,7 +4269,7 @@ fn destack_gpu_command_dispatch_vm_replay(
 #[inline]
 fn destack_gpu_command_list_begin_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuCommandListHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -4312,7 +4312,7 @@ fn destack_gpu_command_list_begin_vm_replay(
 #[inline]
 fn destack_gpu_command_list_close_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuCommandListHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -4355,7 +4355,7 @@ fn destack_gpu_command_list_close_vm_replay(
 #[inline]
 fn destack_gpu_command_list_end_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuCommandListHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -4398,7 +4398,7 @@ fn destack_gpu_command_list_end_vm_replay(
 #[inline]
 fn destack_gpu_command_list_open_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuCommandListOptionsVm,
 ) -> RuntimeResult<vm::Value> {
@@ -4446,7 +4446,7 @@ fn destack_gpu_command_list_open_vm_replay(
 #[inline]
 fn destack_gpu_command_queue_submit_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     queue: resource::GpuQueueHandle,
     commandlists: VmSlice<resource::GpuCommandListHandle>,
     options: GpuSubmitOptionsVm,
@@ -4493,7 +4493,7 @@ fn destack_gpu_command_queue_submit_vm_replay(
 #[inline]
 fn destack_gpu_command_queue_wait_idle_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     queue: resource::GpuQueueHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
@@ -4537,7 +4537,7 @@ fn destack_gpu_command_queue_wait_idle_vm_replay(
 #[inline]
 fn destack_gpu_device_close_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -4580,7 +4580,7 @@ fn destack_gpu_device_close_vm_replay(
 #[inline]
 fn destack_gpu_device_open_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     adapter: resource::GpuAdapterHandle,
     options: GpuDeviceOptionsVm,
 ) -> RuntimeResult<vm::Value> {
@@ -4628,7 +4628,7 @@ fn destack_gpu_device_open_vm_replay(
 #[inline]
 fn destack_gpu_device_queue_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     family: u32,
     index: u32,
@@ -4677,7 +4677,7 @@ fn destack_gpu_device_queue_vm_replay(
 #[inline]
 fn destack_gpu_pipeline_create_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     shaders: VmSlice<resource::GpuShaderHandle>,
     options: GpuPipelineOptionsVm,
@@ -4728,7 +4728,7 @@ fn destack_gpu_pipeline_create_vm_replay(
 #[inline]
 fn destack_gpu_pipeline_destroy_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuPipelineHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -4771,7 +4771,7 @@ fn destack_gpu_pipeline_destroy_vm_replay(
 #[inline]
 fn destack_gpu_pipeline_shader_create_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuShaderOptionsVm,
     bytes: VmSlice<u8>,
@@ -4820,7 +4820,7 @@ fn destack_gpu_pipeline_shader_create_vm_replay(
 #[inline]
 fn destack_gpu_pipeline_shader_destroy_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuShaderHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -4863,7 +4863,7 @@ fn destack_gpu_pipeline_shader_destroy_vm_replay(
 #[inline]
 fn destack_gpu_resource_buffer_create_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuBufferOptionsVm,
 ) -> RuntimeResult<vm::Value> {
@@ -4911,7 +4911,7 @@ fn destack_gpu_resource_buffer_create_vm_replay(
 #[inline]
 fn destack_gpu_resource_buffer_destroy_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuBufferHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -4954,7 +4954,7 @@ fn destack_gpu_resource_buffer_destroy_vm_replay(
 #[inline]
 fn destack_gpu_resource_buffer_read_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuBufferHandle,
     offset: u64,
     length: u64,
@@ -5003,7 +5003,7 @@ fn destack_gpu_resource_buffer_read_vm_replay(
 #[inline]
 fn destack_gpu_resource_buffer_write_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuBufferHandle,
     offset: u64,
     bytes: VmSlice<u8>,
@@ -5048,7 +5048,7 @@ fn destack_gpu_resource_buffer_write_vm_replay(
 #[inline]
 fn destack_gpu_resource_memory_map_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuMemoryHandle,
     offset: u64,
     length: u64,
@@ -5107,7 +5107,7 @@ fn destack_gpu_resource_memory_map_vm_replay(
 #[inline]
 fn destack_gpu_resource_memory_unmap_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuMemoryHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -5150,7 +5150,7 @@ fn destack_gpu_resource_memory_unmap_vm_replay(
 #[inline]
 fn destack_gpu_resource_sampler_create_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuSamplerOptionsVm,
 ) -> RuntimeResult<vm::Value> {
@@ -5198,7 +5198,7 @@ fn destack_gpu_resource_sampler_create_vm_replay(
 #[inline]
 fn destack_gpu_resource_sampler_destroy_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuSamplerHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -5241,7 +5241,7 @@ fn destack_gpu_resource_sampler_destroy_vm_replay(
 #[inline]
 fn destack_gpu_resource_texture_create_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuTextureOptionsVm,
 ) -> RuntimeResult<vm::Value> {
@@ -5289,7 +5289,7 @@ fn destack_gpu_resource_texture_create_vm_replay(
 #[inline]
 fn destack_gpu_resource_texture_destroy_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuTextureHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(

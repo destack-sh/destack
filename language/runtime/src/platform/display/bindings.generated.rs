@@ -144,7 +144,7 @@ fn decode_string(
 /// Decode arguments for destack.display.monitor.close.
 #[inline]
 fn decode_destack_display_monitor_close_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DisplayHandle,)> {
     // ignore unused context
@@ -160,7 +160,7 @@ fn decode_destack_display_monitor_close_args(
 /// Encode the result for destack.display.monitor.close.
 #[inline]
 fn encode_destack_display_monitor_close_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -172,7 +172,7 @@ fn encode_destack_display_monitor_close_result(
 /// Encode the result for destack.display.monitor.list.
 #[inline]
 fn encode_destack_display_monitor_list_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<DisplayInfoVm>>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| value.to_value(context))
@@ -181,7 +181,7 @@ fn encode_destack_display_monitor_list_result(
 /// Decode arguments for destack.display.monitor.modes.
 #[inline]
 fn decode_destack_display_monitor_modes_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DisplayHandle,)> {
     // ignore unused context
@@ -197,7 +197,7 @@ fn decode_destack_display_monitor_modes_args(
 /// Encode the result for destack.display.monitor.modes.
 #[inline]
 fn encode_destack_display_monitor_modes_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<DisplayModeVm>>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| value.to_value(context))
@@ -206,7 +206,7 @@ fn encode_destack_display_monitor_modes_result(
 /// Decode arguments for destack.display.monitor.open.
 #[inline]
 fn decode_destack_display_monitor_open_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     // ignore unused context
@@ -220,7 +220,7 @@ fn decode_destack_display_monitor_open_args(
 /// Encode the result for destack.display.monitor.open.
 #[inline]
 fn encode_destack_display_monitor_open_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::DisplayHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -232,7 +232,7 @@ fn encode_destack_display_monitor_open_result(
 /// Decode arguments for destack.display.monitor.setMode.
 #[inline]
 fn decode_destack_display_monitor_set_mode_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DisplayHandle, DisplayModeVm)> {
     let handle_value = arg_value(args, 0, "handle", "DisplayHandle")?;
@@ -276,7 +276,7 @@ fn decode_destack_display_monitor_set_mode_args(
 /// Encode the result for destack.display.monitor.setMode.
 #[inline]
 fn encode_destack_display_monitor_set_mode_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -288,7 +288,7 @@ fn encode_destack_display_monitor_set_mode_result(
 /// Decode arguments for destack.display.window.close.
 #[inline]
 fn decode_destack_display_window_close_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::WindowHandle,)> {
     // ignore unused context
@@ -304,7 +304,7 @@ fn decode_destack_display_window_close_args(
 /// Encode the result for destack.display.window.close.
 #[inline]
 fn encode_destack_display_window_close_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -316,7 +316,7 @@ fn encode_destack_display_window_close_result(
 /// Decode arguments for destack.display.window.event.
 #[inline]
 fn decode_destack_display_window_event_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::WindowHandle,)> {
     // ignore unused context
@@ -332,7 +332,7 @@ fn decode_destack_display_window_event_args(
 /// Encode the result for destack.display.window.event.
 #[inline]
 fn encode_destack_display_window_event_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<WindowEventVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -347,7 +347,7 @@ fn encode_destack_display_window_event_result(
 /// Decode arguments for destack.display.window.open.
 #[inline]
 fn decode_destack_display_window_open_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DisplayHandle, WindowOptionsVm)> {
     let display_value = arg_value(args, 0, "display", "DisplayHandle")?;
@@ -394,7 +394,7 @@ fn decode_destack_display_window_open_args(
 /// Encode the result for destack.display.window.open.
 #[inline]
 fn encode_destack_display_window_open_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::WindowHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -406,7 +406,7 @@ fn encode_destack_display_window_open_result(
 /// Decode arguments for destack.display.window.setTitle.
 #[inline]
 fn decode_destack_display_window_set_title_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::WindowHandle, vm::StringHandle)> {
     // ignore unused context
@@ -424,7 +424,7 @@ fn decode_destack_display_window_set_title_args(
 /// Encode the result for destack.display.window.setTitle.
 #[inline]
 fn encode_destack_display_window_set_title_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -436,7 +436,7 @@ fn encode_destack_display_window_set_title_result(
 /// Decode arguments for destack.display.window.tryEvent.
 #[inline]
 fn decode_destack_display_window_try_event_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::WindowHandle,)> {
     // ignore unused context
@@ -452,7 +452,7 @@ fn decode_destack_display_window_try_event_args(
 /// Encode the result for destack.display.window.tryEvent.
 #[inline]
 fn encode_destack_display_window_try_event_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<WindowEventVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -467,7 +467,7 @@ fn encode_destack_display_window_try_event_result(
 /// Decode arguments for destack.display.window.vsyncWait.
 #[inline]
 fn decode_destack_display_window_vsync_wait_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::WindowHandle, u64)> {
     // ignore unused context
@@ -485,7 +485,7 @@ fn decode_destack_display_window_vsync_wait_args(
 /// Encode the result for destack.display.window.vsyncWait.
 #[inline]
 fn encode_destack_display_window_vsync_wait_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1512,7 +1512,7 @@ pub unsafe extern "C" fn destack_display_window_vsync_wait(
 #[inline]
 fn destack_display_monitor_close_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -1555,7 +1555,7 @@ fn destack_display_monitor_close_vm_replay(
 #[inline]
 fn destack_display_monitor_list_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
         DISPLAY_MONITOR_LIST,
@@ -1702,7 +1702,7 @@ fn destack_display_monitor_list_vm_replay(
 #[inline]
 fn destack_display_monitor_modes_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -1828,7 +1828,7 @@ fn destack_display_monitor_modes_vm_replay(
 #[inline]
 fn destack_display_monitor_open_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -1875,7 +1875,7 @@ fn destack_display_monitor_open_vm_replay(
 #[inline]
 fn destack_display_window_close_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -1918,7 +1918,7 @@ fn destack_display_window_close_vm_replay(
 #[inline]
 fn destack_display_window_event_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -1983,7 +1983,7 @@ fn destack_display_window_event_vm_replay(
 #[inline]
 fn destack_display_window_open_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     display: resource::DisplayHandle,
     options: WindowOptionsVm,
 ) -> RuntimeResult<vm::Value> {
@@ -2031,7 +2031,7 @@ fn destack_display_window_open_vm_replay(
 #[inline]
 fn destack_display_window_set_title_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
     title: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
@@ -2075,7 +2075,7 @@ fn destack_display_window_set_title_vm_replay(
 #[inline]
 fn destack_display_window_try_event_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -2140,7 +2140,7 @@ fn destack_display_window_try_event_vm_replay(
 #[inline]
 fn destack_display_window_vsync_wait_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
