@@ -156,13 +156,12 @@ fn result_variant_info(
     let mut error_type = None;
 
     for field in &fields {
-        if field.key == kind_key {
-            if let dir::Type::TypeLiteral {
+        if field.key == kind_key
+            && let dir::Type::TypeLiteral {
                 value: dir::TypeLiteral::ScalarLiteral(dir::ScalarLiteral::String(literal)),
             } = types.get_type(field.ty)
-            {
-                kind_literal = Some(*literal);
-            }
+        {
+            kind_literal = Some(*literal);
         }
         if field.key == value_key {
             value_type = Some(field.ty);

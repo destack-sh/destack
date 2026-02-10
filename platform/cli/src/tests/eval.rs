@@ -1,5 +1,5 @@
 use crate::command::eval::{EvalArgs, run};
-use crate::common::{DiagnosticArgs, ProgramArgs, ReportArgs, TargetArgs};
+use crate::common::{DiagnosticArgs, ProgramArgs, ReportArgs, RuntimeArgs, TargetArgs};
 
 use super::tests::assert_exit;
 
@@ -16,6 +16,7 @@ fn test_eval_rejects_conflicting_inputs() {
         entry: "main".to_string(),
         program: ProgramArgs::default(),
         target: TargetArgs::default(),
+        runtime: RuntimeArgs::default(),
         diagnostics: DiagnosticArgs::default(),
         report: ReportArgs::default(),
         args: Vec::new(),

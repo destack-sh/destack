@@ -92,7 +92,7 @@ pub struct ProfileKey {
     pub target_arch: Option<TargetArch>,
     /// Target vendor for the profile.
     pub target_vendor: Option<TargetVendor>,
-    /// Target environment / ABI for the profile.
+    /// Target environment for the profile.
     pub target_env: Option<TargetEnv>,
     /// Normalized library set for the profile.
     pub lib: Vec<String>,
@@ -271,8 +271,6 @@ impl From<&DsConfigCompilerOptions> for ProfileFlags {
 #[allow(clippy::too_many_arguments)]
 impl ProfileKey {
     /// Create a profile key with normalized library entries.
-    // allow many arguments to keep profile components explicit
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         output: OutputFormat,
         runtime: Runtime,

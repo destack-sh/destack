@@ -1,7 +1,9 @@
 use std::path::PathBuf;
 
 use crate::platform::abi::NativeAbi;
-use crate::platform::fs::{PathBytes, PathBytesAbi, PathUtf16, PathUtf16Abi};
+use crate::platform::fs::{PathBytes, PathBytesAbi};
+#[cfg(windows)]
+use crate::platform::fs::{PathUtf16, PathUtf16Abi};
 use crate::platform::{NativeArray, NativeSlice};
 use crate::tests::runtime::TestRuntime;
 
@@ -45,11 +47,13 @@ impl FsHarness for NativeFsHarness {
 }
 
 /// VM filesystem harness backed by VM bindings.
+#[allow(dead_code)]
 pub(crate) struct VmFsHarness {
     /// Runtime that powers the harness.
     runtime: TestRuntime,
 }
 
+#[allow(dead_code)]
 impl VmFsHarness {
     /// Create a new VM filesystem harness.
     pub(crate) fn new() -> Self {
@@ -119,6 +123,7 @@ pub(crate) fn native_array(buffer: &mut [u8]) -> NativeArray<u8> {
 }
 
 /// Build a NativeArray from a UTF-16 buffer.
+#[cfg(windows)]
 pub(crate) fn native_array_u16(buffer: &mut [u16]) -> NativeArray<u16> {
     NativeArray {
         data: buffer.as_mut_ptr(),

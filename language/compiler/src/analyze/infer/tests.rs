@@ -1821,20 +1821,20 @@ fn test_analyze_inherent_extension() {
     let module_id = test.add_module(
         "test.ds",
         r#"
-struct Point { 
-    x: number, 
+struct Point {
+    x: number,
     y: number,
 }
 
 extension for Point {
-    magnitude(): number { 
-        return 0; 
+    magnitude(): number {
+        return 0;
     }
 }
 
 extension for Point {
-    distance(other: Point): number { 
-        return 0; 
+    distance(other: Point): number {
+        return 0;
     }
 }
 
@@ -1904,8 +1904,8 @@ fn test_analyze_local_extension() {
     test.add_file(
         "point.ds",
         r#"
-export struct Point { 
-x: number, 
+export struct Point {
+x: number,
 y: number,
 }
 "#,
@@ -1993,8 +1993,8 @@ fn test_analyze_named_extension() {
     test.add_file(
         "point.ds",
         r#"
-export struct Point { 
-    x: number, 
+export struct Point {
+    x: number,
     y: number,
 }
 "#,
@@ -2807,9 +2807,11 @@ type Alias = Pick<Person, "name">;
 
     // locate the es5 lib module that owns Pick
     let builtins = test.program.builtins.as_ref().expect("expected builtins");
+    let profile_key = test.program.profile(profile).key.clone();
+    let es5_key = (profile_key, "es5".to_string());
     let es5_modules = builtins
         .lib_module_by_name
-        .get("es5")
+        .get(&es5_key)
         .expect("expected es5 lib modules");
     let es5_module_id = es5_modules[0];
     drop(es5_modules);

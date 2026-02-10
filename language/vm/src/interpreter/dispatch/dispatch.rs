@@ -1207,7 +1207,7 @@ pub(crate) fn handle_unary_elementwise(
             }
 
             let mut output = Vec::with_capacity(expected);
-            for value in slots {
+            for value in slots.iter() {
                 let result = match operator::execute_unary(*op, *value) {
                     Ok(value) => value,
                     Err(error) => return ControlFlow::Error(error),
@@ -1237,7 +1237,7 @@ pub(crate) fn handle_unary_elementwise(
             }
 
             let mut output = Vec::with_capacity(layout.storage_len);
-            for value in slots {
+            for value in slots.iter() {
                 let result = match operator::execute_unary(*op, *value) {
                     Ok(value) => value,
                     Err(error) => return ControlFlow::Error(error),

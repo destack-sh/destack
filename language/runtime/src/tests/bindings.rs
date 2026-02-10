@@ -9,7 +9,7 @@ fn build_random_call_module(
     stream_arg: Option<u64>,
 ) -> (destack_mir::NodeTree, destack_base::ImmutableStringPool) {
     // core types
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::checked();
     let u64_type = module.type_u64();
 
     // extern function signature
@@ -20,7 +20,7 @@ fn build_random_call_module(
 
     // entry function
     let entry_name = module.intern("main");
-    let mut builder = FunctionBuilder::new(module.tree_mut(), entry_name, &[], u64_type);
+    let mut builder = FunctionBuilder::new(module.tree_mut(), entry_name, &[], u64_type, true);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 

@@ -180,21 +180,21 @@ impl ModuleLowerer<'_> {
         let dir = module.dir(self.profile);
         let symbols = dir.symbols.read();
         let symbol_entry = symbols.get_symbol(symbol.local_id);
-        if let Some(binding) = symbol_entry.decorators.binding.as_ref() {
-            if let Some(name) = binding.name {
-                return Ok(Some(BindingResolution {
-                    name: self.compiler.program.strings.get(name).to_string(),
-                    is_binding: true,
-                }));
-            }
+        if let Some(binding) = symbol_entry.decorators.binding.as_ref()
+            && let Some(name) = binding.name
+        {
+            return Ok(Some(BindingResolution {
+                name: self.compiler.program.strings.get(name).to_string(),
+                is_binding: true,
+            }));
         }
-        if let Some(binding) = symbol_entry.decorators.extern_binding.as_ref() {
-            if let Some(name) = binding.name {
-                return Ok(Some(BindingResolution {
-                    name: self.compiler.program.strings.get(name).to_string(),
-                    is_binding: false,
-                }));
-            }
+        if let Some(binding) = symbol_entry.decorators.extern_binding.as_ref()
+            && let Some(name) = binding.name
+        {
+            return Ok(Some(BindingResolution {
+                name: self.compiler.program.strings.get(name).to_string(),
+                is_binding: false,
+            }));
         }
 
         // fall back to the symbol name

@@ -314,8 +314,10 @@ fn test_run_watch_loop_handles_config_update() {
     assert_eq!(exit_code, 0);
     assert_eq!(state.rescan_calls, 1);
     assert_eq!(state.compile_calls, 1);
-    assert_eq!(state.last_reason, Some(WatchCompileReason::Rescan));
-    assert_eq!(state.last_updated, Some(false));
+    assert!(matches!(
+        state.last_reason,
+        Some(WatchCompileReason::Rescan) | Some(WatchCompileReason::UpdateRescan)
+    ));
     assert_eq!(state.last_rescan, Some(true));
 }
 

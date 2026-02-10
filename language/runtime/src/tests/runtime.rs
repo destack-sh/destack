@@ -107,7 +107,8 @@ impl TestRuntime {
     pub(crate) fn listener_port(&self, handle: ListenerHandle) -> u16 {
         let fd = self
             .runtime
-            .resources
+            .context
+            .resources()
             .with_entry(handle.0, |entry| {
                 if entry.kind != ResourceKind::Listener {
                     return None;
@@ -145,7 +146,8 @@ impl TestRuntime {
 
         let socket = self
             .runtime
-            .resources
+            .context
+            .resources()
             .with_entry(handle.0, |entry| {
                 if entry.kind != ResourceKind::Listener {
                     return None;

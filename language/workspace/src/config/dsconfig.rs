@@ -119,10 +119,20 @@ impl DsConfig {
         // inherit TypeScript-compatible checking options (stricter wins)
         compiler.strict = compiler.strict || parent_compiler.strict;
         compiler.always_strict = compiler.always_strict || parent_compiler.always_strict;
-        compiler.no_implicit_any = compiler.no_implicit_any || parent_compiler.no_implicit_any;
+        if parent_compiler
+            .no_implicit_any
+            .is_stricter_than(compiler.no_implicit_any)
+        {
+            compiler.no_implicit_any = parent_compiler.no_implicit_any;
+        }
         compiler.strict_null_checks =
             compiler.strict_null_checks || parent_compiler.strict_null_checks;
-        compiler.no_implicit_this = compiler.no_implicit_this || parent_compiler.no_implicit_this;
+        if parent_compiler
+            .no_implicit_this
+            .is_stricter_than(compiler.no_implicit_this)
+        {
+            compiler.no_implicit_this = parent_compiler.no_implicit_this;
+        }
         compiler.strict_function_types =
             compiler.strict_function_types || parent_compiler.strict_function_types;
         compiler.strict_bind_call_apply =
@@ -133,56 +143,221 @@ impl DsConfig {
             || parent_compiler.strict_property_initialization;
         compiler.use_unknown_in_catch_variables = compiler.use_unknown_in_catch_variables
             || parent_compiler.use_unknown_in_catch_variables;
-        compiler.no_unused_locals = compiler.no_unused_locals || parent_compiler.no_unused_locals;
-        compiler.no_unused_parameters =
-            compiler.no_unused_parameters || parent_compiler.no_unused_parameters;
-        compiler.no_implicit_returns =
-            compiler.no_implicit_returns || parent_compiler.no_implicit_returns;
-        // allow_unreachable_code: false is stricter (disallows), so AND them
-        compiler.allow_unreachable_code =
-            compiler.allow_unreachable_code && parent_compiler.allow_unreachable_code;
-        // allow_unused_labels: false is stricter (disallows), so AND them
-        compiler.allow_unused_labels =
-            compiler.allow_unused_labels && parent_compiler.allow_unused_labels;
-        compiler.no_implicit_override =
-            compiler.no_implicit_override || parent_compiler.no_implicit_override;
-        compiler.no_fallthrough_cases_in_switch = compiler.no_fallthrough_cases_in_switch
-            || parent_compiler.no_fallthrough_cases_in_switch;
+        if parent_compiler
+            .no_unused_locals
+            .is_stricter_than(compiler.no_unused_locals)
+        {
+            compiler.no_unused_locals = parent_compiler.no_unused_locals;
+        }
+        if parent_compiler
+            .no_unused_parameters
+            .is_stricter_than(compiler.no_unused_parameters)
+        {
+            compiler.no_unused_parameters = parent_compiler.no_unused_parameters;
+        }
+        if parent_compiler
+            .no_implicit_returns
+            .is_stricter_than(compiler.no_implicit_returns)
+        {
+            compiler.no_implicit_returns = parent_compiler.no_implicit_returns;
+        }
+        if parent_compiler
+            .allow_unreachable_code
+            .is_stricter_than(compiler.allow_unreachable_code)
+        {
+            compiler.allow_unreachable_code = parent_compiler.allow_unreachable_code;
+        }
+        if parent_compiler
+            .allow_unused_labels
+            .is_stricter_than(compiler.allow_unused_labels)
+        {
+            compiler.allow_unused_labels = parent_compiler.allow_unused_labels;
+        }
+        if parent_compiler
+            .no_implicit_override
+            .is_stricter_than(compiler.no_implicit_override)
+        {
+            compiler.no_implicit_override = parent_compiler.no_implicit_override;
+        }
+        if parent_compiler
+            .no_fallthrough_cases_in_switch
+            .is_stricter_than(compiler.no_fallthrough_cases_in_switch)
+        {
+            compiler.no_fallthrough_cases_in_switch =
+                parent_compiler.no_fallthrough_cases_in_switch;
+        }
         compiler.exact_optional_property_types =
             compiler.exact_optional_property_types || parent_compiler.exact_optional_property_types;
-        compiler.no_unchecked_indexed_access =
-            compiler.no_unchecked_indexed_access || parent_compiler.no_unchecked_indexed_access;
-        compiler.no_property_access_from_index_signature = compiler
+        if parent_compiler
+            .no_unchecked_indexed_access
+            .is_stricter_than(compiler.no_unchecked_indexed_access)
+        {
+            compiler.no_unchecked_indexed_access = parent_compiler.no_unchecked_indexed_access;
+        }
+        if parent_compiler
             .no_property_access_from_index_signature
-            || parent_compiler.no_property_access_from_index_signature;
+            .is_stricter_than(compiler.no_property_access_from_index_signature)
+        {
+            compiler.no_property_access_from_index_signature =
+                parent_compiler.no_property_access_from_index_signature;
+        }
 
         // inherit Destack-specific checking (stricter wins)
-        compiler.no_any = compiler.no_any || parent_compiler.no_any;
-        compiler.no_unknown = compiler.no_unknown || parent_compiler.no_unknown;
-        compiler.no_imprecise_primitives =
-            compiler.no_imprecise_primitives || parent_compiler.no_imprecise_primitives;
-        compiler.no_implicit_conversions =
-            compiler.no_implicit_conversions || parent_compiler.no_implicit_conversions;
-        compiler.no_unsafe_type_assertions =
-            compiler.no_unsafe_type_assertions || parent_compiler.no_unsafe_type_assertions;
-        compiler.no_redeclared_locals =
-            compiler.no_redeclared_locals || parent_compiler.no_redeclared_locals;
-        compiler.no_implicit_managed =
-            compiler.no_implicit_managed || parent_compiler.no_implicit_managed;
-        compiler.no_managed = compiler.no_managed || parent_compiler.no_managed;
-        compiler.no_dynamic_evaluation =
-            compiler.no_dynamic_evaluation || parent_compiler.no_dynamic_evaluation;
-        compiler.no_global_this = compiler.no_global_this || parent_compiler.no_global_this;
-        compiler.no_dynamic_import =
-            compiler.no_dynamic_import || parent_compiler.no_dynamic_import;
-        compiler.no_dynamic_shapes =
-            compiler.no_dynamic_shapes || parent_compiler.no_dynamic_shapes;
-        compiler.no_computed_property_access =
-            compiler.no_computed_property_access || parent_compiler.no_computed_property_access;
-        compiler.no_proxy = compiler.no_proxy || parent_compiler.no_proxy;
-        compiler.no_implicit_dynamic_dispatch =
-            compiler.no_implicit_dynamic_dispatch || parent_compiler.no_implicit_dynamic_dispatch;
-        compiler.no_exceptions = compiler.no_exceptions || parent_compiler.no_exceptions;
+        if parent_compiler.no_any.is_stricter_than(compiler.no_any) {
+            compiler.no_any = parent_compiler.no_any;
+        }
+        if parent_compiler
+            .no_unknown
+            .is_stricter_than(compiler.no_unknown)
+        {
+            compiler.no_unknown = parent_compiler.no_unknown;
+        }
+        if parent_compiler
+            .no_imprecise_primitives
+            .is_stricter_than(compiler.no_imprecise_primitives)
+        {
+            compiler.no_imprecise_primitives = parent_compiler.no_imprecise_primitives;
+        }
+        if parent_compiler
+            .no_implicit_conversions
+            .is_stricter_than(compiler.no_implicit_conversions)
+        {
+            compiler.no_implicit_conversions = parent_compiler.no_implicit_conversions;
+        }
+        if parent_compiler
+            .implicit_collection_conversions
+            .is_stricter_than(compiler.implicit_collection_conversions)
+        {
+            compiler.implicit_collection_conversions =
+                parent_compiler.implicit_collection_conversions;
+        }
+        if parent_compiler
+            .no_unsafe_type_assertions
+            .is_stricter_than(compiler.no_unsafe_type_assertions)
+        {
+            compiler.no_unsafe_type_assertions = parent_compiler.no_unsafe_type_assertions;
+        }
+        if parent_compiler
+            .no_must_assertions
+            .is_stricter_than(compiler.no_must_assertions)
+        {
+            compiler.no_must_assertions = parent_compiler.no_must_assertions;
+        }
+        if parent_compiler
+            .no_definite_assignment_assertions
+            .is_stricter_than(compiler.no_definite_assignment_assertions)
+        {
+            compiler.no_definite_assignment_assertions =
+                parent_compiler.no_definite_assignment_assertions;
+        }
+        if parent_compiler
+            .no_custom_type_guards
+            .is_stricter_than(compiler.no_custom_type_guards)
+        {
+            compiler.no_custom_type_guards = parent_compiler.no_custom_type_guards;
+        }
+        if parent_compiler
+            .no_unsound_variance
+            .is_stricter_than(compiler.no_unsound_variance)
+        {
+            compiler.no_unsound_variance = parent_compiler.no_unsound_variance;
+        }
+        if parent_compiler
+            .no_unsound_narrowing
+            .is_stricter_than(compiler.no_unsound_narrowing)
+        {
+            compiler.no_unsound_narrowing = parent_compiler.no_unsound_narrowing;
+        }
+        if parent_compiler
+            .deep_readonly
+            .is_stricter_than(compiler.deep_readonly)
+        {
+            compiler.deep_readonly = parent_compiler.deep_readonly;
+            if !compiler.deep_readonly_explicit {
+                compiler.deep_readonly_explicit = parent_compiler.deep_readonly_explicit;
+            }
+        }
+        if parent_compiler
+            .no_untrusted_declarations
+            .is_stricter_than(compiler.no_untrusted_declarations)
+        {
+            compiler.no_untrusted_declarations = parent_compiler.no_untrusted_declarations;
+        }
+        if parent_compiler
+            .no_redeclared_locals
+            .is_stricter_than(compiler.no_redeclared_locals)
+        {
+            compiler.no_redeclared_locals = parent_compiler.no_redeclared_locals;
+        }
+        if parent_compiler
+            .no_implicit_managed
+            .is_stricter_than(compiler.no_implicit_managed)
+        {
+            compiler.no_implicit_managed = parent_compiler.no_implicit_managed;
+        }
+        if parent_compiler
+            .no_managed
+            .is_stricter_than(compiler.no_managed)
+        {
+            compiler.no_managed = parent_compiler.no_managed;
+        }
+        if parent_compiler
+            .no_runtime
+            .is_stricter_than(compiler.no_runtime)
+        {
+            compiler.no_runtime = parent_compiler.no_runtime;
+        }
+        if parent_compiler
+            .no_referential_equality
+            .is_stricter_than(compiler.no_referential_equality)
+        {
+            compiler.no_referential_equality = parent_compiler.no_referential_equality;
+        }
+        if parent_compiler
+            .no_dynamic_evaluation
+            .is_stricter_than(compiler.no_dynamic_evaluation)
+        {
+            compiler.no_dynamic_evaluation = parent_compiler.no_dynamic_evaluation;
+        }
+        if parent_compiler
+            .no_global_this
+            .is_stricter_than(compiler.no_global_this)
+        {
+            compiler.no_global_this = parent_compiler.no_global_this;
+        }
+        if parent_compiler
+            .no_dynamic_import
+            .is_stricter_than(compiler.no_dynamic_import)
+        {
+            compiler.no_dynamic_import = parent_compiler.no_dynamic_import;
+        }
+        if parent_compiler
+            .no_dynamic_shapes
+            .is_stricter_than(compiler.no_dynamic_shapes)
+        {
+            compiler.no_dynamic_shapes = parent_compiler.no_dynamic_shapes;
+        }
+        if parent_compiler
+            .no_computed_property_access
+            .is_stricter_than(compiler.no_computed_property_access)
+        {
+            compiler.no_computed_property_access = parent_compiler.no_computed_property_access;
+        }
+        if parent_compiler.no_proxy.is_stricter_than(compiler.no_proxy) {
+            compiler.no_proxy = parent_compiler.no_proxy;
+        }
+        if parent_compiler
+            .no_implicit_dynamic_dispatch
+            .is_stricter_than(compiler.no_implicit_dynamic_dispatch)
+        {
+            compiler.no_implicit_dynamic_dispatch = parent_compiler.no_implicit_dynamic_dispatch;
+        }
+        if parent_compiler
+            .no_exceptions
+            .is_stricter_than(compiler.no_exceptions)
+        {
+            compiler.no_exceptions = parent_compiler.no_exceptions;
+        }
         if parent_compiler
             .borrow_mode
             .is_stricter_than(compiler.borrow_mode)

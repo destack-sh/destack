@@ -109,7 +109,7 @@ fn main() {
 
     let (session, program, compiler) = create_program(args.workers);
     let profile_id = ensure_profile_for_libs(&program, &args.libs);
-    let modules = load_modules_for_libs(&session, &args.libs);
+    let modules = load_modules_for_libs(&session, &program, profile_id, &args.libs);
     let line_stats = compute_line_stats(&program, &modules);
 
     run_import_phase(&compiler, &modules);
@@ -197,11 +197,18 @@ fn ensure_profile_for_libs(program: &Program, libs: &[String]) -> destack_worksp
 }
 
 /// Load builtin lib modules for benchmarking.
-fn load_modules_for_libs(session: &Session, libs: &[String]) -> Vec<ModuleId> {
+fn load_modules_for_libs(
+    session: &Session,
+    program: &Program,
+    profile_id: destack_workspace::ProfileId,
+    libs: &[String],
+) -> Vec<ModuleId> {
+    let profile = program.profile(profile_id);
+
     let mut modules = Vec::new();
     for lib in libs {
         let loaded = session
-            .load_lib(lib)
+            .load_lib(lib, &profile.key)
             .unwrap_or_else(|| panic!("unknown builtin lib '{lib}'"));
         modules.extend(loaded);
     }

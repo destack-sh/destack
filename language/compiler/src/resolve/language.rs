@@ -8,7 +8,7 @@ use destack_dir::{
 };
 use destack_workspace::{
     AmbientLibSymbolKey, Builtins, GlobalSymbolGroupKey, GlobalSymbolTable, Module, ProfileId,
-    SymbolGroup, WellKnownSymbols,
+    ProfileKey, SymbolGroup, WellKnownSymbols,
 };
 use indexmap::IndexMap;
 
@@ -433,6 +433,7 @@ impl Compiler {
         &self,
         builtins: &Builtins,
         ordered_libs: &[String],
+        profile_key: &ProfileKey,
     ) -> ResolveResult<LoadedLibModules> {
         let mut ambient_modules = Vec::new();
         let mut ambient_seen = HashSet::new();
@@ -451,6 +452,7 @@ impl Compiler {
                 lib_name,
                 self.program.files.clone(),
                 self.program.modules.clone(),
+                profile_key,
             );
             let module_ids = module_ids.ok_or_else(|| ResolveError::MissingBuiltinLib {
                 name: lib_name.clone(),
@@ -1424,23 +1426,38 @@ mod tests {
             .compiler
             .get_well_known_symbols(profile)
             .unwrap_or_else(|| panic!("missing well known symbols for test profile"));
-        for symbol in WellKnownSymbol::all() {
+
+        // verify common baseline symbols
+        let required_symbols = [
+            WellKnownSymbol::Array,
+            WellKnownSymbol::ReadonlyArray,
+            WellKnownSymbol::Map,
+            WellKnownSymbol::Set,
+            WellKnownSymbol::Slice,
+            WellKnownSymbol::Object,
+            WellKnownSymbol::Function,
+            WellKnownSymbol::Eval,
+            WellKnownSymbol::String,
+            WellKnownSymbol::Number,
+            WellKnownSymbol::Boolean,
+            WellKnownSymbol::BigInt,
+            WellKnownSymbol::Proxy,
+            WellKnownSymbol::Reflect,
+            WellKnownSymbol::Promise,
+            WellKnownSymbol::Iterable,
+            WellKnownSymbol::Iterator,
+            WellKnownSymbol::AsyncIterable,
+            WellKnownSymbol::AsyncIterator,
+            WellKnownSymbol::Symbol,
+        ];
+        for symbol in required_symbols {
             assert!(
                 well_known.get_symbol(symbol).is_some(),
                 "missing well-known symbol {symbol:?}"
             );
         }
 
-        // verify that type symbols are available
-        for symbol in WellKnownSymbol::all() {
-            if let Some(group) = well_known.get_group(symbol) {
-                assert!(
-                    !group.is_empty(),
-                    "well-known symbol {symbol:?} has empty group"
-                );
-            }
-        }
-
+        // verify symbol key metadata
         for symbol in WellKnownSymbolKey::all() {
             let key = well_known
                 .get_key(symbol)

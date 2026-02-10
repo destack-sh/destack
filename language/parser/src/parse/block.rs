@@ -152,13 +152,11 @@ impl Parser {
         let mut pending_expression: Option<(LocalNodeId<Expression>, bool)> = None;
         while self.has_more_tokens() {
             let next_token = self.peek_token_type();
-            // break if we're at the end of the file
-            if next_token == TokenType::End {
-                break;
-            }
-            // explicit blocks stop at close brace
+            // stop at block terminators
             // NOTE #Cleanup: recover block parse more explicitly?
-            else if next_token == TokenType::CloseBrace && format != BlockFormat::Implicit {
+            if next_token == TokenType::End
+                || (next_token == TokenType::CloseBrace && format != BlockFormat::Implicit)
+            {
                 break;
             }
             // consume any expression stops (semicolon or newline)

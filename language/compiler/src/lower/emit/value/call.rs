@@ -264,13 +264,14 @@ impl FunctionContext<'_> {
                     message: "binding calls cannot be method calls".to_string(),
                 });
             }
-            return self.lower_binding_call_expression(
+            let (value, lowered_type) = self.lower_binding_call_expression(
                 expression_id,
                 function_id,
                 signature,
                 arguments,
                 result_type,
-            );
+            )?;
+            return Ok((Some(value), lowered_type));
         }
 
         let value = if let (Some(receiver_type_id), Some(receiver_value)) =
