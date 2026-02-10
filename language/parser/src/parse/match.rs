@@ -253,6 +253,14 @@ impl Parser {
             loop {
                 // skip empty lines before statements
                 self.eat_newlines_maybe()?;
+
+                // consume empty statements (`;`) between switch body statements
+                if self.is_statement_stop() {
+                    self.eat_statement_stop_with_newlines()?;
+                    continue;
+                }
+
+                // stop at the next case boundary
                 if self.peek_keyword(Keyword::Case).is_ok()
                     || self.peek_keyword(Keyword::Default).is_ok()
                     || self.peek_is(TokenType::CloseBrace)
@@ -589,6 +597,51 @@ switch(a) { case 1: {}
                     assert_eq!(expressions.len(), 2);
                     assert_node!(parser.tree, expressions[0], Expression::Block(_));
                     assert_node!(parser.tree, expressions[1], Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
+                });
+            });
+        });
+    }
+
+    /// Parse switch case statements that begin with a semicolon before a parenthesized call.
+    #[test]
+    fn test_parse_switch_case_leading_semicolon_parenthesized_call() {
+        let mut test = TestParser::new(
+            r###"
+switch (tag.injectTo) {
+  case "body":
+    ;(bodyTags ??= []).push(tag)
+    break
+}
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let switch_id = parser.eat_match().unwrap();
+        assert_node!(parser.tree, switch_id, Expression::Match { kind: MatchKind::Switch, cases, .. } => {
+            assert_eq!(cases.len(), 1);
+            assert_node!(parser.tree, cases[0], MatchCase::Block { body, .. } => {
+                assert_node!(parser.tree, *body, Block { expressions, .. } => {
+                    assert_eq!(expressions.len(), 2);
+
+                    // first statement: (bodyTags ??= []).push(tag)
+                    assert_node!(parser.tree, expressions[0], Expression::Call { left, dynamic_arguments, .. } => {
+                        assert_eq!(dynamic_arguments.len(), 1);
+                        assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
+                            assert_string!(parser, *name, "push");
+                            assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+                                assert_node!(parser.tree, *expression, Expression::Assign { left, right, .. } => {
+                                    assert_expression_path!(parser, parser.tree.get(*left), "bodyTags");
+                                    assert_node!(parser.tree, *right, Expression::ArrayExpression { elements } => {
+                                        assert!(elements.is_empty());
+                                    });
+                                });
+                            });
+                        });
+                    });
+
+                    // second statement: break
+                    assert_node!(parser.tree, expressions[1], Expression::Break { .. });
                 });
             });
         });
