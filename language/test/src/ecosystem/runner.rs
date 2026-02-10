@@ -6,10 +6,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 use std::sync::Arc;
 
-use destack_compiler::{
-    AnalyzeTask, Compiler, CompilerOptions, ElaborateTask, ExecuteTask, ImportTask, LowerTask,
-    OptimizeTask, ResolveTask,
-};
+use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, OptimizeTask, ResolveTask};
 use destack_parser::{Parser, source_colorizer};
 use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, File, FileRegistry, FileSystem, FileType,
@@ -474,19 +471,19 @@ enum ReadmeCellStatus {
 impl ReadmeCellStatus {
     fn as_str(&self) -> &'static str {
         match self {
-            Self::Pass => "pass",
-            Self::Fail => "fail",
-            Self::Ignored => "ignored",
-            Self::Unknown => "-",
+            Self::Pass => "✓",
+            Self::Fail => "x",
+            Self::Ignored => "---",
+            Self::Unknown => "---",
         }
     }
 
     fn parse(value: &str) -> Self {
         let value = value.trim().to_ascii_lowercase();
         match value.as_str() {
-            "pass" | "ok" | "green" => Self::Pass,
-            "fail" | "failed" | "red" => Self::Fail,
-            "ignored" | "skip" | "skipped" | "watch" => Self::Ignored,
+            "✓" | "✓✓" | "[✓]" | "v" | "pass" | "ok" | "green" => Self::Pass,
+            "x" | "xx" | "[x]" | "fail" | "failed" | "red" => Self::Fail,
+            "---" | "[--]" | "-" | "ignored" | "skip" | "skipped" | "watch" => Self::Ignored,
             _ => Self::Unknown,
         }
     }
@@ -598,7 +595,7 @@ fn format_readme_summary_rows(
 
     let mut separator = String::from("|:--------");
     for _ in phases {
-        separator.push_str("|:------:");
+        separator.push_str("|:--------:");
     }
     separator.push_str("|-------:|-------:|--------:|------:|--------:|-----------:|");
 
@@ -638,7 +635,7 @@ fn format_readme_summary_rows(
 
         let mut row_line = format!("| {package_name:<7} ");
         for status in &statuses {
-            row_line.push_str(&format!("| {:^6} ", status.as_str()));
+            row_line.push_str(&format!("| {:^8} ", status.as_str()));
         }
         row_line.push_str(&format!(
             "| {passed:>5}  | {failed:>5}  | {ignored:>7}  | {total:>5} | {rate:>7} | {inclusive_rate:>9} |"
@@ -652,14 +649,14 @@ fn format_readme_summary_rows(
 
     let mut footer_separator = String::from("|---------");
     for _ in phases {
-        footer_separator.push_str("|--------");
+        footer_separator.push_str("|----------");
     }
     footer_separator.push_str("|--------|--------|---------|-------|---------|------------|");
     lines.push(footer_separator);
 
     let mut total_line = format!("| {:<7} ", "total");
     for _ in phases {
-        total_line.push_str(&format!("| {:^6} ", "-"));
+        total_line.push_str(&format!("| {:^8} ", "-"));
     }
     total_line.push_str(&format!(
         "| {:>5}  | {:>5}  | {:>7}  | {:>5} | {:>7} | {:>9} |",
@@ -1109,13 +1106,9 @@ fn path_is_supported_source(path: &Path) -> bool {
 fn run_phase_tier(package_dir: &Path, phase: EcosystemPhase, files: &[PathBuf]) -> TestResult {
     match phase {
         EcosystemPhase::Parse => run_parse_phase(package_dir, files),
-        EcosystemPhase::Import
-        | EcosystemPhase::Resolve
-        | EcosystemPhase::Analyze
-        | EcosystemPhase::Elaborate
-        | EcosystemPhase::Execute
-        | EcosystemPhase::Lower
-        | EcosystemPhase::Optimize => run_compiler_phase(package_dir, phase, files),
+        EcosystemPhase::Resolve | EcosystemPhase::Analyze | EcosystemPhase::Lower => {
+            run_compiler_phase(package_dir, phase, files)
+        }
     }
 }
 
@@ -1150,7 +1143,7 @@ fn run_parse_phase(package_dir: &Path, files: &[PathBuf]) -> TestResult {
 
 /// Run compiler phase checks across selected entrypoints.
 fn run_compiler_phase(package_dir: &Path, phase: EcosystemPhase, files: &[PathBuf]) -> TestResult {
-    let entrypoints = select_phase_entrypoints(phase, package_dir, files);
+    let entrypoints = select_phase_entrypoints(package_dir, files);
     if entrypoints.is_empty() {
         return TestResult::Failed {
             message: format!("no entrypoints selected for phase '{}'", phase.name(),),
@@ -1244,9 +1237,6 @@ fn enqueue_phase_task(
 
     match phase {
         EcosystemPhase::Parse => {}
-        EcosystemPhase::Import => {
-            compiler.enqueue(ImportTask::ImportModule { module });
-        }
         EcosystemPhase::Resolve => {
             let profile_id = program.default_profile_id_for_module(module_id);
             let profile = compiler.profile_stamp(profile_id);
@@ -1261,27 +1251,7 @@ fn enqueue_phase_task(
             let profile = compiler.profile_stamp(profile_id);
             compiler.enqueue(AnalyzeTask::AnalyzeModule { module, profile });
         }
-        EcosystemPhase::Elaborate => {
-            let profile_id = program.default_profile_id_for_module(module_id);
-            let profile = compiler.profile_stamp(profile_id);
-            compiler.enqueue(ElaborateTask::ElaborateModule { module, profile });
-        }
-        EcosystemPhase::Execute => {
-            let profile_id = program.default_profile_id_for_module(module_id);
-            let profile = compiler.profile_stamp(profile_id);
-            compiler.enqueue(ExecuteTask::ExecuteModulePatch { module, profile });
-        }
         EcosystemPhase::Lower => {
-            let target = program.ensure_target_for_module(module_id);
-            let profile_id = program.profile_id_for_target_or_default(module_id, &target);
-            let profile = compiler.profile_stamp(profile_id);
-            compiler.enqueue(LowerTask::LowerModule {
-                module,
-                profile,
-                target,
-            });
-        }
-        EcosystemPhase::Optimize => {
             let target = program.ensure_target_for_module(module_id);
             let profile_id = program.profile_id_for_target_or_default(module_id, &target);
             let profile = compiler.profile_stamp(profile_id);
@@ -1295,17 +1265,11 @@ fn enqueue_phase_task(
 }
 
 /// Select phase entrypoints from package metadata, with deterministic fallback heuristics.
-fn select_phase_entrypoints(
-    phase: EcosystemPhase,
-    package_dir: &Path,
-    files: &[PathBuf],
-) -> Vec<PathBuf> {
+fn select_phase_entrypoints(package_dir: &Path, files: &[PathBuf]) -> Vec<PathBuf> {
     let mut candidates = files.to_vec();
 
-    // filter declaration files for later semantic phases
-    if !matches!(phase, EcosystemPhase::Import) {
-        candidates.retain(|path| !is_declaration_file(path.as_path()));
-    }
+    // filter declaration files for semantic and lowering phases
+    candidates.retain(|path| !is_declaration_file(path.as_path()));
 
     candidates.sort_by_key(|path| entrypoint_sort_key(package_dir, path.as_path()));
 

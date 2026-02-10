@@ -9,7 +9,7 @@ The ecosystem fixtures are organized as follows.
 
 - `fixtures/ecosystem/packages/*.toml`: package manifests with repository metadata and workload controls.
 - `fixtures/ecosystem/checkouts/`: fetched package checkouts.
-- `fixtures/ecosystem/patches/<package>/`: deterministic overlays applied on top of fetched checkouts.
+- `fixtures/ecosystem/patches/<package>/`: overlays applied on top of fetched checkouts.
 - `fixtures/ecosystem/known-failures.txt`: temporary known failures.
 - `fixtures/ecosystem/ignored.txt`: intentionally ignored cases.
 
@@ -23,13 +23,9 @@ Examples: `valibot-resolve`, `zod-analyze`, `ms-parse`.
 The current production phase tiers are as follows.
 
 - `parse`
-- `import`
 - `resolve`
 - `analyze`
-- `elaborate`
-- `execute`
 - `lower`
-- `optimize`
 
 The default run is `parse`.
 Use explicit phase selection to run larger slices.
@@ -41,70 +37,70 @@ Ignored cases include known failures and explicit ignore entries.
 
 <!-- (results are automatically updated by the ecosystem test runner) -->
 <!-- begin:summary-results -->
-| Package | parse | import | resolve | analyze | elaborate | execute | lower | optimize | Passed | Failed | Ignored | Total |  Rate   | Incl. Rate |
-|:--------|:------:|:------:|:------:|:------:|:------:|:------:|:------:|:------:|-------:|-------:|--------:|------:|--------:|-----------:|
-| angular | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| apollo-client | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| arktype | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| astro   | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| changesets | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| definitelytyped | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| drizzle-orm | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| effect  | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| eslint  | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| fastify | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| graphql-codegen | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| graphql-js | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| hono    | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| io-ts   |  pass  | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     1  |     0  |       7  |     8 | 100.00% |    12.50% |
-| jest    | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| jotai   |  pass  | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     1  |     0  |       7  |     8 | 100.00% |    12.50% |
-| ms      |  pass  | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     1  |     0  |       7  |     8 | 100.00% |    12.50% |
-| nest    | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| nextjs  | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| nuxt    | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| nx      | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| playwright | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| pnpm    | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| preact  | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| prisma  | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| qwik    | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| react   | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| react-hook-form | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| react-query | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| redux-toolkit | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| remix   | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| runtypes |  pass  | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     1  |     0  |       7  |     8 | 100.00% |    12.50% |
-| rxjs    |  pass  | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     1  |     0  |       7  |     8 | 100.00% |    12.50% |
-| solid   | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| storybook | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| sveltekit | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| tanstack-form | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| tanstack-query | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| tanstack-router | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| tanstack-store | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| tanstack-table | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| threejs | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| trpc    | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| ts-toolbelt | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| turborepo | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| type-fest | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| typebox | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| typegpu | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| typescript | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| typescript-eslint | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| valibot |  pass  | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     1  |     0  |       7  |     8 | 100.00% |    12.50% |
-| vite    | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| vitest  | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| vscode  | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| vue     | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| yarn-berry | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-| zod     |  pass  | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     1  |     0  |       7  |     8 | 100.00% |    12.50% |
-| zustand | ignored | ignored | ignored | ignored | ignored | ignored | ignored | ignored |     0  |     0  |       8  |     8 |       - |     0.00% |
-|---------|--------|--------|--------|--------|--------|--------|--------|--------|--------|--------|---------|-------|---------|------------|
-| total   |   -    |   -    |   -    |   -    |   -    |   -    |   -    |   -    |     7  |     0  |     457  |   464 | 100.00% |     1.51% |
+| Package | parse | resolve | analyze | lower | Passed | Failed | Ignored | Total |  Rate   | Incl. Rate |
+|:--------|:--------:|:--------:|:--------:|:--------:|-------:|-------:|--------:|------:|--------:|-----------:|
+| angular |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| apollo-client |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| arktype |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| astro   |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| changesets |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| definitelytyped |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| drizzle-orm |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| effect  |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| eslint  |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| fastify |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| graphql-codegen |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| graphql-js |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| hono    |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| io-ts   |    ✓     |   ---    |   ---    |   ---    |     1  |     0  |       3  |     4 | 100.00% |    25.00% |
+| jest    |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| jotai   |    ✓     |   ---    |   ---    |   ---    |     1  |     0  |       3  |     4 | 100.00% |    25.00% |
+| ms      |    ✓     |   ---    |   ---    |   ---    |     1  |     0  |       3  |     4 | 100.00% |    25.00% |
+| nest    |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| nextjs  |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| nuxt    |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| nx      |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| playwright |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| pnpm    |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| preact  |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| prisma  |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| qwik    |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| react   |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| react-hook-form |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| react-query |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| redux-toolkit |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| remix   |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| runtypes |    ✓     |   ---    |   ---    |   ---    |     1  |     0  |       3  |     4 | 100.00% |    25.00% |
+| rxjs    |    ✓     |   ---    |   ---    |   ---    |     1  |     0  |       3  |     4 | 100.00% |    25.00% |
+| solid   |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| storybook |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| sveltekit |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| tanstack-form |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| tanstack-query |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| tanstack-router |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| tanstack-store |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| tanstack-table |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| threejs |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| trpc    |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| ts-toolbelt |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| turborepo |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| type-fest |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| typebox |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| typegpu |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| typescript |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| typescript-eslint |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| valibot |    ✓     |   ---    |   ---    |   ---    |     1  |     0  |       3  |     4 | 100.00% |    25.00% |
+| vite    |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| vitest  |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| vscode  |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| vue     |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| yarn-berry |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+| zod     |    ✓     |   ---    |   ---    |   ---    |     1  |     0  |       3  |     4 | 100.00% |    25.00% |
+| zustand |   ---    |   ---    |   ---    |   ---    |     0  |     0  |       4  |     4 |       - |     0.00% |
+|---------|----------|----------|----------|----------|--------|--------|---------|-------|---------|------------|
+| total   |    -     |    -     |    -     |    -     |     7  |     0  |     225  |   232 | 100.00% |     3.02% |
 
-Total Blended Pass Rate: **100.00%** (1.51% incl. ignored)
+Total Blended Pass Rate: **100.00%** (3.02% incl. ignored)
 <!-- end:summary-results -->
 
 ## Manifest Schema
@@ -141,7 +137,7 @@ ms-parse
 valibot-resolve
 
 # intentional skip
-zod-elaborate # language difference
+zod-analyze # language difference
 ```
 
 ## Running
@@ -155,7 +151,7 @@ just language/ecosystem-fetch
 cargo test -p destack_test --test ecosystem
 cargo test -p destack_test --test ecosystem -- --list
 cargo test -p destack_test --test ecosystem -- --phase parse
-cargo test -p destack_test --test ecosystem -- --phase import --phase resolve
+cargo test -p destack_test --test ecosystem -- --phase resolve
 cargo test -p destack_test --test ecosystem -- --all-phases
 cargo test -p destack_test --test ecosystem -- --phase analyze --include-known-failures
 cargo test -p destack_test --test ecosystem -- --update-known-failures

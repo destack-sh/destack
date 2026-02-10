@@ -8,20 +8,12 @@ use serde::Deserialize;
 pub enum EcosystemPhase {
     /// Parse source files with parser level validation only.
     Parse = 1,
-    /// Run import phase tasks.
-    Import = 2,
     /// Run resolve phase tasks.
-    Resolve = 3,
+    Resolve = 2,
     /// Run analyze phase tasks.
-    Analyze = 4,
-    /// Run elaborate phase tasks.
-    Elaborate = 5,
-    /// Run execute phase tasks.
-    Execute = 6,
-    /// Run lower phase tasks.
-    Lower = 7,
-    /// Run optimize phase tasks.
-    Optimize = 8,
+    Analyze = 3,
+    /// Run lower phase tasks through optimize boundaries.
+    Lower = 4,
 }
 
 impl EcosystemPhase {
@@ -29,13 +21,9 @@ impl EcosystemPhase {
     pub fn name(&self) -> &'static str {
         match self {
             Self::Parse => "parse",
-            Self::Import => "import",
             Self::Resolve => "resolve",
             Self::Analyze => "analyze",
-            Self::Elaborate => "elaborate",
-            Self::Execute => "execute",
             Self::Lower => "lower",
-            Self::Optimize => "optimize",
         }
     }
 
@@ -43,29 +31,16 @@ impl EcosystemPhase {
     pub fn from_name(value: &str) -> Option<Self> {
         match value {
             "parse" => Some(Self::Parse),
-            "import" => Some(Self::Import),
             "resolve" => Some(Self::Resolve),
             "analyze" => Some(Self::Analyze),
-            "elaborate" => Some(Self::Elaborate),
-            "execute" => Some(Self::Execute),
             "lower" => Some(Self::Lower),
-            "optimize" => Some(Self::Optimize),
             _ => None,
         }
     }
 
     /// Return all implemented phases in execution order.
-    pub fn all() -> [Self; 8] {
-        [
-            Self::Parse,
-            Self::Import,
-            Self::Resolve,
-            Self::Analyze,
-            Self::Elaborate,
-            Self::Execute,
-            Self::Lower,
-            Self::Optimize,
-        ]
+    pub fn all() -> [Self; 4] {
+        [Self::Parse, Self::Resolve, Self::Analyze, Self::Lower]
     }
 }
 
@@ -134,27 +109,15 @@ pub struct WorkloadConfig {
     /// Parse workload overrides.
     #[serde(default)]
     pub parse: PhaseWorkload,
-    /// Import workload overrides.
-    #[serde(default)]
-    pub import: PhaseWorkload,
     /// Resolve workload overrides.
     #[serde(default)]
     pub resolve: PhaseWorkload,
     /// Analyze workload overrides.
     #[serde(default)]
     pub analyze: PhaseWorkload,
-    /// Elaborate workload overrides.
-    #[serde(default)]
-    pub elaborate: PhaseWorkload,
-    /// Execute workload overrides.
-    #[serde(default)]
-    pub execute: PhaseWorkload,
     /// Lower workload overrides.
     #[serde(default)]
     pub lower: PhaseWorkload,
-    /// Optimize workload overrides.
-    #[serde(default)]
-    pub optimize: PhaseWorkload,
 }
 
 impl WorkloadConfig {
@@ -162,13 +125,9 @@ impl WorkloadConfig {
     pub fn for_phase(&self, phase: EcosystemPhase) -> &PhaseWorkload {
         match phase {
             EcosystemPhase::Parse => &self.parse,
-            EcosystemPhase::Import => &self.import,
             EcosystemPhase::Resolve => &self.resolve,
             EcosystemPhase::Analyze => &self.analyze,
-            EcosystemPhase::Elaborate => &self.elaborate,
-            EcosystemPhase::Execute => &self.execute,
             EcosystemPhase::Lower => &self.lower,
-            EcosystemPhase::Optimize => &self.optimize,
         }
     }
 }
