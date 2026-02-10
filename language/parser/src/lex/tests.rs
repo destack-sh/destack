@@ -2113,6 +2113,22 @@ fn test_lex_ternary_tree_pattern() {
     );
 }
 
+/// Fragment text after logical and should stay in tree content mode.
+#[test]
+fn test_lex_fragment_text_after_logical_and() {
+    let input = r#"<code>{value && <>x</>}</code>"#;
+    let language = LanguageType::TypeScriptXml;
+    let (tokens, _, _) = lex_source_with_tree_literals(input, language);
+
+    let text_token = tokens
+        .iter()
+        .find(|token| &input[token.span.start as usize..token.span.end as usize] == "x")
+        .expect("expected text token inside fragment");
+
+    assert_eq!(text_token.token.ty, TokenType::Literal);
+    assert_eq!(text_token.token.literal, Some(LiteralType::TreeString));
+}
+
 /// Nested tree literal in attribute position - verifies deeply nested JSX in attrs works.
 #[test]
 fn test_lex_nested_tree_in_attr() {
