@@ -74,6 +74,7 @@ impl Compiler {
             }
             Expression::Try {
                 catch_pattern,
+                catch_ty,
                 catch_expression,
                 finally_expression,
                 ..
@@ -99,7 +100,7 @@ impl Compiler {
                         profile,
                         tree,
                         expression_id,
-                        *catch_pattern_id,
+                        *catch_ty,
                     );
                 }
             }
@@ -1223,24 +1224,19 @@ impl Compiler {
         profile: ProfileId,
         tree: &NodeTree,
         expression_id: LocalNodeId<Expression>,
-        catch_pattern_id: LocalNodeId<Pattern>,
+        catch_ty_id: Option<LocalNodeId<Expression>>,
     ) {
         // this restriction only applies to typed ts catch bindings
         if !module.language_type.is_typescript() {
             return;
         }
 
-        // only annotated catch bindings participate in this rule
-        let Pattern::Binding {
-            pattern: Some(annotation_pattern_id),
-            ..
-        } = tree.get(catch_pattern_id)
-        else {
+        let Some(catch_ty_id) = catch_ty_id else {
             return;
         };
 
         // reject annotations that are not `any` or `unknown`
-        if !self.catch_annotation_pattern_is_any_or_unknown(tree, *annotation_pattern_id) {
+        if !self.catch_annotation_expression_is_any_or_unknown(tree, catch_ty_id) {
             let node = expression_id
                 .into_global_any(module.id)
                 .into_anchored(Some(profile));
@@ -1265,19 +1261,6 @@ impl Compiler {
             .into_global_any(module.id)
             .into_anchored(Some(profile));
         self.error(AnalyzeError::IncompleteTry { node });
-    }
-
-    /// Return true when a catch annotation pattern is `any` or `unknown`.
-    fn catch_annotation_pattern_is_any_or_unknown(
-        &self,
-        tree: &NodeTree,
-        pattern_id: LocalNodeId<Pattern>,
-    ) -> bool {
-        let Pattern::Expression { value } = tree.get(pattern_id) else {
-            return false;
-        };
-
-        self.catch_annotation_expression_is_any_or_unknown(tree, *value)
     }
 
     /// Return true when a catch annotation expression is `any` or `unknown`.

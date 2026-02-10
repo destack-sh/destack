@@ -91,7 +91,7 @@ type BrokenBranch<T, E> =
     | { kind: "err", error: E };
 
 struct BrokenTry<T, E> {
-    value: BrokenBranch<T, E>,
+    value: BrokenBranch<T, E>;
 }
 
 extension<T, E> for BrokenTry<T, E> implements Try<T, E> {
@@ -122,7 +122,7 @@ type BrokenBranch<T, E> =
     | { kind: "err", error: E };
 
 struct BrokenTry<T, E> {
-    value: BrokenBranch<T, E>,
+    value: BrokenBranch<T, E>;
 }
 
 extension<T, E> for BrokenTry<T, E> implements Try<T, E> {
@@ -166,3 +166,51 @@ const value = try {
 };
 value satisfies int;
 ```
+
+## Typed catch annotations
+
+### typescript catch annotation allows any
+
+> TypeScript accepts `any` in catch annotations and applies it to the binding.
+
+```json:dsconfig.json
+{ "compilerOptions": { "noAny": false } }
+```
+
+```ts:main.ts
+const value = try {
+    throw { message: "oops" }
+} catch ({ message }: any) {
+    message satisfies string
+    0
+}
+value satisfies number
+```
+
+### typescript catch annotation allows unknown
+
+> TypeScript accepts `unknown` in catch annotations.
+
+```ts:main.ts
+try {
+    throw 1;
+} catch (err: unknown) {
+    err satisfies string;
+}
+```
+
+- contains: expected string
+
+### typescript catch annotation rejects concrete types
+
+> TypeScript restricts catch annotations to `any` and `unknown`.
+
+```ts:main.ts
+try {
+    throw 1
+} catch (err: string) {
+    0
+}
+```
+
+- contains: catch type annotations must be 'any' or 'unknown'

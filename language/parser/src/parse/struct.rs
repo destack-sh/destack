@@ -261,6 +261,57 @@ struct Foo extends Bar {}
     }
 
     #[test]
+    fn test_parse_class_with_multiple_extends_for_lineage_validation() {
+        let mut test = TestParser::new(
+            r###"
+class Combined extends First, Second {}
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let start = parser.mark();
+        let class_id = parser
+            .eat_struct_or_class(&start, DeclarationDescriptor::default(), false)
+            .unwrap();
+        assert_node!(parser.tree, class_id, Declaration::Class { descriptor, heritage, .. } => {
+            assert_string!(parser, descriptor.name.unwrap().string(), "Combined");
+
+            let extends_types = heritage.extends_types.as_ref().expect("expected extends types");
+            assert_eq!(extends_types.len(), 2);
+
+            assert_node!(parser.tree, extends_types[0], Expression::Path { path, .. } => {
+                assert_path!(parser, *path, "First");
+            });
+            assert_node!(parser.tree, extends_types[1], Expression::Path { path, .. } => {
+                assert_path!(parser, *path, "Second");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_class_with_empty_extends_for_lineage_validation() {
+        let mut test = TestParser::new(
+            r###"
+class Counter extends {}
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let start = parser.mark();
+        let class_id = parser
+            .eat_struct_or_class(&start, DeclarationDescriptor::default(), false)
+            .unwrap();
+        assert_node!(parser.tree, class_id, Declaration::Class { descriptor, heritage, .. } => {
+            assert_string!(parser, descriptor.name.unwrap().string(), "Counter");
+
+            let extends_types = heritage.extends_types.as_ref().expect("expected extends clause");
+            assert!(extends_types.is_empty());
+        });
+    }
+
+    #[test]
     fn test_parse_struct_with_spread() {
         let mut test = TestParser::new(
             r###"

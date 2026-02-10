@@ -1930,6 +1930,7 @@ impl Compiler {
             ast::Expression::Try {
                 try_expression,
                 catch_pattern,
+                catch_ty,
                 catch_expression,
                 finally_expression,
             } => {
@@ -1968,6 +1969,19 @@ impl Compiler {
                         types,
                     )
                 });
+                let catch_ty = catch_ty.map(|catch_ty| {
+                    self.bind_expression(
+                        module,
+                        ast,
+                        (scope_id, symbols.get_scope_mark(scope_id)),
+                        catch_ty,
+                        Some(expression_id),
+                        tree,
+                        symbols,
+                        types,
+                        SymbolSpaceOrder::TypeThenValue,
+                    )
+                });
                 let catch_expression = catch_expression.map(|catch_expression| {
                     self.bind_expression(
                         module,
@@ -1997,6 +2011,7 @@ impl Compiler {
                 Expression::Try {
                     try_expression,
                     catch_pattern,
+                    catch_ty,
                     catch_expression,
                     finally_expression,
                     scope: scope_id,

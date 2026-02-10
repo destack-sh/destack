@@ -310,6 +310,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::Try {
             try_expression,
             catch_pattern,
+            catch_ty,
             catch_expression,
             finally_expression,
         } => {
@@ -318,6 +319,10 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             if let Some(catch_pattern_id) = catch_pattern {
                 let catch_pattern_node = tree.get(*catch_pattern_id);
                 visitor.visit_pattern(tree, *catch_pattern_id, catch_pattern_node);
+            }
+            if let Some(catch_ty_id) = catch_ty {
+                let catch_ty_node = tree.get(*catch_ty_id);
+                visitor.visit_expression(tree, *catch_ty_id, catch_ty_node);
             }
             if let Some(catch_id) = catch_expression {
                 let catch_expr = tree.get(*catch_id);

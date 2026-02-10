@@ -1,5 +1,5 @@
 use crate::{ParseResult, Parser};
-use destack_ast::{Expression, Keyword, LocalNodeId};
+use destack_ast::{Expression, Keyword, LocalNodeId, TokenType};
 
 impl Parser {
     /// Eat a try expression.
@@ -45,32 +45,82 @@ impl Parser {
             );
 
             // catch
-            let (catch_expression, catch_pattern) = if self.peek_keyword(Keyword::Catch).is_ok() {
-                self.bump(); // eat keyword
-                // no pattern or catch match
-                if self.peek_block().is_ok() || self.peek_keyword(Keyword::Match).is_ok() {
-                    let catch_expression = self.with_options(
-                        self.options.not_in_position().in_statement_position(),
-                        |parser| parser.eat_expression(),
-                    )?;
-                    (Some(catch_expression), None)
-                }
-                // catch pattern with expression content
-                else {
-                    let catch_pattern = self.with_options(
-                        self.options.not_in_position().in_before_block(),
-                        |parser| parser.eat_pattern_parenthesized_maybe(),
-                    )?;
+            let (catch_pattern, catch_ty, catch_expression) =
+                if self.peek_keyword(Keyword::Catch).is_ok() {
+                    self.bump(); // eat keyword
+                    // no pattern or catch match
+                    if self.peek_block().is_ok() || self.peek_keyword(Keyword::Match).is_ok() {
+                        let catch_expression = self.with_options(
+                            self.options.not_in_position().in_statement_position(),
+                            |parser| parser.eat_expression(),
+                        )?;
+                        (None, None, Some(catch_expression))
+                    }
+                    // catch pattern with expression content
+                    else {
+                        // parse catch binding pattern
+                        let (catch_pattern, catch_ty) = if self.peek_is(TokenType::OpenParenthesis)
+                        {
+                            self.bump(); // eat (
+                            self.eat_newlines_maybe()?;
 
-                    let catch_expression = self.with_options(
-                        self.options.not_in_position().in_statement_position(),
-                        |parser| parser.eat_expression(),
-                    )?;
-                    (Some(catch_expression), Some(catch_pattern))
-                }
-            } else {
-                (None, None)
-            };
+                            let catch_pattern = self.with_options(
+                                self.options
+                                    .not_in_position()
+                                    .in_before_type()
+                                    .in_before_block(),
+                                |parser| parser.eat_pattern(),
+                            )?;
+
+                            self.eat_newlines_maybe()?;
+
+                            let catch_ty = if self.peek_colon().is_ok() {
+                                self.bump(); // eat :
+                                self.eat_newlines_maybe()?;
+                                let catch_ty = self.with_options(
+                                    self.options.not_in_position().in_type().in_before_block(),
+                                    |parser| parser.eat_expression(),
+                                )?;
+                                self.eat_newlines_maybe()?;
+                                Some(catch_ty)
+                            } else {
+                                None
+                            };
+
+                            self.eat_token(TokenType::CloseParenthesis)?;
+                            (catch_pattern, catch_ty)
+                        } else {
+                            let catch_pattern = self.with_options(
+                                self.options
+                                    .not_in_position()
+                                    .in_before_type()
+                                    .in_before_block(),
+                                |parser| parser.eat_pattern(),
+                            )?;
+                            let catch_ty = if self.peek_colon().is_ok() {
+                                self.bump(); // eat :
+                                self.eat_newlines_maybe()?;
+                                let catch_ty = self.with_options(
+                                    self.options.not_in_position().in_type().in_before_block(),
+                                    |parser| parser.eat_expression(),
+                                )?;
+                                self.eat_newlines_maybe()?;
+                                Some(catch_ty)
+                            } else {
+                                None
+                            };
+                            (catch_pattern, catch_ty)
+                        };
+
+                        let catch_expression = self.with_options(
+                            self.options.not_in_position().in_statement_position(),
+                            |parser| parser.eat_expression(),
+                        )?;
+                        (Some(catch_pattern), catch_ty, Some(catch_expression))
+                    }
+                } else {
+                    (None, None, None)
+                };
 
             // finally
             let finally_expression = if self.peek_keyword(Keyword::Finally).is_ok() {
@@ -89,6 +139,7 @@ impl Parser {
                 Expression::Try {
                     try_expression,
                     catch_pattern,
+                    catch_ty,
                     catch_expression,
                     finally_expression,
                 },
@@ -105,6 +156,7 @@ impl Parser {
                 Expression::Try {
                     try_expression: expression_id,
                     catch_pattern: None,
+                    catch_ty: None,
                     catch_expression: None,
                     finally_expression: None,
                 },
@@ -133,7 +185,7 @@ try foo()
         parser.eat_newline().unwrap();
 
         let try_id = parser.eat_try().unwrap();
-        assert_node!(parser.tree, try_id, Expression::Try { try_expression, catch_pattern: None, catch_expression: None, finally_expression: None } => {
+        assert_node!(parser.tree, try_id, Expression::Try { try_expression, catch_pattern: None, catch_ty: None, catch_expression: None, finally_expression: None } => {
             assert_node!(parser.tree, *try_expression, Expression::Call { position: _, left, static_arguments: _, dynamic_arguments: _ } => {
                 assert_expression_path!(parser, parser.tree.get(*left), "foo");
             });
@@ -153,7 +205,7 @@ try {
         parser.eat_newline().unwrap();
 
         let try_id = parser.eat_try().unwrap();
-        assert_node!(parser.tree, try_id, Expression::Try { try_expression, catch_pattern: None, catch_expression: None, finally_expression: None } => {
+        assert_node!(parser.tree, try_id, Expression::Try { try_expression, catch_pattern: None, catch_ty: None, catch_expression: None, finally_expression: None } => {
             assert_node!(parser.tree, *try_expression, Expression::Block(block_id) => {
                 assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
                     assert_eq!(expressions.len(), 1);
@@ -182,7 +234,7 @@ try {
         parser.eat_newline().unwrap();
 
         let try_id = parser.eat_try().unwrap();
-        assert_node!(parser.tree, try_id, Expression::Try { try_expression, catch_pattern: Some(catch_pattern), catch_expression: Some(catch_expression), finally_expression: Some(finally_expression) } => {
+        assert_node!(parser.tree, try_id, Expression::Try { try_expression, catch_pattern: Some(catch_pattern), catch_ty: None, catch_expression: Some(catch_expression), finally_expression: Some(finally_expression) } => {
             // try
             assert_node!(parser.tree, *try_expression, Expression::Block(block_id) => {
                 assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
@@ -233,27 +285,84 @@ try {
         parser.eat_newline().unwrap();
 
         let try_id = parser.eat_try().unwrap();
-        assert_node!(parser.tree, try_id, Expression::Try { catch_pattern: Some(catch_pattern), .. } => {
+        assert_node!(parser.tree, try_id, Expression::Try { catch_pattern: Some(catch_pattern), catch_ty: Some(catch_ty), .. } => {
             // catch binding
-            assert_node!(parser.tree, *catch_pattern, Pattern::Binding { name, pattern: Some(annotation), .. } => {
+            assert_node!(parser.tree, *catch_pattern, Pattern::Binding { name, pattern: None, .. } => {
                 assert_string!(parser, *name, "ex");
+            });
+            // catch type
+            assert_expression_path!(parser, parser.tree.get(*catch_ty), "Error");
+        });
+    }
 
-                // catch annotation
-                match parser.tree.get(*annotation) {
-                    Pattern::Expression { value } => {
-                        assert_expression_path!(parser, parser.tree.get(*value), "Error");
-                    }
-                    Pattern::Binding {
-                        name,
-                        pattern: None,
-                        ..
-                    } => {
-                        assert_string!(parser, *name, "Error");
-                    }
-                    other => {
-                        panic!("expected catch type annotation pattern, got {other:?}");
-                    }
-                }
+    /// Parse typed catch binding without parentheses in destack.
+    #[test]
+    fn test_try_expression_with_typed_catch_pattern_without_parentheses() {
+        let mut test = TestParser::new(
+            r###"
+try {
+    foo()
+} catch ex: Error {
+    bar()
+}
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let try_id = parser.eat_try().unwrap();
+        assert_node!(parser.tree, try_id, Expression::Try { catch_pattern: Some(catch_pattern), catch_ty: Some(catch_ty), .. } => {
+            assert_node!(parser.tree, *catch_pattern, Pattern::Binding { name, pattern: None, .. } => {
+                assert_string!(parser, *name, "ex");
+            });
+            assert_expression_path!(parser, parser.tree.get(*catch_ty), "Error");
+        });
+    }
+
+    /// Parse typed destructuring catch patterns in ts.
+    #[test]
+    fn test_try_expression_with_typed_destructuring_catch_pattern() {
+        let mut test = TestParser::new_with_options(
+            r###"
+try {
+    foo()
+} catch ({ name, message }: any) {
+    bar()
+}
+"###,
+            destack_source::LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let try_id = parser.eat_try().unwrap();
+        assert_node!(parser.tree, try_id, Expression::Try { catch_pattern: Some(catch_pattern), catch_ty: Some(catch_ty), catch_expression: Some(catch_expression), .. } => {
+            // catch { name, message }
+            assert_node!(parser.tree, *catch_pattern, Pattern::Object { fields } => {
+                assert_eq!(fields.len(), 2);
+                assert_node!(parser.tree, fields[0], destack_ast::PatternField::Named { name, pattern: None, .. } => {
+                    assert_node!(name, destack_ast::Name::Identifier(name) => {
+                        assert_string!(parser, *name, "name");
+                    });
+                });
+                assert_node!(parser.tree, fields[1], destack_ast::PatternField::Named { name, pattern: None, .. } => {
+                    assert_node!(name, destack_ast::Name::Identifier(name) => {
+                        assert_string!(parser, *name, "message");
+                    });
+                });
+            });
+
+            // catch annotation
+            assert_node!(parser.tree, *catch_ty, Expression::TypeLiteral(destack_ast::TypeLiteral::Any));
+
+            // catch body
+            assert_node!(parser.tree, *catch_expression, Expression::Block(block_id) => {
+                assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                    assert_eq!(expressions.len(), 1);
+                    assert_node!(parser.tree, expressions[0], Expression::Call { left, .. } => {
+                        assert_expression_path!(parser, parser.tree.get(*left), "bar");
+                    });
+                });
             });
         });
     }
@@ -267,7 +376,7 @@ try {
         let mut parser = test.prepare();
 
         let try_id = parser.eat_try().unwrap();
-        assert_node!(parser.tree, try_id, Expression::Try { catch_pattern: Some(catch_pattern), catch_expression: Some(catch_expression), .. } => {
+        assert_node!(parser.tree, try_id, Expression::Try { catch_pattern: Some(catch_pattern), catch_ty: None, catch_expression: Some(catch_expression), .. } => {
             assert_node!(parser.tree, *catch_pattern, Pattern::TaggedTuple { ty, fields } => {
                 assert_expression_path!(parser, parser.tree.get(*ty), "answer");
                 assert!(fields.is_empty());
@@ -285,7 +394,7 @@ try {
         let mut parser = test.prepare();
 
         let try_id = parser.eat_try().unwrap();
-        assert_node!(parser.tree, try_id, Expression::Try { catch_pattern: Some(catch_pattern), catch_expression: Some(catch_expression), .. } => {
+        assert_node!(parser.tree, try_id, Expression::Try { catch_pattern: Some(catch_pattern), catch_ty: None, catch_expression: Some(catch_expression), .. } => {
             assert_node!(parser.tree, *catch_pattern, Pattern::Expression { value } => {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(..));
             });
