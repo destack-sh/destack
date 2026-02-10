@@ -1838,7 +1838,7 @@ async function* fetchPages(urls: string[]): AsyncGenerator<Page> {
 
 ## Concurrency
 
-Destack preserves JS and TS concurrency semantics by default while enabling native level parallelism on supported targets.
+Destack preserves JS/TS concurrency semantics by default while enabling native level parallelism on supported targets.
 The core ideas are a single threaded event loop by default, `Promise` and `async` for concurrency, and `Worker` for parallelism.
 
 #### Threading Model
@@ -1855,7 +1855,7 @@ Atomic operations require explicit ordering and scope metadata.
 There are no implicit defaults for atomic ordering in Destack.
 Non atomic loads and stores have no cross thread ordering guarantees.
 Data races on shared non atomic memory are undefined behavior on native targets.
-This preserves JS and TS semantics while enabling native performance when code uses atomics.
+This preserves JS/TS semantics while enabling native performance when code uses atomics.
 
 #### GC and Threads
 GC heaps are per worker by default to match JS semantics and avoid sharing mutable GC objects.

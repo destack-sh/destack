@@ -77,9 +77,13 @@ impl Parser {
             .for_node_type(NodeType::Declaration)?;
 
         // optional extends types
-        let extends_types = self
-            .eat_extends_types_maybe()
-            .for_node_type(NodeType::Declaration)?;
+        let extends_types = if is_class {
+            self.eat_extends_expressions_maybe()
+                .for_node_type(NodeType::Declaration)?
+        } else {
+            self.eat_extends_types_maybe()
+                .for_node_type(NodeType::Declaration)?
+        };
 
         // optional implements types
         let implements_types = self
@@ -136,10 +140,11 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        BindingKind, Declaration, DeclarationDescriptor, DeclarationKind, Expression, IntType, Key,
-        Member, Name, Parameter, ScalarLiteral, TypeLiteral, Visibility, WhereClause,
+        BinaryOperator, BindingKind, Declaration, DeclarationDescriptor, DeclarationKind,
+        Expression, IntType, Key, Member, Name, Parameter, ScalarLiteral, TypeLiteral, Visibility,
+        WhereClause,
     };
-    use destack_source::NodeSpanType;
+    use destack_source::{LanguageType, NodeSpanType};
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 
@@ -238,6 +243,27 @@ struct Foo extends Bar {}
             assert_eq!(supers.len(), 1);
             assert_node!(parser.tree, supers[0], Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "Bar");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_javascript_class_allows_parenthesized_binary_extends_expression() {
+        let mut test =
+            TestParser::new_with_options("class A extends (a + b) {}", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+
+        let start = parser.mark();
+        let class_id = parser
+            .eat_struct_or_class(&start, DeclarationDescriptor::default(), false)
+            .unwrap();
+        assert_node!(parser.tree, class_id, Declaration::Class { heritage, .. } => {
+            let extends_types = heritage.extends_types.as_ref().expect("expected extends type");
+            assert_eq!(extends_types.len(), 1);
+            assert_node!(parser.tree, extends_types[0], Expression::Binary { left, operator, right } => {
+                assert_eq!(*operator, BinaryOperator::Add);
+                assert_expression_path!(parser, parser.tree.get(*left), "a");
+                assert_expression_path!(parser, parser.tree.get(*right), "b");
             });
         });
     }

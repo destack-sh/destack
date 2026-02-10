@@ -946,7 +946,27 @@ impl Parser {
         // check for extends keyword before calling underlying implementation
         if self.peek_keyword(Keyword::Extends).is_ok() {
             self.bump(); // eat extends
-            self.eat_super_types_maybe(&[Keyword::Implements, Keyword::With, Keyword::Where])
+            self.eat_super_type_list_maybe(&[Keyword::Implements, Keyword::With, Keyword::Where])
+        } else {
+            self.rewind(mark);
+            Ok(None)
+        }
+    }
+
+    /// Eat extends expressions maybe.
+    /// Used by class heritage in JS/TS where extends accepts value expressions.
+    #[inline]
+    pub fn eat_extends_expressions_maybe(
+        &mut self,
+    ) -> ParseResult<Option<Vec<LocalNodeId<Expression>>>> {
+        // allow newlines before extends
+        let mark = self.mark();
+        self.eat_newlines_maybe()?;
+
+        // check for extends keyword before calling underlying implementation
+        if self.peek_keyword(Keyword::Extends).is_ok() {
+            self.bump(); // eat extends
+            self.eat_super_expression_maybe(&[Keyword::Implements, Keyword::With, Keyword::Where])
         } else {
             self.rewind(mark);
             Ok(None)
@@ -965,7 +985,7 @@ impl Parser {
         // check for implements keyword before calling underlying implementation
         if self.peek_keyword(Keyword::Implements).is_ok() {
             self.bump(); // eat implements
-            self.eat_super_types_maybe(&[Keyword::With, Keyword::Where])
+            self.eat_super_type_list_maybe(&[Keyword::With, Keyword::Where])
         } else {
             self.rewind(mark);
             Ok(None)
@@ -974,29 +994,71 @@ impl Parser {
 
     /// Eat a super type clause maybe.
     #[inline]
-    fn eat_super_types_maybe(
+    fn eat_super_type_list_maybe(
         &mut self,
         terminators: &[Keyword],
     ) -> ParseResult<Option<Vec<LocalNodeId<Expression>>>> {
-        let is_parenthesized = if self.peek_is(TokenType::OpenParenthesis) {
+        // type heritage may be wrapped in parentheses as a list container
+        let is_parenthesized_type_list = self.peek_is(TokenType::OpenParenthesis);
+        if is_parenthesized_type_list {
             self.bump();
             self.eat_newlines_maybe()?;
-            true
-        } else {
-            false
-        };
-        let types = self.with_options(self.options.in_super_type(), |parser| {
-            parser.eat_super_types(terminators)
-        })?;
-        if is_parenthesized {
+        }
+
+        // parse the type heritage list in super type context
+        let options = self.options.in_super_type().not_in_new_receiver();
+        let types = self.with_options(options, |parser| parser.eat_super_type_list(terminators))?;
+
+        // close the optional parenthesized type list
+        if is_parenthesized_type_list {
             self.eat_newlines_maybe()?;
             self.eat_token(TokenType::CloseParenthesis)?;
         }
         Ok(Some(types))
     }
 
+    /// Eat a class extends expression maybe.
+    #[inline]
+    fn eat_super_expression_maybe(
+        &mut self,
+        terminators: &[Keyword],
+    ) -> ParseResult<Option<Vec<LocalNodeId<Expression>>>> {
+        // parse the extends expression in value context
+        let options = self
+            .options
+            .in_super_type()
+            .not_in_type()
+            .not_in_new_receiver();
+        let expression =
+            self.with_options(options, |parser| parser.eat_super_expression(terminators))?;
+        Ok(Some(vec![expression]))
+    }
+
+    /// Return true when the current token terminates a super type clause.
+    #[inline]
+    fn is_super_type_clause_terminator(&mut self, terminators: &[Keyword]) -> bool {
+        self.peek_is(TokenType::OpenBrace)
+            || self.peek_is(TokenType::CloseParenthesis)
+            || terminators
+                .iter()
+                .any(|terminator| self.peek_keyword(*terminator).is_ok())
+    }
+
+    /// Unwrap an optional parenthesized super type expression.
+    #[inline]
+    fn unwrap_parenthesized_super_expression(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+    ) -> (LocalNodeId<Expression>, bool) {
+        if let Expression::Parenthesized { expression } = self.tree.get(expression_id) {
+            (*expression, true)
+        } else {
+            (expression_id, false)
+        }
+    }
+
     /// Eat super types (without the leading keyword).
-    fn eat_super_types(
+    fn eat_super_type_list(
         &mut self,
         terminators: &[Keyword],
     ) -> ParseResult<Vec<LocalNodeId<Expression>>> {
@@ -1004,15 +1066,14 @@ impl Parser {
         let mut types: Vec<LocalNodeId<Expression>> = Vec::new();
         let mut expect_type = true;
 
+        // ts/js require explicit comma separators in type heritage lists
+        let allow_newline_separator =
+            !(self.language.is_javascript() || self.language.is_typescript());
+
         // collect super types until a terminator is seen
         while self.has_more_tokens() {
-            // eat until open brace or close parenthesis
-            if self.peek_is(TokenType::OpenBrace)
-                || self.peek_is(TokenType::CloseParenthesis)
-                || terminators
-                    .iter()
-                    .any(|terminator| self.peek_keyword(*terminator).is_ok())
-            {
+            // stop at clause terminators
+            if self.is_super_type_clause_terminator(terminators) {
                 // reject trailing commas in heritage clauses
                 if expect_type && !types.is_empty() {
                     return Err(ParseError::unexpected(self.peek()?.span));
@@ -1023,12 +1084,7 @@ impl Parser {
             else if self.peek_is(TokenType::Newline) {
                 let mark = self.mark();
                 self.eat_newlines_maybe()?;
-                let is_terminator = self.peek_is(TokenType::OpenBrace)
-                    || self.peek_is(TokenType::CloseParenthesis)
-                    || terminators
-                        .iter()
-                        .any(|terminator| self.peek_keyword(*terminator).is_ok());
-                if is_terminator {
+                if self.is_super_type_clause_terminator(terminators) {
                     // reject trailing commas in heritage clauses
                     if expect_type && !types.is_empty() {
                         return Err(ParseError::unexpected(self.peek()?.span));
@@ -1036,11 +1092,25 @@ impl Parser {
                     self.rewind(mark);
                     break;
                 } else {
+                    // in ts and js type heritage lists, newline alone is not a separator
+                    if !allow_newline_separator && !expect_type {
+                        return Err(ParseError::unexpected(self.peek()?.span));
+                    }
                     continue;
                 }
             }
+            // consume explicit comma separators
+            else if self.peek_is(TokenType::Comma) {
+                self.eat_item_stop_with_newlines()?;
+                expect_type = true;
+            }
             // consume any stop
             else if self.is_item_stop() {
+                // end token terminates the clause
+                if self.peek_is(TokenType::End) {
+                    break;
+                }
+
                 self.eat_item_stop_with_newlines()?;
                 expect_type = true;
             }
@@ -1051,11 +1121,7 @@ impl Parser {
                 let ty = self.with_options(self.options.in_before_block(), |parser| {
                     parser.eat_expression()
                 })?;
-
-                // class heritage cannot start with unary expressions
-                if self.super_type_has_unparenthesized_unary_head(ty) {
-                    return Err(ParseError::unexpected(self.tree.get_span(ty)));
-                }
+                let (ty, _) = self.unwrap_parenthesized_super_expression(ty);
 
                 // record the full type span for super types
                 self.tree
@@ -1070,12 +1136,80 @@ impl Parser {
         Ok(types)
     }
 
-    /// Return true when a super type starts with an unparenthesized unary expression.
-    fn super_type_has_unparenthesized_unary_head(
+    /// Eat a class extends expression (without the leading keyword).
+    fn eat_super_expression(
+        &mut self,
+        terminators: &[Keyword],
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        // remember if the heritage head starts with an explicit parenthesis
+        let starts_with_parenthesis = self.peek_is(TokenType::OpenParenthesis);
+
+        // parse the extends expression
+        let type_start = self.mark();
+        let expression = self.with_options(self.options.in_before_block(), |parser| {
+            parser.eat_expression()
+        })?;
+        let (expression, is_parenthesized) = self.unwrap_parenthesized_super_expression(expression);
+        let is_parenthesized = starts_with_parenthesis || is_parenthesized;
+
+        // class heritage requires a parenthesized expression when head operators are used
+        if !is_parenthesized && self.super_type_has_invalid_unparenthesized_head(expression) {
+            return Err(ParseError::unexpected(self.tree.get_span(expression)));
+        }
+
+        // class heritage allows exactly one target
+        if self.peek_is(TokenType::Comma) {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
+
+        // preserve type span tracking for heritage expressions
+        self.tree.set_side_span(
+            expression,
+            NodeSpanType::Type,
+            self.get_span_from(&type_start),
+        );
+
+        // next token should be a normal heritage terminator
+        let mut has_valid_terminator =
+            self.peek_is(TokenType::End) || self.is_super_type_clause_terminator(terminators);
+
+        // allow trailing newlines before normal heritage terminators
+        if !has_valid_terminator && self.peek_is(TokenType::Newline) {
+            let mark = self.mark();
+            self.eat_newlines_maybe()?;
+            has_valid_terminator =
+                self.peek_is(TokenType::End) || self.is_super_type_clause_terminator(terminators);
+            self.rewind(mark);
+        }
+
+        if !has_valid_terminator {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
+
+        Ok(expression)
+    }
+
+    /// Return true when a class heritage expression starts with an invalid unparenthesized head.
+    fn super_type_has_invalid_unparenthesized_head(
         &self,
         expression_id: LocalNodeId<Expression>,
     ) -> bool {
-        matches!(self.tree.get(expression_id), Expression::Unary { .. })
+        // unparenthesized lambdas are not valid in class heritage heads
+        if self.is_unparenthesized_lambda_expression(expression_id) {
+            return true;
+        }
+
+        // these forms require explicit parentheses in class heritage expressions
+        matches!(
+            self.tree.get(expression_id),
+            Expression::Unary { .. }
+                | Expression::Binary { .. }
+                | Expression::TypeBinary { .. }
+                | Expression::TypeConditional { .. }
+                | Expression::If { .. }
+                | Expression::Assign { .. }
+                | Expression::SequenceExpression { .. }
+        )
     }
 }
 
@@ -3361,6 +3495,40 @@ mod tests {
                             _ => panic!("expected Key::NamedExpression, got {key:?}"),
                         }
                         assert_expression_path!(parser, parser.tree.get(value.unwrap()), "Foo");
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_literal_index_signature_union_key_on_union_rhs() {
+        let mut test =
+            TestParser::new("type T = string | { [x: string | number | symbol]: unknown }");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = string | { [x: string | number | symbol]: unknown }
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Binary { operator, left, right } => {
+                    assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                    assert_node!(parser.tree, *left, Expression::TypeLiteral(TypeLiteral::String));
+                    assert_node!(parser.tree, *right, Expression::ObjectExpression { properties, .. } => {
+                        assert_eq!(properties.len(), 1);
+                        assert_node!(parser.tree, properties[0], Property::Field { key: Some(Key::NamedExpression { name, key }), value: Some(value), .. } => {
+                            assert_string!(parser, *name, "x");
+                            assert_node!(parser.tree, *key, Expression::Binary { operator, left, right } => {
+                                assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                                assert_node!(parser.tree, *left, Expression::Binary { operator, left, right } => {
+                                    assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                                    assert_node!(parser.tree, *left, Expression::TypeLiteral(TypeLiteral::String));
+                                    assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Number));
+                                });
+                                assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Symbol));
+                            });
+                            assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Unknown));
+                        });
                     });
                 });
             });

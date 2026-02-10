@@ -83,6 +83,9 @@ impl Parser {
         // async
         let is_async = if self.peek_keyword(Keyword::Async).is_ok()
             && (self.peek_next_is(TokenType::Identifier)
+                || self.peek_next_is(TokenType::Literal)
+                || self.peek_next_is(TokenType::Hash)
+                || self.peek_next_is(TokenType::OpenBracket)
                 || self.peek_next_is(TokenType::Multiply)
                 || self.peek_next_is(TokenType::OpenParenthesis)
                 || self.peek_next_is(TokenType::LessThan))
@@ -363,6 +366,7 @@ impl Parser {
                     .options
                     .not_in_position()
                     .in_statement_position()
+                    .not_in_decorator()
                     .with_generator(is_generator);
                 Some(self.with_options(options, |parser| parser.eat_expression())?)
             } else {
@@ -432,6 +436,7 @@ impl Parser {
                 // parse type annotations in type or variant contexts
                 let mut type_options = self
                     .options
+                    .nested()
                     .not_in_position()
                     .not_in_left_precedence()
                     .not_in_sequence_expression();
@@ -625,7 +630,10 @@ impl Parser {
         {
             self.eat_newlines_maybe()?;
             let body = self.with_options(
-                self.options.not_in_position().in_statement_position(),
+                self.options
+                    .not_in_position()
+                    .in_statement_position()
+                    .not_in_decorator(),
                 |parser| parser.eat_expression(),
             )?;
             // preserve modifiers for validation (static blocks shouldn't have other modifiers)
@@ -679,7 +687,10 @@ impl Parser {
         {
             self.eat_newlines_maybe()?;
             let body = self.with_options(
-                self.options.not_in_position().in_statement_position(),
+                self.options
+                    .not_in_position()
+                    .in_statement_position()
+                    .not_in_decorator(),
                 |parser| parser.eat_expression(),
             )?;
             let member = Member::ComptimeBlock { modifiers, body };
@@ -694,6 +705,9 @@ impl Parser {
         // async
         let is_async = if self.peek_keyword(Keyword::Async).is_ok()
             && (self.peek_next_is(TokenType::Identifier)
+                || self.peek_next_is(TokenType::Literal)
+                || self.peek_next_is(TokenType::Hash)
+                || self.peek_next_is(TokenType::OpenBracket)
                 || self.peek_next_is(TokenType::Multiply)
                 || self.peek_next_is(TokenType::OpenParenthesis)
                 || self.peek_next_is(TokenType::LessThan))
@@ -961,6 +975,7 @@ impl Parser {
                     .options
                     .not_in_position()
                     .in_statement_position()
+                    .not_in_decorator()
                     .with_generator(is_generator);
                 Some(self.with_options(options, |parser| parser.eat_expression())?)
             } else {
@@ -1022,30 +1037,16 @@ impl Parser {
                 let type_start = self.mark();
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;
-                // parse associated comptime annotations in type mode so `= ...` remains a default
-                let parse_as_type = self.options.in_variant
-                    || self.options.in_type
-                    || associated_comptime_name.is_some();
-
-                // keep in type / in variant (for `type x = { .. }` expressions)
-                let value = if parse_as_type {
-                    self.with_options(
-                        self.options
-                            .not_in_position()
-                            .not_in_left_precedence()
-                            .not_in_sequence_expression()
-                            .in_type(),
-                        |parser| parser.eat_expression(),
-                    )?
-                } else {
-                    self.with_options(
-                        self.options
-                            .not_in_position()
-                            .not_in_left_precedence()
-                            .not_in_sequence_expression(),
-                        |parser| parser.eat_expression(),
-                    )?
-                };
+                // member field annotations are always type positions
+                let value = self.with_options(
+                    self.options
+                        .nested()
+                        .not_in_position()
+                        .not_in_left_precedence()
+                        .not_in_sequence_expression()
+                        .in_type(),
+                    |parser| parser.eat_expression(),
+                )?;
                 (Some(value), Some(self.get_span_from(&type_start)))
             } else {
                 (None, None)
@@ -1155,7 +1156,8 @@ mod tests {
     use destack_ast::{
         AbstractionModifier, Argument, Asynchrony, BinaryOperator, BindingAnchor, BindingKind,
         Block, Declaration, Expression, FunctionAbstraction, FunctionKind, FunctionMode, IntType,
-        Key, Member, Name, Parameter, Property, ScalarLiteral, TypeLiteral, Visibility,
+        Key, Member, Name, Parameter, Property, ScalarLiteral, TypeLiteral, TypePredicateSubject,
+        Visibility,
     };
     use destack_source::LanguageType;
 
@@ -1170,7 +1172,7 @@ mod tests {
         let member = parser.eat_member().unwrap();
         assert_node!(parser.tree, member, Member::Field { modifiers: None, key: Some(Key::Private(name)), value: Some(ty), default: None, .. } => {
             assert_string!(parser, *name, "name");
-            assert_expression_path!(parser, parser.tree.get(*ty), "string");
+            assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::String));
         });
     }
 
@@ -1197,7 +1199,7 @@ mod tests {
         assert_node!(parser.tree, member, Member::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), value: Some(value), default: None, .. } => {
             assert_eq!(modifiers.abstraction, Some(AbstractionModifier::Override));
             assert_string!(parser, *name, "foo");
-            assert_expression_path!(parser, parser.tree.get(*value), "int32");
+            assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { is_signed: true, width: Some(32) })));
         });
     }
 
@@ -1283,6 +1285,38 @@ port2 = {
             assert_string!(parser, *name, "foo");
             assert_eq!(signature.abstraction, FunctionAbstraction::ConcreteOverride);
             assert_eq!(signature.asynchrony, Asynchrony::Async);
+        });
+    }
+
+    #[test]
+    fn test_parse_member_async_string_literal_name() {
+        let mut test = TestParser::new_with_options(
+            r#"async 'delete'(name: string): Promise<boolean> { return true }"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+
+        let member = parser.eat_member().unwrap();
+        assert_node!(parser.tree, member, Member::Method { key: Some(Key::Name(Name::String(name))), signature, body, .. } => {
+            assert_string!(parser, *name, "delete");
+            assert_eq!(signature.asynchrony, Asynchrony::Async);
+            assert_eq!(signature.dynamic_parameters.len(), 1);
+            assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty: Some(ty), .. } => {
+                assert_string!(parser, *name, "name");
+                assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::String));
+            });
+            assert_node!(parser.tree, signature.return_type.expect("expected return type"), Expression::Path { path, static_arguments: Some(static_arguments) } => {
+                assert_path!(parser, *path, "Promise");
+                assert_eq!(static_arguments.len(), 1);
+                assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
+                    assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Boolean));
+                });
+            });
+            assert_node!(parser.tree, body.expect("expected method body"), Expression::Block(block_id) => {
+                assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                    assert_eq!(expressions.len(), 1);
+                });
+            });
         });
     }
 
@@ -1670,6 +1704,26 @@ foo(): string;"#,
             assert_eq!(signature.dynamic_parameters.len(), 1);
             assert!(signature.return_type.is_some());
             assert_node!(parser.tree, signature.return_type.unwrap(), Expression::Binary { .. });
+        });
+    }
+
+    #[test]
+    fn test_parse_member_method_with_type_predicate_return_type() {
+        let mut test = TestParser::new_with_options(
+            "public isDynamicModule(module: Type<any> | DynamicModule): module is DynamicModule",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        parser.options.in_variant = true;
+
+        let member_id = parser.eat_member().unwrap();
+        assert_node!(parser.tree, member_id, Member::Method { signature, .. } => {
+            assert_eq!(signature.dynamic_parameters.len(), 1);
+            assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypePredicate { asserts, subject, target } => {
+                assert!(!asserts);
+                assert_eq!(*subject, TypePredicateSubject::Identifier(parser.strings.intern("module")));
+                assert_expression_path!(parser, parser.tree.get(target.unwrap()), "DynamicModule");
+            });
         });
     }
 }

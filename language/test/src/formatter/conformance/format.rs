@@ -158,7 +158,7 @@ fn format_once(
     ))
 }
 
-/// Build formatter options for JS and TS conformance baselines.
+/// Build formatter options for JS/TS conformance baselines.
 pub(super) fn default_conformance_formatter_options() -> FormatterOptions {
     FormatterOptions::default()
         .with_indent_width(2)

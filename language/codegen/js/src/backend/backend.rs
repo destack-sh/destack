@@ -37,7 +37,7 @@ pub fn generate_module(
     if !matches!(target.output, OutputFormat::Js | OutputFormat::Ts) {
         return Err(CodegenJsError::UnsupportedTarget {
             format: format!("{:?}", target.output),
-            message: Some("expected Js or Ts".to_string()),
+            message: Some("expected JS/TS".to_string()),
         });
     }
 

@@ -105,7 +105,7 @@ fn should_skip_due_to_redeclaration_policy(
 
 /// Return true when compiler local-redeclaration errors are enforced for this module.
 fn compiler_redeclaration_errors_enabled(ctx: &LintModuleDirContext<'_>) -> bool {
-    // js and ts modes always enforce ecmascript redeclaration checks
+    // JS/TS modes always enforce ecmascript redeclaration checks
     if !ctx.module.language_type.is_destack() {
         return true;
     }

@@ -256,7 +256,7 @@ fn parse_file_with_parser(
 
 /// Apply a default dsconfig for conformance runs.
 fn apply_default_dsconfig(program: &Program, module_id: ModuleId, root: &Path) {
-    // build a default dsconfig to enable early checks for js and ts
+    // build a default dsconfig to enable early checks for JS/TS
     let file_id = program.files.next_id();
     let mut options = DsConfigOptions::default();
     options.compiler.check_ts = true;

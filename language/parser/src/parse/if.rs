@@ -8,7 +8,7 @@ impl Parser {
     fn eat_expression_as_block(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
 
-        // empty statement in js or ts
+        // empty statement in JS/TS
         if !self.language.is_destack() && self.peek_is(TokenType::Semicolon) {
             self.bump();
             let block_id = self.tree.insert(
@@ -360,8 +360,8 @@ if cond {
             r"
 if x > y {
     y
-} else if y == z { 
-    x 
+} else if y == z {
+    x
 }",
         );
         let mut parser = test.prepare();
@@ -458,7 +458,7 @@ if x > y {
     fn test_parse_if_else_if_else_multiline() {
         let mut test = TestParser::new(
             r"
-if v < lo { lo } 
+if v < lo { lo }
 else if v > hi { hi }
 else { v }
 ",

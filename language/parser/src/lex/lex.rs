@@ -1552,7 +1552,7 @@ impl Lexer {
                 self.eat();
                 true
             }
-            // \0 through \7 are legacy octal in js and ts
+            // \0 through \7 are legacy octal in JS/TS
             '0'..='7' => {
                 self.eat();
                 if self.language.is_javascript() || self.language.is_typescript() {

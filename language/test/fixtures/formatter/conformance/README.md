@@ -14,7 +14,7 @@ Fetched upstream suites are stored under:
 
 ## Suggested suite sources
 
-Use oxfmt as the hard external baseline for JS and TS behavior.
+Use oxfmt as the hard external baseline for JS/TS behavior.
 
 Use Biome and Prettier as advisory corpora for broader gap discovery.
 

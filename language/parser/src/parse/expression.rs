@@ -2810,7 +2810,7 @@ impl Parser {
                                         self.get_span_from(&start),
                                     )
                                 }
-                                // in JS or TS: empty sequence expression
+                                // in JS/TS: empty sequence expression
                                 else {
                                     self.tree.insert(
                                         Expression::SequenceExpression {
@@ -5662,6 +5662,34 @@ f<x> !== g<y>;
                 assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
                     assert_node!(parser.tree, *declaration_id, Declaration::Class { heritage, .. } => {
                         assert!(heritage.extends_types.is_some());
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse a JavaScript class expression with a parenthesized sequence extends target.
+    #[test]
+    fn test_parse_javascript_class_expression_with_parenthesized_sequence_extends() {
+        let mut test = TestParser::new_with_options(
+            "var a = class extends (b,c) {};",
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
+            assert_eq!(declarators.len(), 1);
+            assert_node!(parser.tree, declarators[0], Declarator { value: Some(value), .. } => {
+                assert_node!(parser.tree, *value, Expression::Declaration(class_id) => {
+                    assert_node!(parser.tree, *class_id, Declaration::Class { heritage, .. } => {
+                        let extends_types = heritage.extends_types.as_ref().expect("expected extends type");
+                        assert_eq!(extends_types.len(), 1);
+                        assert_node!(parser.tree, extends_types[0], Expression::SequenceExpression { expressions } => {
+                            assert_eq!(expressions.len(), 2);
+                            assert_expression_path!(parser, parser.tree.get(expressions[0]), "b");
+                            assert_expression_path!(parser, parser.tree.get(expressions[1]), "c");
+                        });
                     });
                 });
             });
