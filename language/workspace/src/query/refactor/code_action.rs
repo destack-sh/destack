@@ -6,13 +6,13 @@ use destack_source::{Applicability, BatchEdit, Diagnostic, Edit, FileEdit, FileI
 use serde::{Deserialize, Serialize};
 
 use super::{extract_function, extract_variable, inline_symbol};
-use crate::Session;
 use crate::query::assist::{CompletionContext, detect_completion_context};
 use crate::query::common::{
     ImportEditMode, build_import_display_path, build_import_edits_with_mode, extract_identifier,
     get_module_by_file_id, is_simple_identifier, matches_symbol_space_filter, program_for_file,
     search_importable_symbols_for_program, token_at_offset,
 };
+use crate::{ImportDeclarationKey, Session, categorize_import, sort_import_declaration_indices};
 use destack_dir::SymbolSpace;
 
 /// Kind of code action.
@@ -235,7 +235,7 @@ fn collect_organize_imports_action(session: &Session, file: FileId, actions: &mu
     let source = source_file.text();
 
     // collect top level import expressions in order
-    let mut imports: Vec<(Span, String, String)> = Vec::new();
+    let mut imports: Vec<(Span, String, bool, String)> = Vec::new();
 
     for expr_id in &ctx.ast.roots {
         // stop once we hit the first non import expression after imports
@@ -244,17 +244,19 @@ fn collect_organize_imports_action(session: &Session, file: FileId, actions: &mu
             ast::Expression::Import {
                 source: ast::ImportSource::ImportStatement | ast::ImportSource::ImportEquals,
                 target: ast::ImportTarget::String(target),
+                items,
                 ..
-            } => Some(*target),
+            } => Some((*target, items.is_empty())),
             ast::Expression::Statement(inner_id) => {
                 let inner = ctx.ast.tree.get(*inner_id);
                 if let ast::Expression::Import {
                     source: ast::ImportSource::ImportStatement | ast::ImportSource::ImportEquals,
                     target: ast::ImportTarget::String(target),
+                    items,
                     ..
                 } = inner
                 {
-                    Some(*target)
+                    Some((*target, items.is_empty()))
                 } else {
                     None
                 }
@@ -262,7 +264,7 @@ fn collect_organize_imports_action(session: &Session, file: FileId, actions: &mu
             _ => None,
         };
 
-        let Some(target) = target else {
+        let Some((target, is_side_effect)) = target else {
             if !imports.is_empty() {
                 break;
             }
@@ -281,7 +283,7 @@ fn collect_organize_imports_action(session: &Session, file: FileId, actions: &mu
         let target_text = ctx.ast.strings.get(target).to_string();
 
         // store the import entry for sorting
-        imports.push((span, target_text, text));
+        imports.push((span, target_text, is_side_effect, text));
     }
 
     // skip when there is nothing to organize
@@ -289,25 +291,17 @@ fn collect_organize_imports_action(session: &Session, file: FileId, actions: &mu
         return;
     }
 
-    // sort imports by module path then text for stability
-    let mut sorted = imports.clone();
-    sorted.sort_by(|left, right| left.1.cmp(&right.1).then_with(|| left.2.cmp(&right.2)));
-
-    // skip when already organized
-    let current_text: Vec<&str> = imports.iter().map(|entry| entry.2.as_str()).collect();
-    let sorted_text: Vec<&str> = sorted.iter().map(|entry| entry.2.as_str()).collect();
-    if current_text == sorted_text {
-        return;
-    }
-
-    // build the replacement text for the import block
-    let replacement = sorted
+    // build canonical declaration keys and stable sorted order
+    let declaration_keys: Vec<_> = imports
         .iter()
-        .map(|entry| entry.2.as_str())
-        .collect::<Vec<_>>()
-        .join("\n");
+        .map(|(_, target, is_side_effect, _)| ImportDeclarationKey {
+            target: target.as_str(),
+            is_side_effect: *is_side_effect,
+        })
+        .collect();
+    let order = sort_import_declaration_indices(&declaration_keys);
 
-    // compute the replacement span bounds for the import block
+    // compute replacement span bounds for the contiguous import block
     let block_start = imports.first().map(|entry| entry.0.start).unwrap_or(0);
     let block_end = imports
         .last()
@@ -316,6 +310,37 @@ fn collect_organize_imports_action(session: &Session, file: FileId, actions: &mu
 
     // build the replacement span
     let block_span = Span::new(file, block_start, block_end);
+
+    // rebuild import block in canonical order with group spacing
+    let mut replacement = String::new();
+    for (position, import_index) in order.iter().copied().enumerate() {
+        let (_, target, is_side_effect, text) = &imports[import_index];
+        if !replacement.is_empty() {
+            replacement.push('\n');
+        }
+        replacement.push_str(text);
+
+        // add a blank line between side effect and regular groups, and across path groups
+        if let Some(next_index) = order.get(position + 1).copied() {
+            let (_, next_target, next_is_side_effect, _) = &imports[next_index];
+            let needs_blank = (*is_side_effect && !*next_is_side_effect)
+                || (!*is_side_effect
+                    && !*next_is_side_effect
+                    && categorize_import(target) != categorize_import(next_target));
+            if needs_blank {
+                replacement.push('\n');
+            }
+        }
+    }
+
+    // skip when the block is already canonical
+    let source = source_file.text();
+    let current_block = source
+        .get(block_start as usize..block_end as usize)
+        .unwrap_or_default();
+    if replacement == current_block {
+        return;
+    }
 
     // build the edit batch for the code action
     let mut file_edit = FileEdit::new(file);

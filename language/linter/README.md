@@ -352,7 +352,7 @@ Subjective preferences for consistent coding style.
 | `LY062` | `require-jsdoc` | ESLint | AST | ✓ | None | Require documentation on public items |
 | `LY063` | `require-returns-doc` | ESLint | AST | ✓ | None | Require return type documentation |
 | `LY081` | `restrict-template-expressions` | TS-ESLint | DIR |  | Suggestion | Require template expressions to be strings or numbers |
-| `LY064` | `sort-imports` | ESLint | AST | ✓ | None | Enforce sorted import declarations |
+| `LY064` | `sort-imports` | ESLint | AST | ✓ | Safe | Enforce sorted import declarations |
 | `LY065` | `symbol-description` | ESLint | DIR | ✓ | Suggestion | Require symbol descriptions |
 | `LY066` | `yoda` | ESLint | AST | ✓ | Safe | Disallow Yoda conditions |
 | `LY032` | `prefer-array-some` | Unicorn | DIR | ✓ | Safe | Prefer `some()` over `filter().length` or `findIndex()` comparisons |
