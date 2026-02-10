@@ -569,6 +569,7 @@ fn format_try_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     try_expression: LocalNodeId<Expression>,
     catch_pattern: Option<LocalNodeId<Pattern>>,
+    catch_ty: Option<LocalNodeId<Expression>>,
     catch_expression: Option<LocalNodeId<Expression>>,
     finally_expression: Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
@@ -581,8 +582,12 @@ fn format_try_expression<'ast>(
         if let Some(catch_pattern) = catch_pattern {
             let trailing_boundary_comments =
                 collect_catch_pattern_trailing_boundary_comments(f.context(), catch_pattern);
-            if trailing_boundary_comments.is_empty() {
-                write!(f, [token("("), catch_pattern, token(")"), space()])?;
+            if trailing_boundary_comments.is_empty() || catch_ty.is_some() {
+                write!(f, [token("("), catch_pattern])?;
+                if let Some(catch_ty) = catch_ty {
+                    write!(f, [token(":"), space(), catch_ty])?;
+                }
+                write!(f, [token(")"), space()])?;
             } else {
                 let pattern_source = f
                     .context()
@@ -842,6 +847,7 @@ pub(super) fn format_statement_expression<'ast>(
         Expression::Try {
             try_expression,
             catch_pattern,
+            catch_ty,
             catch_expression,
             finally_expression,
         } => {
@@ -852,6 +858,7 @@ pub(super) fn format_statement_expression<'ast>(
                 f,
                 *try_expression,
                 *catch_pattern,
+                *catch_ty,
                 *catch_expression,
                 *finally_expression,
             )?;

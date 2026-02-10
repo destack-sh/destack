@@ -916,10 +916,13 @@ impl Compiler {
                     ast::Expression::For { initialization, condition, increment, body }
                 }
 
-                dir::Expression::Try { try_expression, catch_pattern, catch_expression, finally_expression, .. } => {
+                dir::Expression::Try { try_expression, catch_pattern, catch_ty, catch_expression, finally_expression, .. } => {
                     let try_expression = self.unbind_expression(module, *try_expression, tree, symbols, ast_tree, ast_strings, context);
                     let catch_pattern = catch_pattern.map(|p| {
                         self.unbind_pattern(module, p, tree, symbols, ast_tree, ast_strings, context)
+                    });
+                    let catch_ty = catch_ty.map(|t| {
+                        self.unbind_expression(module, t, tree, symbols, ast_tree, ast_strings, context)
                     });
                     let catch_expression = catch_expression.map(|e| {
                         self.unbind_expression(module, e, tree, symbols, ast_tree, ast_strings, context)
@@ -927,7 +930,7 @@ impl Compiler {
                     let finally_expression = finally_expression.map(|e| {
                         self.unbind_expression(module, e, tree, symbols, ast_tree, ast_strings, context)
                     });
-                    ast::Expression::Try { try_expression, catch_pattern, catch_expression, finally_expression }
+                    ast::Expression::Try { try_expression, catch_pattern, catch_ty, catch_expression, finally_expression }
                 }
 
                 dir::Expression::Match { kind, value, cases, .. } => {

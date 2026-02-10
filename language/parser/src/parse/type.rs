@@ -946,7 +946,10 @@ impl Parser {
         // check for extends keyword before calling underlying implementation
         if self.peek_keyword(Keyword::Extends).is_ok() {
             self.bump(); // eat extends
-            self.eat_super_type_list_maybe(&[Keyword::Implements, Keyword::With, Keyword::Where])
+            self.eat_super_type_list_maybe(
+                &[Keyword::Implements, Keyword::With, Keyword::Where],
+                false,
+            )
         } else {
             self.rewind(mark);
             Ok(None)
@@ -966,7 +969,10 @@ impl Parser {
         // check for extends keyword before calling underlying implementation
         if self.peek_keyword(Keyword::Extends).is_ok() {
             self.bump(); // eat extends
-            self.eat_super_expression_maybe(&[Keyword::Implements, Keyword::With, Keyword::Where])
+            self.eat_super_type_list_maybe(
+                &[Keyword::Implements, Keyword::With, Keyword::Where],
+                true,
+            )
         } else {
             self.rewind(mark);
             Ok(None)
@@ -985,7 +991,7 @@ impl Parser {
         // check for implements keyword before calling underlying implementation
         if self.peek_keyword(Keyword::Implements).is_ok() {
             self.bump(); // eat implements
-            self.eat_super_type_list_maybe(&[Keyword::With, Keyword::Where])
+            self.eat_super_type_list_maybe(&[Keyword::With, Keyword::Where], false)
         } else {
             self.rewind(mark);
             Ok(None)
@@ -997,17 +1003,28 @@ impl Parser {
     fn eat_super_type_list_maybe(
         &mut self,
         terminators: &[Keyword],
+        enforce_class_extends_head: bool,
     ) -> ParseResult<Option<Vec<LocalNodeId<Expression>>>> {
         // type heritage may be wrapped in parentheses as a list container
-        let is_parenthesized_type_list = self.peek_is(TokenType::OpenParenthesis);
+        let is_parenthesized_type_list =
+            !enforce_class_extends_head && self.peek_is(TokenType::OpenParenthesis);
         if is_parenthesized_type_list {
             self.bump();
             self.eat_newlines_maybe()?;
         }
 
         // parse the type heritage list in super type context
-        let options = self.options.in_super_type().not_in_new_receiver();
-        let types = self.with_options(options, |parser| parser.eat_super_type_list(terminators))?;
+        let options = if enforce_class_extends_head {
+            self.options
+                .in_super_type()
+                .not_in_type()
+                .not_in_new_receiver()
+        } else {
+            self.options.in_super_type().not_in_new_receiver()
+        };
+        let types = self.with_options(options, |parser| {
+            parser.eat_super_type_list(terminators, enforce_class_extends_head)
+        })?;
 
         // close the optional parenthesized type list
         if is_parenthesized_type_list {
@@ -1015,23 +1032,6 @@ impl Parser {
             self.eat_token(TokenType::CloseParenthesis)?;
         }
         Ok(Some(types))
-    }
-
-    /// Eat a class extends expression maybe.
-    #[inline]
-    fn eat_super_expression_maybe(
-        &mut self,
-        terminators: &[Keyword],
-    ) -> ParseResult<Option<Vec<LocalNodeId<Expression>>>> {
-        // parse the extends expression in value context
-        let options = self
-            .options
-            .in_super_type()
-            .not_in_type()
-            .not_in_new_receiver();
-        let expression =
-            self.with_options(options, |parser| parser.eat_super_expression(terminators))?;
-        Ok(Some(vec![expression]))
     }
 
     /// Return true when the current token terminates a super type clause.
@@ -1061,6 +1061,7 @@ impl Parser {
     fn eat_super_type_list(
         &mut self,
         terminators: &[Keyword],
+        enforce_class_extends_head: bool,
     ) -> ParseResult<Vec<LocalNodeId<Expression>>> {
         // super type list
         let mut types: Vec<LocalNodeId<Expression>> = Vec::new();
@@ -1096,6 +1097,9 @@ impl Parser {
                     if !allow_newline_separator && !expect_type {
                         return Err(ParseError::unexpected(self.peek()?.span));
                     }
+                    if !expect_type {
+                        expect_type = true;
+                    }
                     continue;
                 }
             }
@@ -1116,12 +1120,25 @@ impl Parser {
             }
             // keep eating super types
             else {
+                if !expect_type {
+                    return Err(ParseError::unexpected(self.peek()?.span));
+                }
+
                 // parse the super type expression
+                let starts_with_parenthesis = self.peek_is(TokenType::OpenParenthesis);
                 let type_start = self.mark();
                 let ty = self.with_options(self.options.in_before_block(), |parser| {
                     parser.eat_expression()
                 })?;
-                let (ty, _) = self.unwrap_parenthesized_super_expression(ty);
+                let (ty, is_parenthesized) = self.unwrap_parenthesized_super_expression(ty);
+                let is_parenthesized = starts_with_parenthesis || is_parenthesized;
+
+                if enforce_class_extends_head
+                    && !is_parenthesized
+                    && self.super_type_has_invalid_unparenthesized_head(ty)
+                {
+                    return Err(ParseError::unexpected(self.tree.get_span(ty)));
+                }
 
                 // record the full type span for super types
                 self.tree
@@ -1134,59 +1151,6 @@ impl Parser {
         }
 
         Ok(types)
-    }
-
-    /// Eat a class extends expression (without the leading keyword).
-    fn eat_super_expression(
-        &mut self,
-        terminators: &[Keyword],
-    ) -> ParseResult<LocalNodeId<Expression>> {
-        // remember if the heritage head starts with an explicit parenthesis
-        let starts_with_parenthesis = self.peek_is(TokenType::OpenParenthesis);
-
-        // parse the extends expression
-        let type_start = self.mark();
-        let expression = self.with_options(self.options.in_before_block(), |parser| {
-            parser.eat_expression()
-        })?;
-        let (expression, is_parenthesized) = self.unwrap_parenthesized_super_expression(expression);
-        let is_parenthesized = starts_with_parenthesis || is_parenthesized;
-
-        // class heritage requires a parenthesized expression when head operators are used
-        if !is_parenthesized && self.super_type_has_invalid_unparenthesized_head(expression) {
-            return Err(ParseError::unexpected(self.tree.get_span(expression)));
-        }
-
-        // class heritage allows exactly one target
-        if self.peek_is(TokenType::Comma) {
-            return Err(ParseError::unexpected(self.peek()?.span));
-        }
-
-        // preserve type span tracking for heritage expressions
-        self.tree.set_side_span(
-            expression,
-            NodeSpanType::Type,
-            self.get_span_from(&type_start),
-        );
-
-        // next token should be a normal heritage terminator
-        let mut has_valid_terminator =
-            self.peek_is(TokenType::End) || self.is_super_type_clause_terminator(terminators);
-
-        // allow trailing newlines before normal heritage terminators
-        if !has_valid_terminator && self.peek_is(TokenType::Newline) {
-            let mark = self.mark();
-            self.eat_newlines_maybe()?;
-            has_valid_terminator =
-                self.peek_is(TokenType::End) || self.is_super_type_clause_terminator(terminators);
-            self.rewind(mark);
-        }
-
-        if !has_valid_terminator {
-            return Err(ParseError::unexpected(self.peek()?.span));
-        }
-
-        Ok(expression)
     }
 
     /// Return true when a class heritage expression starts with an invalid unparenthesized head.

@@ -886,6 +886,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Try {
                 try_expression: _,
                 catch_pattern: _,
+                catch_ty: _,
                 catch_expression: _,
                 finally_expression: _,
             } => {

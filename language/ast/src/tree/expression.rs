@@ -289,6 +289,7 @@ pub enum Expression {
     Try {
         try_expression: LocalNodeId<Expression>,
         catch_pattern: Option<LocalNodeId<Pattern>>,
+        catch_ty: Option<LocalNodeId<Expression>>,
         catch_expression: Option<LocalNodeId<Expression>>,
         finally_expression: Option<LocalNodeId<Expression>>,
     },
@@ -916,6 +917,7 @@ impl Expression {
                 try_expression: _,
                 catch_expression,
                 catch_pattern,
+                catch_ty: _,
                 finally_expression,
             } => {
                 catch_expression.is_some()

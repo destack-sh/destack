@@ -380,6 +380,7 @@ pub enum Expression {
     Try {
         try_expression: LocalNodeId<Expression>,
         catch_pattern: Option<LocalNodeId<Pattern>>,
+        catch_ty: Option<LocalNodeId<Expression>>,
         catch_expression: Option<LocalNodeId<Expression>>,
         finally_expression: Option<LocalNodeId<Expression>>,
         scope: LocalScopeId,

@@ -2717,6 +2717,7 @@ impl Compiler {
             Expression::Try {
                 try_expression,
                 catch_pattern,
+                catch_ty,
                 catch_expression,
                 finally_expression,
                 scope: _,
@@ -2754,21 +2755,42 @@ impl Compiler {
                 // infer the catch pattern and expression
                 let mut catch_ty_id = None;
                 if let Some(catch_expr) = catch_expression {
+                    let catch_binding_ty_id = if let Some(catch_ty) = catch_ty {
+                        Some(self.resolve_type_expression(
+                            module,
+                            ctx.profile,
+                            *catch_ty,
+                            tree,
+                            symbols,
+                            types,
+                            infer,
+                            ctx,
+                        )?)
+                    } else {
+                        None
+                    };
+
                     if let Some(catch_pat) = catch_pattern {
                         // infer the catch error type from try branches
-                        let catch_error_type_id = if try_error_types.is_empty() {
-                            let value = if ctx.options.use_unknown_in_catch_variables {
-                                TypeLiteral::Unknown
-                            } else {
-                                TypeLiteral::Any
-                            };
-                            types.insert_type_from_any(
-                                Type::TypeLiteral { value },
-                                expression_id.into_any(),
-                            )
+                        let catch_error_type_id = if let Some(catch_binding_ty_id) =
+                            catch_binding_ty_id
+                        {
+                            catch_binding_ty_id
                         } else {
-                            let source_type_id = try_error_types[0];
-                            self.union_type_from_list(try_error_types, source_type_id, types)
+                            if try_error_types.is_empty() {
+                                let value = if ctx.options.use_unknown_in_catch_variables {
+                                    TypeLiteral::Unknown
+                                } else {
+                                    TypeLiteral::Any
+                                };
+                                types.insert_type_from_any(
+                                    Type::TypeLiteral { value },
+                                    expression_id.into_any(),
+                                )
+                            } else {
+                                let source_type_id = try_error_types[0];
+                                self.union_type_from_list(try_error_types, source_type_id, types)
+                            }
                         };
 
                         // bind the catch pattern to the error type
