@@ -6,9 +6,9 @@ use destack_base::fnv1a_128;
 /// Replay behavior for external bindings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ReplayPolicy {
-    /// Record the call for replay and return replayed values in replay mode.
+    /// Record the call for replay and return replayed values in replay execution.
     Recordable,
-    /// Reject the call in deterministic or replay modes.
+    /// Reject the call in deterministic or replay execution modes.
     NonRecordable,
 }
 

@@ -1300,9 +1300,9 @@ fn destack_ipc_message_queue_close_replay(
         || unsafe { platform_native::destack_ipc_message_queue_close(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IpcMessageQueueCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1360,9 +1360,9 @@ fn destack_ipc_message_queue_open_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = IpcMessageQueueOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1418,14 +1418,14 @@ fn destack_ipc_message_queue_receive_replay(
                     }
                     *out
                 };
-                let result_replay_bytes = result_value.bytes;
-                let result_replay_priority = result_value.priority;
-                let result_replay = MessageQueueReceive {
-                    bytes: result_replay_bytes,
-                    priority: result_replay_priority,
+                let result_recorded_bytes = result_value.bytes;
+                let result_recorded_priority = result_value.priority;
+                let result_recorded = MessageQueueReceive {
+                    bytes: result_recorded_bytes,
+                    priority: result_recorded_priority,
                 };
                 let payload = IpcMessageQueueReceiveReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1480,9 +1480,9 @@ fn destack_ipc_message_queue_send_replay(
         },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IpcMessageQueueSendReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1519,9 +1519,9 @@ fn destack_ipc_message_queue_unlink_replay(
         || unsafe { platform_native::destack_ipc_message_queue_unlink(context, name) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IpcMessageQueueUnlinkReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1558,9 +1558,9 @@ fn destack_ipc_pipe_close_replay(
         || unsafe { platform_native::destack_ipc_pipe_close(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IpcPipeCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1604,14 +1604,14 @@ fn destack_ipc_pipe_open_replay(
                     }
                     *out
                 };
-                let result_replay_read = result_value.read;
-                let result_replay_write = result_value.write;
-                let result_replay = PipePair {
-                    read: result_replay_read,
-                    write: result_replay_write,
+                let result_recorded_read = result_value.read;
+                let result_recorded_write = result_value.write;
+                let result_recorded = PipePair {
+                    read: result_recorded_read,
+                    write: result_recorded_write,
                 };
                 let payload = IpcPipeOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1667,9 +1667,9 @@ fn destack_ipc_pipe_read_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = IpcPipeReadReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1720,9 +1720,9 @@ fn destack_ipc_pipe_write_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = IpcPipeWriteReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1765,9 +1765,9 @@ fn destack_ipc_shared_memory_close_replay(
         || unsafe { platform_native::destack_ipc_shared_memory_close(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IpcSharedMemoryCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1815,9 +1815,9 @@ fn destack_ipc_shared_memory_create_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = IpcSharedMemoryCreateReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1874,14 +1874,14 @@ fn destack_ipc_shared_memory_map_replay(
                     }
                     *out
                 };
-                let result_replay_address = result_value.address;
-                let result_replay_length = result_value.length;
-                let result_replay = SharedMemoryMapping {
-                    address: result_replay_address,
-                    length: result_replay_length,
+                let result_recorded_address = result_value.address;
+                let result_recorded_length = result_value.length;
+                let result_recorded = SharedMemoryMapping {
+                    address: result_recorded_address,
+                    length: result_recorded_length,
                 };
                 let payload = IpcSharedMemoryMapReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1937,9 +1937,9 @@ fn destack_ipc_shared_memory_open_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = IpcSharedMemoryOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1983,9 +1983,9 @@ fn destack_ipc_shared_memory_unmap_replay(
         || unsafe { platform_native::destack_ipc_shared_memory_unmap(context, address, length) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IpcSharedMemoryUnmapReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2033,9 +2033,9 @@ fn destack_ipc_sync_futex_wait_replay(
         },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IpcSyncFutexWaitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2083,9 +2083,9 @@ fn destack_ipc_sync_futex_wake_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = IpcSyncFutexWakeReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2139,9 +2139,9 @@ fn destack_ipc_sync_semaphore_create_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = IpcSyncSemaphoreCreateReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2185,9 +2185,9 @@ fn destack_ipc_sync_semaphore_post_replay(
         || unsafe { platform_native::destack_ipc_semaphore_post(context, handle, count) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IpcSyncSemaphorePostReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2225,9 +2225,9 @@ fn destack_ipc_sync_semaphore_wait_replay(
         || unsafe { platform_native::destack_ipc_semaphore_wait(context, handle, timeoutns) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IpcSyncSemaphoreWaitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2272,29 +2272,30 @@ fn destack_ipc_unix_receive_replay(
                     }
                     *out
                 };
-                let result_replay_bytes = result_value.bytes;
-                let result_replay_handles_raw = unsafe { result_value.handles.as_slice()? };
-                let mut result_replay_handles = Vec::with_capacity(result_replay_handles_raw.len());
-                for result_replay_handles_item_value in result_replay_handles_raw {
-                    let result_replay_handles_item = *result_replay_handles_item_value;
-                    let result_replay_handles_item_replay = result_replay_handles_item;
-                    result_replay_handles.push(result_replay_handles_item_replay);
+                let result_recorded_bytes = result_value.bytes;
+                let result_recorded_handles_raw = unsafe { result_value.handles.as_slice()? };
+                let mut result_recorded_handles =
+                    Vec::with_capacity(result_recorded_handles_raw.len());
+                for result_recorded_handles_item_value in result_recorded_handles_raw {
+                    let result_recorded_handles_item = *result_recorded_handles_item_value;
+                    let result_recorded_handles_item_recorded = result_recorded_handles_item;
+                    result_recorded_handles.push(result_recorded_handles_item_recorded);
                 }
-                let result_replay_credentials_pid = result_value.credentials.pid;
-                let result_replay_credentials_uid = result_value.credentials.uid;
-                let result_replay_credentials_gid = result_value.credentials.gid;
-                let result_replay_credentials = UnixPeerCredentials {
-                    pid: result_replay_credentials_pid,
-                    uid: result_replay_credentials_uid,
-                    gid: result_replay_credentials_gid,
+                let result_recorded_credentials_pid = result_value.credentials.pid;
+                let result_recorded_credentials_uid = result_value.credentials.uid;
+                let result_recorded_credentials_gid = result_value.credentials.gid;
+                let result_recorded_credentials = UnixPeerCredentials {
+                    pid: result_recorded_credentials_pid,
+                    uid: result_recorded_credentials_uid,
+                    gid: result_recorded_credentials_gid,
                 };
-                let result_replay = UnixReceiveAncillaryReplay {
-                    bytes: result_replay_bytes,
-                    handles: result_replay_handles,
-                    credentials: result_replay_credentials,
+                let result_recorded = UnixReceiveAncillaryReplay {
+                    bytes: result_recorded_bytes,
+                    handles: result_recorded_handles,
+                    credentials: result_recorded_credentials,
                 };
                 let payload = IpcUnixReceiveReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2367,9 +2368,9 @@ fn destack_ipc_unix_send_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = IpcUnixSendReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2746,9 +2747,9 @@ fn destack_ipc_message_queue_close_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IpcMessageQueueCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2804,9 +2805,9 @@ fn destack_ipc_message_queue_open_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = IpcMessageQueueOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2857,14 +2858,14 @@ fn destack_ipc_message_queue_receive_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_bytes = result_value.bytes;
-                let result_replay_priority = result_value.priority;
-                let result_replay = MessageQueueReceive {
-                    bytes: result_replay_bytes,
-                    priority: result_replay_priority,
+                let result_recorded_bytes = result_value.bytes;
+                let result_recorded_priority = result_value.priority;
+                let result_recorded = MessageQueueReceive {
+                    bytes: result_recorded_bytes,
+                    priority: result_recorded_priority,
                 };
                 let payload = IpcMessageQueueReceiveReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2920,9 +2921,9 @@ fn destack_ipc_message_queue_send_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IpcMessageQueueSendReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2963,9 +2964,9 @@ fn destack_ipc_message_queue_unlink_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IpcMessageQueueUnlinkReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3006,9 +3007,9 @@ fn destack_ipc_pipe_close_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IpcPipeCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3050,14 +3051,14 @@ fn destack_ipc_pipe_open_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_read = result_value.read;
-                let result_replay_write = result_value.write;
-                let result_replay = PipePair {
-                    read: result_replay_read,
-                    write: result_replay_write,
+                let result_recorded_read = result_value.read;
+                let result_recorded_write = result_value.write;
+                let result_recorded = PipePair {
+                    read: result_recorded_read,
+                    write: result_recorded_write,
                 };
                 let payload = IpcPipeOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3108,9 +3109,9 @@ fn destack_ipc_pipe_read_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = IpcPipeReadReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3156,9 +3157,9 @@ fn destack_ipc_pipe_write_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = IpcPipeWriteReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3202,9 +3203,9 @@ fn destack_ipc_shared_memory_close_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IpcSharedMemoryCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3250,9 +3251,9 @@ fn destack_ipc_shared_memory_create_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = IpcSharedMemoryCreateReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3304,14 +3305,14 @@ fn destack_ipc_shared_memory_map_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_address = result_value.address;
-                let result_replay_length = result_value.length;
-                let result_replay = SharedMemoryMapping {
-                    address: result_replay_address,
-                    length: result_replay_length,
+                let result_recorded_address = result_value.address;
+                let result_recorded_length = result_value.length;
+                let result_recorded = SharedMemoryMapping {
+                    address: result_recorded_address,
+                    length: result_recorded_length,
                 };
                 let payload = IpcSharedMemoryMapReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3362,9 +3363,9 @@ fn destack_ipc_shared_memory_open_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = IpcSharedMemoryOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3409,9 +3410,9 @@ fn destack_ipc_shared_memory_unmap_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IpcSharedMemoryUnmapReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3464,9 +3465,9 @@ fn destack_ipc_sync_futex_wait_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IpcSyncFutexWaitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3512,9 +3513,9 @@ fn destack_ipc_sync_futex_wake_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = IpcSyncFutexWakeReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3561,9 +3562,9 @@ fn destack_ipc_sync_semaphore_create_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = IpcSyncSemaphoreCreateReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3608,9 +3609,9 @@ fn destack_ipc_sync_semaphore_post_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IpcSyncSemaphorePostReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3652,9 +3653,9 @@ fn destack_ipc_sync_semaphore_wait_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IpcSyncSemaphoreWaitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3697,37 +3698,38 @@ fn destack_ipc_unix_receive_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_bytes = result_value.bytes;
-                let result_replay_handles_raw = result_value.handles.raw_values(context)?;
-                let mut result_replay_handles = Vec::with_capacity(result_replay_handles_raw.len());
-                for result_replay_handles_item_value in result_replay_handles_raw {
-                    let result_replay_handles_item_inner_inner = decode_uint64(
-                        result_replay_handles_item_value,
-                        "result_replay_handles_item_inner_inner",
+                let result_recorded_bytes = result_value.bytes;
+                let result_recorded_handles_raw = result_value.handles.raw_values(context)?;
+                let mut result_recorded_handles =
+                    Vec::with_capacity(result_recorded_handles_raw.len());
+                for result_recorded_handles_item_value in result_recorded_handles_raw {
+                    let result_recorded_handles_item_inner_inner = decode_uint64(
+                        result_recorded_handles_item_value,
+                        "result_recorded_handles_item_inner_inner",
                         "item",
                     )?;
-                    let result_replay_handles_item_inner =
-                        resource::ResourceId(result_replay_handles_item_inner_inner);
-                    let result_replay_handles_item =
-                        resource::TransferredHandle(result_replay_handles_item_inner);
-                    let result_replay_handles_item_replay = result_replay_handles_item;
-                    result_replay_handles.push(result_replay_handles_item_replay);
+                    let result_recorded_handles_item_inner =
+                        resource::ResourceId(result_recorded_handles_item_inner_inner);
+                    let result_recorded_handles_item =
+                        resource::TransferredHandle(result_recorded_handles_item_inner);
+                    let result_recorded_handles_item_recorded = result_recorded_handles_item;
+                    result_recorded_handles.push(result_recorded_handles_item_recorded);
                 }
-                let result_replay_credentials_pid = result_value.credentials.pid;
-                let result_replay_credentials_uid = result_value.credentials.uid;
-                let result_replay_credentials_gid = result_value.credentials.gid;
-                let result_replay_credentials = UnixPeerCredentials {
-                    pid: result_replay_credentials_pid,
-                    uid: result_replay_credentials_uid,
-                    gid: result_replay_credentials_gid,
+                let result_recorded_credentials_pid = result_value.credentials.pid;
+                let result_recorded_credentials_uid = result_value.credentials.uid;
+                let result_recorded_credentials_gid = result_value.credentials.gid;
+                let result_recorded_credentials = UnixPeerCredentials {
+                    pid: result_recorded_credentials_pid,
+                    uid: result_recorded_credentials_uid,
+                    gid: result_recorded_credentials_gid,
                 };
-                let result_replay = UnixReceiveAncillaryReplay {
-                    bytes: result_replay_bytes,
-                    handles: result_replay_handles,
-                    credentials: result_replay_credentials,
+                let result_recorded = UnixReceiveAncillaryReplay {
+                    bytes: result_recorded_bytes,
+                    handles: result_recorded_handles,
+                    credentials: result_recorded_credentials,
                 };
                 let payload = IpcUnixReceiveReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3795,9 +3797,9 @@ fn destack_ipc_unix_send_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = IpcUnixSendReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }

@@ -169,11 +169,11 @@ impl<'a> DomainWriter<'a> {
                 output.push_str("                // replay args\n");
                 for (index, param) in entry.parameters.iter().enumerate() {
                     let name = sanitize_param_name(&param.name, index);
-                    let replay_name = format!("{name}_replay");
+                    let recorded_name = format!("{name}_recorded");
                     for line in render_native_replay_encode_lines(
                         domain,
                         &param.binding_type,
-                        &replay_name,
+                        &recorded_name,
                         &name,
                     ) {
                         output.push_str(&format!("                {line}\n"));
@@ -182,8 +182,8 @@ impl<'a> DomainWriter<'a> {
                 output.push_str(&format!("                Some({replay_args_struct} {{\n"));
                 for (index, param) in entry.parameters.iter().enumerate() {
                     let name = sanitize_param_name(&param.name, index);
-                    let replay_name = format!("{name}_replay");
-                    output.push_str(&format!("                    {name}: {replay_name},\n"));
+                    let recorded_name = format!("{name}_recorded");
+                    output.push_str(&format!("                    {name}: {recorded_name},\n"));
                 }
                 output.push_str("                })\n");
                 output.push_str("            } else {\n");
@@ -204,13 +204,13 @@ impl<'a> DomainWriter<'a> {
                 for line in render_native_replay_encode_lines(
                     domain,
                     &entry.return_binding,
-                    "result_replay",
+                    "result_recorded",
                     "result_value",
                 ) {
                     output.push_str(&format!("                {line}\n"));
                 }
             } else {
-                output.push_str("                let result_replay = ();\n");
+                output.push_str("                let result_recorded = ();\n");
             }
             output.push_str(&format!(
                 "                let payload = {replay_struct} {{\n"
@@ -219,9 +219,9 @@ impl<'a> DomainWriter<'a> {
                 output.push_str("                    args,\n");
             }
             if entry.return_is_result {
-                output.push_str("                    result: Ok(result_replay),\n");
+                output.push_str("                    result: Ok(result_recorded),\n");
             } else {
-                output.push_str("                    result: result_replay,\n");
+                output.push_str("                    result: result_recorded,\n");
             }
             output.push_str("                };\n");
             output.push_str("                return Ok(Some(payload));\n");
@@ -253,11 +253,11 @@ impl<'a> DomainWriter<'a> {
                 output.push_str("                // replay arg verification\n");
                 for (index, param) in entry.parameters.iter().enumerate() {
                     let name = sanitize_param_name(&param.name, index);
-                    let replay_name = format!("{name}_replay");
+                    let recorded_name = format!("{name}_recorded");
                     for line in render_native_replay_encode_lines(
                         domain,
                         &param.binding_type,
-                        &replay_name,
+                        &recorded_name,
                         &name,
                     ) {
                         output.push_str(&format!("                {line}\n"));
@@ -266,12 +266,12 @@ impl<'a> DomainWriter<'a> {
                 let mut compare_counter = 0usize;
                 for (index, param) in entry.parameters.iter().enumerate() {
                     let name = sanitize_param_name(&param.name, index);
-                    let replay_name = format!("{name}_replay");
+                    let recorded_name = format!("{name}_recorded");
                     output.push_str(&format!(
                         "                let {name}_payload = &args.{name};\n"
                     ));
                     output.push_str(&format!(
-                        "                let {name}_current = &{replay_name};\n"
+                        "                let {name}_current = &{recorded_name};\n"
                     ));
                     let mismatch_stmt = format!(
                         "return Err(RuntimeError::ReplayMismatch {{ name: {}.name.to_string() }}.boxed());",
@@ -441,18 +441,21 @@ impl<'a> DomainWriter<'a> {
                 output.push_str("                // replay args\n");
                 for (index, param) in entry.parameters.iter().enumerate() {
                     let name = sanitize_param_name(&param.name, index);
-                    let replay_name = format!("{name}_replay");
-                    for line in
-                        render_replay_encode_lines(domain, &param.binding_type, &replay_name, &name)
-                    {
+                    let recorded_name = format!("{name}_recorded");
+                    for line in render_replay_encode_lines(
+                        domain,
+                        &param.binding_type,
+                        &recorded_name,
+                        &name,
+                    ) {
                         output.push_str(&format!("                {line}\n"));
                     }
                 }
                 output.push_str(&format!("                Some({replay_args_struct} {{\n"));
                 for (index, param) in entry.parameters.iter().enumerate() {
                     let name = sanitize_param_name(&param.name, index);
-                    let replay_name = format!("{name}_replay");
-                    output.push_str(&format!("                    {name}: {replay_name},\n"));
+                    let recorded_name = format!("{name}_recorded");
+                    output.push_str(&format!("                    {name}: {recorded_name},\n"));
                 }
                 output.push_str("                })\n");
                 output.push_str("            } else {\n");
@@ -462,7 +465,7 @@ impl<'a> DomainWriter<'a> {
 
             if matches!(entry.return_binding, BindingType::Void) {
                 output.push_str("            if let Ok(()) = result {\n");
-                output.push_str("                let result_replay = ();\n");
+                output.push_str("                let result_recorded = ();\n");
             } else {
                 output.push_str("            if let Ok(value) = result {\n");
                 if binding_type_is_copy_for_handle(&entry.return_binding) {
@@ -473,7 +476,7 @@ impl<'a> DomainWriter<'a> {
                 for line in render_replay_encode_lines(
                     domain,
                     &entry.return_binding,
-                    "result_replay",
+                    "result_recorded",
                     "result_value",
                 ) {
                     output.push_str(&format!("                {line}\n"));
@@ -486,9 +489,9 @@ impl<'a> DomainWriter<'a> {
                 output.push_str("                    args,\n");
             }
             if entry.return_is_result {
-                output.push_str("                    result: Ok(result_replay),\n");
+                output.push_str("                    result: Ok(result_recorded),\n");
             } else {
-                output.push_str("                    result: result_replay,\n");
+                output.push_str("                    result: result_recorded,\n");
             }
             output.push_str("                };\n");
             output.push_str("                return Ok(Some(payload));\n");
@@ -520,22 +523,25 @@ impl<'a> DomainWriter<'a> {
                 output.push_str("                // replay arg verification\n");
                 for (index, param) in entry.parameters.iter().enumerate() {
                     let name = sanitize_param_name(&param.name, index);
-                    let replay_name = format!("{name}_replay");
-                    for line in
-                        render_replay_encode_lines(domain, &param.binding_type, &replay_name, &name)
-                    {
+                    let recorded_name = format!("{name}_recorded");
+                    for line in render_replay_encode_lines(
+                        domain,
+                        &param.binding_type,
+                        &recorded_name,
+                        &name,
+                    ) {
                         output.push_str(&format!("                {line}\n"));
                     }
                 }
                 let mut compare_counter = 0usize;
                 for (index, param) in entry.parameters.iter().enumerate() {
                     let name = sanitize_param_name(&param.name, index);
-                    let replay_name = format!("{name}_replay");
+                    let recorded_name = format!("{name}_recorded");
                     output.push_str(&format!(
                         "                let {name}_payload = &args.{name};\n"
                     ));
                     output.push_str(&format!(
-                        "                let {name}_current = &{replay_name};\n"
+                        "                let {name}_current = &{recorded_name};\n"
                     ));
                     let mismatch_stmt = format!(
                         "return Err(RuntimeError::ReplayMismatch {{ name: {}.name.to_string() }}.boxed());",

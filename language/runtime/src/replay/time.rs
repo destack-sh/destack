@@ -5,7 +5,7 @@ use crate::replay::{ReplayController, ReplayEvent, TimeEvent, TimeEventKind};
 impl ReplayController {
     /// Read the next time event for replay.
     pub fn next_time_event(&self, expected: TimeEventKind) -> RuntimeResult<TimeEvent> {
-        // reject reads outside replay mode
+        // reject reads outside replay execution
         if self.mode() != ExecutionMode::Replay {
             return Err(RuntimeError::ReplayMismatch {
                 name: "time".to_string(),

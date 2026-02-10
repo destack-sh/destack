@@ -592,9 +592,9 @@ fn destack_tty_io_read_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = TtyIoReadReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -645,9 +645,9 @@ fn destack_tty_io_write_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = TtyIoWriteReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -697,18 +697,18 @@ fn destack_tty_mode_get_mode_replay(
                     }
                     *out
                 };
-                let result_replay_input_flags = result_value.input_flags;
-                let result_replay_output_flags = result_value.output_flags;
-                let result_replay_control_flags = result_value.control_flags;
-                let result_replay_local_flags = result_value.local_flags;
-                let result_replay = TtyMode {
-                    input_flags: result_replay_input_flags,
-                    output_flags: result_replay_output_flags,
-                    control_flags: result_replay_control_flags,
-                    local_flags: result_replay_local_flags,
+                let result_recorded_input_flags = result_value.input_flags;
+                let result_recorded_output_flags = result_value.output_flags;
+                let result_recorded_control_flags = result_value.control_flags;
+                let result_recorded_local_flags = result_value.local_flags;
+                let result_recorded = TtyMode {
+                    input_flags: result_recorded_input_flags,
+                    output_flags: result_recorded_output_flags,
+                    control_flags: result_recorded_control_flags,
+                    local_flags: result_recorded_local_flags,
                 };
                 let payload = TtyModeGetModeReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -761,9 +761,9 @@ fn destack_tty_mode_set_mode_replay(
         || unsafe { platform_native::destack_tty_set_mode(context, handle, mode) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = TtyModeSetModeReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -800,9 +800,9 @@ fn destack_tty_pty_close_replay(
         || unsafe { platform_native::destack_tty_pty_close(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = TtyPtyCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -848,14 +848,14 @@ fn destack_tty_pty_open_replay(
                     }
                     *out
                 };
-                let result_replay_controller = result_value.controller;
-                let result_replay_worker = result_value.worker;
-                let result_replay = PtyPair {
-                    controller: result_replay_controller,
-                    worker: result_replay_worker,
+                let result_recorded_controller = result_value.controller;
+                let result_recorded_worker = result_value.worker;
+                let result_recorded = PtyPair {
+                    controller: result_recorded_controller,
+                    worker: result_recorded_worker,
                 };
                 let payload = TtyPtyOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -910,18 +910,18 @@ fn destack_tty_size_get_size_replay(
                     }
                     *out
                 };
-                let result_replay_rows = result_value.rows;
-                let result_replay_columns = result_value.columns;
-                let result_replay_x_pixels = result_value.x_pixels;
-                let result_replay_y_pixels = result_value.y_pixels;
-                let result_replay = TtySize {
-                    rows: result_replay_rows,
-                    columns: result_replay_columns,
-                    x_pixels: result_replay_x_pixels,
-                    y_pixels: result_replay_y_pixels,
+                let result_recorded_rows = result_value.rows;
+                let result_recorded_columns = result_value.columns;
+                let result_recorded_x_pixels = result_value.x_pixels;
+                let result_recorded_y_pixels = result_value.y_pixels;
+                let result_recorded = TtySize {
+                    rows: result_recorded_rows,
+                    columns: result_recorded_columns,
+                    x_pixels: result_recorded_x_pixels,
+                    y_pixels: result_recorded_y_pixels,
                 };
                 let payload = TtySizeGetSizeReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -974,9 +974,9 @@ fn destack_tty_size_set_size_replay(
         || unsafe { platform_native::destack_tty_set_size(context, handle, size) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = TtySizeSetSizeReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1138,9 +1138,9 @@ fn destack_tty_io_read_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = TtyIoReadReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1186,9 +1186,9 @@ fn destack_tty_io_write_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = TtyIoWriteReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1233,18 +1233,18 @@ fn destack_tty_mode_get_mode_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_input_flags = result_value.input_flags;
-                let result_replay_output_flags = result_value.output_flags;
-                let result_replay_control_flags = result_value.control_flags;
-                let result_replay_local_flags = result_value.local_flags;
-                let result_replay = TtyMode {
-                    input_flags: result_replay_input_flags,
-                    output_flags: result_replay_output_flags,
-                    control_flags: result_replay_control_flags,
-                    local_flags: result_replay_local_flags,
+                let result_recorded_input_flags = result_value.input_flags;
+                let result_recorded_output_flags = result_value.output_flags;
+                let result_recorded_control_flags = result_value.control_flags;
+                let result_recorded_local_flags = result_value.local_flags;
+                let result_recorded = TtyMode {
+                    input_flags: result_recorded_input_flags,
+                    output_flags: result_recorded_output_flags,
+                    control_flags: result_recorded_control_flags,
+                    local_flags: result_recorded_local_flags,
                 };
                 let payload = TtyModeGetModeReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1298,9 +1298,9 @@ fn destack_tty_mode_set_mode_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = TtyModeSetModeReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1341,9 +1341,9 @@ fn destack_tty_pty_close_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = TtyPtyCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1387,14 +1387,14 @@ fn destack_tty_pty_open_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_controller = result_value.controller;
-                let result_replay_worker = result_value.worker;
-                let result_replay = PtyPair {
-                    controller: result_replay_controller,
-                    worker: result_replay_worker,
+                let result_recorded_controller = result_value.controller;
+                let result_recorded_worker = result_value.worker;
+                let result_recorded = PtyPair {
+                    controller: result_recorded_controller,
+                    worker: result_recorded_worker,
                 };
                 let payload = TtyPtyOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1444,18 +1444,18 @@ fn destack_tty_size_get_size_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_rows = result_value.rows;
-                let result_replay_columns = result_value.columns;
-                let result_replay_x_pixels = result_value.x_pixels;
-                let result_replay_y_pixels = result_value.y_pixels;
-                let result_replay = TtySize {
-                    rows: result_replay_rows,
-                    columns: result_replay_columns,
-                    x_pixels: result_replay_x_pixels,
-                    y_pixels: result_replay_y_pixels,
+                let result_recorded_rows = result_value.rows;
+                let result_recorded_columns = result_value.columns;
+                let result_recorded_x_pixels = result_value.x_pixels;
+                let result_recorded_y_pixels = result_value.y_pixels;
+                let result_recorded = TtySize {
+                    rows: result_recorded_rows,
+                    columns: result_recorded_columns,
+                    x_pixels: result_recorded_x_pixels,
+                    y_pixels: result_recorded_y_pixels,
                 };
                 let payload = TtySizeGetSizeReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1509,9 +1509,9 @@ fn destack_tty_size_set_size_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = TtySizeSetSizeReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }

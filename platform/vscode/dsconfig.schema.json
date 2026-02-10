@@ -53,8 +53,10 @@
       "description": "Runtime options.",
       "$ref": "#/$defs/DsConfigRuntimeOptionsJson",
       "default": {
-        "executionMode": null,
-        "capabilities": null,
+        "execution": null,
+        "world": null,
+        "access": null,
+        "rules": null,
         "replayLog": null,
         "time": null,
         "random": null,
@@ -811,7 +813,7 @@
       "description": "Runtime options (top-level).",
       "type": "object",
       "properties": {
-        "executionMode": {
+        "execution": {
           "description": "Execution mode for runtime scheduling and replay.",
           "anyOf": [
             {
@@ -822,14 +824,36 @@
             }
           ]
         },
-        "capabilities": {
-          "description": "Exact capabilities granted to platform bindings.",
+        "world": {
+          "description": "Default world for bindings without matching world rules.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeWorldJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "access": {
+          "description": "Default access policy for bindings without matching access rules.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeAccessJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rules": {
+          "description": "Ordered world, access, and fault rules.",
           "type": [
             "array",
             "null"
           ],
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/RuntimeRuleJson"
           }
         },
         "replayLog": {
@@ -922,6 +946,499 @@
           "description": "Replay external effects from the log.",
           "type": "string",
           "const": "replay"
+        }
+      ]
+    },
+    "RuntimeWorldJson": {
+      "description": "Runtime world selection for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Use host-backed platform bindings.",
+          "type": "string",
+          "const": "host"
+        },
+        {
+          "description": "Use simulated platform bindings.",
+          "type": "string",
+          "const": "simulated"
+        }
+      ]
+    },
+    "RuntimeAccessJson": {
+      "description": "Runtime default access policy for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Allow matching binding calls.",
+          "type": "string",
+          "const": "allow"
+        },
+        {
+          "description": "Deny matching binding calls.",
+          "type": "string",
+          "const": "deny"
+        }
+      ]
+    },
+    "RuntimeRuleJson": {
+      "description": "Runtime rule for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "Optional stable rule identifier.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "when": {
+          "description": "Rule filter clause.",
+          "$ref": "#/$defs/RuntimeRuleFilterJson"
+        },
+        "world": {
+          "description": "World action for this rule.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeWorldJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "access": {
+          "description": "Access action for this rule.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeAccessJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fault": {
+          "description": "Fault action for this rule.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeFaultJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "when"
+      ]
+    },
+    "RuntimeRuleFilterJson": {
+      "description": "Runtime rule filter clause for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "binding": {
+          "description": "Glob selector for full binding names.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "capability": {
+          "description": "Glob selector for capability names.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "module": {
+          "description": "Glob selector for module names.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "engine": {
+          "description": "Engine selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeRuleEngineJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "execution": {
+          "description": "Execution mode selector.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/ExecutionModeJson"
+          }
+        },
+        "platforms": {
+          "description": "Platform selector.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "scope": {
+          "description": "Binding scope selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeRuleScopeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "blocking": {
+          "description": "Binding blocking selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeRuleBlockingJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "effect": {
+          "description": "Binding effect selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeRuleEffectJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "RuntimeRuleEngineJson": {
+      "description": "Runtime rule engine selector for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Match VM engine execution.",
+          "type": "string",
+          "const": "vm"
+        },
+        {
+          "description": "Match native engine execution.",
+          "type": "string",
+          "const": "native"
+        }
+      ]
+    },
+    "RuntimeRuleScopeJson": {
+      "description": "Runtime rule scope selector for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Match OS scope bindings.",
+          "type": "string",
+          "const": "os"
+        },
+        {
+          "description": "Match runtime scope bindings.",
+          "type": "string",
+          "const": "runtime"
+        },
+        {
+          "description": "Match hybrid scope bindings.",
+          "type": "string",
+          "const": "hybrid"
+        }
+      ]
+    },
+    "RuntimeRuleBlockingJson": {
+      "description": "Runtime rule blocking selector for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Match always-blocking bindings.",
+          "type": "string",
+          "const": "always"
+        },
+        {
+          "description": "Match never-blocking bindings.",
+          "type": "string",
+          "const": "never"
+        },
+        {
+          "description": "Match conditionally blocking bindings.",
+          "type": "string",
+          "const": "sometimes"
+        }
+      ]
+    },
+    "RuntimeRuleEffectJson": {
+      "description": "Runtime rule effect selector for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Match pure bindings.",
+          "type": "string",
+          "const": "pure"
+        },
+        {
+          "description": "Match deterministic bindings.",
+          "type": "string",
+          "const": "deterministic"
+        },
+        {
+          "description": "Match recordable external bindings.",
+          "type": "string",
+          "const": "externalrecordable"
+        },
+        {
+          "description": "Match non-recordable external bindings.",
+          "type": "string",
+          "const": "externalnonrecordable"
+        }
+      ]
+    },
+    "RuntimeFaultJson": {
+      "description": "Runtime fault payload for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Inject a binding error.",
+          "type": "object",
+          "properties": {
+            "code": {
+              "description": "Error code name for error injection.",
+              "type": "string"
+            },
+            "probability_ppm": {
+              "description": "Probability in parts-per-million.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0
+            },
+            "kind": {
+              "type": "string",
+              "const": "error"
+            }
+          },
+          "required": [
+            "kind",
+            "code"
+          ]
+        },
+        {
+          "description": "Inject base delay and optional jitter before returning.",
+          "type": "object",
+          "properties": {
+            "base_ns": {
+              "description": "Base delay in nanoseconds.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "jitter_ns": {
+              "description": "Jitter range in nanoseconds.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0
+            },
+            "distribution": {
+              "description": "Jitter distribution selector.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RuntimeFaultDistributionJson"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "probability_ppm": {
+              "description": "Probability in parts-per-million.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0
+            },
+            "kind": {
+              "type": "string",
+              "const": "delay"
+            }
+          },
+          "required": [
+            "kind",
+            "base_ns"
+          ]
+        },
+        {
+          "description": "Drop the call result.",
+          "type": "object",
+          "properties": {
+            "probability_ppm": {
+              "description": "Probability in parts-per-million.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0
+            },
+            "kind": {
+              "type": "string",
+              "const": "drop"
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "description": "Duplicate delivery of a result.",
+          "type": "object",
+          "properties": {
+            "copies": {
+              "description": "Number of result copies to emit.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "probability_ppm": {
+              "description": "Probability in parts-per-million.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0
+            },
+            "kind": {
+              "type": "string",
+              "const": "duplicate"
+            }
+          },
+          "required": [
+            "kind",
+            "copies"
+          ]
+        },
+        {
+          "description": "Reorder result delivery within a bounded window.",
+          "type": "object",
+          "properties": {
+            "window": {
+              "description": "Reorder window size.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "probability_ppm": {
+              "description": "Probability in parts-per-million.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0
+            },
+            "kind": {
+              "type": "string",
+              "const": "reorder"
+            }
+          },
+          "required": [
+            "kind",
+            "window"
+          ]
+        },
+        {
+          "description": "Force timeout behavior for the call.",
+          "type": "object",
+          "properties": {
+            "timeout_ns": {
+              "description": "Timeout duration in nanoseconds.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "code": {
+              "description": "Optional timeout error code override.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "probability_ppm": {
+              "description": "Probability in parts-per-million.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0
+            },
+            "kind": {
+              "type": "string",
+              "const": "timeout"
+            }
+          },
+          "required": [
+            "kind",
+            "timeout_ns"
+          ]
+        },
+        {
+          "description": "Simulate a connection or handle disconnect.",
+          "type": "object",
+          "properties": {
+            "probability_ppm": {
+              "description": "Probability in parts-per-million.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0
+            },
+            "kind": {
+              "type": "string",
+              "const": "disconnect"
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        }
+      ]
+    },
+    "RuntimeFaultDistributionJson": {
+      "description": "Jitter distribution for delay faults in JSON.",
+      "oneOf": [
+        {
+          "description": "Use a uniform random distribution.",
+          "type": "string",
+          "const": "uniform"
+        },
+        {
+          "description": "Use a normal random distribution.",
+          "type": "string",
+          "const": "normal"
+        },
+        {
+          "description": "Use an exponential random distribution.",
+          "type": "string",
+          "const": "exponential"
         }
       ]
     },
@@ -2552,7 +3069,7 @@
             }
           ]
         },
-        "executionMode": {
+        "execution": {
           "description": "Execution mode for runtime scheduling and replay.",
           "anyOf": [
             {

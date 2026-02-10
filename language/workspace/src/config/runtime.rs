@@ -5,8 +5,10 @@ use serde::{Deserialize, Serialize};
 use super::policy::{ExecutionModeJson, ReplayPayloadModeJson};
 use crate::{
     ExecutionMode, GcLogging, GcOptions, PlatformOptions, PlatformWindowsOptions, PollerBackend,
-    RandomMode, RandomOptions, ReplayLogOptions, RuntimeOptions, SchedulerOptions, SchedulerPolicy,
-    TimeMode, TimeOptions,
+    RandomMode, RandomOptions, ReplayLogOptions, RuntimeAccess, RuntimeFault,
+    RuntimeFaultDistribution, RuntimeOptions, RuntimeRule, RuntimeRuleBlocking, RuntimeRuleEffect,
+    RuntimeRuleEngine, RuntimeRuleFilter, RuntimeRuleScope, RuntimeWorld, SchedulerOptions,
+    SchedulerPolicy, TimeMode, TimeOptions,
 };
 
 /// Derive runtime options from optional JSON overrides.
@@ -38,9 +40,13 @@ pub(super) fn runtime_options_with_base(
 #[serde(rename_all = "camelCase")]
 pub struct DsConfigRuntimeOptionsJson {
     /// Execution mode for runtime scheduling and replay.
-    pub execution_mode: Option<ExecutionModeJson>,
-    /// Exact capabilities granted to platform bindings.
-    pub capabilities: Option<Vec<String>>,
+    pub execution: Option<ExecutionModeJson>,
+    /// Default world for bindings without matching world rules.
+    pub world: Option<RuntimeWorldJson>,
+    /// Default access policy for bindings without matching access rules.
+    pub access: Option<RuntimeAccessJson>,
+    /// Ordered world, access, and fault rules.
+    pub rules: Option<Vec<RuntimeRuleJson>>,
     /// Replay log configuration.
     pub replay_log: Option<ReplayLogOptionsJson>,
     /// Runtime clock configuration.
@@ -59,13 +65,23 @@ impl DsConfigRuntimeOptionsJson {
     /// Apply runtime option overrides to a base set of options.
     pub fn apply_to(&self, options: &mut RuntimeOptions) {
         // apply execution mode overrides
-        if let Some(execution_mode) = self.execution_mode {
-            options.execution_mode = ExecutionMode::from(execution_mode);
+        if let Some(execution_mode) = self.execution {
+            options.execution = ExecutionMode::from(execution_mode);
         }
 
-        // apply capability allowlist overrides
-        if let Some(capabilities) = &self.capabilities {
-            options.capabilities = capabilities.clone();
+        // apply default world overrides
+        if let Some(default_world) = self.world {
+            options.world = RuntimeWorld::from(default_world);
+        }
+
+        // apply default access overrides
+        if let Some(default_access) = self.access {
+            options.access = RuntimeAccess::from(default_access);
+        }
+
+        // apply runtime rule overrides
+        if let Some(rules) = &self.rules {
+            options.rules = rules.iter().map(RuntimeRule::from).collect();
         }
 
         // apply replay log overrides
@@ -96,6 +112,351 @@ impl DsConfigRuntimeOptionsJson {
         // apply platform overrides
         if let Some(platform) = &self.platform {
             platform.apply_to(&mut options.platform);
+        }
+    }
+}
+
+/// Runtime world selection for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum RuntimeWorldJson {
+    /// Use host-backed platform bindings.
+    Host,
+    /// Use simulated platform bindings.
+    #[serde(alias = "sim")]
+    Simulated,
+}
+
+impl From<RuntimeWorldJson> for RuntimeWorld {
+    fn from(value: RuntimeWorldJson) -> Self {
+        match value {
+            RuntimeWorldJson::Host => RuntimeWorld::Host,
+            RuntimeWorldJson::Simulated => RuntimeWorld::Simulated,
+        }
+    }
+}
+
+/// Runtime default access policy for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum RuntimeAccessJson {
+    /// Allow matching binding calls.
+    Allow,
+    /// Deny matching binding calls.
+    Deny,
+}
+
+impl From<RuntimeAccessJson> for RuntimeAccess {
+    fn from(value: RuntimeAccessJson) -> Self {
+        match value {
+            RuntimeAccessJson::Allow => RuntimeAccess::Allow,
+            RuntimeAccessJson::Deny => RuntimeAccess::Deny,
+        }
+    }
+}
+
+/// Runtime rule filter clause for JSON deserialization.
+#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeRuleFilterJson {
+    /// Glob selector for full binding names.
+    pub binding: Option<String>,
+    /// Glob selector for capability names.
+    pub capability: Option<String>,
+    /// Glob selector for module names.
+    pub module: Option<String>,
+    /// Engine selector.
+    pub engine: Option<RuntimeRuleEngineJson>,
+    /// Execution mode selector.
+    pub execution: Option<Vec<ExecutionModeJson>>,
+    /// Platform selector.
+    pub platforms: Option<Vec<String>>,
+    /// Binding scope selector.
+    pub scope: Option<RuntimeRuleScopeJson>,
+    /// Binding blocking selector.
+    pub blocking: Option<RuntimeRuleBlockingJson>,
+    /// Binding effect selector.
+    pub effect: Option<RuntimeRuleEffectJson>,
+}
+
+impl From<&RuntimeRuleFilterJson> for RuntimeRuleFilter {
+    fn from(value: &RuntimeRuleFilterJson) -> Self {
+        Self {
+            binding: value.binding.clone(),
+            capability: value.capability.clone(),
+            module: value.module.clone(),
+            engine: value.engine.map(RuntimeRuleEngine::from),
+            execution_modes: value
+                .execution
+                .as_ref()
+                .map(|modes| modes.iter().copied().map(ExecutionMode::from).collect()),
+            platforms: value.platforms.clone(),
+            scope: value.scope.map(RuntimeRuleScope::from),
+            blocking: value.blocking.map(RuntimeRuleBlocking::from),
+            effect: value.effect.map(RuntimeRuleEffect::from),
+        }
+    }
+}
+
+/// Runtime rule engine selector for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum RuntimeRuleEngineJson {
+    /// Match VM engine execution.
+    Vm,
+    /// Match native engine execution.
+    Native,
+}
+
+impl From<RuntimeRuleEngineJson> for RuntimeRuleEngine {
+    fn from(value: RuntimeRuleEngineJson) -> Self {
+        match value {
+            RuntimeRuleEngineJson::Vm => RuntimeRuleEngine::Vm,
+            RuntimeRuleEngineJson::Native => RuntimeRuleEngine::Native,
+        }
+    }
+}
+
+/// Runtime rule scope selector for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum RuntimeRuleScopeJson {
+    /// Match OS scope bindings.
+    Os,
+    /// Match runtime scope bindings.
+    Runtime,
+    /// Match hybrid scope bindings.
+    Hybrid,
+}
+
+impl From<RuntimeRuleScopeJson> for RuntimeRuleScope {
+    fn from(value: RuntimeRuleScopeJson) -> Self {
+        match value {
+            RuntimeRuleScopeJson::Os => RuntimeRuleScope::Os,
+            RuntimeRuleScopeJson::Runtime => RuntimeRuleScope::Runtime,
+            RuntimeRuleScopeJson::Hybrid => RuntimeRuleScope::Hybrid,
+        }
+    }
+}
+
+/// Runtime rule blocking selector for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum RuntimeRuleBlockingJson {
+    /// Match always-blocking bindings.
+    Always,
+    /// Match never-blocking bindings.
+    Never,
+    /// Match conditionally blocking bindings.
+    Sometimes,
+}
+
+impl From<RuntimeRuleBlockingJson> for RuntimeRuleBlocking {
+    fn from(value: RuntimeRuleBlockingJson) -> Self {
+        match value {
+            RuntimeRuleBlockingJson::Always => RuntimeRuleBlocking::Always,
+            RuntimeRuleBlockingJson::Never => RuntimeRuleBlocking::Never,
+            RuntimeRuleBlockingJson::Sometimes => RuntimeRuleBlocking::Sometimes,
+        }
+    }
+}
+
+/// Runtime rule effect selector for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum RuntimeRuleEffectJson {
+    /// Match pure bindings.
+    Pure,
+    /// Match deterministic bindings.
+    Deterministic,
+    /// Match recordable external bindings.
+    ExternalRecordable,
+    /// Match non-recordable external bindings.
+    ExternalNonRecordable,
+}
+
+impl From<RuntimeRuleEffectJson> for RuntimeRuleEffect {
+    fn from(value: RuntimeRuleEffectJson) -> Self {
+        match value {
+            RuntimeRuleEffectJson::Pure => RuntimeRuleEffect::Pure,
+            RuntimeRuleEffectJson::Deterministic => RuntimeRuleEffect::Deterministic,
+            RuntimeRuleEffectJson::ExternalRecordable => RuntimeRuleEffect::ExternalRecordable,
+            RuntimeRuleEffectJson::ExternalNonRecordable => {
+                RuntimeRuleEffect::ExternalNonRecordable
+            }
+        }
+    }
+}
+
+/// Jitter distribution for delay faults in JSON.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum RuntimeFaultDistributionJson {
+    /// Use a uniform random distribution.
+    Uniform,
+    /// Use a normal random distribution.
+    Normal,
+    /// Use an exponential random distribution.
+    Exponential,
+}
+
+impl From<RuntimeFaultDistributionJson> for RuntimeFaultDistribution {
+    fn from(value: RuntimeFaultDistributionJson) -> Self {
+        match value {
+            RuntimeFaultDistributionJson::Uniform => RuntimeFaultDistribution::Uniform,
+            RuntimeFaultDistributionJson::Normal => RuntimeFaultDistribution::Normal,
+            RuntimeFaultDistributionJson::Exponential => RuntimeFaultDistribution::Exponential,
+        }
+    }
+}
+
+/// Runtime fault payload for JSON deserialization.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum RuntimeFaultJson {
+    /// Inject a binding error.
+    Error {
+        /// Error code name for error injection.
+        code: String,
+        /// Probability in parts-per-million.
+        probability_ppm: Option<u32>,
+    },
+    /// Inject base delay and optional jitter before returning.
+    Delay {
+        /// Base delay in nanoseconds.
+        base_ns: u64,
+        /// Jitter range in nanoseconds.
+        jitter_ns: Option<u64>,
+        /// Jitter distribution selector.
+        distribution: Option<RuntimeFaultDistributionJson>,
+        /// Probability in parts-per-million.
+        probability_ppm: Option<u32>,
+    },
+    /// Drop the call result.
+    Drop {
+        /// Probability in parts-per-million.
+        probability_ppm: Option<u32>,
+    },
+    /// Duplicate delivery of a result.
+    Duplicate {
+        /// Number of result copies to emit.
+        copies: u32,
+        /// Probability in parts-per-million.
+        probability_ppm: Option<u32>,
+    },
+    /// Reorder result delivery within a bounded window.
+    Reorder {
+        /// Reorder window size.
+        window: u32,
+        /// Probability in parts-per-million.
+        probability_ppm: Option<u32>,
+    },
+    /// Force timeout behavior for the call.
+    Timeout {
+        /// Timeout duration in nanoseconds.
+        timeout_ns: u64,
+        /// Optional timeout error code override.
+        code: Option<String>,
+        /// Probability in parts-per-million.
+        probability_ppm: Option<u32>,
+    },
+    /// Simulate a connection or handle disconnect.
+    Disconnect {
+        /// Probability in parts-per-million.
+        probability_ppm: Option<u32>,
+    },
+}
+
+impl From<&RuntimeFaultJson> for RuntimeFault {
+    fn from(value: &RuntimeFaultJson) -> Self {
+        match value {
+            RuntimeFaultJson::Error {
+                code,
+                probability_ppm,
+            } => RuntimeFault::Error {
+                code: code.clone(),
+                probability_ppm: *probability_ppm,
+            },
+            RuntimeFaultJson::Delay {
+                base_ns,
+                jitter_ns,
+                distribution,
+                probability_ppm,
+            } => RuntimeFault::Delay {
+                base_ns: *base_ns,
+                jitter_ns: *jitter_ns,
+                distribution: distribution
+                    .as_ref()
+                    .map(|mode| RuntimeFaultDistribution::from(*mode)),
+                probability_ppm: *probability_ppm,
+            },
+            RuntimeFaultJson::Drop { probability_ppm } => RuntimeFault::Drop {
+                probability_ppm: *probability_ppm,
+            },
+            RuntimeFaultJson::Duplicate {
+                copies,
+                probability_ppm,
+            } => RuntimeFault::Duplicate {
+                copies: *copies,
+                probability_ppm: *probability_ppm,
+            },
+            RuntimeFaultJson::Reorder {
+                window,
+                probability_ppm,
+            } => RuntimeFault::Reorder {
+                window: *window,
+                probability_ppm: *probability_ppm,
+            },
+            RuntimeFaultJson::Timeout {
+                timeout_ns,
+                code,
+                probability_ppm,
+            } => RuntimeFault::Timeout {
+                timeout_ns: *timeout_ns,
+                code: code.clone(),
+                probability_ppm: *probability_ppm,
+            },
+            RuntimeFaultJson::Disconnect { probability_ppm } => RuntimeFault::Disconnect {
+                probability_ppm: *probability_ppm,
+            },
+        }
+    }
+}
+
+/// Runtime rule for JSON deserialization.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeRuleJson {
+    /// Optional stable rule identifier.
+    pub id: Option<String>,
+    /// Rule filter clause.
+    pub when: RuntimeRuleFilterJson,
+    /// World action for this rule.
+    pub world: Option<RuntimeWorldJson>,
+    /// Access action for this rule.
+    pub access: Option<RuntimeAccessJson>,
+    /// Fault action for this rule.
+    pub fault: Option<RuntimeFaultJson>,
+}
+
+impl From<&RuntimeRuleJson> for RuntimeRule {
+    fn from(value: &RuntimeRuleJson) -> Self {
+        Self {
+            id: value.id.clone(),
+            when: RuntimeRuleFilter::from(&value.when),
+            world: value.world.map(RuntimeWorld::from),
+            access: value.access.map(RuntimeAccess::from),
+            fault: value.fault.as_ref().map(RuntimeFault::from),
         }
     }
 }

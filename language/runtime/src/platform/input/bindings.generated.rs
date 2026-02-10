@@ -503,9 +503,9 @@ fn destack_input_device_close_replay(
         || unsafe { platform_native::destack_input_close(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = InputDeviceCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -546,30 +546,30 @@ fn destack_input_device_list_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay_id =
-                        unsafe { result_replay_item.id.as_str()? }.to_string();
-                    let result_replay_item_replay_name =
-                        unsafe { result_replay_item.name.as_str()? }.to_string();
-                    let result_replay_item_replay_kind = result_replay_item.kind;
-                    let result_replay_item_replay_vendor_id = result_replay_item.vendor_id;
-                    let result_replay_item_replay_product_id = result_replay_item.product_id;
-                    let result_replay_item_replay_connected = result_replay_item.connected;
-                    let result_replay_item_replay = InputDeviceInfoReplay {
-                        id: result_replay_item_replay_id,
-                        name: result_replay_item_replay_name,
-                        kind: result_replay_item_replay_kind,
-                        vendor_id: result_replay_item_replay_vendor_id,
-                        product_id: result_replay_item_replay_product_id,
-                        connected: result_replay_item_replay_connected,
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded_id =
+                        unsafe { result_recorded_item.id.as_str()? }.to_string();
+                    let result_recorded_item_recorded_name =
+                        unsafe { result_recorded_item.name.as_str()? }.to_string();
+                    let result_recorded_item_recorded_kind = result_recorded_item.kind;
+                    let result_recorded_item_recorded_vendor_id = result_recorded_item.vendor_id;
+                    let result_recorded_item_recorded_product_id = result_recorded_item.product_id;
+                    let result_recorded_item_recorded_connected = result_recorded_item.connected;
+                    let result_recorded_item_recorded = InputDeviceInfoReplay {
+                        id: result_recorded_item_recorded_id,
+                        name: result_recorded_item_recorded_name,
+                        kind: result_recorded_item_recorded_kind,
+                        vendor_id: result_recorded_item_recorded_vendor_id,
+                        product_id: result_recorded_item_recorded_product_id,
+                        connected: result_recorded_item_recorded_connected,
                     };
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = InputDeviceListReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -639,9 +639,9 @@ fn destack_input_device_open_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = InputDeviceOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -691,26 +691,26 @@ fn destack_input_event_read_replay(
                     }
                     *out
                 };
-                let result_replay_kind = result_value.kind;
-                let result_replay_timestamp_ns = result_value.timestamp_ns;
-                let result_replay_device = result_value.device;
-                let result_replay_code = result_value.code;
-                let result_replay_value = result_value.value;
-                let result_replay_x = result_value.x;
-                let result_replay_y = result_value.y;
-                let result_replay_modifiers = result_value.modifiers;
-                let result_replay = InputEvent {
-                    kind: result_replay_kind,
-                    timestamp_ns: result_replay_timestamp_ns,
-                    device: result_replay_device,
-                    code: result_replay_code,
-                    value: result_replay_value,
-                    x: result_replay_x,
-                    y: result_replay_y,
-                    modifiers: result_replay_modifiers,
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_device = result_value.device;
+                let result_recorded_code = result_value.code;
+                let result_recorded_value = result_value.value;
+                let result_recorded_x = result_value.x;
+                let result_recorded_y = result_value.y;
+                let result_recorded_modifiers = result_value.modifiers;
+                let result_recorded = InputEvent {
+                    kind: result_recorded_kind,
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    device: result_recorded_device,
+                    code: result_recorded_code,
+                    value: result_recorded_value,
+                    x: result_recorded_x,
+                    y: result_recorded_y,
+                    modifiers: result_recorded_modifiers,
                 };
                 let payload = InputEventReadReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -771,9 +771,9 @@ fn destack_input_event_set_grab_replay(
         || unsafe { platform_native::destack_input_set_grab(context, handle, enable) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = InputEventSetGrabReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -817,26 +817,26 @@ fn destack_input_event_try_read_replay(
                     }
                     *out
                 };
-                let result_replay_kind = result_value.kind;
-                let result_replay_timestamp_ns = result_value.timestamp_ns;
-                let result_replay_device = result_value.device;
-                let result_replay_code = result_value.code;
-                let result_replay_value = result_value.value;
-                let result_replay_x = result_value.x;
-                let result_replay_y = result_value.y;
-                let result_replay_modifiers = result_value.modifiers;
-                let result_replay = InputEvent {
-                    kind: result_replay_kind,
-                    timestamp_ns: result_replay_timestamp_ns,
-                    device: result_replay_device,
-                    code: result_replay_code,
-                    value: result_replay_value,
-                    x: result_replay_x,
-                    y: result_replay_y,
-                    modifiers: result_replay_modifiers,
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_device = result_value.device;
+                let result_recorded_code = result_value.code;
+                let result_recorded_value = result_value.value;
+                let result_recorded_x = result_value.x;
+                let result_recorded_y = result_value.y;
+                let result_recorded_modifiers = result_value.modifiers;
+                let result_recorded = InputEvent {
+                    kind: result_recorded_kind,
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    device: result_recorded_device,
+                    code: result_recorded_code,
+                    value: result_recorded_value,
+                    x: result_recorded_x,
+                    y: result_recorded_y,
+                    modifiers: result_recorded_modifiers,
                 };
                 let payload = InputEventTryReadReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -987,9 +987,9 @@ fn destack_input_device_close_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = InputDeviceCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1030,34 +1030,34 @@ fn destack_input_device_list_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_raw = result_value.raw_values(context)?;
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = {
-                        if result_replay_item_value.tag() != vm::ValueTag::Aggregate {
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_replay_item",
+                                "result_recorded_item",
                                 "item",
                             ))
                             .boxed());
                         }
                         let slots = context
-                            .aggregate_slots(result_replay_item_value)
+                            .aggregate_slots(result_recorded_item_value)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
                         if slots.len() != 6 {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_replay_item",
+                                "result_recorded_item",
                                 "expected 6 fields",
                             ))
                             .boxed());
                         }
-                        let result_replay_item_id =
-                            decode_string(slots[0], "result_replay_item_id", "id")?;
-                        let result_replay_item_name =
-                            decode_string(slots[1], "result_replay_item_name", "name")?;
-                        let result_replay_item_kind_raw =
-                            decode_uint8(slots[2], "result_replay_item_kind_raw", "kind")?;
-                        let result_replay_item_kind = match result_replay_item_kind_raw {
+                        let result_recorded_item_id =
+                            decode_string(slots[0], "result_recorded_item_id", "id")?;
+                        let result_recorded_item_name =
+                            decode_string(slots[1], "result_recorded_item_name", "name")?;
+                        let result_recorded_item_kind_raw =
+                            decode_uint8(slots[2], "result_recorded_item_kind_raw", "kind")?;
+                        let result_recorded_item_kind = match result_recorded_item_kind_raw {
                             1u8 => InputDeviceKind::Keyboard,
                             2u8 => InputDeviceKind::Mouse,
                             3u8 => InputDeviceKind::Touch,
@@ -1067,56 +1067,59 @@ fn destack_input_device_list_vm_replay(
                             _ => {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
-                                        "result_replay_item_kind",
+                                        "result_recorded_item_kind",
                                         "unknown InputDeviceKind value",
                                     ),
                                 )
                                 .boxed());
                             }
                         };
-                        let result_replay_item_vendor_id =
-                            decode_uint16(slots[3], "result_replay_item_vendor_id", "vendorId")?;
-                        let result_replay_item_product_id =
-                            decode_uint16(slots[4], "result_replay_item_product_id", "productId")?;
-                        let result_replay_item_connected =
-                            decode_bool(slots[5], "result_replay_item_connected", "connected")?;
+                        let result_recorded_item_vendor_id =
+                            decode_uint16(slots[3], "result_recorded_item_vendor_id", "vendorId")?;
+                        let result_recorded_item_product_id = decode_uint16(
+                            slots[4],
+                            "result_recorded_item_product_id",
+                            "productId",
+                        )?;
+                        let result_recorded_item_connected =
+                            decode_bool(slots[5], "result_recorded_item_connected", "connected")?;
                         InputDeviceInfoVm {
-                            id: result_replay_item_id,
-                            name: result_replay_item_name,
-                            kind: result_replay_item_kind,
-                            vendor_id: result_replay_item_vendor_id,
-                            product_id: result_replay_item_product_id,
-                            connected: result_replay_item_connected,
+                            id: result_recorded_item_id,
+                            name: result_recorded_item_name,
+                            kind: result_recorded_item_kind,
+                            vendor_id: result_recorded_item_vendor_id,
+                            product_id: result_recorded_item_product_id,
+                            connected: result_recorded_item_connected,
                         }
                     };
-                    let result_replay_item_replay_id = {
-                        let result_replay_item_replay_id_ref = context
-                            .string_ref(result_replay_item.id)
+                    let result_recorded_item_recorded_id = {
+                        let result_recorded_item_recorded_id_ref = context
+                            .string_ref(result_recorded_item.id)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_replay_item_replay_id_ref.as_str().to_string()
+                        result_recorded_item_recorded_id_ref.as_str().to_string()
                     };
-                    let result_replay_item_replay_name = {
-                        let result_replay_item_replay_name_ref = context
-                            .string_ref(result_replay_item.name)
+                    let result_recorded_item_recorded_name = {
+                        let result_recorded_item_recorded_name_ref = context
+                            .string_ref(result_recorded_item.name)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_replay_item_replay_name_ref.as_str().to_string()
+                        result_recorded_item_recorded_name_ref.as_str().to_string()
                     };
-                    let result_replay_item_replay_kind = result_replay_item.kind;
-                    let result_replay_item_replay_vendor_id = result_replay_item.vendor_id;
-                    let result_replay_item_replay_product_id = result_replay_item.product_id;
-                    let result_replay_item_replay_connected = result_replay_item.connected;
-                    let result_replay_item_replay = InputDeviceInfoReplay {
-                        id: result_replay_item_replay_id,
-                        name: result_replay_item_replay_name,
-                        kind: result_replay_item_replay_kind,
-                        vendor_id: result_replay_item_replay_vendor_id,
-                        product_id: result_replay_item_replay_product_id,
-                        connected: result_replay_item_replay_connected,
+                    let result_recorded_item_recorded_kind = result_recorded_item.kind;
+                    let result_recorded_item_recorded_vendor_id = result_recorded_item.vendor_id;
+                    let result_recorded_item_recorded_product_id = result_recorded_item.product_id;
+                    let result_recorded_item_recorded_connected = result_recorded_item.connected;
+                    let result_recorded_item_recorded = InputDeviceInfoReplay {
+                        id: result_recorded_item_recorded_id,
+                        name: result_recorded_item_recorded_name,
+                        kind: result_recorded_item_recorded_kind,
+                        vendor_id: result_recorded_item_recorded_vendor_id,
+                        product_id: result_recorded_item_recorded_product_id,
+                        connected: result_recorded_item_recorded_connected,
                     };
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = InputDeviceListReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1205,9 +1208,9 @@ fn destack_input_device_open_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = InputDeviceOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1252,26 +1255,26 @@ fn destack_input_event_read_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_kind = result_value.kind;
-                let result_replay_timestamp_ns = result_value.timestamp_ns;
-                let result_replay_device = result_value.device;
-                let result_replay_code = result_value.code;
-                let result_replay_value = result_value.value;
-                let result_replay_x = result_value.x;
-                let result_replay_y = result_value.y;
-                let result_replay_modifiers = result_value.modifiers;
-                let result_replay = InputEvent {
-                    kind: result_replay_kind,
-                    timestamp_ns: result_replay_timestamp_ns,
-                    device: result_replay_device,
-                    code: result_replay_code,
-                    value: result_replay_value,
-                    x: result_replay_x,
-                    y: result_replay_y,
-                    modifiers: result_replay_modifiers,
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_device = result_value.device;
+                let result_recorded_code = result_value.code;
+                let result_recorded_value = result_value.value;
+                let result_recorded_x = result_value.x;
+                let result_recorded_y = result_value.y;
+                let result_recorded_modifiers = result_value.modifiers;
+                let result_recorded = InputEvent {
+                    kind: result_recorded_kind,
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    device: result_recorded_device,
+                    code: result_recorded_code,
+                    value: result_recorded_value,
+                    x: result_recorded_x,
+                    y: result_recorded_y,
+                    modifiers: result_recorded_modifiers,
                 };
                 let payload = InputEventReadReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1333,9 +1336,9 @@ fn destack_input_event_set_grab_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = InputEventSetGrabReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1377,26 +1380,26 @@ fn destack_input_event_try_read_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_kind = result_value.kind;
-                let result_replay_timestamp_ns = result_value.timestamp_ns;
-                let result_replay_device = result_value.device;
-                let result_replay_code = result_value.code;
-                let result_replay_value = result_value.value;
-                let result_replay_x = result_value.x;
-                let result_replay_y = result_value.y;
-                let result_replay_modifiers = result_value.modifiers;
-                let result_replay = InputEvent {
-                    kind: result_replay_kind,
-                    timestamp_ns: result_replay_timestamp_ns,
-                    device: result_replay_device,
-                    code: result_replay_code,
-                    value: result_replay_value,
-                    x: result_replay_x,
-                    y: result_replay_y,
-                    modifiers: result_replay_modifiers,
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_device = result_value.device;
+                let result_recorded_code = result_value.code;
+                let result_recorded_value = result_value.value;
+                let result_recorded_x = result_value.x;
+                let result_recorded_y = result_value.y;
+                let result_recorded_modifiers = result_value.modifiers;
+                let result_recorded = InputEvent {
+                    kind: result_recorded_kind,
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    device: result_recorded_device,
+                    code: result_recorded_code,
+                    value: result_recorded_value,
+                    x: result_recorded_x,
+                    y: result_recorded_y,
+                    modifiers: result_recorded_modifiers,
                 };
                 let payload = InputEventTryReadReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }

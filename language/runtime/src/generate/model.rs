@@ -73,9 +73,9 @@ pub(crate) enum RandomEventKind {
 /// Replay behavior for external bindings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ReplayPolicy {
-    /// Record the call for replay and return replayed values in replay mode.
+    /// Record the call for replay and return replayed values in replay execution.
     Recordable,
-    /// Reject the call in deterministic or replay modes.
+    /// Reject the call in deterministic or replay execution modes.
     NonRecordable,
 }
 

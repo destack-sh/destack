@@ -5693,9 +5693,9 @@ fn destack_net_accept_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetAcceptReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5745,22 +5745,22 @@ fn destack_net_address_local_address_replay(
                     }
                     *out
                 };
-                let result_replay_family = result_value.family;
-                let result_replay_length = result_value.length;
-                let result_replay_bytes_raw = unsafe { result_value.bytes.as_slice()? };
-                let mut result_replay_bytes = Vec::with_capacity(result_replay_bytes_raw.len());
-                for result_replay_bytes_item_value in result_replay_bytes_raw {
-                    let result_replay_bytes_item = *result_replay_bytes_item_value;
-                    let result_replay_bytes_item_replay = result_replay_bytes_item;
-                    result_replay_bytes.push(result_replay_bytes_item_replay);
+                let result_recorded_family = result_value.family;
+                let result_recorded_length = result_value.length;
+                let result_recorded_bytes_raw = unsafe { result_value.bytes.as_slice()? };
+                let mut result_recorded_bytes = Vec::with_capacity(result_recorded_bytes_raw.len());
+                for result_recorded_bytes_item_value in result_recorded_bytes_raw {
+                    let result_recorded_bytes_item = *result_recorded_bytes_item_value;
+                    let result_recorded_bytes_item_recorded = result_recorded_bytes_item;
+                    result_recorded_bytes.push(result_recorded_bytes_item_recorded);
                 }
-                let result_replay = SocketAddressReplay {
-                    family: result_replay_family,
-                    length: result_replay_length,
-                    bytes: result_replay_bytes,
+                let result_recorded = SocketAddressReplay {
+                    family: result_recorded_family,
+                    length: result_recorded_length,
+                    bytes: result_recorded_bytes,
                 };
                 let payload = NetAddressLocalAddressReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5822,22 +5822,22 @@ fn destack_net_address_peer_address_replay(
                     }
                     *out
                 };
-                let result_replay_family = result_value.family;
-                let result_replay_length = result_value.length;
-                let result_replay_bytes_raw = unsafe { result_value.bytes.as_slice()? };
-                let mut result_replay_bytes = Vec::with_capacity(result_replay_bytes_raw.len());
-                for result_replay_bytes_item_value in result_replay_bytes_raw {
-                    let result_replay_bytes_item = *result_replay_bytes_item_value;
-                    let result_replay_bytes_item_replay = result_replay_bytes_item;
-                    result_replay_bytes.push(result_replay_bytes_item_replay);
+                let result_recorded_family = result_value.family;
+                let result_recorded_length = result_value.length;
+                let result_recorded_bytes_raw = unsafe { result_value.bytes.as_slice()? };
+                let mut result_recorded_bytes = Vec::with_capacity(result_recorded_bytes_raw.len());
+                for result_recorded_bytes_item_value in result_recorded_bytes_raw {
+                    let result_recorded_bytes_item = *result_recorded_bytes_item_value;
+                    let result_recorded_bytes_item_recorded = result_recorded_bytes_item;
+                    result_recorded_bytes.push(result_recorded_bytes_item_recorded);
                 }
-                let result_replay = SocketAddressReplay {
-                    family: result_replay_family,
-                    length: result_replay_length,
-                    bytes: result_replay_bytes,
+                let result_recorded = SocketAddressReplay {
+                    family: result_recorded_family,
+                    length: result_recorded_length,
+                    bytes: result_recorded_bytes,
                 };
                 let payload = NetAddressPeerAddressReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5893,9 +5893,9 @@ fn destack_net_bind_replay(
         || unsafe { platform_native::destack_net_bind(context, handle, address) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetBindReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5932,9 +5932,9 @@ fn destack_net_close_replay(
         || unsafe { platform_native::destack_net_close(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5971,9 +5971,9 @@ fn destack_net_close_listener_replay(
         || unsafe { platform_native::destack_net_close_listener(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetCloseListenerReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -6011,9 +6011,9 @@ fn destack_net_connect_replay(
         || unsafe { platform_native::destack_net_connect(context, handle, address) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetConnectReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -6052,53 +6052,53 @@ fn destack_net_interface_list_interfaces_replay(
                     if out.is_null() { return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed()); }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay_name = unsafe { result_replay_item.name.as_str()? }.to_string();
-                    let result_replay_item_replay_index = result_replay_item.index;
-                    let result_replay_item_replay_flags = result_replay_item.flags;
-                    let result_replay_item_replay_mtu = result_replay_item.mtu;
-                    let result_replay_item_replay_mac_address_raw = unsafe { result_replay_item.mac_address.as_slice()? };
-                    let mut result_replay_item_replay_mac_address = Vec::with_capacity(result_replay_item_replay_mac_address_raw.len());
-                    for result_replay_item_replay_mac_address_item_value in result_replay_item_replay_mac_address_raw {
-                        let result_replay_item_replay_mac_address_item = *result_replay_item_replay_mac_address_item_value;
-                        let result_replay_item_replay_mac_address_item_replay = result_replay_item_replay_mac_address_item;
-                        result_replay_item_replay_mac_address.push(result_replay_item_replay_mac_address_item_replay);
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded_name = unsafe { result_recorded_item.name.as_str()? }.to_string();
+                    let result_recorded_item_recorded_index = result_recorded_item.index;
+                    let result_recorded_item_recorded_flags = result_recorded_item.flags;
+                    let result_recorded_item_recorded_mtu = result_recorded_item.mtu;
+                    let result_recorded_item_recorded_mac_address_raw = unsafe { result_recorded_item.mac_address.as_slice()? };
+                    let mut result_recorded_item_recorded_mac_address = Vec::with_capacity(result_recorded_item_recorded_mac_address_raw.len());
+                    for result_recorded_item_recorded_mac_address_item_value in result_recorded_item_recorded_mac_address_raw {
+                        let result_recorded_item_recorded_mac_address_item = *result_recorded_item_recorded_mac_address_item_value;
+                        let result_recorded_item_recorded_mac_address_item_recorded = result_recorded_item_recorded_mac_address_item;
+                        result_recorded_item_recorded_mac_address.push(result_recorded_item_recorded_mac_address_item_recorded);
                     }
-                    let result_replay_item_replay_addresses_raw = unsafe { result_replay_item.addresses.as_slice()? };
-                    let mut result_replay_item_replay_addresses = Vec::with_capacity(result_replay_item_replay_addresses_raw.len());
-                    for result_replay_item_replay_addresses_item_value in result_replay_item_replay_addresses_raw {
-                        let result_replay_item_replay_addresses_item = *result_replay_item_replay_addresses_item_value;
-                        let result_replay_item_replay_addresses_item_replay_family = result_replay_item_replay_addresses_item.family;
-                        let result_replay_item_replay_addresses_item_replay_length = result_replay_item_replay_addresses_item.length;
-                        let result_replay_item_replay_addresses_item_replay_bytes_raw = unsafe { result_replay_item_replay_addresses_item.bytes.as_slice()? };
-                        let mut result_replay_item_replay_addresses_item_replay_bytes = Vec::with_capacity(result_replay_item_replay_addresses_item_replay_bytes_raw.len());
-                        for result_replay_item_replay_addresses_item_replay_bytes_item_value in result_replay_item_replay_addresses_item_replay_bytes_raw {
-                            let result_replay_item_replay_addresses_item_replay_bytes_item = *result_replay_item_replay_addresses_item_replay_bytes_item_value;
-                            let result_replay_item_replay_addresses_item_replay_bytes_item_replay = result_replay_item_replay_addresses_item_replay_bytes_item;
-                            result_replay_item_replay_addresses_item_replay_bytes.push(result_replay_item_replay_addresses_item_replay_bytes_item_replay);
+                    let result_recorded_item_recorded_addresses_raw = unsafe { result_recorded_item.addresses.as_slice()? };
+                    let mut result_recorded_item_recorded_addresses = Vec::with_capacity(result_recorded_item_recorded_addresses_raw.len());
+                    for result_recorded_item_recorded_addresses_item_value in result_recorded_item_recorded_addresses_raw {
+                        let result_recorded_item_recorded_addresses_item = *result_recorded_item_recorded_addresses_item_value;
+                        let result_recorded_item_recorded_addresses_item_recorded_family = result_recorded_item_recorded_addresses_item.family;
+                        let result_recorded_item_recorded_addresses_item_recorded_length = result_recorded_item_recorded_addresses_item.length;
+                        let result_recorded_item_recorded_addresses_item_recorded_bytes_raw = unsafe { result_recorded_item_recorded_addresses_item.bytes.as_slice()? };
+                        let mut result_recorded_item_recorded_addresses_item_recorded_bytes = Vec::with_capacity(result_recorded_item_recorded_addresses_item_recorded_bytes_raw.len());
+                        for result_recorded_item_recorded_addresses_item_recorded_bytes_item_value in result_recorded_item_recorded_addresses_item_recorded_bytes_raw {
+                            let result_recorded_item_recorded_addresses_item_recorded_bytes_item = *result_recorded_item_recorded_addresses_item_recorded_bytes_item_value;
+                            let result_recorded_item_recorded_addresses_item_recorded_bytes_item_recorded = result_recorded_item_recorded_addresses_item_recorded_bytes_item;
+                            result_recorded_item_recorded_addresses_item_recorded_bytes.push(result_recorded_item_recorded_addresses_item_recorded_bytes_item_recorded);
                         }
-                        let result_replay_item_replay_addresses_item_replay = SocketAddressReplay {
-                            family: result_replay_item_replay_addresses_item_replay_family,
-                            length: result_replay_item_replay_addresses_item_replay_length,
-                            bytes: result_replay_item_replay_addresses_item_replay_bytes,
+                        let result_recorded_item_recorded_addresses_item_recorded = SocketAddressReplay {
+                            family: result_recorded_item_recorded_addresses_item_recorded_family,
+                            length: result_recorded_item_recorded_addresses_item_recorded_length,
+                            bytes: result_recorded_item_recorded_addresses_item_recorded_bytes,
                         };
-                        result_replay_item_replay_addresses.push(result_replay_item_replay_addresses_item_replay);
+                        result_recorded_item_recorded_addresses.push(result_recorded_item_recorded_addresses_item_recorded);
                     }
-                    let result_replay_item_replay = NetInterfaceReplay {
-                        name: result_replay_item_replay_name,
-                        index: result_replay_item_replay_index,
-                        flags: result_replay_item_replay_flags,
-                        mtu: result_replay_item_replay_mtu,
-                        mac_address: result_replay_item_replay_mac_address,
-                        addresses: result_replay_item_replay_addresses,
+                    let result_recorded_item_recorded = NetInterfaceReplay {
+                        name: result_recorded_item_recorded_name,
+                        index: result_recorded_item_recorded_index,
+                        flags: result_recorded_item_recorded_flags,
+                        mtu: result_recorded_item_recorded_mtu,
+                        mac_address: result_recorded_item_recorded_mac_address,
+                        addresses: result_recorded_item_recorded_addresses,
                     };
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = NetInterfaceListInterfacesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -6188,9 +6188,9 @@ fn destack_net_interface_index_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetInterfaceIndexReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -6240,9 +6240,9 @@ fn destack_net_interface_name_replay(
                     }
                     *out
                 };
-                let result_replay = unsafe { result_value.as_str()? }.to_string();
+                let result_recorded = unsafe { result_value.as_str()? }.to_string();
                 let payload = NetInterfaceNameReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -6289,9 +6289,9 @@ fn destack_net_join_multicast_v4_replay(
         },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetJoinMulticastV4Replay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -6332,9 +6332,9 @@ fn destack_net_join_multicast_v6_replay(
         },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetJoinMulticastV6Replay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -6380,9 +6380,9 @@ fn destack_net_leave_multicast_v4_replay(
         },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetLeaveMulticastV4Replay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -6423,9 +6423,9 @@ fn destack_net_leave_multicast_v6_replay(
         },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetLeaveMulticastV6Replay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -6470,9 +6470,9 @@ fn destack_net_listen_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetListenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -6522,9 +6522,9 @@ fn destack_net_options_get_broadcast_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetOptionsGetBroadcastReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -6574,14 +6574,14 @@ fn destack_net_options_get_linger_replay(
                     }
                     *out
                 };
-                let result_replay_enabled = result_value.enabled;
-                let result_replay_seconds = result_value.seconds;
-                let result_replay = Linger {
-                    enabled: result_replay_enabled,
-                    seconds: result_replay_seconds,
+                let result_recorded_enabled = result_value.enabled;
+                let result_recorded_seconds = result_value.seconds;
+                let result_recorded = Linger {
+                    enabled: result_recorded_enabled,
+                    seconds: result_recorded_seconds,
                 };
                 let payload = NetOptionsGetLingerReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -6636,9 +6636,9 @@ fn destack_net_options_get_only_v6_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetOptionsGetOnlyV6Replay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -6688,9 +6688,9 @@ fn destack_net_options_get_packet_mark_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetOptionsGetPacketMarkReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -6740,9 +6740,9 @@ fn destack_net_options_get_read_timeout_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetOptionsGetReadTimeoutReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -6792,9 +6792,9 @@ fn destack_net_options_get_recv_buffer_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetOptionsGetRecvBufferReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -6844,9 +6844,9 @@ fn destack_net_options_get_send_buffer_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetOptionsGetSendBufferReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -6903,15 +6903,15 @@ fn destack_net_options_get_sock_opt_raw_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay = result_replay_item;
-                    result_replay.push(result_replay_item_replay);
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = NetOptionsGetSockOptRawReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -6966,9 +6966,9 @@ fn destack_net_options_get_timestamping_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetOptionsGetTimestampingReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -7018,9 +7018,9 @@ fn destack_net_options_get_tos_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetOptionsGetTosReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -7070,9 +7070,9 @@ fn destack_net_options_get_ttl_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetOptionsGetTtlReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -7122,9 +7122,9 @@ fn destack_net_options_get_write_timeout_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetOptionsGetWriteTimeoutReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -7168,9 +7168,9 @@ fn destack_net_options_set_broadcast_replay(
         || unsafe { platform_native::destack_net_set_broadcast(context, handle, enabled) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetOptionsSetBroadcastReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -7208,9 +7208,9 @@ fn destack_net_options_set_linger_replay(
         || unsafe { platform_native::destack_net_set_linger(context, handle, linger) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetOptionsSetLingerReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -7248,9 +7248,9 @@ fn destack_net_options_set_only_v6_replay(
         || unsafe { platform_native::destack_net_set_only_v6(context, handle, enabled) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetOptionsSetOnlyV6Replay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -7288,9 +7288,9 @@ fn destack_net_options_set_packet_mark_replay(
         || unsafe { platform_native::destack_net_set_packet_mark(context, handle, mark) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetOptionsSetPacketMarkReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -7328,9 +7328,9 @@ fn destack_net_options_set_read_timeout_replay(
         || unsafe { platform_native::destack_net_set_read_timeout(context, handle, timeoutms) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetOptionsSetReadTimeoutReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -7368,9 +7368,9 @@ fn destack_net_options_set_recv_buffer_replay(
         || unsafe { platform_native::destack_net_set_recv_buffer(context, handle, size) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetOptionsSetRecvBufferReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -7408,9 +7408,9 @@ fn destack_net_options_set_send_buffer_replay(
         || unsafe { platform_native::destack_net_set_send_buffer(context, handle, size) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetOptionsSetSendBufferReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -7452,9 +7452,9 @@ fn destack_net_options_set_sock_opt_raw_replay(
         },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetOptionsSetSockOptRawReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -7492,9 +7492,9 @@ fn destack_net_options_set_timestamping_replay(
         || unsafe { platform_native::destack_net_set_timestamping(context, handle, mode) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetOptionsSetTimestampingReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -7532,9 +7532,9 @@ fn destack_net_options_set_tos_replay(
         || unsafe { platform_native::destack_net_set_tos(context, handle, tos) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetOptionsSetTosReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -7572,9 +7572,9 @@ fn destack_net_options_set_ttl_replay(
         || unsafe { platform_native::destack_net_set_ttl(context, handle, ttl) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetOptionsSetTtlReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -7612,9 +7612,9 @@ fn destack_net_options_set_write_timeout_replay(
         || unsafe { platform_native::destack_net_set_write_timeout(context, handle, timeoutms) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetOptionsSetWriteTimeoutReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -7658,9 +7658,9 @@ fn destack_net_raw_packet_open_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetRawPacketOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -7711,18 +7711,18 @@ fn destack_net_raw_packet_receive_replay(
                     }
                     *out
                 };
-                let result_replay_bytes = result_value.bytes;
-                let result_replay_interface_index = result_value.interface_index;
-                let result_replay_timestamp_ns = result_value.timestamp_ns;
-                let result_replay_truncated = result_value.truncated;
-                let result_replay = PacketCaptureRecord {
-                    bytes: result_replay_bytes,
-                    interface_index: result_replay_interface_index,
-                    timestamp_ns: result_replay_timestamp_ns,
-                    truncated: result_replay_truncated,
+                let result_recorded_bytes = result_value.bytes;
+                let result_recorded_interface_index = result_value.interface_index;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_truncated = result_value.truncated;
+                let result_recorded = PacketCaptureRecord {
+                    bytes: result_recorded_bytes,
+                    interface_index: result_recorded_interface_index,
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    truncated: result_recorded_truncated,
                 };
                 let payload = NetRawPacketReceiveReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -7782,9 +7782,9 @@ fn destack_net_raw_packet_send_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetRawPacketSendReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -7828,9 +7828,9 @@ fn destack_net_raw_packet_set_timestamp_mode_replay(
         || unsafe { platform_native::destack_net_packet_set_timestamp_mode(context, handle, mode) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetRawPacketSetTimestampModeReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -7870,9 +7870,9 @@ fn destack_net_raw_set_header_included_replay(
         },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetRawSetHeaderIncludedReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -7917,9 +7917,9 @@ fn destack_net_raw_socket_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetRawSocketReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -7970,9 +7970,9 @@ fn destack_net_read_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetReadReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8023,9 +8023,9 @@ fn destack_net_readv_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetReadvReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8079,31 +8079,33 @@ fn destack_net_recv_from_replay(
                     }
                     *out
                 };
-                let result_replay_bytes = result_value.bytes;
-                let result_replay_address_family = result_value.address.family;
-                let result_replay_address_length = result_value.address.length;
-                let result_replay_address_bytes_raw =
+                let result_recorded_bytes = result_value.bytes;
+                let result_recorded_address_family = result_value.address.family;
+                let result_recorded_address_length = result_value.address.length;
+                let result_recorded_address_bytes_raw =
                     unsafe { result_value.address.bytes.as_slice()? };
-                let mut result_replay_address_bytes =
-                    Vec::with_capacity(result_replay_address_bytes_raw.len());
-                for result_replay_address_bytes_item_value in result_replay_address_bytes_raw {
-                    let result_replay_address_bytes_item = *result_replay_address_bytes_item_value;
-                    let result_replay_address_bytes_item_replay = result_replay_address_bytes_item;
-                    result_replay_address_bytes.push(result_replay_address_bytes_item_replay);
+                let mut result_recorded_address_bytes =
+                    Vec::with_capacity(result_recorded_address_bytes_raw.len());
+                for result_recorded_address_bytes_item_value in result_recorded_address_bytes_raw {
+                    let result_recorded_address_bytes_item =
+                        *result_recorded_address_bytes_item_value;
+                    let result_recorded_address_bytes_item_recorded =
+                        result_recorded_address_bytes_item;
+                    result_recorded_address_bytes.push(result_recorded_address_bytes_item_recorded);
                 }
-                let result_replay_address = SocketAddressReplay {
-                    family: result_replay_address_family,
-                    length: result_replay_address_length,
-                    bytes: result_replay_address_bytes,
+                let result_recorded_address = SocketAddressReplay {
+                    family: result_recorded_address_family,
+                    length: result_recorded_address_length,
+                    bytes: result_recorded_address_bytes,
                 };
-                let result_replay_recv_flags = result_value.recv_flags;
-                let result_replay = SocketRecvFromReplay {
-                    bytes: result_replay_bytes,
-                    address: result_replay_address,
-                    recv_flags: result_replay_recv_flags,
+                let result_recorded_recv_flags = result_value.recv_flags;
+                let result_recorded = SocketRecvFromReplay {
+                    bytes: result_recorded_bytes,
+                    address: result_recorded_address,
+                    recv_flags: result_recorded_recv_flags,
                 };
                 let payload = NetRecvFromReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8196,97 +8198,98 @@ fn destack_net_recv_mmsg_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay_bytes = result_replay_item.bytes;
-                    let result_replay_item_replay_has_address = result_replay_item.has_address;
-                    let result_replay_item_replay_address_family =
-                        result_replay_item.address.family;
-                    let result_replay_item_replay_address_length =
-                        result_replay_item.address.length;
-                    let result_replay_item_replay_address_bytes_raw =
-                        unsafe { result_replay_item.address.bytes.as_slice()? };
-                    let mut result_replay_item_replay_address_bytes =
-                        Vec::with_capacity(result_replay_item_replay_address_bytes_raw.len());
-                    for result_replay_item_replay_address_bytes_item_value in
-                        result_replay_item_replay_address_bytes_raw
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded_bytes = result_recorded_item.bytes;
+                    let result_recorded_item_recorded_has_address =
+                        result_recorded_item.has_address;
+                    let result_recorded_item_recorded_address_family =
+                        result_recorded_item.address.family;
+                    let result_recorded_item_recorded_address_length =
+                        result_recorded_item.address.length;
+                    let result_recorded_item_recorded_address_bytes_raw =
+                        unsafe { result_recorded_item.address.bytes.as_slice()? };
+                    let mut result_recorded_item_recorded_address_bytes =
+                        Vec::with_capacity(result_recorded_item_recorded_address_bytes_raw.len());
+                    for result_recorded_item_recorded_address_bytes_item_value in
+                        result_recorded_item_recorded_address_bytes_raw
                     {
-                        let result_replay_item_replay_address_bytes_item =
-                            *result_replay_item_replay_address_bytes_item_value;
-                        let result_replay_item_replay_address_bytes_item_replay =
-                            result_replay_item_replay_address_bytes_item;
-                        result_replay_item_replay_address_bytes
-                            .push(result_replay_item_replay_address_bytes_item_replay);
+                        let result_recorded_item_recorded_address_bytes_item =
+                            *result_recorded_item_recorded_address_bytes_item_value;
+                        let result_recorded_item_recorded_address_bytes_item_recorded =
+                            result_recorded_item_recorded_address_bytes_item;
+                        result_recorded_item_recorded_address_bytes
+                            .push(result_recorded_item_recorded_address_bytes_item_recorded);
                     }
-                    let result_replay_item_replay_address = SocketAddressReplay {
-                        family: result_replay_item_replay_address_family,
-                        length: result_replay_item_replay_address_length,
-                        bytes: result_replay_item_replay_address_bytes,
+                    let result_recorded_item_recorded_address = SocketAddressReplay {
+                        family: result_recorded_item_recorded_address_family,
+                        length: result_recorded_item_recorded_address_length,
+                        bytes: result_recorded_item_recorded_address_bytes,
                     };
-                    let result_replay_item_replay_recv_flags = result_replay_item.recv_flags;
-                    let result_replay_item_replay_payload_truncated =
-                        result_replay_item.payload_truncated;
-                    let result_replay_item_replay_control_truncated =
-                        result_replay_item.control_truncated;
-                    let result_replay_item_replay_control_raw =
-                        unsafe { result_replay_item.control.0.as_slice()? };
-                    let mut result_replay_item_replay_control =
-                        Vec::with_capacity(result_replay_item_replay_control_raw.len());
-                    for result_replay_item_replay_control_item_value in
-                        result_replay_item_replay_control_raw
+                    let result_recorded_item_recorded_recv_flags = result_recorded_item.recv_flags;
+                    let result_recorded_item_recorded_payload_truncated =
+                        result_recorded_item.payload_truncated;
+                    let result_recorded_item_recorded_control_truncated =
+                        result_recorded_item.control_truncated;
+                    let result_recorded_item_recorded_control_raw =
+                        unsafe { result_recorded_item.control.0.as_slice()? };
+                    let mut result_recorded_item_recorded_control =
+                        Vec::with_capacity(result_recorded_item_recorded_control_raw.len());
+                    for result_recorded_item_recorded_control_item_value in
+                        result_recorded_item_recorded_control_raw
                     {
-                        let result_replay_item_replay_control_item =
-                            *result_replay_item_replay_control_item_value;
-                        let result_replay_item_replay_control_item_replay =
-                            result_replay_item_replay_control_item;
-                        result_replay_item_replay_control
-                            .push(result_replay_item_replay_control_item_replay);
+                        let result_recorded_item_recorded_control_item =
+                            *result_recorded_item_recorded_control_item_value;
+                        let result_recorded_item_recorded_control_item_recorded =
+                            result_recorded_item_recorded_control_item;
+                        result_recorded_item_recorded_control
+                            .push(result_recorded_item_recorded_control_item_recorded);
                     }
-                    let result_replay_item_replay_fds_raw =
-                        unsafe { result_replay_item.fds.as_slice()? };
-                    let mut result_replay_item_replay_fds =
-                        Vec::with_capacity(result_replay_item_replay_fds_raw.len());
-                    for result_replay_item_replay_fds_item_value in
-                        result_replay_item_replay_fds_raw
+                    let result_recorded_item_recorded_fds_raw =
+                        unsafe { result_recorded_item.fds.as_slice()? };
+                    let mut result_recorded_item_recorded_fds =
+                        Vec::with_capacity(result_recorded_item_recorded_fds_raw.len());
+                    for result_recorded_item_recorded_fds_item_value in
+                        result_recorded_item_recorded_fds_raw
                     {
-                        let result_replay_item_replay_fds_item =
-                            *result_replay_item_replay_fds_item_value;
-                        let result_replay_item_replay_fds_item_replay =
-                            result_replay_item_replay_fds_item;
-                        result_replay_item_replay_fds
-                            .push(result_replay_item_replay_fds_item_replay);
+                        let result_recorded_item_recorded_fds_item =
+                            *result_recorded_item_recorded_fds_item_value;
+                        let result_recorded_item_recorded_fds_item_recorded =
+                            result_recorded_item_recorded_fds_item;
+                        result_recorded_item_recorded_fds
+                            .push(result_recorded_item_recorded_fds_item_recorded);
                     }
-                    let result_replay_item_replay_has_credentials =
-                        result_replay_item.has_credentials;
-                    let result_replay_item_replay_credentials_pid =
-                        result_replay_item.credentials.pid;
-                    let result_replay_item_replay_credentials_uid =
-                        result_replay_item.credentials.uid;
-                    let result_replay_item_replay_credentials_gid =
-                        result_replay_item.credentials.gid;
-                    let result_replay_item_replay_credentials = SocketCredentials {
-                        pid: result_replay_item_replay_credentials_pid,
-                        uid: result_replay_item_replay_credentials_uid,
-                        gid: result_replay_item_replay_credentials_gid,
+                    let result_recorded_item_recorded_has_credentials =
+                        result_recorded_item.has_credentials;
+                    let result_recorded_item_recorded_credentials_pid =
+                        result_recorded_item.credentials.pid;
+                    let result_recorded_item_recorded_credentials_uid =
+                        result_recorded_item.credentials.uid;
+                    let result_recorded_item_recorded_credentials_gid =
+                        result_recorded_item.credentials.gid;
+                    let result_recorded_item_recorded_credentials = SocketCredentials {
+                        pid: result_recorded_item_recorded_credentials_pid,
+                        uid: result_recorded_item_recorded_credentials_uid,
+                        gid: result_recorded_item_recorded_credentials_gid,
                     };
-                    let result_replay_item_replay = SocketRecvMessageReplay {
-                        bytes: result_replay_item_replay_bytes,
-                        has_address: result_replay_item_replay_has_address,
-                        address: result_replay_item_replay_address,
-                        recv_flags: result_replay_item_replay_recv_flags,
-                        payload_truncated: result_replay_item_replay_payload_truncated,
-                        control_truncated: result_replay_item_replay_control_truncated,
-                        control: result_replay_item_replay_control,
-                        fds: result_replay_item_replay_fds,
-                        has_credentials: result_replay_item_replay_has_credentials,
-                        credentials: result_replay_item_replay_credentials,
+                    let result_recorded_item_recorded = SocketRecvMessageReplay {
+                        bytes: result_recorded_item_recorded_bytes,
+                        has_address: result_recorded_item_recorded_has_address,
+                        address: result_recorded_item_recorded_address,
+                        recv_flags: result_recorded_item_recorded_recv_flags,
+                        payload_truncated: result_recorded_item_recorded_payload_truncated,
+                        control_truncated: result_recorded_item_recorded_control_truncated,
+                        control: result_recorded_item_recorded_control,
+                        fds: result_recorded_item_recorded_fds,
+                        has_credentials: result_recorded_item_recorded_has_credentials,
+                        credentials: result_recorded_item_recorded_credentials,
                     };
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = NetRecvMmsgReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8441,64 +8444,67 @@ fn destack_net_recv_msg_replay(
                     }
                     *out
                 };
-                let result_replay_bytes = result_value.bytes;
-                let result_replay_has_address = result_value.has_address;
-                let result_replay_address_family = result_value.address.family;
-                let result_replay_address_length = result_value.address.length;
-                let result_replay_address_bytes_raw =
+                let result_recorded_bytes = result_value.bytes;
+                let result_recorded_has_address = result_value.has_address;
+                let result_recorded_address_family = result_value.address.family;
+                let result_recorded_address_length = result_value.address.length;
+                let result_recorded_address_bytes_raw =
                     unsafe { result_value.address.bytes.as_slice()? };
-                let mut result_replay_address_bytes =
-                    Vec::with_capacity(result_replay_address_bytes_raw.len());
-                for result_replay_address_bytes_item_value in result_replay_address_bytes_raw {
-                    let result_replay_address_bytes_item = *result_replay_address_bytes_item_value;
-                    let result_replay_address_bytes_item_replay = result_replay_address_bytes_item;
-                    result_replay_address_bytes.push(result_replay_address_bytes_item_replay);
+                let mut result_recorded_address_bytes =
+                    Vec::with_capacity(result_recorded_address_bytes_raw.len());
+                for result_recorded_address_bytes_item_value in result_recorded_address_bytes_raw {
+                    let result_recorded_address_bytes_item =
+                        *result_recorded_address_bytes_item_value;
+                    let result_recorded_address_bytes_item_recorded =
+                        result_recorded_address_bytes_item;
+                    result_recorded_address_bytes.push(result_recorded_address_bytes_item_recorded);
                 }
-                let result_replay_address = SocketAddressReplay {
-                    family: result_replay_address_family,
-                    length: result_replay_address_length,
-                    bytes: result_replay_address_bytes,
+                let result_recorded_address = SocketAddressReplay {
+                    family: result_recorded_address_family,
+                    length: result_recorded_address_length,
+                    bytes: result_recorded_address_bytes,
                 };
-                let result_replay_recv_flags = result_value.recv_flags;
-                let result_replay_payload_truncated = result_value.payload_truncated;
-                let result_replay_control_truncated = result_value.control_truncated;
-                let result_replay_control_raw = unsafe { result_value.control.0.as_slice()? };
-                let mut result_replay_control = Vec::with_capacity(result_replay_control_raw.len());
-                for result_replay_control_item_value in result_replay_control_raw {
-                    let result_replay_control_item = *result_replay_control_item_value;
-                    let result_replay_control_item_replay = result_replay_control_item;
-                    result_replay_control.push(result_replay_control_item_replay);
+                let result_recorded_recv_flags = result_value.recv_flags;
+                let result_recorded_payload_truncated = result_value.payload_truncated;
+                let result_recorded_control_truncated = result_value.control_truncated;
+                let result_recorded_control_raw = unsafe { result_value.control.0.as_slice()? };
+                let mut result_recorded_control =
+                    Vec::with_capacity(result_recorded_control_raw.len());
+                for result_recorded_control_item_value in result_recorded_control_raw {
+                    let result_recorded_control_item = *result_recorded_control_item_value;
+                    let result_recorded_control_item_recorded = result_recorded_control_item;
+                    result_recorded_control.push(result_recorded_control_item_recorded);
                 }
-                let result_replay_fds_raw = unsafe { result_value.fds.as_slice()? };
-                let mut result_replay_fds = Vec::with_capacity(result_replay_fds_raw.len());
-                for result_replay_fds_item_value in result_replay_fds_raw {
-                    let result_replay_fds_item = *result_replay_fds_item_value;
-                    let result_replay_fds_item_replay = result_replay_fds_item;
-                    result_replay_fds.push(result_replay_fds_item_replay);
+                let result_recorded_fds_raw = unsafe { result_value.fds.as_slice()? };
+                let mut result_recorded_fds = Vec::with_capacity(result_recorded_fds_raw.len());
+                for result_recorded_fds_item_value in result_recorded_fds_raw {
+                    let result_recorded_fds_item = *result_recorded_fds_item_value;
+                    let result_recorded_fds_item_recorded = result_recorded_fds_item;
+                    result_recorded_fds.push(result_recorded_fds_item_recorded);
                 }
-                let result_replay_has_credentials = result_value.has_credentials;
-                let result_replay_credentials_pid = result_value.credentials.pid;
-                let result_replay_credentials_uid = result_value.credentials.uid;
-                let result_replay_credentials_gid = result_value.credentials.gid;
-                let result_replay_credentials = SocketCredentials {
-                    pid: result_replay_credentials_pid,
-                    uid: result_replay_credentials_uid,
-                    gid: result_replay_credentials_gid,
+                let result_recorded_has_credentials = result_value.has_credentials;
+                let result_recorded_credentials_pid = result_value.credentials.pid;
+                let result_recorded_credentials_uid = result_value.credentials.uid;
+                let result_recorded_credentials_gid = result_value.credentials.gid;
+                let result_recorded_credentials = SocketCredentials {
+                    pid: result_recorded_credentials_pid,
+                    uid: result_recorded_credentials_uid,
+                    gid: result_recorded_credentials_gid,
                 };
-                let result_replay = SocketRecvMessageReplay {
-                    bytes: result_replay_bytes,
-                    has_address: result_replay_has_address,
-                    address: result_replay_address,
-                    recv_flags: result_replay_recv_flags,
-                    payload_truncated: result_replay_payload_truncated,
-                    control_truncated: result_replay_control_truncated,
-                    control: result_replay_control,
-                    fds: result_replay_fds,
-                    has_credentials: result_replay_has_credentials,
-                    credentials: result_replay_credentials,
+                let result_recorded = SocketRecvMessageReplay {
+                    bytes: result_recorded_bytes,
+                    has_address: result_recorded_has_address,
+                    address: result_recorded_address,
+                    recv_flags: result_recorded_recv_flags,
+                    payload_truncated: result_recorded_payload_truncated,
+                    control_truncated: result_recorded_control_truncated,
+                    control: result_recorded_control,
+                    fds: result_recorded_fds,
+                    has_credentials: result_recorded_has_credentials,
+                    credentials: result_recorded_credentials,
                 };
                 let payload = NetRecvMsgReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8609,35 +8615,35 @@ fn destack_net_resolve_resolve_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay_family = result_replay_item.family;
-                    let result_replay_item_replay_length = result_replay_item.length;
-                    let result_replay_item_replay_bytes_raw =
-                        unsafe { result_replay_item.bytes.as_slice()? };
-                    let mut result_replay_item_replay_bytes =
-                        Vec::with_capacity(result_replay_item_replay_bytes_raw.len());
-                    for result_replay_item_replay_bytes_item_value in
-                        result_replay_item_replay_bytes_raw
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded_family = result_recorded_item.family;
+                    let result_recorded_item_recorded_length = result_recorded_item.length;
+                    let result_recorded_item_recorded_bytes_raw =
+                        unsafe { result_recorded_item.bytes.as_slice()? };
+                    let mut result_recorded_item_recorded_bytes =
+                        Vec::with_capacity(result_recorded_item_recorded_bytes_raw.len());
+                    for result_recorded_item_recorded_bytes_item_value in
+                        result_recorded_item_recorded_bytes_raw
                     {
-                        let result_replay_item_replay_bytes_item =
-                            *result_replay_item_replay_bytes_item_value;
-                        let result_replay_item_replay_bytes_item_replay =
-                            result_replay_item_replay_bytes_item;
-                        result_replay_item_replay_bytes
-                            .push(result_replay_item_replay_bytes_item_replay);
+                        let result_recorded_item_recorded_bytes_item =
+                            *result_recorded_item_recorded_bytes_item_value;
+                        let result_recorded_item_recorded_bytes_item_recorded =
+                            result_recorded_item_recorded_bytes_item;
+                        result_recorded_item_recorded_bytes
+                            .push(result_recorded_item_recorded_bytes_item_recorded);
                     }
-                    let result_replay_item_replay = SocketAddressReplay {
-                        family: result_replay_item_replay_family,
-                        length: result_replay_item_replay_length,
-                        bytes: result_replay_item_replay_bytes,
+                    let result_recorded_item_recorded = SocketAddressReplay {
+                        family: result_recorded_item_recorded_family,
+                        length: result_recorded_item_recorded_length,
+                        bytes: result_recorded_item_recorded_bytes,
                     };
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = NetResolveResolveReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8709,22 +8715,22 @@ fn destack_net_resolve_reverse_lookup_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay_host =
-                        unsafe { result_replay_item.host.as_str()? }.to_string();
-                    let result_replay_item_replay_service =
-                        unsafe { result_replay_item.service.as_str()? }.to_string();
-                    let result_replay_item_replay = ReverseLookupNameReplay {
-                        host: result_replay_item_replay_host,
-                        service: result_replay_item_replay_service,
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded_host =
+                        unsafe { result_recorded_item.host.as_str()? }.to_string();
+                    let result_recorded_item_recorded_service =
+                        unsafe { result_recorded_item.service.as_str()? }.to_string();
+                    let result_recorded_item_recorded = ReverseLookupNameReplay {
+                        host: result_recorded_item_recorded_host,
+                        service: result_recorded_item_recorded_service,
                     };
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = NetResolveReverseLookupReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8786,9 +8792,9 @@ fn destack_net_reuse_get_reuse_addr_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetReuseGetReuseAddrReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8838,9 +8844,9 @@ fn destack_net_reuse_get_reuse_port_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetReuseGetReusePortReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8884,9 +8890,9 @@ fn destack_net_reuse_set_reuse_addr_replay(
         || unsafe { platform_native::destack_net_set_reuse_addr(context, handle, enabled) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetReuseSetReuseAddrReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8924,9 +8930,9 @@ fn destack_net_reuse_set_reuse_port_replay(
         || unsafe { platform_native::destack_net_set_reuse_port(context, handle, enabled) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetReuseSetReusePortReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8963,9 +8969,9 @@ fn destack_net_route_add_replay(
         || unsafe { platform_native::destack_net_route_add(context, route) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetRouteAddReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9002,9 +9008,9 @@ fn destack_net_route_delete_replay(
         || unsafe { platform_native::destack_net_route_delete(context, route) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetRouteDeleteReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9048,75 +9054,77 @@ fn destack_net_route_list_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay_family = result_replay_item.family;
-                    let result_replay_item_replay_destination_family =
-                        result_replay_item.destination.family;
-                    let result_replay_item_replay_destination_length =
-                        result_replay_item.destination.length;
-                    let result_replay_item_replay_destination_bytes_raw =
-                        unsafe { result_replay_item.destination.bytes.as_slice()? };
-                    let mut result_replay_item_replay_destination_bytes =
-                        Vec::with_capacity(result_replay_item_replay_destination_bytes_raw.len());
-                    for result_replay_item_replay_destination_bytes_item_value in
-                        result_replay_item_replay_destination_bytes_raw
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded_family = result_recorded_item.family;
+                    let result_recorded_item_recorded_destination_family =
+                        result_recorded_item.destination.family;
+                    let result_recorded_item_recorded_destination_length =
+                        result_recorded_item.destination.length;
+                    let result_recorded_item_recorded_destination_bytes_raw =
+                        unsafe { result_recorded_item.destination.bytes.as_slice()? };
+                    let mut result_recorded_item_recorded_destination_bytes = Vec::with_capacity(
+                        result_recorded_item_recorded_destination_bytes_raw.len(),
+                    );
+                    for result_recorded_item_recorded_destination_bytes_item_value in
+                        result_recorded_item_recorded_destination_bytes_raw
                     {
-                        let result_replay_item_replay_destination_bytes_item =
-                            *result_replay_item_replay_destination_bytes_item_value;
-                        let result_replay_item_replay_destination_bytes_item_replay =
-                            result_replay_item_replay_destination_bytes_item;
-                        result_replay_item_replay_destination_bytes
-                            .push(result_replay_item_replay_destination_bytes_item_replay);
+                        let result_recorded_item_recorded_destination_bytes_item =
+                            *result_recorded_item_recorded_destination_bytes_item_value;
+                        let result_recorded_item_recorded_destination_bytes_item_recorded =
+                            result_recorded_item_recorded_destination_bytes_item;
+                        result_recorded_item_recorded_destination_bytes
+                            .push(result_recorded_item_recorded_destination_bytes_item_recorded);
                     }
-                    let result_replay_item_replay_destination = SocketAddressReplay {
-                        family: result_replay_item_replay_destination_family,
-                        length: result_replay_item_replay_destination_length,
-                        bytes: result_replay_item_replay_destination_bytes,
+                    let result_recorded_item_recorded_destination = SocketAddressReplay {
+                        family: result_recorded_item_recorded_destination_family,
+                        length: result_recorded_item_recorded_destination_length,
+                        bytes: result_recorded_item_recorded_destination_bytes,
                     };
-                    let result_replay_item_replay_prefix_length = result_replay_item.prefix_length;
-                    let result_replay_item_replay_gateway_family =
-                        result_replay_item.gateway.family;
-                    let result_replay_item_replay_gateway_length =
-                        result_replay_item.gateway.length;
-                    let result_replay_item_replay_gateway_bytes_raw =
-                        unsafe { result_replay_item.gateway.bytes.as_slice()? };
-                    let mut result_replay_item_replay_gateway_bytes =
-                        Vec::with_capacity(result_replay_item_replay_gateway_bytes_raw.len());
-                    for result_replay_item_replay_gateway_bytes_item_value in
-                        result_replay_item_replay_gateway_bytes_raw
+                    let result_recorded_item_recorded_prefix_length =
+                        result_recorded_item.prefix_length;
+                    let result_recorded_item_recorded_gateway_family =
+                        result_recorded_item.gateway.family;
+                    let result_recorded_item_recorded_gateway_length =
+                        result_recorded_item.gateway.length;
+                    let result_recorded_item_recorded_gateway_bytes_raw =
+                        unsafe { result_recorded_item.gateway.bytes.as_slice()? };
+                    let mut result_recorded_item_recorded_gateway_bytes =
+                        Vec::with_capacity(result_recorded_item_recorded_gateway_bytes_raw.len());
+                    for result_recorded_item_recorded_gateway_bytes_item_value in
+                        result_recorded_item_recorded_gateway_bytes_raw
                     {
-                        let result_replay_item_replay_gateway_bytes_item =
-                            *result_replay_item_replay_gateway_bytes_item_value;
-                        let result_replay_item_replay_gateway_bytes_item_replay =
-                            result_replay_item_replay_gateway_bytes_item;
-                        result_replay_item_replay_gateway_bytes
-                            .push(result_replay_item_replay_gateway_bytes_item_replay);
+                        let result_recorded_item_recorded_gateway_bytes_item =
+                            *result_recorded_item_recorded_gateway_bytes_item_value;
+                        let result_recorded_item_recorded_gateway_bytes_item_recorded =
+                            result_recorded_item_recorded_gateway_bytes_item;
+                        result_recorded_item_recorded_gateway_bytes
+                            .push(result_recorded_item_recorded_gateway_bytes_item_recorded);
                     }
-                    let result_replay_item_replay_gateway = SocketAddressReplay {
-                        family: result_replay_item_replay_gateway_family,
-                        length: result_replay_item_replay_gateway_length,
-                        bytes: result_replay_item_replay_gateway_bytes,
+                    let result_recorded_item_recorded_gateway = SocketAddressReplay {
+                        family: result_recorded_item_recorded_gateway_family,
+                        length: result_recorded_item_recorded_gateway_length,
+                        bytes: result_recorded_item_recorded_gateway_bytes,
                     };
-                    let result_replay_item_replay_interface_index =
-                        result_replay_item.interface_index;
-                    let result_replay_item_replay_metric = result_replay_item.metric;
-                    let result_replay_item_replay_kind = result_replay_item.kind;
-                    let result_replay_item_replay = RouteEntryReplay {
-                        family: result_replay_item_replay_family,
-                        destination: result_replay_item_replay_destination,
-                        prefix_length: result_replay_item_replay_prefix_length,
-                        gateway: result_replay_item_replay_gateway,
-                        interface_index: result_replay_item_replay_interface_index,
-                        metric: result_replay_item_replay_metric,
-                        kind: result_replay_item_replay_kind,
+                    let result_recorded_item_recorded_interface_index =
+                        result_recorded_item.interface_index;
+                    let result_recorded_item_recorded_metric = result_recorded_item.metric;
+                    let result_recorded_item_recorded_kind = result_recorded_item.kind;
+                    let result_recorded_item_recorded = RouteEntryReplay {
+                        family: result_recorded_item_recorded_family,
+                        destination: result_recorded_item_recorded_destination,
+                        prefix_length: result_recorded_item_recorded_prefix_length,
+                        gateway: result_recorded_item_recorded_gateway,
+                        interface_index: result_recorded_item_recorded_interface_index,
+                        metric: result_recorded_item_recorded_metric,
+                        kind: result_recorded_item_recorded_kind,
                     };
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = NetRouteListReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9229,9 +9237,9 @@ fn destack_net_send_mmsg_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetSendMmsgReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9283,9 +9291,9 @@ fn destack_net_send_msg_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetSendMsgReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9337,9 +9345,9 @@ fn destack_net_send_to_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetSendToReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9383,9 +9391,9 @@ fn destack_net_set_multicast_loop_replay(
         || unsafe { platform_native::destack_net_set_multicast_loop(context, handle, enabled) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetSetMulticastLoopReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9423,9 +9431,9 @@ fn destack_net_set_multicast_ttl_replay(
         || unsafe { platform_native::destack_net_set_multicast_ttl(context, handle, ttl) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetSetMulticastTtlReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9463,9 +9471,9 @@ fn destack_net_set_nonblocking_replay(
         || unsafe { platform_native::destack_net_set_nonblocking(context, handle, enabled) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetSetNonblockingReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9503,9 +9511,9 @@ fn destack_net_shutdown_replay(
         || unsafe { platform_native::destack_net_shutdown(context, handle, how) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetShutdownReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9553,9 +9561,9 @@ fn destack_net_socket_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetSocketReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9609,14 +9617,14 @@ fn destack_net_socket_pair_replay(
                     }
                     *out
                 };
-                let result_replay_first = result_value.first;
-                let result_replay_second = result_value.second;
-                let result_replay = SocketPair {
-                    first: result_replay_first,
-                    second: result_replay_second,
+                let result_recorded_first = result_value.first;
+                let result_recorded_second = result_value.second;
+                let result_recorded = SocketPair {
+                    first: result_recorded_first,
+                    second: result_recorded_second,
                 };
                 let payload = NetSocketPairReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9671,18 +9679,18 @@ fn destack_net_tcp_get_keep_alive_replay(
                     }
                     *out
                 };
-                let result_replay_enabled = result_value.enabled;
-                let result_replay_idle_seconds = result_value.idle_seconds;
-                let result_replay_interval_seconds = result_value.interval_seconds;
-                let result_replay_probe_count = result_value.probe_count;
-                let result_replay = KeepAliveConfig {
-                    enabled: result_replay_enabled,
-                    idle_seconds: result_replay_idle_seconds,
-                    interval_seconds: result_replay_interval_seconds,
-                    probe_count: result_replay_probe_count,
+                let result_recorded_enabled = result_value.enabled;
+                let result_recorded_idle_seconds = result_value.idle_seconds;
+                let result_recorded_interval_seconds = result_value.interval_seconds;
+                let result_recorded_probe_count = result_value.probe_count;
+                let result_recorded = KeepAliveConfig {
+                    enabled: result_recorded_enabled,
+                    idle_seconds: result_recorded_idle_seconds,
+                    interval_seconds: result_recorded_interval_seconds,
+                    probe_count: result_recorded_probe_count,
                 };
                 let payload = NetTcpGetKeepAliveReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9741,9 +9749,9 @@ fn destack_net_tcp_get_no_delay_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetTcpGetNoDelayReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9787,9 +9795,9 @@ fn destack_net_tcp_set_keep_alive_replay(
         || unsafe { platform_native::destack_net_set_keep_alive(context, handle, config) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetTcpSetKeepAliveReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9827,9 +9835,9 @@ fn destack_net_tcp_set_no_delay_replay(
         || unsafe { platform_native::destack_net_set_no_delay(context, handle, enabled) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetTcpSetNoDelayReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9867,9 +9875,9 @@ fn destack_net_udp_bind_replay(
         || unsafe { platform_native::destack_net_udp_bind(context, handle, address) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetUdpBindReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9907,9 +9915,9 @@ fn destack_net_udp_connect_replay(
         || unsafe { platform_native::destack_net_udp_connect(context, handle, address) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetUdpConnectReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9957,31 +9965,33 @@ fn destack_net_udp_recv_from_replay(
                     }
                     *out
                 };
-                let result_replay_address_family = result_value.address.family;
-                let result_replay_address_length = result_value.address.length;
-                let result_replay_address_bytes_raw =
+                let result_recorded_address_family = result_value.address.family;
+                let result_recorded_address_length = result_value.address.length;
+                let result_recorded_address_bytes_raw =
                     unsafe { result_value.address.bytes.as_slice()? };
-                let mut result_replay_address_bytes =
-                    Vec::with_capacity(result_replay_address_bytes_raw.len());
-                for result_replay_address_bytes_item_value in result_replay_address_bytes_raw {
-                    let result_replay_address_bytes_item = *result_replay_address_bytes_item_value;
-                    let result_replay_address_bytes_item_replay = result_replay_address_bytes_item;
-                    result_replay_address_bytes.push(result_replay_address_bytes_item_replay);
+                let mut result_recorded_address_bytes =
+                    Vec::with_capacity(result_recorded_address_bytes_raw.len());
+                for result_recorded_address_bytes_item_value in result_recorded_address_bytes_raw {
+                    let result_recorded_address_bytes_item =
+                        *result_recorded_address_bytes_item_value;
+                    let result_recorded_address_bytes_item_recorded =
+                        result_recorded_address_bytes_item;
+                    result_recorded_address_bytes.push(result_recorded_address_bytes_item_recorded);
                 }
-                let result_replay_address = SocketAddressReplay {
-                    family: result_replay_address_family,
-                    length: result_replay_address_length,
-                    bytes: result_replay_address_bytes,
+                let result_recorded_address = SocketAddressReplay {
+                    family: result_recorded_address_family,
+                    length: result_recorded_address_length,
+                    bytes: result_recorded_address_bytes,
                 };
-                let result_replay_bytes = result_value.bytes;
-                let result_replay_recv_flags = result_value.recv_flags;
-                let result_replay = UdpReceiveReplay {
-                    address: result_replay_address,
-                    bytes: result_replay_bytes,
-                    recv_flags: result_replay_recv_flags,
+                let result_recorded_bytes = result_value.bytes;
+                let result_recorded_recv_flags = result_value.recv_flags;
+                let result_recorded = UdpReceiveReplay {
+                    address: result_recorded_address,
+                    bytes: result_recorded_bytes,
+                    recv_flags: result_recorded_recv_flags,
                 };
                 let payload = NetUdpRecvFromReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10061,9 +10071,9 @@ fn destack_net_udp_send_to_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetUdpSendToReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10113,9 +10123,9 @@ fn destack_net_udp_socket_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetUdpSocketReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10165,9 +10175,9 @@ fn destack_net_uds_accept_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetUdsAcceptReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10210,9 +10220,9 @@ fn destack_net_uds_close_listener_replay(
         || unsafe { platform_native::destack_net_uds_close_listener(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetUdsCloseListenerReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10256,9 +10266,9 @@ fn destack_net_uds_connect_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetUdsConnectReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10309,9 +10319,9 @@ fn destack_net_uds_listen_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetUdsListenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10361,14 +10371,14 @@ fn destack_net_uds_socket_pair_replay(
                     }
                     *out
                 };
-                let result_replay_first = result_value.first;
-                let result_replay_second = result_value.second;
-                let result_replay = SocketPair {
-                    first: result_replay_first,
-                    second: result_replay_second,
+                let result_recorded_first = result_value.first;
+                let result_recorded_second = result_value.second;
+                let result_recorded = SocketPair {
+                    first: result_recorded_first,
+                    second: result_recorded_second,
                 };
                 let payload = NetUdsSocketPairReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10424,9 +10434,9 @@ fn destack_net_write_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetWriteReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10477,9 +10487,9 @@ fn destack_net_writev_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetWritevReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -11831,9 +11841,9 @@ fn destack_net_accept_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetAcceptReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -11878,16 +11888,16 @@ fn destack_net_address_local_address_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_family = result_value.family;
-                let result_replay_length = result_value.length;
-                let result_replay_bytes = result_value.bytes.read_bytes(context)?;
-                let result_replay = SocketAddressReplay {
-                    family: result_replay_family,
-                    length: result_replay_length,
-                    bytes: result_replay_bytes,
+                let result_recorded_family = result_value.family;
+                let result_recorded_length = result_value.length;
+                let result_recorded_bytes = result_value.bytes.read_bytes(context)?;
+                let result_recorded = SocketAddressReplay {
+                    family: result_recorded_family,
+                    length: result_recorded_length,
+                    bytes: result_recorded_bytes,
                 };
                 let payload = NetAddressLocalAddressReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -11939,16 +11949,16 @@ fn destack_net_address_peer_address_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_family = result_value.family;
-                let result_replay_length = result_value.length;
-                let result_replay_bytes = result_value.bytes.read_bytes(context)?;
-                let result_replay = SocketAddressReplay {
-                    family: result_replay_family,
-                    length: result_replay_length,
-                    bytes: result_replay_bytes,
+                let result_recorded_family = result_value.family;
+                let result_recorded_length = result_value.length;
+                let result_recorded_bytes = result_value.bytes.read_bytes(context)?;
+                let result_recorded = SocketAddressReplay {
+                    family: result_recorded_family,
+                    length: result_recorded_length,
+                    bytes: result_recorded_bytes,
                 };
                 let payload = NetAddressPeerAddressReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -12000,9 +12010,9 @@ fn destack_net_bind_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetBindReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -12043,9 +12053,9 @@ fn destack_net_close_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -12086,9 +12096,9 @@ fn destack_net_close_listener_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetCloseListenerReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -12130,9 +12140,9 @@ fn destack_net_connect_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetConnectReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -12173,150 +12183,156 @@ fn destack_net_interface_list_interfaces_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_raw = result_value.raw_values(context)?;
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = {
-                        if result_replay_item_value.tag() != vm::ValueTag::Aggregate {
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_replay_item",
+                                "result_recorded_item",
                                 "item",
                             ))
                             .boxed());
                         }
                         let slots = context
-                            .aggregate_slots(result_replay_item_value)
+                            .aggregate_slots(result_recorded_item_value)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
                         if slots.len() != 6 {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_replay_item",
+                                "result_recorded_item",
                                 "expected 6 fields",
                             ))
                             .boxed());
                         }
-                        let result_replay_item_name =
-                            decode_string(slots[0], "result_replay_item_name", "name")?;
-                        let result_replay_item_index =
-                            decode_uint32(slots[1], "result_replay_item_index", "index")?;
-                        let result_replay_item_flags_inner =
-                            decode_uint64(slots[2], "result_replay_item_flags_inner", "flags")?;
-                        let result_replay_item_flags =
-                            NetInterfaceFlags(result_replay_item_flags_inner);
-                        let result_replay_item_mtu =
-                            decode_uint32(slots[3], "result_replay_item_mtu", "mtu")?;
-                        let result_replay_item_mac_address = decode_array::<u8>(
+                        let result_recorded_item_name =
+                            decode_string(slots[0], "result_recorded_item_name", "name")?;
+                        let result_recorded_item_index =
+                            decode_uint32(slots[1], "result_recorded_item_index", "index")?;
+                        let result_recorded_item_flags_inner =
+                            decode_uint64(slots[2], "result_recorded_item_flags_inner", "flags")?;
+                        let result_recorded_item_flags =
+                            NetInterfaceFlags(result_recorded_item_flags_inner);
+                        let result_recorded_item_mtu =
+                            decode_uint32(slots[3], "result_recorded_item_mtu", "mtu")?;
+                        let result_recorded_item_mac_address = decode_array::<u8>(
                             context,
                             slots[4],
-                            "result_replay_item_mac_address",
+                            "result_recorded_item_mac_address",
                             "macAddress",
                         )?;
-                        let result_replay_item_addresses = decode_array::<SocketAddressVm>(
+                        let result_recorded_item_addresses = decode_array::<SocketAddressVm>(
                             context,
                             slots[5],
-                            "result_replay_item_addresses",
+                            "result_recorded_item_addresses",
                             "addresses",
                         )?;
                         NetInterfaceVm {
-                            name: result_replay_item_name,
-                            index: result_replay_item_index,
-                            flags: result_replay_item_flags,
-                            mtu: result_replay_item_mtu,
-                            mac_address: result_replay_item_mac_address,
-                            addresses: result_replay_item_addresses,
+                            name: result_recorded_item_name,
+                            index: result_recorded_item_index,
+                            flags: result_recorded_item_flags,
+                            mtu: result_recorded_item_mtu,
+                            mac_address: result_recorded_item_mac_address,
+                            addresses: result_recorded_item_addresses,
                         }
                     };
-                    let result_replay_item_replay_name = {
-                        let result_replay_item_replay_name_ref = context
-                            .string_ref(result_replay_item.name)
+                    let result_recorded_item_recorded_name = {
+                        let result_recorded_item_recorded_name_ref = context
+                            .string_ref(result_recorded_item.name)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_replay_item_replay_name_ref.as_str().to_string()
+                        result_recorded_item_recorded_name_ref.as_str().to_string()
                     };
-                    let result_replay_item_replay_index = result_replay_item.index;
-                    let result_replay_item_replay_flags = result_replay_item.flags;
-                    let result_replay_item_replay_mtu = result_replay_item.mtu;
-                    let result_replay_item_replay_mac_address =
-                        result_replay_item.mac_address.read_bytes(context)?;
-                    let result_replay_item_replay_addresses_raw =
-                        result_replay_item.addresses.raw_values(context)?;
-                    let mut result_replay_item_replay_addresses =
-                        Vec::with_capacity(result_replay_item_replay_addresses_raw.len());
-                    for result_replay_item_replay_addresses_item_value in
-                        result_replay_item_replay_addresses_raw
+                    let result_recorded_item_recorded_index = result_recorded_item.index;
+                    let result_recorded_item_recorded_flags = result_recorded_item.flags;
+                    let result_recorded_item_recorded_mtu = result_recorded_item.mtu;
+                    let result_recorded_item_recorded_mac_address =
+                        result_recorded_item.mac_address.read_bytes(context)?;
+                    let result_recorded_item_recorded_addresses_raw =
+                        result_recorded_item.addresses.raw_values(context)?;
+                    let mut result_recorded_item_recorded_addresses =
+                        Vec::with_capacity(result_recorded_item_recorded_addresses_raw.len());
+                    for result_recorded_item_recorded_addresses_item_value in
+                        result_recorded_item_recorded_addresses_raw
                     {
-                        let result_replay_item_replay_addresses_item = {
-                            if result_replay_item_replay_addresses_item_value.tag()
+                        let result_recorded_item_recorded_addresses_item = {
+                            if result_recorded_item_recorded_addresses_item_value.tag()
                                 != vm::ValueTag::Aggregate
                             {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_type(
-                                        "result_replay_item_replay_addresses_item",
+                                        "result_recorded_item_recorded_addresses_item",
                                         "item",
                                     ),
                                 )
                                 .boxed());
                             }
                             let slots = context
-                                .aggregate_slots(result_replay_item_replay_addresses_item_value)
+                                .aggregate_slots(result_recorded_item_recorded_addresses_item_value)
                                 .map_err(|error| RuntimeError::from(error).boxed())?;
                             if slots.len() != 3 {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
-                                        "result_replay_item_replay_addresses_item",
+                                        "result_recorded_item_recorded_addresses_item",
                                         "expected 3 fields",
                                     ),
                                 )
                                 .boxed());
                             }
-                            let result_replay_item_replay_addresses_item_family = decode_uint16(
-                                slots[0],
-                                "result_replay_item_replay_addresses_item_family",
-                                "family",
-                            )?;
-                            let result_replay_item_replay_addresses_item_length = decode_uint32(
-                                slots[1],
-                                "result_replay_item_replay_addresses_item_length",
-                                "length",
-                            )?;
-                            let result_replay_item_replay_addresses_item_bytes = decode_array::<u8>(
-                                context,
-                                slots[2],
-                                "result_replay_item_replay_addresses_item_bytes",
-                                "bytes",
-                            )?;
+                            let result_recorded_item_recorded_addresses_item_family =
+                                decode_uint16(
+                                    slots[0],
+                                    "result_recorded_item_recorded_addresses_item_family",
+                                    "family",
+                                )?;
+                            let result_recorded_item_recorded_addresses_item_length =
+                                decode_uint32(
+                                    slots[1],
+                                    "result_recorded_item_recorded_addresses_item_length",
+                                    "length",
+                                )?;
+                            let result_recorded_item_recorded_addresses_item_bytes =
+                                decode_array::<u8>(
+                                    context,
+                                    slots[2],
+                                    "result_recorded_item_recorded_addresses_item_bytes",
+                                    "bytes",
+                                )?;
                             SocketAddressVm {
-                                family: result_replay_item_replay_addresses_item_family,
-                                length: result_replay_item_replay_addresses_item_length,
-                                bytes: result_replay_item_replay_addresses_item_bytes,
+                                family: result_recorded_item_recorded_addresses_item_family,
+                                length: result_recorded_item_recorded_addresses_item_length,
+                                bytes: result_recorded_item_recorded_addresses_item_bytes,
                             }
                         };
-                        let result_replay_item_replay_addresses_item_replay_family =
-                            result_replay_item_replay_addresses_item.family;
-                        let result_replay_item_replay_addresses_item_replay_length =
-                            result_replay_item_replay_addresses_item.length;
-                        let result_replay_item_replay_addresses_item_replay_bytes =
-                            result_replay_item_replay_addresses_item
+                        let result_recorded_item_recorded_addresses_item_recorded_family =
+                            result_recorded_item_recorded_addresses_item.family;
+                        let result_recorded_item_recorded_addresses_item_recorded_length =
+                            result_recorded_item_recorded_addresses_item.length;
+                        let result_recorded_item_recorded_addresses_item_recorded_bytes =
+                            result_recorded_item_recorded_addresses_item
                                 .bytes
                                 .read_bytes(context)?;
-                        let result_replay_item_replay_addresses_item_replay = SocketAddressReplay {
-                            family: result_replay_item_replay_addresses_item_replay_family,
-                            length: result_replay_item_replay_addresses_item_replay_length,
-                            bytes: result_replay_item_replay_addresses_item_replay_bytes,
-                        };
-                        result_replay_item_replay_addresses
-                            .push(result_replay_item_replay_addresses_item_replay);
+                        let result_recorded_item_recorded_addresses_item_recorded =
+                            SocketAddressReplay {
+                                family:
+                                    result_recorded_item_recorded_addresses_item_recorded_family,
+                                length:
+                                    result_recorded_item_recorded_addresses_item_recorded_length,
+                                bytes: result_recorded_item_recorded_addresses_item_recorded_bytes,
+                            };
+                        result_recorded_item_recorded_addresses
+                            .push(result_recorded_item_recorded_addresses_item_recorded);
                     }
-                    let result_replay_item_replay = NetInterfaceReplay {
-                        name: result_replay_item_replay_name,
-                        index: result_replay_item_replay_index,
-                        flags: result_replay_item_replay_flags,
-                        mtu: result_replay_item_replay_mtu,
-                        mac_address: result_replay_item_replay_mac_address,
-                        addresses: result_replay_item_replay_addresses,
+                    let result_recorded_item_recorded = NetInterfaceReplay {
+                        name: result_recorded_item_recorded_name,
+                        index: result_recorded_item_recorded_index,
+                        flags: result_recorded_item_recorded_flags,
+                        mtu: result_recorded_item_recorded_mtu,
+                        mac_address: result_recorded_item_recorded_mac_address,
+                        addresses: result_recorded_item_recorded_addresses,
                     };
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = NetInterfaceListInterfacesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -12444,9 +12460,9 @@ fn destack_net_interface_index_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetInterfaceIndexReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -12491,14 +12507,14 @@ fn destack_net_interface_name_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = {
-                    let result_replay_ref = context
+                let result_recorded = {
+                    let result_recorded_ref = context
                         .string_ref(result_value)
                         .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_replay_ref.as_str().to_string()
+                    result_recorded_ref.as_str().to_string()
                 };
                 let payload = NetInterfaceNameReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -12553,9 +12569,9 @@ fn destack_net_join_multicast_v4_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetJoinMulticastV4Replay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -12606,9 +12622,9 @@ fn destack_net_join_multicast_v6_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetJoinMulticastV6Replay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -12659,9 +12675,9 @@ fn destack_net_leave_multicast_v4_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetLeaveMulticastV4Replay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -12712,9 +12728,9 @@ fn destack_net_leave_multicast_v6_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetLeaveMulticastV6Replay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -12757,9 +12773,9 @@ fn destack_net_listen_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetListenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -12804,9 +12820,9 @@ fn destack_net_options_get_broadcast_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetOptionsGetBroadcastReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -12851,14 +12867,14 @@ fn destack_net_options_get_linger_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_enabled = result_value.enabled;
-                let result_replay_seconds = result_value.seconds;
-                let result_replay = Linger {
-                    enabled: result_replay_enabled,
-                    seconds: result_replay_seconds,
+                let result_recorded_enabled = result_value.enabled;
+                let result_recorded_seconds = result_value.seconds;
+                let result_recorded = Linger {
+                    enabled: result_recorded_enabled,
+                    seconds: result_recorded_seconds,
                 };
                 let payload = NetOptionsGetLingerReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -12908,9 +12924,9 @@ fn destack_net_options_get_only_v6_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetOptionsGetOnlyV6Replay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -12955,9 +12971,9 @@ fn destack_net_options_get_packet_mark_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetOptionsGetPacketMarkReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13002,9 +13018,9 @@ fn destack_net_options_get_read_timeout_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetOptionsGetReadTimeoutReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13049,9 +13065,9 @@ fn destack_net_options_get_recv_buffer_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetOptionsGetRecvBufferReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13096,9 +13112,9 @@ fn destack_net_options_get_send_buffer_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetOptionsGetSendBufferReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13150,9 +13166,9 @@ fn destack_net_options_get_sock_opt_raw_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value.read_bytes(context)?;
+                let result_recorded = result_value.read_bytes(context)?;
                 let payload = NetOptionsGetSockOptRawReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13197,9 +13213,9 @@ fn destack_net_options_get_timestamping_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetOptionsGetTimestampingReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13244,9 +13260,9 @@ fn destack_net_options_get_tos_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetOptionsGetTosReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13291,9 +13307,9 @@ fn destack_net_options_get_ttl_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetOptionsGetTtlReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13338,9 +13354,9 @@ fn destack_net_options_get_write_timeout_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetOptionsGetWriteTimeoutReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13385,9 +13401,9 @@ fn destack_net_options_set_broadcast_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetOptionsSetBroadcastReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13429,9 +13445,9 @@ fn destack_net_options_set_linger_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetOptionsSetLingerReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13473,9 +13489,9 @@ fn destack_net_options_set_only_v6_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetOptionsSetOnlyV6Replay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13517,9 +13533,9 @@ fn destack_net_options_set_packet_mark_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetOptionsSetPacketMarkReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13561,9 +13577,9 @@ fn destack_net_options_set_read_timeout_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetOptionsSetReadTimeoutReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13605,9 +13621,9 @@ fn destack_net_options_set_recv_buffer_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetOptionsSetRecvBufferReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13649,9 +13665,9 @@ fn destack_net_options_set_send_buffer_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetOptionsSetSendBufferReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13697,9 +13713,9 @@ fn destack_net_options_set_sock_opt_raw_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetOptionsSetSockOptRawReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13741,9 +13757,9 @@ fn destack_net_options_set_timestamping_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetOptionsSetTimestampingReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13785,9 +13801,9 @@ fn destack_net_options_set_tos_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetOptionsSetTosReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13829,9 +13845,9 @@ fn destack_net_options_set_ttl_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetOptionsSetTtlReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13873,9 +13889,9 @@ fn destack_net_options_set_write_timeout_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetOptionsSetWriteTimeoutReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13917,9 +13933,9 @@ fn destack_net_raw_packet_open_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetRawPacketOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13965,18 +13981,18 @@ fn destack_net_raw_packet_receive_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_bytes = result_value.bytes;
-                let result_replay_interface_index = result_value.interface_index;
-                let result_replay_timestamp_ns = result_value.timestamp_ns;
-                let result_replay_truncated = result_value.truncated;
-                let result_replay = PacketCaptureRecord {
-                    bytes: result_replay_bytes,
-                    interface_index: result_replay_interface_index,
-                    timestamp_ns: result_replay_timestamp_ns,
-                    truncated: result_replay_truncated,
+                let result_recorded_bytes = result_value.bytes;
+                let result_recorded_interface_index = result_value.interface_index;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_truncated = result_value.truncated;
+                let result_recorded = PacketCaptureRecord {
+                    bytes: result_recorded_bytes,
+                    interface_index: result_recorded_interface_index,
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    truncated: result_recorded_truncated,
                 };
                 let payload = NetRawPacketReceiveReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -14031,9 +14047,9 @@ fn destack_net_raw_packet_send_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetRawPacketSendReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -14080,9 +14096,9 @@ fn destack_net_raw_packet_set_timestamp_mode_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetRawPacketSetTimestampModeReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -14126,9 +14142,9 @@ fn destack_net_raw_set_header_included_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetRawSetHeaderIncludedReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -14171,9 +14187,9 @@ fn destack_net_raw_socket_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetRawSocketReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -14219,9 +14235,9 @@ fn destack_net_read_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetReadReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -14267,9 +14283,9 @@ fn destack_net_readv_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetReadvReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -14316,23 +14332,24 @@ fn destack_net_recv_from_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_bytes = result_value.bytes;
-                let result_replay_address_family = result_value.address.family;
-                let result_replay_address_length = result_value.address.length;
-                let result_replay_address_bytes = result_value.address.bytes.read_bytes(context)?;
-                let result_replay_address = SocketAddressReplay {
-                    family: result_replay_address_family,
-                    length: result_replay_address_length,
-                    bytes: result_replay_address_bytes,
+                let result_recorded_bytes = result_value.bytes;
+                let result_recorded_address_family = result_value.address.family;
+                let result_recorded_address_length = result_value.address.length;
+                let result_recorded_address_bytes =
+                    result_value.address.bytes.read_bytes(context)?;
+                let result_recorded_address = SocketAddressReplay {
+                    family: result_recorded_address_family,
+                    length: result_recorded_address_length,
+                    bytes: result_recorded_address_bytes,
                 };
-                let result_replay_recv_flags = result_value.recv_flags;
-                let result_replay = SocketRecvFromReplay {
-                    bytes: result_replay_bytes,
-                    address: result_replay_address,
-                    recv_flags: result_replay_recv_flags,
+                let result_recorded_recv_flags = result_value.recv_flags;
+                let result_recorded = SocketRecvFromReplay {
+                    bytes: result_recorded_bytes,
+                    address: result_recorded_address,
+                    recv_flags: result_recorded_recv_flags,
                 };
                 let payload = NetRecvFromReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -14406,36 +14423,39 @@ fn destack_net_recv_mmsg_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_raw = result_value.raw_values(context)?;
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = {
-                        if result_replay_item_value.tag() != vm::ValueTag::Aggregate {
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_replay_item",
+                                "result_recorded_item",
                                 "item",
                             ))
                             .boxed());
                         }
                         let slots = context
-                            .aggregate_slots(result_replay_item_value)
+                            .aggregate_slots(result_recorded_item_value)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
                         if slots.len() != 10 {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_replay_item",
+                                "result_recorded_item",
                                 "expected 10 fields",
                             ))
                             .boxed());
                         }
-                        let result_replay_item_bytes =
-                            decode_uint64(slots[0], "result_replay_item_bytes", "bytes")?;
-                        let result_replay_item_has_address =
-                            decode_bool(slots[1], "result_replay_item_has_address", "hasAddress")?;
-                        let result_replay_item_address = {
+                        let result_recorded_item_bytes =
+                            decode_uint64(slots[0], "result_recorded_item_bytes", "bytes")?;
+                        let result_recorded_item_has_address = decode_bool(
+                            slots[1],
+                            "result_recorded_item_has_address",
+                            "hasAddress",
+                        )?;
+                        let result_recorded_item_address = {
                             if slots[2].tag() != vm::ValueTag::Aggregate {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_type(
-                                        "result_replay_item_address",
+                                        "result_recorded_item_address",
                                         "address",
                                     ),
                                 )
@@ -14447,77 +14467,77 @@ fn destack_net_recv_mmsg_vm_replay(
                             if slots.len() != 3 {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
-                                        "result_replay_item_address",
+                                        "result_recorded_item_address",
                                         "expected 3 fields",
                                     ),
                                 )
                                 .boxed());
                             }
-                            let result_replay_item_address_family = decode_uint16(
+                            let result_recorded_item_address_family = decode_uint16(
                                 slots[0],
-                                "result_replay_item_address_family",
+                                "result_recorded_item_address_family",
                                 "family",
                             )?;
-                            let result_replay_item_address_length = decode_uint32(
+                            let result_recorded_item_address_length = decode_uint32(
                                 slots[1],
-                                "result_replay_item_address_length",
+                                "result_recorded_item_address_length",
                                 "length",
                             )?;
-                            let result_replay_item_address_bytes = decode_array::<u8>(
+                            let result_recorded_item_address_bytes = decode_array::<u8>(
                                 context,
                                 slots[2],
-                                "result_replay_item_address_bytes",
+                                "result_recorded_item_address_bytes",
                                 "bytes",
                             )?;
                             SocketAddressVm {
-                                family: result_replay_item_address_family,
-                                length: result_replay_item_address_length,
-                                bytes: result_replay_item_address_bytes,
+                                family: result_recorded_item_address_family,
+                                length: result_recorded_item_address_length,
+                                bytes: result_recorded_item_address_bytes,
                             }
                         };
-                        let result_replay_item_recv_flags_inner = decode_uint32(
+                        let result_recorded_item_recv_flags_inner = decode_uint32(
                             slots[3],
-                            "result_replay_item_recv_flags_inner",
+                            "result_recorded_item_recv_flags_inner",
                             "recvFlags",
                         )?;
-                        let result_replay_item_recv_flags =
-                            SocketMessageFlags(result_replay_item_recv_flags_inner);
-                        let result_replay_item_payload_truncated = decode_bool(
+                        let result_recorded_item_recv_flags =
+                            SocketMessageFlags(result_recorded_item_recv_flags_inner);
+                        let result_recorded_item_payload_truncated = decode_bool(
                             slots[4],
-                            "result_replay_item_payload_truncated",
+                            "result_recorded_item_payload_truncated",
                             "payloadTruncated",
                         )?;
-                        let result_replay_item_control_truncated = decode_bool(
+                        let result_recorded_item_control_truncated = decode_bool(
                             slots[5],
-                            "result_replay_item_control_truncated",
+                            "result_recorded_item_control_truncated",
                             "controlTruncated",
                         )?;
-                        let result_replay_item_control_inner = decode_array::<u8>(
+                        let result_recorded_item_control_inner = decode_array::<u8>(
                             context,
                             slots[6],
-                            "result_replay_item_control_inner",
+                            "result_recorded_item_control_inner",
                             "control",
                         )?;
-                        let result_replay_item_control =
+                        let result_recorded_item_control =
                             crate::platform::net::SocketControlBufferAbi::<
                                 crate::platform::abi::VmAbi,
-                            >(result_replay_item_control_inner);
-                        let result_replay_item_fds = decode_array::<resource::TransferredHandle>(
+                            >(result_recorded_item_control_inner);
+                        let result_recorded_item_fds = decode_array::<resource::TransferredHandle>(
                             context,
                             slots[7],
-                            "result_replay_item_fds",
+                            "result_recorded_item_fds",
                             "fds",
                         )?;
-                        let result_replay_item_has_credentials = decode_bool(
+                        let result_recorded_item_has_credentials = decode_bool(
                             slots[8],
-                            "result_replay_item_has_credentials",
+                            "result_recorded_item_has_credentials",
                             "hasCredentials",
                         )?;
-                        let result_replay_item_credentials = {
+                        let result_recorded_item_credentials = {
                             if slots[9].tag() != vm::ValueTag::Aggregate {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_type(
-                                        "result_replay_item_credentials",
+                                        "result_recorded_item_credentials",
                                         "credentials",
                                     ),
                                 )
@@ -14529,117 +14549,121 @@ fn destack_net_recv_mmsg_vm_replay(
                             if slots.len() != 3 {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
-                                        "result_replay_item_credentials",
+                                        "result_recorded_item_credentials",
                                         "expected 3 fields",
                                     ),
                                 )
                                 .boxed());
                             }
-                            let result_replay_item_credentials_pid = decode_uint32(
+                            let result_recorded_item_credentials_pid = decode_uint32(
                                 slots[0],
-                                "result_replay_item_credentials_pid",
+                                "result_recorded_item_credentials_pid",
                                 "pid",
                             )?;
-                            let result_replay_item_credentials_uid = decode_uint32(
+                            let result_recorded_item_credentials_uid = decode_uint32(
                                 slots[1],
-                                "result_replay_item_credentials_uid",
+                                "result_recorded_item_credentials_uid",
                                 "uid",
                             )?;
-                            let result_replay_item_credentials_gid = decode_uint32(
+                            let result_recorded_item_credentials_gid = decode_uint32(
                                 slots[2],
-                                "result_replay_item_credentials_gid",
+                                "result_recorded_item_credentials_gid",
                                 "gid",
                             )?;
                             SocketCredentialsVm {
-                                pid: result_replay_item_credentials_pid,
-                                uid: result_replay_item_credentials_uid,
-                                gid: result_replay_item_credentials_gid,
+                                pid: result_recorded_item_credentials_pid,
+                                uid: result_recorded_item_credentials_uid,
+                                gid: result_recorded_item_credentials_gid,
                             }
                         };
                         SocketRecvMessageVm {
-                            bytes: result_replay_item_bytes,
-                            has_address: result_replay_item_has_address,
-                            address: result_replay_item_address,
-                            recv_flags: result_replay_item_recv_flags,
-                            payload_truncated: result_replay_item_payload_truncated,
-                            control_truncated: result_replay_item_control_truncated,
-                            control: result_replay_item_control,
-                            fds: result_replay_item_fds,
-                            has_credentials: result_replay_item_has_credentials,
-                            credentials: result_replay_item_credentials,
+                            bytes: result_recorded_item_bytes,
+                            has_address: result_recorded_item_has_address,
+                            address: result_recorded_item_address,
+                            recv_flags: result_recorded_item_recv_flags,
+                            payload_truncated: result_recorded_item_payload_truncated,
+                            control_truncated: result_recorded_item_control_truncated,
+                            control: result_recorded_item_control,
+                            fds: result_recorded_item_fds,
+                            has_credentials: result_recorded_item_has_credentials,
+                            credentials: result_recorded_item_credentials,
                         }
                     };
-                    let result_replay_item_replay_bytes = result_replay_item.bytes;
-                    let result_replay_item_replay_has_address = result_replay_item.has_address;
-                    let result_replay_item_replay_address_family =
-                        result_replay_item.address.family;
-                    let result_replay_item_replay_address_length =
-                        result_replay_item.address.length;
-                    let result_replay_item_replay_address_bytes =
-                        result_replay_item.address.bytes.read_bytes(context)?;
-                    let result_replay_item_replay_address = SocketAddressReplay {
-                        family: result_replay_item_replay_address_family,
-                        length: result_replay_item_replay_address_length,
-                        bytes: result_replay_item_replay_address_bytes,
+                    let result_recorded_item_recorded_bytes = result_recorded_item.bytes;
+                    let result_recorded_item_recorded_has_address =
+                        result_recorded_item.has_address;
+                    let result_recorded_item_recorded_address_family =
+                        result_recorded_item.address.family;
+                    let result_recorded_item_recorded_address_length =
+                        result_recorded_item.address.length;
+                    let result_recorded_item_recorded_address_bytes =
+                        result_recorded_item.address.bytes.read_bytes(context)?;
+                    let result_recorded_item_recorded_address = SocketAddressReplay {
+                        family: result_recorded_item_recorded_address_family,
+                        length: result_recorded_item_recorded_address_length,
+                        bytes: result_recorded_item_recorded_address_bytes,
                     };
-                    let result_replay_item_replay_recv_flags = result_replay_item.recv_flags;
-                    let result_replay_item_replay_payload_truncated =
-                        result_replay_item.payload_truncated;
-                    let result_replay_item_replay_control_truncated =
-                        result_replay_item.control_truncated;
-                    let result_replay_item_replay_control_inner =
-                        result_replay_item.control.0.read_bytes(context)?;
-                    let result_replay_item_replay_control = result_replay_item_replay_control_inner;
-                    let result_replay_item_replay_fds_raw =
-                        result_replay_item.fds.raw_values(context)?;
-                    let mut result_replay_item_replay_fds =
-                        Vec::with_capacity(result_replay_item_replay_fds_raw.len());
-                    for result_replay_item_replay_fds_item_value in
-                        result_replay_item_replay_fds_raw
+                    let result_recorded_item_recorded_recv_flags = result_recorded_item.recv_flags;
+                    let result_recorded_item_recorded_payload_truncated =
+                        result_recorded_item.payload_truncated;
+                    let result_recorded_item_recorded_control_truncated =
+                        result_recorded_item.control_truncated;
+                    let result_recorded_item_recorded_control_inner =
+                        result_recorded_item.control.0.read_bytes(context)?;
+                    let result_recorded_item_recorded_control =
+                        result_recorded_item_recorded_control_inner;
+                    let result_recorded_item_recorded_fds_raw =
+                        result_recorded_item.fds.raw_values(context)?;
+                    let mut result_recorded_item_recorded_fds =
+                        Vec::with_capacity(result_recorded_item_recorded_fds_raw.len());
+                    for result_recorded_item_recorded_fds_item_value in
+                        result_recorded_item_recorded_fds_raw
                     {
-                        let result_replay_item_replay_fds_item_inner_inner = decode_uint64(
-                            result_replay_item_replay_fds_item_value,
-                            "result_replay_item_replay_fds_item_inner_inner",
+                        let result_recorded_item_recorded_fds_item_inner_inner = decode_uint64(
+                            result_recorded_item_recorded_fds_item_value,
+                            "result_recorded_item_recorded_fds_item_inner_inner",
                             "item",
                         )?;
-                        let result_replay_item_replay_fds_item_inner =
-                            resource::ResourceId(result_replay_item_replay_fds_item_inner_inner);
-                        let result_replay_item_replay_fds_item =
-                            resource::TransferredHandle(result_replay_item_replay_fds_item_inner);
-                        let result_replay_item_replay_fds_item_replay =
-                            result_replay_item_replay_fds_item;
-                        result_replay_item_replay_fds
-                            .push(result_replay_item_replay_fds_item_replay);
+                        let result_recorded_item_recorded_fds_item_inner = resource::ResourceId(
+                            result_recorded_item_recorded_fds_item_inner_inner,
+                        );
+                        let result_recorded_item_recorded_fds_item = resource::TransferredHandle(
+                            result_recorded_item_recorded_fds_item_inner,
+                        );
+                        let result_recorded_item_recorded_fds_item_recorded =
+                            result_recorded_item_recorded_fds_item;
+                        result_recorded_item_recorded_fds
+                            .push(result_recorded_item_recorded_fds_item_recorded);
                     }
-                    let result_replay_item_replay_has_credentials =
-                        result_replay_item.has_credentials;
-                    let result_replay_item_replay_credentials_pid =
-                        result_replay_item.credentials.pid;
-                    let result_replay_item_replay_credentials_uid =
-                        result_replay_item.credentials.uid;
-                    let result_replay_item_replay_credentials_gid =
-                        result_replay_item.credentials.gid;
-                    let result_replay_item_replay_credentials = SocketCredentials {
-                        pid: result_replay_item_replay_credentials_pid,
-                        uid: result_replay_item_replay_credentials_uid,
-                        gid: result_replay_item_replay_credentials_gid,
+                    let result_recorded_item_recorded_has_credentials =
+                        result_recorded_item.has_credentials;
+                    let result_recorded_item_recorded_credentials_pid =
+                        result_recorded_item.credentials.pid;
+                    let result_recorded_item_recorded_credentials_uid =
+                        result_recorded_item.credentials.uid;
+                    let result_recorded_item_recorded_credentials_gid =
+                        result_recorded_item.credentials.gid;
+                    let result_recorded_item_recorded_credentials = SocketCredentials {
+                        pid: result_recorded_item_recorded_credentials_pid,
+                        uid: result_recorded_item_recorded_credentials_uid,
+                        gid: result_recorded_item_recorded_credentials_gid,
                     };
-                    let result_replay_item_replay = SocketRecvMessageReplay {
-                        bytes: result_replay_item_replay_bytes,
-                        has_address: result_replay_item_replay_has_address,
-                        address: result_replay_item_replay_address,
-                        recv_flags: result_replay_item_replay_recv_flags,
-                        payload_truncated: result_replay_item_replay_payload_truncated,
-                        control_truncated: result_replay_item_replay_control_truncated,
-                        control: result_replay_item_replay_control,
-                        fds: result_replay_item_replay_fds,
-                        has_credentials: result_replay_item_replay_has_credentials,
-                        credentials: result_replay_item_replay_credentials,
+                    let result_recorded_item_recorded = SocketRecvMessageReplay {
+                        bytes: result_recorded_item_recorded_bytes,
+                        has_address: result_recorded_item_recorded_has_address,
+                        address: result_recorded_item_recorded_address,
+                        recv_flags: result_recorded_item_recorded_recv_flags,
+                        payload_truncated: result_recorded_item_recorded_payload_truncated,
+                        control_truncated: result_recorded_item_recorded_control_truncated,
+                        control: result_recorded_item_recorded_control,
+                        fds: result_recorded_item_recorded_fds,
+                        has_credentials: result_recorded_item_recorded_has_credentials,
+                        credentials: result_recorded_item_recorded_credentials,
                     };
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = NetRecvMmsgReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -14802,59 +14826,60 @@ fn destack_net_recv_msg_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_bytes = result_value.bytes;
-                let result_replay_has_address = result_value.has_address;
-                let result_replay_address_family = result_value.address.family;
-                let result_replay_address_length = result_value.address.length;
-                let result_replay_address_bytes = result_value.address.bytes.read_bytes(context)?;
-                let result_replay_address = SocketAddressReplay {
-                    family: result_replay_address_family,
-                    length: result_replay_address_length,
-                    bytes: result_replay_address_bytes,
+                let result_recorded_bytes = result_value.bytes;
+                let result_recorded_has_address = result_value.has_address;
+                let result_recorded_address_family = result_value.address.family;
+                let result_recorded_address_length = result_value.address.length;
+                let result_recorded_address_bytes =
+                    result_value.address.bytes.read_bytes(context)?;
+                let result_recorded_address = SocketAddressReplay {
+                    family: result_recorded_address_family,
+                    length: result_recorded_address_length,
+                    bytes: result_recorded_address_bytes,
                 };
-                let result_replay_recv_flags = result_value.recv_flags;
-                let result_replay_payload_truncated = result_value.payload_truncated;
-                let result_replay_control_truncated = result_value.control_truncated;
-                let result_replay_control_inner = result_value.control.0.read_bytes(context)?;
-                let result_replay_control = result_replay_control_inner;
-                let result_replay_fds_raw = result_value.fds.raw_values(context)?;
-                let mut result_replay_fds = Vec::with_capacity(result_replay_fds_raw.len());
-                for result_replay_fds_item_value in result_replay_fds_raw {
-                    let result_replay_fds_item_inner_inner = decode_uint64(
-                        result_replay_fds_item_value,
-                        "result_replay_fds_item_inner_inner",
+                let result_recorded_recv_flags = result_value.recv_flags;
+                let result_recorded_payload_truncated = result_value.payload_truncated;
+                let result_recorded_control_truncated = result_value.control_truncated;
+                let result_recorded_control_inner = result_value.control.0.read_bytes(context)?;
+                let result_recorded_control = result_recorded_control_inner;
+                let result_recorded_fds_raw = result_value.fds.raw_values(context)?;
+                let mut result_recorded_fds = Vec::with_capacity(result_recorded_fds_raw.len());
+                for result_recorded_fds_item_value in result_recorded_fds_raw {
+                    let result_recorded_fds_item_inner_inner = decode_uint64(
+                        result_recorded_fds_item_value,
+                        "result_recorded_fds_item_inner_inner",
                         "item",
                     )?;
-                    let result_replay_fds_item_inner =
-                        resource::ResourceId(result_replay_fds_item_inner_inner);
-                    let result_replay_fds_item =
-                        resource::TransferredHandle(result_replay_fds_item_inner);
-                    let result_replay_fds_item_replay = result_replay_fds_item;
-                    result_replay_fds.push(result_replay_fds_item_replay);
+                    let result_recorded_fds_item_inner =
+                        resource::ResourceId(result_recorded_fds_item_inner_inner);
+                    let result_recorded_fds_item =
+                        resource::TransferredHandle(result_recorded_fds_item_inner);
+                    let result_recorded_fds_item_recorded = result_recorded_fds_item;
+                    result_recorded_fds.push(result_recorded_fds_item_recorded);
                 }
-                let result_replay_has_credentials = result_value.has_credentials;
-                let result_replay_credentials_pid = result_value.credentials.pid;
-                let result_replay_credentials_uid = result_value.credentials.uid;
-                let result_replay_credentials_gid = result_value.credentials.gid;
-                let result_replay_credentials = SocketCredentials {
-                    pid: result_replay_credentials_pid,
-                    uid: result_replay_credentials_uid,
-                    gid: result_replay_credentials_gid,
+                let result_recorded_has_credentials = result_value.has_credentials;
+                let result_recorded_credentials_pid = result_value.credentials.pid;
+                let result_recorded_credentials_uid = result_value.credentials.uid;
+                let result_recorded_credentials_gid = result_value.credentials.gid;
+                let result_recorded_credentials = SocketCredentials {
+                    pid: result_recorded_credentials_pid,
+                    uid: result_recorded_credentials_uid,
+                    gid: result_recorded_credentials_gid,
                 };
-                let result_replay = SocketRecvMessageReplay {
-                    bytes: result_replay_bytes,
-                    has_address: result_replay_has_address,
-                    address: result_replay_address,
-                    recv_flags: result_replay_recv_flags,
-                    payload_truncated: result_replay_payload_truncated,
-                    control_truncated: result_replay_control_truncated,
-                    control: result_replay_control,
-                    fds: result_replay_fds,
-                    has_credentials: result_replay_has_credentials,
-                    credentials: result_replay_credentials,
+                let result_recorded = SocketRecvMessageReplay {
+                    bytes: result_recorded_bytes,
+                    has_address: result_recorded_has_address,
+                    address: result_recorded_address,
+                    recv_flags: result_recorded_recv_flags,
+                    payload_truncated: result_recorded_payload_truncated,
+                    control_truncated: result_recorded_control_truncated,
+                    control: result_recorded_control,
+                    fds: result_recorded_fds,
+                    has_credentials: result_recorded_has_credentials,
+                    credentials: result_recorded_credentials,
                 };
                 let payload = NetRecvMsgReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -14945,56 +14970,56 @@ fn destack_net_resolve_resolve_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_raw = result_value.raw_values(context)?;
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = {
-                        if result_replay_item_value.tag() != vm::ValueTag::Aggregate {
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_replay_item",
+                                "result_recorded_item",
                                 "item",
                             ))
                             .boxed());
                         }
                         let slots = context
-                            .aggregate_slots(result_replay_item_value)
+                            .aggregate_slots(result_recorded_item_value)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
                         if slots.len() != 3 {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_replay_item",
+                                "result_recorded_item",
                                 "expected 3 fields",
                             ))
                             .boxed());
                         }
-                        let result_replay_item_family =
-                            decode_uint16(slots[0], "result_replay_item_family", "family")?;
-                        let result_replay_item_length =
-                            decode_uint32(slots[1], "result_replay_item_length", "length")?;
-                        let result_replay_item_bytes = decode_array::<u8>(
+                        let result_recorded_item_family =
+                            decode_uint16(slots[0], "result_recorded_item_family", "family")?;
+                        let result_recorded_item_length =
+                            decode_uint32(slots[1], "result_recorded_item_length", "length")?;
+                        let result_recorded_item_bytes = decode_array::<u8>(
                             context,
                             slots[2],
-                            "result_replay_item_bytes",
+                            "result_recorded_item_bytes",
                             "bytes",
                         )?;
                         SocketAddressVm {
-                            family: result_replay_item_family,
-                            length: result_replay_item_length,
-                            bytes: result_replay_item_bytes,
+                            family: result_recorded_item_family,
+                            length: result_recorded_item_length,
+                            bytes: result_recorded_item_bytes,
                         }
                     };
-                    let result_replay_item_replay_family = result_replay_item.family;
-                    let result_replay_item_replay_length = result_replay_item.length;
-                    let result_replay_item_replay_bytes =
-                        result_replay_item.bytes.read_bytes(context)?;
-                    let result_replay_item_replay = SocketAddressReplay {
-                        family: result_replay_item_replay_family,
-                        length: result_replay_item_replay_length,
-                        bytes: result_replay_item_replay_bytes,
+                    let result_recorded_item_recorded_family = result_recorded_item.family;
+                    let result_recorded_item_recorded_length = result_recorded_item.length;
+                    let result_recorded_item_recorded_bytes =
+                        result_recorded_item.bytes.read_bytes(context)?;
+                    let result_recorded_item_recorded = SocketAddressReplay {
+                        family: result_recorded_item_recorded_family,
+                        length: result_recorded_item_recorded_length,
+                        bytes: result_recorded_item_recorded_bytes,
                     };
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = NetResolveResolveReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -15066,56 +15091,58 @@ fn destack_net_resolve_reverse_lookup_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_raw = result_value.raw_values(context)?;
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = {
-                        if result_replay_item_value.tag() != vm::ValueTag::Aggregate {
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_replay_item",
+                                "result_recorded_item",
                                 "item",
                             ))
                             .boxed());
                         }
                         let slots = context
-                            .aggregate_slots(result_replay_item_value)
+                            .aggregate_slots(result_recorded_item_value)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
                         if slots.len() != 2 {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_replay_item",
+                                "result_recorded_item",
                                 "expected 2 fields",
                             ))
                             .boxed());
                         }
-                        let result_replay_item_host =
-                            decode_string(slots[0], "result_replay_item_host", "host")?;
-                        let result_replay_item_service =
-                            decode_string(slots[1], "result_replay_item_service", "service")?;
+                        let result_recorded_item_host =
+                            decode_string(slots[0], "result_recorded_item_host", "host")?;
+                        let result_recorded_item_service =
+                            decode_string(slots[1], "result_recorded_item_service", "service")?;
                         ReverseLookupNameVm {
-                            host: result_replay_item_host,
-                            service: result_replay_item_service,
+                            host: result_recorded_item_host,
+                            service: result_recorded_item_service,
                         }
                     };
-                    let result_replay_item_replay_host = {
-                        let result_replay_item_replay_host_ref = context
-                            .string_ref(result_replay_item.host)
+                    let result_recorded_item_recorded_host = {
+                        let result_recorded_item_recorded_host_ref = context
+                            .string_ref(result_recorded_item.host)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_replay_item_replay_host_ref.as_str().to_string()
+                        result_recorded_item_recorded_host_ref.as_str().to_string()
                     };
-                    let result_replay_item_replay_service = {
-                        let result_replay_item_replay_service_ref = context
-                            .string_ref(result_replay_item.service)
+                    let result_recorded_item_recorded_service = {
+                        let result_recorded_item_recorded_service_ref = context
+                            .string_ref(result_recorded_item.service)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_replay_item_replay_service_ref.as_str().to_string()
+                        result_recorded_item_recorded_service_ref
+                            .as_str()
+                            .to_string()
                     };
-                    let result_replay_item_replay = ReverseLookupNameReplay {
-                        host: result_replay_item_replay_host,
-                        service: result_replay_item_replay_service,
+                    let result_recorded_item_recorded = ReverseLookupNameReplay {
+                        host: result_recorded_item_recorded_host,
+                        service: result_recorded_item_recorded_service,
                     };
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = NetResolveReverseLookupReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -15188,9 +15215,9 @@ fn destack_net_reuse_get_reuse_addr_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetReuseGetReuseAddrReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -15235,9 +15262,9 @@ fn destack_net_reuse_get_reuse_port_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetReuseGetReusePortReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -15282,9 +15309,9 @@ fn destack_net_reuse_set_reuse_addr_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetReuseSetReuseAddrReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -15326,9 +15353,9 @@ fn destack_net_reuse_set_reuse_port_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetReuseSetReusePortReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -15369,9 +15396,9 @@ fn destack_net_route_add_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetRouteAddReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -15412,9 +15439,9 @@ fn destack_net_route_delete_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetRouteDeleteReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -15456,48 +15483,48 @@ fn destack_net_route_list_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_raw = result_value.raw_values(context)?;
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = {
-                        if result_replay_item_value.tag() != vm::ValueTag::Aggregate {
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_replay_item",
+                                "result_recorded_item",
                                 "item",
                             ))
                             .boxed());
                         }
                         let slots = context
-                            .aggregate_slots(result_replay_item_value)
+                            .aggregate_slots(result_recorded_item_value)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
                         if slots.len() != 7 {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_replay_item",
+                                "result_recorded_item",
                                 "expected 7 fields",
                             ))
                             .boxed());
                         }
-                        let result_replay_item_family_raw =
-                            decode_uint8(slots[0], "result_replay_item_family_raw", "family")?;
-                        let result_replay_item_family = match result_replay_item_family_raw {
+                        let result_recorded_item_family_raw =
+                            decode_uint8(slots[0], "result_recorded_item_family_raw", "family")?;
+                        let result_recorded_item_family = match result_recorded_item_family_raw {
                             0u8 => SocketFamily::Unspecified,
                             4u8 => SocketFamily::IPv4,
                             6u8 => SocketFamily::IPv6,
                             _ => {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
-                                        "result_replay_item_family",
+                                        "result_recorded_item_family",
                                         "unknown SocketFamily value",
                                     ),
                                 )
                                 .boxed());
                             }
                         };
-                        let result_replay_item_destination = {
+                        let result_recorded_item_destination = {
                             if slots[1].tag() != vm::ValueTag::Aggregate {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_type(
-                                        "result_replay_item_destination",
+                                        "result_recorded_item_destination",
                                         "destination",
                                     ),
                                 )
@@ -15509,44 +15536,44 @@ fn destack_net_route_list_vm_replay(
                             if slots.len() != 3 {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
-                                        "result_replay_item_destination",
+                                        "result_recorded_item_destination",
                                         "expected 3 fields",
                                     ),
                                 )
                                 .boxed());
                             }
-                            let result_replay_item_destination_family = decode_uint16(
+                            let result_recorded_item_destination_family = decode_uint16(
                                 slots[0],
-                                "result_replay_item_destination_family",
+                                "result_recorded_item_destination_family",
                                 "family",
                             )?;
-                            let result_replay_item_destination_length = decode_uint32(
+                            let result_recorded_item_destination_length = decode_uint32(
                                 slots[1],
-                                "result_replay_item_destination_length",
+                                "result_recorded_item_destination_length",
                                 "length",
                             )?;
-                            let result_replay_item_destination_bytes = decode_array::<u8>(
+                            let result_recorded_item_destination_bytes = decode_array::<u8>(
                                 context,
                                 slots[2],
-                                "result_replay_item_destination_bytes",
+                                "result_recorded_item_destination_bytes",
                                 "bytes",
                             )?;
                             SocketAddressVm {
-                                family: result_replay_item_destination_family,
-                                length: result_replay_item_destination_length,
-                                bytes: result_replay_item_destination_bytes,
+                                family: result_recorded_item_destination_family,
+                                length: result_recorded_item_destination_length,
+                                bytes: result_recorded_item_destination_bytes,
                             }
                         };
-                        let result_replay_item_prefix_length = decode_uint8(
+                        let result_recorded_item_prefix_length = decode_uint8(
                             slots[2],
-                            "result_replay_item_prefix_length",
+                            "result_recorded_item_prefix_length",
                             "prefixLength",
                         )?;
-                        let result_replay_item_gateway = {
+                        let result_recorded_item_gateway = {
                             if slots[3].tag() != vm::ValueTag::Aggregate {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_type(
-                                        "result_replay_item_gateway",
+                                        "result_recorded_item_gateway",
                                         "gateway",
                                     ),
                                 )
@@ -15558,44 +15585,44 @@ fn destack_net_route_list_vm_replay(
                             if slots.len() != 3 {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
-                                        "result_replay_item_gateway",
+                                        "result_recorded_item_gateway",
                                         "expected 3 fields",
                                     ),
                                 )
                                 .boxed());
                             }
-                            let result_replay_item_gateway_family = decode_uint16(
+                            let result_recorded_item_gateway_family = decode_uint16(
                                 slots[0],
-                                "result_replay_item_gateway_family",
+                                "result_recorded_item_gateway_family",
                                 "family",
                             )?;
-                            let result_replay_item_gateway_length = decode_uint32(
+                            let result_recorded_item_gateway_length = decode_uint32(
                                 slots[1],
-                                "result_replay_item_gateway_length",
+                                "result_recorded_item_gateway_length",
                                 "length",
                             )?;
-                            let result_replay_item_gateway_bytes = decode_array::<u8>(
+                            let result_recorded_item_gateway_bytes = decode_array::<u8>(
                                 context,
                                 slots[2],
-                                "result_replay_item_gateway_bytes",
+                                "result_recorded_item_gateway_bytes",
                                 "bytes",
                             )?;
                             SocketAddressVm {
-                                family: result_replay_item_gateway_family,
-                                length: result_replay_item_gateway_length,
-                                bytes: result_replay_item_gateway_bytes,
+                                family: result_recorded_item_gateway_family,
+                                length: result_recorded_item_gateway_length,
+                                bytes: result_recorded_item_gateway_bytes,
                             }
                         };
-                        let result_replay_item_interface_index = decode_uint32(
+                        let result_recorded_item_interface_index = decode_uint32(
                             slots[4],
-                            "result_replay_item_interface_index",
+                            "result_recorded_item_interface_index",
                             "interfaceIndex",
                         )?;
-                        let result_replay_item_metric =
-                            decode_uint32(slots[5], "result_replay_item_metric", "metric")?;
-                        let result_replay_item_kind_raw =
-                            decode_uint8(slots[6], "result_replay_item_kind_raw", "kind")?;
-                        let result_replay_item_kind = match result_replay_item_kind_raw {
+                        let result_recorded_item_metric =
+                            decode_uint32(slots[5], "result_recorded_item_metric", "metric")?;
+                        let result_recorded_item_kind_raw =
+                            decode_uint8(slots[6], "result_recorded_item_kind_raw", "kind")?;
+                        let result_recorded_item_kind = match result_recorded_item_kind_raw {
                             1u8 => RouteKind::Unicast,
                             2u8 => RouteKind::Local,
                             3u8 => RouteKind::Broadcast,
@@ -15604,7 +15631,7 @@ fn destack_net_route_list_vm_replay(
                             _ => {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
-                                        "result_replay_item_kind",
+                                        "result_recorded_item_kind",
                                         "unknown RouteKind value",
                                     ),
                                 )
@@ -15612,56 +15639,57 @@ fn destack_net_route_list_vm_replay(
                             }
                         };
                         RouteEntryVm {
-                            family: result_replay_item_family,
-                            destination: result_replay_item_destination,
-                            prefix_length: result_replay_item_prefix_length,
-                            gateway: result_replay_item_gateway,
-                            interface_index: result_replay_item_interface_index,
-                            metric: result_replay_item_metric,
-                            kind: result_replay_item_kind,
+                            family: result_recorded_item_family,
+                            destination: result_recorded_item_destination,
+                            prefix_length: result_recorded_item_prefix_length,
+                            gateway: result_recorded_item_gateway,
+                            interface_index: result_recorded_item_interface_index,
+                            metric: result_recorded_item_metric,
+                            kind: result_recorded_item_kind,
                         }
                     };
-                    let result_replay_item_replay_family = result_replay_item.family;
-                    let result_replay_item_replay_destination_family =
-                        result_replay_item.destination.family;
-                    let result_replay_item_replay_destination_length =
-                        result_replay_item.destination.length;
-                    let result_replay_item_replay_destination_bytes =
-                        result_replay_item.destination.bytes.read_bytes(context)?;
-                    let result_replay_item_replay_destination = SocketAddressReplay {
-                        family: result_replay_item_replay_destination_family,
-                        length: result_replay_item_replay_destination_length,
-                        bytes: result_replay_item_replay_destination_bytes,
+                    let result_recorded_item_recorded_family = result_recorded_item.family;
+                    let result_recorded_item_recorded_destination_family =
+                        result_recorded_item.destination.family;
+                    let result_recorded_item_recorded_destination_length =
+                        result_recorded_item.destination.length;
+                    let result_recorded_item_recorded_destination_bytes =
+                        result_recorded_item.destination.bytes.read_bytes(context)?;
+                    let result_recorded_item_recorded_destination = SocketAddressReplay {
+                        family: result_recorded_item_recorded_destination_family,
+                        length: result_recorded_item_recorded_destination_length,
+                        bytes: result_recorded_item_recorded_destination_bytes,
                     };
-                    let result_replay_item_replay_prefix_length = result_replay_item.prefix_length;
-                    let result_replay_item_replay_gateway_family =
-                        result_replay_item.gateway.family;
-                    let result_replay_item_replay_gateway_length =
-                        result_replay_item.gateway.length;
-                    let result_replay_item_replay_gateway_bytes =
-                        result_replay_item.gateway.bytes.read_bytes(context)?;
-                    let result_replay_item_replay_gateway = SocketAddressReplay {
-                        family: result_replay_item_replay_gateway_family,
-                        length: result_replay_item_replay_gateway_length,
-                        bytes: result_replay_item_replay_gateway_bytes,
+                    let result_recorded_item_recorded_prefix_length =
+                        result_recorded_item.prefix_length;
+                    let result_recorded_item_recorded_gateway_family =
+                        result_recorded_item.gateway.family;
+                    let result_recorded_item_recorded_gateway_length =
+                        result_recorded_item.gateway.length;
+                    let result_recorded_item_recorded_gateway_bytes =
+                        result_recorded_item.gateway.bytes.read_bytes(context)?;
+                    let result_recorded_item_recorded_gateway = SocketAddressReplay {
+                        family: result_recorded_item_recorded_gateway_family,
+                        length: result_recorded_item_recorded_gateway_length,
+                        bytes: result_recorded_item_recorded_gateway_bytes,
                     };
-                    let result_replay_item_replay_interface_index =
-                        result_replay_item.interface_index;
-                    let result_replay_item_replay_metric = result_replay_item.metric;
-                    let result_replay_item_replay_kind = result_replay_item.kind;
-                    let result_replay_item_replay = RouteEntryReplay {
-                        family: result_replay_item_replay_family,
-                        destination: result_replay_item_replay_destination,
-                        prefix_length: result_replay_item_replay_prefix_length,
-                        gateway: result_replay_item_replay_gateway,
-                        interface_index: result_replay_item_replay_interface_index,
-                        metric: result_replay_item_replay_metric,
-                        kind: result_replay_item_replay_kind,
+                    let result_recorded_item_recorded_interface_index =
+                        result_recorded_item.interface_index;
+                    let result_recorded_item_recorded_metric = result_recorded_item.metric;
+                    let result_recorded_item_recorded_kind = result_recorded_item.kind;
+                    let result_recorded_item_recorded = RouteEntryReplay {
+                        family: result_recorded_item_recorded_family,
+                        destination: result_recorded_item_recorded_destination,
+                        prefix_length: result_recorded_item_recorded_prefix_length,
+                        gateway: result_recorded_item_recorded_gateway,
+                        interface_index: result_recorded_item_recorded_interface_index,
+                        metric: result_recorded_item_recorded_metric,
+                        kind: result_recorded_item_recorded_kind,
                     };
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = NetRouteListReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -15789,9 +15817,9 @@ fn destack_net_send_mmsg_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetSendMmsgReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -15838,9 +15866,9 @@ fn destack_net_send_msg_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetSendMsgReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -15887,9 +15915,9 @@ fn destack_net_send_to_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetSendToReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -15934,9 +15962,9 @@ fn destack_net_set_multicast_loop_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetSetMulticastLoopReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -15978,9 +16006,9 @@ fn destack_net_set_multicast_ttl_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetSetMulticastTtlReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16022,9 +16050,9 @@ fn destack_net_set_nonblocking_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetSetNonblockingReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16066,9 +16094,9 @@ fn destack_net_shutdown_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetShutdownReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16112,9 +16140,9 @@ fn destack_net_socket_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetSocketReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16163,14 +16191,14 @@ fn destack_net_socket_pair_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_first = result_value.first;
-                let result_replay_second = result_value.second;
-                let result_replay = SocketPair {
-                    first: result_replay_first,
-                    second: result_replay_second,
+                let result_recorded_first = result_value.first;
+                let result_recorded_second = result_value.second;
+                let result_recorded = SocketPair {
+                    first: result_recorded_first,
+                    second: result_recorded_second,
                 };
                 let payload = NetSocketPairReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16220,18 +16248,18 @@ fn destack_net_tcp_get_keep_alive_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_enabled = result_value.enabled;
-                let result_replay_idle_seconds = result_value.idle_seconds;
-                let result_replay_interval_seconds = result_value.interval_seconds;
-                let result_replay_probe_count = result_value.probe_count;
-                let result_replay = KeepAliveConfig {
-                    enabled: result_replay_enabled,
-                    idle_seconds: result_replay_idle_seconds,
-                    interval_seconds: result_replay_interval_seconds,
-                    probe_count: result_replay_probe_count,
+                let result_recorded_enabled = result_value.enabled;
+                let result_recorded_idle_seconds = result_value.idle_seconds;
+                let result_recorded_interval_seconds = result_value.interval_seconds;
+                let result_recorded_probe_count = result_value.probe_count;
+                let result_recorded = KeepAliveConfig {
+                    enabled: result_recorded_enabled,
+                    idle_seconds: result_recorded_idle_seconds,
+                    interval_seconds: result_recorded_interval_seconds,
+                    probe_count: result_recorded_probe_count,
                 };
                 let payload = NetTcpGetKeepAliveReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16285,9 +16313,9 @@ fn destack_net_tcp_get_no_delay_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetTcpGetNoDelayReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16332,9 +16360,9 @@ fn destack_net_tcp_set_keep_alive_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetTcpSetKeepAliveReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16376,9 +16404,9 @@ fn destack_net_tcp_set_no_delay_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetTcpSetNoDelayReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16420,9 +16448,9 @@ fn destack_net_udp_bind_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetUdpBindReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16464,9 +16492,9 @@ fn destack_net_udp_connect_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetUdpConnectReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16512,23 +16540,24 @@ fn destack_net_udp_recv_from_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_address_family = result_value.address.family;
-                let result_replay_address_length = result_value.address.length;
-                let result_replay_address_bytes = result_value.address.bytes.read_bytes(context)?;
-                let result_replay_address = SocketAddressReplay {
-                    family: result_replay_address_family,
-                    length: result_replay_address_length,
-                    bytes: result_replay_address_bytes,
+                let result_recorded_address_family = result_value.address.family;
+                let result_recorded_address_length = result_value.address.length;
+                let result_recorded_address_bytes =
+                    result_value.address.bytes.read_bytes(context)?;
+                let result_recorded_address = SocketAddressReplay {
+                    family: result_recorded_address_family,
+                    length: result_recorded_address_length,
+                    bytes: result_recorded_address_bytes,
                 };
-                let result_replay_bytes = result_value.bytes;
-                let result_replay_recv_flags = result_value.recv_flags;
-                let result_replay = UdpReceiveReplay {
-                    address: result_replay_address,
-                    bytes: result_replay_bytes,
-                    recv_flags: result_replay_recv_flags,
+                let result_recorded_bytes = result_value.bytes;
+                let result_recorded_recv_flags = result_value.recv_flags;
+                let result_recorded = UdpReceiveReplay {
+                    address: result_recorded_address,
+                    bytes: result_recorded_bytes,
+                    recv_flags: result_recorded_recv_flags,
                 };
                 let payload = NetUdpRecvFromReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16595,9 +16624,9 @@ fn destack_net_udp_send_to_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetUdpSendToReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16642,9 +16671,9 @@ fn destack_net_udp_socket_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetUdpSocketReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16689,9 +16718,9 @@ fn destack_net_uds_accept_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetUdsAcceptReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16735,9 +16764,9 @@ fn destack_net_uds_close_listener_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = NetUdsCloseListenerReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16779,9 +16808,9 @@ fn destack_net_uds_connect_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetUdsConnectReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16827,9 +16856,9 @@ fn destack_net_uds_listen_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetUdsListenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16874,14 +16903,14 @@ fn destack_net_uds_socket_pair_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_first = result_value.first;
-                let result_replay_second = result_value.second;
-                let result_replay = SocketPair {
-                    first: result_replay_first,
-                    second: result_replay_second,
+                let result_recorded_first = result_value.first;
+                let result_recorded_second = result_value.second;
+                let result_recorded = SocketPair {
+                    first: result_recorded_first,
+                    second: result_recorded_second,
                 };
                 let payload = NetUdsSocketPairReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16932,9 +16961,9 @@ fn destack_net_write_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetWriteReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16980,9 +17009,9 @@ fn destack_net_writev_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = NetWritevReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }

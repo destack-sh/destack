@@ -608,18 +608,18 @@ fn destack_time_clock_info_replay(
                     }
                     *out
                 };
-                let result_replay_id = result_value.id;
-                let result_replay_source = result_value.source;
-                let result_replay_resolution_ns = result_value.resolution_ns;
-                let result_replay_is_monotonic = result_value.is_monotonic;
-                let result_replay = ClockInfo {
-                    id: result_replay_id,
-                    source: result_replay_source,
-                    resolution_ns: result_replay_resolution_ns,
-                    is_monotonic: result_replay_is_monotonic,
+                let result_recorded_id = result_value.id;
+                let result_recorded_source = result_value.source;
+                let result_recorded_resolution_ns = result_value.resolution_ns;
+                let result_recorded_is_monotonic = result_value.is_monotonic;
+                let result_recorded = ClockInfo {
+                    id: result_recorded_id,
+                    source: result_recorded_source,
+                    resolution_ns: result_recorded_resolution_ns,
+                    is_monotonic: result_recorded_is_monotonic,
                 };
                 let payload = TimeClockInfoReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -678,9 +678,9 @@ fn destack_time_clock_now_ns_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = TimeClockNowNsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -727,9 +727,9 @@ fn destack_time_clock_process_cpu_ns_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = TimeClockProcessCpuNsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -776,9 +776,9 @@ fn destack_time_clock_thread_cpu_ns_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = TimeClockThreadCpuNsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -818,9 +818,9 @@ fn destack_time_sleep_ns_replay(context: &RuntimeCallContext, duration: u64) -> 
         || unsafe { platform_native::destack_time_sleep_ns(context, duration) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = TimeSleepNsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -858,9 +858,9 @@ fn destack_time_sleep_on_ns_replay(
         || unsafe { platform_native::destack_time_sleep_on_ns(context, duration, clock) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = TimeSleepOnNsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -897,9 +897,9 @@ fn destack_time_sleep_until_ns_replay(
         || unsafe { platform_native::destack_time_sleep_until_ns(context, deadline) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = TimeSleepUntilNsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -937,9 +937,9 @@ fn destack_time_sleep_until_on_ns_replay(
         || unsafe { platform_native::destack_time_sleep_until_on_ns(context, deadline, clock) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = TimeSleepUntilOnNsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1125,18 +1125,18 @@ fn destack_time_clock_info_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_id = result_value.id;
-                let result_replay_source = result_value.source;
-                let result_replay_resolution_ns = result_value.resolution_ns;
-                let result_replay_is_monotonic = result_value.is_monotonic;
-                let result_replay = ClockInfo {
-                    id: result_replay_id,
-                    source: result_replay_source,
-                    resolution_ns: result_replay_resolution_ns,
-                    is_monotonic: result_replay_is_monotonic,
+                let result_recorded_id = result_value.id;
+                let result_recorded_source = result_value.source;
+                let result_recorded_resolution_ns = result_value.resolution_ns;
+                let result_recorded_is_monotonic = result_value.is_monotonic;
+                let result_recorded = ClockInfo {
+                    id: result_recorded_id,
+                    source: result_recorded_source,
+                    resolution_ns: result_recorded_resolution_ns,
+                    is_monotonic: result_recorded_is_monotonic,
                 };
                 let payload = TimeClockInfoReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1190,9 +1190,9 @@ fn destack_time_clock_now_ns_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = TimeClockNowNsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1236,9 +1236,9 @@ fn destack_time_clock_process_cpu_ns_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = TimeClockProcessCpuNsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1282,9 +1282,9 @@ fn destack_time_clock_thread_cpu_ns_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = TimeClockThreadCpuNsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1328,9 +1328,9 @@ fn destack_time_sleep_ns_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = TimeSleepNsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1372,9 +1372,9 @@ fn destack_time_sleep_on_ns_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = TimeSleepOnNsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1415,9 +1415,9 @@ fn destack_time_sleep_until_ns_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = TimeSleepUntilNsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1459,9 +1459,9 @@ fn destack_time_sleep_until_on_ns_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = TimeSleepUntilOnNsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
