@@ -614,7 +614,7 @@ same satisfies boolean;
 
 ```ds:main.ds
 struct Cat {
-    name: string,
+    name: string;
 
     speak(): string {
         "meow"
@@ -622,7 +622,7 @@ struct Cat {
 }
 
 struct Dog {
-    name: string,
+    name: string;
 
     speak(): string {
         "woof"
@@ -649,7 +649,7 @@ pet.speak();
 
 ```ds:main.ds
 struct Cat {
-    name: string,
+    name: string;
 
     speak(): string {
         "meow"
@@ -657,7 +657,7 @@ struct Cat {
 }
 
 struct Dog {
-    name: string,
+    name: string;
 
     speak(): string {
         "woof"

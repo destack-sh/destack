@@ -8,7 +8,7 @@
 
 ```ds
 struct Point {
-    x: int32,
+    x: int32;
 }
 
 let point = Point { x: 1 };
@@ -21,7 +21,7 @@ let shared: &readonly Point = &readonly point;
 
 ```ds
 struct Point {
-    x: int32,
+    x: int32;
 }
 
 let point = Point { x: 1 };
@@ -36,7 +36,7 @@ let value: Point = &readonly point;
 
 ```ds
 struct Point {
-    x: int32,
+    x: int32;
 }
 
 let point = Point { x: 1 };
@@ -52,7 +52,7 @@ let mutableRef: &Point = shared;
 
 ```ds
 struct Point {
-    x: int32,
+    x: int32;
 }
 
 let point = Point { x: 1 };
@@ -82,7 +82,7 @@ shared[0] = 4;
 
 ```ds
 struct Point {
-    x: int32,
+    x: int32;
 }
 
 let point = Point { x: 1 };
@@ -95,7 +95,7 @@ let mutableRef: &Point = &point;
 
 ```ds
 struct Point {
-    x: int32,
+    x: int32;
 }
 
 let point = Point { x: 1 };
@@ -110,7 +110,7 @@ mutableRef.x satisfies int32;
 
 ```ds
 struct Point {
-    x: int32,
+    x: int32;
 }
 
 let point = Point { x: 1 };
@@ -128,11 +128,11 @@ let shared: &readonly Point = mutableRef;
 
 ```ds native=true
 struct Data {
-    value: int32,
+    value: int32;
 }
 
 struct Container {
-    data: Data,
+    data: Data;
 }
 
 function run(): void {
@@ -152,11 +152,11 @@ function run(): void {
 
 ```ds native=true
 struct Data {
-    value: int32,
+    value: int32;
 }
 
 struct Container {
-    data: Data,
+    data: Data;
 }
 
 function run(): void {
@@ -176,11 +176,11 @@ function run(): void {
 
 ```ds native=true
 struct Data {
-    value: int32,
+    value: int32;
 }
 
 struct Container {
-    data: Data,
+    data: Data;
 }
 
 function run(): void {
@@ -198,11 +198,11 @@ function run(): void {
 
 ```ds native=true
 struct Data {
-    value: int32,
+    value: int32;
 }
 
 struct Container {
-    data: Data,
+    data: Data;
 }
 
 function run(): void {
@@ -230,11 +230,11 @@ function run(): void {
 
 ```ds
 struct Data {
-    value: int32,
+    value: int32;
 }
 
 struct Container {
-    data: Data,
+    data: Data;
 }
 
 function run(): void {
@@ -262,11 +262,11 @@ function run(): void {
 
 ```ds
 struct Data {
-    value: int32,
+    value: int32;
 }
 
 struct Container {
-    data: Data,
+    data: Data;
 }
 
 function run(): void {

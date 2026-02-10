@@ -8,7 +8,7 @@
 
 ```ds
 struct Point {
-    x: int32,
+    x: int32;
 }
 
 function read(value: &Point): int32 {
@@ -22,7 +22,7 @@ function read(value: &Point): int32 {
 
 ```ds
 struct Point {
-    x: int32,
+    x: int32;
 }
 
 function copy(value: ^Point): ^Point {

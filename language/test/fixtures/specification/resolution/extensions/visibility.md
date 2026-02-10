@@ -19,7 +19,7 @@ Extension visibility depends on where the extension is defined relative to the t
 > Extension in same file as type is always visible.
 
 ```ds
-struct Point { x: number, y: number }
+struct Point { x: number; y: number }
 
 extension for Point {
     length(): number { return 0 }
@@ -99,7 +99,7 @@ color.isWarm() satisfies boolean;
 > A type can have multiple inherent extensions in the same file.
 
 ```ds
-struct Vector2 { x: number, y: number }
+struct Vector2 { x: number; y: number }
 
 extension for Vector2 {
     magnitude(): number { return 0 }
@@ -121,7 +121,7 @@ vector.normalized() satisfies Vector2;
 > Inherent extensions are visible in other files that import the type.
 
 ```ds:types.ds
-export struct Vector2 { x: number, y: number }
+export struct Vector2 { x: number; y: number }
 
 extension for Vector2 {
     magnitude(): number { return 0 }
@@ -147,7 +147,7 @@ vector.magnitude() satisfies number;
 > Local extension is not visible when type is used in another file.
 
 ```ds:types.ds
-export struct Vector2 { x: number, y: number }
+export struct Vector2 { x: number; y: number }
 ```
 
 ```ds:extensions.ds
@@ -179,7 +179,7 @@ const m = vector.magnitude();
 > Named extensions have a name before the `for` keyword.
 
 ```ds
-struct Point { x: number, y: number }
+struct Point { x: number; y: number }
 
 extension PointHelpers for Point {
     distance(): number { return 0 }
@@ -196,7 +196,7 @@ point.distance() satisfies number;
 > Named extensions are visible when explicitly imported.
 
 ```ds:types.ds
-export struct Point { x: number, y: number }
+export struct Point { x: number; y: number }
 ```
 
 ```ds:extensions.ds
@@ -222,7 +222,7 @@ point.distance() satisfies number;
 > Named extensions are not visible without an explicit import.
 
 ```ds:types.ds
-export struct Point { x: number, y: number }
+export struct Point { x: number; y: number }
 ```
 
 ```ds:extensions.ds
@@ -251,7 +251,7 @@ point.distance();
 > When multiple extensions define the same method, the first one wins.
 
 ```ds
-struct Vector2 { x: number, y: number }
+struct Vector2 { x: number; y: number }
 
 extension for Vector2 {
     process(): number { return 1 }

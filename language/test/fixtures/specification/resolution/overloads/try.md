@@ -28,7 +28,7 @@ type FancyBranch<T, E> =
     | { kind: "err", error: E };
 
 struct FancyTry<T, E> {
-    value: FancyBranch<T, E>,
+    value: FancyBranch<T, E>;
 }
 
 extension<T, E> for FancyTry<T, E> implements Try<T, E> {
@@ -58,7 +58,7 @@ function read(): Result<int, Error> {
 type AliasBranch<T, E> = TryBranch<T, E>;
 
 struct AliasTry<T, E> {
-    value: Result<T, E>,
+    value: Result<T, E>;
 }
 
 extension<T, E> for AliasTry<T, E> implements Try<T, E> {
@@ -93,7 +93,7 @@ type BrokenBranch<T, E> =
     | { kind: "err", error: E };
 
 struct BrokenTry<T, E> {
-    value: BrokenBranch<T, E>,
+    value: BrokenBranch<T, E>;
 }
 
 extension<T, E> for BrokenTry<T, E> implements Try<T, E> {
@@ -122,7 +122,7 @@ type LooseBranch<T, E> =
     | { kind: "err", error: E };
 
 struct LooseTry<T, E> {
-    value: LooseBranch<T, E>,
+    value: LooseBranch<T, E>;
 }
 
 extension<T, E> for LooseTry<T, E> {
@@ -155,7 +155,7 @@ type BadBranch<T, E> =
     | { error: E };
 
 struct BadTry<T, E> {
-    value: BadBranch<T, E>,
+    value: BadBranch<T, E>;
 }
 
 extension<T, E> for BadTry<T, E> implements Try<T, E> {
@@ -188,7 +188,7 @@ type WrongBranch<T, E> =
     | { kind: "bad", error: E };
 
 struct WrongTry<T, E> {
-    value: WrongBranch<T, E>,
+    value: WrongBranch<T, E>;
 }
 
 extension<T, E> for WrongTry<T, E> implements Try<T, E> {
@@ -245,11 +245,11 @@ function read(): Result<Result<int, Error>, Error> {
 
 ```ds
 struct MissingError implements Error {
-    message: string,
+    message: string;
 }
 
 struct BadError implements Error {
-    message: string,
+    message: string;
 }
 
 declare function getResult(): Result<int, MissingError> | Result<string, BadError>;
@@ -342,7 +342,7 @@ type BrokenBranch<T, E> =
     | { kind: "err", error: E };
 
 struct BrokenTry<T, E> {
-    value: BrokenBranch<T, E>,
+    value: BrokenBranch<T, E>;
 }
 
 extension<T, E> for BrokenTry<T, E> implements Try<T, E> {

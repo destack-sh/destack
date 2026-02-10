@@ -9,7 +9,7 @@ Tests for error cases with extensions.
 > Calling a method that doesn't exist on the type or extensions is an error.
 
 ```ds
-struct Point { x: number, y: number }
+struct Point { x: number; y: number }
 
 extension for Point {
     magnitude(): number { return 0 }
@@ -28,8 +28,8 @@ point.nonexistent();
 > Extension methods are scoped to their type.
 
 ```ds
-struct Point { x: number, y: number }
-struct Vector3 { x: number, y: number, z: number }
+struct Point { x: number; y: number }
+struct Vector3 { x: number; y: number; z: number }
 
 extension for Point {
     magnitude(): number { return 0 }
@@ -71,7 +71,7 @@ calculator.add("one", 2);
 > Local extension on foreign type is not visible from other files.
 
 ```ds:types.ds
-export struct Vector2 { x: number, y: number }
+export struct Vector2 { x: number; y: number }
 ```
 
 ```ds:extensions.ds
@@ -101,7 +101,7 @@ vector.magnitude();
 > This is not an error, but the second definition is ignored.
 
 ```ds
-struct Vector2 { x: number, y: number }
+struct Vector2 { x: number; y: number }
 
 extension for Vector2 {
     process(): number { return 1 }

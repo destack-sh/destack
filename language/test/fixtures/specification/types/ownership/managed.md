@@ -8,7 +8,7 @@
 
 ```ds
 struct Point {
-    x: int32,
+    x: int32;
 }
 
 let owned: ^Point = ^Point { x: 1 };
@@ -20,7 +20,7 @@ let owned: ^Point = ^Point { x: 1 };
 
 ```ds
 struct Point {
-    x: int32,
+    x: int32;
 }
 
 let value: Point = ^Point { x: 1 };
@@ -34,7 +34,7 @@ let value: Point = ^Point { x: 1 };
 
 ```ds
 struct Point {
-    x: int32,
+    x: int32;
 }
 
 let value: ^Point = Point { x: 1 };
@@ -48,7 +48,7 @@ let value: ^Point = Point { x: 1 };
 
 ```ds
 struct Data {
-    value: int32,
+    value: int32;
 }
 
 function consume(value: ^Data): void {
@@ -67,7 +67,7 @@ consume(data);
 
 ```ds
 struct Data {
-    value: int32,
+    value: int32;
 }
 
 function consume(value: ^Data): void {
@@ -84,7 +84,7 @@ consume(^data);
 
 ```ds
 struct Data {
-    value: int32,
+    value: int32;
 }
 
 let data = ^Data { value: 1 };
@@ -99,11 +99,11 @@ let again = ^data;
 
 ```ds
 struct Data {
-    value: int32,
+    value: int32;
 }
 
 struct Container {
-    data: ^Data,
+    data: ^Data;
 }
 
 const container = Container { data: ^Data { value: 1 } };
@@ -118,7 +118,7 @@ container.data satisfies ^Data;
 
 ```ds
 struct Point {
-    x: int32,
+    x: int32;
 }
 
 let owned: ^Point = ^Point { x: 1 };
@@ -132,7 +132,7 @@ owned satisfies ^Point;
 
 ```ds
 struct Point {
-    x: int32,
+    x: int32;
 }
 
 let owned: ^readonly Point = ^readonly Point { x: 1 };
@@ -170,7 +170,7 @@ function run(): void {
 
 ```ds:main.ds
 struct Data {
-    value: int32,
+    value: int32;
 }
 
 @noManaged

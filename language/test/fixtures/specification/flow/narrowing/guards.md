@@ -69,8 +69,8 @@ if (value instanceof User) {
 
 ```ds
 struct Point {
-    x: int32,
-    y: int32,
+    x: int32;
+    y: int32;
 }
 
 const value = Point { x: 1, y: 2 };
