@@ -1,4 +1,4 @@
-use crate::platform::fs::StatFs;
+use crate::platform::fs::{StatFs, StatFsFlags};
 
 use super::statfs_u64;
 
@@ -9,7 +9,12 @@ pub(super) fn fsid_to_u64(fsid: libc::fsid_t) -> u64 {
 }
 
 /// Convert libc statfs into the ABI StatFs shape with explicit fields.
-pub(super) fn statfs_from_libc(statfs: libc::statfs, frsize: u64, namelen: u64) -> StatFs {
+pub(super) fn statfs_from_libc(
+    statfs: libc::statfs,
+    frsize: u64,
+    namelen: u64,
+    flags: u64,
+) -> StatFs {
     StatFs {
         bsize: statfs_u64(statfs.f_bsize),
         frsize,
@@ -19,7 +24,7 @@ pub(super) fn statfs_from_libc(statfs: libc::statfs, frsize: u64, namelen: u64) 
         files: statfs_u64(statfs.f_files),
         ffree: statfs_u64(statfs.f_ffree),
         fsid: fsid_to_u64(statfs.f_fsid),
-        flags: statfs_u64(statfs.f_flags),
+        flags: StatFsFlags(flags),
         namelen,
     }
 }

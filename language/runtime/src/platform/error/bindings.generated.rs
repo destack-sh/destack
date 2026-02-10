@@ -2,14 +2,17 @@
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::bindings::{
-    BindingDescriptor, BindingRegistry, NativeBinding, NativeBindingSet, native_call,
+    BindingBlocking, BindingDescriptor, BindingRegistry, BindingScope, NativeBinding,
+    NativeBindingSet, native_call,
 };
 use crate::platform::error::PlatformErrorVm;
 use crate::platform::{PlatformError, RuntimeStatus};
-use crate::runtime::with_runtime_call_context;
-use crate::{binding, vm_binding_set};
+use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;
+
+use crate::binding;
+use crate::runtime::with_runtime_call_context;
 
 use crate::platform::error::{native as platform_native, vm as platform_vm};
 
@@ -55,12 +58,13 @@ fn decode_uint64(
     decode_uint(value, name, expected, 64)
 }
 
-/// Decode arguments for destack.error.takePlatformError.
+/// Decode arguments for destack.error.error.takePlatformError.
 #[inline]
 fn decode_destack_error_take_platform_error_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64,)> {
+    // ignore unused context
     let _ = context;
 
     let errorid_value = arg_value(args, 0, "errorid", "uint64")?;
@@ -68,42 +72,75 @@ fn decode_destack_error_take_platform_error_args(
     Ok((errorid,))
 }
 
-/// Encode the result for destack.error.takePlatformError.
+/// Encode the result for destack.error.error.takePlatformError.
 #[inline]
 fn encode_destack_error_take_platform_error_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<PlatformErrorVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
-        context.allocate_aggregate(vec![
-            value.kind.value(),
-            value.message.value(),
-            value.name.value(),
-            vm::Value::uint(value.code as u16 as u64, 16),
-            value.system_code.value(),
-            vm::Value::int(value.errno as i64, 32),
-            value.syscall.value(),
-            value.path.value(),
-            value.dest.value(),
-            vm::Value::int(value.fd as i64, 32),
-            value.address.value(),
-            vm::Value::uint(value.port as u64, 16),
-            value.hostname.value(),
-            value.signal.value(),
-            vm::Value::int(value.exit_code as i64, 32),
-            value.cause.value(),
-            value.argument.value(),
-            value.pointer.value(),
-            value.feature.value(),
-        ])
+        let field_0 = vm::Value::uint(value.code as u16 as u64, 16);
+        let field_1 = value.op.value();
+        let field_2 = {
+            let field_0 = vm::Value::uint(value.source.kind as u8 as u64, 8);
+            let field_1 = vm::Value::int(value.source.value as i64, 32);
+            let field_2 = value.source.name.value();
+            context.allocate_aggregate(vec![field_0, field_1, field_2])
+        };
+        let field_3 = {
+            let field_0 = vm::Value::uint(value.context.kind as u8 as u64, 8);
+            let field_1 = value.context.syscall.value();
+            let field_2 = {
+                let field_0 = vm::Value::uint(value.context.path.encoding as u8 as u64, 8);
+                let field_1 = value.context.path.data.to_value(context);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            let field_3 = {
+                let field_0 = vm::Value::uint(value.context.dest.encoding as u8 as u64, 8);
+                let field_1 = value.context.dest.data.to_value(context);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            let field_4 = value.context.path_text.value();
+            let field_5 = value.context.dest_text.value();
+            let field_6 = vm::Value::int(value.context.fd as i64, 32);
+            let field_7 = value.context.address.value();
+            let field_8 = vm::Value::uint(value.context.port as u64, 16);
+            let field_9 = value.context.hostname.value();
+            let field_10 = vm::Value::uint(value.context.pid, 64);
+            let field_11 = value.context.signal.value();
+            let field_12 = vm::Value::int(value.context.exit_code as i64, 32);
+            let field_13 = vm::Value::uint(value.context.timer_id, 64);
+            let field_14 = vm::Value::uint(value.context.deadline_ns, 64);
+            let field_15 = vm::Value::uint(value.context.resource_id, 64);
+            let field_16 = value.context.resource_kind.value();
+            let field_17 = value.context.capability.value();
+            let field_18 = value.context.policy.value();
+            let field_19 = value.context.library.value();
+            let field_20 = value.context.symbol.value();
+            let field_21 = vm::Value::uint(value.context.thread_id, 64);
+            let field_22 = value.context.argument.value();
+            let field_23 = value.context.pointer.value();
+            let field_24 = value.context.feature.value();
+            context.allocate_aggregate(vec![
+                field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+                field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16,
+                field_17, field_18, field_19, field_20, field_21, field_22, field_23, field_24,
+            ])
+        };
+        let field_4 = value.message.value();
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
     })
 }
 
-/// Binding descriptor for destack.error.takePlatformError.
-pub const TAKE_PLATFORM_ERROR: BindingDescriptor = BindingDescriptor::deterministic(
-    "destack.error.takePlatformError",
-    "export function takePlatformError(errorId: uint64): Result<PlatformError, PlatformError>",
-);
+/// Binding descriptor for destack.error.error.takePlatformError.
+pub const TAKE_PLATFORM_ERROR: BindingDescriptor =
+    BindingDescriptor::deterministic_with_requires_and_behavior(
+        "destack.error.error.takePlatformError",
+        "export function takePlatformError(errorId: uint64): Result<PlatformError, PlatformError>",
+        &["diagnostic.read"],
+        BindingScope::Runtime,
+        BindingBlocking::Never,
+    );
 
 /// Binding descriptors for error.
 pub const BINDINGS: &[BindingDescriptor] = &[TAKE_PLATFORM_ERROR];
@@ -113,13 +150,13 @@ pub const ERROR_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "error",
     bindings: &[NativeBinding::new(
         TAKE_PLATFORM_ERROR,
-        "destack.error.takePlatformError",
+        "destack.error.error.takePlatformError",
         destack_error_take_platform_error as *const (),
     )],
 };
 
 /// Native export wrappers for error bindings.
-#[unsafe(export_name = "destack.error.takePlatformError")]
+#[unsafe(export_name = "destack.error.error.takePlatformError")]
 pub unsafe extern "C" fn destack_error_take_platform_error(
     out: *mut crate::platform::error::PlatformError,
     errorid: u64,

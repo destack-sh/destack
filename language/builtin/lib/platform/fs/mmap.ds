@@ -31,7 +31,7 @@ declare namespace fs {
     /// Create a file-backed memory mapping.
     ///
     /// Map a file-backed region into virtual memory using the requested offset, length, and protection.
-    /// Page alignment, commit behavior, and fault semantics follow host VM policy.
+    /// Page alignment, commit behavior, and memory fault semantics follow host virtual-memory rules.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -45,7 +45,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.mmap.mmapFile", { effect: "external", replay: "recordable", requires: ["fs.mmap"], scope: "os", blocking: "sometimes" })
+    @binding("destack.fs.mmapFile", { effect: "external", replay: "recordable", requires: ["fs.mmap"], scope: "os", blocking: "sometimes" })
     export function mmapFile(
         handle: FileHandle,
         offset: FileOffset,
@@ -57,7 +57,7 @@ declare namespace fs {
     /// Create an anonymous memory mapping.
     ///
     /// Map an anonymous zero-initialized region into virtual memory using host allocation primitives.
-    /// Backing pages are managed by the host kernel and are not file-persistent.
+    /// Page alignment, commit behavior, and memory fault semantics follow host virtual-memory rules.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -71,7 +71,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.mmap.mmapAnonymous", { effect: "external", replay: "recordable", requires: ["fs.mmap"], scope: "os", blocking: "sometimes" })
+    @binding("destack.fs.mmapAnonymous", { effect: "external", replay: "recordable", requires: ["fs.mmap"], scope: "os", blocking: "sometimes" })
     export function mmapAnonymous(
         length: FileSize,
         prot: MmapProt,
@@ -81,7 +81,7 @@ declare namespace fs {
     /// Unmap a memory region.
     ///
     /// Unmap the specified virtual-memory range and release its mapping resources.
-    /// Access after unmap is invalid and follows host memory fault behavior.
+    /// Page alignment, commit behavior, and memory fault semantics follow host virtual-memory rules.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -100,8 +100,8 @@ declare namespace fs {
 
     /// Change memory protection for a mapping.
     ///
-    /// Update memory access permissions for the provided mapped region.
-    /// Protection transitions are validated against host page and mapping constraints.
+    /// Change memory protection for a mapping via host kernel APIs.
+    /// Page alignment, commit behavior, and memory fault semantics follow host virtual-memory rules.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -123,8 +123,8 @@ declare namespace fs {
 
     /// Flush a mapping to storage.
     ///
-    /// Flush dirty pages in the mapped region to backing storage.
-    /// Writeback scope and completion guarantees follow host `msync` semantics.
+    /// Flush a mapping to storage via host kernel APIs.
+    /// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -146,8 +146,8 @@ declare namespace fs {
 
     /// Advise the kernel about access patterns.
     ///
-    /// Provide expected access behavior hints for the mapped region.
-    /// Advice is best effort and may be ignored by the host memory manager.
+    /// Advise the kernel about access patterns via host kernel APIs.
+    /// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.

@@ -13,8 +13,8 @@ use crate::runtime::{RuntimeCallStringStore, RuntimeCallValueStore};
 use crate::scheduler::{MicrotaskId, Scheduler, TaskId};
 use crate::time::Clock;
 use destack_workspace::{
-    ExecutionMode as WorkspaceExecutionMode, RandomMode, RandomOptions, ReplayLogOptions,
-    ReplayPayloadMode, RuntimeOptions, TimeMode, TimeOptions,
+    ExecutionMode as WorkspaceExecutionMode, PlatformOptions, PlatformWindowsOptions, RandomMode,
+    RandomOptions, ReplayLogOptions, ReplayPayloadMode, RuntimeOptions, TimeMode, TimeOptions,
 };
 
 /// Number of bytes in a megabyte for replay chunk sizing.
@@ -36,6 +36,8 @@ thread_local! {
 pub struct RuntimeState {
     /// Platform context for host integrations.
     pub platform: PlatformContext,
+    /// Platform runtime configuration options.
+    pub platform_options: PlatformOptions,
     /// Virtual time and clock policy.
     pub time: Clock,
     /// Deterministic randomness streams.
@@ -180,6 +182,7 @@ impl RuntimeContext {
         Self {
             state: Arc::new(RuntimeState {
                 platform,
+                platform_options: options.platform.clone(),
                 time,
                 random,
                 resources: ResourceTable::default(),
@@ -192,6 +195,16 @@ impl RuntimeContext {
     /// Return the platform context.
     pub fn platform(&self) -> &PlatformContext {
         &self.state.platform
+    }
+
+    /// Return the runtime platform options.
+    pub fn platform_options(&self) -> &PlatformOptions {
+        &self.state.platform_options
+    }
+
+    /// Return the runtime windows options.
+    pub fn windows(&self) -> &PlatformWindowsOptions {
+        &self.state.platform_options.windows
     }
 
     /// Return the runtime clock.
@@ -288,7 +301,7 @@ impl Default for RuntimeContext {
 }
 
 /// TLS payload for native runtime calls.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct RuntimeCallContext {
     /// Runtime state for platform bindings.
     runtime: *const RuntimeState,

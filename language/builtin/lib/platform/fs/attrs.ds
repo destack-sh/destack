@@ -7,8 +7,8 @@ import { AccessMode, AtFlags, FileMode } from "./flags.ds";
 declare namespace fs {
     /// Check file access permissions.
     ///
-    /// Probe the requested access mode against one filesystem entry using host credential checks.
-    /// This operation is a permission check only and does not open the target file.
+    /// Check file access permissions via host kernel APIs.
+    /// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -27,8 +27,8 @@ declare namespace fs {
 
     /// Check file access permissions relative to a directory handle.
     ///
-    /// Probe the requested access mode for one path resolved from `dir`.
-    /// Directory-relative resolution avoids ambient current-working-directory lookup.
+    /// Check file access permissions relative to a directory handle via host kernel APIs.
+    /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -52,8 +52,8 @@ declare namespace fs {
 
     /// Change file permissions.
     ///
-    /// Update mode bits for one filesystem entry identified by path.
-    /// Permission semantics follow host chmod behavior for unsupported bits and mask rules.
+    /// Change file permissions via host kernel APIs.
+    /// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -72,8 +72,8 @@ declare namespace fs {
 
     /// Change file permissions by handle.
     ///
-    /// Update mode bits for one already-open file handle.
-    /// Handle-based updates avoid path races between lookup and metadata mutation.
+    /// Change file permissions by handle via host kernel APIs.
+    /// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -92,8 +92,8 @@ declare namespace fs {
 
     /// Change file permissions relative to a directory handle.
     ///
-    /// Update mode bits for one path resolved from `dir`.
-    /// Relative resolution keeps permission updates scoped to caller-selected directory roots.
+    /// Change file permissions relative to a directory handle via host kernel APIs.
+    /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -117,8 +117,8 @@ declare namespace fs {
 
     /// Change file owner and group.
     ///
-    /// Update owner and group identifiers for one filesystem entry identified by path.
-    /// Ownership change rules follow host privilege checks and id namespace semantics.
+    /// Change file owner and group via host kernel APIs.
+    /// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -137,8 +137,8 @@ declare namespace fs {
 
     /// Change file owner and group by handle.
     ///
-    /// Update owner and group identifiers for one already-open file handle.
-    /// Handle-based updates avoid path races and preserve descriptor identity semantics.
+    /// Change file owner and group by handle via host kernel APIs.
+    /// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -157,8 +157,8 @@ declare namespace fs {
 
     /// Change file owner and group relative to a directory handle.
     ///
-    /// Update owner and group identifiers for one path resolved from `dir`.
-    /// Relative ownership updates keep path traversal scoped to the provided directory handle.
+    /// Change file owner and group relative to a directory handle via host kernel APIs.
+    /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -183,8 +183,8 @@ declare namespace fs {
 
     /// Update access and modification times.
     ///
-    /// Set explicit atime and mtime values for one filesystem entry identified by path.
-    /// Timestamp write semantics follow host timestamp precision and normalization rules.
+    /// Update access and modification times via host kernel APIs.
+    /// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -207,8 +207,8 @@ declare namespace fs {
 
     /// Update access and modification times by handle.
     ///
-    /// Set explicit atime and mtime values for one already-open file handle.
-    /// Handle-based timestamp updates bypass path lookup and link traversal concerns.
+    /// Update access and modification times by handle via host kernel APIs.
+    /// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -231,8 +231,8 @@ declare namespace fs {
 
     /// Update access and modification times without following symlinks.
     ///
-    /// Set explicit atime and mtime values for one link entry without dereferencing its target.
-    /// No-follow behavior is enforced by host-specific symlink metadata APIs.
+    /// Update access and modification times without following symlinks via host kernel APIs.
+    /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -255,8 +255,8 @@ declare namespace fs {
 
     /// Update access and modification times relative to a directory handle.
     ///
-    /// Set explicit atime and mtime values for one path resolved from `dir`.
-    /// Relative timestamp updates avoid ambient cwd dependence and keep path scope explicit.
+    /// Update access and modification times relative to a directory handle via host kernel APIs.
+    /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.

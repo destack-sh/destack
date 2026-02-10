@@ -20,7 +20,7 @@ declare namespace memory {
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.memory.lock.range",
+        "destack.memory.lock.lock",
         {
             effect: "external",
             replay: "recordable",

@@ -21,7 +21,10 @@ pub(crate) unsafe fn destack_fs_lock(
     handle: FileHandle,
     flags: FileLockFlags,
 ) -> RuntimeResult<()> {
+    // resolve the file handle
     let handle = file_handle(_context, handle)?;
+
+    // build the overlapped structure
     let mut overlapped = OVERLAPPED {
         Internal: 0,
         InternalHigh: 0,
@@ -33,9 +36,13 @@ pub(crate) unsafe fn destack_fs_lock(
         },
         hEvent: 0,
     };
+
+    // decode the lock flags
     let lock_exclusive = flags.0 & LOCK_EX != 0;
     let lock_nonblock = flags.0 & LOCK_NB != 0;
     let lock_unlock = flags.0 & LOCK_UN != 0;
+
+    // handle unlock requests
     if lock_unlock {
         let rc = unsafe { UnlockFileEx(handle, 0, u32::MAX, u32::MAX, &mut overlapped) };
         if rc == 0 {
@@ -43,6 +50,8 @@ pub(crate) unsafe fn destack_fs_lock(
         }
         return Ok(());
     }
+
+    // map flags into the win32 call
     let mut flags = 0;
     if lock_exclusive {
         flags |= LOCKFILE_EXCLUSIVE_LOCK;
@@ -50,9 +59,12 @@ pub(crate) unsafe fn destack_fs_lock(
     if lock_nonblock {
         flags |= LOCKFILE_FAIL_IMMEDIATELY;
     }
+
+    // acquire the lock
     let rc = unsafe { LockFileEx(handle, flags, 0, u32::MAX, u32::MAX, &mut overlapped) };
     if rc == 0 {
         return Err(last_os_error("LockFileEx", None));
     }
+
     Ok(())
 }

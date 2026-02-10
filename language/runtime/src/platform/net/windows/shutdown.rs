@@ -11,15 +11,21 @@ pub(crate) unsafe fn destack_net_shutdown(
     handle: SocketHandle,
     how: SocketShutdown,
 ) -> RuntimeResult<()> {
+    // resolve the socket descriptor
     let socket = socket_descriptor(_context, handle)?;
+
+    // map the shutdown mode
     let how = match how {
         SocketShutdown::Read => SD_RECEIVE,
         SocketShutdown::Write => SD_SEND,
         SocketShutdown::ReadWrite => SD_BOTH,
     };
+
+    // issue the shutdown
     let rc = unsafe { shutdown(socket, how) };
     if rc != 0 {
         return Err(last_net_error("shutdown"));
     }
+
     Ok(())
 }

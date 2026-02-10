@@ -5,6 +5,7 @@ import { SocketAddress } from "./address.ds";
 /// Accept flags for listener sockets.
 ///
 /// This value maps to native accept flags such as SOCK_NONBLOCK and SOCK_CLOEXEC.
+/// Unsupported bits are rejected with `invalidArgument` or `notSupported`.
 export newtype AcceptFlags = uint32;
 
 /// Listener bindings for the native runtime.
@@ -26,7 +27,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.listener.listen", { effect: "external", replay: "recordable", requires: ["net.listen"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.listen", { effect: "external", replay: "recordable", requires: ["net.listen"], scope: "os", blocking: "sometimes" })
     export function listen(
         address: SocketAddress,
         backlog: uint32,
@@ -49,7 +50,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.listener.bind", { effect: "external", replay: "recordable", requires: ["net.listen"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.bind", { effect: "external", replay: "recordable", requires: ["net.listen"], scope: "os", blocking: "sometimes" })
     export function bind(
         handle: SocketHandle,
         address: SocketAddress,
@@ -58,7 +59,7 @@ declare namespace net {
     /// Accept a new connection from a listener.
     ///
     /// Accept the next pending connection from the listener queue.
-    /// Accept flags are applied atomically when the host supports accept4 style descriptors.
+    /// Accept flags and queued-connection ordering follow host kernel semantics.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
@@ -72,7 +73,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.listener.accept", { effect: "external", replay: "recordable", requires: ["net.accept"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.accept", { effect: "external", replay: "recordable", requires: ["net.accept"], scope: "os", blocking: "sometimes" })
     export function accept(
         listener: ListenerHandle,
         flags: AcceptFlags,
@@ -95,7 +96,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.listener.close", { effect: "external", replay: "recordable", requires: ["net.close"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.closeListener", { effect: "external", replay: "recordable", requires: ["net.close"], scope: "os", blocking: "sometimes" })
     export function closeListener(
         handle: ListenerHandle,
     ): Result<void, PlatformError>;

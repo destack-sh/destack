@@ -66,6 +66,7 @@ fn encode_destack_time_mono_ns_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
+    // ignore unused context
     let _ = context;
 
     result.map(|value| vm::Value::uint(value, 64))
@@ -77,6 +78,7 @@ fn decode_destack_time_sleep_ns_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64,)> {
+    // ignore unused context
     let _ = context;
 
     let duration_value = arg_value(args, 0, "duration", "uint64")?;
@@ -90,6 +92,7 @@ fn encode_destack_time_sleep_ns_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
+    // ignore unused context
     let _ = context;
 
     result.map(|_| vm::Value::VOID)
@@ -101,6 +104,7 @@ fn decode_destack_time_sleep_until_ns_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64,)> {
+    // ignore unused context
     let _ = context;
 
     let deadline_value = arg_value(args, 0, "deadline", "uint64")?;
@@ -114,6 +118,7 @@ fn encode_destack_time_sleep_until_ns_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
+    // ignore unused context
     let _ = context;
 
     result.map(|_| vm::Value::VOID)
@@ -125,6 +130,7 @@ fn encode_destack_time_wall_ns_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
+    // ignore unused context
     let _ = context;
 
     result.map(|value| vm::Value::uint(value, 64))
@@ -145,35 +151,39 @@ struct SleepUntilNsReplay {
 }
 
 /// Binding descriptor for destack.time.monoNs.
-pub const MONO_NS: BindingDescriptor = BindingDescriptor::external(
+pub const MONO_NS: BindingDescriptor = BindingDescriptor::external_with_requires(
     "destack.time.monoNs",
     "export function monoNs(): Result<uint64, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Time(TimeEventKind::MonotonicSample),
+    &["time.monotonic.read"],
 );
 
 /// Binding descriptor for destack.time.sleepNs.
-pub const SLEEP_NS: BindingDescriptor = BindingDescriptor::external(
+pub const SLEEP_NS: BindingDescriptor = BindingDescriptor::external_with_requires(
     "destack.time.sleepNs",
     "export function sleepNs(duration: uint64): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
+    &["time.wall.sleep"],
 );
 
 /// Binding descriptor for destack.time.sleepUntilNs.
-pub const SLEEP_UNTIL_NS: BindingDescriptor = BindingDescriptor::external(
+pub const SLEEP_UNTIL_NS: BindingDescriptor = BindingDescriptor::external_with_requires(
     "destack.time.sleepUntilNs",
     "export function sleepUntilNs(deadline: uint64): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
+    &["time.wall.sleep"],
 );
 
 /// Binding descriptor for destack.time.wallNs.
-pub const WALL_NS: BindingDescriptor = BindingDescriptor::external(
+pub const WALL_NS: BindingDescriptor = BindingDescriptor::external_with_requires(
     "destack.time.wallNs",
     "export function wallNs(): Result<uint64, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Time(TimeEventKind::WallClockRead),
+    &["time.wall.read"],
 );
 
 /// Binding descriptors for time.

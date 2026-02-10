@@ -2,7 +2,7 @@ use destack_base::StringPool;
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
     self as dir, Argument, Declaration, Expression, GlobalSymbolId, PrimitiveType, StaticArgument,
-    StaticExpression, TypeKind, TypeLiteral, WellKnownSymbol,
+    StaticExpression, TypeLiteral, WellKnownSymbol,
 };
 use destack_source::ModuleId;
 use destack_workspace::format::{format_local_type, format_type_literal};
@@ -255,7 +255,10 @@ fn parameter_name(
     match parameter {
         dir::Parameter::Named { name, .. } => strings.get(*name).to_string(),
         dir::Parameter::Pattern { .. } => "_".to_string(),
-        dir::Parameter::Variadic { name, .. } => format!("...{}", strings.get(*name).as_ref()),
+        dir::Parameter::VariadicNamed { name, .. } => {
+            format!("...{}", strings.get(*name).as_ref())
+        }
+        dir::Parameter::VariadicPattern { .. } => "..._".to_string(),
     }
 }
 
@@ -269,7 +272,10 @@ fn type_id_for_parameter(
         module_id,
         local_id: parameter_id.into(),
     };
-    types.get_declared_or_inferred_type_id(node_id)
+    // prefer declared ids to preserve alias names in generated ABI types
+    types
+        .get_declared_type_id(node_id)
+        .or_else(|| types.get_inferred_type_id(node_id))
 }
 
 /// Resolve the return type id for a declaration signature.
@@ -279,6 +285,21 @@ fn resolve_return_type_id(
     module_id: ModuleId,
     types: &dir::TypeTable,
 ) -> Option<dir::LocalTypeId> {
+    // prefer declared return annotation to preserve alias names
+    if let Some(return_node) = signature.return_type {
+        let node_id = dir::GlobalNodeIdAny {
+            module_id,
+            local_id: return_node.into(),
+        };
+        if let Some(type_id) = types
+            .get_declared_type_id(node_id)
+            .or_else(|| types.get_inferred_type_id(node_id))
+        {
+            return Some(type_id);
+        }
+    }
+
+    // fall back to signature-inferred function type when return annotation is missing
     let global_declaration_id = declaration_id.into_global_any(module_id);
     types
         .get_signature_type_for_node(global_declaration_id)
@@ -288,15 +309,6 @@ fn resolve_return_type_id(
                 _ => None,
             },
         )
-        .or_else(|| {
-            signature.return_type.and_then(|return_node| {
-                let node_id = dir::GlobalNodeIdAny {
-                    module_id,
-                    local_id: return_node.into(),
-                };
-                types.get_declared_or_inferred_type_id(node_id)
-            })
-        })
 }
 
 /// Resolve the textual return type string for a declaration signature.
@@ -590,9 +602,16 @@ fn binding_type_from_symbol(
             domain,
             strings,
         ),
-        Declaration::Type { kind, .. } => {
+        Declaration::Type { kind, value, .. } => {
             let alias_target = types
                 .get_alias_target_type_id(symbol_id)
+                .or_else(|| {
+                    let value_node = dir::GlobalNodeIdAny {
+                        module_id: symbol_id.module_id,
+                        local_id: (*value).into(),
+                    };
+                    types.get_declared_or_inferred_type_id(value_node)
+                })
                 .unwrap_or_else(|| {
                     unsupported_binding_type(&name, "missing type alias target for binding type")
                 });
@@ -619,13 +638,13 @@ fn binding_type_from_symbol(
                 symbols,
                 domain.as_str(),
             );
-            match kind {
-                TypeKind::Nominal => BindingType::Newtype {
-                    name,
-                    domain,
-                    inner: Box::new(inner),
-                },
-                TypeKind::Structural => inner,
+            // preserve named aliases as newtypes for platform bindings
+            // this keeps ABI/type names stable even when aliases are structural
+            let _ = kind;
+            BindingType::Newtype {
+                name,
+                domain,
+                inner: Box::new(inner),
             }
         }
         _ => unsupported_binding_type(&name, "unsupported binding declaration"),
@@ -939,9 +958,9 @@ fn enum_field_value_from_expression(
 /// Resolve a field name from a declaration member key.
 fn field_name_from_key(key: Option<&dir::DynamicKey>, strings: &StringPool) -> Option<String> {
     match key {
-        Some(dir::DynamicKey::Name(name)) | Some(dir::DynamicKey::Number(name)) => {
-            Some(strings.get(*name).to_string())
-        }
+        Some(dir::DynamicKey::Name(name))
+        | Some(dir::DynamicKey::Private(name))
+        | Some(dir::DynamicKey::Number(name)) => Some(strings.get(*name).to_string()),
         Some(dir::DynamicKey::NamedExpression { name, .. }) => Some(strings.get(*name).to_string()),
         Some(dir::DynamicKey::Expression(_)) | None => None,
     }
@@ -993,6 +1012,7 @@ fn format_type_expression(
                 dir::TypeUnaryOperator::Typeof => format!("typeof {right}"),
                 dir::TypeUnaryOperator::Keyof => format!("keyof {right}"),
                 dir::TypeUnaryOperator::AsConst => format!("{right} as const"),
+                dir::TypeUnaryOperator::AsComptime => format!("{right} as comptime"),
             };
             Some(formatted)
         }
@@ -1054,9 +1074,10 @@ fn format_type_expression(
             target,
             qualifier,
             static_arguments,
+            ..
         } => {
-            let target = strings.get(*target);
-            let mut out = format!("import(\"{}\")", target.as_ref());
+            let target = format_type_expression(*target, tree, strings)?;
+            let mut out = format!("import({target})");
             if let Some(qualifier) = qualifier {
                 out.push('.');
                 out.push_str(&format_path_segments(qualifier, strings));
@@ -1178,9 +1199,10 @@ fn format_parameter_declared(
     let name = match parameter {
         dir::Parameter::Named { name, .. } => strings.get(*name).to_string(),
         dir::Parameter::Pattern { .. } => "_".to_string(),
-        dir::Parameter::Variadic { name, .. } => {
+        dir::Parameter::VariadicNamed { name, .. } => {
             format!("...{}", strings.get(*name).as_ref())
         }
+        dir::Parameter::VariadicPattern { .. } => "..._".to_string(),
     };
 
     let node_id = dir::GlobalNodeIdAny {

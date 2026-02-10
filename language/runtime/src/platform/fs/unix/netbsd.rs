@@ -2,9 +2,10 @@ use std::ffi::CStr;
 use std::os::unix::io::RawFd;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::platform::fs::StatFs;
 
-use super::{last_os_error, nanos_from_secs_and_nanos, statfs_u64};
+use super::{nanos_from_secs_and_nanos, statfs_u64};
 
 /// Return nanosecond timestamps for stat fields on netbsd.
 pub(super) fn stat_times(stat: libc::stat) -> (u64, u64, u64, u64) {
@@ -43,7 +44,7 @@ pub(super) fn statfs_for_fd(fd: RawFd) -> RuntimeResult<StatFs> {
     let mut stat: libc::statvfs = unsafe { std::mem::zeroed() };
     let rc = unsafe { libc::fstatvfs(fd, &mut stat) };
     if rc != 0 {
-        return Err(last_os_error("fstatvfs", None));
+        return Err(core_platform::io_error("fstatvfs", None));
     }
 
     Ok(statvfs_from_libc(stat))
@@ -54,15 +55,10 @@ pub(super) fn statfs_for_path(path: &CStr) -> RuntimeResult<StatFs> {
     let mut stat: libc::statvfs = unsafe { std::mem::zeroed() };
     let rc = unsafe { libc::statvfs(path.as_ptr(), &mut stat) };
     if rc != 0 {
-        return Err(last_os_error("statvfs", None));
+        return Err(core_platform::io_error("statvfs", None));
     }
 
     Ok(statvfs_from_libc(stat))
-}
-
-/// Return the current errno pointer on netbsd.
-pub(super) fn errno_location() -> *mut libc::c_int {
-    unsafe { libc::__errno() }
 }
 
 /// Call fdatasync on netbsd.

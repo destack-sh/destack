@@ -1,8 +1,8 @@
 import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
-import { ProcessFdHandle, ProcessHandle, SignalFdHandle } from "../resource/index.ds";
+import { ProcessFdHandle, SignalFdHandle } from "../resource/index.ds";
 import { ProcessId } from "./ids.ds";
-import { Signal, SignalEvent, SignalFdFlags } from "./signals.ds";
+import { Signal, SignalEvent } from "./signals.ds";
 import { ProcessWaitStatus } from "./wait.ds";
 
 /// Process file descriptor flags.
@@ -11,17 +11,14 @@ export newtype ProcessFdFlags = uint32;
 /// Process file descriptor signal flags.
 export newtype ProcessFdSignalFlags = uint32;
 
-/// Process control command selector.
-export newtype ProcessControlCommand = uint32;
-
-/// Process control flag mask.
-export newtype ProcessControlFlags = uint32;
+/// Signal file descriptor flags.
+export newtype SignalFdFlags = uint32;
 
 /// Process descriptor bindings.
 declare namespace process {
-    /// Open one pidfd descriptor for the target process id.
+    /// Open one process descriptor for the target process id.
     ///
-    /// Open one host pidfd-style process descriptor that can be used for wait and signal operations without pid reuse races.
+    /// Open one host process descriptor that can be used for wait and signal operations without pid reuse races.
     /// Descriptor semantics follow pidfd on Linux and host-equivalent process-handle semantics on other targets.
     ///
     /// # Platform
@@ -32,28 +29,28 @@ declare namespace process {
     /// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
     ///
     /// # Security
-    /// Requires `process.pidfd`.
+    /// Requires `process.handle`.
     ///
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.process.fd.pidfdOpen",
+        "destack.process.fd.processFdOpen",
         {
             effect: "external",
             replay: "recordable",
-            requires: ["process.pidfd"],
+            requires: ["process.handle"],
             scope: "os",
             blocking: "sometimes",
         },
     )
-    export function pidfdOpen(
+    export function processFdOpen(
         pid: ProcessId,
         flags: ProcessFdFlags,
     ): Result<ProcessFdHandle, PlatformError>;
 
-    /// Close one pidfd descriptor.
+    /// Close one process descriptor.
     ///
-    /// Close one host pidfd descriptor and release the kernel object reference.
+    /// Close one host process descriptor and release the kernel object reference.
     /// Closing semantics follow host descriptor teardown behavior.
     ///
     /// # Platform
@@ -64,23 +61,23 @@ declare namespace process {
     /// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
     ///
     /// # Security
-    /// Requires `process.pidfd`.
+    /// Requires `process.handle`.
     ///
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.process.fd.pidfdClose",
+        "destack.process.fd.processFdClose",
         {
             effect: "external",
             replay: "recordable",
-            requires: ["process.pidfd"],
+            requires: ["process.handle"],
             scope: "os",
             blocking: "never",
         },
     )
-    export function pidfdClose(handle: ProcessFdHandle): Result<void, PlatformError>;
+    export function processFdClose(handle: ProcessFdHandle): Result<void, PlatformError>;
 
-    /// Send one signal through one pidfd descriptor.
+    /// Send one signal through a process descriptor.
     ///
     /// Deliver one signal using a stable process descriptor rather than a numeric pid.
     /// Delivery semantics follow pidfd_send_signal on Linux and host-equivalent process-signal APIs on other targets.
@@ -98,24 +95,24 @@ declare namespace process {
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.process.fd.pidfdSendSignal",
+        "destack.process.fd.processFdSendSignal",
         {
             effect: "external",
             replay: "recordable",
-            requires: ["process.pidfd", "process.signal.send"],
+            requires: ["process.signal.send"],
             scope: "os",
             blocking: "sometimes",
         },
     )
-    export function pidfdSendSignal(
+    export function processFdSendSignal(
         handle: ProcessFdHandle,
         signal: Signal,
         flags: ProcessFdSignalFlags,
     ): Result<void, PlatformError>;
 
-    /// Wait for one pidfd descriptor state transition.
+    /// Wait for one process descriptor state transition.
     ///
-    /// Wait for one child-state transition associated with one pidfd descriptor.
+    /// Wait for one child-state transition associated with the process descriptor.
     /// Wait semantics follow pollable pidfd readiness on Linux and host process wait APIs on other targets.
     ///
     /// # Platform
@@ -131,23 +128,23 @@ declare namespace process {
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.process.fd.pidfdWait",
+        "destack.process.fd.processFdWait",
         {
             effect: "external",
             replay: "recordable",
-            requires: ["process.pidfd", "process.wait"],
+            requires: ["process.wait"],
             scope: "os",
             blocking: "sometimes",
         },
     )
-    export function pidfdWait(
+    export function processFdWait(
         handle: ProcessFdHandle,
         timeoutNs: uint64,
     ): Result<ProcessWaitStatus, PlatformError>;
 
-    /// Poll one pidfd descriptor state transition without blocking.
+    /// Poll one process descriptor state transition without blocking.
     ///
-    /// Poll one pidfd descriptor for state transition readiness and return immediately when no transition is pending.
+    /// Poll one process descriptor for state transition readiness and return immediately when no transition is pending.
     /// Non-ready state is reported through ioWouldBlock.
     ///
     /// # Platform
@@ -163,16 +160,16 @@ declare namespace process {
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.process.fd.pidfdTryWait",
+        "destack.process.fd.processFdTryWait",
         {
             effect: "external",
             replay: "recordable",
-            requires: ["process.pidfd", "process.wait"],
+            requires: ["process.wait"],
             scope: "os",
             blocking: "never",
         },
     )
-    export function pidfdTryWait(
+    export function processFdTryWait(
         handle: ProcessFdHandle,
     ): Result<ProcessWaitStatus, PlatformError>;
 
@@ -326,71 +323,4 @@ declare namespace process {
         handle: SignalFdHandle,
         signals: Slice<Signal>,
     ): Result<void, PlatformError>;
-
-    /// Execute one process-control command.
-    ///
-    /// Forward one process-control command to the host kernel for the target process handle.
-    /// Command semantics follow host process-control ABI definitions.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` when host mapping is unavailable.
-    /// Uses prctl or procctl style controls on Unix and process control adapters on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, processNotFound, processPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `process.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    @binding(
-        "destack.process.fd.processControl",
-        {
-            effect: "external",
-            replay: "recordable",
-            requires: ["process.control"],
-            scope: "os",
-            blocking: "sometimes",
-        },
-    )
-    export function processControl(
-        handle: ProcessHandle,
-        command: ProcessControlCommand,
-        argument: uint64,
-        flags: ProcessControlFlags,
-    ): Result<int64, PlatformError>;
-
-    /// Duplicate one target descriptor from one pidfd process.
-    ///
-    /// Duplicate one descriptor from one target process into the current process descriptor table.
-    /// Descriptor duplication semantics follow host pidfd or process-handle descriptor APIs.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` when host mapping is unavailable.
-    /// Uses pidfd_getfd(2) on Linux and process-handle descriptor adapters on other targets.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, processNotFound, processPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `process.pidfd`, `process.handle`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    @binding(
-        "destack.process.fd.pidfdGetFd",
-        {
-            effect: "external",
-            replay: "recordable",
-            requires: ["process.pidfd", "process.handle"],
-            scope: "os",
-            blocking: "sometimes",
-        },
-    )
-    export function pidfdGetFd(
-        handle: ProcessFdHandle,
-        targetFd: int32,
-        flags: uint32,
-    ): Result<ProcessFdHandle, PlatformError>;
 }

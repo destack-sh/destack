@@ -5,11 +5,13 @@ import { SocketAddress, SocketFamily } from "./address.ds";
 /// Address resolution flags.
 ///
 /// This value maps to native resolver flags such as AI_PASSIVE and AI_ADDRCONFIG.
+/// Unsupported bits are rejected with `invalidArgument` or `notSupported`.
 export newtype ResolveFlags = uint32;
 
 /// Reverse lookup flags.
 ///
 /// This value maps to native reverse-lookup flags such as NI_NUMERICHOST and NI_NUMERICSERV.
+/// Unsupported bits are rejected with `invalidArgument` or `notSupported`.
 export newtype ReverseLookupFlags = uint32;
 
 /// Host and service query payload for address resolution.
@@ -55,7 +57,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.resolve.lookup", { effect: "external", replay: "recordable", requires: ["net.dns"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.resolve.resolve", { effect: "external", replay: "recordable", requires: ["net.dns"], scope: "os", blocking: "sometimes" })
     export function resolve(query: ResolveQuery): Result<Array<SocketAddress>, PlatformError>;
 
     /// Reverse lookup a raw socket address into host and service names.

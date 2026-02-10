@@ -1,3 +1,4 @@
+use super::PollerToken;
 use crate::platform::ResourceId;
 
 /// Flags attached to poller events.
@@ -164,7 +165,7 @@ pub struct PlatformEvent {
     /// Event flags associated with this event.
     pub flags: PlatformEventFlags,
     /// Opaque user token from registration.
-    pub token: u64,
+    pub token: PollerToken,
     /// Payload information associated with the event.
     pub payload: PlatformEventPayload,
 }

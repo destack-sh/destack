@@ -50,30 +50,6 @@ builtin_lib_sources_targeted!(
             "index.ds"
         ),
         (
-            LIB_PLATFORM_CRYPTO_CERTIFICATE_DS,
-            "lib",
-            "platform/crypto",
-            "certificate.ds"
-        ),
-        (
-            LIB_PLATFORM_CRYPTO_INDEX_DS,
-            "lib",
-            "platform/crypto",
-            "index.ds"
-        ),
-        (
-            LIB_PLATFORM_CRYPTO_KEY_DS,
-            "lib",
-            "platform/crypto",
-            "key.ds"
-        ),
-        (
-            LIB_PLATFORM_CRYPTO_STORE_DS,
-            "lib",
-            "platform/crypto",
-            "store.ds"
-        ),
-        (
             LIB_PLATFORM_DEBUG_CORE_DS,
             "lib",
             "platform/debug",
@@ -237,12 +213,6 @@ builtin_lib_sources_targeted!(
             "lib",
             "platform/io",
             "completion.ds"
-        ),
-        (
-            LIB_PLATFORM_IO_CONTROL_DS,
-            "lib",
-            "platform/io",
-            "control.ds"
         ),
         (LIB_PLATFORM_IO_EVENT_DS, "lib", "platform/io", "event.ds"),
         (LIB_PLATFORM_IO_INDEX_DS, "lib", "platform/io", "index.ds"),
@@ -564,7 +534,6 @@ builtin_lib_sources_targeted!(
             "platform/timer",
             "control.ds"
         ),
-        (LIB_PLATFORM_TIMER_FD_DS, "lib", "platform/timer", "fd.ds"),
         (
             LIB_PLATFORM_TIMER_INDEX_DS,
             "lib",
@@ -576,19 +545,6 @@ builtin_lib_sources_targeted!(
             "lib",
             "platform/timer",
             "schedule.ds"
-        ),
-        (
-            LIB_PLATFORM_TLS_CONTEXT_DS,
-            "lib",
-            "platform/tls",
-            "context.ds"
-        ),
-        (LIB_PLATFORM_TLS_INDEX_DS, "lib", "platform/tls", "index.ds"),
-        (
-            LIB_PLATFORM_TLS_SESSION_DS,
-            "lib",
-            "platform/tls",
-            "session.ds"
         ),
         (LIB_PLATFORM_TTY_INDEX_DS, "lib", "platform/tty", "index.ds"),
         (LIB_PLATFORM_TTY_IO_DS, "lib", "platform/tty", "io.ds"),
@@ -606,10 +562,6 @@ pub const LIB_PLATFORM: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_PLATFORM_AUDIO_STREAM_DS,
         LIB_PLATFORM_CONSOLE_CONSOLE_DS,
         LIB_PLATFORM_CONSOLE_INDEX_DS,
-        LIB_PLATFORM_CRYPTO_CERTIFICATE_DS,
-        LIB_PLATFORM_CRYPTO_INDEX_DS,
-        LIB_PLATFORM_CRYPTO_KEY_DS,
-        LIB_PLATFORM_CRYPTO_STORE_DS,
         LIB_PLATFORM_DEBUG_CORE_DS,
         LIB_PLATFORM_DEBUG_INDEX_DS,
         LIB_PLATFORM_DEBUG_INSPECTOR_DS,
@@ -650,7 +602,6 @@ pub const LIB_PLATFORM: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_PLATFORM_INPUT_EVENT_DS,
         LIB_PLATFORM_INPUT_INDEX_DS,
         LIB_PLATFORM_IO_COMPLETION_DS,
-        LIB_PLATFORM_IO_CONTROL_DS,
         LIB_PLATFORM_IO_EVENT_DS,
         LIB_PLATFORM_IO_INDEX_DS,
         LIB_PLATFORM_IO_POLL_DS,
@@ -721,12 +672,8 @@ pub const LIB_PLATFORM: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_PLATFORM_TIME_INDEX_DS,
         LIB_PLATFORM_TIME_SLEEP_DS,
         LIB_PLATFORM_TIMER_CONTROL_DS,
-        LIB_PLATFORM_TIMER_FD_DS,
         LIB_PLATFORM_TIMER_INDEX_DS,
         LIB_PLATFORM_TIMER_SCHEDULE_DS,
-        LIB_PLATFORM_TLS_CONTEXT_DS,
-        LIB_PLATFORM_TLS_INDEX_DS,
-        LIB_PLATFORM_TLS_SESSION_DS,
         LIB_PLATFORM_TTY_INDEX_DS,
         LIB_PLATFORM_TTY_IO_DS,
         LIB_PLATFORM_TTY_MODE_DS,

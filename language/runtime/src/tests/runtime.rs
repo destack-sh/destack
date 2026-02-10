@@ -1,34 +1,53 @@
-use destack_workspace::{ExecutionMode, RandomMode, RuntimeOptions};
+use destack_base::LocalStringPool;
+use destack_mir::NodeTree;
+use destack_vm as vm;
+use destack_workspace::{ExecutionMode, RandomMode, RandomOptions, RuntimeOptions};
 
 use crate::diagnostic::RuntimeStatus;
 use crate::platform::PlatformContext;
 use crate::platform::random::{
-    RandomStream, destack_random_next_u64, destack_random_next_u64_from,
+    RandomStream, destack_random_stream_next_u64, destack_random_stream_next_u64_from,
 };
 use crate::platform::resource::{ListenerHandle, ResourceKind};
 use crate::runtime::{Runtime, RuntimeCallContext, RuntimeContext, enter_runtime_call_context};
 
 /// Runtime harness for runtime tests.
+#[cfg_attr(windows, allow(dead_code))]
 pub(crate) struct TestRuntime {
     /// Runtime under test.
     pub runtime: Runtime,
+    /// VM isolate backing VM bindings in tests.
+    vm_isolate: std::cell::RefCell<vm::Isolate>,
 }
 
+#[cfg_attr(windows, allow(dead_code))]
 impl TestRuntime {
     /// Build a runtime with deterministic random settings.
     pub(crate) fn deterministic_random() -> Self {
         // deterministic random options
-        let mut options = RuntimeOptions::default();
-        options.execution_mode = ExecutionMode::Fast;
-        options.random.mode = RandomMode::Deterministic;
-        options.random.seed = Some(0);
+        let options = RuntimeOptions {
+            execution_mode: ExecutionMode::Fast,
+            random: RandomOptions {
+                mode: RandomMode::Deterministic,
+                seed: Some(0),
+                ..RandomOptions::default()
+            },
+            ..RuntimeOptions::default()
+        };
 
         // runtime with deterministic random state
         let context =
             RuntimeContext::from_runtime_options(PlatformContext::new(Vec::new()), &options);
         let runtime = Runtime::new(context);
 
-        Self { runtime }
+        let tree = NodeTree::new();
+        let strings = LocalStringPool::new().into_immutable();
+        let vm_isolate = vm::Isolate::new(tree, strings).expect("test vm isolate should build");
+
+        Self {
+            runtime,
+            vm_isolate: std::cell::RefCell::new(vm_isolate),
+        }
     }
 
     /// Execute a native binding within a runtime call context.
@@ -48,11 +67,29 @@ impl TestRuntime {
         run(&call_context)
     }
 
+    /// Execute a VM binding within a runtime call context.
+    pub(crate) fn with_vm_call_context<T>(
+        &self,
+        run: impl for<'ctx> FnOnce(&RuntimeCallContext, &mut vm::RuntimeContext<'ctx>) -> T,
+    ) -> T {
+        // run the VM call with a fresh runtime call context
+        let mut isolate = self.vm_isolate.borrow_mut();
+        isolate.with_runtime_context(|context| {
+            let call_context = RuntimeCallContext::new(
+                &self.runtime.context,
+                self.runtime.scheduler.as_ref(),
+                self.runtime.bindings.policy(),
+            );
+            let _guard = enter_runtime_call_context(&call_context);
+            run(&call_context, context)
+        })
+    }
+
     /// Execute the native random binding with deterministic runtime state.
     pub(crate) fn call_native_next_u64(&self) -> u64 {
         self.with_native_call_context(|_| {
             let mut out = 0u64;
-            let status = unsafe { destack_random_next_u64(&mut out) };
+            let status = unsafe { destack_random_stream_next_u64(&mut out) };
             assert_eq!(status, RuntimeStatus::OK);
             out
         })
@@ -62,7 +99,8 @@ impl TestRuntime {
     pub(crate) fn call_native_next_u64_from(&self, stream: u64) -> u64 {
         self.with_native_call_context(|_| {
             let mut out = 0u64;
-            let status = unsafe { destack_random_next_u64_from(&mut out, RandomStream(stream)) };
+            let status =
+                unsafe { destack_random_stream_next_u64_from(&mut out, RandomStream(stream)) };
             assert_eq!(status, RuntimeStatus::OK);
             out
         })
@@ -163,11 +201,11 @@ impl TestRuntime {
         assert_eq!(rc, 0, "getsockname failed");
         let storage = unsafe { storage.assume_init() };
         match storage.ss_family as i32 {
-            AF_INET => {
+            value if value == AF_INET as i32 => {
                 let addr = unsafe { &*(std::ptr::addr_of!(storage) as *const SOCKADDR_IN) };
                 u16::from_be(addr.sin_port)
             }
-            AF_INET6 => {
+            value if value == AF_INET6 as i32 => {
                 let addr = unsafe { &*(std::ptr::addr_of!(storage) as *const SOCKADDR_IN6) };
                 u16::from_be(addr.sin6_port)
             }

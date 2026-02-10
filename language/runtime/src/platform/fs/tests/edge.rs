@@ -1,7 +1,7 @@
 use super::{FsHarness, native_slice_mut, path_bytes, temp_dir, with_native_harness};
 use crate::platform::fs::{
-    FileMode, FileOffset, destack_fs_close, destack_fs_closedir, destack_fs_mkdir_bytes,
-    destack_fs_opendir_bytes, destack_fs_read, destack_fs_rmdir_bytes,
+    FileMode, FileOffset, destack_fs_dir_closedir, destack_fs_dir_mkdir, destack_fs_dir_opendir,
+    destack_fs_dir_rmdir, destack_fs_file_close, destack_fs_file_pread,
 };
 use crate::platform::resource::{DirectoryHandle, FileHandle, ResourceId};
 
@@ -17,11 +17,11 @@ fn test_fs_invalid_file_handle() {
             let slice = native_slice_mut(&mut buffer);
             let mut out = 0u64;
             let status = unsafe {
-                destack_fs_read(&mut out, FileHandle(ResourceId(9999)), slice, FileOffset(0))
+                destack_fs_file_pread(&mut out, FileHandle(ResourceId(9999)), slice, FileOffset(0))
             };
             runtime.assert_status_err(status, "read invalid handle");
 
-            let status = unsafe { destack_fs_close(FileHandle(ResourceId(9999))) };
+            let status = unsafe { destack_fs_file_close(FileHandle(ResourceId(9999))) };
             runtime.assert_status_err(status, "close invalid handle");
         });
     });
@@ -38,37 +38,37 @@ fn test_fs_invalid_directory_handle() {
 
         let handle = harness.with_context(|| {
             let (_bytes, dir) = path_bytes(&temp_dir);
-            let status = unsafe { destack_fs_mkdir_bytes(dir, FileMode(0o755)) };
+            let status = unsafe { destack_fs_dir_mkdir(dir, FileMode(0o755)) };
             runtime.assert_status_ok(status, "mkdir");
 
             let (_bytes, child) = path_bytes(&sub_dir);
-            let status = unsafe { destack_fs_mkdir_bytes(child, FileMode(0o755)) };
+            let status = unsafe { destack_fs_dir_mkdir(child, FileMode(0o755)) };
             runtime.assert_status_ok(status, "mkdir child");
 
             let mut handle = DirectoryHandle(ResourceId(0));
-            let status = unsafe { destack_fs_opendir_bytes(&mut handle, dir) };
+            let status = unsafe { destack_fs_dir_opendir(&mut handle, dir) };
             runtime.assert_status_ok(status, "opendir");
             handle
         });
 
         harness.with_context(|| {
-            let status = unsafe { destack_fs_closedir(handle) };
+            let status = unsafe { destack_fs_dir_closedir(handle) };
             runtime.assert_status_ok(status, "closedir");
 
-            let status = unsafe { destack_fs_closedir(handle) };
+            let status = unsafe { destack_fs_dir_closedir(handle) };
             runtime.assert_status_err(status, "closedir after close");
 
-            let status = unsafe { destack_fs_closedir(DirectoryHandle(ResourceId(9999))) };
+            let status = unsafe { destack_fs_dir_closedir(DirectoryHandle(ResourceId(9999))) };
             runtime.assert_status_err(status, "closedir invalid handle");
         });
 
         harness.with_context(|| {
             let (_bytes, child) = path_bytes(&sub_dir);
-            let status = unsafe { destack_fs_rmdir_bytes(child) };
+            let status = unsafe { destack_fs_dir_rmdir(child) };
             runtime.assert_status_ok(status, "rmdir child");
 
             let (_bytes, dir) = path_bytes(&temp_dir);
-            let status = unsafe { destack_fs_rmdir_bytes(dir) };
+            let status = unsafe { destack_fs_dir_rmdir(dir) };
             runtime.assert_status_ok(status, "rmdir");
         });
     });

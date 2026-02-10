@@ -7,7 +7,7 @@ declare namespace ffi {
     /// Call one foreign symbol using raw ABI argument and result buffers.
     ///
     /// Invoke one host symbol trampoline with caller-provided ABI payload bytes and explicit ABI selectors.
-    /// ABI packing, alignment, and calling convention semantics follow the selected ABI identifier and host backend.
+    /// ABI packing, alignment, and calling convention semantics are runtime-defined and backend-specific.
     ///
     /// # Platform
     /// Runtime-managed on all targets.
@@ -22,7 +22,7 @@ declare namespace ffi {
     /// # Replay
     /// External, nonrecordable.
     @binding(
-        "destack.ffi.call.invoke",
+        "destack.ffi.call.call",
         {
             effect: "external",
             replay: "nonrecordable",

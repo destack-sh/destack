@@ -21,7 +21,7 @@ declare namespace process {
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.process.cwd.get",
+        "destack.process.cwd.cwd",
         {
             effect: "external",
             replay: "recordable",

@@ -1,7 +1,7 @@
 use destack_vm as vm;
-use std::io::{self, Write};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::console::{ConsoleStream, write_console_line};
 use crate::runtime::RuntimeCallContext;
 
 /// Write a line to stdout.
@@ -50,39 +50,4 @@ pub fn destack_console_error(
         .string_ref(value)
         .map_err(Box::<RuntimeError>::from)?;
     write_console_line(value.as_str(), ConsoleStream::Stderr)
-}
-
-/// Output selector for console writes.
-enum ConsoleStream {
-    /// Write to stdout.
-    Stdout,
-    /// Write to stderr.
-    Stderr,
-}
-
-/// Write a console line to the platform stream.
-#[inline]
-fn write_console_line(value: &str, stream: ConsoleStream) -> RuntimeResult<()> {
-    match stream {
-        ConsoleStream::Stdout => {
-            let mut stdout = io::stdout();
-            writeln!(stdout, "{value}").map_err(|error| {
-                RuntimeError::from(vm::Error::Panic {
-                    message: format!("stdout write failed: {error}"),
-                })
-                .boxed()
-            })?;
-        }
-        ConsoleStream::Stderr => {
-            let mut stderr = io::stderr();
-            writeln!(stderr, "{value}").map_err(|error| {
-                RuntimeError::from(vm::Error::Panic {
-                    message: format!("stderr write failed: {error}"),
-                })
-                .boxed()
-            })?;
-        }
-    }
-
-    Ok(())
 }

@@ -45,7 +45,7 @@ declare namespace fs {
     /// Create a directory.
     ///
     /// Create a single directory entry at the provided path with the supplied mode bits.
-    /// Parent lookup and final component creation are performed atomically by the host kernel.
+    /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -65,7 +65,7 @@ declare namespace fs {
     /// Create a directory relative to a directory handle.
     ///
     /// Create a single directory entry relative to an existing directory descriptor.
-    /// Directory-relative lookup keeps creation scope anchored to `dir`.
+    /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -88,8 +88,8 @@ declare namespace fs {
 
     /// Remove a directory.
     ///
-    /// Remove one empty directory path from the host filesystem.
-    /// Non-empty directories are rejected by host directory removal semantics.
+    /// Remove the target resource through a single host namespace operation with no runtime fallback path.
+    /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -108,8 +108,8 @@ declare namespace fs {
 
     /// Open a directory and return a handle.
     ///
-    /// Open one directory path for iteration and metadata-relative operations.
-    /// Returned handles keep host directory state until explicitly closed.
+    /// Open the target resource with the requested flags and return the host handle exposed by the kernel.
+    /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -169,7 +169,7 @@ declare namespace fs {
     /// Reset an open directory handle to the first entry.
     ///
     /// Reset the directory iteration cursor to the beginning of the stream.
-    /// Subsequent reads return entries from the start according to host enumeration order.
+    /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -209,7 +209,7 @@ declare namespace fs {
     /// Close a directory handle.
     ///
     /// Close the target handle by forwarding the descriptor teardown to the host kernel.
-    /// Any in-flight iteration state owned by the host is released with the handle.
+    /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -229,7 +229,7 @@ declare namespace fs {
     /// Create a temporary directory.
     ///
     /// Create a unique temporary directory from the template in the platform temp directory.
-    /// Template substitution and collision handling follow host `mkdtemp`-style rules.
+    /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.

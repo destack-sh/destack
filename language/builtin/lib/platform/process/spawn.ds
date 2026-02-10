@@ -88,7 +88,7 @@ declare namespace process {
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.process.spawn.start",
+        "destack.process.spawn.spawn",
         {
             effect: "external",
             replay: "recordable",

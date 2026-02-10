@@ -14,6 +14,7 @@ pub(crate) unsafe fn destack_fs_truncate_bytes(
     path: PathBytes,
     size: FileOffset,
 ) -> RuntimeResult<()> {
+    // open the file and truncate it
     let mut handle = FileHandle(ResourceId(0));
     unsafe {
         destack_fs_open_bytes(
@@ -34,6 +35,7 @@ pub(crate) unsafe fn destack_fs_truncate_utf16(
     path: PathUtf16,
     size: FileOffset,
 ) -> RuntimeResult<()> {
+    // open the file and truncate it
     let mut handle = FileHandle(ResourceId(0));
     unsafe {
         destack_fs_open_utf16(

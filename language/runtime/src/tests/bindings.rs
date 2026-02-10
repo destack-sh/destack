@@ -71,7 +71,7 @@ fn test_random_next_u64_matches_vm_and_native() {
     let native_value = native_runtime.call_native_next_u64();
 
     let mut vm_runtime = TestRuntime::deterministic_random();
-    let vm_value = run_vm_random_call(&mut vm_runtime, "random.nextU64", None);
+    let vm_value = run_vm_random_call(&mut vm_runtime, "random.stream.nextU64", None);
     assert_eq!(native_value, vm_value);
 }
 
@@ -82,6 +82,6 @@ fn test_random_next_u64_from_matches_vm_and_native() {
     let native_value = native_runtime.call_native_next_u64_from(0);
 
     let mut vm_runtime = TestRuntime::deterministic_random();
-    let vm_value = run_vm_random_call(&mut vm_runtime, "random.nextU64From", Some(0));
+    let vm_value = run_vm_random_call(&mut vm_runtime, "random.stream.nextU64From", Some(0));
     assert_eq!(native_value, vm_value);
 }

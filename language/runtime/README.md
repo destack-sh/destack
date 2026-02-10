@@ -10,17 +10,6 @@ Destack has a single runtime that can drive both VM and native execution (even s
 The runtime owns time, randomness, scheduling, external bindings, resource tracking, and GC coordination.
 VM and native are "engines" that run until they yield back to the runtime (microtask-style).
 
-## Targets And Capabilities
-
-The runtime is the reference execution environment for Destack.
-Tier 1 runtime targets are macOS, Linux, and Windows.
-Tier 2 runtime targets are iOS, Android, FreeBSD, OpenBSD, NetBSD, and DragonFly.
-Tier 3 runtime targets are WASI and other sandboxed environments with explicit capability gating.
-JS host targets (Node, Bun, Deno, browsers) run Destack via compatibility shims and lack native-only capabilities.
-
-Platform capabilities are explicit and enforced by the compiler and runtime policy.
-Use `@require("fs", "net:tcp")` to declare what a binding or API needs.
-
 ## Components
 
 The runtime is organized around subsystems that will sound familiar to V8 and JSC enjoyers, with some additional features for Destack:
@@ -56,6 +45,18 @@ The runtime decides when to run, yield, and resume, and it owns the scheduling p
 All external effects ("platform effects") go through runtime bindings.
 Platform code implements the actual OS integration and resource stuff.
 Blocking work yields through the scheduler and resumes through the same bindings as everything else.
+
+Path encoding is explicit at the binding boundary through `OsPath`.
+On unix targets, `OsPath.Utf16` inputs are transcoded to UTF-8 bytes before syscall dispatch.
+If a unix syscall returns path bytes that are not valid UTF-8, UTF-16 output paths fail loudly instead of lossy conversion.
+
+Socket message bindings surface systems-level metadata directly.
+`recvMsg` returns raw recv flags plus explicit payload and control truncation booleans.
+`sendMsg` accepts raw send flags and validates them before syscall dispatch.
+
+`sendfile` is target-aware.
+Linux, Android, macOS, and iOS use kernel sendfile paths.
+Other targets use a buffered copy fallback so behavior remains available.
 
 ## Determinism and Replay
 

@@ -15,16 +15,16 @@ declare namespace process {
     /// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
     ///
     /// # Security
-    /// Requires `process.self`.
+    /// Requires `process.run`.
     ///
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.process.exit.code",
+        "destack.process.exit.exit",
         {
             effect: "external",
             replay: "recordable",
-            requires: ["process.self"],
+            requires: ["process.run"],
             scope: "os",
             blocking: "never",
         },

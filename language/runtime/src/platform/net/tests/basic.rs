@@ -1,113 +1,43 @@
-use super::{NetHarness, native_slice, native_slice_mut, native_string, with_native_harness};
-use crate::platform::net::{
-    SocketAddress, SocketFamily, destack_net_accept, destack_net_close, destack_net_close_listener,
-    destack_net_connect, destack_net_listen, destack_net_local_address, destack_net_peer_address,
-    destack_net_read, destack_net_write,
-};
-use crate::platform::resource::{ListenerHandle, ResourceId, SocketHandle};
+use super::with_harness_context;
+use crate::platform::net::SocketFamily;
 
 #[cfg(any(unix, windows))]
 #[test]
 fn test_net_roundtrip() {
-    with_native_harness(|harness| {
-        // setup runtime
-        let runtime = harness.runtime();
-
+    with_harness_context(|mut context| {
         // start listening on an ephemeral port
-        let listener = harness.with_context(|| {
-            let host = native_string("127.0.0.1");
-            let mut handle = ListenerHandle(ResourceId(0));
-            let status = unsafe { destack_net_listen(&mut handle, host, 0, 128) };
-            runtime.assert_status_ok(status, "listen");
-            handle
-        });
-        let port = runtime.listener_port(listener);
+        let listener = context.listen("127.0.0.1", 0, 128)?;
+        let port = context.listener_port(listener);
 
         // connect a client socket
-        let client = harness.with_context(|| {
-            let host = native_string("127.0.0.1");
-            let mut handle = SocketHandle(ResourceId(0));
-            let status = unsafe { destack_net_connect(&mut handle, host, port) };
-            runtime.assert_status_ok(status, "connect");
-            handle
-        });
+        let client = context.connect("127.0.0.1", port)?;
 
         // accept on the server side
-        let server = harness.with_context(|| {
-            let mut handle = SocketHandle(ResourceId(0));
-            let status = unsafe { destack_net_accept(&mut handle, listener) };
-            runtime.assert_status_ok(status, "accept");
-            handle
-        });
+        let server = context.accept(listener)?;
 
         // client writes to server
-        let sent = harness.with_context(|| {
-            let buffer = b"ping".to_vec();
-            let slice = native_slice(&buffer);
-            let mut out = 0u64;
-            let status = unsafe { destack_net_write(&mut out, client, slice) };
-            runtime.assert_status_ok(status, "write");
-            out
-        });
+        let sent = context.write(client, b"ping")?;
         assert_eq!(sent, 4);
 
         // server reads from client
-        let received = harness.with_context(|| {
-            let mut buffer = vec![0u8; 8];
-            let slice = native_slice_mut(&mut buffer);
-            let mut out = 0u64;
-            let status = unsafe { destack_net_read(&mut out, server, slice) };
-            runtime.assert_status_ok(status, "read");
-            buffer.truncate(out as usize);
-            buffer
-        });
-        assert_eq!(received, b"ping");
+        let mut buffer = vec![0u8; 8];
+        let received = context.read(server, &mut buffer)?;
+        buffer.truncate(received as usize);
+        assert_eq!(buffer, b"ping");
 
         // server writes to client
-        let sent_back = harness.with_context(|| {
-            let buffer = b"pong".to_vec();
-            let slice = native_slice(&buffer);
-            let mut out = 0u64;
-            let status = unsafe { destack_net_write(&mut out, server, slice) };
-            runtime.assert_status_ok(status, "write");
-            out
-        });
+        let sent_back = context.write(server, b"pong")?;
         assert_eq!(sent_back, 4);
 
         // client reads from server
-        let received_back = harness.with_context(|| {
-            let mut buffer = vec![0u8; 8];
-            let slice = native_slice_mut(&mut buffer);
-            let mut out = 0u64;
-            let status = unsafe { destack_net_read(&mut out, client, slice) };
-            runtime.assert_status_ok(status, "read");
-            buffer.truncate(out as usize);
-            buffer
-        });
-        assert_eq!(received_back, b"pong");
+        let mut buffer = vec![0u8; 8];
+        let received_back = context.read(client, &mut buffer)?;
+        buffer.truncate(received_back as usize);
+        assert_eq!(buffer, b"pong");
 
         // validate local/peer addresses
-        let (local_host, local_port, local_family) = harness.with_context(|| {
-            let mut out = std::mem::MaybeUninit::<SocketAddress>::uninit();
-            let status = unsafe { destack_net_local_address(out.as_mut_ptr(), client) };
-            runtime.assert_status_ok(status, "localAddress");
-            let address = unsafe { out.assume_init() };
-            let host = unsafe { address.host.as_str() }
-                .expect("local address host should be utf8")
-                .to_string();
-            (host, address.port, address.family)
-        });
-
-        let (peer_host, peer_port, peer_family) = harness.with_context(|| {
-            let mut out = std::mem::MaybeUninit::<SocketAddress>::uninit();
-            let status = unsafe { destack_net_peer_address(out.as_mut_ptr(), client) };
-            runtime.assert_status_ok(status, "peerAddress");
-            let address = unsafe { out.assume_init() };
-            let host = unsafe { address.host.as_str() }
-                .expect("peer address host should be utf8")
-                .to_string();
-            (host, address.port, address.family)
-        });
+        let (local_host, local_port, local_family) = context.local_address(client)?;
+        let (peer_host, peer_port, peer_family) = context.peer_address(client)?;
 
         assert_eq!(local_family, SocketFamily::IPv4);
         assert_eq!(peer_family, SocketFamily::IPv4);
@@ -117,15 +47,85 @@ fn test_net_roundtrip() {
         assert!(local_port > 0);
 
         // close sockets and listener
-        harness.with_context(|| {
-            let status = unsafe { destack_net_close(server) };
-            runtime.assert_status_ok(status, "close server");
+        context.close(server)?;
+        context.close(client)?;
+        context.close_listener(listener)?;
 
-            let status = unsafe { destack_net_close(client) };
-            runtime.assert_status_ok(status, "close client");
+        Ok(())
+    });
+}
 
-            let status = unsafe { destack_net_close_listener(listener) };
-            runtime.assert_status_ok(status, "close listener");
-        });
+#[cfg(any(unix, windows))]
+#[test]
+fn test_net_roundtrip_localhost() {
+    with_harness_context(|mut context| {
+        // start listening on localhost and an ephemeral port
+        let listener = context.listen("localhost", 0, 128)?;
+        let port = context.listener_port(listener);
+
+        // connect a client socket through hostname resolution
+        let client = context.connect("localhost", port)?;
+
+        // accept on the server side
+        let server = context.accept(listener)?;
+
+        // client writes to server
+        let sent = context.write(client, b"ping")?;
+        assert_eq!(sent, 4);
+
+        // server reads from client
+        let mut buffer = vec![0u8; 8];
+        let received = context.read(server, &mut buffer)?;
+        buffer.truncate(received as usize);
+        assert_eq!(buffer, b"ping");
+
+        // validate local and peer addresses
+        let (local_host, local_port, _) = context.local_address(client)?;
+        let (peer_host, peer_port, _) = context.peer_address(client)?;
+        assert!(!local_host.is_empty());
+        assert!(!peer_host.is_empty());
+        assert!(local_port > 0);
+        assert_eq!(peer_port, port);
+
+        // close sockets and listener
+        context.close(server)?;
+        context.close(client)?;
+        context.close_listener(listener)?;
+
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_net_readv_writev_roundtrip() {
+    with_harness_context(|mut context| {
+        // start listening on an ephemeral port
+        let listener = context.listen("127.0.0.1", 0, 128)?;
+        let port = context.listener_port(listener);
+
+        // connect and accept
+        let client = context.connect("127.0.0.1", port)?;
+        let server = context.accept(listener)?;
+
+        // write two iovecs from the client
+        let first = b"ping";
+        let second = b"pong";
+        let sent = context.writev(client, &[first.as_slice(), second.as_slice()])?;
+        assert_eq!(sent, 8);
+
+        // read into two iovecs on the server
+        let mut read_buffers = vec![vec![0u8; 4], vec![0u8; 4]];
+        let received = context.readv(server, &mut read_buffers)?;
+        assert_eq!(received, 8);
+        assert_eq!(read_buffers[0], b"ping");
+        assert_eq!(read_buffers[1], b"pong");
+
+        // close resources
+        context.close(server)?;
+        context.close(client)?;
+        context.close_listener(listener)?;
+
+        Ok(())
     });
 }

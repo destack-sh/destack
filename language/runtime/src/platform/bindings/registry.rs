@@ -69,7 +69,12 @@ impl BindingRegistry {
 
     /// Get the binding policy for this registry.
     pub fn policy(&self) -> BindingPolicy {
-        self.policy
+        self.policy.clone()
+    }
+
+    /// Set allowed capabilities for this registry policy.
+    pub fn set_capabilities(&mut self, capabilities: impl IntoIterator<Item = String>) {
+        self.policy.set_capabilities(capabilities);
     }
 
     /// Set runtime handles for binding calls.
@@ -150,7 +155,7 @@ impl BindingRegistry {
         }
 
         // snapshot policy for the installed handler
-        let policy = self.policy;
+        let policy = self.policy.clone();
         let handles = self.runtime_handle.unwrap_or_else(|| {
             panic!(
                 "binding registry missing runtime handles for {}",
@@ -165,7 +170,7 @@ impl BindingRegistry {
             let call_context = RuntimeCallContext::from_raw(
                 handles.runtime_ptr(),
                 handles.scheduler_ptr(),
-                policy,
+                policy.clone(),
             );
             let _guard = enter_runtime_call_context(&call_context);
             handler(context, args)

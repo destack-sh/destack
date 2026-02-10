@@ -1,57 +1,41 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::io::{
-    CompletionEventVm, CompletionOperationVm, EventToken, PollBackend, PollEventVm, PollInterest,
-    UringFeaturesVm, UringParametersVm,
+    CompletionEventVm, CompletionOperationVm, DescriptorControlCommand, DescriptorControlFlags,
+    DescriptorRequestVm, DescriptorResultVm, EventFdFlags, EventToken, PollBackend, PollEventVm,
+    PollInterest, UringFeaturesVm, UringParametersVm,
 };
 use crate::platform::{PlatformError, VmArray, VmSlice, resource};
 use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
 
-/// Return a not supported vm binding error.
-fn vm_not_supported(binding_name: &'static str) -> RuntimeResult<()> {
-    let message = format!("{binding_name} is not available in the VM yet");
-    Err(RuntimeError::from(PlatformError::not_supported(message)).boxed())
-}
-
-/// Open a completion queue.
-pub(super) fn destack_io_completion_open(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
-    entries: u32,
-) -> RuntimeResult<resource::CompletionHandle> {
-    // NOTE #Incomplete: implement vm completion queue open
-    let _ = entries;
-    vm_not_supported("destack.io.completionOpen")?;
-
-    unreachable!()
-}
-
-/// Cancel a completion operation.
+/// Stub for destack.io.completion.cancel.
 pub(super) fn destack_io_completion_cancel(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     handle: resource::CompletionHandle,
     target: resource::ResourceId,
 ) -> RuntimeResult<u32> {
-    // NOTE #Incomplete: implement vm completion queue cancel
     let _ = (handle, target);
-    vm_not_supported("destack.io.completionCancel")?;
-
-    unreachable!()
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.completion.cancel is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Close a completion queue.
+/// Stub for destack.io.completion.close.
 pub(super) fn destack_io_completion_close(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     handle: resource::CompletionHandle,
 ) -> RuntimeResult<()> {
-    // NOTE #Incomplete: implement vm completion queue close
     let _ = handle;
-    vm_not_supported("destack.io.completionClose")
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.completion.close is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Enter a completion wait loop.
+/// Stub for destack.io.completion.enter.
 pub(super) fn destack_io_completion_enter(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
@@ -60,26 +44,41 @@ pub(super) fn destack_io_completion_enter(
     timeoutns: u64,
     flags: u32,
 ) -> RuntimeResult<u32> {
-    // NOTE #Incomplete: implement vm completion queue enter
     let _ = (handle, mincomplete, timeoutns, flags);
-    vm_not_supported("destack.io.completionEnter")?;
-
-    unreachable!()
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.completion.enter is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Submit a single completion operation.
+/// Stub for destack.io.completion.open.
+pub(super) fn destack_io_completion_open(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    entries: u32,
+) -> RuntimeResult<resource::CompletionHandle> {
+    let _ = entries;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.completion.open is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.io.completion.submit.
 pub(super) fn destack_io_completion_submit(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     handle: resource::CompletionHandle,
     operation: CompletionOperationVm,
 ) -> RuntimeResult<()> {
-    // NOTE #Incomplete: implement vm completion queue submit
     let _ = (handle, operation);
-    vm_not_supported("destack.io.completionSubmit")
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.completion.submit is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Submit a batch of completion operations.
+/// Stub for destack.io.completion.submitBatch.
 pub(super) fn destack_io_completion_submit_batch(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
@@ -88,14 +87,14 @@ pub(super) fn destack_io_completion_submit_batch(
     operationcount: u32,
     operationwordstride: u32,
 ) -> RuntimeResult<u32> {
-    // NOTE #Incomplete: implement vm completion queue batch submit
     let _ = (handle, operationwords, operationcount, operationwordstride);
-    vm_not_supported("destack.io.completionSubmitBatch")?;
-
-    unreachable!()
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.completion.submitBatch is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Wait for completion events.
+/// Stub for destack.io.completion.wait.
 pub(super) fn destack_io_completion_wait(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
@@ -103,14 +102,44 @@ pub(super) fn destack_io_completion_wait(
     timeoutns: u64,
     maxevents: u32,
 ) -> RuntimeResult<VmArray<CompletionEventVm>> {
-    // NOTE #Incomplete: implement vm completion queue wait
     let _ = (handle, timeoutns, maxevents);
-    vm_not_supported("destack.io.completionWait")?;
-
-    unreachable!()
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.completion.wait is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Attach a resource to an event token.
+/// Stub for destack.io.control.fcntl.
+pub(super) fn destack_io_control_fcntl(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    handle: resource::ResourceId,
+    command: DescriptorControlCommand,
+    argument: u64,
+    flags: DescriptorControlFlags,
+) -> RuntimeResult<i64> {
+    let _ = (handle, command, argument, flags);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.control.fcntl is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.io.control.ioctl.
+pub(super) fn destack_io_control_ioctl(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    handle: resource::ResourceId,
+    request: DescriptorRequestVm,
+) -> RuntimeResult<DescriptorResultVm> {
+    let _ = (handle, request);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.control.ioctl is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.io.event.attach.
 pub(super) fn destack_io_event_attach(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
@@ -118,72 +147,187 @@ pub(super) fn destack_io_event_attach(
     target: resource::ResourceId,
     key: u64,
 ) -> RuntimeResult<()> {
-    // NOTE #Incomplete: implement vm event attach
     let _ = (token, target, key);
-    vm_not_supported("destack.io.eventAttach")
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.event.attach is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Close an event token.
+/// Stub for destack.io.event.close.
 pub(super) fn destack_io_event_close(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     token: EventToken,
 ) -> RuntimeResult<()> {
-    // NOTE #Incomplete: implement vm event close
     let _ = token;
-    vm_not_supported("destack.io.eventClose")
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.event.close is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Open an event token.
+/// Stub for destack.io.event.fdClose.
+pub(super) fn destack_io_event_fd_close(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    handle: resource::EventFdHandle,
+) -> RuntimeResult<()> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.event.fdClose is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.io.event.fdOpen.
+pub(super) fn destack_io_event_fd_open(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    initial: u64,
+    flags: EventFdFlags,
+) -> RuntimeResult<resource::EventFdHandle> {
+    let _ = (initial, flags);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.event.fdOpen is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.io.event.fdRead.
+pub(super) fn destack_io_event_fd_read(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    handle: resource::EventFdHandle,
+) -> RuntimeResult<u64> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.event.fdRead is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.io.event.fdTryRead.
+pub(super) fn destack_io_event_fd_try_read(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    handle: resource::EventFdHandle,
+) -> RuntimeResult<u64> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.event.fdTryRead is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.io.event.fdWrite.
+pub(super) fn destack_io_event_fd_write(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    handle: resource::EventFdHandle,
+    value: u64,
+) -> RuntimeResult<()> {
+    let _ = (handle, value);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.event.fdWrite is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.io.event.open.
 pub(super) fn destack_io_event_open(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     initial: u64,
 ) -> RuntimeResult<EventToken> {
-    // NOTE #Incomplete: implement vm event open
     let _ = initial;
-    vm_not_supported("destack.io.eventOpen")?;
-
-    unreachable!()
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.event.open is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Signal an event token.
+/// Stub for destack.io.event.read.
+pub(super) fn destack_io_event_read(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    token: EventToken,
+) -> RuntimeResult<u64> {
+    let _ = token;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.event.read is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.io.event.signal.
 pub(super) fn destack_io_event_signal(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     token: EventToken,
     value: u64,
 ) -> RuntimeResult<()> {
-    // NOTE #Incomplete: implement vm event signal
     let _ = (token, value);
-    vm_not_supported("destack.io.eventSignal")
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.event.signal is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Open a poll handle.
-pub(super) fn destack_io_poll_open(
+/// Stub for destack.io.event.tryRead.
+pub(super) fn destack_io_event_try_read(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
-    backend: PollBackend,
-) -> RuntimeResult<resource::PollHandle> {
-    // NOTE #Incomplete: implement vm poll open
-    let _ = backend;
-    vm_not_supported("destack.io.pollOpen")?;
-
-    unreachable!()
+    token: EventToken,
+) -> RuntimeResult<u64> {
+    let _ = token;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.event.tryRead is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Close a poll handle.
+/// Stub for destack.io.poll.close.
 pub(super) fn destack_io_poll_close(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     handle: resource::PollHandle,
 ) -> RuntimeResult<()> {
-    // NOTE #Incomplete: implement vm poll close
     let _ = handle;
-    vm_not_supported("destack.io.pollClose")
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.poll.close is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Register a poll interest.
+/// Stub for destack.io.poll.deregister.
+pub(super) fn destack_io_poll_deregister(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    handle: resource::PollHandle,
+    target: resource::ResourceId,
+) -> RuntimeResult<()> {
+    let _ = (handle, target);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.poll.deregister is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.io.poll.open.
+pub(super) fn destack_io_poll_open(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    backend: PollBackend,
+) -> RuntimeResult<resource::PollHandle> {
+    let _ = backend;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.poll.open is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.io.poll.register.
 pub(super) fn destack_io_poll_register(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
@@ -192,12 +336,14 @@ pub(super) fn destack_io_poll_register(
     key: u64,
     interest: PollInterest,
 ) -> RuntimeResult<()> {
-    // NOTE #Incomplete: implement vm poll register
     let _ = (handle, target, key, interest);
-    vm_not_supported("destack.io.pollRegister")
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.poll.register is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Update a poll interest.
+/// Stub for destack.io.poll.update.
 pub(super) fn destack_io_poll_update(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
@@ -206,24 +352,14 @@ pub(super) fn destack_io_poll_update(
     key: u64,
     interest: PollInterest,
 ) -> RuntimeResult<()> {
-    // NOTE #Incomplete: implement vm poll update
     let _ = (handle, target, key, interest);
-    vm_not_supported("destack.io.pollUpdate")
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.poll.update is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Deregister a poll interest.
-pub(super) fn destack_io_poll_deregister(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
-    handle: resource::PollHandle,
-    target: resource::ResourceId,
-) -> RuntimeResult<()> {
-    // NOTE #Incomplete: implement vm poll deregister
-    let _ = (handle, target);
-    vm_not_supported("destack.io.pollDeregister")
-}
-
-/// Wait for poll events.
+/// Stub for destack.io.poll.wait.
 pub(super) fn destack_io_poll_wait(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
@@ -231,51 +367,53 @@ pub(super) fn destack_io_poll_wait(
     timeoutns: u64,
     maxevents: u32,
 ) -> RuntimeResult<VmArray<PollEventVm>> {
-    // NOTE #Incomplete: implement vm poll wait
     let _ = (handle, timeoutns, maxevents);
-    vm_not_supported("destack.io.pollWait")?;
-
-    unreachable!()
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.poll.wait is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Open an io_uring handle.
-pub(super) fn destack_io_uring_open(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
-    parameters: UringParametersVm,
-) -> RuntimeResult<resource::UringHandle> {
-    // NOTE #Incomplete: implement vm io_uring open
-    let _ = parameters;
-    vm_not_supported("destack.io.uringOpen")?;
-
-    unreachable!()
-}
-
-/// Close an io_uring handle.
+/// Stub for destack.io.uring.close.
 pub(super) fn destack_io_uring_close(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
-    // NOTE #Incomplete: implement vm io_uring close
     let _ = handle;
-    vm_not_supported("destack.io.uringClose")
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.uring.close is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Read io_uring features.
+/// Stub for destack.io.uring.features.
 pub(super) fn destack_io_uring_features(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     handle: resource::UringHandle,
 ) -> RuntimeResult<UringFeaturesVm> {
-    // NOTE #Incomplete: implement vm io_uring feature query
     let _ = handle;
-    vm_not_supported("destack.io.uringFeatures")?;
-
-    unreachable!()
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.uring.features is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Register fixed buffers with io_uring.
+/// Stub for destack.io.uring.open.
+pub(super) fn destack_io_uring_open(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    parameters: UringParametersVm,
+) -> RuntimeResult<resource::UringHandle> {
+    let _ = parameters;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.uring.open is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.io.uring.registerBuffers.
 pub(super) fn destack_io_uring_register_buffers(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
@@ -283,41 +421,49 @@ pub(super) fn destack_io_uring_register_buffers(
     addresses: VmSlice<u64>,
     lengths: VmSlice<u32>,
 ) -> RuntimeResult<()> {
-    // NOTE #Incomplete: implement vm io_uring buffer registration
     let _ = (handle, addresses, lengths);
-    vm_not_supported("destack.io.uringRegisterBuffers")
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.uring.registerBuffers is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Unregister fixed buffers with io_uring.
-pub(super) fn destack_io_uring_unregister_buffers(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
-    handle: resource::UringHandle,
-) -> RuntimeResult<()> {
-    // NOTE #Incomplete: implement vm io_uring buffer unregistration
-    let _ = handle;
-    vm_not_supported("destack.io.uringUnregisterBuffers")
-}
-
-/// Register fixed files with io_uring.
+/// Stub for destack.io.uring.registerFiles.
 pub(super) fn destack_io_uring_register_files(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     handle: resource::UringHandle,
     files: VmSlice<resource::ResourceId>,
 ) -> RuntimeResult<()> {
-    // NOTE #Incomplete: implement vm io_uring file registration
     let _ = (handle, files);
-    vm_not_supported("destack.io.uringRegisterFiles")
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.uring.registerFiles is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Unregister fixed files with io_uring.
+/// Stub for destack.io.uring.unregisterBuffers.
+pub(super) fn destack_io_uring_unregister_buffers(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    handle: resource::UringHandle,
+) -> RuntimeResult<()> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.uring.unregisterBuffers is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.io.uring.unregisterFiles.
 pub(super) fn destack_io_uring_unregister_files(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
-    // NOTE #Incomplete: implement vm io_uring file unregistration
     let _ = handle;
-    vm_not_supported("destack.io.uringUnregisterFiles")
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.uring.unregisterFiles is not available in the VM yet",
+    ))
+    .boxed())
 }

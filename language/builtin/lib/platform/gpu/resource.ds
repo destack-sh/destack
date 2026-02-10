@@ -1,8 +1,9 @@
-import { Array, Slice } from "native";
+import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
 import {
     GpuBufferHandle,
     GpuDeviceHandle,
+    GpuMemoryHandle,
     GpuSamplerHandle,
     GpuTextureHandle,
 } from "../resource/index.ds";
@@ -49,14 +50,12 @@ export struct GpuSamplerOptions {
     addressW: uint32;
 }
 
-/// GPU buffer map mode.
-export enum GpuBufferMapMode {
-    /// Read mapped range.
-    Read = 1,
-    /// Write mapped range.
-    Write = 2,
-    /// Read and write mapped range.
-    ReadWrite = 3,
+/// GPU memory map result.
+export struct GpuMappedMemory {
+    /// Host-visible pointer address represented as integer.
+    address: uint64,
+    /// Mapped byte length.
+    length: uint64,
 }
 
 /// GPU resource bindings.
@@ -174,16 +173,16 @@ declare namespace gpu {
         handle: GpuBufferHandle,
         offset: uint64,
         length: uint64,
-    ): Result<Array<uint8>, PlatformError>;
+    ): Result<Slice<uint8>, PlatformError>;
 
-    /// Map one byte range of a buffer.
+    /// Map one memory allocation.
     ///
-    /// Request mapping for one buffer range with one explicit map mode.
-    /// Mapping lifetime and coherency follow host backend map contracts.
+    /// Map one host-visible memory allocation for direct CPU access.
+    /// Mapping coherence and cache behavior follow host backend memory rules.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend buffer map operations.
+    /// Uses backend memory map operations.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
@@ -193,88 +192,27 @@ declare namespace gpu {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.gpu.resource.bufferMap", {
+    @binding("destack.gpu.resource.memoryMap", {
         effect: "external",
         replay: "recordable",
         requires: ["gpu.memory"],
         scope: "os",
         blocking: "sometimes",
     })
-    export function bufferMap(
-        handle: GpuBufferHandle,
+    export function memoryMap(
+        handle: GpuMemoryHandle,
         offset: uint64,
         length: uint64,
-        mode: GpuBufferMapMode,
-    ): Result<void, PlatformError>;
+    ): Result<GpuMappedMemory, PlatformError>;
 
-    /// Read one mapped range from a mapped buffer.
+    /// Unmap one memory allocation.
     ///
-    /// Read one mapped byte range from one currently mapped buffer.
-    /// Range validity and visibility follow backend mapping semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend mapped-range read operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `gpu.memory`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    @binding("destack.gpu.resource.bufferMappedRead", {
-        effect: "external",
-        replay: "recordable",
-        requires: ["gpu.memory"],
-        scope: "os",
-        blocking: "sometimes",
-    })
-    export function bufferMappedRead(
-        handle: GpuBufferHandle,
-        offset: uint64,
-        length: uint64,
-    ): Result<Array<uint8>, PlatformError>;
-
-    /// Write one mapped range to a mapped buffer.
-    ///
-    /// Write one mapped byte range into one currently mapped buffer.
-    /// Range validity and visibility follow backend mapping semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend mapped-range write operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `gpu.memory`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    @binding("destack.gpu.resource.bufferMappedWrite", {
-        effect: "external",
-        replay: "recordable",
-        requires: ["gpu.memory"],
-        scope: "os",
-        blocking: "sometimes",
-    })
-    export function bufferMappedWrite(
-        handle: GpuBufferHandle,
-        offset: uint64,
-        bytes: Slice<uint8>,
-    ): Result<void, PlatformError>;
-
-    /// Unmap one mapped buffer.
-    ///
-    /// Unmap one previously mapped buffer and flush host synchronization as required.
+    /// Unmap one previously mapped memory allocation and flush host synchronization as required.
     /// Visibility of writes follows backend memory model semantics.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend buffer unmap operations.
+    /// Uses backend memory unmap operations.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -284,14 +222,14 @@ declare namespace gpu {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.gpu.resource.bufferUnmap", {
+    @binding("destack.gpu.resource.memoryUnmap", {
         effect: "external",
         replay: "recordable",
         requires: ["gpu.memory"],
         scope: "os",
         blocking: "sometimes",
     })
-    export function bufferUnmap(handle: GpuBufferHandle): Result<void, PlatformError>;
+    export function memoryUnmap(handle: GpuMemoryHandle): Result<void, PlatformError>;
 
     /// Create one texture resource.
     ///

@@ -10,21 +10,18 @@
 /// - **decorator.ds** - Compiler-recognized decorator markers (@intrinsic, @inline, etc.)
 /// - **bit.ds** - Bit manipulation (clz, ctz, popcnt, rotates)
 /// - **arithmetic.ds** - Checked, unchecked, and saturating arithmetic
-/// - **cast.ds** - Cast-related intrinsics (saturating float conversions)
 /// - **memory.ds** - Memory operations (memcpy, volatile, transmute)
 /// - **atomic.ds** - Atomic operations with memory ordering
 /// - **math.ds** - Floating-point math functions
 /// - **control.ds** - Control flow (unreachable, breakpoint, abort, panic)
-/// - **vector.ds** - SIMD vector operations
+/// - **simd.ds** - SIMD vector operations
 
 export * from "./import-meta.ds";
 export * from "./binding.ds";
 export * from "./decorator.ds";
 export * from "./bit.ds";
 export * from "./arithmetic.ds";
-export * from "./cast.ds";
 export * from "./math.ds";
 export * from "./memory.ds";
 export * from "./atomic.ds";
 export * from "./control.ds";
-export * from "./vector.ds";

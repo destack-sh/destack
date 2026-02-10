@@ -46,7 +46,7 @@ declare namespace net {
     /// Resolve an interface name to an index.
     ///
     /// Maps a host interface name to its numeric index for route and multicast operations.
-    /// Name matching uses host interface namespaces and canonicalization behavior.
+    /// The mapping follows host network namespace rules.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -60,13 +60,13 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.interface.index", { effect: "external", replay: "recordable", requires: ["net.interface"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.interfaceIndex", { effect: "external", replay: "recordable", requires: ["net.interface"], scope: "os", blocking: "sometimes" })
     export function interfaceIndex(name: string): Result<uint32, PlatformError>;
 
     /// Resolve an interface index to a name.
     ///
     /// Maps a numeric host interface index to its canonical interface name.
-    /// Returned naming follows host interface aliasing and normalization rules.
+    /// The mapping follows host network namespace rules.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -80,6 +80,6 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.interface.name", { effect: "external", replay: "recordable", requires: ["net.interface"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.interfaceName", { effect: "external", replay: "recordable", requires: ["net.interface"], scope: "os", blocking: "sometimes" })
     export function interfaceName(index: uint32): Result<string, PlatformError>;
 }

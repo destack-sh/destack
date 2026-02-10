@@ -7,10 +7,16 @@ use windows_sys::Win32::Storage::FileSystem::{
     FILE_SHARE_READ, FILE_SHARE_WRITE,
 };
 
+use std::sync::Arc;
+
+use parking_lot::Mutex;
+
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
-use crate::platform::fs::{DirectoryHandle, FileHandle, FileMode, OpenFlags, PathBytes, PathUtf16};
+use crate::platform::fs::{
+    DirectoryHandle, FileHandle, FileMode, OpenFlags, OpenOptions, PathBytes, PathUtf16,
+};
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::runtime::RuntimeCallContext;
 
@@ -25,9 +31,12 @@ pub(crate) unsafe fn destack_fs_open_bytes(
     flags: OpenFlags,
     mode: FileMode,
 ) -> RuntimeResult<()> {
+    // validate the output pointer
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
+
+    // decode the path and flags
     let wide = wide_from_bytes(path, "path")?;
     let access = desired_access_from_flags(flags);
     let creation = creation_from_flags(flags);
@@ -35,6 +44,8 @@ pub(crate) unsafe fn destack_fs_open_bytes(
     if flags.0 & O_DIRECTORY != 0 {
         attributes |= FILE_FLAG_BACKUP_SEMANTICS;
     }
+
+    // open the file handle
     let handle = unsafe {
         CreateFileW(
             wide.as_ptr(),
@@ -49,6 +60,8 @@ pub(crate) unsafe fn destack_fs_open_bytes(
     if handle == INVALID_HANDLE_VALUE {
         return Err(last_os_error("CreateFileW", None));
     }
+
+    // disable handle inheritance
     let rc = unsafe { SetHandleInformation(handle, HANDLE_FLAG_INHERIT, 0) };
     if rc == 0 {
         unsafe {
@@ -56,13 +69,19 @@ pub(crate) unsafe fn destack_fs_open_bytes(
         }
         return Err(last_os_error("SetHandleInformation", None));
     }
+
+    // register the resource handle
     let entry = ResourceEntry::new(ResourceKind::File)
-        .with_handle(handle as _)
+        .with_payload(FileResource {
+            handle: handle as isize,
+            cursor: Arc::new(Mutex::new(0)),
+        })
         .with_finalizer(HandleFinalizer::new(handle));
     let resource_id = context.runtime().resources.insert(entry);
     unsafe {
         *out = FileHandle(resource_id);
     }
+
     Ok(())
 }
 
@@ -74,9 +93,12 @@ pub(crate) unsafe fn destack_fs_open_utf16(
     flags: OpenFlags,
     mode: FileMode,
 ) -> RuntimeResult<()> {
+    // validate the output pointer
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
+
+    // decode the path and flags
     let wide = wide_from_utf16(path, "path")?;
     let access = desired_access_from_flags(flags);
     let creation = creation_from_flags(flags);
@@ -84,6 +106,8 @@ pub(crate) unsafe fn destack_fs_open_utf16(
     if flags.0 & O_DIRECTORY != 0 {
         attributes |= FILE_FLAG_BACKUP_SEMANTICS;
     }
+
+    // open the file handle
     let handle = unsafe {
         CreateFileW(
             wide.as_ptr(),
@@ -98,6 +122,8 @@ pub(crate) unsafe fn destack_fs_open_utf16(
     if handle == INVALID_HANDLE_VALUE {
         return Err(last_os_error("CreateFileW", None));
     }
+
+    // disable handle inheritance
     let rc = unsafe { SetHandleInformation(handle, HANDLE_FLAG_INHERIT, 0) };
     if rc == 0 {
         unsafe {
@@ -105,13 +131,19 @@ pub(crate) unsafe fn destack_fs_open_utf16(
         }
         return Err(last_os_error("SetHandleInformation", None));
     }
+
+    // register the resource handle
     let entry = ResourceEntry::new(ResourceKind::File)
-        .with_handle(handle as _)
+        .with_payload(FileResource {
+            handle: handle as isize,
+            cursor: Arc::new(Mutex::new(0)),
+        })
         .with_finalizer(HandleFinalizer::new(handle));
     let resource_id = context.runtime().resources.insert(entry);
     unsafe {
         *out = FileHandle(resource_id);
     }
+
     Ok(())
 }
 
@@ -148,6 +180,7 @@ pub(crate) unsafe fn destack_fs_openat_bytes(
         FILE_NON_DIRECTORY_FILE
     };
 
+    // open the file handle
     let handle = nt_create_file_at(
         root,
         &path,
@@ -157,6 +190,8 @@ pub(crate) unsafe fn destack_fs_openat_bytes(
         options,
         attributes_from_mode(mode),
     )?;
+
+    // disable handle inheritance
     let rc = unsafe { SetHandleInformation(handle, HANDLE_FLAG_INHERIT, 0) };
     if rc == 0 {
         unsafe {
@@ -165,13 +200,18 @@ pub(crate) unsafe fn destack_fs_openat_bytes(
         return Err(last_os_error("SetHandleInformation", None));
     }
 
+    // register the resource handle
     let entry = ResourceEntry::new(ResourceKind::File)
-        .with_handle(handle as _)
+        .with_payload(FileResource {
+            handle: handle as isize,
+            cursor: Arc::new(Mutex::new(0)),
+        })
         .with_finalizer(HandleFinalizer::new(handle));
     let resource_id = context.runtime().resources.insert(entry);
     unsafe {
         *out = FileHandle(resource_id);
     }
+
     Ok(())
 }
 
@@ -208,6 +248,7 @@ pub(crate) unsafe fn destack_fs_openat_utf16(
         FILE_NON_DIRECTORY_FILE
     };
 
+    // open the file handle
     let handle = nt_create_file_at(
         root,
         &path,
@@ -217,6 +258,8 @@ pub(crate) unsafe fn destack_fs_openat_utf16(
         options,
         attributes_from_mode(mode),
     )?;
+
+    // disable handle inheritance
     let rc = unsafe { SetHandleInformation(handle, HANDLE_FLAG_INHERIT, 0) };
     if rc == 0 {
         unsafe {
@@ -225,12 +268,51 @@ pub(crate) unsafe fn destack_fs_openat_utf16(
         return Err(last_os_error("SetHandleInformation", None));
     }
 
+    // register the resource handle
     let entry = ResourceEntry::new(ResourceKind::File)
-        .with_handle(handle as _)
+        .with_payload(FileResource {
+            handle: handle as isize,
+            cursor: Arc::new(Mutex::new(0)),
+        })
         .with_finalizer(HandleFinalizer::new(handle));
     let resource_id = context.runtime().resources.insert(entry);
     unsafe {
         *out = FileHandle(resource_id);
     }
+
     Ok(())
+}
+
+/// Open a file relative to a directory with openat2 semantics and byte paths.
+pub(crate) unsafe fn destack_fs_openat2_bytes(
+    context: &RuntimeCallContext,
+    out: *mut FileHandle,
+    dir: DirectoryHandle,
+    path: PathBytes,
+    how: OpenOptions,
+) -> RuntimeResult<()> {
+    // reject unsupported resolve flags on windows
+    if how.resolve.0 != 0 {
+        return Err(RuntimeError::from(PlatformError::not_supported("destack.fs.openat2")).boxed());
+    }
+
+    // delegate to openat with the provided flags
+    unsafe { destack_fs_openat_bytes(context, out, dir, path, how.flags, how.mode) }
+}
+
+/// Open a file relative to a directory with openat2 semantics and UTF-16 paths.
+pub(crate) unsafe fn destack_fs_openat2_utf16(
+    context: &RuntimeCallContext,
+    out: *mut FileHandle,
+    dir: DirectoryHandle,
+    path: PathUtf16,
+    how: OpenOptions,
+) -> RuntimeResult<()> {
+    // reject unsupported resolve flags on windows
+    if how.resolve.0 != 0 {
+        return Err(RuntimeError::from(PlatformError::not_supported("destack.fs.openat2")).boxed());
+    }
+
+    // delegate to openat with the provided flags
+    unsafe { destack_fs_openat_utf16(context, out, dir, path, how.flags, how.mode) }
 }

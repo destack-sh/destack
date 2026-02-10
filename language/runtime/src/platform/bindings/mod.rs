@@ -9,7 +9,8 @@ pub use native::{NativeBinding, NativeBindingSet, native_call};
 pub use policy::{BindingPolicy, ExecutionMode};
 pub use registry::BindingRegistry;
 pub use spec::{
-    BindingDescriptor, BindingEffectMask, BindingId, BindingReplayKind, CODEC_POSTCARD_V1, CodecId,
-    EffectClass, ReplayPayload, ReplayPolicy, SignatureHash,
+    BindingBlocking, BindingDescriptor, BindingEffectMask, BindingId, BindingReplayKind,
+    BindingScope, CODEC_POSTCARD_V1, CodecId, EffectClass, ReplayPayload, ReplayPolicy,
+    SignatureHash,
 };
 pub use vm::VmBindingSet;

@@ -132,7 +132,7 @@ fn sort_platform_events(events: &mut [PlatformEvent]) {
     events.sort_by_key(|event| {
         (
             source_order(event.source),
-            event.token,
+            event.token.0,
             event.resource_id.0,
             event.mask.0,
             event.flags.0,
