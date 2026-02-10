@@ -128,6 +128,10 @@ pub struct FileUpdateResponse {
 pub struct AnalyzeResponse {
     /// Workspace handle.
     pub handle: WorkspaceHandleId,
+    /// Whether query context is ready after analysis.
+    pub query_context_ready: bool,
+    /// Optional readiness detail when query context is not ready.
+    pub detail: Option<String>,
 }
 
 /// File update payload.

@@ -51,8 +51,7 @@ fn assert_virtual_navigation_ready(session: &Session, path: &Path, source: &str)
         .find(r#"greet("World")"#)
         .expect("expected call marker") as u32
         + 1;
-    let result =
-        session.with_query_context_mode(true, || query::goto_definition(session, file_id, offset));
+    let result = query::goto_definition(session, file_id, offset);
     assert!(result.is_some(), "expected goto definition result");
 }
 

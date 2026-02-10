@@ -3,7 +3,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use destack_ast::{Expression, LocalNodeId, NodeParentIndex};
-use destack_daemon::protocol::FileSnapshot;
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_lsp_types as lsp;
@@ -13,7 +12,7 @@ use destack_source::{
 };
 use destack_workspace::{FormatterOptions, Session, query};
 
-use super::daemon::LspDaemonClient;
+use super::workspace::{FileSnapshot, LspWorkspaceDriver};
 
 /// Globs for config files tracked by the LSP.
 pub(super) const CONFIG_GLOBS: [&str; 2] = ["**/dsconfig.json", "**/tsconfig*.json"];
@@ -158,12 +157,12 @@ pub(super) fn tracked_file_globs() -> Vec<&'static str> {
     patterns
 }
 
-/// Create a daemon client for the LSP session.
-pub(super) fn create_daemon_client(
+/// Create a workspace driver for the LSP session.
+pub(super) fn create_workspace_driver(
     session: Arc<Session>,
     root: PathBuf,
-) -> Result<LspDaemonClient, String> {
-    LspDaemonClient::new(session, vec![root])
+) -> Result<LspWorkspaceDriver, String> {
+    LspWorkspaceDriver::new(session, vec![root])
 }
 
 /// Convert completion kind to LSP completion item kind.
@@ -231,7 +230,7 @@ pub(super) fn format_file(
     };
 
     // try to use module's pre-parsed AST
-    if let Some(module_lock) = query::get_module_by_file_id(session, file_id) {
+    if let Some(module_lock) = session.modules.get_by_file_id(file_id) {
         let module = module_lock.read();
         if let Some(ast) = module.ast_maybe() {
             let side_span = Parser::compute_side_span_from_tree(&ast.tree);

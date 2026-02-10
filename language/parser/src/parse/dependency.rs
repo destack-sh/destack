@@ -1283,6 +1283,7 @@ import {
             });
         });
     }
+
     #[test]
     fn test_parse_import_type_modifier_equals_require() {
         let mut test = TestParser::new(r#"import type React = require("pkg")"#);

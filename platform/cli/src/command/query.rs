@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 use clap::Args;
 use destack_source::{DiagnosticOptions, Uri};
 use destack_workspace::query::api::{
-    QueryMethod, QueryMethodId, QueryRequestEnvelope, QueryRequestOptions, parse_query_request,
-    query_method, query_methods,
+    QueryMethod, QueryMethodId, QueryRequestEnvelope, parse_query_request, query_method,
+    query_methods,
 };
 use destack_workspace::query::{QueryRequest, assist, navigation, refactor};
 use serde_json::Value;
@@ -70,7 +70,7 @@ pub struct QueryArgs {
     #[arg(long)]
     pub new_name: Option<String>,
 
-    /// Allow stale results without waiting for analysis.
+    /// Removed legacy flag, queries are always strict.
     #[arg(long)]
     pub allow_stale: bool,
 
@@ -578,9 +578,6 @@ fn run_method_mode(
         return Err("no params provided, use --params/--stdin or position args".to_string());
     };
     let envelope = QueryRequestEnvelope {
-        options: QueryRequestOptions {
-            allow_stale: args.allow_stale,
-        },
         request,
         snapshot_id: args.snapshot_id.clone(),
     };
@@ -608,23 +605,15 @@ fn run_raw_mode(args: &QueryArgs, input_path: Option<&Path>) -> Result<String, S
     run_with_daemon(args, |daemon, root| {
         // run the query batch
         if value.is_array() {
-            let mut requests: Vec<QueryRequestEnvelope> = serde_json::from_value(value)
+            let requests: Vec<QueryRequestEnvelope> = serde_json::from_value(value)
                 .map_err(|error| format!("invalid query batch: {error}"))?;
-            if args.allow_stale {
-                for request in &mut requests {
-                    request.options.allow_stale = true;
-                }
-            }
 
             return run_query_batch_request(daemon, root, requests, args.pretty);
         }
 
         // otherwise run a single query
-        let mut request: QueryRequestEnvelope = serde_json::from_value(value)
+        let request: QueryRequestEnvelope = serde_json::from_value(value)
             .map_err(|error| format!("invalid query request: {error}"))?;
-        if args.allow_stale {
-            request.options.allow_stale = true;
-        }
 
         run_query_request(daemon, root, request, args.pretty)
     })
@@ -648,6 +637,12 @@ fn finish_output(output: Result<String, String>) -> i32 {
 
 /// Execute workspace queries.
 pub fn run(args: &QueryArgs) -> i32 {
+    // reject removed stale mode flag
+    if args.allow_stale {
+        console::error("--allow-stale was removed, queries are always strict");
+        return 1;
+    }
+
     // resolve the command name
     let method_name = args.method.as_deref();
     let command_name = method_name.map(normalize_command_name);

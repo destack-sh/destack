@@ -23,7 +23,6 @@ path = "src/main.rs"
 destack_ast = { workspace = true }
 destack_compiler = { workspace = true }
 destack_dir = { workspace = true }
-destack_daemon = { workspace = true }
 destack_fir = { workspace = true }
 destack_formatter = { workspace = true }
 destack_lsp_server = { path = "server" }
@@ -47,6 +46,7 @@ tokio = { version = "1", features = [
 	"time",
 ] }
 tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 futures = { version = "0.3", default-features = false, features = ["std", "async-await"], optional = true }
 tower = { version = "0.5", default-features = false, features = ["util"], optional = true }
 

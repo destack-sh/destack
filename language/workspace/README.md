@@ -196,3 +196,4 @@ A program holds the AST, DIR, and MIR for each module, plus generated artifacts 
 
 The `query/` module provides common "queries" for IDE features.
 These handlers power editor integrations and map directly to LSP (without depending on it, like rust-analyzer).
+The same query layer is also used by daemon backed workflows.

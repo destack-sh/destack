@@ -15,7 +15,7 @@ use crate::tests::{RequestRetryPolicy, TestDaemon, TestProtocolHarness};
 use destack_source::Uri;
 use destack_workspace::query::{
     DocumentSymbolsRequest, FindReferencesRequest, GotoDefinitionRequest, HoverRequest,
-    QueryRequest, QueryRequestEnvelope, QueryRequestOptions, QueryResponse,
+    QueryRequest, QueryRequestEnvelope, QueryResponse,
 };
 use destack_workspace::{CacheValidate, WorkspaceIndexHeader, WorkspaceIndexSnapshot, query};
 
@@ -422,15 +422,12 @@ fn test_protocol_virtual_update_query_goto_definition() {
         .files
         .get_id_by_path(&path)
         .expect("expected file id for virtual source");
-    let direct = harness.test.session.with_query_context_mode(true, || {
-        query::goto_definition(harness.test.session.as_ref(), file_id, offset)
-    });
+    let direct = query::goto_definition(harness.test.session.as_ref(), file_id, offset);
     assert!(direct.is_some(), "expected direct goto definition result");
 
     let response = harness.send_request_with_retry(
         || {
             let request = QueryRequestEnvelope {
-                options: QueryRequestOptions { allow_stale: true },
                 snapshot_id: None,
                 request: QueryRequest::GotoDefinition(GotoDefinitionRequest {
                     uri: Uri::from_path(&path),
@@ -590,7 +587,6 @@ fn test_protocol_workspace_query_hover() {
     // build the hover query
     let offset = content.find("announce(name").unwrap_or(0) as u32 + 1;
     let request = QueryRequestEnvelope {
-        options: QueryRequestOptions { allow_stale: true },
         snapshot_id: None,
         request: QueryRequest::Hover(HoverRequest {
             uri: Uri::from_path(&file_path),
@@ -661,7 +657,13 @@ fn test_protocol_workspace_query_batch() {
         handle,
         path: file_path.clone(),
     }));
-    assert!(matches!(response, DaemonResponse::Analyzed(_)));
+    match response {
+        DaemonResponse::Analyzed(response) => {
+            assert!(response.query_context_ready);
+            assert!(response.detail.is_none());
+        }
+        other => panic!("unexpected analyze response: {other:?}"),
+    }
 
     // build the hover query offset
     let offset = content.find("announce(name").unwrap_or(0) as u32 + 1;
@@ -670,7 +672,6 @@ fn test_protocol_workspace_query_batch() {
     let response = harness.send_request_with_retry(
         || {
             let hover_request = QueryRequestEnvelope {
-                options: QueryRequestOptions { allow_stale: true },
                 snapshot_id: None,
                 request: QueryRequest::Hover(HoverRequest {
                     uri: Uri::from_path(&file_path),
@@ -679,7 +680,6 @@ fn test_protocol_workspace_query_batch() {
             };
 
             let symbols_request = QueryRequestEnvelope {
-                options: QueryRequestOptions { allow_stale: true },
                 snapshot_id: None,
                 request: QueryRequest::DocumentSymbols(DocumentSymbolsRequest {
                     uri: Uri::from_path(&file_path),
@@ -770,7 +770,13 @@ fn test_protocol_workspace_query_find_references_member_access() {
         handle,
         path: file_path.clone(),
     }));
-    assert!(matches!(response, DaemonResponse::Analyzed(_)));
+    match response {
+        DaemonResponse::Analyzed(response) => {
+            assert!(response.query_context_ready);
+            assert!(response.detail.is_none());
+        }
+        other => panic!("unexpected analyze response: {other:?}"),
+    }
 
     // build the find references query offset
     let offset = content.find("p.x").unwrap_or(0) as u32 + 2;
@@ -779,7 +785,6 @@ fn test_protocol_workspace_query_find_references_member_access() {
     let response = harness.send_request_with_retry(
         || {
             let request = QueryRequestEnvelope {
-                options: QueryRequestOptions { allow_stale: true },
                 snapshot_id: None,
                 request: QueryRequest::FindReferences(FindReferencesRequest {
                     uri: Uri::from_path(&file_path),

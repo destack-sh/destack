@@ -2,7 +2,7 @@ use destack_dir::GlobalSymbolId;
 use destack_lsp_types as lsp;
 use destack_source::{File, ModuleId, PackageId};
 use destack_workspace::{Session, query};
-use serde_json::json;
+use serde_json::{from_value, json, to_value};
 
 use super::common::{byte_span_to_range, span_to_location, symbol_kind_to_lsp};
 use crate::uri::lsp_uri_for_file;
@@ -150,11 +150,13 @@ pub fn call_hierarchy_item_to_lsp(
         query::CallHierarchyKind::Constructor => lsp::SymbolKind::CONSTRUCTOR,
     };
 
-    // store symbol_id in data for incoming/outgoing calls
+    // store both symbol id and full query item for robust roundtrips
+    let query_item = to_value(item).ok()?;
     let data = Some(json!({
         "package": item.symbol_id.module_id.package_id.0,
         "module": item.symbol_id.module_id.local_id,
         "symbol": item.symbol_id.local_id.id,
+        "query_item": query_item,
     }));
 
     Some(lsp::CallHierarchyItem {
@@ -176,6 +178,15 @@ pub fn call_hierarchy_item_symbol_id(
 ) -> Option<GlobalSymbolId> {
     let data = item.data.as_ref()?;
     symbol_id_from_lsp_data(session, data)
+}
+
+/// Extract a query call hierarchy item from lsp item data.
+pub fn query_call_hierarchy_item_from_lsp(
+    item: &lsp::CallHierarchyItem,
+) -> Option<query::CallHierarchyItem> {
+    let data = item.data.as_ref()?;
+    let query_item = data.get("query_item")?.clone();
+    from_value(query_item).ok()
 }
 
 /// Convert an incoming call to LSP format.
@@ -234,11 +245,13 @@ pub fn type_hierarchy_item_to_lsp(
         query::TypeHierarchyKind::TypeAlias => lsp::SymbolKind::TYPE_PARAMETER,
     };
 
-    // store symbol_id in data for supertypes/subtypes
+    // store both symbol id and full query item for robust roundtrips
+    let query_item = to_value(item).ok()?;
     let data = Some(json!({
         "package": item.symbol_id.module_id.package_id.0,
         "module": item.symbol_id.module_id.local_id,
         "symbol": item.symbol_id.local_id.id,
+        "query_item": query_item,
     }));
 
     Some(lsp::TypeHierarchyItem {
@@ -260,6 +273,15 @@ pub fn type_hierarchy_item_symbol_id(
 ) -> Option<GlobalSymbolId> {
     let data = item.data.as_ref()?;
     symbol_id_from_lsp_data(session, data)
+}
+
+/// Extract a query type hierarchy item from lsp item data.
+pub fn query_type_hierarchy_item_from_lsp(
+    item: &lsp::TypeHierarchyItem,
+) -> Option<query::TypeHierarchyItem> {
+    let data = item.data.as_ref()?;
+    let query_item = data.get("query_item")?.clone();
+    from_value(query_item).ok()
 }
 
 /// Convert a workspace symbol to an LSP workspace symbol.

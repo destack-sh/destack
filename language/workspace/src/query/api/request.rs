@@ -2,21 +2,9 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::query::{assist, navigation, refactor};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct QueryRequestOptions {
-    pub allow_stale: bool,
-}
-
-impl QueryRequestOptions {
-    pub fn is_default(&self) -> bool {
-        !self.allow_stale
-    }
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct QueryRequestEnvelope {
     pub snapshot_id: Option<String>,
-    pub options: QueryRequestOptions,
     pub request: QueryRequest,
 }
 
@@ -30,8 +18,6 @@ pub struct QueryResponseEnvelope {
 struct QueryRequestEnvelopeHuman {
     #[serde(skip_serializing_if = "Option::is_none")]
     snapshot_id: Option<String>,
-    #[serde(default, skip_serializing_if = "QueryRequestOptions::is_default")]
-    options: QueryRequestOptions,
     #[serde(flatten)]
     request: QueryRequest,
 }
@@ -39,8 +25,6 @@ struct QueryRequestEnvelopeHuman {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct QueryRequestEnvelopeBinary {
     snapshot_id: Option<String>,
-    #[serde(default)]
-    options: QueryRequestOptions,
     request: QueryRequest,
 }
 
@@ -66,7 +50,6 @@ impl Serialize for QueryRequestEnvelope {
         if serializer.is_human_readable() {
             let human = QueryRequestEnvelopeHuman {
                 snapshot_id: self.snapshot_id.clone(),
-                options: self.options.clone(),
                 request: self.request.clone(),
             };
 
@@ -76,7 +59,6 @@ impl Serialize for QueryRequestEnvelope {
         // serialize as compact payloads for binary formats
         let binary = QueryRequestEnvelopeBinary {
             snapshot_id: self.snapshot_id.clone(),
-            options: self.options.clone(),
             request: self.request.clone(),
         };
 
@@ -95,7 +77,6 @@ impl<'de> Deserialize<'de> for QueryRequestEnvelope {
 
             return Ok(Self {
                 snapshot_id: human.snapshot_id,
-                options: human.options,
                 request: human.request,
             });
         }
@@ -105,7 +86,6 @@ impl<'de> Deserialize<'de> for QueryRequestEnvelope {
 
         Ok(Self {
             snapshot_id: binary.snapshot_id,
-            options: binary.options,
             request: binary.request,
         })
     }

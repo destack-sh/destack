@@ -1,15 +1,9 @@
-use std::cell::Cell;
-
 use destack_dir::{self as dir};
 use destack_source::{FileId, ModuleId};
 use parking_lot::RwLockReadGuard;
 
 use super::get_module_by_file_id;
 use crate::{Module, ModuleAst, ModuleDir, ProfileId, Session};
-
-thread_local! {
-    static QUERY_ALLOW_STALE: Cell<bool> = const { Cell::new(false) };
-}
 
 /// Query context for a module.
 ///
@@ -68,24 +62,6 @@ impl<'a> QueryContext<'a> {
 }
 
 impl Session {
-    /// Execute a closure with query context configuration applied.
-    pub fn with_query_context_mode<T>(&self, allow_stale: bool, f: impl FnOnce() -> T) -> T {
-        // swap in query context mode
-        let previous = QUERY_ALLOW_STALE.with(|flag| {
-            let previous = flag.get();
-            flag.set(allow_stale);
-            previous
-        });
-
-        // run the query work
-        let result = f();
-
-        // restore previous mode
-        QUERY_ALLOW_STALE.with(|flag| flag.set(previous));
-
-        result
-    }
-
     /// Get query context for a module using its default profile.
     ///
     /// Returns `None` if AST or DIR is not available for the module.
@@ -104,11 +80,8 @@ impl Session {
         // resolve default profile
         let profile = self.default_profile_for_module(module.id);
 
-        // read stale query mode
-        let allow_stale = QUERY_ALLOW_STALE.with(|flag| flag.get());
-
         // build query context
-        self.query_context_with_profile_mode(module, profile, allow_stale)
+        self.query_context_with_profile_mode(module, profile)
     }
 
     /// Get query context for a module with an explicit profile.
@@ -119,31 +92,21 @@ impl Session {
         module: &'a Module,
         profile: ProfileId,
     ) -> Option<QueryContext<'a>> {
-        // read stale query mode
-        let allow_stale = QUERY_ALLOW_STALE.with(|flag| flag.get());
-
         // build query context
-        self.query_context_with_profile_mode(module, profile, allow_stale)
+        self.query_context_with_profile_mode(module, profile)
     }
 
-    /// Build query context for a module with optional stale fallback.
+    /// Build query context for a module and profile.
     fn query_context_with_profile_mode<'a>(
         &self,
         module: &'a Module,
         profile: ProfileId,
-        allow_stale: bool,
     ) -> Option<QueryContext<'a>> {
         // resolve module ast
         let ast = module.ast_maybe()?;
 
         // resolve module dir
-        let dir = if let Some(dir) = module.dir_maybe(profile) {
-            Some(dir)
-        } else if allow_stale {
-            module.dir_base_maybe()
-        } else {
-            None
-        }?;
+        let dir = module.dir_maybe(profile)?;
 
         // build query context
         Some(QueryContext {

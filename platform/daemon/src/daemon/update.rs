@@ -17,8 +17,8 @@ use parking_lot::Mutex;
 
 use crate::protocol::FileSnapshot;
 use crate::{
-    DaemonError, DaemonMessage, DaemonRescanResult, DaemonUpdate, DaemonWatchBatchResult,
-    DaemonWatchEventResult,
+    AnalyzeOutcome, DaemonError, DaemonMessage, DaemonRescanResult, DaemonUpdate,
+    DaemonWatchBatchResult, DaemonWatchEventResult,
 };
 
 use super::Daemon;
@@ -546,7 +546,7 @@ impl Daemon {
     }
 
     /// Ensure a module for the given path is analyzed.
-    pub fn analyze_path(&self, path: &Path) -> Result<(), DaemonError> {
+    pub fn analyze_path(&self, path: &Path) -> Result<AnalyzeOutcome, DaemonError> {
         // locate daemon handle for the path
         let handle = self.program_handle_for_path(path);
         let _compile_guard = handle.compile_lock.lock();
@@ -565,9 +565,9 @@ impl Daemon {
         let _ = program.diagnostics.drain();
 
         // enqueue analysis task and compile
-        let profile = program.default_profile_id_for_module(module_id);
+        let profile_id = program.default_profile_id_for_module(module_id);
         let module = compiler.module_stamp(module_id);
-        let profile = compiler.profile_stamp(profile);
+        let profile = compiler.profile_stamp(profile_id);
         compiler.enqueue(AnalyzeTask::AnalyzeModule { module, profile });
         compiler.compile();
 
@@ -585,11 +585,28 @@ impl Daemon {
         let mut store_updates = Vec::new();
         let module = program.modules.get(module_id);
         let module = module.read();
+        let module_file_id = module.file_id;
+        let module_source_version = module.source_version;
+        let ast_ready = module.ast_maybe().is_some();
+        let dir_ready = module.dir_maybe(profile_id).is_some();
+        let query_context_ready = ast_ready && dir_ready;
+        let detail = if query_context_ready {
+            None
+        } else {
+            let module_path = module
+                .path
+                .as_ref()
+                .map(|path| path.display().to_string())
+                .unwrap_or_else(|| "<none>".to_string());
+            Some(format!(
+                "file_id={module_file_id:?} module_id={module_id:?} profile_id={profile_id:?} ast_ready={ast_ready} dir_ready={dir_ready} path={module_path}"
+            ))
+        };
         store_updates.push(DiagnosticStoreUpdate::new(
-            module.file_id,
-            module.source_version,
+            module_file_id,
+            module_source_version,
             diagnostics_by_file
-                .remove(&module.file_id)
+                .remove(&module_file_id)
                 .unwrap_or_default(),
         ));
         for (file_id, diagnostics) in diagnostics_by_file {
@@ -607,7 +624,10 @@ impl Daemon {
         // commit diagnostics to the store
         program.diagnostic_store.apply_updates(store_updates);
 
-        Ok(())
+        Ok(AnalyzeOutcome {
+            query_context_ready,
+            detail,
+        })
     }
 
     /// Analyze a collection of updates and attach diagnostics.
@@ -1016,7 +1036,7 @@ impl Daemon {
     }
 
     /// Decide whether a text update should be applied.
-    fn should_update_text(&self, file: &destack_source::File, content: &str) -> bool {
+    fn should_update_text(&self, file: &File, content: &str) -> bool {
         match &file.content {
             FileContent::Text { content: current } => current != content,
             FileContent::Json {
@@ -1028,7 +1048,7 @@ impl Daemon {
     }
 
     /// Decide whether a byte update should be applied.
-    fn should_update_bytes(&self, file: &destack_source::File, bytes: &[u8]) -> bool {
+    fn should_update_bytes(&self, file: &File, bytes: &[u8]) -> bool {
         match &file.content {
             FileContent::Binary { content } => content.as_slice() != bytes,
             FileContent::Missing | FileContent::Unloaded => true,
@@ -1039,7 +1059,7 @@ impl Daemon {
     /// Handle file read errors during rescan.
     fn handle_rescan_read_error(
         &self,
-        file: &destack_source::File,
+        file: &File,
         path: &Path,
         error: io::Error,
     ) -> Result<Option<FileUpdate>, DaemonMessage> {
@@ -1140,7 +1160,7 @@ impl Daemon {
     fn should_refresh_configs(
         &self,
         program: &Program,
-        invalidation: &destack_workspace::InvalidationPlan,
+        invalidation: &InvalidationPlan,
         path: &Path,
     ) -> bool {
         // refresh when invalidation kinds include config changes
