@@ -4,8 +4,9 @@ use serde::{Deserialize, Serialize};
 
 use super::policy::{ExecutionModeJson, ReplayPayloadModeJson};
 use crate::{
-    ExecutionMode, GcLogging, GcOptions, RandomMode, RandomOptions, ReplayLogOptions,
-    RuntimeOptions, SchedulerOptions, SchedulerPolicy, TimeMode, TimeOptions,
+    ExecutionMode, GcLogging, GcOptions, PlatformOptions, PlatformWindowsOptions, PollerBackend,
+    RandomMode, RandomOptions, ReplayLogOptions, RuntimeOptions, SchedulerOptions, SchedulerPolicy,
+    TimeMode, TimeOptions,
 };
 
 /// Derive runtime options from optional JSON overrides.
@@ -38,6 +39,8 @@ pub(super) fn runtime_options_with_base(
 pub struct DsConfigRuntimeOptionsJson {
     /// Execution mode for runtime scheduling and replay.
     pub execution_mode: Option<ExecutionModeJson>,
+    /// Exact capabilities granted to platform bindings.
+    pub capabilities: Option<Vec<String>>,
     /// Replay log configuration.
     pub replay_log: Option<ReplayLogOptionsJson>,
     /// Runtime clock configuration.
@@ -48,6 +51,8 @@ pub struct DsConfigRuntimeOptionsJson {
     pub scheduler: Option<SchedulerOptionsJson>,
     /// Runtime garbage collector configuration.
     pub gc: Option<GcOptionsJson>,
+    /// Platform-specific runtime configuration.
+    pub platform: Option<PlatformOptionsJson>,
 }
 
 impl DsConfigRuntimeOptionsJson {
@@ -56,6 +61,11 @@ impl DsConfigRuntimeOptionsJson {
         // apply execution mode overrides
         if let Some(execution_mode) = self.execution_mode {
             options.execution_mode = ExecutionMode::from(execution_mode);
+        }
+
+        // apply capability allowlist overrides
+        if let Some(capabilities) = &self.capabilities {
+            options.capabilities = capabilities.clone();
         }
 
         // apply replay log overrides
@@ -81,6 +91,49 @@ impl DsConfigRuntimeOptionsJson {
         // apply gc overrides
         if let Some(gc) = &self.gc {
             gc.apply_to(&mut options.gc);
+        }
+
+        // apply platform overrides
+        if let Some(platform) = &self.platform {
+            platform.apply_to(&mut options.platform);
+        }
+    }
+}
+
+/// Platform runtime options for JSON deserialization.
+#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct PlatformOptionsJson {
+    /// Windows-specific runtime configuration.
+    pub windows: Option<PlatformWindowsOptionsJson>,
+}
+
+impl PlatformOptionsJson {
+    /// Apply platform overrides to a base set of options.
+    pub fn apply_to(&self, options: &mut PlatformOptions) {
+        // apply windows overrides
+        if let Some(windows) = &self.windows {
+            windows.apply_to(&mut options.windows);
+        }
+    }
+}
+
+/// Windows runtime options for JSON deserialization.
+#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct PlatformWindowsOptionsJson {
+    /// Optional POSIX domain SID for uid/gid mapping.
+    pub posix_domain_sid: Option<String>,
+}
+
+impl PlatformWindowsOptionsJson {
+    /// Apply windows overrides to a base set of options.
+    pub fn apply_to(&self, options: &mut PlatformWindowsOptions) {
+        // apply domain SID overrides
+        if let Some(domain_sid) = &self.posix_domain_sid {
+            options.posix_domain_sid = Some(domain_sid.clone());
         }
     }
 }
@@ -215,6 +268,8 @@ pub struct SchedulerOptionsJson {
     pub max_timer_coalesce_ns: Option<u64>,
     /// Preemption interval for long-running tasks in nanoseconds.
     pub preempt_interval_ns: Option<u64>,
+    /// Platform poller backend selection.
+    pub poller_backend: Option<PollerBackendJson>,
     /// Scheduling policy for task pools.
     pub policy: Option<SchedulerPolicyJson>,
     /// Number of worker threads for parallel tasks.
@@ -249,6 +304,9 @@ impl SchedulerOptionsJson {
         if let Some(preempt_interval_ns) = self.preempt_interval_ns {
             options.preempt_interval_ns = Some(preempt_interval_ns);
         }
+        if let Some(poller_backend) = self.poller_backend {
+            options.poller_backend = PollerBackend::from(poller_backend);
+        }
 
         // apply task pool overrides
         if let Some(policy) = self.policy {
@@ -265,6 +323,38 @@ impl SchedulerOptionsJson {
         }
         if let Some(max_tasks) = self.max_tasks {
             options.max_tasks = Some(max_tasks);
+        }
+    }
+}
+
+/// Poller backend options for JSON deserialization.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub enum PollerBackendJson {
+    /// Choose the best available backend for the platform.
+    Auto,
+    /// Use io_uring (Linux only).
+    IoUring,
+    /// Use epoll (Linux only).
+    Epoll,
+    /// Use kqueue (BSD/macOS only).
+    Kqueue,
+    /// Use poll (portable Unix fallback).
+    Poll,
+    /// Use the Windows IOCP backend.
+    Windows,
+}
+
+impl From<PollerBackendJson> for PollerBackend {
+    fn from(value: PollerBackendJson) -> Self {
+        match value {
+            PollerBackendJson::Auto => Self::Auto,
+            PollerBackendJson::IoUring => Self::IoUring,
+            PollerBackendJson::Epoll => Self::Epoll,
+            PollerBackendJson::Kqueue => Self::Kqueue,
+            PollerBackendJson::Poll => Self::Poll,
+            PollerBackendJson::Windows => Self::Windows,
         }
     }
 }

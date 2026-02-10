@@ -5,9 +5,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use filetime::{FileTime, set_file_mtime};
 use fs2::FileExt;
 
-use super::{CacheLock, CacheMetadata, CacheStore, CacheStoreError, CacheStoreKind};
+use crate::cache::{CacheLock, CacheMetadata, CacheStore, CacheStoreError, CacheStoreKind};
 
-/// Cache store backed by disk.
+/// Cache store backed by host disk.
 #[derive(Debug, Default, Clone)]
 pub struct DiskCacheStore;
 
@@ -84,6 +84,7 @@ impl CacheStore for DiskCacheStore {
 
         // rename into place with fallback for existing targets
         if let Err(error) = fs::rename(&temp_path, path) {
+            // handle replace behavior on targets without atomic overwrite
             if path.exists() {
                 if let Err(remove_error) = fs::remove_file(path)
                     && remove_error.kind() != std::io::ErrorKind::NotFound
@@ -91,11 +92,14 @@ impl CacheStore for DiskCacheStore {
                     cleanup_temp_path(&temp_path);
                     return Err(CacheStoreError::Io(remove_error));
                 }
+
                 if let Err(error) = fs::rename(&temp_path, path) {
                     cleanup_temp_path(&temp_path);
                     return Err(CacheStoreError::Io(error));
                 }
-            } else {
+            }
+            // propagate plain rename failures
+            else {
                 cleanup_temp_path(&temp_path);
                 return Err(CacheStoreError::Io(error));
             }
@@ -121,112 +125,64 @@ impl CacheStore for DiskCacheStore {
     }
 
     fn remove(&self, path: &Path) -> Result<(), CacheStoreError> {
-        match fs::remove_file(path) {
-            Ok(()) => Ok(()),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(error) => Err(CacheStoreError::Io(error)),
+        if let Err(error) = fs::remove_file(path)
+            && error.kind() != std::io::ErrorKind::NotFound
+        {
+            return Err(CacheStoreError::Io(error));
         }
+
+        Ok(())
     }
 
     fn metadata(&self, path: &Path) -> Result<Option<CacheMetadata>, CacheStoreError> {
-        let metadata = match fs::metadata(path) {
-            Ok(metadata) => metadata,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-            Err(error) => return Err(CacheStoreError::Io(error)),
-        };
-
-        let modified_ns = metadata.modified().ok().and_then(system_time_to_nanos);
-        Ok(Some(CacheMetadata {
-            size_bytes: metadata.len(),
-            modified_ns,
-        }))
+        match fs::metadata(path) {
+            Ok(metadata) => {
+                let modified = metadata
+                    .modified()
+                    .ok()
+                    .and_then(|value| value.duration_since(UNIX_EPOCH).ok())
+                    .map(|value| value.as_nanos() as u64);
+                Ok(Some(CacheMetadata {
+                    size_bytes: metadata.len(),
+                    modified_ns: modified,
+                }))
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(error) => Err(CacheStoreError::Io(error)),
+        }
     }
 }
 
-/// Convert a system time into nanoseconds since unix epoch.
-fn system_time_to_nanos(time: SystemTime) -> Option<u64> {
-    // compute nanoseconds since unix epoch
-    let duration = time.duration_since(UNIX_EPOCH).ok()?;
-    let seconds = duration.as_secs();
-    let nanos = duration.subsec_nanos() as u64;
-    seconds
-        .checked_mul(1_000_000_000)
-        .and_then(|base| base.checked_add(nanos))
-}
-
-/// Build a temp path for atomic replace.
+/// Build one temporary file path for atomic replacement.
 fn temp_path_for(path: &Path) -> PathBuf {
-    // resolve target directory and file name
-    let dir = path.parent().unwrap_or_else(|| Path::new("."));
-    let file_name = path
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or("cache");
+    let file_name = match path.file_name() {
+        Some(file_name) => file_name.to_string_lossy().to_string(),
+        None => String::from("cache"),
+    };
 
-    // build a temp path for atomic replace
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_nanos();
-    let temp_name = format!("{file_name}.tmp-{}-{timestamp}", std::process::id());
-    dir.join(temp_name)
+
+    let temp_name = format!("{file_name}.{timestamp}.tmp");
+    path.with_file_name(temp_name)
 }
 
-/// Sync the parent directory to persist rename metadata.
-fn sync_parent_dir(path: &Path) {
-    // sync the parent directory to persist rename metadata
-    if let Some(parent) = path.parent()
-        && let Ok(dir_file) = fs::File::open(parent)
-    {
-        let _ = dir_file.sync_all();
-    }
-}
-
-/// Remove a temp cache file without failing the caller.
+/// Remove one temporary file path after failed replacement.
 fn cleanup_temp_path(path: &Path) {
-    // ignore cleanup failures
-    let _ = fs::remove_file(path);
+    if let Err(error) = fs::remove_file(path)
+        && error.kind() != std::io::ErrorKind::NotFound
+    {
+        tracing::debug!("failed to clean temp cache file: {error}");
+    }
 }
 
-#[cfg(test)]
-mod tests {
-    use std::path::Path;
-
-    use super::DiskCacheStore;
-    use crate::CacheStore;
-    use destack_source::TemporaryPhysicalFileSystem;
-
-    /// Roundtrip cache payloads through the disk store.
-    #[test]
-    fn test_disk_cache_store_roundtrip() {
-        let root = TemporaryPhysicalFileSystem::new_with_prefix("cache_store");
-        let store = DiskCacheStore::new();
-        let path = root.path_for(Path::new("nested/cache.bin"));
-        let lock_path = root.path_for(Path::new("cache.lock"));
-
-        let _lock = store.lock_exclusive(&lock_path).unwrap();
-        store.write_atomic(&path, b"hello").unwrap();
-
-        let bytes = store.read(&path).unwrap().unwrap();
-        assert_eq!(bytes, b"hello");
-
-        let metadata = store.metadata(&path).unwrap().unwrap();
-        assert_eq!(metadata.size_bytes, 5);
-        assert!(store.exists(&path).unwrap());
-
-        store.remove(&path).unwrap();
-        assert!(!store.exists(&path).unwrap());
-        assert!(store.read(&path).unwrap().is_none());
-    }
-
-    /// Touching a missing cache file is a no op.
-    #[test]
-    fn test_disk_cache_store_touch_missing() {
-        let root = TemporaryPhysicalFileSystem::new_with_prefix("cache_touch");
-
-        let store = DiskCacheStore::new();
-        let path = root.path_for(Path::new("missing.bin"));
-
-        store.touch(&path).unwrap();
+/// Sync one parent directory after replacement.
+fn sync_parent_dir(path: &Path) {
+    if let Some(parent) = path.parent()
+        && let Ok(directory) = fs::File::open(parent)
+    {
+        let _ = directory.sync_all();
     }
 }

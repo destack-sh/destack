@@ -52,7 +52,43 @@ check:
 
 # check runtime against windows via zig
 check-windows-runtime:
-    cargo zigbuild -p destack_runtime --target x86_64-pc-windows-gnu
+    CARGO_INCREMENTAL=0 cargo zigbuild -p destack_runtime --target x86_64-pc-windows-gnu
+
+# build and run runtime tests for windows target through wine
+test-windows-runtime:
+    CARGO_INCREMENTAL=0 cargo test -p destack_runtime --target x86_64-pc-windows-gnu --no-run
+    # locate newest windows test binary from cargo output layout
+    EXE=$(ls -t ../target/x86_64-pc-windows-gnu/debug/deps/destack_runtime-*.exe 2>/dev/null | head -n1); \
+    if [ -z "$EXE" ]; then \
+      EXE=$(ls -t target/x86_64-pc-windows-gnu/debug/deps/destack_runtime-*.exe 2>/dev/null | head -n1); \
+    fi; \
+    if [ -z "$EXE" ]; then \
+      echo "missing windows runtime test executable"; \
+      exit 1; \
+    fi; \
+    WINEDEBUG="${WINEDEBUG:--all}" wine "$EXE"
+
+# check runtime for cross targets using Zig as the C toolchain
+check-runtime-targets:
+    CARGO_INCREMENTAL=0 \
+    CRATE_CC_NO_DEFAULTS=1 \
+    CC_x86_64_unknown_linux_gnu="zig cc -target x86_64-linux-gnu" \
+    CC_aarch64_unknown_linux_gnu="zig cc -target aarch64-linux-gnu" \
+    CC_x86_64_pc_windows_gnu="zig cc -target x86_64-windows-gnu" \
+    cargo check -p destack_runtime --target x86_64-unknown-linux-gnu
+    CARGO_INCREMENTAL=0 \
+    CRATE_CC_NO_DEFAULTS=1 \
+    CC_x86_64_unknown_linux_gnu="zig cc -target x86_64-linux-gnu" \
+    CC_aarch64_unknown_linux_gnu="zig cc -target aarch64-linux-gnu" \
+    CC_x86_64_pc_windows_gnu="zig cc -target x86_64-windows-gnu" \
+    cargo check -p destack_runtime --target aarch64-unknown-linux-gnu
+    CARGO_INCREMENTAL=0 \
+    CRATE_CC_NO_DEFAULTS=1 \
+    CC_x86_64_unknown_linux_gnu="zig cc -target x86_64-linux-gnu" \
+    CC_aarch64_unknown_linux_gnu="zig cc -target aarch64-linux-gnu" \
+    CC_x86_64_pc_windows_gnu="zig cc -target x86_64-windows-gnu" \
+    cargo check -p destack_runtime --target x86_64-pc-windows-gnu
+    CARGO_INCREMENTAL=0 cargo check -p destack_runtime --target wasm32-wasip1
 
 # build
 build:
@@ -102,6 +138,12 @@ generate-bindings:
     cargo run -p destack_runtime --features generate_bindings --bin generate-bindings --release
     cargo fmt -p destack_runtime
     @echo "generated runtime binding catalog"
+
+# generate runtime binding catalog for selected domains
+generate-bindings-domains domains:
+    cargo run -p destack_runtime --features generate_bindings --bin generate-bindings --release -- --domains {{domains}}
+    cargo fmt -p destack_runtime
+    @echo "generated runtime binding catalog for domains {{domains}}"
 
 # --- builtin libs ---
 
