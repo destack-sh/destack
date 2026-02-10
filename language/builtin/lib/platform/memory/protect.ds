@@ -147,6 +147,7 @@ declare namespace memory {
         "destack.memory.protect.setWriteXorExecute",
         {
             effect: "deterministic",
+            replay: "nonrecordable",
             requires: ["memory.execute"],
             scope: "runtime",
             blocking: "never",

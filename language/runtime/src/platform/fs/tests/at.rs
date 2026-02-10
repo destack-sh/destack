@@ -2,11 +2,13 @@ use std::path::Path;
 
 use super::{temp_dir, with_harness_context};
 use crate::platform::diagnostic::PlatformErrorCode;
+#[cfg(unix)]
+use crate::platform::fs::SymlinkType;
 use crate::platform::fs::{
-    AtFlags, FileMode, OpenFlags, OpenOptions, OpenResolveFlags, RenameFlags, SymlinkType,
+    AtFlags, FileMode, OpenFlags, OpenOptions, OpenResolveFlags, RenameFlags,
 };
 
-#[cfg(any(unix, windows))]
+#[cfg(unix)]
 #[test]
 fn test_fs_openat_statat_renameat_unlinkat() {
     with_harness_context(|mut context| {
@@ -206,7 +208,7 @@ fn test_fs_symlinkat_readlinkat() {
     });
 }
 
-#[cfg(any(unix, windows))]
+#[cfg(unix)]
 #[test]
 fn test_fs_fchmodat_fchownat_utimensat() {
     with_harness_context(|mut context| {

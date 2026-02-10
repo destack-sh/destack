@@ -4,24 +4,18 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::NativeAbi;
 use crate::platform::fs::{OsPath, OsPathVm, PathBytesAbi, PathEncoding, PathUtf16Abi};
 use crate::platform::net::{
-    AcceptFlags, KeepAliveConfig, Linger, ResolveFlags, SocketAddress, SocketAddressVm,
-    SocketCredentials, SocketCredentialsVm, SocketMessageFlags, SocketPair, SocketPairVm,
-    SocketProtocol, SocketRecvFromVm, SocketRecvMessage, SocketRecvMessageVm, SocketSendMessage,
-    SocketSendMessageVm, SocketSendToVm, SocketShutdown, SocketType, UdpMessageFlags, UdpReceive,
-    UdpReceiveVm, core as core_net,
+    AcceptFlags, KeepAliveConfig, Linger, NetInterfaceVm, PacketCaptureOptionsVm,
+    PacketCaptureRecordVm, PacketTimestampMode, ResolveFlags, ResolveQueryVm, ReverseLookupFlags,
+    ReverseLookupNameVm, RouteEntryVm, SocketAddress, SocketAddressVm, SocketCredentials,
+    SocketCredentialsVm, SocketFamily, SocketMessageFlags, SocketOptionLevel, SocketOptionName,
+    SocketPair, SocketPairVm, SocketProtocol, SocketRecvBatchRequestVm, SocketRecvFromVm,
+    SocketRecvMessage, SocketRecvMessageVm, SocketSendBatchEntryVm, SocketSendMessage,
+    SocketSendMessageVm, SocketSendToVm, SocketShutdown, SocketTimestampingMode, SocketType,
+    UdpMessageFlags, UdpReceive, UdpReceiveVm, UdsAddressVm, core as core_net,
 };
 use crate::platform::resource::{ListenerHandle, SocketHandle};
 use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError, VmArray, VmSlice};
 use crate::runtime::RuntimeCallContext;
-
-pub(super) use super::vm_missing::{
-    destack_net_get_packet_mark, destack_net_get_timestamping, destack_net_interface_index,
-    destack_net_interface_name, destack_net_list_interfaces, destack_net_packet_open,
-    destack_net_packet_receive, destack_net_packet_send, destack_net_packet_set_timestamp_mode,
-    destack_net_raw_set_header_included, destack_net_raw_socket, destack_net_route_add,
-    destack_net_route_delete, destack_net_route_list, destack_net_route_set_namespace,
-    destack_net_set_packet_mark, destack_net_set_timestamping,
-};
 
 /// Accept a new connection from a listener.
 pub fn destack_net_accept(
@@ -128,13 +122,14 @@ pub fn destack_net_recv_msg(
     recv_flags: SocketMessageFlags,
     max_fds: u32,
     want_credentials: bool,
+    max_control_bytes: u32,
 ) -> RuntimeResult<SocketRecvMessageVm> {
-    // allocate a native buffer for reads
+    // allocate a native receive buffer
     let native_buffer = allocate_read_buffer(runtime, buffer);
 
-    // perform the receive
+    // receive one message through the os implementation
     let message = call_out(|out| unsafe {
-        core_net::destack_net_recv_msg(
+        super::os::destack_net_recv_msg(
             runtime,
             out,
             handle,
@@ -142,37 +137,27 @@ pub fn destack_net_recv_msg(
             recv_flags,
             max_fds,
             want_credentials,
+            max_control_bytes,
         )
     })?;
 
-    // write results back into the VM buffer
+    // write payload bytes back into the VM slice
     write_read_buffer(context, buffer, native_buffer)?;
 
-    // convert the metadata into VM values
     socket_recv_message_to_vm(context, message)
 }
 
 /// Receive multiple messages into multiple buffers.
 pub fn destack_net_recv_mmsg(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
-    handle: SocketHandle,
-    buffers: VmSlice<VmSlice<u8>>,
-    recv_flags: SocketMessageFlags,
-) -> RuntimeResult<VmArray<u64>> {
-    // allocate native buffers for reads
-    let (native_buffers, vm_buffers) = allocate_read_buffers(runtime, context, buffers)?;
-
-    // perform the receive operation
-    let counts = call_out(|out| unsafe {
-        core_net::destack_net_recv_mmsg(runtime, out, handle, native_buffers, recv_flags)
-    })?;
-
-    // write read buffers back into VM slices
-    write_read_buffers(context, vm_buffers, native_buffers)?;
-
-    // convert result counts into VM values
-    u64_array_to_vm(context, counts)
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    _handle: SocketHandle,
+    _requests: VmSlice<SocketRecvBatchRequestVm>,
+    _max_fds: u32,
+    _want_credentials: bool,
+    _max_control_bytes: u32,
+) -> RuntimeResult<VmArray<SocketRecvMessageVm>> {
+    Err(RuntimeError::from(PlatformError::not_supported("destack.net.recvMmsg")).boxed())
 }
 
 /// Send a message with ancillary data.
@@ -228,19 +213,12 @@ pub fn destack_net_send_to(
 
 /// Send multiple messages from multiple buffers.
 pub fn destack_net_send_mmsg(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
-    handle: SocketHandle,
-    buffers: VmSlice<VmSlice<u8>>,
-    send_flags: SocketMessageFlags,
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    _handle: SocketHandle,
+    _messages: VmSlice<SocketSendBatchEntryVm>,
 ) -> RuntimeResult<u64> {
-    // resolve VM buffers into native storage
-    let native_buffers = buffers_from_vm(runtime, context, buffers)?;
-
-    // dispatch to the core binding
-    call_out(|out| unsafe {
-        core_net::destack_net_send_mmsg(runtime, out, handle, native_buffers, send_flags)
-    })
+    Err(RuntimeError::from(PlatformError::not_supported("destack.net.sendMmsg")).boxed())
 }
 
 /// Shut down a socket for reads, writes, or both.
@@ -430,28 +408,36 @@ pub fn destack_net_writev(
 pub fn destack_net_resolve(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
-    host: vm::StringHandle,
-    port: u16,
-    family: crate::platform::net::SocketFamily,
-    flags: ResolveFlags,
+    query: ResolveQueryVm,
 ) -> RuntimeResult<VmArray<SocketAddressVm>> {
-    let host = host_from_vm(runtime, context, host)?;
+    // decode query host and service values
+    let host = resolve_host_from_vm(runtime, context, query)?;
+    let port = resolve_port_from_vm(context, query)?;
+
+    // resolve via raw resolver and map to VM addresses
     let addresses = call_out(|out| unsafe {
-        core_net::destack_net_resolve_raw(runtime, out, host, port, family, flags)
+        core_net::destack_net_resolve_raw(runtime, out, host, port, query.family, query.flags)
     })?;
     socket_address_raw_array_to_vm(context, addresses)
 }
 
 /// Resolve a hostname and port into normalized socket addresses.
 pub fn destack_net_resolve_text(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
-    _host: vm::StringHandle,
-    _port: u16,
-    _family: crate::platform::net::SocketFamily,
-    _flags: ResolveFlags,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    host: vm::StringHandle,
+    port: u16,
+    family: crate::platform::net::SocketFamily,
+    flags: ResolveFlags,
 ) -> RuntimeResult<VmArray<SocketAddressVm>> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.resolveText")).boxed())
+    // resolve the host string into native storage
+    let host = host_from_vm(runtime, context, host)?;
+
+    // resolve via raw resolver and map to VM addresses
+    let addresses = call_out(|out| unsafe {
+        core_net::destack_net_resolve_raw(runtime, out, host, port, family, flags)
+    })?;
+    socket_address_raw_array_to_vm(context, addresses)
 }
 
 /// Reverse lookup a raw socket address into hostnames.
@@ -459,23 +445,58 @@ pub fn destack_net_reverse_lookup(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     address: SocketAddressVm,
-) -> RuntimeResult<VmArray<vm::StringHandle>> {
+    flags: ReverseLookupFlags,
+) -> RuntimeResult<VmArray<ReverseLookupNameVm>> {
+    // reserve non default behavior until flags are implemented
+    if flags.0 != 0 {
+        return Err(
+            RuntimeError::from(PlatformError::not_supported("destack.net.reverseLookup")).boxed(),
+        );
+    }
+
+    // decode address and execute reverse lookup
     let address = socket_address_raw_from_vm(runtime, context, address)?;
-    let names =
+    let hosts =
         call_out(|out| unsafe { core_net::destack_net_reverse_lookup_raw(runtime, out, address) })?;
-    string_array_to_vm(context, names)
+    let hosts = unsafe { hosts.as_slice()? };
+
+    // map hostnames into lookup records
+    let empty_service = vm::StringHandle::new(context.intern_string(""));
+    let mut names = Vec::with_capacity(hosts.len());
+    for host in hosts {
+        let host = unsafe { host.as_str()? };
+        let host = vm::StringHandle::new(context.intern_string(host));
+        names.push(ReverseLookupNameVm {
+            host,
+            service: empty_service,
+        });
+    }
+
+    let mut values = Vec::with_capacity(names.len());
+    for name in names {
+        let value = context.allocate_aggregate(vec![name.host.value(), name.service.value()]);
+        values.push(value);
+    }
+    let data = context.allocate_raw_values(values);
+    Ok(VmArray {
+        data,
+        len: hosts.len() as u32,
+        capacity: hosts.len() as u32,
+        _marker: std::marker::PhantomData::<ReverseLookupNameVm>,
+    })
 }
 
 /// Reverse lookup a normalized socket address into hostnames.
 pub fn destack_net_reverse_lookup_text(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
-    _address: SocketAddressVm,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    address: SocketAddressVm,
 ) -> RuntimeResult<VmArray<vm::StringHandle>> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.net.reverseLookupText",
-    ))
-    .boxed())
+    // decode address and execute reverse lookup
+    let address = socket_address_raw_from_vm(runtime, context, address)?;
+    let hosts =
+        call_out(|out| unsafe { core_net::destack_net_reverse_lookup_raw(runtime, out, address) })?;
+    string_array_to_vm(context, hosts)
 }
 
 /// Create a UDP socket.
@@ -607,21 +628,25 @@ pub fn destack_net_uds_close_listener(
 pub fn destack_net_uds_connect(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
-    path: OsPathVm,
+    address: UdsAddressVm,
 ) -> RuntimeResult<SocketHandle> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    call_out(|out| unsafe { core_net::destack_net_uds_connect(runtime, out, path) })
+    // decode the uds address and delegate to the os implementation
+    let address = uds_address_from_vm(runtime, context, address)?;
+    let path = uds_path(runtime, address)?;
+    call_out(|out| unsafe { super::os::destack_net_uds_connect(runtime, out, path) })
 }
 
 /// Listen on a UNIX domain socket.
 pub fn destack_net_uds_listen(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
-    path: OsPathVm,
+    address: UdsAddressVm,
     backlog: u32,
 ) -> RuntimeResult<ListenerHandle> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    call_out(|out| unsafe { core_net::destack_net_uds_listen(runtime, out, path, backlog) })
+    // decode the uds address and delegate to the os implementation
+    let address = uds_address_from_vm(runtime, context, address)?;
+    let path = uds_path(runtime, address)?;
+    call_out(|out| unsafe { super::os::destack_net_uds_listen(runtime, out, path, backlog) })
 }
 
 /// Create a connected unix domain socket pair.
@@ -1112,14 +1137,6 @@ fn socket_address_raw_array_to_vm(
     })
 }
 
-fn u64_array_to_vm(
-    context: &mut vm::RuntimeContext<'_>,
-    values: NativeArray<u64>,
-) -> RuntimeResult<VmArray<u64>> {
-    let values = unsafe { values.as_slice()? };
-    VmArray::from_values(context, values)
-}
-
 fn string_array_to_vm(
     context: &mut vm::RuntimeContext<'_>,
     array: NativeArray<NativeStringRef>,
@@ -1184,8 +1201,15 @@ fn socket_send_message_from_vm(
 ) -> RuntimeResult<SocketSendMessage> {
     let fds = message.fds.read_values(context)?;
     let fds = runtime.store_array(fds);
+    let address = socket_address_raw_from_vm(runtime, context, message.address)?;
+    let control = message.control.0.read_bytes(context)?;
+    let control =
+        crate::platform::net::SocketControlBufferAbi::<NativeAbi>(runtime.store_array(control));
     Ok(SocketSendMessage {
+        has_address: message.has_address,
+        address,
         fds,
+        control,
         flags: message.flags,
         has_credentials: message.has_credentials,
         credentials: SocketCredentials {
@@ -1200,13 +1224,21 @@ fn socket_recv_message_to_vm(
     context: &mut vm::RuntimeContext<'_>,
     message: SocketRecvMessage,
 ) -> RuntimeResult<SocketRecvMessageVm> {
+    let address = socket_address_raw_to_vm(context, message.address)?;
+    let control = unsafe { message.control.0.as_slice()? };
+    let control = VmArray::from_bytes(context, control);
+    let control =
+        crate::platform::net::SocketControlBufferAbi::<crate::platform::abi::VmAbi>(control);
     let fds = unsafe { message.fds.as_slice()? };
     let fds = VmArray::from_values(context, fds)?;
     Ok(SocketRecvMessageVm {
         bytes: message.bytes,
+        has_address: message.has_address,
+        address,
         recv_flags: message.recv_flags,
         payload_truncated: message.payload_truncated,
         control_truncated: message.control_truncated,
+        control,
         fds,
         has_credentials: message.has_credentials,
         credentials: SocketCredentialsVm {
@@ -1224,24 +1256,275 @@ fn path_ref_from_vm(
 ) -> RuntimeResult<OsPath> {
     match path.encoding {
         PathEncoding::Bytes => {
-            let bytes = path.bytes.0.read_bytes(context)?;
-            let bytes = PathBytesAbi::<NativeAbi>(runtime.store_array(bytes));
-            let utf16 = PathUtf16Abi::<NativeAbi>(runtime.store_array(Vec::new()));
+            let bytes = path.data.0.read_bytes(context)?;
+            let data = PathBytesAbi::<NativeAbi>(runtime.store_array(bytes));
             Ok(OsPath {
                 encoding: PathEncoding::Bytes,
-                bytes,
-                utf16,
+                data,
             })
         }
         PathEncoding::Utf16 => {
-            let units = path.utf16.0.read_values(context)?;
-            let utf16 = PathUtf16Abi::<NativeAbi>(runtime.store_array(units));
-            let bytes = PathBytesAbi::<NativeAbi>(runtime.store_array(Vec::new()));
+            let units = path.data.0.read_values(context)?;
+            let data = PathUtf16Abi::<NativeAbi>(runtime.store_array(units));
             Ok(OsPath {
                 encoding: PathEncoding::Utf16,
-                bytes,
-                utf16,
+                data,
             })
         }
     }
+}
+
+fn uds_address_from_vm(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    address: UdsAddressVm,
+) -> RuntimeResult<crate::platform::net::UdsAddress> {
+    let path = path_ref_from_vm(runtime, context, address.path)?;
+    let abstract_name = address.abstract_name.read_bytes(context)?;
+    let abstract_name = runtime.store_array(abstract_name);
+
+    Ok(crate::platform::net::UdsAddress {
+        kind: address.kind,
+        path,
+        abstract_name,
+    })
+}
+
+fn uds_path(
+    runtime: &RuntimeCallContext,
+    address: crate::platform::net::UdsAddress,
+) -> RuntimeResult<OsPath> {
+    match address.kind {
+        crate::platform::net::UdsAddressKind::Path => Ok(address.path),
+        crate::platform::net::UdsAddressKind::Abstract => {
+            let name = unsafe { address.abstract_name.as_slice()? };
+            let mut bytes = Vec::with_capacity(name.len().saturating_add(1));
+            bytes.push(0);
+            bytes.extend_from_slice(name);
+            let data = PathBytesAbi::<NativeAbi>(runtime.store_array(bytes));
+            Ok(OsPath {
+                encoding: PathEncoding::Bytes,
+                data,
+            })
+        }
+        crate::platform::net::UdsAddressKind::Unnamed => {
+            Err(RuntimeError::from(PlatformError::not_supported("destack.net.udsConnect")).boxed())
+        }
+    }
+}
+
+fn resolve_host_from_vm(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    query: ResolveQueryVm,
+) -> RuntimeResult<NativeStringRef> {
+    if !query.has_host {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "query",
+            "host is required",
+        ))
+        .boxed());
+    }
+
+    host_from_vm(runtime, context, query.host)
+}
+
+fn resolve_port_from_vm(
+    context: &mut vm::RuntimeContext<'_>,
+    query: ResolveQueryVm,
+) -> RuntimeResult<u16> {
+    if !query.has_service {
+        return Ok(0);
+    }
+
+    let service = context
+        .string_ref(query.service)
+        .map_err(|error| RuntimeError::from(error).boxed())?;
+    let service = service.as_str();
+    service.parse::<u16>().map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "query",
+            "service must be a numeric port",
+        ))
+        .boxed()
+    })
+}
+
+/// Build an unsupported error for VM net bindings that are not implemented yet.
+fn not_supported_binding(binding_name: &str) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::not_supported(binding_name)).boxed()
+}
+
+/// Read the packet mark for a socket handle.
+pub(super) fn destack_net_get_packet_mark(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    _handle: SocketHandle,
+) -> RuntimeResult<u32> {
+    Err(not_supported_binding("destack.net.getPacketMark"))
+}
+
+/// Read one raw socket option.
+pub(super) fn destack_net_get_sock_opt_raw(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    _handle: SocketHandle,
+    _level: SocketOptionLevel,
+    _name: SocketOptionName,
+    _maxbytes: u32,
+) -> RuntimeResult<VmArray<u8>> {
+    Err(not_supported_binding("destack.net.getSockOptRaw"))
+}
+
+/// Read packet timestamping mode for a socket handle.
+pub(super) fn destack_net_get_timestamping(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    _handle: SocketHandle,
+) -> RuntimeResult<SocketTimestampingMode> {
+    Err(not_supported_binding("destack.net.getTimestamping"))
+}
+
+/// Resolve a network interface name to its index.
+pub(super) fn destack_net_interface_index(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    _name: vm::StringHandle,
+) -> RuntimeResult<u32> {
+    Err(not_supported_binding("destack.net.interfaceIndex"))
+}
+
+/// Resolve a network interface index to its name.
+pub(super) fn destack_net_interface_name(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    _index: u32,
+) -> RuntimeResult<vm::StringHandle> {
+    Err(not_supported_binding("destack.net.interfaceName"))
+}
+
+/// Enumerate network interfaces.
+pub(super) fn destack_net_list_interfaces(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+) -> RuntimeResult<VmArray<NetInterfaceVm>> {
+    Err(not_supported_binding("destack.net.listInterfaces"))
+}
+
+/// Open a packet capture socket.
+pub(super) fn destack_net_packet_open(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    _options: PacketCaptureOptionsVm,
+) -> RuntimeResult<SocketHandle> {
+    Err(not_supported_binding("destack.net.packetOpen"))
+}
+
+/// Receive one packet capture record.
+pub(super) fn destack_net_packet_receive(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    _handle: SocketHandle,
+    _payload: VmSlice<u8>,
+) -> RuntimeResult<PacketCaptureRecordVm> {
+    Err(not_supported_binding("destack.net.packetReceive"))
+}
+
+/// Send a packet through a packet capture socket.
+pub(super) fn destack_net_packet_send(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    _handle: SocketHandle,
+    _payload: VmSlice<u8>,
+) -> RuntimeResult<u64> {
+    Err(not_supported_binding("destack.net.packetSend"))
+}
+
+/// Set packet timestamp mode on a packet capture socket.
+pub(super) fn destack_net_packet_set_timestamp_mode(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    _handle: SocketHandle,
+    _mode: PacketTimestampMode,
+) -> RuntimeResult<()> {
+    Err(not_supported_binding("destack.net.packetSetTimestampMode"))
+}
+
+/// Toggle IPv4 raw socket header include mode.
+pub(super) fn destack_net_raw_set_header_included(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    _handle: SocketHandle,
+    _enabled: bool,
+) -> RuntimeResult<()> {
+    Err(not_supported_binding("destack.net.rawSetHeaderIncluded"))
+}
+
+/// Open a raw socket with the given family and protocol.
+pub(super) fn destack_net_raw_socket(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    _family: SocketFamily,
+    _protocol: i32,
+) -> RuntimeResult<SocketHandle> {
+    Err(not_supported_binding("destack.net.rawSocket"))
+}
+
+/// Add a route entry.
+pub(super) fn destack_net_route_add(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    _route: RouteEntryVm,
+) -> RuntimeResult<()> {
+    Err(not_supported_binding("destack.net.routeAdd"))
+}
+
+/// Delete a route entry.
+pub(super) fn destack_net_route_delete(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    _route: RouteEntryVm,
+) -> RuntimeResult<()> {
+    Err(not_supported_binding("destack.net.routeDelete"))
+}
+
+/// List route entries.
+pub(super) fn destack_net_route_list(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    _family: SocketFamily,
+) -> RuntimeResult<VmArray<RouteEntryVm>> {
+    Err(not_supported_binding("destack.net.routeList"))
+}
+
+/// Set packet mark on a socket.
+pub(super) fn destack_net_set_packet_mark(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    _handle: SocketHandle,
+    _mark: u32,
+) -> RuntimeResult<()> {
+    Err(not_supported_binding("destack.net.setPacketMark"))
+}
+
+/// Write one raw socket option.
+pub(super) fn destack_net_set_sock_opt_raw(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    _handle: SocketHandle,
+    _level: SocketOptionLevel,
+    _name: SocketOptionName,
+    _value: VmSlice<u8>,
+) -> RuntimeResult<()> {
+    Err(not_supported_binding("destack.net.setSockOptRaw"))
+}
+
+/// Set packet timestamping mode on a socket.
+pub(super) fn destack_net_set_timestamping(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    _handle: SocketHandle,
+    _mode: SocketTimestampingMode,
+) -> RuntimeResult<()> {
+    Err(not_supported_binding("destack.net.setTimestamping"))
 }

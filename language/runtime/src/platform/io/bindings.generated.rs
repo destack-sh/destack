@@ -139,7 +139,7 @@ fn decode_slice<T>(
     VmSlice::<T>::from_value(context, value, name, expected)
 }
 
-/// Decode arguments for destack.io.completionCancel.
+/// Decode arguments for destack.io.completion.cancel.
 #[inline]
 fn decode_destack_io_completion_cancel_args(
     context: &mut vm::RuntimeContext<'_>,
@@ -158,7 +158,7 @@ fn decode_destack_io_completion_cancel_args(
     Ok((handle, target))
 }
 
-/// Encode the result for destack.io.completionCancel.
+/// Encode the result for destack.io.completion.cancel.
 #[inline]
 fn encode_destack_io_completion_cancel_result(
     context: &mut vm::RuntimeContext<'_>,
@@ -170,7 +170,7 @@ fn encode_destack_io_completion_cancel_result(
     result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
-/// Decode arguments for destack.io.completionClose.
+/// Decode arguments for destack.io.completion.close.
 #[inline]
 fn decode_destack_io_completion_close_args(
     context: &mut vm::RuntimeContext<'_>,
@@ -186,7 +186,7 @@ fn decode_destack_io_completion_close_args(
     Ok((handle,))
 }
 
-/// Encode the result for destack.io.completionClose.
+/// Encode the result for destack.io.completion.close.
 #[inline]
 fn encode_destack_io_completion_close_result(
     context: &mut vm::RuntimeContext<'_>,
@@ -198,7 +198,7 @@ fn encode_destack_io_completion_close_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.io.completionEnter.
+/// Decode arguments for destack.io.completion.enter.
 #[inline]
 fn decode_destack_io_completion_enter_args(
     context: &mut vm::RuntimeContext<'_>,
@@ -220,7 +220,7 @@ fn decode_destack_io_completion_enter_args(
     Ok((handle, mincomplete, timeoutns, flags))
 }
 
-/// Encode the result for destack.io.completionEnter.
+/// Encode the result for destack.io.completion.enter.
 #[inline]
 fn encode_destack_io_completion_enter_result(
     context: &mut vm::RuntimeContext<'_>,
@@ -232,7 +232,7 @@ fn encode_destack_io_completion_enter_result(
     result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
-/// Decode arguments for destack.io.completionOpen.
+/// Decode arguments for destack.io.completion.open.
 #[inline]
 fn decode_destack_io_completion_open_args(
     context: &mut vm::RuntimeContext<'_>,
@@ -246,7 +246,7 @@ fn decode_destack_io_completion_open_args(
     Ok((entries,))
 }
 
-/// Encode the result for destack.io.completionOpen.
+/// Encode the result for destack.io.completion.open.
 #[inline]
 fn encode_destack_io_completion_open_result(
     context: &mut vm::RuntimeContext<'_>,
@@ -258,7 +258,7 @@ fn encode_destack_io_completion_open_result(
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
-/// Decode arguments for destack.io.completionSubmit.
+/// Decode arguments for destack.io.completion.submit.
 #[inline]
 fn decode_destack_io_completion_submit_args(
     context: &mut vm::RuntimeContext<'_>,
@@ -327,7 +327,7 @@ fn decode_destack_io_completion_submit_args(
     Ok((handle, operation))
 }
 
-/// Encode the result for destack.io.completionSubmit.
+/// Encode the result for destack.io.completion.submit.
 #[inline]
 fn encode_destack_io_completion_submit_result(
     context: &mut vm::RuntimeContext<'_>,
@@ -339,7 +339,7 @@ fn encode_destack_io_completion_submit_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.io.completionSubmitBatch.
+/// Decode arguments for destack.io.completion.submitBatch.
 #[inline]
 fn decode_destack_io_completion_submit_batch_args(
     context: &mut vm::RuntimeContext<'_>,
@@ -364,7 +364,7 @@ fn decode_destack_io_completion_submit_batch_args(
     Ok((handle, operationwords, operationcount, operationwordstride))
 }
 
-/// Encode the result for destack.io.completionSubmitBatch.
+/// Encode the result for destack.io.completion.submitBatch.
 #[inline]
 fn encode_destack_io_completion_submit_batch_result(
     context: &mut vm::RuntimeContext<'_>,
@@ -376,7 +376,7 @@ fn encode_destack_io_completion_submit_batch_result(
     result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
-/// Decode arguments for destack.io.completionWait.
+/// Decode arguments for destack.io.completion.wait.
 #[inline]
 fn decode_destack_io_completion_wait_args(
     context: &mut vm::RuntimeContext<'_>,
@@ -396,7 +396,7 @@ fn decode_destack_io_completion_wait_args(
     Ok((handle, timeoutns, maxevents))
 }
 
-/// Encode the result for destack.io.completionWait.
+/// Encode the result for destack.io.completion.wait.
 #[inline]
 fn encode_destack_io_completion_wait_result(
     context: &mut vm::RuntimeContext<'_>,
@@ -405,7 +405,7 @@ fn encode_destack_io_completion_wait_result(
     result.map(|value| value.to_value(context))
 }
 
-/// Decode arguments for destack.io.eventAttach.
+/// Decode arguments for destack.io.event.attach.
 #[inline]
 fn decode_destack_io_event_attach_args(
     context: &mut vm::RuntimeContext<'_>,
@@ -425,7 +425,7 @@ fn decode_destack_io_event_attach_args(
     Ok((token, target, key))
 }
 
-/// Encode the result for destack.io.eventAttach.
+/// Encode the result for destack.io.event.attach.
 #[inline]
 fn encode_destack_io_event_attach_result(
     context: &mut vm::RuntimeContext<'_>,
@@ -437,7 +437,7 @@ fn encode_destack_io_event_attach_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.io.eventClose.
+/// Decode arguments for destack.io.event.close.
 #[inline]
 fn decode_destack_io_event_close_args(
     context: &mut vm::RuntimeContext<'_>,
@@ -452,7 +452,7 @@ fn decode_destack_io_event_close_args(
     Ok((token,))
 }
 
-/// Encode the result for destack.io.eventClose.
+/// Encode the result for destack.io.event.close.
 #[inline]
 fn encode_destack_io_event_close_result(
     context: &mut vm::RuntimeContext<'_>,
@@ -464,7 +464,7 @@ fn encode_destack_io_event_close_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.io.eventOpen.
+/// Decode arguments for destack.io.event.open.
 #[inline]
 fn decode_destack_io_event_open_args(
     context: &mut vm::RuntimeContext<'_>,
@@ -478,7 +478,7 @@ fn decode_destack_io_event_open_args(
     Ok((initial,))
 }
 
-/// Encode the result for destack.io.eventOpen.
+/// Encode the result for destack.io.event.open.
 #[inline]
 fn encode_destack_io_event_open_result(
     context: &mut vm::RuntimeContext<'_>,
@@ -490,7 +490,7 @@ fn encode_destack_io_event_open_result(
     result.map(|value| vm::Value::uint(value.0, 64))
 }
 
-/// Decode arguments for destack.io.eventSignal.
+/// Decode arguments for destack.io.event.signal.
 #[inline]
 fn decode_destack_io_event_signal_args(
     context: &mut vm::RuntimeContext<'_>,
@@ -507,7 +507,7 @@ fn decode_destack_io_event_signal_args(
     Ok((token, value))
 }
 
-/// Encode the result for destack.io.eventSignal.
+/// Encode the result for destack.io.event.signal.
 #[inline]
 fn encode_destack_io_event_signal_result(
     context: &mut vm::RuntimeContext<'_>,
@@ -519,7 +519,7 @@ fn encode_destack_io_event_signal_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.io.pollClose.
+/// Decode arguments for destack.io.poll.close.
 #[inline]
 fn decode_destack_io_poll_close_args(
     context: &mut vm::RuntimeContext<'_>,
@@ -535,7 +535,7 @@ fn decode_destack_io_poll_close_args(
     Ok((handle,))
 }
 
-/// Encode the result for destack.io.pollClose.
+/// Encode the result for destack.io.poll.close.
 #[inline]
 fn encode_destack_io_poll_close_result(
     context: &mut vm::RuntimeContext<'_>,
@@ -547,7 +547,7 @@ fn encode_destack_io_poll_close_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.io.pollDeregister.
+/// Decode arguments for destack.io.poll.deregister.
 #[inline]
 fn decode_destack_io_poll_deregister_args(
     context: &mut vm::RuntimeContext<'_>,
@@ -566,7 +566,7 @@ fn decode_destack_io_poll_deregister_args(
     Ok((handle, target))
 }
 
-/// Encode the result for destack.io.pollDeregister.
+/// Encode the result for destack.io.poll.deregister.
 #[inline]
 fn encode_destack_io_poll_deregister_result(
     context: &mut vm::RuntimeContext<'_>,
@@ -578,7 +578,7 @@ fn encode_destack_io_poll_deregister_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.io.pollOpen.
+/// Decode arguments for destack.io.poll.open.
 #[inline]
 fn decode_destack_io_poll_open_args(
     context: &mut vm::RuntimeContext<'_>,
@@ -606,7 +606,7 @@ fn decode_destack_io_poll_open_args(
     Ok((backend,))
 }
 
-/// Encode the result for destack.io.pollOpen.
+/// Encode the result for destack.io.poll.open.
 #[inline]
 fn encode_destack_io_poll_open_result(
     context: &mut vm::RuntimeContext<'_>,
@@ -618,7 +618,7 @@ fn encode_destack_io_poll_open_result(
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
-/// Decode arguments for destack.io.pollRegister.
+/// Decode arguments for destack.io.poll.register.
 #[inline]
 fn decode_destack_io_poll_register_args(
     context: &mut vm::RuntimeContext<'_>,
@@ -647,7 +647,7 @@ fn decode_destack_io_poll_register_args(
     Ok((handle, target, key, interest))
 }
 
-/// Encode the result for destack.io.pollRegister.
+/// Encode the result for destack.io.poll.register.
 #[inline]
 fn encode_destack_io_poll_register_result(
     context: &mut vm::RuntimeContext<'_>,
@@ -659,7 +659,7 @@ fn encode_destack_io_poll_register_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.io.pollUpdate.
+/// Decode arguments for destack.io.poll.update.
 #[inline]
 fn decode_destack_io_poll_update_args(
     context: &mut vm::RuntimeContext<'_>,
@@ -688,7 +688,7 @@ fn decode_destack_io_poll_update_args(
     Ok((handle, target, key, interest))
 }
 
-/// Encode the result for destack.io.pollUpdate.
+/// Encode the result for destack.io.poll.update.
 #[inline]
 fn encode_destack_io_poll_update_result(
     context: &mut vm::RuntimeContext<'_>,
@@ -700,7 +700,7 @@ fn encode_destack_io_poll_update_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.io.pollWait.
+/// Decode arguments for destack.io.poll.wait.
 #[inline]
 fn decode_destack_io_poll_wait_args(
     context: &mut vm::RuntimeContext<'_>,
@@ -720,7 +720,7 @@ fn decode_destack_io_poll_wait_args(
     Ok((handle, timeoutns, maxevents))
 }
 
-/// Encode the result for destack.io.pollWait.
+/// Encode the result for destack.io.poll.wait.
 #[inline]
 fn encode_destack_io_poll_wait_result(
     context: &mut vm::RuntimeContext<'_>,
@@ -729,7 +729,7 @@ fn encode_destack_io_poll_wait_result(
     result.map(|value| value.to_value(context))
 }
 
-/// Decode arguments for destack.io.uringClose.
+/// Decode arguments for destack.io.uring.close.
 #[inline]
 fn decode_destack_io_uring_close_args(
     context: &mut vm::RuntimeContext<'_>,
@@ -745,7 +745,7 @@ fn decode_destack_io_uring_close_args(
     Ok((handle,))
 }
 
-/// Encode the result for destack.io.uringClose.
+/// Encode the result for destack.io.uring.close.
 #[inline]
 fn encode_destack_io_uring_close_result(
     context: &mut vm::RuntimeContext<'_>,
@@ -757,7 +757,7 @@ fn encode_destack_io_uring_close_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.io.uringFeatures.
+/// Decode arguments for destack.io.uring.features.
 #[inline]
 fn decode_destack_io_uring_features_args(
     context: &mut vm::RuntimeContext<'_>,
@@ -773,7 +773,7 @@ fn decode_destack_io_uring_features_args(
     Ok((handle,))
 }
 
-/// Encode the result for destack.io.uringFeatures.
+/// Encode the result for destack.io.uring.features.
 #[inline]
 fn encode_destack_io_uring_features_result(
     context: &mut vm::RuntimeContext<'_>,
@@ -789,7 +789,7 @@ fn encode_destack_io_uring_features_result(
     })
 }
 
-/// Decode arguments for destack.io.uringOpen.
+/// Decode arguments for destack.io.uring.open.
 #[inline]
 fn decode_destack_io_uring_open_args(
     context: &mut vm::RuntimeContext<'_>,
@@ -827,7 +827,7 @@ fn decode_destack_io_uring_open_args(
     Ok((parameters,))
 }
 
-/// Encode the result for destack.io.uringOpen.
+/// Encode the result for destack.io.uring.open.
 #[inline]
 fn encode_destack_io_uring_open_result(
     context: &mut vm::RuntimeContext<'_>,
@@ -839,7 +839,7 @@ fn encode_destack_io_uring_open_result(
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
-/// Decode arguments for destack.io.uringRegisterBuffers.
+/// Decode arguments for destack.io.uring.registerBuffers.
 #[inline]
 fn decode_destack_io_uring_register_buffers_args(
     context: &mut vm::RuntimeContext<'_>,
@@ -856,7 +856,7 @@ fn decode_destack_io_uring_register_buffers_args(
     Ok((handle, addresses, lengths))
 }
 
-/// Encode the result for destack.io.uringRegisterBuffers.
+/// Encode the result for destack.io.uring.registerBuffers.
 #[inline]
 fn encode_destack_io_uring_register_buffers_result(
     context: &mut vm::RuntimeContext<'_>,
@@ -868,7 +868,7 @@ fn encode_destack_io_uring_register_buffers_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.io.uringRegisterFiles.
+/// Decode arguments for destack.io.uring.registerFiles.
 #[inline]
 fn decode_destack_io_uring_register_files_args(
     context: &mut vm::RuntimeContext<'_>,
@@ -884,7 +884,7 @@ fn decode_destack_io_uring_register_files_args(
     Ok((handle, files))
 }
 
-/// Encode the result for destack.io.uringRegisterFiles.
+/// Encode the result for destack.io.uring.registerFiles.
 #[inline]
 fn encode_destack_io_uring_register_files_result(
     context: &mut vm::RuntimeContext<'_>,
@@ -896,7 +896,7 @@ fn encode_destack_io_uring_register_files_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.io.uringUnregisterBuffers.
+/// Decode arguments for destack.io.uring.unregisterBuffers.
 #[inline]
 fn decode_destack_io_uring_unregister_buffers_args(
     context: &mut vm::RuntimeContext<'_>,
@@ -912,7 +912,7 @@ fn decode_destack_io_uring_unregister_buffers_args(
     Ok((handle,))
 }
 
-/// Encode the result for destack.io.uringUnregisterBuffers.
+/// Encode the result for destack.io.uring.unregisterBuffers.
 #[inline]
 fn encode_destack_io_uring_unregister_buffers_result(
     context: &mut vm::RuntimeContext<'_>,
@@ -924,7 +924,7 @@ fn encode_destack_io_uring_unregister_buffers_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.io.uringUnregisterFiles.
+/// Decode arguments for destack.io.uring.unregisterFiles.
 #[inline]
 fn decode_destack_io_uring_unregister_files_args(
     context: &mut vm::RuntimeContext<'_>,
@@ -940,7 +940,7 @@ fn decode_destack_io_uring_unregister_files_args(
     Ok((handle,))
 }
 
-/// Encode the result for destack.io.uringUnregisterFiles.
+/// Encode the result for destack.io.uring.unregisterFiles.
 #[inline]
 fn encode_destack_io_uring_unregister_files_result(
     context: &mut vm::RuntimeContext<'_>,
@@ -952,178 +952,178 @@ fn encode_destack_io_uring_unregister_files_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Replay payload for destack.io.completionCancel.
+/// Replay payload for destack.io.completion.cancel.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct CompletionCancelReplay {
+struct IoCompletionCancelReplay {
     /// Replay result payload.
     pub result: Result<u32, PlatformError>,
 }
 
-/// Replay payload for destack.io.completionClose.
+/// Replay payload for destack.io.completion.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct CompletionCloseReplay {
+struct IoCompletionCloseReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.io.completionEnter.
+/// Replay payload for destack.io.completion.enter.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct CompletionEnterReplay {
+struct IoCompletionEnterReplay {
     /// Replay result payload.
     pub result: Result<u32, PlatformError>,
 }
 
-/// Replay payload for destack.io.completionOpen.
+/// Replay payload for destack.io.completion.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct CompletionOpenReplay {
+struct IoCompletionOpenReplay {
     /// Replay result payload.
     pub result: Result<resource::CompletionHandle, PlatformError>,
 }
 
-/// Replay payload for destack.io.completionSubmit.
+/// Replay payload for destack.io.completion.submit.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct CompletionSubmitReplay {
+struct IoCompletionSubmitReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.io.completionSubmitBatch.
+/// Replay payload for destack.io.completion.submitBatch.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct CompletionSubmitBatchReplay {
+struct IoCompletionSubmitBatchReplay {
     /// Replay result payload.
     pub result: Result<u32, PlatformError>,
 }
 
-/// Replay payload for destack.io.completionWait.
+/// Replay payload for destack.io.completion.wait.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct CompletionWaitReplay {
+struct IoCompletionWaitReplay {
     /// Replay result payload.
     pub result: Result<Vec<CompletionEvent>, PlatformError>,
 }
 
-/// Replay payload for destack.io.eventAttach.
+/// Replay payload for destack.io.event.attach.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct EventAttachReplay {
+struct IoEventAttachReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.io.eventClose.
+/// Replay payload for destack.io.event.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct EventCloseReplay {
+struct IoEventCloseReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.io.eventOpen.
+/// Replay payload for destack.io.event.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct EventOpenReplay {
+struct IoEventOpenReplay {
     /// Replay result payload.
     pub result: Result<EventToken, PlatformError>,
 }
 
-/// Replay payload for destack.io.eventSignal.
+/// Replay payload for destack.io.event.signal.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct EventSignalReplay {
+struct IoEventSignalReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.io.pollClose.
+/// Replay payload for destack.io.poll.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct PollCloseReplay {
+struct IoPollCloseReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.io.pollDeregister.
+/// Replay payload for destack.io.poll.deregister.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct PollDeregisterReplay {
+struct IoPollDeregisterReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.io.pollOpen.
+/// Replay payload for destack.io.poll.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct PollOpenReplay {
+struct IoPollOpenReplay {
     /// Replay result payload.
     pub result: Result<resource::PollHandle, PlatformError>,
 }
 
-/// Replay payload for destack.io.pollRegister.
+/// Replay payload for destack.io.poll.register.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct PollRegisterReplay {
+struct IoPollRegisterReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.io.pollUpdate.
+/// Replay payload for destack.io.poll.update.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct PollUpdateReplay {
+struct IoPollUpdateReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.io.pollWait.
+/// Replay payload for destack.io.poll.wait.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct PollWaitReplay {
+struct IoPollWaitReplay {
     /// Replay result payload.
     pub result: Result<Vec<PollEvent>, PlatformError>,
 }
 
-/// Replay payload for destack.io.uringClose.
+/// Replay payload for destack.io.uring.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct UringCloseReplay {
+struct IoUringCloseReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.io.uringFeatures.
+/// Replay payload for destack.io.uring.features.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct UringFeaturesReplay {
+struct IoUringFeaturesReplay {
     /// Replay result payload.
     pub result: Result<UringFeatures, PlatformError>,
 }
 
-/// Replay payload for destack.io.uringOpen.
+/// Replay payload for destack.io.uring.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct UringOpenReplay {
+struct IoUringOpenReplay {
     /// Replay result payload.
     pub result: Result<resource::UringHandle, PlatformError>,
 }
 
-/// Replay payload for destack.io.uringRegisterBuffers.
+/// Replay payload for destack.io.uring.registerBuffers.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct UringRegisterBuffersReplay {
+struct IoUringRegisterBuffersReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.io.uringRegisterFiles.
+/// Replay payload for destack.io.uring.registerFiles.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct UringRegisterFilesReplay {
+struct IoUringRegisterFilesReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.io.uringUnregisterBuffers.
+/// Replay payload for destack.io.uring.unregisterBuffers.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct UringUnregisterBuffersReplay {
+struct IoUringUnregisterBuffersReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.io.uringUnregisterFiles.
+/// Replay payload for destack.io.uring.unregisterFiles.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct UringUnregisterFilesReplay {
+struct IoUringUnregisterFilesReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Binding descriptor for destack.io.completionCancel.
-pub const COMPLETION_CANCEL: BindingDescriptor =
+/// Binding descriptor for destack.io.completion.cancel.
+pub const IO_COMPLETION_CANCEL: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.io.completionCancel",
+        "destack.io.completion.cancel",
         "export function completionCancel(handle: CompletionHandle, target: ResourceId): Result<uint32, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
@@ -1132,10 +1132,10 @@ pub const COMPLETION_CANCEL: BindingDescriptor =
         BindingBlocking::Sometimes,
     );
 
-/// Binding descriptor for destack.io.completionClose.
-pub const COMPLETION_CLOSE: BindingDescriptor =
+/// Binding descriptor for destack.io.completion.close.
+pub const IO_COMPLETION_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.io.completionClose",
+        "destack.io.completion.close",
         "export function completionClose(handle: CompletionHandle): Result<void, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
@@ -1144,10 +1144,10 @@ pub const COMPLETION_CLOSE: BindingDescriptor =
         BindingBlocking::Sometimes,
     );
 
-/// Binding descriptor for destack.io.completionEnter.
-pub const COMPLETION_ENTER: BindingDescriptor =
+/// Binding descriptor for destack.io.completion.enter.
+pub const IO_COMPLETION_ENTER: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.io.completionEnter",
+        "destack.io.completion.enter",
         "export function completionEnter(handle: CompletionHandle, minComplete: uint32, timeoutNs: uint64, flags: uint32): Result<uint32, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
@@ -1156,10 +1156,10 @@ pub const COMPLETION_ENTER: BindingDescriptor =
         BindingBlocking::Sometimes,
     );
 
-/// Binding descriptor for destack.io.completionOpen.
-pub const COMPLETION_OPEN: BindingDescriptor =
+/// Binding descriptor for destack.io.completion.open.
+pub const IO_COMPLETION_OPEN: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.io.completionOpen",
+        "destack.io.completion.open",
         "export function completionOpen(entries: uint32): Result<CompletionHandle, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
@@ -1168,10 +1168,10 @@ pub const COMPLETION_OPEN: BindingDescriptor =
         BindingBlocking::Sometimes,
     );
 
-/// Binding descriptor for destack.io.completionSubmit.
-pub const COMPLETION_SUBMIT: BindingDescriptor =
+/// Binding descriptor for destack.io.completion.submit.
+pub const IO_COMPLETION_SUBMIT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.io.completionSubmit",
+        "destack.io.completion.submit",
         "export function completionSubmit(handle: CompletionHandle, operation: CompletionOperation): Result<void, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
@@ -1180,10 +1180,10 @@ pub const COMPLETION_SUBMIT: BindingDescriptor =
         BindingBlocking::Sometimes,
     );
 
-/// Binding descriptor for destack.io.completionSubmitBatch.
-pub const COMPLETION_SUBMIT_BATCH: BindingDescriptor =
+/// Binding descriptor for destack.io.completion.submitBatch.
+pub const IO_COMPLETION_SUBMIT_BATCH: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.io.completionSubmitBatch",
+        "destack.io.completion.submitBatch",
         "export function completionSubmitBatch(handle: CompletionHandle, operationWords: Slice<uint64>, operationCount: uint32, operationWordStride: uint32): Result<uint32, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
@@ -1192,10 +1192,10 @@ pub const COMPLETION_SUBMIT_BATCH: BindingDescriptor =
         BindingBlocking::Sometimes,
     );
 
-/// Binding descriptor for destack.io.completionWait.
-pub const COMPLETION_WAIT: BindingDescriptor =
+/// Binding descriptor for destack.io.completion.wait.
+pub const IO_COMPLETION_WAIT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.io.completionWait",
+        "destack.io.completion.wait",
         "export function completionWait(handle: CompletionHandle, timeoutNs: uint64, maxEvents: uint32): Result<CompletionEvent[], PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
@@ -1204,31 +1204,33 @@ pub const COMPLETION_WAIT: BindingDescriptor =
         BindingBlocking::Sometimes,
     );
 
-/// Binding descriptor for destack.io.eventAttach.
-pub const EVENT_ATTACH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.io.eventAttach",
-    "export function eventAttach(token: EventToken, target: ResourceId, key: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["io.event"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+/// Binding descriptor for destack.io.event.attach.
+pub const IO_EVENT_ATTACH: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.io.event.attach",
+        "export function eventAttach(token: EventToken, target: ResourceId, key: uint64): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["io.event"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
-/// Binding descriptor for destack.io.eventClose.
-pub const EVENT_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.io.eventClose",
-    "export function eventClose(token: EventToken): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["io.event"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+/// Binding descriptor for destack.io.event.close.
+pub const IO_EVENT_CLOSE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.io.event.close",
+        "export function eventClose(token: EventToken): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["io.event"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
-/// Binding descriptor for destack.io.eventOpen.
-pub const EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.io.eventOpen",
+/// Binding descriptor for destack.io.event.open.
+pub const IO_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.io.event.open",
     "export function eventOpen(initial: uint64): Result<EventToken, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
@@ -1237,20 +1239,21 @@ pub const EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requi
     BindingBlocking::Sometimes,
 );
 
-/// Binding descriptor for destack.io.eventSignal.
-pub const EVENT_SIGNAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.io.eventSignal",
-    "export function eventSignal(token: EventToken, value: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["io.event"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+/// Binding descriptor for destack.io.event.signal.
+pub const IO_EVENT_SIGNAL: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.io.event.signal",
+        "export function eventSignal(token: EventToken, value: uint64): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["io.event"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
-/// Binding descriptor for destack.io.pollClose.
-pub const POLL_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.io.pollClose",
+/// Binding descriptor for destack.io.poll.close.
+pub const IO_POLL_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.io.poll.close",
     "export function pollClose(handle: PollHandle): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
@@ -1259,10 +1262,10 @@ pub const POLL_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requi
     BindingBlocking::Sometimes,
 );
 
-/// Binding descriptor for destack.io.pollDeregister.
-pub const POLL_DEREGISTER: BindingDescriptor =
+/// Binding descriptor for destack.io.poll.deregister.
+pub const IO_POLL_DEREGISTER: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.io.pollDeregister",
+        "destack.io.poll.deregister",
         "export function pollDeregister(handle: PollHandle, target: ResourceId): Result<void, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
@@ -1271,9 +1274,9 @@ pub const POLL_DEREGISTER: BindingDescriptor =
         BindingBlocking::Sometimes,
     );
 
-/// Binding descriptor for destack.io.pollOpen.
-pub const POLL_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.io.pollOpen",
+/// Binding descriptor for destack.io.poll.open.
+pub const IO_POLL_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.io.poll.open",
     "export function pollOpen(backend: PollBackend): Result<PollHandle, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
@@ -1282,31 +1285,33 @@ pub const POLL_OPEN: BindingDescriptor = BindingDescriptor::external_with_requir
     BindingBlocking::Sometimes,
 );
 
-/// Binding descriptor for destack.io.pollRegister.
-pub const POLL_REGISTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.io.pollRegister",
-    "export function pollRegister(handle: PollHandle, target: ResourceId, key: uint64, interest: PollInterest): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["io.poll"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+/// Binding descriptor for destack.io.poll.register.
+pub const IO_POLL_REGISTER: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.io.poll.register",
+        "export function pollRegister(handle: PollHandle, target: ResourceId, key: uint64, interest: PollInterest): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["io.poll"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
-/// Binding descriptor for destack.io.pollUpdate.
-pub const POLL_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.io.pollUpdate",
-    "export function pollUpdate(handle: PollHandle, target: ResourceId, key: uint64, interest: PollInterest): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["io.poll"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+/// Binding descriptor for destack.io.poll.update.
+pub const IO_POLL_UPDATE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.io.poll.update",
+        "export function pollUpdate(handle: PollHandle, target: ResourceId, key: uint64, interest: PollInterest): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["io.poll"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
-/// Binding descriptor for destack.io.pollWait.
-pub const POLL_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.io.pollWait",
+/// Binding descriptor for destack.io.poll.wait.
+pub const IO_POLL_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.io.poll.wait",
     "export function pollWait(handle: PollHandle, timeoutNs: uint64, maxEvents: uint32): Result<PollEvent[], PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
@@ -1315,21 +1320,22 @@ pub const POLL_WAIT: BindingDescriptor = BindingDescriptor::external_with_requir
     BindingBlocking::Sometimes,
 );
 
-/// Binding descriptor for destack.io.uringClose.
-pub const URING_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.io.uringClose",
-    "export function uringClose(handle: UringHandle): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["io.uring"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
-
-/// Binding descriptor for destack.io.uringFeatures.
-pub const URING_FEATURES: BindingDescriptor =
+/// Binding descriptor for destack.io.uring.close.
+pub const IO_URING_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.io.uringFeatures",
+        "destack.io.uring.close",
+        "export function uringClose(handle: UringHandle): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["io.uring"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.io.uring.features.
+pub const IO_URING_FEATURES: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.io.uring.features",
         "export function uringFeatures(handle: UringHandle): Result<UringFeatures, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
@@ -1338,9 +1344,9 @@ pub const URING_FEATURES: BindingDescriptor =
         BindingBlocking::Sometimes,
     );
 
-/// Binding descriptor for destack.io.uringOpen.
-pub const URING_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.io.uringOpen",
+/// Binding descriptor for destack.io.uring.open.
+pub const IO_URING_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.io.uring.open",
     "export function uringOpen(parameters: UringParameters): Result<UringHandle, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
@@ -1349,10 +1355,10 @@ pub const URING_OPEN: BindingDescriptor = BindingDescriptor::external_with_requi
     BindingBlocking::Sometimes,
 );
 
-/// Binding descriptor for destack.io.uringRegisterBuffers.
-pub const URING_REGISTER_BUFFERS: BindingDescriptor =
+/// Binding descriptor for destack.io.uring.registerBuffers.
+pub const IO_URING_REGISTER_BUFFERS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.io.uringRegisterBuffers",
+        "destack.io.uring.registerBuffers",
         "export function uringRegisterBuffers(handle: UringHandle, addresses: Slice<uint64>, lengths: Slice<uint32>): Result<void, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
@@ -1361,10 +1367,10 @@ pub const URING_REGISTER_BUFFERS: BindingDescriptor =
         BindingBlocking::Sometimes,
     );
 
-/// Binding descriptor for destack.io.uringRegisterFiles.
-pub const URING_REGISTER_FILES: BindingDescriptor =
+/// Binding descriptor for destack.io.uring.registerFiles.
+pub const IO_URING_REGISTER_FILES: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.io.uringRegisterFiles",
+        "destack.io.uring.registerFiles",
         "export function uringRegisterFiles(handle: UringHandle, files: Slice<ResourceId>): Result<void, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
@@ -1373,10 +1379,10 @@ pub const URING_REGISTER_FILES: BindingDescriptor =
         BindingBlocking::Sometimes,
     );
 
-/// Binding descriptor for destack.io.uringUnregisterBuffers.
-pub const URING_UNREGISTER_BUFFERS: BindingDescriptor =
+/// Binding descriptor for destack.io.uring.unregisterBuffers.
+pub const IO_URING_UNREGISTER_BUFFERS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.io.uringUnregisterBuffers",
+        "destack.io.uring.unregisterBuffers",
         "export function uringUnregisterBuffers(handle: UringHandle): Result<void, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
@@ -1385,10 +1391,10 @@ pub const URING_UNREGISTER_BUFFERS: BindingDescriptor =
         BindingBlocking::Sometimes,
     );
 
-/// Binding descriptor for destack.io.uringUnregisterFiles.
-pub const URING_UNREGISTER_FILES: BindingDescriptor =
+/// Binding descriptor for destack.io.uring.unregisterFiles.
+pub const IO_URING_UNREGISTER_FILES: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.io.uringUnregisterFiles",
+        "destack.io.uring.unregisterFiles",
         "export function uringUnregisterFiles(handle: UringHandle): Result<void, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
@@ -1399,30 +1405,30 @@ pub const URING_UNREGISTER_FILES: BindingDescriptor =
 
 /// Binding descriptors for io.
 pub const BINDINGS: &[BindingDescriptor] = &[
-    COMPLETION_CANCEL,
-    COMPLETION_CLOSE,
-    COMPLETION_ENTER,
-    COMPLETION_OPEN,
-    COMPLETION_SUBMIT,
-    COMPLETION_SUBMIT_BATCH,
-    COMPLETION_WAIT,
-    EVENT_ATTACH,
-    EVENT_CLOSE,
-    EVENT_OPEN,
-    EVENT_SIGNAL,
-    POLL_CLOSE,
-    POLL_DEREGISTER,
-    POLL_OPEN,
-    POLL_REGISTER,
-    POLL_UPDATE,
-    POLL_WAIT,
-    URING_CLOSE,
-    URING_FEATURES,
-    URING_OPEN,
-    URING_REGISTER_BUFFERS,
-    URING_REGISTER_FILES,
-    URING_UNREGISTER_BUFFERS,
-    URING_UNREGISTER_FILES,
+    IO_COMPLETION_CANCEL,
+    IO_COMPLETION_CLOSE,
+    IO_COMPLETION_ENTER,
+    IO_COMPLETION_OPEN,
+    IO_COMPLETION_SUBMIT,
+    IO_COMPLETION_SUBMIT_BATCH,
+    IO_COMPLETION_WAIT,
+    IO_EVENT_ATTACH,
+    IO_EVENT_CLOSE,
+    IO_EVENT_OPEN,
+    IO_EVENT_SIGNAL,
+    IO_POLL_CLOSE,
+    IO_POLL_DEREGISTER,
+    IO_POLL_OPEN,
+    IO_POLL_REGISTER,
+    IO_POLL_UPDATE,
+    IO_POLL_WAIT,
+    IO_URING_CLOSE,
+    IO_URING_FEATURES,
+    IO_URING_OPEN,
+    IO_URING_REGISTER_BUFFERS,
+    IO_URING_REGISTER_FILES,
+    IO_URING_UNREGISTER_BUFFERS,
+    IO_URING_UNREGISTER_FILES,
 ];
 
 /// Native binding set for io.
@@ -1430,123 +1436,123 @@ pub const IO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "io",
     bindings: &[
         NativeBinding::new(
-            COMPLETION_CANCEL,
-            "destack.io.completionCancel",
+            IO_COMPLETION_CANCEL,
+            "destack.io.completion.cancel",
             destack_io_completion_cancel as *const (),
         ),
         NativeBinding::new(
-            COMPLETION_CLOSE,
-            "destack.io.completionClose",
+            IO_COMPLETION_CLOSE,
+            "destack.io.completion.close",
             destack_io_completion_close as *const (),
         ),
         NativeBinding::new(
-            COMPLETION_ENTER,
-            "destack.io.completionEnter",
+            IO_COMPLETION_ENTER,
+            "destack.io.completion.enter",
             destack_io_completion_enter as *const (),
         ),
         NativeBinding::new(
-            COMPLETION_OPEN,
-            "destack.io.completionOpen",
+            IO_COMPLETION_OPEN,
+            "destack.io.completion.open",
             destack_io_completion_open as *const (),
         ),
         NativeBinding::new(
-            COMPLETION_SUBMIT,
-            "destack.io.completionSubmit",
+            IO_COMPLETION_SUBMIT,
+            "destack.io.completion.submit",
             destack_io_completion_submit as *const (),
         ),
         NativeBinding::new(
-            COMPLETION_SUBMIT_BATCH,
-            "destack.io.completionSubmitBatch",
+            IO_COMPLETION_SUBMIT_BATCH,
+            "destack.io.completion.submitBatch",
             destack_io_completion_submit_batch as *const (),
         ),
         NativeBinding::new(
-            COMPLETION_WAIT,
-            "destack.io.completionWait",
+            IO_COMPLETION_WAIT,
+            "destack.io.completion.wait",
             destack_io_completion_wait as *const (),
         ),
         NativeBinding::new(
-            EVENT_ATTACH,
-            "destack.io.eventAttach",
+            IO_EVENT_ATTACH,
+            "destack.io.event.attach",
             destack_io_event_attach as *const (),
         ),
         NativeBinding::new(
-            EVENT_CLOSE,
-            "destack.io.eventClose",
+            IO_EVENT_CLOSE,
+            "destack.io.event.close",
             destack_io_event_close as *const (),
         ),
         NativeBinding::new(
-            EVENT_OPEN,
-            "destack.io.eventOpen",
+            IO_EVENT_OPEN,
+            "destack.io.event.open",
             destack_io_event_open as *const (),
         ),
         NativeBinding::new(
-            EVENT_SIGNAL,
-            "destack.io.eventSignal",
+            IO_EVENT_SIGNAL,
+            "destack.io.event.signal",
             destack_io_event_signal as *const (),
         ),
         NativeBinding::new(
-            POLL_CLOSE,
-            "destack.io.pollClose",
+            IO_POLL_CLOSE,
+            "destack.io.poll.close",
             destack_io_poll_close as *const (),
         ),
         NativeBinding::new(
-            POLL_DEREGISTER,
-            "destack.io.pollDeregister",
+            IO_POLL_DEREGISTER,
+            "destack.io.poll.deregister",
             destack_io_poll_deregister as *const (),
         ),
         NativeBinding::new(
-            POLL_OPEN,
-            "destack.io.pollOpen",
+            IO_POLL_OPEN,
+            "destack.io.poll.open",
             destack_io_poll_open as *const (),
         ),
         NativeBinding::new(
-            POLL_REGISTER,
-            "destack.io.pollRegister",
+            IO_POLL_REGISTER,
+            "destack.io.poll.register",
             destack_io_poll_register as *const (),
         ),
         NativeBinding::new(
-            POLL_UPDATE,
-            "destack.io.pollUpdate",
+            IO_POLL_UPDATE,
+            "destack.io.poll.update",
             destack_io_poll_update as *const (),
         ),
         NativeBinding::new(
-            POLL_WAIT,
-            "destack.io.pollWait",
+            IO_POLL_WAIT,
+            "destack.io.poll.wait",
             destack_io_poll_wait as *const (),
         ),
         NativeBinding::new(
-            URING_CLOSE,
-            "destack.io.uringClose",
+            IO_URING_CLOSE,
+            "destack.io.uring.close",
             destack_io_uring_close as *const (),
         ),
         NativeBinding::new(
-            URING_FEATURES,
-            "destack.io.uringFeatures",
+            IO_URING_FEATURES,
+            "destack.io.uring.features",
             destack_io_uring_features as *const (),
         ),
         NativeBinding::new(
-            URING_OPEN,
-            "destack.io.uringOpen",
+            IO_URING_OPEN,
+            "destack.io.uring.open",
             destack_io_uring_open as *const (),
         ),
         NativeBinding::new(
-            URING_REGISTER_BUFFERS,
-            "destack.io.uringRegisterBuffers",
+            IO_URING_REGISTER_BUFFERS,
+            "destack.io.uring.registerBuffers",
             destack_io_uring_register_buffers as *const (),
         ),
         NativeBinding::new(
-            URING_REGISTER_FILES,
-            "destack.io.uringRegisterFiles",
+            IO_URING_REGISTER_FILES,
+            "destack.io.uring.registerFiles",
             destack_io_uring_register_files as *const (),
         ),
         NativeBinding::new(
-            URING_UNREGISTER_BUFFERS,
-            "destack.io.uringUnregisterBuffers",
+            IO_URING_UNREGISTER_BUFFERS,
+            "destack.io.uring.unregisterBuffers",
             destack_io_uring_unregister_buffers as *const (),
         ),
         NativeBinding::new(
-            URING_UNREGISTER_FILES,
-            "destack.io.uringUnregisterFiles",
+            IO_URING_UNREGISTER_FILES,
+            "destack.io.uring.unregisterFiles",
             destack_io_uring_unregister_files as *const (),
         ),
     ],
@@ -1563,7 +1569,7 @@ fn destack_io_completion_cancel_replay(
     let _ = (&handle, &target);
 
     context.replay().run_binding(
-        COMPLETION_CANCEL,
+        IO_COMPLETION_CANCEL,
         || unsafe { platform_native::destack_io_completion_cancel(context, out, handle, target) },
         |result| {
             if let Ok(()) = result {
@@ -1574,7 +1580,7 @@ fn destack_io_completion_cancel_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = CompletionCancelReplay {
+                let payload = IoCompletionCancelReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1583,7 +1589,7 @@ fn destack_io_completion_cancel_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    CompletionCancelReplay { result }
+                    IoCompletionCancelReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1614,12 +1620,12 @@ fn destack_io_completion_close_replay(
     let _ = &handle;
 
     context.replay().run_binding(
-        COMPLETION_CLOSE,
+        IO_COMPLETION_CLOSE,
         || unsafe { platform_native::destack_io_completion_close(context, handle) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = CompletionCloseReplay {
+                let payload = IoCompletionCloseReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1628,7 +1634,7 @@ fn destack_io_completion_close_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    CompletionCloseReplay { result }
+                    IoCompletionCloseReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1657,7 +1663,7 @@ fn destack_io_completion_enter_replay(
     let _ = (&handle, &mincomplete, &timeoutns, &flags);
 
     context.replay().run_binding(
-        COMPLETION_ENTER,
+        IO_COMPLETION_ENTER,
         || unsafe {
             platform_native::destack_io_completion_enter(
                 context,
@@ -1677,7 +1683,7 @@ fn destack_io_completion_enter_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = CompletionEnterReplay {
+                let payload = IoCompletionEnterReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1686,7 +1692,7 @@ fn destack_io_completion_enter_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    CompletionEnterReplay { result }
+                    IoCompletionEnterReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1718,7 +1724,7 @@ fn destack_io_completion_open_replay(
     let _ = &entries;
 
     context.replay().run_binding(
-        COMPLETION_OPEN,
+        IO_COMPLETION_OPEN,
         || unsafe { platform_native::destack_io_completion_open(context, out, entries) },
         |result| {
             if let Ok(()) = result {
@@ -1729,7 +1735,7 @@ fn destack_io_completion_open_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = CompletionOpenReplay {
+                let payload = IoCompletionOpenReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1738,7 +1744,7 @@ fn destack_io_completion_open_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    CompletionOpenReplay { result }
+                    IoCompletionOpenReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1770,12 +1776,12 @@ fn destack_io_completion_submit_replay(
     let _ = (&handle, &operation);
 
     context.replay().run_binding(
-        COMPLETION_SUBMIT,
+        IO_COMPLETION_SUBMIT,
         || unsafe { platform_native::destack_io_completion_submit(context, handle, operation) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = CompletionSubmitReplay {
+                let payload = IoCompletionSubmitReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1784,7 +1790,7 @@ fn destack_io_completion_submit_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    CompletionSubmitReplay { result }
+                    IoCompletionSubmitReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1818,7 +1824,7 @@ fn destack_io_completion_submit_batch_replay(
     );
 
     context.replay().run_binding(
-        COMPLETION_SUBMIT_BATCH,
+        IO_COMPLETION_SUBMIT_BATCH,
         || unsafe {
             platform_native::destack_io_completion_submit_batch(
                 context,
@@ -1838,7 +1844,7 @@ fn destack_io_completion_submit_batch_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = CompletionSubmitBatchReplay {
+                let payload = IoCompletionSubmitBatchReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1847,7 +1853,7 @@ fn destack_io_completion_submit_batch_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    CompletionSubmitBatchReplay { result }
+                    IoCompletionSubmitBatchReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1881,7 +1887,7 @@ fn destack_io_completion_wait_replay(
     let _ = (&handle, &timeoutns, &maxevents);
 
     context.replay().run_binding(
-        COMPLETION_WAIT,
+        IO_COMPLETION_WAIT,
         || unsafe {
             platform_native::destack_io_completion_wait(context, out, handle, timeoutns, maxevents)
         },
@@ -1907,7 +1913,7 @@ fn destack_io_completion_wait_replay(
                     };
                     result_replay.push(result_replay_item_replay);
                 }
-                let payload = CompletionWaitReplay {
+                let payload = IoCompletionWaitReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1916,7 +1922,7 @@ fn destack_io_completion_wait_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    CompletionWaitReplay { result }
+                    IoCompletionWaitReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1961,12 +1967,12 @@ fn destack_io_event_attach_replay(
     let _ = (&token, &target, &key);
 
     context.replay().run_binding(
-        EVENT_ATTACH,
+        IO_EVENT_ATTACH,
         || unsafe { platform_native::destack_io_event_attach(context, token, target, key) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = EventAttachReplay {
+                let payload = IoEventAttachReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1975,7 +1981,7 @@ fn destack_io_event_attach_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    EventAttachReplay { result }
+                    IoEventAttachReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -2000,12 +2006,12 @@ fn destack_io_event_close_replay(
     let _ = &token;
 
     context.replay().run_binding(
-        EVENT_CLOSE,
+        IO_EVENT_CLOSE,
         || unsafe { platform_native::destack_io_event_close(context, token) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = EventCloseReplay {
+                let payload = IoEventCloseReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -2014,7 +2020,7 @@ fn destack_io_event_close_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    EventCloseReplay { result }
+                    IoEventCloseReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -2040,7 +2046,7 @@ fn destack_io_event_open_replay(
     let _ = &initial;
 
     context.replay().run_binding(
-        EVENT_OPEN,
+        IO_EVENT_OPEN,
         || unsafe { platform_native::destack_io_event_open(context, out, initial) },
         |result| {
             if let Ok(()) = result {
@@ -2051,7 +2057,7 @@ fn destack_io_event_open_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = EventOpenReplay {
+                let payload = IoEventOpenReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -2060,7 +2066,7 @@ fn destack_io_event_open_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    EventOpenReplay { result }
+                    IoEventOpenReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -2092,12 +2098,12 @@ fn destack_io_event_signal_replay(
     let _ = (&token, &value);
 
     context.replay().run_binding(
-        EVENT_SIGNAL,
+        IO_EVENT_SIGNAL,
         || unsafe { platform_native::destack_io_event_signal(context, token, value) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = EventSignalReplay {
+                let payload = IoEventSignalReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -2106,7 +2112,7 @@ fn destack_io_event_signal_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    EventSignalReplay { result }
+                    IoEventSignalReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -2131,12 +2137,12 @@ fn destack_io_poll_close_replay(
     let _ = &handle;
 
     context.replay().run_binding(
-        POLL_CLOSE,
+        IO_POLL_CLOSE,
         || unsafe { platform_native::destack_io_poll_close(context, handle) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = PollCloseReplay {
+                let payload = IoPollCloseReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -2145,7 +2151,7 @@ fn destack_io_poll_close_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    PollCloseReplay { result }
+                    IoPollCloseReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -2171,12 +2177,12 @@ fn destack_io_poll_deregister_replay(
     let _ = (&handle, &target);
 
     context.replay().run_binding(
-        POLL_DEREGISTER,
+        IO_POLL_DEREGISTER,
         || unsafe { platform_native::destack_io_poll_deregister(context, handle, target) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = PollDeregisterReplay {
+                let payload = IoPollDeregisterReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -2185,7 +2191,7 @@ fn destack_io_poll_deregister_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    PollDeregisterReplay { result }
+                    IoPollDeregisterReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -2211,7 +2217,7 @@ fn destack_io_poll_open_replay(
     let _ = &backend;
 
     context.replay().run_binding(
-        POLL_OPEN,
+        IO_POLL_OPEN,
         || unsafe { platform_native::destack_io_poll_open(context, out, backend) },
         |result| {
             if let Ok(()) = result {
@@ -2222,7 +2228,7 @@ fn destack_io_poll_open_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = PollOpenReplay {
+                let payload = IoPollOpenReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -2231,7 +2237,7 @@ fn destack_io_poll_open_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    PollOpenReplay { result }
+                    IoPollOpenReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -2265,14 +2271,14 @@ fn destack_io_poll_register_replay(
     let _ = (&handle, &target, &key, &interest);
 
     context.replay().run_binding(
-        POLL_REGISTER,
+        IO_POLL_REGISTER,
         || unsafe {
             platform_native::destack_io_poll_register(context, handle, target, key, interest)
         },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = PollRegisterReplay {
+                let payload = IoPollRegisterReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -2281,7 +2287,7 @@ fn destack_io_poll_register_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    PollRegisterReplay { result }
+                    IoPollRegisterReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -2309,14 +2315,14 @@ fn destack_io_poll_update_replay(
     let _ = (&handle, &target, &key, &interest);
 
     context.replay().run_binding(
-        POLL_UPDATE,
+        IO_POLL_UPDATE,
         || unsafe {
             platform_native::destack_io_poll_update(context, handle, target, key, interest)
         },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = PollUpdateReplay {
+                let payload = IoPollUpdateReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -2325,7 +2331,7 @@ fn destack_io_poll_update_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    PollUpdateReplay { result }
+                    IoPollUpdateReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -2353,7 +2359,7 @@ fn destack_io_poll_wait_replay(
     let _ = (&handle, &timeoutns, &maxevents);
 
     context.replay().run_binding(
-        POLL_WAIT,
+        IO_POLL_WAIT,
         || unsafe {
             platform_native::destack_io_poll_wait(context, out, handle, timeoutns, maxevents)
         },
@@ -2379,7 +2385,7 @@ fn destack_io_poll_wait_replay(
                     };
                     result_replay.push(result_replay_item_replay);
                 }
-                let payload = PollWaitReplay {
+                let payload = IoPollWaitReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -2388,7 +2394,7 @@ fn destack_io_poll_wait_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    PollWaitReplay { result }
+                    IoPollWaitReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -2431,12 +2437,12 @@ fn destack_io_uring_close_replay(
     let _ = &handle;
 
     context.replay().run_binding(
-        URING_CLOSE,
+        IO_URING_CLOSE,
         || unsafe { platform_native::destack_io_uring_close(context, handle) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = UringCloseReplay {
+                let payload = IoUringCloseReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -2445,7 +2451,7 @@ fn destack_io_uring_close_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    UringCloseReplay { result }
+                    IoUringCloseReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -2471,7 +2477,7 @@ fn destack_io_uring_features_replay(
     let _ = &handle;
 
     context.replay().run_binding(
-        URING_FEATURES,
+        IO_URING_FEATURES,
         || unsafe { platform_native::destack_io_uring_features(context, out, handle) },
         |result| {
             if let Ok(()) = result {
@@ -2493,7 +2499,7 @@ fn destack_io_uring_features_replay(
                     has_fixed_buffers: result_replay_has_fixed_buffers,
                     max_entries: result_replay_max_entries,
                 };
-                let payload = UringFeaturesReplay {
+                let payload = IoUringFeaturesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -2502,7 +2508,7 @@ fn destack_io_uring_features_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    UringFeaturesReplay { result }
+                    IoUringFeaturesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -2545,7 +2551,7 @@ fn destack_io_uring_open_replay(
     let _ = &parameters;
 
     context.replay().run_binding(
-        URING_OPEN,
+        IO_URING_OPEN,
         || unsafe { platform_native::destack_io_uring_open(context, out, parameters) },
         |result| {
             if let Ok(()) = result {
@@ -2556,7 +2562,7 @@ fn destack_io_uring_open_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = UringOpenReplay {
+                let payload = IoUringOpenReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -2565,7 +2571,7 @@ fn destack_io_uring_open_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    UringOpenReplay { result }
+                    IoUringOpenReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -2598,14 +2604,14 @@ fn destack_io_uring_register_buffers_replay(
     let _ = (&handle, &addresses, &lengths);
 
     context.replay().run_binding(
-        URING_REGISTER_BUFFERS,
+        IO_URING_REGISTER_BUFFERS,
         || unsafe {
             platform_native::destack_io_uring_register_buffers(context, handle, addresses, lengths)
         },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = UringRegisterBuffersReplay {
+                let payload = IoUringRegisterBuffersReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -2614,7 +2620,7 @@ fn destack_io_uring_register_buffers_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    UringRegisterBuffersReplay { result }
+                    IoUringRegisterBuffersReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -2640,12 +2646,12 @@ fn destack_io_uring_register_files_replay(
     let _ = (&handle, &files);
 
     context.replay().run_binding(
-        URING_REGISTER_FILES,
+        IO_URING_REGISTER_FILES,
         || unsafe { platform_native::destack_io_uring_register_files(context, handle, files) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = UringRegisterFilesReplay {
+                let payload = IoUringRegisterFilesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -2654,7 +2660,7 @@ fn destack_io_uring_register_files_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    UringRegisterFilesReplay { result }
+                    IoUringRegisterFilesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -2679,12 +2685,12 @@ fn destack_io_uring_unregister_buffers_replay(
     let _ = &handle;
 
     context.replay().run_binding(
-        URING_UNREGISTER_BUFFERS,
+        IO_URING_UNREGISTER_BUFFERS,
         || unsafe { platform_native::destack_io_uring_unregister_buffers(context, handle) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = UringUnregisterBuffersReplay {
+                let payload = IoUringUnregisterBuffersReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -2693,7 +2699,7 @@ fn destack_io_uring_unregister_buffers_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    UringUnregisterBuffersReplay { result }
+                    IoUringUnregisterBuffersReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -2718,12 +2724,12 @@ fn destack_io_uring_unregister_files_replay(
     let _ = &handle;
 
     context.replay().run_binding(
-        URING_UNREGISTER_FILES,
+        IO_URING_UNREGISTER_FILES,
         || unsafe { platform_native::destack_io_uring_unregister_files(context, handle) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = UringUnregisterFilesReplay {
+                let payload = IoUringUnregisterFilesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -2732,7 +2738,7 @@ fn destack_io_uring_unregister_files_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    UringUnregisterFilesReplay { result }
+                    IoUringUnregisterFilesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -2750,14 +2756,14 @@ fn destack_io_uring_unregister_files_replay(
 }
 
 /// Native export wrappers for io bindings.
-#[unsafe(export_name = "destack.io.completionCancel")]
+#[unsafe(export_name = "destack.io.completion.cancel")]
 pub unsafe extern "C" fn destack_io_completion_cancel(
     out: *mut u32,
     handle: resource::CompletionHandle,
     target: resource::ResourceId,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(COMPLETION_CANCEL)?;
+        context.check_policy(IO_COMPLETION_CANCEL)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
@@ -2767,19 +2773,19 @@ pub unsafe extern "C" fn destack_io_completion_cancel(
     })
 }
 
-#[unsafe(export_name = "destack.io.completionClose")]
+#[unsafe(export_name = "destack.io.completion.close")]
 pub unsafe extern "C" fn destack_io_completion_close(
     handle: resource::CompletionHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(COMPLETION_CLOSE)?;
+        context.check_policy(IO_COMPLETION_CLOSE)?;
         let _ = &handle;
 
         destack_io_completion_close_replay(context, handle)
     })
 }
 
-#[unsafe(export_name = "destack.io.completionEnter")]
+#[unsafe(export_name = "destack.io.completion.enter")]
 pub unsafe extern "C" fn destack_io_completion_enter(
     out: *mut u32,
     handle: resource::CompletionHandle,
@@ -2788,7 +2794,7 @@ pub unsafe extern "C" fn destack_io_completion_enter(
     flags: u32,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(COMPLETION_ENTER)?;
+        context.check_policy(IO_COMPLETION_ENTER)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
@@ -2798,13 +2804,13 @@ pub unsafe extern "C" fn destack_io_completion_enter(
     })
 }
 
-#[unsafe(export_name = "destack.io.completionOpen")]
+#[unsafe(export_name = "destack.io.completion.open")]
 pub unsafe extern "C" fn destack_io_completion_open(
     out: *mut resource::CompletionHandle,
     entries: u32,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(COMPLETION_OPEN)?;
+        context.check_policy(IO_COMPLETION_OPEN)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
@@ -2814,20 +2820,20 @@ pub unsafe extern "C" fn destack_io_completion_open(
     })
 }
 
-#[unsafe(export_name = "destack.io.completionSubmit")]
+#[unsafe(export_name = "destack.io.completion.submit")]
 pub unsafe extern "C" fn destack_io_completion_submit(
     handle: resource::CompletionHandle,
     operation: CompletionOperation,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(COMPLETION_SUBMIT)?;
+        context.check_policy(IO_COMPLETION_SUBMIT)?;
         let _ = (&handle, &operation);
 
         destack_io_completion_submit_replay(context, handle, operation)
     })
 }
 
-#[unsafe(export_name = "destack.io.completionSubmitBatch")]
+#[unsafe(export_name = "destack.io.completion.submitBatch")]
 pub unsafe extern "C" fn destack_io_completion_submit_batch(
     out: *mut u32,
     handle: resource::CompletionHandle,
@@ -2836,7 +2842,7 @@ pub unsafe extern "C" fn destack_io_completion_submit_batch(
     operationwordstride: u32,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(COMPLETION_SUBMIT_BATCH)?;
+        context.check_policy(IO_COMPLETION_SUBMIT_BATCH)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
@@ -2859,7 +2865,7 @@ pub unsafe extern "C" fn destack_io_completion_submit_batch(
     })
 }
 
-#[unsafe(export_name = "destack.io.completionWait")]
+#[unsafe(export_name = "destack.io.completion.wait")]
 pub unsafe extern "C" fn destack_io_completion_wait(
     out: *mut NativeArray<CompletionEvent>,
     handle: resource::CompletionHandle,
@@ -2867,7 +2873,7 @@ pub unsafe extern "C" fn destack_io_completion_wait(
     maxevents: u32,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(COMPLETION_WAIT)?;
+        context.check_policy(IO_COMPLETION_WAIT)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
@@ -2877,37 +2883,37 @@ pub unsafe extern "C" fn destack_io_completion_wait(
     })
 }
 
-#[unsafe(export_name = "destack.io.eventAttach")]
+#[unsafe(export_name = "destack.io.event.attach")]
 pub unsafe extern "C" fn destack_io_event_attach(
     token: EventToken,
     target: resource::ResourceId,
     key: u64,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(EVENT_ATTACH)?;
+        context.check_policy(IO_EVENT_ATTACH)?;
         let _ = (&token, &target, &key);
 
         destack_io_event_attach_replay(context, token, target, key)
     })
 }
 
-#[unsafe(export_name = "destack.io.eventClose")]
+#[unsafe(export_name = "destack.io.event.close")]
 pub unsafe extern "C" fn destack_io_event_close(token: EventToken) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(EVENT_CLOSE)?;
+        context.check_policy(IO_EVENT_CLOSE)?;
         let _ = &token;
 
         destack_io_event_close_replay(context, token)
     })
 }
 
-#[unsafe(export_name = "destack.io.eventOpen")]
+#[unsafe(export_name = "destack.io.event.open")]
 pub unsafe extern "C" fn destack_io_event_open(
     out: *mut EventToken,
     initial: u64,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(EVENT_OPEN)?;
+        context.check_policy(IO_EVENT_OPEN)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
@@ -2917,46 +2923,46 @@ pub unsafe extern "C" fn destack_io_event_open(
     })
 }
 
-#[unsafe(export_name = "destack.io.eventSignal")]
+#[unsafe(export_name = "destack.io.event.signal")]
 pub unsafe extern "C" fn destack_io_event_signal(token: EventToken, value: u64) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(EVENT_SIGNAL)?;
+        context.check_policy(IO_EVENT_SIGNAL)?;
         let _ = (&token, &value);
 
         destack_io_event_signal_replay(context, token, value)
     })
 }
 
-#[unsafe(export_name = "destack.io.pollClose")]
+#[unsafe(export_name = "destack.io.poll.close")]
 pub unsafe extern "C" fn destack_io_poll_close(handle: resource::PollHandle) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(POLL_CLOSE)?;
+        context.check_policy(IO_POLL_CLOSE)?;
         let _ = &handle;
 
         destack_io_poll_close_replay(context, handle)
     })
 }
 
-#[unsafe(export_name = "destack.io.pollDeregister")]
+#[unsafe(export_name = "destack.io.poll.deregister")]
 pub unsafe extern "C" fn destack_io_poll_deregister(
     handle: resource::PollHandle,
     target: resource::ResourceId,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(POLL_DEREGISTER)?;
+        context.check_policy(IO_POLL_DEREGISTER)?;
         let _ = (&handle, &target);
 
         destack_io_poll_deregister_replay(context, handle, target)
     })
 }
 
-#[unsafe(export_name = "destack.io.pollOpen")]
+#[unsafe(export_name = "destack.io.poll.open")]
 pub unsafe extern "C" fn destack_io_poll_open(
     out: *mut resource::PollHandle,
     backend: PollBackend,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(POLL_OPEN)?;
+        context.check_policy(IO_POLL_OPEN)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
@@ -2966,7 +2972,7 @@ pub unsafe extern "C" fn destack_io_poll_open(
     })
 }
 
-#[unsafe(export_name = "destack.io.pollRegister")]
+#[unsafe(export_name = "destack.io.poll.register")]
 pub unsafe extern "C" fn destack_io_poll_register(
     handle: resource::PollHandle,
     target: resource::ResourceId,
@@ -2974,14 +2980,14 @@ pub unsafe extern "C" fn destack_io_poll_register(
     interest: PollInterest,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(POLL_REGISTER)?;
+        context.check_policy(IO_POLL_REGISTER)?;
         let _ = (&handle, &target, &key, &interest);
 
         destack_io_poll_register_replay(context, handle, target, key, interest)
     })
 }
 
-#[unsafe(export_name = "destack.io.pollUpdate")]
+#[unsafe(export_name = "destack.io.poll.update")]
 pub unsafe extern "C" fn destack_io_poll_update(
     handle: resource::PollHandle,
     target: resource::ResourceId,
@@ -2989,14 +2995,14 @@ pub unsafe extern "C" fn destack_io_poll_update(
     interest: PollInterest,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(POLL_UPDATE)?;
+        context.check_policy(IO_POLL_UPDATE)?;
         let _ = (&handle, &target, &key, &interest);
 
         destack_io_poll_update_replay(context, handle, target, key, interest)
     })
 }
 
-#[unsafe(export_name = "destack.io.pollWait")]
+#[unsafe(export_name = "destack.io.poll.wait")]
 pub unsafe extern "C" fn destack_io_poll_wait(
     out: *mut NativeArray<PollEvent>,
     handle: resource::PollHandle,
@@ -3004,7 +3010,7 @@ pub unsafe extern "C" fn destack_io_poll_wait(
     maxevents: u32,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(POLL_WAIT)?;
+        context.check_policy(IO_POLL_WAIT)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
@@ -3014,23 +3020,23 @@ pub unsafe extern "C" fn destack_io_poll_wait(
     })
 }
 
-#[unsafe(export_name = "destack.io.uringClose")]
+#[unsafe(export_name = "destack.io.uring.close")]
 pub unsafe extern "C" fn destack_io_uring_close(handle: resource::UringHandle) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(URING_CLOSE)?;
+        context.check_policy(IO_URING_CLOSE)?;
         let _ = &handle;
 
         destack_io_uring_close_replay(context, handle)
     })
 }
 
-#[unsafe(export_name = "destack.io.uringFeatures")]
+#[unsafe(export_name = "destack.io.uring.features")]
 pub unsafe extern "C" fn destack_io_uring_features(
     out: *mut UringFeatures,
     handle: resource::UringHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(URING_FEATURES)?;
+        context.check_policy(IO_URING_FEATURES)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
@@ -3040,13 +3046,13 @@ pub unsafe extern "C" fn destack_io_uring_features(
     })
 }
 
-#[unsafe(export_name = "destack.io.uringOpen")]
+#[unsafe(export_name = "destack.io.uring.open")]
 pub unsafe extern "C" fn destack_io_uring_open(
     out: *mut resource::UringHandle,
     parameters: UringParameters,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(URING_OPEN)?;
+        context.check_policy(IO_URING_OPEN)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
@@ -3056,51 +3062,51 @@ pub unsafe extern "C" fn destack_io_uring_open(
     })
 }
 
-#[unsafe(export_name = "destack.io.uringRegisterBuffers")]
+#[unsafe(export_name = "destack.io.uring.registerBuffers")]
 pub unsafe extern "C" fn destack_io_uring_register_buffers(
     handle: resource::UringHandle,
     addresses: NativeSlice<u64>,
     lengths: NativeSlice<u32>,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(URING_REGISTER_BUFFERS)?;
+        context.check_policy(IO_URING_REGISTER_BUFFERS)?;
         let _ = (&handle, &addresses, &lengths);
 
         destack_io_uring_register_buffers_replay(context, handle, addresses, lengths)
     })
 }
 
-#[unsafe(export_name = "destack.io.uringRegisterFiles")]
+#[unsafe(export_name = "destack.io.uring.registerFiles")]
 pub unsafe extern "C" fn destack_io_uring_register_files(
     handle: resource::UringHandle,
     files: NativeSlice<resource::ResourceId>,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(URING_REGISTER_FILES)?;
+        context.check_policy(IO_URING_REGISTER_FILES)?;
         let _ = (&handle, &files);
 
         destack_io_uring_register_files_replay(context, handle, files)
     })
 }
 
-#[unsafe(export_name = "destack.io.uringUnregisterBuffers")]
+#[unsafe(export_name = "destack.io.uring.unregisterBuffers")]
 pub unsafe extern "C" fn destack_io_uring_unregister_buffers(
     handle: resource::UringHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(URING_UNREGISTER_BUFFERS)?;
+        context.check_policy(IO_URING_UNREGISTER_BUFFERS)?;
         let _ = &handle;
 
         destack_io_uring_unregister_buffers_replay(context, handle)
     })
 }
 
-#[unsafe(export_name = "destack.io.uringUnregisterFiles")]
+#[unsafe(export_name = "destack.io.uring.unregisterFiles")]
 pub unsafe extern "C" fn destack_io_uring_unregister_files(
     handle: resource::UringHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(URING_UNREGISTER_FILES)?;
+        context.check_policy(IO_URING_UNREGISTER_FILES)?;
         let _ = &handle;
 
         destack_io_uring_unregister_files_replay(context, handle)
@@ -3116,7 +3122,7 @@ fn destack_io_completion_cancel_vm_replay(
     target: resource::ResourceId,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        COMPLETION_CANCEL,
+        IO_COMPLETION_CANCEL,
         context,
         |context| platform_vm::destack_io_completion_cancel(runtime, context, handle, target),
         |context, result| {
@@ -3124,7 +3130,7 @@ fn destack_io_completion_cancel_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = CompletionCancelReplay {
+                let payload = IoCompletionCancelReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -3133,7 +3139,7 @@ fn destack_io_completion_cancel_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    CompletionCancelReplay { result }
+                    IoCompletionCancelReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -3163,14 +3169,14 @@ fn destack_io_completion_close_vm_replay(
     handle: resource::CompletionHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        COMPLETION_CLOSE,
+        IO_COMPLETION_CLOSE,
         context,
         |context| platform_vm::destack_io_completion_close(runtime, context, handle),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = CompletionCloseReplay {
+                let payload = IoCompletionCloseReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -3179,7 +3185,7 @@ fn destack_io_completion_close_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    CompletionCloseReplay { result }
+                    IoCompletionCloseReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -3209,7 +3215,7 @@ fn destack_io_completion_enter_vm_replay(
     flags: u32,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        COMPLETION_ENTER,
+        IO_COMPLETION_ENTER,
         context,
         |context| {
             platform_vm::destack_io_completion_enter(
@@ -3226,7 +3232,7 @@ fn destack_io_completion_enter_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = CompletionEnterReplay {
+                let payload = IoCompletionEnterReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -3235,7 +3241,7 @@ fn destack_io_completion_enter_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    CompletionEnterReplay { result }
+                    IoCompletionEnterReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -3265,7 +3271,7 @@ fn destack_io_completion_open_vm_replay(
     entries: u32,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        COMPLETION_OPEN,
+        IO_COMPLETION_OPEN,
         context,
         |context| platform_vm::destack_io_completion_open(runtime, context, entries),
         |context, result| {
@@ -3273,7 +3279,7 @@ fn destack_io_completion_open_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = CompletionOpenReplay {
+                let payload = IoCompletionOpenReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -3282,7 +3288,7 @@ fn destack_io_completion_open_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    CompletionOpenReplay { result }
+                    IoCompletionOpenReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -3313,14 +3319,14 @@ fn destack_io_completion_submit_vm_replay(
     operation: CompletionOperationVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        COMPLETION_SUBMIT,
+        IO_COMPLETION_SUBMIT,
         context,
         |context| platform_vm::destack_io_completion_submit(runtime, context, handle, operation),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = CompletionSubmitReplay {
+                let payload = IoCompletionSubmitReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -3329,7 +3335,7 @@ fn destack_io_completion_submit_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    CompletionSubmitReplay { result }
+                    IoCompletionSubmitReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -3359,7 +3365,7 @@ fn destack_io_completion_submit_batch_vm_replay(
     operationwordstride: u32,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        COMPLETION_SUBMIT_BATCH,
+        IO_COMPLETION_SUBMIT_BATCH,
         context,
         |context| {
             platform_vm::destack_io_completion_submit_batch(
@@ -3376,7 +3382,7 @@ fn destack_io_completion_submit_batch_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = CompletionSubmitBatchReplay {
+                let payload = IoCompletionSubmitBatchReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -3385,7 +3391,7 @@ fn destack_io_completion_submit_batch_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    CompletionSubmitBatchReplay { result }
+                    IoCompletionSubmitBatchReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -3417,7 +3423,7 @@ fn destack_io_completion_wait_vm_replay(
     maxevents: u32,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        COMPLETION_WAIT,
+        IO_COMPLETION_WAIT,
         context,
         |context| {
             platform_vm::destack_io_completion_wait(runtime, context, handle, timeoutns, maxevents)
@@ -3469,7 +3475,7 @@ fn destack_io_completion_wait_vm_replay(
                     };
                     result_replay.push(result_replay_item_replay);
                 }
-                let payload = CompletionWaitReplay {
+                let payload = IoCompletionWaitReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -3478,7 +3484,7 @@ fn destack_io_completion_wait_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    CompletionWaitReplay { result }
+                    IoCompletionWaitReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -3535,14 +3541,14 @@ fn destack_io_event_attach_vm_replay(
     key: u64,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        EVENT_ATTACH,
+        IO_EVENT_ATTACH,
         context,
         |context| platform_vm::destack_io_event_attach(runtime, context, token, target, key),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = EventAttachReplay {
+                let payload = IoEventAttachReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -3551,7 +3557,7 @@ fn destack_io_event_attach_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    EventAttachReplay { result }
+                    IoEventAttachReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -3578,14 +3584,14 @@ fn destack_io_event_close_vm_replay(
     token: EventToken,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        EVENT_CLOSE,
+        IO_EVENT_CLOSE,
         context,
         |context| platform_vm::destack_io_event_close(runtime, context, token),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = EventCloseReplay {
+                let payload = IoEventCloseReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -3594,7 +3600,7 @@ fn destack_io_event_close_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    EventCloseReplay { result }
+                    IoEventCloseReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -3621,7 +3627,7 @@ fn destack_io_event_open_vm_replay(
     initial: u64,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        EVENT_OPEN,
+        IO_EVENT_OPEN,
         context,
         |context| platform_vm::destack_io_event_open(runtime, context, initial),
         |context, result| {
@@ -3629,7 +3635,7 @@ fn destack_io_event_open_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = EventOpenReplay {
+                let payload = IoEventOpenReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -3638,7 +3644,7 @@ fn destack_io_event_open_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    EventOpenReplay { result }
+                    IoEventOpenReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -3669,14 +3675,14 @@ fn destack_io_event_signal_vm_replay(
     value: u64,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        EVENT_SIGNAL,
+        IO_EVENT_SIGNAL,
         context,
         |context| platform_vm::destack_io_event_signal(runtime, context, token, value),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = EventSignalReplay {
+                let payload = IoEventSignalReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -3685,7 +3691,7 @@ fn destack_io_event_signal_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    EventSignalReplay { result }
+                    IoEventSignalReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -3712,14 +3718,14 @@ fn destack_io_poll_close_vm_replay(
     handle: resource::PollHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        POLL_CLOSE,
+        IO_POLL_CLOSE,
         context,
         |context| platform_vm::destack_io_poll_close(runtime, context, handle),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = PollCloseReplay {
+                let payload = IoPollCloseReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -3728,7 +3734,7 @@ fn destack_io_poll_close_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    PollCloseReplay { result }
+                    IoPollCloseReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -3756,14 +3762,14 @@ fn destack_io_poll_deregister_vm_replay(
     target: resource::ResourceId,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        POLL_DEREGISTER,
+        IO_POLL_DEREGISTER,
         context,
         |context| platform_vm::destack_io_poll_deregister(runtime, context, handle, target),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = PollDeregisterReplay {
+                let payload = IoPollDeregisterReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -3772,7 +3778,7 @@ fn destack_io_poll_deregister_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    PollDeregisterReplay { result }
+                    IoPollDeregisterReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -3799,7 +3805,7 @@ fn destack_io_poll_open_vm_replay(
     backend: PollBackend,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        POLL_OPEN,
+        IO_POLL_OPEN,
         context,
         |context| platform_vm::destack_io_poll_open(runtime, context, backend),
         |context, result| {
@@ -3807,7 +3813,7 @@ fn destack_io_poll_open_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = PollOpenReplay {
+                let payload = IoPollOpenReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -3816,7 +3822,7 @@ fn destack_io_poll_open_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    PollOpenReplay { result }
+                    IoPollOpenReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -3849,7 +3855,7 @@ fn destack_io_poll_register_vm_replay(
     interest: PollInterest,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        POLL_REGISTER,
+        IO_POLL_REGISTER,
         context,
         |context| {
             platform_vm::destack_io_poll_register(runtime, context, handle, target, key, interest)
@@ -3858,7 +3864,7 @@ fn destack_io_poll_register_vm_replay(
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = PollRegisterReplay {
+                let payload = IoPollRegisterReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -3867,7 +3873,7 @@ fn destack_io_poll_register_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    PollRegisterReplay { result }
+                    IoPollRegisterReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -3897,7 +3903,7 @@ fn destack_io_poll_update_vm_replay(
     interest: PollInterest,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        POLL_UPDATE,
+        IO_POLL_UPDATE,
         context,
         |context| {
             platform_vm::destack_io_poll_update(runtime, context, handle, target, key, interest)
@@ -3906,7 +3912,7 @@ fn destack_io_poll_update_vm_replay(
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = PollUpdateReplay {
+                let payload = IoPollUpdateReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -3915,7 +3921,7 @@ fn destack_io_poll_update_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    PollUpdateReplay { result }
+                    IoPollUpdateReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -3944,7 +3950,7 @@ fn destack_io_poll_wait_vm_replay(
     maxevents: u32,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        POLL_WAIT,
+        IO_POLL_WAIT,
         context,
         |context| platform_vm::destack_io_poll_wait(runtime, context, handle, timeoutns, maxevents),
         |context, result| {
@@ -3995,7 +4001,7 @@ fn destack_io_poll_wait_vm_replay(
                     };
                     result_replay.push(result_replay_item_replay);
                 }
-                let payload = PollWaitReplay {
+                let payload = IoPollWaitReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -4004,7 +4010,7 @@ fn destack_io_poll_wait_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    PollWaitReplay { result }
+                    IoPollWaitReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -4059,14 +4065,14 @@ fn destack_io_uring_close_vm_replay(
     handle: resource::UringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        URING_CLOSE,
+        IO_URING_CLOSE,
         context,
         |context| platform_vm::destack_io_uring_close(runtime, context, handle),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = UringCloseReplay {
+                let payload = IoUringCloseReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -4075,7 +4081,7 @@ fn destack_io_uring_close_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    UringCloseReplay { result }
+                    IoUringCloseReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -4102,7 +4108,7 @@ fn destack_io_uring_features_vm_replay(
     handle: resource::UringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        URING_FEATURES,
+        IO_URING_FEATURES,
         context,
         |context| platform_vm::destack_io_uring_features(runtime, context, handle),
         |context, result| {
@@ -4121,7 +4127,7 @@ fn destack_io_uring_features_vm_replay(
                     has_fixed_buffers: result_replay_has_fixed_buffers,
                     max_entries: result_replay_max_entries,
                 };
-                let payload = UringFeaturesReplay {
+                let payload = IoUringFeaturesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -4130,7 +4136,7 @@ fn destack_io_uring_features_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    UringFeaturesReplay { result }
+                    IoUringFeaturesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -4171,7 +4177,7 @@ fn destack_io_uring_open_vm_replay(
     parameters: UringParametersVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        URING_OPEN,
+        IO_URING_OPEN,
         context,
         |context| platform_vm::destack_io_uring_open(runtime, context, parameters),
         |context, result| {
@@ -4179,7 +4185,7 @@ fn destack_io_uring_open_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = UringOpenReplay {
+                let payload = IoUringOpenReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -4188,7 +4194,7 @@ fn destack_io_uring_open_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    UringOpenReplay { result }
+                    IoUringOpenReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -4220,7 +4226,7 @@ fn destack_io_uring_register_buffers_vm_replay(
     lengths: VmSlice<u32>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        URING_REGISTER_BUFFERS,
+        IO_URING_REGISTER_BUFFERS,
         context,
         |context| {
             platform_vm::destack_io_uring_register_buffers(
@@ -4231,7 +4237,7 @@ fn destack_io_uring_register_buffers_vm_replay(
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = UringRegisterBuffersReplay {
+                let payload = IoUringRegisterBuffersReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -4240,7 +4246,7 @@ fn destack_io_uring_register_buffers_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    UringRegisterBuffersReplay { result }
+                    IoUringRegisterBuffersReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -4268,14 +4274,14 @@ fn destack_io_uring_register_files_vm_replay(
     files: VmSlice<resource::ResourceId>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        URING_REGISTER_FILES,
+        IO_URING_REGISTER_FILES,
         context,
         |context| platform_vm::destack_io_uring_register_files(runtime, context, handle, files),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = UringRegisterFilesReplay {
+                let payload = IoUringRegisterFilesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -4284,7 +4290,7 @@ fn destack_io_uring_register_files_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    UringRegisterFilesReplay { result }
+                    IoUringRegisterFilesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -4311,14 +4317,14 @@ fn destack_io_uring_unregister_buffers_vm_replay(
     handle: resource::UringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        URING_UNREGISTER_BUFFERS,
+        IO_URING_UNREGISTER_BUFFERS,
         context,
         |context| platform_vm::destack_io_uring_unregister_buffers(runtime, context, handle),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = UringUnregisterBuffersReplay {
+                let payload = IoUringUnregisterBuffersReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -4327,7 +4333,7 @@ fn destack_io_uring_unregister_buffers_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    UringUnregisterBuffersReplay { result }
+                    IoUringUnregisterBuffersReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -4354,14 +4360,14 @@ fn destack_io_uring_unregister_files_vm_replay(
     handle: resource::UringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        URING_UNREGISTER_FILES,
+        IO_URING_UNREGISTER_FILES,
         context,
         |context| platform_vm::destack_io_uring_unregister_files(runtime, context, handle),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = UringUnregisterFilesReplay {
+                let payload = IoUringUnregisterFilesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -4370,7 +4376,7 @@ fn destack_io_uring_unregister_files_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    UringUnregisterFilesReplay { result }
+                    IoUringUnregisterFilesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -4396,11 +4402,11 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         binding!(
             registry,
             isolate,
-            COMPLETION_CANCEL,
+            IO_COMPLETION_CANCEL,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // policy
-                    runtime.check_policy(COMPLETION_CANCEL)?;
+                    runtime.check_policy(IO_COMPLETION_CANCEL)?;
 
                     // decode args
                     let (handle, target) = decode_destack_io_completion_cancel_args(context, args)?;
@@ -4413,67 +4419,82 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         );
     }
     {
-        binding!(registry, isolate, COMPLETION_CLOSE, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(COMPLETION_CLOSE)?;
+        binding!(
+            registry,
+            isolate,
+            IO_COMPLETION_CLOSE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(IO_COMPLETION_CLOSE)?;
 
-                // decode args
-                let (handle,) = decode_destack_io_completion_close_args(context, args)?;
+                    // decode args
+                    let (handle,) = decode_destack_io_completion_close_args(context, args)?;
 
-                // execute binding
-                destack_io_completion_close_vm_replay(runtime, context, handle)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, COMPLETION_ENTER, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(COMPLETION_ENTER)?;
-
-                // decode args
-                let (handle, mincomplete, timeoutns, flags) =
-                    decode_destack_io_completion_enter_args(context, args)?;
-
-                // execute binding
-                destack_io_completion_enter_vm_replay(
-                    runtime,
-                    context,
-                    handle,
-                    mincomplete,
-                    timeoutns,
-                    flags,
-                )
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, COMPLETION_OPEN, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(COMPLETION_OPEN)?;
-
-                // decode args
-                let (entries,) = decode_destack_io_completion_open_args(context, args)?;
-
-                // execute binding
-                destack_io_completion_open_vm_replay(runtime, context, entries)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    destack_io_completion_close_vm_replay(runtime, context, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
         binding!(
             registry,
             isolate,
-            COMPLETION_SUBMIT,
+            IO_COMPLETION_ENTER,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // policy
-                    runtime.check_policy(COMPLETION_SUBMIT)?;
+                    runtime.check_policy(IO_COMPLETION_ENTER)?;
+
+                    // decode args
+                    let (handle, mincomplete, timeoutns, flags) =
+                        decode_destack_io_completion_enter_args(context, args)?;
+
+                    // execute binding
+                    destack_io_completion_enter_vm_replay(
+                        runtime,
+                        context,
+                        handle,
+                        mincomplete,
+                        timeoutns,
+                        flags,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            IO_COMPLETION_OPEN,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(IO_COMPLETION_OPEN)?;
+
+                    // decode args
+                    let (entries,) = decode_destack_io_completion_open_args(context, args)?;
+
+                    // execute binding
+                    destack_io_completion_open_vm_replay(runtime, context, entries)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            IO_COMPLETION_SUBMIT,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(IO_COMPLETION_SUBMIT)?;
 
                     // decode args
                     let (handle, operation) =
@@ -4490,11 +4511,11 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         binding!(
             registry,
             isolate,
-            COMPLETION_SUBMIT_BATCH,
+            IO_COMPLETION_SUBMIT_BATCH,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // policy
-                    runtime.check_policy(COMPLETION_SUBMIT_BATCH)?;
+                    runtime.check_policy(IO_COMPLETION_SUBMIT_BATCH)?;
 
                     // decode args
                     let (handle, operationwords, operationcount, operationwordstride) =
@@ -4515,26 +4536,33 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         );
     }
     {
-        binding!(registry, isolate, COMPLETION_WAIT, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(COMPLETION_WAIT)?;
+        binding!(
+            registry,
+            isolate,
+            IO_COMPLETION_WAIT,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(IO_COMPLETION_WAIT)?;
 
-                // decode args
-                let (handle, timeoutns, maxevents) =
-                    decode_destack_io_completion_wait_args(context, args)?;
+                    // decode args
+                    let (handle, timeoutns, maxevents) =
+                        decode_destack_io_completion_wait_args(context, args)?;
 
-                // execute binding
-                destack_io_completion_wait_vm_replay(runtime, context, handle, timeoutns, maxevents)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    destack_io_completion_wait_vm_replay(
+                        runtime, context, handle, timeoutns, maxevents,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, EVENT_ATTACH, move |context, args| {
+        binding!(registry, isolate, IO_EVENT_ATTACH, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(EVENT_ATTACH)?;
+                runtime.check_policy(IO_EVENT_ATTACH)?;
 
                 // decode args
                 let (token, target, key) = decode_destack_io_event_attach_args(context, args)?;
@@ -4546,10 +4574,10 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         });
     }
     {
-        binding!(registry, isolate, EVENT_CLOSE, move |context, args| {
+        binding!(registry, isolate, IO_EVENT_CLOSE, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(EVENT_CLOSE)?;
+                runtime.check_policy(IO_EVENT_CLOSE)?;
 
                 // decode args
                 let (token,) = decode_destack_io_event_close_args(context, args)?;
@@ -4561,10 +4589,10 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         });
     }
     {
-        binding!(registry, isolate, EVENT_OPEN, move |context, args| {
+        binding!(registry, isolate, IO_EVENT_OPEN, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(EVENT_OPEN)?;
+                runtime.check_policy(IO_EVENT_OPEN)?;
 
                 // decode args
                 let (initial,) = decode_destack_io_event_open_args(context, args)?;
@@ -4576,10 +4604,10 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         });
     }
     {
-        binding!(registry, isolate, EVENT_SIGNAL, move |context, args| {
+        binding!(registry, isolate, IO_EVENT_SIGNAL, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(EVENT_SIGNAL)?;
+                runtime.check_policy(IO_EVENT_SIGNAL)?;
 
                 // decode args
                 let (token, value) = decode_destack_io_event_signal_args(context, args)?;
@@ -4591,10 +4619,10 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         });
     }
     {
-        binding!(registry, isolate, POLL_CLOSE, move |context, args| {
+        binding!(registry, isolate, IO_POLL_CLOSE, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(POLL_CLOSE)?;
+                runtime.check_policy(IO_POLL_CLOSE)?;
 
                 // decode args
                 let (handle,) = decode_destack_io_poll_close_args(context, args)?;
@@ -4606,25 +4634,30 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         });
     }
     {
-        binding!(registry, isolate, POLL_DEREGISTER, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(POLL_DEREGISTER)?;
+        binding!(
+            registry,
+            isolate,
+            IO_POLL_DEREGISTER,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(IO_POLL_DEREGISTER)?;
 
-                // decode args
-                let (handle, target) = decode_destack_io_poll_deregister_args(context, args)?;
+                    // decode args
+                    let (handle, target) = decode_destack_io_poll_deregister_args(context, args)?;
 
-                // execute binding
-                destack_io_poll_deregister_vm_replay(runtime, context, handle, target)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    destack_io_poll_deregister_vm_replay(runtime, context, handle, target)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, POLL_OPEN, move |context, args| {
+        binding!(registry, isolate, IO_POLL_OPEN, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(POLL_OPEN)?;
+                runtime.check_policy(IO_POLL_OPEN)?;
 
                 // decode args
                 let (backend,) = decode_destack_io_poll_open_args(context, args)?;
@@ -4636,10 +4669,10 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         });
     }
     {
-        binding!(registry, isolate, POLL_REGISTER, move |context, args| {
+        binding!(registry, isolate, IO_POLL_REGISTER, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(POLL_REGISTER)?;
+                runtime.check_policy(IO_POLL_REGISTER)?;
 
                 // decode args
                 let (handle, target, key, interest) =
@@ -4652,10 +4685,10 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         });
     }
     {
-        binding!(registry, isolate, POLL_UPDATE, move |context, args| {
+        binding!(registry, isolate, IO_POLL_UPDATE, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(POLL_UPDATE)?;
+                runtime.check_policy(IO_POLL_UPDATE)?;
 
                 // decode args
                 let (handle, target, key, interest) =
@@ -4668,10 +4701,10 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         });
     }
     {
-        binding!(registry, isolate, POLL_WAIT, move |context, args| {
+        binding!(registry, isolate, IO_POLL_WAIT, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(POLL_WAIT)?;
+                runtime.check_policy(IO_POLL_WAIT)?;
 
                 // decode args
                 let (handle, timeoutns, maxevents) =
@@ -4684,10 +4717,10 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         });
     }
     {
-        binding!(registry, isolate, URING_CLOSE, move |context, args| {
+        binding!(registry, isolate, IO_URING_CLOSE, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(URING_CLOSE)?;
+                runtime.check_policy(IO_URING_CLOSE)?;
 
                 // decode args
                 let (handle,) = decode_destack_io_uring_close_args(context, args)?;
@@ -4699,25 +4732,30 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         });
     }
     {
-        binding!(registry, isolate, URING_FEATURES, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(URING_FEATURES)?;
+        binding!(
+            registry,
+            isolate,
+            IO_URING_FEATURES,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(IO_URING_FEATURES)?;
 
-                // decode args
-                let (handle,) = decode_destack_io_uring_features_args(context, args)?;
+                    // decode args
+                    let (handle,) = decode_destack_io_uring_features_args(context, args)?;
 
-                // execute binding
-                destack_io_uring_features_vm_replay(runtime, context, handle)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    destack_io_uring_features_vm_replay(runtime, context, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, URING_OPEN, move |context, args| {
+        binding!(registry, isolate, IO_URING_OPEN, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(URING_OPEN)?;
+                runtime.check_policy(IO_URING_OPEN)?;
 
                 // decode args
                 let (parameters,) = decode_destack_io_uring_open_args(context, args)?;
@@ -4732,11 +4770,11 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         binding!(
             registry,
             isolate,
-            URING_REGISTER_BUFFERS,
+            IO_URING_REGISTER_BUFFERS,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // policy
-                    runtime.check_policy(URING_REGISTER_BUFFERS)?;
+                    runtime.check_policy(IO_URING_REGISTER_BUFFERS)?;
 
                     // decode args
                     let (handle, addresses, lengths) =
@@ -4755,11 +4793,11 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         binding!(
             registry,
             isolate,
-            URING_REGISTER_FILES,
+            IO_URING_REGISTER_FILES,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // policy
-                    runtime.check_policy(URING_REGISTER_FILES)?;
+                    runtime.check_policy(IO_URING_REGISTER_FILES)?;
 
                     // decode args
                     let (handle, files) =
@@ -4776,11 +4814,11 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         binding!(
             registry,
             isolate,
-            URING_UNREGISTER_BUFFERS,
+            IO_URING_UNREGISTER_BUFFERS,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // policy
-                    runtime.check_policy(URING_UNREGISTER_BUFFERS)?;
+                    runtime.check_policy(IO_URING_UNREGISTER_BUFFERS)?;
 
                     // decode args
                     let (handle,) = decode_destack_io_uring_unregister_buffers_args(context, args)?;
@@ -4796,11 +4834,11 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         binding!(
             registry,
             isolate,
-            URING_UNREGISTER_FILES,
+            IO_URING_UNREGISTER_FILES,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // policy
-                    runtime.check_policy(URING_UNREGISTER_FILES)?;
+                    runtime.check_policy(IO_URING_UNREGISTER_FILES)?;
 
                     // decode args
                     let (handle,) = decode_destack_io_uring_unregister_files_args(context, args)?;

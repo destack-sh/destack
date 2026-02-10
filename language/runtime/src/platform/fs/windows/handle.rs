@@ -304,7 +304,7 @@ pub(crate) unsafe fn destack_fs_ftruncate(
 ) -> RuntimeResult<()> {
     // resolve the file handle and set the file pointer
     let handle = file_handle(_context, handle)?;
-    let distance = size.0 as i64;
+    let distance = size.0;
     let rc = unsafe { SetFilePointerEx(handle, distance, std::ptr::null_mut(), FILE_BEGIN) };
     if rc == 0 {
         return Err(last_os_error("SetFilePointerEx", None));
@@ -334,7 +334,7 @@ pub(crate) unsafe fn destack_fs_seek(
 
     // resolve the file handle
     let handle = file_handle(_context, handle)?;
-    let distance = offset.0 as i64;
+    let distance = offset.0;
     let whence = match whence {
         SeekWhence::Set => FILE_BEGIN,
         SeekWhence::Cur => FILE_CURRENT,
@@ -349,7 +349,7 @@ pub(crate) unsafe fn destack_fs_seek(
     }
 
     unsafe {
-        *out = FileOffset(new_position as u64);
+        *out = FileOffset(new_position);
     }
 
     Ok(())

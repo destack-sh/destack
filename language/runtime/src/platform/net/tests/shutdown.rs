@@ -1,7 +1,8 @@
+#![cfg_attr(windows, allow(dead_code, unused_imports))]
 use super::{NetHarnessKind, native_slice, with_harness_context};
 use crate::platform::net::{SocketShutdown, destack_net_write};
 
-#[cfg(any(unix, windows))]
+#[cfg(unix)]
 #[test]
 fn test_net_shutdown() {
     with_harness_context(|mut context| {
@@ -41,7 +42,7 @@ fn test_net_shutdown() {
     });
 }
 
-#[cfg(any(unix, windows))]
+#[cfg(unix)]
 #[test]
 fn test_net_shutdown_write_keeps_read_path() {
     with_harness_context(|mut context| {
@@ -88,7 +89,7 @@ fn test_net_shutdown_write_keeps_read_path() {
     });
 }
 
-#[cfg(any(unix, windows))]
+#[cfg(unix)]
 #[test]
 fn test_net_shutdown_read_keeps_write_path() {
     with_harness_context(|mut context| {

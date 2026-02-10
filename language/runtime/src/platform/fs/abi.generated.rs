@@ -154,18 +154,18 @@ impl VmValueCodec for FileMode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FileOffset(
     /// Inner value.
-    pub u64,
+    pub i64,
 );
 
 pub type FileOffsetVm = FileOffset;
 
 impl VmValueCodec for FileOffset {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        Ok(Self(<u64 as VmValueCodec>::decode(value)?))
+        Ok(Self(<i64 as VmValueCodec>::decode(value)?))
     }
 
     fn encode(self) -> vm::Value {
-        <u64 as VmValueCodec>::encode(self.0)
+        <i64 as VmValueCodec>::encode(self.0)
     }
 }
 
@@ -319,17 +319,6 @@ pub struct PathBytesAbi<A: BindingAbi>(
 
 pub type PathBytes = PathBytesAbi<NativeAbi>;
 pub type PathBytesVm = PathBytesAbi<VmAbi>;
-
-/// ABI newtype for PathUtf16.
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct PathUtf16Abi<A: BindingAbi>(
-    /// Inner value.
-    pub A::Array<u16>,
-);
-
-pub type PathUtf16 = PathUtf16Abi<NativeAbi>;
-pub type PathUtf16Vm = PathUtf16Abi<VmAbi>;
 
 /// ABI newtype for RenameFlags.
 #[repr(transparent)]
@@ -759,10 +748,8 @@ pub type OpenOptionsVm = OpenOptions;
 pub struct OsPathAbi<A: BindingAbi> {
     /// The encoding field.
     pub encoding: PathEncoding,
-    /// The bytes field.
-    pub bytes: PathBytesAbi<A>,
-    /// The utf16 field.
-    pub utf16: PathUtf16Abi<A>,
+    /// The data field.
+    pub data: PathBytesAbi<A>,
 }
 
 pub type OsPath = OsPathAbi<NativeAbi>;
@@ -1002,10 +989,8 @@ pub struct DirentNextReplay {
 pub struct OsPathReplay {
     /// The encoding field.
     pub encoding: PathEncoding,
-    /// The bytes field.
-    pub bytes: Vec<u8>,
-    /// The utf16 field.
-    pub utf16: Vec<u16>,
+    /// The data field.
+    pub data: Vec<u8>,
 }
 
 /// Replay struct for WatchBatch.

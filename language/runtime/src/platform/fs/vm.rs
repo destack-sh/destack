@@ -9,9 +9,8 @@ use crate::platform::fs::{
     DirentVm, FdFlags, FileAdvice, FileHandle, FileLockFlags, FileMode, FileOffset, FileSize,
     MmapAdvice, MmapFlags, MmapProt, MmapSyncFlags, NodeDevice, OpenFlags, OpenOptions,
     OpenOptionsVm, OsPath, OsPathVm, PathBytes, PathBytesAbi, PathBytesVm, PathEncoding, PathUtf16,
-    PathUtf16Abi, PathUtf16Vm, ReadWriteFlags, RenameFlags, SeekWhence, SpliceCursorVm,
-    SpliceFlags, Stat, StatFs, StatusFlags, Statx, StatxFlags, StatxMask, SymlinkType, SyncFlags,
-    WatchBatchVm, WatchOptionsVm, XattrFlags,
+    PathUtf16Abi, PathUtf16Vm, RenameFlags, SeekWhence, Stat, StatFs, StatusFlags, Statx,
+    StatxFlags, StatxMask, SymlinkType, SyncFlags, WatchBatchVm, WatchOptionsVm, XattrFlags,
 };
 use crate::platform::resource::{PipeHandle, ResourceId, SocketHandle};
 use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError, VmArray, VmSlice};
@@ -375,7 +374,7 @@ pub fn destack_fs_preadv2(
     handle: FileHandle,
     buffers: VmSlice<VmSlice<u8>>,
     offset: FileOffset,
-    flags: ReadWriteFlags,
+    flags: u32,
 ) -> RuntimeResult<u64> {
     // NOTE #Incomplete: honor read flags in vm mode
     let _ = flags;
@@ -415,7 +414,7 @@ pub fn destack_fs_pwritev2(
     handle: FileHandle,
     buffers: VmSlice<VmSlice<u8>>,
     offset: FileOffset,
-    flags: ReadWriteFlags,
+    flags: u32,
 ) -> RuntimeResult<u64> {
     // NOTE #Incomplete: honor write flags in vm mode
     let _ = flags;
@@ -957,11 +956,11 @@ pub fn destack_fs_splice(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     source: ResourceId,
-    sourcecursor: SpliceCursorVm,
+    sourcecursor: i64,
     target: ResourceId,
-    targetcursor: SpliceCursorVm,
+    targetcursor: i64,
     length: FileSize,
-    flags: SpliceFlags,
+    flags: u32,
 ) -> RuntimeResult<u64> {
     // NOTE #Incomplete: implement vm splice support
     let _ = (source, sourcecursor, target, targetcursor, length, flags);
@@ -975,7 +974,7 @@ pub fn destack_fs_tee(
     sourcepipe: PipeHandle,
     targetpipe: PipeHandle,
     length: FileSize,
-    flags: SpliceFlags,
+    flags: u32,
 ) -> RuntimeResult<u64> {
     // NOTE #Incomplete: implement vm tee support
     let _ = (sourcepipe, targetpipe, length, flags);
@@ -988,7 +987,7 @@ pub fn destack_fs_vmsplice(
     _context: &mut vm::RuntimeContext<'_>,
     pipe: PipeHandle,
     buffers: VmSlice<VmSlice<u8>>,
-    flags: SpliceFlags,
+    flags: u32,
 ) -> RuntimeResult<u64> {
     // NOTE #Incomplete: implement vm vmsplice support
     let _ = (pipe, buffers, flags);
@@ -1057,16 +1056,15 @@ pub fn destack_fs_getxattr(
 
 /// Read an extended attribute by byte path.
 pub fn destack_fs_getxattr_bytes(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
-    path: PathBytesVm,
-    name: vm::StringHandle,
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    _path: OsPathVm,
+    _name: VmSlice<u8>,
 ) -> RuntimeResult<VmArray<u8>> {
-    let path = path_bytes_from_vm(runtime, context, path)?;
-    let name = string_ref_from_vm(runtime, context, name)?;
-    let values =
-        call_out(|out| unsafe { os_fs::destack_fs_getxattr_bytes(runtime, out, path, name) })?;
-    array_u8_to_vm(context, values)
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.xattr.getxattrBytes",
+    ))
+    .boxed())
 }
 
 /// Read an extended attribute without following symlinks.
@@ -1085,16 +1083,15 @@ pub fn destack_fs_lgetxattr(
 
 /// Read an extended attribute by byte path without following symlinks.
 pub fn destack_fs_lgetxattr_bytes(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
-    path: PathBytesVm,
-    name: vm::StringHandle,
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    _path: OsPathVm,
+    _name: VmSlice<u8>,
 ) -> RuntimeResult<VmArray<u8>> {
-    let path = path_bytes_from_vm(runtime, context, path)?;
-    let name = string_ref_from_vm(runtime, context, name)?;
-    let values =
-        call_out(|out| unsafe { os_fs::destack_fs_lgetxattr_bytes(runtime, out, path, name) })?;
-    array_u8_to_vm(context, values)
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.xattr.lgetxattrBytes",
+    ))
+    .boxed())
 }
 
 /// Read an extended attribute by handle.
@@ -1108,6 +1105,19 @@ pub fn destack_fs_fgetxattr(
     let values =
         call_out(|out| unsafe { core_fs::destack_fs_fgetxattr(runtime, out, handle, name) })?;
     array_u8_to_vm(context, values)
+}
+
+/// Read an extended attribute by handle with byte-path naming.
+pub fn destack_fs_fgetxattr_bytes(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    _handle: FileHandle,
+    _name: VmSlice<u8>,
+) -> RuntimeResult<VmArray<u8>> {
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.xattr.fgetxattrBytes",
+    ))
+    .boxed())
 }
 
 /// Set an extended attribute by path.
@@ -1127,17 +1137,17 @@ pub fn destack_fs_setxattr(
 
 /// Set an extended attribute by byte path.
 pub fn destack_fs_setxattr_bytes(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
-    path: PathBytesVm,
-    name: vm::StringHandle,
-    value: VmSlice<u8>,
-    flags: XattrFlags,
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    _path: OsPathVm,
+    _name: VmSlice<u8>,
+    _value: VmSlice<u8>,
+    _flags: XattrFlags,
 ) -> RuntimeResult<()> {
-    let path = path_bytes_from_vm(runtime, context, path)?;
-    let name = string_ref_from_vm(runtime, context, name)?;
-    let value = buffer_from_vm(runtime, context, value)?;
-    unsafe { os_fs::destack_fs_setxattr_bytes(runtime, path, name, value, flags) }
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.xattr.setxattrBytes",
+    ))
+    .boxed())
 }
 
 /// Set an extended attribute without following symlinks.
@@ -1157,17 +1167,17 @@ pub fn destack_fs_lsetxattr(
 
 /// Set an extended attribute by byte path without following symlinks.
 pub fn destack_fs_lsetxattr_bytes(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
-    path: PathBytesVm,
-    name: vm::StringHandle,
-    value: VmSlice<u8>,
-    flags: XattrFlags,
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    _path: OsPathVm,
+    _name: VmSlice<u8>,
+    _value: VmSlice<u8>,
+    _flags: XattrFlags,
 ) -> RuntimeResult<()> {
-    let path = path_bytes_from_vm(runtime, context, path)?;
-    let name = string_ref_from_vm(runtime, context, name)?;
-    let value = buffer_from_vm(runtime, context, value)?;
-    unsafe { os_fs::destack_fs_lsetxattr_bytes(runtime, path, name, value, flags) }
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.xattr.lsetxattrBytes",
+    ))
+    .boxed())
 }
 
 /// Set an extended attribute by handle.
@@ -1184,6 +1194,21 @@ pub fn destack_fs_fsetxattr(
     unsafe { core_fs::destack_fs_fsetxattr(runtime, handle, name, value, flags) }
 }
 
+/// Set an extended attribute by handle with byte-path naming.
+pub fn destack_fs_fsetxattr_bytes(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    _handle: FileHandle,
+    _name: VmSlice<u8>,
+    _value: VmSlice<u8>,
+    _flags: XattrFlags,
+) -> RuntimeResult<()> {
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.xattr.fsetxattrBytes",
+    ))
+    .boxed())
+}
+
 /// List extended attribute names by path.
 pub fn destack_fs_listxattr(
     runtime: &RuntimeCallContext,
@@ -1197,13 +1222,14 @@ pub fn destack_fs_listxattr(
 
 /// List extended attribute names by byte path.
 pub fn destack_fs_listxattr_bytes(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
-    path: PathBytesVm,
-) -> RuntimeResult<VmArray<vm::StringHandle>> {
-    let path = path_bytes_from_vm(runtime, context, path)?;
-    let names = call_out(|out| unsafe { os_fs::destack_fs_listxattr_bytes(runtime, out, path) })?;
-    string_array_to_vm(context, names)
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    _path: OsPathVm,
+) -> RuntimeResult<VmArray<VmArray<u8>>> {
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.xattr.listxattrBytes",
+    ))
+    .boxed())
 }
 
 /// List extended attribute names without following symlinks.
@@ -1219,13 +1245,14 @@ pub fn destack_fs_llistxattr(
 
 /// List extended attribute names by byte path without following symlinks.
 pub fn destack_fs_llistxattr_bytes(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
-    path: PathBytesVm,
-) -> RuntimeResult<VmArray<vm::StringHandle>> {
-    let path = path_bytes_from_vm(runtime, context, path)?;
-    let names = call_out(|out| unsafe { os_fs::destack_fs_llistxattr_bytes(runtime, out, path) })?;
-    string_array_to_vm(context, names)
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    _path: OsPathVm,
+) -> RuntimeResult<VmArray<VmArray<u8>>> {
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.xattr.llistxattrBytes",
+    ))
+    .boxed())
 }
 
 /// List extended attribute names by handle.
@@ -1236,6 +1263,18 @@ pub fn destack_fs_flistxattr(
 ) -> RuntimeResult<VmArray<vm::StringHandle>> {
     let names = call_out(|out| unsafe { core_fs::destack_fs_flistxattr(runtime, out, handle) })?;
     string_array_to_vm(context, names)
+}
+
+/// List extended attribute names by handle with byte-path naming.
+pub fn destack_fs_flistxattr_bytes(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    _handle: FileHandle,
+) -> RuntimeResult<VmArray<VmArray<u8>>> {
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.xattr.flistxattrBytes",
+    ))
+    .boxed())
 }
 
 /// Remove an extended attribute by path.
@@ -1252,14 +1291,15 @@ pub fn destack_fs_removexattr(
 
 /// Remove an extended attribute by byte path.
 pub fn destack_fs_removexattr_bytes(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
-    path: PathBytesVm,
-    name: vm::StringHandle,
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    _path: OsPathVm,
+    _name: VmSlice<u8>,
 ) -> RuntimeResult<()> {
-    let path = path_bytes_from_vm(runtime, context, path)?;
-    let name = string_ref_from_vm(runtime, context, name)?;
-    unsafe { os_fs::destack_fs_removexattr_bytes(runtime, path, name) }
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.xattr.removexattrBytes",
+    ))
+    .boxed())
 }
 
 /// Remove an extended attribute without following symlinks.
@@ -1276,14 +1316,15 @@ pub fn destack_fs_lremovexattr(
 
 /// Remove an extended attribute by byte path without following symlinks.
 pub fn destack_fs_lremovexattr_bytes(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
-    path: PathBytesVm,
-    name: vm::StringHandle,
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    _path: OsPathVm,
+    _name: VmSlice<u8>,
 ) -> RuntimeResult<()> {
-    let path = path_bytes_from_vm(runtime, context, path)?;
-    let name = string_ref_from_vm(runtime, context, name)?;
-    unsafe { os_fs::destack_fs_lremovexattr_bytes(runtime, path, name) }
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.xattr.lremovexattrBytes",
+    ))
+    .boxed())
 }
 
 /// Remove an extended attribute by handle.
@@ -1295,6 +1336,19 @@ pub fn destack_fs_fremovexattr(
 ) -> RuntimeResult<()> {
     let name = string_ref_from_vm(runtime, context, name)?;
     unsafe { core_fs::destack_fs_fremovexattr(runtime, handle, name) }
+}
+
+/// Remove an extended attribute by handle with byte-path naming.
+pub fn destack_fs_fremovexattr_bytes(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    _handle: FileHandle,
+    _name: VmSlice<u8>,
+) -> RuntimeResult<()> {
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.xattr.fremovexattrBytes",
+    ))
+    .boxed())
 }
 
 /// Create a file-backed memory mapping.
@@ -1391,11 +1445,11 @@ fn path_ref_from_vm(
 ) -> RuntimeResult<OsPath> {
     match path.encoding {
         PathEncoding::Bytes => {
-            let bytes = path_bytes_from_vm(runtime, context, path.bytes)?;
+            let bytes = path_bytes_from_vm(runtime, context, path.data)?;
             Ok(core_fs::path_ref_from_bytes(bytes))
         }
         PathEncoding::Utf16 => {
-            let utf16 = path_utf16_from_vm(runtime, context, path.utf16)?;
+            let utf16 = path_utf16_from_vm(runtime, context, path.data)?;
             Ok(core_fs::path_ref_from_utf16(utf16))
         }
     }
@@ -1422,23 +1476,17 @@ fn path_utf16_to_vm(
 fn path_ref_to_vm(context: &mut vm::RuntimeContext<'_>, path: OsPath) -> RuntimeResult<OsPathVm> {
     match path.encoding {
         PathEncoding::Bytes => {
-            let bytes = path_bytes_to_vm(context, path.bytes)?;
-            let utf16_inner = VmArray::from_values(context, &[])?;
-            let utf16 = PathUtf16Abi::<VmAbi>(utf16_inner);
+            let data = path_bytes_to_vm(context, path.data)?;
             Ok(OsPathVm {
                 encoding: PathEncoding::Bytes,
-                bytes,
-                utf16,
+                data,
             })
         }
         PathEncoding::Utf16 => {
-            let utf16 = path_utf16_to_vm(context, path.utf16)?;
-            let bytes_inner = VmArray::from_bytes(context, &[]);
-            let bytes = PathBytesAbi::<VmAbi>(bytes_inner);
+            let data = path_utf16_to_vm(context, path.data)?;
             Ok(OsPathVm {
                 encoding: PathEncoding::Utf16,
-                bytes,
-                utf16,
+                data,
             })
         }
     }
@@ -1620,11 +1668,9 @@ fn dirent_next_to_vm(
 }
 
 fn path_ref_vm_to_value(context: &mut vm::RuntimeContext<'_>, value: OsPathVm) -> vm::Value {
-    let bytes_value = value.bytes.0.to_value(context);
-    let utf16_value = value.utf16.0.to_value(context);
+    let data_value = value.data.0.to_value(context);
     context.allocate_aggregate(vec![
         vm::Value::uint(value.encoding as u8 as u64, 8),
-        bytes_value,
-        utf16_value,
+        data_value,
     ])
 }

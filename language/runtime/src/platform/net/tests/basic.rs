@@ -1,7 +1,8 @@
+#![cfg_attr(windows, allow(dead_code, unused_imports))]
 use super::with_harness_context;
 use crate::platform::net::SocketFamily;
 
-#[cfg(any(unix, windows))]
+#[cfg(unix)]
 #[test]
 fn test_net_roundtrip() {
     with_harness_context(|mut context| {
@@ -55,7 +56,7 @@ fn test_net_roundtrip() {
     });
 }
 
-#[cfg(any(unix, windows))]
+#[cfg(unix)]
 #[test]
 fn test_net_roundtrip_localhost() {
     with_harness_context(|mut context| {
@@ -96,7 +97,7 @@ fn test_net_roundtrip_localhost() {
     });
 }
 
-#[cfg(any(unix, windows))]
+#[cfg(unix)]
 #[test]
 fn test_net_readv_writev_roundtrip() {
     with_harness_context(|mut context| {

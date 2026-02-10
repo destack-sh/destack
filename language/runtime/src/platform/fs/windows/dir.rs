@@ -11,10 +11,8 @@ use windows_sys::Win32::Storage::FileSystem::{
 
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::abi::NativeAbi;
 use crate::platform::fs::{
-    DirectoryHandle, Dirent, DirentKind, FileMode, PathBytes, PathUtf16, PathUtf16Abi,
-    core as core_fs,
+    DirectoryHandle, Dirent, DirentKind, FileMode, PathBytes, PathUtf16, core as core_fs,
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::{NativeArray, PlatformError, core as core_platform};
@@ -163,8 +161,7 @@ pub(crate) unsafe fn destack_fs_readdir(
             } else {
                 DirentKind::File
             };
-            let name =
-                PathUtf16Abi::<NativeAbi>(context.store_array(data.cFileName[..name_len].to_vec()));
+            let name = path_utf16_from_units(context, &data.cFileName[..name_len]);
             entries.push(Dirent {
                 name: core_fs::path_ref_from_utf16(name),
                 kind,

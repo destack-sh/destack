@@ -60,7 +60,7 @@ fn decode_uint64(
 
 /// Decode arguments for destack.error.error.takePlatformError.
 #[inline]
-fn decode_destack_error_take_platform_error_args(
+fn decode_destack_error_error_take_platform_error_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64,)> {
@@ -74,7 +74,7 @@ fn decode_destack_error_take_platform_error_args(
 
 /// Encode the result for destack.error.error.takePlatformError.
 #[inline]
-fn encode_destack_error_take_platform_error_result(
+fn encode_destack_error_error_take_platform_error_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<PlatformErrorVm>,
 ) -> RuntimeResult<vm::Value> {
@@ -133,7 +133,7 @@ fn encode_destack_error_take_platform_error_result(
 }
 
 /// Binding descriptor for destack.error.error.takePlatformError.
-pub const TAKE_PLATFORM_ERROR: BindingDescriptor =
+pub const ERROR_ERROR_TAKE_PLATFORM_ERROR: BindingDescriptor =
     BindingDescriptor::deterministic_with_requires_and_behavior(
         "destack.error.error.takePlatformError",
         "export function takePlatformError(errorId: uint64): Result<PlatformError, PlatformError>",
@@ -143,26 +143,26 @@ pub const TAKE_PLATFORM_ERROR: BindingDescriptor =
     );
 
 /// Binding descriptors for error.
-pub const BINDINGS: &[BindingDescriptor] = &[TAKE_PLATFORM_ERROR];
+pub const BINDINGS: &[BindingDescriptor] = &[ERROR_ERROR_TAKE_PLATFORM_ERROR];
 
 /// Native binding set for error.
 pub const ERROR_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "error",
     bindings: &[NativeBinding::new(
-        TAKE_PLATFORM_ERROR,
+        ERROR_ERROR_TAKE_PLATFORM_ERROR,
         "destack.error.error.takePlatformError",
-        destack_error_take_platform_error as *const (),
+        destack_error_error_take_platform_error as *const (),
     )],
 };
 
 /// Native export wrappers for error bindings.
 #[unsafe(export_name = "destack.error.error.takePlatformError")]
-pub unsafe extern "C" fn destack_error_take_platform_error(
+pub unsafe extern "C" fn destack_error_error_take_platform_error(
     out: *mut crate::platform::error::PlatformError,
     errorid: u64,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(TAKE_PLATFORM_ERROR)?;
+        context.check_policy(ERROR_ERROR_TAKE_PLATFORM_ERROR)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
@@ -178,19 +178,20 @@ pub fn register_error_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
         binding!(
             registry,
             isolate,
-            TAKE_PLATFORM_ERROR,
+            ERROR_ERROR_TAKE_PLATFORM_ERROR,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // policy
-                    runtime.check_policy(TAKE_PLATFORM_ERROR)?;
+                    runtime.check_policy(ERROR_ERROR_TAKE_PLATFORM_ERROR)?;
 
                     // decode args
-                    let (errorid,) = decode_destack_error_take_platform_error_args(context, args)?;
+                    let (errorid,) =
+                        decode_destack_error_error_take_platform_error_args(context, args)?;
 
                     // execute binding
                     let result =
                         platform_vm::destack_error_take_platform_error(runtime, context, errorid);
-                    encode_destack_error_take_platform_error_result(context, result)
+                    encode_destack_error_error_take_platform_error_result(context, result)
                 })
                 .map_err(Into::into)
             }

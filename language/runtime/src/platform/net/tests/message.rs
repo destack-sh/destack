@@ -1,6 +1,6 @@
-use super::with_harness_context;
+use super::{allow_not_supported, with_harness_context};
 
-#[cfg(any(unix, windows))]
+#[cfg(unix)]
 #[test]
 fn test_net_raw_address_roundtrip() {
     with_harness_context(|mut context| {
@@ -39,31 +39,33 @@ fn test_net_raw_address_roundtrip() {
 #[test]
 fn test_net_mmsg_roundtrip() {
     with_harness_context(|mut context| {
-        // set up a connected pair
-        let listener = context.listen("127.0.0.1", 0, 128)?;
-        let port = context.listener_port(listener);
-        let client = context.connect("127.0.0.1", port)?;
-        let server = context.accept(listener)?;
+        allow_not_supported((|| {
+            // set up a connected pair
+            let listener = context.listen("127.0.0.1", 0, 128)?;
+            let port = context.listener_port(listener);
+            let client = context.connect("127.0.0.1", port)?;
+            let server = context.accept(listener)?;
 
-        // send two fixed-size chunks
-        let first = b"ping".as_slice();
-        let second = b"pong".as_slice();
-        let sent = context.send_mmsg(client, &[first, second], 0)?;
-        assert_eq!(sent, 2);
+            // send two fixed-size chunks
+            let first = b"ping".as_slice();
+            let second = b"pong".as_slice();
+            let sent = context.send_mmsg(client, &[first, second], 0)?;
+            assert_eq!(sent, 2);
 
-        // receive both chunks into fixed-size buffers
-        let mut receive_buffers = vec![vec![0u8; 4], vec![0u8; 4]];
-        let counts = context.recv_mmsg(server, &mut receive_buffers, 0)?;
-        assert_eq!(counts, vec![4, 4]);
-        assert_eq!(&receive_buffers[0], b"ping");
-        assert_eq!(&receive_buffers[1], b"pong");
+            // receive both chunks into fixed-size buffers
+            let mut receive_buffers = vec![vec![0u8; 4], vec![0u8; 4]];
+            let counts = context.recv_mmsg(server, &mut receive_buffers, 0)?;
+            assert_eq!(counts, vec![4, 4]);
+            assert_eq!(&receive_buffers[0], b"ping");
+            assert_eq!(&receive_buffers[1], b"pong");
 
-        // close resources
-        context.close(server)?;
-        context.close(client)?;
-        context.close_listener(listener)?;
+            // close resources
+            context.close(server)?;
+            context.close(client)?;
+            context.close_listener(listener)?;
 
-        Ok(())
+            Ok(())
+        })())
     });
 }
 
@@ -71,34 +73,36 @@ fn test_net_mmsg_roundtrip() {
 #[test]
 fn test_net_sendmsg_recvmsg_roundtrip() {
     with_harness_context(|mut context| {
-        // set up a connected pair
-        let listener = context.listen("127.0.0.1", 0, 128)?;
-        let port = context.listener_port(listener);
-        let client = context.connect("127.0.0.1", port)?;
-        let server = context.accept(listener)?;
+        allow_not_supported((|| {
+            // set up a connected pair
+            let listener = context.listen("127.0.0.1", 0, 128)?;
+            let port = context.listener_port(listener);
+            let client = context.connect("127.0.0.1", port)?;
+            let server = context.accept(listener)?;
 
-        // send payload bytes with sendmsg
-        let sent = context.send_msg(client, b"hello")?;
-        assert_eq!(sent, 5);
+            // send payload bytes with sendmsg
+            let sent = context.send_msg(client, b"hello")?;
+            assert_eq!(sent, 5);
 
-        // receive payload bytes with recvmsg
-        let mut buffer = vec![0u8; 16];
-        let (bytes, fds, has_credentials, recv_flags, payload_truncated, control_truncated) =
-            context.recv_msg(server, &mut buffer, 0, false)?;
-        buffer.truncate(bytes as usize);
-        assert_eq!(buffer, b"hello");
-        assert_eq!(fds, 0);
-        assert!(!has_credentials);
-        assert_eq!(recv_flags, 0);
-        assert!(!payload_truncated);
-        assert!(!control_truncated);
+            // receive payload bytes with recvmsg
+            let mut buffer = vec![0u8; 16];
+            let (bytes, fds, has_credentials, recv_flags, payload_truncated, control_truncated) =
+                context.recv_msg(server, &mut buffer, 0, false)?;
+            buffer.truncate(bytes as usize);
+            assert_eq!(buffer, b"hello");
+            assert_eq!(fds, 0);
+            assert!(!has_credentials);
+            assert_eq!(recv_flags, 0);
+            assert!(!payload_truncated);
+            assert!(!control_truncated);
 
-        // close resources
-        context.close(server)?;
-        context.close(client)?;
-        context.close_listener(listener)?;
+            // close resources
+            context.close(server)?;
+            context.close(client)?;
+            context.close_listener(listener)?;
 
-        Ok(())
+            Ok(())
+        })())
     });
 }
 
@@ -106,31 +110,33 @@ fn test_net_sendmsg_recvmsg_roundtrip() {
 #[test]
 fn test_net_recvmsg_rejects_ancillary_requests() {
     with_harness_context(|mut context| {
-        // set up a connected pair
-        let listener = context.listen("127.0.0.1", 0, 128)?;
-        let port = context.listener_port(listener);
-        let client = context.connect("127.0.0.1", port)?;
-        let server = context.accept(listener)?;
+        allow_not_supported((|| {
+            // set up a connected pair
+            let listener = context.listen("127.0.0.1", 0, 128)?;
+            let port = context.listener_port(listener);
+            let client = context.connect("127.0.0.1", port)?;
+            let server = context.accept(listener)?;
 
-        // send payload bytes first so recvmsg does not block
-        let sent = context.send_msg(client, b"hello")?;
-        assert_eq!(sent, 5);
+            // send payload bytes first so recvmsg does not block
+            let sent = context.send_msg(client, b"hello")?;
+            assert_eq!(sent, 5);
 
-        // reject descriptor capture on windows
-        let mut buffer = vec![0u8; 16];
-        let result = context.recv_msg(server, &mut buffer, 1, false);
-        assert!(result.is_err());
+            // reject descriptor capture on windows
+            let mut buffer = vec![0u8; 16];
+            let result = context.recv_msg(server, &mut buffer, 1, false);
+            assert!(result.is_err());
 
-        // close resources
-        context.close(server)?;
-        context.close(client)?;
-        context.close_listener(listener)?;
+            // close resources
+            context.close(server)?;
+            context.close(client)?;
+            context.close_listener(listener)?;
 
-        Ok(())
+            Ok(())
+        })())
     });
 }
 
-#[cfg(windows)]
+#[cfg(unix)]
 #[test]
 fn test_net_sendmsg_rejects_credential_requests() {
     with_harness_context(|mut context| {

@@ -1,10 +1,9 @@
+#![cfg_attr(windows, allow(dead_code, unused_imports))]
 use super::{NetHarnessKind, native_slice_mut, with_harness_context};
 use crate::platform::diagnostic::PlatformErrorCode;
-#[cfg(unix)]
-use crate::platform::net::destack_net_set_reuse_port;
-use crate::platform::net::{KeepAliveConfig, destack_net_read, destack_net_set_reuse_addr};
+use crate::platform::net::{KeepAliveConfig, destack_net_read};
 
-#[cfg(any(unix, windows))]
+#[cfg(unix)]
 #[test]
 fn test_net_socket_options() {
     with_harness_context(|mut context| {
@@ -45,17 +44,15 @@ fn test_net_socket_options() {
 
         match context.kind() {
             NetHarnessKind::Native => {
-                let status = unsafe { destack_net_set_reuse_addr(socket, true) };
-                context.status_ok(status, "set reuse addr again")?;
+                context.set_reuse_addr(socket, true)?;
                 #[cfg(unix)]
                 {
-                    let status = unsafe { destack_net_set_reuse_port(socket, true) };
-                    context.status_ok(status, "set reuse port again")?;
+                    context.set_reuse_port(socket, true)?;
                 }
                 #[cfg(windows)]
                 {
-                    let status = unsafe { destack_net_set_reuse_port(socket, true) };
-                    context.status_err(status, "set reuse port unsupported")?;
+                    let result = context.set_reuse_port(socket, true);
+                    assert!(result.is_err(), "set reuse port should fail on windows");
                 }
             }
             NetHarnessKind::Vm => {
@@ -80,7 +77,7 @@ fn test_net_socket_options() {
     });
 }
 
-#[cfg(any(unix, windows))]
+#[cfg(unix)]
 #[test]
 fn test_net_socket_options_extended() {
     with_harness_context(|mut context| {

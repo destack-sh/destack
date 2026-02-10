@@ -1,8 +1,7 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::io::{
-    CompletionEventVm, CompletionOperationVm, DescriptorControlCommand, DescriptorControlFlags,
-    DescriptorRequestVm, DescriptorResultVm, EventFdFlags, EventToken, PollBackend, PollEventVm,
-    PollInterest, UringFeaturesVm, UringParametersVm,
+    CompletionEventVm, CompletionOperationVm, EventToken, PollBackend, PollEventVm, PollInterest,
+    UringFeaturesVm, UringParametersVm,
 };
 use crate::platform::{PlatformError, VmArray, VmSlice, resource};
 use crate::runtime::RuntimeCallContext;
@@ -109,36 +108,6 @@ pub(super) fn destack_io_completion_wait(
     .boxed())
 }
 
-/// Stub for destack.io.control.fcntl.
-pub(super) fn destack_io_control_fcntl(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
-    handle: resource::ResourceId,
-    command: DescriptorControlCommand,
-    argument: u64,
-    flags: DescriptorControlFlags,
-) -> RuntimeResult<i64> {
-    let _ = (handle, command, argument, flags);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.control.fcntl is not available in the VM yet",
-    ))
-    .boxed())
-}
-
-/// Stub for destack.io.control.ioctl.
-pub(super) fn destack_io_control_ioctl(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
-    handle: resource::ResourceId,
-    request: DescriptorRequestVm,
-) -> RuntimeResult<DescriptorResultVm> {
-    let _ = (handle, request);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.control.ioctl is not available in the VM yet",
-    ))
-    .boxed())
-}
-
 /// Stub for destack.io.event.attach.
 pub(super) fn destack_io_event_attach(
     _runtime: &RuntimeCallContext,
@@ -167,73 +136,6 @@ pub(super) fn destack_io_event_close(
     .boxed())
 }
 
-/// Stub for destack.io.event.fdClose.
-pub(super) fn destack_io_event_fd_close(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
-    handle: resource::EventFdHandle,
-) -> RuntimeResult<()> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.event.fdClose is not available in the VM yet",
-    ))
-    .boxed())
-}
-
-/// Stub for destack.io.event.fdOpen.
-pub(super) fn destack_io_event_fd_open(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
-    initial: u64,
-    flags: EventFdFlags,
-) -> RuntimeResult<resource::EventFdHandle> {
-    let _ = (initial, flags);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.event.fdOpen is not available in the VM yet",
-    ))
-    .boxed())
-}
-
-/// Stub for destack.io.event.fdRead.
-pub(super) fn destack_io_event_fd_read(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
-    handle: resource::EventFdHandle,
-) -> RuntimeResult<u64> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.event.fdRead is not available in the VM yet",
-    ))
-    .boxed())
-}
-
-/// Stub for destack.io.event.fdTryRead.
-pub(super) fn destack_io_event_fd_try_read(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
-    handle: resource::EventFdHandle,
-) -> RuntimeResult<u64> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.event.fdTryRead is not available in the VM yet",
-    ))
-    .boxed())
-}
-
-/// Stub for destack.io.event.fdWrite.
-pub(super) fn destack_io_event_fd_write(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
-    handle: resource::EventFdHandle,
-    value: u64,
-) -> RuntimeResult<()> {
-    let _ = (handle, value);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.event.fdWrite is not available in the VM yet",
-    ))
-    .boxed())
-}
-
 /// Stub for destack.io.event.open.
 pub(super) fn destack_io_event_open(
     _runtime: &RuntimeCallContext,
@@ -243,19 +145,6 @@ pub(super) fn destack_io_event_open(
     let _ = initial;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.io.event.open is not available in the VM yet",
-    ))
-    .boxed())
-}
-
-/// Stub for destack.io.event.read.
-pub(super) fn destack_io_event_read(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
-    token: EventToken,
-) -> RuntimeResult<u64> {
-    let _ = token;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.event.read is not available in the VM yet",
     ))
     .boxed())
 }
@@ -270,19 +159,6 @@ pub(super) fn destack_io_event_signal(
     let _ = (token, value);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.io.event.signal is not available in the VM yet",
-    ))
-    .boxed())
-}
-
-/// Stub for destack.io.event.tryRead.
-pub(super) fn destack_io_event_try_read(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
-    token: EventToken,
-) -> RuntimeResult<u64> {
-    let _ = token;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.event.tryRead is not available in the VM yet",
     ))
     .boxed())
 }

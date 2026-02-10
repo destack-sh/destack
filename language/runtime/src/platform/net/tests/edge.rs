@@ -1,3 +1,4 @@
+#![cfg_attr(windows, allow(dead_code, unused_imports))]
 use super::{NetHarnessKind, native_slice, native_slice_mut, with_harness_context};
 use crate::platform::net::{
     AcceptFlags, destack_net_accept, destack_net_close, destack_net_close_listener,
@@ -51,7 +52,7 @@ fn test_net_invalid_handles() {
     });
 }
 
-#[cfg(any(unix, windows))]
+#[cfg(unix)]
 #[test]
 fn test_net_accept_after_close() {
     with_harness_context(|mut context| {

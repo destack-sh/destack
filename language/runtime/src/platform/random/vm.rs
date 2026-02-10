@@ -1,196 +1,173 @@
-use destack_vm as vm;
-
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::random::{
-    RandomStream, RandomStreamDomain, RandomStreamStateVm, SecureRandomInfoVm, SecureRandomSource,
+    RandomStream, RandomStreamDomain, RandomStreamStateVm, SecureRandomInfoVm,
 };
-use crate::platform::{PlatformError, PlatformErrorCode, VmSlice};
-use crate::random::RandomStreamId;
+use crate::platform::{PlatformError, VmSlice};
 use crate::runtime::RuntimeCallContext;
+use destack_vm as vm;
 
-/// Stub for destack.random.stream.
-pub(super) fn destack_random_stream(
-    runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
-) -> RuntimeResult<RandomStream> {
-    Ok(RandomStream(runtime.runtime().random.new_stream_id().get()))
-}
-
-/// Fill a slice with secure random bytes.
-pub(super) fn destack_random_bytes(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
-    buffer: VmSlice<u8>,
-) -> RuntimeResult<()> {
-    let _ = runtime;
-    let mut bytes = vec![0u8; buffer.len as usize];
-    fill_bytes_secure(&mut bytes)?;
-    buffer.write_bytes(context, &bytes)?;
-    Ok(())
-}
-
-/// Fill a slice with secure random bytes.
+/// Stub for destack.random.secure.bytes.
 pub(super) fn destack_random_secure_bytes(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<()> {
-    destack_random_bytes(runtime, context, buffer)
+    let _ = buffer;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.random.secure.bytes is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Fill a slice with secure random bytes without blocking guarantees.
+/// Stub for destack.random.secure.bytesTry.
 pub(super) fn destack_random_secure_bytes_try(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<()> {
-    destack_random_bytes(runtime, context, buffer)
+    let _ = buffer;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.random.secure.bytesTry is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Return metadata for the secure random source.
+/// Stub for destack.random.secure.info.
 pub(super) fn destack_random_secure_info(
     _runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::RuntimeContext<'_>,
 ) -> RuntimeResult<SecureRandomInfoVm> {
-    // allocate a stable backend label
-    let backend_name = vm::StringHandle::new(context.intern_string("getrandom"));
-    Ok(SecureRandomInfoVm {
-        source: SecureRandomSource::Kernel,
-        backend_name,
-        may_block: false,
-        is_cryptographic: true,
-        is_seeded: true,
-        is_fips_approved: false,
-        entropy_bits_per_byte: 8.0,
-    })
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.random.secure.info is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Export one stream state to a versioned byte payload.
+/// Stub for destack.random.stream.export.
 pub(super) fn destack_random_stream_export(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     stream: RandomStream,
 ) -> RuntimeResult<RandomStreamStateVm> {
     let _ = stream;
-
-    // NOTE #Incomplete: implement stream state export
-    Err(RuntimeError::from(PlatformError::not_supported("random stream export")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.random.stream.export is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Import one stream state from a versioned byte payload.
+/// Stub for destack.random.stream.fillBytes.
+pub(super) fn destack_random_fill_bytes(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    buffer: VmSlice<u8>,
+) -> RuntimeResult<()> {
+    let _ = buffer;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.random.stream.fillBytes is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.random.stream.fillBytesFrom.
+pub(super) fn destack_random_fill_bytes_from(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    stream: RandomStream,
+    buffer: VmSlice<u8>,
+) -> RuntimeResult<()> {
+    let _ = (stream, buffer);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.random.stream.fillBytesFrom is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.random.stream.import.
 pub(super) fn destack_random_stream_import(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     stream: RandomStream,
     state: RandomStreamStateVm,
 ) -> RuntimeResult<()> {
-    let _ = stream;
-    let _ = state;
-
-    // NOTE #Incomplete: implement stream state import
-    Err(RuntimeError::from(PlatformError::not_supported("random stream import")).boxed())
+    let _ = (stream, state);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.random.stream.import is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Allocate one stream in one runtime domain.
+/// Stub for destack.random.stream.in.
 pub(super) fn destack_random_stream_in(
-    runtime: &RuntimeCallContext,
+    _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     domain: RandomStreamDomain,
 ) -> RuntimeResult<RandomStream> {
     let _ = domain;
-    Ok(RandomStream(runtime.runtime().random.new_stream_id().get()))
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.random.stream.in is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Jump one stream forward by one deterministic step count.
+/// Stub for destack.random.stream.jump.
 pub(super) fn destack_random_stream_jump(
-    runtime: &RuntimeCallContext,
+    _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     stream: RandomStream,
     jump: u64,
 ) -> RuntimeResult<()> {
-    // consume jump steps to preserve deterministic sequence state
-    for _ in 0..jump {
-        let _ = runtime
-            .runtime()
-            .random
-            .next_stream_u64(RandomStreamId::new(stream.0));
-    }
-
-    Ok(())
+    let _ = (stream, jump);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.random.stream.jump is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Split one stream into one child stream identifier.
+/// Stub for destack.random.stream.nextU64.
+pub(super) fn destack_random_next_u64(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+) -> RuntimeResult<u64> {
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.random.stream.nextU64 is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.random.stream.nextU64From.
+pub(super) fn destack_random_next_u64_from(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    stream: RandomStream,
+) -> RuntimeResult<u64> {
+    let _ = stream;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.random.stream.nextU64From is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.random.stream.split.
 pub(super) fn destack_random_stream_split(
-    runtime: &RuntimeCallContext,
+    _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     parent: RandomStream,
 ) -> RuntimeResult<RandomStream> {
     let _ = parent;
-    Ok(RandomStream(runtime.runtime().random.new_stream_id().get()))
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.random.stream.split is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Stub for destack.random.fillBytes.
-pub(super) fn destack_random_fill_bytes(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
-    buffer: VmSlice<u8>,
-) -> RuntimeResult<()> {
-    let mut bytes = vec![0u8; buffer.len as usize];
-    runtime
-        .runtime()
-        .random
-        .fill_stream_bytes(runtime.random_stream_id(), &mut bytes);
-    buffer.write_bytes(context, &bytes)?;
-    Ok(())
-}
-
-/// Stub for destack.random.nextU64.
-pub(super) fn destack_random_next_u64(
-    runtime: &RuntimeCallContext,
+/// Stub for destack.random.stream.stream.
+pub(super) fn destack_random_stream(
+    _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
-) -> RuntimeResult<u64> {
-    Ok(runtime
-        .runtime()
-        .random
-        .next_stream_u64(runtime.random_stream_id()))
-}
-
-/// Stub for destack.random.nextU64From.
-pub(super) fn destack_random_next_u64_from(
-    runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
-    stream: RandomStream,
-) -> RuntimeResult<u64> {
-    Ok(runtime
-        .runtime()
-        .random
-        .next_stream_u64(RandomStreamId::new(stream.0)))
-}
-
-/// Stub for destack.random.fillBytesFrom.
-pub(super) fn destack_random_fill_bytes_from(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
-    stream: RandomStream,
-    buffer: VmSlice<u8>,
-) -> RuntimeResult<()> {
-    let mut bytes = vec![0u8; buffer.len as usize];
-    runtime
-        .runtime()
-        .random
-        .fill_stream_bytes(RandomStreamId::new(stream.0), &mut bytes);
-    buffer.write_bytes(context, &bytes)?;
-    Ok(())
-}
-
-/// Fill a buffer with secure random bytes from the OS.
-fn fill_bytes_secure(buffer: &mut [u8]) -> RuntimeResult<()> {
-    getrandom::fill(buffer).map_err(|error| {
-        RuntimeError::from(PlatformError::random(
-            Some(PlatformErrorCode::RandomUnavailable),
-            format!("secure random failed: {error}"),
-        ))
-        .boxed()
-    })?;
-    Ok(())
+) -> RuntimeResult<RandomStream> {
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.random.stream.stream is not available in the VM yet",
+    ))
+    .boxed())
 }

@@ -1,14 +1,10 @@
-use std::os::windows::ffi::OsStrExt;
-
 use windows_sys::Win32::Foundation::CloseHandle;
 
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::abi::NativeAbi;
-use crate::platform::fs::{
-    AtFlags, DirectoryHandle, PathBytes, PathBytesAbi, PathUtf16, PathUtf16Abi,
-};
+use crate::platform::fs::{AtFlags, DirectoryHandle, PathBytes, PathBytesAbi, PathUtf16};
 use crate::runtime::RuntimeCallContext;
 
 /// Update file times for byte paths.
@@ -146,8 +142,6 @@ pub(crate) unsafe fn destack_fs_utimensat_utf16(
         base.push(pathbuf);
         base
     };
-    let path = PathUtf16Abi::<NativeAbi>(
-        context.store_array(full_path.as_os_str().encode_wide().collect()),
-    );
+    let path = path_utf16_from_pathbuf(context, &full_path);
     unsafe { destack_fs_utimes_utf16(context, path, atime_ns, mtime_ns) }
 }

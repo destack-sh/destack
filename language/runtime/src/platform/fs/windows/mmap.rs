@@ -151,7 +151,21 @@ pub(crate) unsafe fn destack_fs_mmap_file(
     // configure protections and access
     let protection = map_protection(prot);
     let access = map_view_access(prot, flags)?;
-    let max_size = offset.0.saturating_add(length as u64);
+    if offset.0 < 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "offset",
+            "offset must be non-negative",
+        ))
+        .boxed());
+    }
+    let offset = offset.0 as u64;
+    let max_size = offset.checked_add(length as u64).ok_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "length",
+            "mapping end overflows",
+        ))
+        .boxed()
+    })?;
     let max_size_high = (max_size >> 32) as u32;
     let max_size_low = (max_size & 0xffff_ffff) as u32;
 
@@ -171,8 +185,8 @@ pub(crate) unsafe fn destack_fs_mmap_file(
     }
 
     // map the view
-    let offset_high = (offset.0 >> 32) as u32;
-    let offset_low = (offset.0 & 0xffff_ffff) as u32;
+    let offset_high = (offset >> 32) as u32;
+    let offset_low = (offset & 0xffff_ffff) as u32;
     let view = unsafe { MapViewOfFile(mapping, access, offset_high, offset_low, length) };
     if view.Value.is_null() {
         unsafe {

@@ -1,48 +1,34 @@
-use super::{FsHarness, os_path_string, path_bytes, temp_dir, with_native_harness};
-use crate::platform::NativeArray;
-use crate::platform::fs::{
-    Dirent, DirentKind, FileMode, destack_fs_dir_closedir, destack_fs_dir_mkdir,
-    destack_fs_dir_mkdirat, destack_fs_dir_opendir, destack_fs_dir_readdir, destack_fs_dir_rmdir,
-};
-use crate::platform::resource::{DirectoryHandle, ResourceId};
+use super::{FsDirent, temp_dir, with_harness_context};
+use crate::platform::fs::{DirentKind, FileMode};
 
 #[cfg(any(unix, windows))]
 #[test]
 fn test_fs_mkdir_opendir_readdir_closedir() {
-    with_native_harness(|harness| {
+    with_harness_context(|mut context| {
         // runtime and temp directory
-        let runtime = harness.runtime();
         let temp_dir = temp_dir("fs_dir");
         let child_dir = temp_dir.join("child");
 
-        // create directory and subdir
-        let handle = harness.with_context(|| {
-            let (_bytes, dir) = path_bytes(&temp_dir);
-            let status = unsafe { destack_fs_dir_mkdir(dir, FileMode(0o755)) };
-            runtime.assert_status_ok(status, "mkdir");
+        let dir = context.path_bytes(&temp_dir);
+        context.mkdir(dir, FileMode(0o755))?;
+        let child = context.path_bytes(&child_dir);
+        context.mkdir(child, FileMode(0o755))?;
 
-            let (_bytes, child) = path_bytes(&child_dir);
-            let status = unsafe { destack_fs_dir_mkdir(child, FileMode(0o755)) };
-            runtime.assert_status_ok(status, "mkdir child");
+        // open and read entries
+        let dir = context.path_bytes(&temp_dir);
+        let handle = context.opendir(dir)?;
 
-            let mut handle = DirectoryHandle(ResourceId(0));
-            let status = unsafe { destack_fs_dir_opendir(&mut handle, dir) };
-            runtime.assert_status_ok(status, "opendir");
-            handle
-        });
-
-        // read directory entries
-        let entries = harness.with_context(|| {
-            let mut out = std::mem::MaybeUninit::<NativeArray<Dirent>>::uninit();
-            let status = unsafe { destack_fs_dir_readdir(out.as_mut_ptr(), handle) };
-            runtime.assert_status_ok(status, "readdir");
-            let array = unsafe { out.assume_init() };
-            let slice = unsafe { array.as_slice() }.expect("dirent slice should be valid");
-            slice
-                .iter()
-                .map(|entry| (os_path_string(&entry.name), entry.kind))
-                .collect::<Vec<_>>()
-        });
+        let entries = context
+            .readdir(handle)?
+            .into_iter()
+            .map(|entry| {
+                let name = context.dirent_name(entry);
+                match entry {
+                    FsDirent::Native(entry) => (name, entry.kind),
+                    FsDirent::Vm(entry) => (name, entry.kind),
+                }
+            })
+            .collect::<Vec<_>>();
 
         assert!(
             entries
@@ -52,55 +38,71 @@ fn test_fs_mkdir_opendir_readdir_closedir() {
         assert!(!entries.iter().any(|(name, _)| name == "."));
         assert!(!entries.iter().any(|(name, _)| name == ".."));
 
-        // close directory and cleanup
-        harness.with_context(|| {
-            let status = unsafe { destack_fs_dir_closedir(handle) };
-            runtime.assert_status_ok(status, "closedir");
+        // cleanup
+        context.closedir(handle)?;
 
-            let (_bytes, child) = path_bytes(&child_dir);
-            let status = unsafe { destack_fs_dir_rmdir(child) };
-            runtime.assert_status_ok(status, "rmdir child");
+        let child = context.path_bytes(&child_dir);
+        context.rmdir(child)?;
+        let dir = context.path_bytes(&temp_dir);
+        context.rmdir(dir)?;
 
-            let (_bytes, dir) = path_bytes(&temp_dir);
-            let status = unsafe { destack_fs_dir_rmdir(dir) };
-            runtime.assert_status_ok(status, "rmdir");
-        });
+        Ok(())
     });
 }
 
 #[cfg(any(unix, windows))]
 #[test]
 fn test_fs_mkdirat_bytes() {
-    with_native_harness(|harness| {
+    with_harness_context(|mut context| {
         // runtime and temp directory
-        let runtime = harness.runtime();
         let temp_dir = temp_dir("fs_dirat");
         let child_dir = temp_dir.join("child");
 
-        harness.with_context(|| {
-            let (_bytes, dir) = path_bytes(&temp_dir);
-            let status = unsafe { destack_fs_dir_mkdir(dir, FileMode(0o755)) };
-            runtime.assert_status_ok(status, "mkdir");
+        let dir = context.path_bytes(&temp_dir);
+        context.mkdir(dir, FileMode(0o755))?;
 
-            let mut handle = DirectoryHandle(ResourceId(0));
-            let status = unsafe { destack_fs_dir_opendir(&mut handle, dir) };
-            runtime.assert_status_ok(status, "opendir");
+        // mkdirat through directory handle
+        let dir = context.path_bytes(&temp_dir);
+        let handle = context.opendir(dir)?;
 
-            let name_path = std::path::Path::new("child");
-            let (_name_bytes, path) = path_bytes(name_path);
-            let status = unsafe { destack_fs_dir_mkdirat(handle, path, FileMode(0o755)) };
-            runtime.assert_status_ok(status, "mkdirat");
+        let child_name = std::path::Path::new("child");
+        let path = context.path_bytes(child_name);
+        context.mkdirat(handle, path, FileMode(0o755))?;
 
-            let status = unsafe { destack_fs_dir_closedir(handle) };
-            runtime.assert_status_ok(status, "closedir");
+        context.closedir(handle)?;
 
-            let (_bytes, child) = path_bytes(&child_dir);
-            let status = unsafe { destack_fs_dir_rmdir(child) };
-            runtime.assert_status_ok(status, "rmdir child");
+        // cleanup
+        let child = context.path_bytes(&child_dir);
+        context.rmdir(child)?;
+        let dir = context.path_bytes(&temp_dir);
+        context.rmdir(dir)?;
 
-            let (_bytes, dir) = path_bytes(&temp_dir);
-            let status = unsafe { destack_fs_dir_rmdir(dir) };
-            runtime.assert_status_ok(status, "rmdir");
-        });
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_fs_mkdtemp() {
+    with_harness_context(|mut context| {
+        // runtime and temp directory
+        let temp_dir = temp_dir("fs_mkdtemp");
+        let template_path = temp_dir.join("destack_XXXXXX");
+
+        let dir = context.path_bytes(&temp_dir);
+        context.mkdir(dir, FileMode(0o755))?;
+
+        // create a temporary directory
+        let template = context.path_bytes(&template_path);
+        let created = context.mkdtemp(template)?;
+        let name = context.path_ref_string(created.clone());
+        assert!(name.contains("destack_"));
+
+        // cleanup
+        context.rmdir(created)?;
+        let dir = context.path_bytes(&temp_dir);
+        context.rmdir(dir)?;
+
+        Ok(())
     });
 }

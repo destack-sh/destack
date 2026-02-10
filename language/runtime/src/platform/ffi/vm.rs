@@ -1,25 +1,10 @@
-use destack_vm as vm;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
-use crate::platform::{VmSlice, VmArray};
-use crate::platform::{fs, resource};
-use crate::platform::ffi::{FfiPointer};
+use crate::platform::ffi::FfiPointer;
+use crate::platform::{PlatformError, VmSlice, fs, resource};
 use crate::runtime::RuntimeCallContext;
+use destack_vm as vm;
 
-/// Stub for destack.ffi.address.
-pub(super) fn destack_ffi_address(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
-    pointer: FfiPointer,
-) -> RuntimeResult<u64> {
-    let _ = pointer;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.ffi.address is not available in the VM yet",
-    ))
-    .boxed())
-}
-
-/// Stub for destack.ffi.call.
+/// Stub for destack.ffi.call.call.
 pub(super) fn destack_ffi_call(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
@@ -31,39 +16,26 @@ pub(super) fn destack_ffi_call(
 ) -> RuntimeResult<VmSlice<u8>> {
     let _ = (symbol, abi, flags, arguments, resultsize);
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.ffi.call is not available in the VM yet",
+        "destack.ffi.call.call is not available in the VM yet",
     ))
     .boxed())
 }
 
-/// Stub for destack.ffi.fromAddress.
-pub(super) fn destack_ffi_from_address(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
-    address: u64,
-) -> RuntimeResult<FfiPointer> {
-    let _ = address;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.ffi.fromAddress is not available in the VM yet",
-    ))
-    .boxed())
-}
-
-/// Stub for destack.ffi.libraryClose.
-pub(super) fn destack_ffi_library_close(
+/// Stub for destack.ffi.library.close.
+pub(super) fn destack_ffi_close(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     handle: resource::LibraryHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.ffi.libraryClose is not available in the VM yet",
+        "destack.ffi.library.close is not available in the VM yet",
     ))
     .boxed())
 }
 
-/// Stub for destack.ffi.libraryOpen.
-pub(super) fn destack_ffi_library_open(
+/// Stub for destack.ffi.library.open.
+pub(super) fn destack_ffi_open(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     path: fs::OsPathVm,
@@ -71,12 +43,38 @@ pub(super) fn destack_ffi_library_open(
 ) -> RuntimeResult<resource::LibraryHandle> {
     let _ = (path, flags);
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.ffi.libraryOpen is not available in the VM yet",
+        "destack.ffi.library.open is not available in the VM yet",
     ))
     .boxed())
 }
 
-/// Stub for destack.ffi.symbolAddress.
+/// Stub for destack.ffi.pointer.address.
+pub(super) fn destack_ffi_address(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    pointer: FfiPointer,
+) -> RuntimeResult<u64> {
+    let _ = pointer;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.ffi.pointer.address is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.ffi.pointer.fromAddress.
+pub(super) fn destack_ffi_from_address(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    address: u64,
+) -> RuntimeResult<FfiPointer> {
+    let _ = address;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.ffi.pointer.fromAddress is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.ffi.symbol.address.
 pub(super) fn destack_ffi_symbol_address(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
@@ -84,12 +82,12 @@ pub(super) fn destack_ffi_symbol_address(
 ) -> RuntimeResult<u64> {
     let _ = symbol;
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.ffi.symbolAddress is not available in the VM yet",
+        "destack.ffi.symbol.address is not available in the VM yet",
     ))
     .boxed())
 }
 
-/// Stub for destack.ffi.symbolLookup.
+/// Stub for destack.ffi.symbol.lookup.
 pub(super) fn destack_ffi_symbol_lookup(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
@@ -98,8 +96,7 @@ pub(super) fn destack_ffi_symbol_lookup(
 ) -> RuntimeResult<resource::SymbolHandle> {
     let _ = (library, name);
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.ffi.symbolLookup is not available in the VM yet",
+        "destack.ffi.symbol.lookup is not available in the VM yet",
     ))
     .boxed())
 }
-

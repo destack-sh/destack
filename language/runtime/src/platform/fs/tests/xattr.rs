@@ -1,8 +1,9 @@
+#![cfg_attr(windows, allow(dead_code, unused_imports))]
 use super::{temp_dir, with_harness_context};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs::{FileMode, OpenFlags, XattrFlags};
 
-#[cfg(any(unix, windows))]
+#[cfg(unix)]
 #[test]
 fn test_fs_xattr_roundtrip() {
     with_harness_context(|mut context| {

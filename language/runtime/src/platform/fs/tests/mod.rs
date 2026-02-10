@@ -1,29 +1,29 @@
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 mod advanced;
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 mod at;
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 mod attrs;
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 mod basic;
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 mod dir;
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 mod edge;
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 mod file;
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 mod mmap;
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 mod path;
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 mod stat;
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 mod tests;
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 mod utf16;
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 mod xattr;
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 pub(super) use tests::*;

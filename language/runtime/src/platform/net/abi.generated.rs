@@ -5,7 +5,7 @@
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::platform::{VmValueCodec, resource};
+use crate::platform::{VmValueCodec, fs, resource};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
@@ -69,6 +69,37 @@ impl VmValueCodec for ResolveFlags {
     }
 }
 
+/// ABI newtype for ReverseLookupFlags.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ReverseLookupFlags(
+    /// Inner value.
+    pub u32,
+);
+
+pub type ReverseLookupFlagsVm = ReverseLookupFlags;
+
+impl VmValueCodec for ReverseLookupFlags {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for SocketControlBuffer.
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct SocketControlBufferAbi<A: BindingAbi>(
+    /// Inner value.
+    pub A::Array<u8>,
+);
+
+pub type SocketControlBuffer = SocketControlBufferAbi<NativeAbi>;
+pub type SocketControlBufferVm = SocketControlBufferAbi<VmAbi>;
+
 /// ABI newtype for SocketMessageFlags.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -80,6 +111,46 @@ pub struct SocketMessageFlags(
 pub type SocketMessageFlagsVm = SocketMessageFlags;
 
 impl VmValueCodec for SocketMessageFlags {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for SocketOptionLevel.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct SocketOptionLevel(
+    /// Inner value.
+    pub u32,
+);
+
+pub type SocketOptionLevelVm = SocketOptionLevel;
+
+impl VmValueCodec for SocketOptionLevel {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for SocketOptionName.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct SocketOptionName(
+    /// Inner value.
+    pub u32,
+);
+
+pub type SocketOptionNameVm = SocketOptionName;
+
+impl VmValueCodec for SocketOptionName {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
@@ -268,6 +339,29 @@ impl VmValueCodec for SocketTimestampingMode {
     }
 }
 
+/// ABI enum for UdsAddressKind.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum UdsAddressKind {
+    /// Path.
+    Path = 1,
+    /// Abstract.
+    Abstract = 2,
+    /// Unnamed.
+    Unnamed = 3,
+}
+
+impl VmValueCodec for UdsAddressKind {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        Ok(unsafe { std::mem::transmute::<u8, UdsAddressKind>(raw) })
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
 /// ABI struct for KeepAliveConfig.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -368,6 +462,80 @@ pub struct PacketCaptureRecord {
 }
 
 pub type PacketCaptureRecordVm = PacketCaptureRecord;
+
+/// ABI struct for ResolveQuery.
+#[repr(C)]
+pub struct ResolveQueryAbi<A: BindingAbi> {
+    /// The has_host field.
+    pub has_host: bool,
+    /// The host field.
+    pub host: A::String,
+    /// The has_service field.
+    pub has_service: bool,
+    /// The service field.
+    pub service: A::String,
+    /// The family field.
+    pub family: SocketFamily,
+    /// The flags field.
+    pub flags: ResolveFlags,
+}
+
+pub type ResolveQuery = ResolveQueryAbi<NativeAbi>;
+pub type ResolveQueryVm = ResolveQueryAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for ResolveQueryAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ResolveQueryAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for ResolveQueryAbi<NativeAbi> {}
+impl Clone for ResolveQueryAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for ResolveQueryAbi<VmAbi> {}
+impl Clone for ResolveQueryAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+/// ABI struct for ReverseLookupName.
+#[repr(C)]
+pub struct ReverseLookupNameAbi<A: BindingAbi> {
+    /// The host field.
+    pub host: A::String,
+    /// The service field.
+    pub service: A::String,
+}
+
+pub type ReverseLookupName = ReverseLookupNameAbi<NativeAbi>;
+pub type ReverseLookupNameVm = ReverseLookupNameAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for ReverseLookupNameAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ReverseLookupNameAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for ReverseLookupNameAbi<NativeAbi> {}
+impl Clone for ReverseLookupNameAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for ReverseLookupNameAbi<VmAbi> {}
+impl Clone for ReverseLookupNameAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
 
 /// ABI struct for RouteEntry.
 #[repr(C)]
@@ -473,6 +641,39 @@ pub struct SocketPair {
 
 pub type SocketPairVm = SocketPair;
 
+/// ABI struct for SocketRecvBatchRequest.
+#[repr(C)]
+pub struct SocketRecvBatchRequestAbi<A: BindingAbi> {
+    /// The payload field.
+    pub payload: A::Slice<u8>,
+    /// The recv_flags field.
+    pub recv_flags: SocketMessageFlags,
+}
+
+pub type SocketRecvBatchRequest = SocketRecvBatchRequestAbi<NativeAbi>;
+pub type SocketRecvBatchRequestVm = SocketRecvBatchRequestAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for SocketRecvBatchRequestAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("SocketRecvBatchRequestAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for SocketRecvBatchRequestAbi<NativeAbi> {}
+impl Clone for SocketRecvBatchRequestAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for SocketRecvBatchRequestAbi<VmAbi> {}
+impl Clone for SocketRecvBatchRequestAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
 /// ABI struct for SocketRecvFrom.
 #[repr(C)]
 pub struct SocketRecvFromAbi<A: BindingAbi> {
@@ -513,12 +714,18 @@ impl Clone for SocketRecvFromAbi<VmAbi> {
 pub struct SocketRecvMessageAbi<A: BindingAbi> {
     /// The bytes field.
     pub bytes: u64,
+    /// The has_address field.
+    pub has_address: bool,
+    /// The address field.
+    pub address: SocketAddressAbi<A>,
     /// The recv_flags field.
     pub recv_flags: SocketMessageFlags,
     /// The payload_truncated field.
     pub payload_truncated: bool,
     /// The control_truncated field.
     pub control_truncated: bool,
+    /// The control field.
+    pub control: SocketControlBufferAbi<A>,
     /// The fds field.
     pub fds: A::Array<resource::TransferredHandle>,
     /// The has_credentials field.
@@ -551,11 +758,50 @@ impl Clone for SocketRecvMessageAbi<VmAbi> {
     }
 }
 
+/// ABI struct for SocketSendBatchEntry.
+#[repr(C)]
+pub struct SocketSendBatchEntryAbi<A: BindingAbi> {
+    /// The payload field.
+    pub payload: A::Slice<u8>,
+    /// The message field.
+    pub message: SocketSendMessageAbi<A>,
+}
+
+pub type SocketSendBatchEntry = SocketSendBatchEntryAbi<NativeAbi>;
+pub type SocketSendBatchEntryVm = SocketSendBatchEntryAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for SocketSendBatchEntryAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("SocketSendBatchEntryAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for SocketSendBatchEntryAbi<NativeAbi> {}
+impl Clone for SocketSendBatchEntryAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for SocketSendBatchEntryAbi<VmAbi> {}
+impl Clone for SocketSendBatchEntryAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
 /// ABI struct for SocketSendMessage.
 #[repr(C)]
 pub struct SocketSendMessageAbi<A: BindingAbi> {
+    /// The has_address field.
+    pub has_address: bool,
+    /// The address field.
+    pub address: SocketAddressAbi<A>,
     /// The fds field.
     pub fds: A::Array<resource::TransferredHandle>,
+    /// The control field.
+    pub control: SocketControlBufferAbi<A>,
     /// The flags field.
     pub flags: SocketMessageFlags,
     /// The has_credentials field.
@@ -656,6 +902,41 @@ impl Clone for UdpReceiveAbi<VmAbi> {
     }
 }
 
+/// ABI struct for UdsAddress.
+#[repr(C)]
+pub struct UdsAddressAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: UdsAddressKind,
+    /// The path field.
+    pub path: crate::platform::fs::OsPathAbi<A>,
+    /// The abstract_name field.
+    pub abstract_name: A::Array<u8>,
+}
+
+pub type UdsAddress = UdsAddressAbi<NativeAbi>;
+pub type UdsAddressVm = UdsAddressAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for UdsAddressAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("UdsAddressAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for UdsAddressAbi<NativeAbi> {}
+impl Clone for UdsAddressAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for UdsAddressAbi<VmAbi> {}
+impl Clone for UdsAddressAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
 /// Replay struct for NetInterface.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NetInterfaceReplay {
@@ -671,6 +952,32 @@ pub struct NetInterfaceReplay {
     pub mac_address: Vec<u8>,
     /// The addresses field.
     pub addresses: Vec<SocketAddressReplay>,
+}
+
+/// Replay struct for ResolveQuery.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ResolveQueryReplay {
+    /// The has_host field.
+    pub has_host: bool,
+    /// The host field.
+    pub host: String,
+    /// The has_service field.
+    pub has_service: bool,
+    /// The service field.
+    pub service: String,
+    /// The family field.
+    pub family: SocketFamily,
+    /// The flags field.
+    pub flags: ResolveFlags,
+}
+
+/// Replay struct for ReverseLookupName.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ReverseLookupNameReplay {
+    /// The host field.
+    pub host: String,
+    /// The service field.
+    pub service: String,
 }
 
 /// Replay struct for RouteEntry.
@@ -703,6 +1010,15 @@ pub struct SocketAddressReplay {
     pub bytes: Vec<u8>,
 }
 
+/// Replay struct for SocketRecvBatchRequest.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SocketRecvBatchRequestReplay {
+    /// The payload field.
+    pub payload: Vec<u8>,
+    /// The recv_flags field.
+    pub recv_flags: SocketMessageFlags,
+}
+
 /// Replay struct for SocketRecvFrom.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SocketRecvFromReplay {
@@ -719,12 +1035,18 @@ pub struct SocketRecvFromReplay {
 pub struct SocketRecvMessageReplay {
     /// The bytes field.
     pub bytes: u64,
+    /// The has_address field.
+    pub has_address: bool,
+    /// The address field.
+    pub address: SocketAddressReplay,
     /// The recv_flags field.
     pub recv_flags: SocketMessageFlags,
     /// The payload_truncated field.
     pub payload_truncated: bool,
     /// The control_truncated field.
     pub control_truncated: bool,
+    /// The control field.
+    pub control: Vec<u8>,
     /// The fds field.
     pub fds: Vec<resource::TransferredHandle>,
     /// The has_credentials field.
@@ -733,11 +1055,26 @@ pub struct SocketRecvMessageReplay {
     pub credentials: SocketCredentials,
 }
 
+/// Replay struct for SocketSendBatchEntry.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SocketSendBatchEntryReplay {
+    /// The payload field.
+    pub payload: Vec<u8>,
+    /// The message field.
+    pub message: SocketSendMessageReplay,
+}
+
 /// Replay struct for SocketSendMessage.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SocketSendMessageReplay {
+    /// The has_address field.
+    pub has_address: bool,
+    /// The address field.
+    pub address: SocketAddressReplay,
     /// The fds field.
     pub fds: Vec<resource::TransferredHandle>,
+    /// The control field.
+    pub control: Vec<u8>,
     /// The flags field.
     pub flags: SocketMessageFlags,
     /// The has_credentials field.
@@ -764,4 +1101,15 @@ pub struct UdpReceiveReplay {
     pub bytes: u64,
     /// The recv_flags field.
     pub recv_flags: UdpMessageFlags,
+}
+
+/// Replay struct for UdsAddress.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UdsAddressReplay {
+    /// The kind field.
+    pub kind: UdsAddressKind,
+    /// The path field.
+    pub path: fs::OsPathReplay,
+    /// The abstract_name field.
+    pub abstract_name: Vec<u8>,
 }

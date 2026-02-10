@@ -74,6 +74,8 @@ pub(crate) unsafe fn destack_fs_copy_file_range(
     let mut buffer = vec![0u8; 1024 * 1024];
     let mut src_offset = src_offset;
     let mut dst_offset = dst_offset;
+
+    // copy chunks until the source is drained or the target range is exhausted
     while remaining > 0 {
         let chunk = remaining.min(buffer.len() as u64) as usize;
         let buffer_slice = NativeSlice {
@@ -92,8 +94,19 @@ pub(crate) unsafe fn destack_fs_copy_file_range(
         let mut bytes_written = 0u64;
         unsafe { destack_fs_pwrite(context, &mut bytes_written, dst, read_slice, dst_offset) }?;
         total = total.saturating_add(bytes_written);
-        src_offset = FileOffset(src_offset.0.saturating_add(bytes_written));
-        dst_offset = FileOffset(dst_offset.0.saturating_add(bytes_written));
+
+        // advance source and destination offsets
+        let written = i64::try_from(bytes_written).map_err(|_| {
+            RuntimeError::from(PlatformError::invalid_argument_value(
+                "length",
+                "copy size exceeds signed offset range",
+            ))
+            .boxed()
+        })?;
+        src_offset = FileOffset(src_offset.0.saturating_add(written));
+        dst_offset = FileOffset(dst_offset.0.saturating_add(written));
+
+        // advance remaining count
         remaining = remaining.saturating_sub(bytes_written);
         if bytes_written < bytes_read {
             break;

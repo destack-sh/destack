@@ -1,183 +1,147 @@
-use crate::diagnostic::RuntimeResult;
-use crate::platform::time::{ClockId, ClockInfo, ClockSource, SleepClock};
+#![allow(clippy::missing_safety_doc)]
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::time::bindings_generated as bindings;
+
 use crate::runtime::RuntimeCallContext;
+use bindings::*;
 
-/// Return wall clock time in nanoseconds for native code.
-pub unsafe fn destack_time_wall_ns(
-    context: &RuntimeCallContext,
-    out: *mut u64,
-) -> RuntimeResult<()> {
-    let value = context.runtime().time.wall_nanos();
-    unsafe {
-        *out = value;
-    }
-    Ok(())
-}
+use crate::platform::time::{ClockId, ClockInfo, SleepClock};
 
-/// Return monotonic time in nanoseconds for native code.
-pub unsafe fn destack_time_mono_ns(
-    context: &RuntimeCallContext,
-    out: *mut u64,
-) -> RuntimeResult<()> {
-    let value = context.runtime().time.mono_nanos();
-    unsafe {
-        *out = value;
-    }
-    Ok(())
-}
-
-/// Return clock metadata for native code.
+/// Stub for destack.time.clock.info.
 pub unsafe fn destack_time_clock_info(
     context: &RuntimeCallContext,
     out: *mut ClockInfo,
     clock: ClockId,
 ) -> RuntimeResult<()> {
-    let _ = context;
-
-    // map each clock to a stable metadata payload
-    let info = match clock {
-        ClockId::Wall => ClockInfo {
-            id: ClockId::Wall,
-            source: ClockSource::Realtime,
-            resolution_ns: 1,
-            is_monotonic: false,
-        },
-        ClockId::Monotonic => ClockInfo {
-            id: ClockId::Monotonic,
-            source: ClockSource::Monotonic,
-            resolution_ns: 1,
-            is_monotonic: true,
-        },
-        ClockId::ProcessCpu => ClockInfo {
-            id: ClockId::ProcessCpu,
-            source: ClockSource::PerformanceCounter,
-            resolution_ns: 1,
-            is_monotonic: true,
-        },
-        ClockId::ThreadCpu => ClockInfo {
-            id: ClockId::ThreadCpu,
-            source: ClockSource::PerformanceCounter,
-            resolution_ns: 1,
-            is_monotonic: true,
-        },
-        ClockId::Boot => ClockInfo {
-            id: ClockId::Boot,
-            source: ClockSource::Monotonic,
-            resolution_ns: 1,
-            is_monotonic: true,
-        },
-        ClockId::MonotonicRaw => ClockInfo {
-            id: ClockId::MonotonicRaw,
-            source: ClockSource::Monotonic,
-            resolution_ns: 1,
-            is_monotonic: true,
-        },
-    };
-
-    // write the clock info to the output pointer
-    unsafe {
-        *out = info;
+    context.check_policy(TIME_CLOCK_INFO)?;
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
+    let _ = (out, clock);
 
-    Ok(())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.time.clock.info")).boxed())
 }
 
-/// Return time in nanoseconds for the selected clock.
+/// Stub for destack.time.clock.monoNs.
+pub unsafe fn destack_time_mono_ns(
+    context: &RuntimeCallContext,
+    out: *mut u64,
+) -> RuntimeResult<()> {
+    context.check_policy(TIME_CLOCK_MONO_NS)?;
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = out;
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.time.clock.monoNs")).boxed())
+}
+
+/// Stub for destack.time.clock.nowNs.
 pub unsafe fn destack_time_now_ns(
     context: &RuntimeCallContext,
     out: *mut u64,
     clock: ClockId,
 ) -> RuntimeResult<()> {
-    // dispatch by logical clock id
-    let value = match clock {
-        ClockId::Wall => context.runtime().time.wall_nanos(),
-        ClockId::Monotonic => context.runtime().time.mono_nanos(),
-        // NOTE #Incomplete: implement process cpu clock source
-        ClockId::ProcessCpu => context.runtime().time.mono_nanos(),
-        // NOTE #Incomplete: implement thread cpu clock source
-        ClockId::ThreadCpu => context.runtime().time.mono_nanos(),
-        // NOTE #Incomplete: implement boot clock source
-        ClockId::Boot => context.runtime().time.mono_nanos(),
-        // NOTE #Incomplete: implement monotonic raw clock source
-        ClockId::MonotonicRaw => context.runtime().time.mono_nanos(),
-    };
-
-    // write the selected clock value to the output pointer
-    unsafe {
-        *out = value;
+    context.check_policy(TIME_CLOCK_NOW_NS)?;
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
+    let _ = (out, clock);
 
-    Ok(())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.time.clock.nowNs")).boxed())
 }
 
-/// Return process cpu time in nanoseconds.
+/// Stub for destack.time.clock.processCpuNs.
 pub unsafe fn destack_time_process_cpu_ns(
     context: &RuntimeCallContext,
     out: *mut u64,
 ) -> RuntimeResult<()> {
-    // NOTE #Incomplete: implement process cpu timer source
-    let value = context.runtime().time.mono_nanos();
-    unsafe {
-        *out = value;
+    context.check_policy(TIME_CLOCK_PROCESS_CPU_NS)?;
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
+    let _ = out;
 
-    Ok(())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.time.clock.processCpuNs",
+    ))
+    .boxed())
 }
 
-/// Return thread cpu time in nanoseconds.
+/// Stub for destack.time.clock.threadCpuNs.
 pub unsafe fn destack_time_thread_cpu_ns(
     context: &RuntimeCallContext,
     out: *mut u64,
 ) -> RuntimeResult<()> {
-    // NOTE #Incomplete: implement thread cpu timer source
-    let value = context.runtime().time.mono_nanos();
-    unsafe {
-        *out = value;
+    context.check_policy(TIME_CLOCK_THREAD_CPU_NS)?;
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
+    let _ = out;
 
-    Ok(())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.time.clock.threadCpuNs",
+    ))
+    .boxed())
 }
 
-/// Sleep for the given duration for native code.
+/// Stub for destack.time.clock.wallNs.
+pub unsafe fn destack_time_wall_ns(
+    context: &RuntimeCallContext,
+    out: *mut u64,
+) -> RuntimeResult<()> {
+    context.check_policy(TIME_CLOCK_WALL_NS)?;
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = out;
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.time.clock.wallNs")).boxed())
+}
+
+/// Stub for destack.time.sleep.ns.
 pub unsafe fn destack_time_sleep_ns(
     context: &RuntimeCallContext,
-    duration_nanos: u64,
+    duration: u64,
 ) -> RuntimeResult<()> {
-    context.runtime().time.sleep_nanos(duration_nanos);
-    Ok(())
+    context.check_policy(TIME_SLEEP_NS)?;
+    let _ = duration;
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.time.sleep.ns")).boxed())
 }
 
-/// Sleep for the given duration on the selected clock.
+/// Stub for destack.time.sleep.onNs.
 pub unsafe fn destack_time_sleep_on_ns(
     context: &RuntimeCallContext,
-    duration_nanos: u64,
+    duration: u64,
     clock: SleepClock,
 ) -> RuntimeResult<()> {
-    // NOTE #Incomplete: honor sleep clock selection
-    let _ = clock;
-    context.runtime().time.sleep_nanos(duration_nanos);
+    context.check_policy(TIME_SLEEP_ON_NS)?;
+    let _ = (duration, clock);
 
-    Ok(())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.time.sleep.onNs")).boxed())
 }
 
-/// Sleep until the given deadline for native code.
+/// Stub for destack.time.sleep.untilNs.
 pub unsafe fn destack_time_sleep_until_ns(
     context: &RuntimeCallContext,
-    deadline_nanos: u64,
+    deadline: u64,
 ) -> RuntimeResult<()> {
-    context.runtime().time.sleep_until_nanos(deadline_nanos);
-    Ok(())
+    context.check_policy(TIME_SLEEP_UNTIL_NS)?;
+    let _ = deadline;
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.time.sleep.untilNs")).boxed())
 }
 
-/// Sleep until the given deadline on the selected clock.
+/// Stub for destack.time.sleep.untilOnNs.
 pub unsafe fn destack_time_sleep_until_on_ns(
     context: &RuntimeCallContext,
-    deadline_nanos: u64,
+    deadline: u64,
     clock: SleepClock,
 ) -> RuntimeResult<()> {
-    // NOTE #Incomplete: honor sleep clock selection
-    let _ = clock;
-    context.runtime().time.sleep_until_nanos(deadline_nanos);
+    context.check_policy(TIME_SLEEP_UNTIL_ON_NS)?;
+    let _ = (deadline, clock);
 
-    Ok(())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.time.sleep.untilOnNs")).boxed())
 }

@@ -68,7 +68,7 @@ fn decode_uint64(
 
 /// Decode arguments for destack.resource.id.close.
 #[inline]
-fn decode_destack_resource_close_args(
+fn decode_destack_resource_id_close_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ResourceId,)> {
@@ -83,7 +83,7 @@ fn decode_destack_resource_close_args(
 
 /// Encode the result for destack.resource.id.close.
 #[inline]
-fn encode_destack_resource_close_result(
+fn encode_destack_resource_id_close_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -95,7 +95,7 @@ fn encode_destack_resource_close_result(
 
 /// Decode arguments for destack.resource.id.kind.
 #[inline]
-fn decode_destack_resource_kind_args(
+fn decode_destack_resource_id_kind_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ResourceId,)> {
@@ -110,7 +110,7 @@ fn decode_destack_resource_kind_args(
 
 /// Encode the result for destack.resource.id.kind.
 #[inline]
-fn encode_destack_resource_kind_result(
+fn encode_destack_resource_id_kind_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<ResourceKindVm>,
 ) -> RuntimeResult<vm::Value> {
@@ -122,7 +122,7 @@ fn encode_destack_resource_kind_result(
 
 /// Decode arguments for destack.resource.id.remove.
 #[inline]
-fn decode_destack_resource_remove_args(
+fn decode_destack_resource_id_remove_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ResourceId,)> {
@@ -137,7 +137,7 @@ fn decode_destack_resource_remove_args(
 
 /// Encode the result for destack.resource.id.remove.
 #[inline]
-fn encode_destack_resource_remove_result(
+fn encode_destack_resource_id_remove_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -149,7 +149,7 @@ fn encode_destack_resource_remove_result(
 
 /// Decode arguments for destack.resource.id.transfer.
 #[inline]
-fn decode_destack_resource_transfer_args(
+fn decode_destack_resource_id_transfer_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ResourceId, ResourceOwnership)> {
@@ -177,7 +177,7 @@ fn decode_destack_resource_transfer_args(
 
 /// Encode the result for destack.resource.id.transfer.
 #[inline]
-fn encode_destack_resource_transfer_result(
+fn encode_destack_resource_id_transfer_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -189,94 +189,103 @@ fn encode_destack_resource_transfer_result(
 
 /// Replay payload for destack.resource.id.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct CloseReplay {
+struct ResourceIdCloseReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Binding descriptor for destack.resource.id.close.
-pub const CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.resource.id.close",
-    "export function close(id: ResourceId): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["resource.close"],
-    BindingScope::Runtime,
-    BindingBlocking::Sometimes,
-);
+pub const RESOURCE_ID_CLOSE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.resource.id.close",
+        "export function close(id: ResourceId): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["resource.close"],
+        BindingScope::Runtime,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.resource.id.kind.
-pub const KIND: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
-    "destack.resource.id.kind",
-    "export function kind(id: ResourceId): Result<ResourceKind, PlatformError>",
-    &["resource.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-);
+pub const RESOURCE_ID_KIND: BindingDescriptor =
+    BindingDescriptor::deterministic_with_requires_and_behavior(
+        "destack.resource.id.kind",
+        "export function kind(id: ResourceId): Result<ResourceKind, PlatformError>",
+        &["resource.read"],
+        BindingScope::Runtime,
+        BindingBlocking::Never,
+    );
 
 /// Binding descriptor for destack.resource.id.remove.
-pub const REMOVE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
-    "destack.resource.id.remove",
-    "export function remove(id: ResourceId): Result<void, PlatformError>",
-    &["resource.manage"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-);
+pub const RESOURCE_ID_REMOVE: BindingDescriptor =
+    BindingDescriptor::deterministic_with_requires_and_behavior(
+        "destack.resource.id.remove",
+        "export function remove(id: ResourceId): Result<void, PlatformError>",
+        &["resource.manage"],
+        BindingScope::Runtime,
+        BindingBlocking::Never,
+    );
 
 /// Binding descriptor for destack.resource.id.transfer.
-pub const TRANSFER: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
-    "destack.resource.id.transfer",
-    "export function transfer(id: ResourceId, ownership: ResourceOwnership): Result<void, PlatformError>",
-    &["resource.transfer"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-);
+pub const RESOURCE_ID_TRANSFER: BindingDescriptor =
+    BindingDescriptor::deterministic_with_requires_and_behavior(
+        "destack.resource.id.transfer",
+        "export function transfer(id: ResourceId, ownership: ResourceOwnership): Result<void, PlatformError>",
+        &["resource.transfer"],
+        BindingScope::Runtime,
+        BindingBlocking::Never,
+    );
 
 /// Binding descriptors for resource.
-pub const BINDINGS: &[BindingDescriptor] = &[CLOSE, KIND, REMOVE, TRANSFER];
+pub const BINDINGS: &[BindingDescriptor] = &[
+    RESOURCE_ID_CLOSE,
+    RESOURCE_ID_KIND,
+    RESOURCE_ID_REMOVE,
+    RESOURCE_ID_TRANSFER,
+];
 
 /// Native binding set for resource.
 pub const RESOURCE_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "resource",
     bindings: &[
         NativeBinding::new(
-            CLOSE,
+            RESOURCE_ID_CLOSE,
             "destack.resource.id.close",
-            destack_resource_close as *const (),
+            destack_resource_id_close as *const (),
         ),
         NativeBinding::new(
-            KIND,
+            RESOURCE_ID_KIND,
             "destack.resource.id.kind",
-            destack_resource_kind as *const (),
+            destack_resource_id_kind as *const (),
         ),
         NativeBinding::new(
-            REMOVE,
+            RESOURCE_ID_REMOVE,
             "destack.resource.id.remove",
-            destack_resource_remove as *const (),
+            destack_resource_id_remove as *const (),
         ),
         NativeBinding::new(
-            TRANSFER,
+            RESOURCE_ID_TRANSFER,
             "destack.resource.id.transfer",
-            destack_resource_transfer as *const (),
+            destack_resource_id_transfer as *const (),
         ),
     ],
 };
 
 /// Native replay implementations for resource bindings.
 #[inline]
-fn destack_resource_close_replay(
+fn destack_resource_id_close_replay(
     context: &RuntimeCallContext,
     id: ResourceId,
 ) -> RuntimeResult<()> {
     let _ = &id;
 
     context.replay().run_binding(
-        CLOSE,
+        RESOURCE_ID_CLOSE,
         || unsafe { platform_native::destack_resource_close(context, id) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = CloseReplay {
+                let payload = ResourceIdCloseReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -285,7 +294,7 @@ fn destack_resource_close_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    CloseReplay { result }
+                    ResourceIdCloseReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -304,22 +313,22 @@ fn destack_resource_close_replay(
 
 /// Native export wrappers for resource bindings.
 #[unsafe(export_name = "destack.resource.id.close")]
-pub unsafe extern "C" fn destack_resource_close(id: ResourceId) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_resource_id_close(id: ResourceId) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(CLOSE)?;
+        context.check_policy(RESOURCE_ID_CLOSE)?;
         let _ = &id;
 
-        destack_resource_close_replay(context, id)
+        destack_resource_id_close_replay(context, id)
     })
 }
 
 #[unsafe(export_name = "destack.resource.id.kind")]
-pub unsafe extern "C" fn destack_resource_kind(
+pub unsafe extern "C" fn destack_resource_id_kind(
     out: *mut ResourceKind,
     id: ResourceId,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(KIND)?;
+        context.check_policy(RESOURCE_ID_KIND)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
@@ -330,9 +339,9 @@ pub unsafe extern "C" fn destack_resource_kind(
 }
 
 #[unsafe(export_name = "destack.resource.id.remove")]
-pub unsafe extern "C" fn destack_resource_remove(id: ResourceId) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_resource_id_remove(id: ResourceId) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(REMOVE)?;
+        context.check_policy(RESOURCE_ID_REMOVE)?;
         let _ = &id;
 
         unsafe { platform_native::destack_resource_remove(context, id) }
@@ -340,12 +349,12 @@ pub unsafe extern "C" fn destack_resource_remove(id: ResourceId) -> RuntimeStatu
 }
 
 #[unsafe(export_name = "destack.resource.id.transfer")]
-pub unsafe extern "C" fn destack_resource_transfer(
+pub unsafe extern "C" fn destack_resource_id_transfer(
     id: ResourceId,
     ownership: ResourceOwnership,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(TRANSFER)?;
+        context.check_policy(RESOURCE_ID_TRANSFER)?;
         let _ = (&id, &ownership);
 
         unsafe { platform_native::destack_resource_transfer(context, id, ownership) }
@@ -354,20 +363,20 @@ pub unsafe extern "C" fn destack_resource_transfer(
 
 /// VM replay implementations for resource bindings.
 #[inline]
-fn destack_resource_close_vm_replay(
+fn destack_resource_id_close_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     id: ResourceId,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        CLOSE,
+        RESOURCE_ID_CLOSE,
         context,
         |context| platform_vm::destack_resource_close(runtime, context, id),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = CloseReplay {
+                let payload = ResourceIdCloseReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -376,7 +385,7 @@ fn destack_resource_close_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    CloseReplay { result }
+                    ResourceIdCloseReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -392,75 +401,90 @@ fn destack_resource_close_vm_replay(
             }
         },
     );
-    let result = encode_destack_resource_close_result(context, result)?;
+    let result = encode_destack_resource_id_close_result(context, result)?;
     Ok(result)
 }
 
 /// Register VM bindings for resource.
 pub fn register_resource_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
-        binding!(registry, isolate, CLOSE, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(CLOSE)?;
+        binding!(
+            registry,
+            isolate,
+            RESOURCE_ID_CLOSE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(RESOURCE_ID_CLOSE)?;
 
-                // decode args
-                let (id,) = decode_destack_resource_close_args(context, args)?;
+                    // decode args
+                    let (id,) = decode_destack_resource_id_close_args(context, args)?;
 
-                // execute binding
-                destack_resource_close_vm_replay(runtime, context, id)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    destack_resource_id_close_vm_replay(runtime, context, id)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, KIND, move |context, args| {
+        binding!(registry, isolate, RESOURCE_ID_KIND, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(KIND)?;
+                runtime.check_policy(RESOURCE_ID_KIND)?;
 
                 // decode args
-                let (id,) = decode_destack_resource_kind_args(context, args)?;
+                let (id,) = decode_destack_resource_id_kind_args(context, args)?;
 
                 // execute binding
                 let result = platform_vm::destack_resource_kind(runtime, context, id);
-                encode_destack_resource_kind_result(context, result)
+                encode_destack_resource_id_kind_result(context, result)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, REMOVE, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(REMOVE)?;
+        binding!(
+            registry,
+            isolate,
+            RESOURCE_ID_REMOVE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(RESOURCE_ID_REMOVE)?;
 
-                // decode args
-                let (id,) = decode_destack_resource_remove_args(context, args)?;
+                    // decode args
+                    let (id,) = decode_destack_resource_id_remove_args(context, args)?;
 
-                // execute binding
-                let result = platform_vm::destack_resource_remove(runtime, context, id);
-                encode_destack_resource_remove_result(context, result)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    let result = platform_vm::destack_resource_remove(runtime, context, id);
+                    encode_destack_resource_id_remove_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, TRANSFER, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(TRANSFER)?;
+        binding!(
+            registry,
+            isolate,
+            RESOURCE_ID_TRANSFER,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(RESOURCE_ID_TRANSFER)?;
 
-                // decode args
-                let (id, ownership) = decode_destack_resource_transfer_args(context, args)?;
+                    // decode args
+                    let (id, ownership) = decode_destack_resource_id_transfer_args(context, args)?;
 
-                // execute binding
-                let result =
-                    platform_vm::destack_resource_transfer(runtime, context, id, ownership);
-                encode_destack_resource_transfer_result(context, result)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    let result =
+                        platform_vm::destack_resource_transfer(runtime, context, id, ownership);
+                    encode_destack_resource_id_transfer_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
 }
 

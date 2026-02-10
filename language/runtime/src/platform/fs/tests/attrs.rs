@@ -1,19 +1,13 @@
-use super::{FsHarness, path_bytes, temp_dir, with_native_harness};
-use crate::platform::fs::{
-    AccessMode, FileMode, OpenFlags, destack_fs_attrs_access, destack_fs_attrs_chmod,
-    destack_fs_attrs_chown, destack_fs_attrs_fchmod, destack_fs_attrs_fchown,
-    destack_fs_attrs_futimes, destack_fs_attrs_lutimes, destack_fs_attrs_utimes,
-    destack_fs_dir_mkdir, destack_fs_dir_rmdir, destack_fs_file_close, destack_fs_file_open,
-    destack_fs_path_unlink,
-};
-use crate::platform::resource::{FileHandle, ResourceId};
+#![cfg_attr(windows, allow(dead_code, unused_imports))]
+use super::{FsHarnessKind, temp_dir, with_harness_context};
+use crate::platform::fs as platform_fs;
+use crate::platform::fs::{AccessMode, FileMode, OpenFlags};
 
-#[cfg(any(unix, windows))]
+#[cfg(unix)]
 #[test]
 fn test_fs_access_and_chmod() {
-    with_native_harness(|harness| {
+    with_harness_context(|mut context| {
         // setup runtime and paths
-        let runtime = harness.runtime();
         let temp_dir = temp_dir("fs_attrs");
         let file_path = temp_dir.join("file.txt");
         #[cfg(unix)]
@@ -22,54 +16,52 @@ fn test_fs_access_and_chmod() {
         let should_check_access_failure = false;
 
         // create file
-        harness.with_context(|| {
-            let (_bytes, dir) = path_bytes(&temp_dir);
-            let status = unsafe { destack_fs_dir_mkdir(dir, FileMode(0o755)) };
-            runtime.assert_status_ok(status, "mkdir");
-
-            let (_bytes, file) = path_bytes(&file_path);
-            let flags = OpenFlags((libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC) as u32);
-            let mut handle = FileHandle(ResourceId(0));
-            let status = unsafe { destack_fs_file_open(&mut handle, file, flags, FileMode(0o644)) };
-            runtime.assert_status_ok(status, "open");
-            let status = unsafe { destack_fs_file_close(handle) };
-            runtime.assert_status_ok(status, "close");
-        });
+        let dir = context.path_bytes(&temp_dir);
+        context.mkdir(dir, FileMode(0o755))?;
+        let file = context.path_bytes(&file_path);
+        let flags = OpenFlags((libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC) as u32);
+        let handle = context.open(file, flags, FileMode(0o644))?;
+        context.close(handle)?;
 
         // check access with write permissions
-        harness.with_context(|| {
-            let (_bytes, file) = path_bytes(&file_path);
-            let status = unsafe { destack_fs_attrs_access(file, AccessMode(0o222)) };
-            runtime.assert_status_ok(status, "access write");
+        let file = context.path_bytes(&file_path);
+        context.access(file.clone(), AccessMode(0o222))?;
+        context.chmod(file.clone(), FileMode(0o444))?;
 
-            let status = unsafe { destack_fs_attrs_chmod(file, FileMode(0o444)) };
-            runtime.assert_status_ok(status, "chmod read-only");
-
-            if should_check_access_failure {
-                let status = unsafe { destack_fs_attrs_access(file, AccessMode(0o222)) };
-                runtime.assert_status_err(status, "access write after chmod");
+        if should_check_access_failure {
+            let file = context.path_bytes(&file_path);
+            match context.kind() {
+                FsHarnessKind::Native => {
+                    let native_path = file
+                        .native()
+                        .expect("native path required for native access");
+                    let status = unsafe {
+                        platform_fs::destack_fs_attrs_access(native_path, AccessMode(0o222))
+                    };
+                    context.status_err(status, "access write after chmod")?;
+                }
+                FsHarnessKind::Vm => {
+                    let result = context.access(file, AccessMode(0o222));
+                    assert!(result.is_err(), "access should fail after chmod");
+                }
             }
-        });
+        }
 
         // cleanup
-        harness.with_context(|| {
-            let (_bytes, file) = path_bytes(&file_path);
-            let status = unsafe { destack_fs_path_unlink(file) };
-            runtime.assert_status_ok(status, "unlink");
+        let file = context.path_bytes(&file_path);
+        context.unlink(file)?;
+        let dir = context.path_bytes(&temp_dir);
+        context.rmdir(dir)?;
 
-            let (_bytes, dir) = path_bytes(&temp_dir);
-            let status = unsafe { destack_fs_dir_rmdir(dir) };
-            runtime.assert_status_ok(status, "rmdir");
-        });
+        Ok(())
     });
 }
 
 #[cfg(unix)]
 #[test]
 fn test_fs_chown_and_times() {
-    with_native_harness(|harness| {
+    with_harness_context(|mut context| {
         // setup runtime and paths
-        let runtime = harness.runtime();
         let temp_dir = temp_dir("fs_chown");
         let file_path = temp_dir.join("file.txt");
         #[cfg(unix)]
@@ -78,57 +70,33 @@ fn test_fs_chown_and_times() {
         let can_chown = false;
 
         // create file and open handle
-        let handle = harness.with_context(|| {
-            let (_bytes, dir) = path_bytes(&temp_dir);
-            let status = unsafe { destack_fs_dir_mkdir(dir, FileMode(0o755)) };
-            runtime.assert_status_ok(status, "mkdir");
-
-            let (_bytes, file) = path_bytes(&file_path);
-            let flags = OpenFlags((libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC) as u32);
-            let mut handle = FileHandle(ResourceId(0));
-            let status = unsafe { destack_fs_file_open(&mut handle, file, flags, FileMode(0o644)) };
-            runtime.assert_status_ok(status, "open");
-            handle
-        });
+        let dir = context.path_bytes(&temp_dir);
+        context.mkdir(dir, FileMode(0o755))?;
+        let file = context.path_bytes(&file_path);
+        let flags = OpenFlags((libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC) as u32);
+        let handle = context.open(file, flags, FileMode(0o644))?;
 
         // apply chown and time updates
-        harness.with_context(|| {
-            let (_bytes, file) = path_bytes(&file_path);
-            if can_chown {
-                let uid = unsafe { libc::getuid() };
-                let gid = unsafe { libc::getgid() };
-                let status = unsafe { destack_fs_attrs_chown(file, uid, gid) };
-                runtime.assert_status_ok(status, "chown");
+        let file = context.path_bytes(&file_path);
+        if can_chown {
+            let uid = unsafe { libc::getuid() };
+            let gid = unsafe { libc::getgid() };
+            context.chown(file.clone(), uid, gid)?;
+            context.fchown(handle, uid, gid)?;
+        }
 
-                let status = unsafe { destack_fs_attrs_fchown(handle, uid, gid) };
-                runtime.assert_status_ok(status, "fchown");
-            }
-
-            let status = unsafe { destack_fs_attrs_utimes(file, 1_000_000, 2_000_000) };
-            runtime.assert_status_ok(status, "utimes");
-
-            let status = unsafe { destack_fs_attrs_lutimes(file, 3_000_000, 4_000_000) };
-            runtime.assert_status_ok(status, "lutimes");
-
-            let status = unsafe { destack_fs_attrs_futimes(handle, 5_000_000, 6_000_000) };
-            runtime.assert_status_ok(status, "futimes");
-
-            let status = unsafe { destack_fs_attrs_fchmod(handle, FileMode(0o600)) };
-            runtime.assert_status_ok(status, "fchmod");
-        });
+        context.utimes(file.clone(), 1_000_000, 2_000_000)?;
+        context.lutimes(file.clone(), 3_000_000, 4_000_000)?;
+        context.futimes(handle, 5_000_000, 6_000_000)?;
+        context.fchmod(handle, FileMode(0o600))?;
 
         // cleanup
-        harness.with_context(|| {
-            let status = unsafe { destack_fs_file_close(handle) };
-            runtime.assert_status_ok(status, "close");
+        context.close(handle)?;
+        let file = context.path_bytes(&file_path);
+        context.unlink(file)?;
+        let dir = context.path_bytes(&temp_dir);
+        context.rmdir(dir)?;
 
-            let (_bytes, file) = path_bytes(&file_path);
-            let status = unsafe { destack_fs_path_unlink(file) };
-            runtime.assert_status_ok(status, "unlink");
-
-            let (_bytes, dir) = path_bytes(&temp_dir);
-            let status = unsafe { destack_fs_dir_rmdir(dir) };
-            runtime.assert_status_ok(status, "rmdir");
-        });
+        Ok(())
     });
 }

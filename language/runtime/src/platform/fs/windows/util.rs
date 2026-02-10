@@ -31,8 +31,10 @@ use windows_sys::Win32::System::Kernel::OBJ_CASE_INSENSITIVE;
 use parking_lot::Mutex;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeAbi;
 use crate::platform::fs::{
-    FileMode, FileSize, OpenFlags, PathBytes, PathUtf16, Stat, StatFs, StatFsFlags, core as core_fs,
+    FileMode, FileSize, OpenFlags, PathBytes, PathUtf16, PathUtf16Abi, Stat, StatFs, StatFsFlags,
+    core as core_fs,
 };
 use crate::platform::net::{SocketHandle, core as core_net};
 use crate::platform::resource::{
@@ -96,14 +98,14 @@ pub(super) fn wide_from_bytes(path: PathBytes, name: &str) -> RuntimeResult<Vec<
 
 /// Resolve a UTF-16 path into a wide string.
 pub(super) fn wide_from_utf16(path: PathUtf16, name: &str) -> RuntimeResult<Vec<u16>> {
-    let slice = unsafe { path.0.as_slice()? };
-    core_platform::wide_from_utf16(name, slice)
+    let units = utf16_units(path, name)?;
+    core_platform::wide_from_utf16(name, &units)
 }
 
 /// Resolve a UTF-16 path into a PathBuf.
 pub(super) fn pathbuf_from_utf16(path: PathUtf16, name: &str) -> RuntimeResult<PathBuf> {
-    let slice = unsafe { path.0.as_slice()? };
-    core_platform::pathbuf_from_utf16(name, slice)
+    let units = utf16_units(path, name)?;
+    core_platform::pathbuf_from_utf16(name, &units)
 }
 
 /// Resolve a UTF-8 byte path into a PathBuf.
@@ -205,6 +207,49 @@ pub(super) fn wide_from_pathbuf_no_nul(path: &Path) -> Vec<u16> {
     }
 
     wide
+}
+
+/// Decode UTF-16 units from the path byte payload.
+pub(super) fn utf16_units(path: PathUtf16, name: &str) -> RuntimeResult<Vec<u16>> {
+    // decode raw byte storage
+    let bytes = unsafe { path.0.as_slice()? };
+    if bytes.len() % 2 != 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            name,
+            "path contains odd utf16 byte length",
+        ))
+        .boxed());
+    }
+
+    // decode little endian units
+    let mut units = Vec::with_capacity(bytes.len() / 2);
+    for chunk in bytes.chunks_exact(2) {
+        units.push(u16::from_le_bytes([chunk[0], chunk[1]]));
+    }
+
+    Ok(units)
+}
+
+/// Encode UTF-16 units into the path byte payload.
+fn utf16_bytes(units: &[u16]) -> Vec<u8> {
+    let mut bytes = Vec::with_capacity(units.len() * 2);
+    for unit in units {
+        bytes.extend_from_slice(&unit.to_le_bytes());
+    }
+
+    bytes
+}
+
+/// Build a UTF-16 path payload from units.
+pub(super) fn path_utf16_from_units(context: &RuntimeCallContext, units: &[u16]) -> PathUtf16 {
+    let bytes = utf16_bytes(units);
+    PathUtf16Abi::<NativeAbi>(context.store_array(bytes))
+}
+
+/// Build a UTF-16 path payload from a PathBuf.
+pub(super) fn path_utf16_from_pathbuf(context: &RuntimeCallContext, path: &Path) -> PathUtf16 {
+    let units: Vec<u16> = path.as_os_str().encode_wide().collect();
+    path_utf16_from_units(context, &units)
 }
 
 /// Build a UNICODE_STRING for NtCreateFile.
@@ -614,7 +659,7 @@ pub(super) struct FileResource {
     /// Raw handle for the file.
     pub handle: isize,
     /// Cursor tracking for sequential reads and writes.
-    pub cursor: Arc<Mutex<u64>>,
+    pub cursor: Arc<Mutex<i64>>,
 }
 
 /// Heap-allocated SID wrapper that frees on drop.
@@ -744,7 +789,7 @@ pub(super) fn win32_error(syscall: &str, code: u32) -> Box<RuntimeError> {
 pub(super) fn file_resource(
     context: &RuntimeCallContext,
     handle: FileHandle,
-) -> RuntimeResult<Arc<Mutex<u64>>> {
+) -> RuntimeResult<Arc<Mutex<i64>>> {
     // resolve the resource entry
     let cursor =
         core_fs::require_resource(context, handle.0, ResourceKind::File, "file", |entry| {

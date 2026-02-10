@@ -7,9 +7,8 @@ use crate::runtime::RuntimeCallContext;
 use bindings::*;
 
 use crate::platform::io::{
-    CompletionEvent, CompletionOperation, DescriptorControlCommand, DescriptorControlFlags,
-    DescriptorRequest, DescriptorResult, EventFdFlags, EventToken, PollBackend, PollEvent,
-    PollInterest, UringFeatures, UringParameters,
+    CompletionEvent, CompletionOperation, EventToken, PollBackend, PollEvent, PollInterest,
+    UringFeatures, UringParameters,
 };
 use crate::platform::resource;
 
@@ -129,40 +128,6 @@ pub unsafe fn destack_io_completion_wait(
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.completion.wait")).boxed())
 }
 
-/// Stub for destack.io.control.fcntl.
-pub unsafe fn destack_io_control_fcntl(
-    context: &RuntimeCallContext,
-    out: *mut i64,
-    handle: resource::ResourceId,
-    command: DescriptorControlCommand,
-    argument: u64,
-    flags: DescriptorControlFlags,
-) -> RuntimeResult<()> {
-    context.check_policy(IO_CONTROL_FCNTL)?;
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle, command, argument, flags);
-
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.control.fcntl")).boxed())
-}
-
-/// Stub for destack.io.control.ioctl.
-pub unsafe fn destack_io_control_ioctl(
-    context: &RuntimeCallContext,
-    out: *mut DescriptorResult,
-    handle: resource::ResourceId,
-    request: DescriptorRequest,
-) -> RuntimeResult<()> {
-    context.check_policy(IO_CONTROL_IOCTL)?;
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle, request);
-
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.control.ioctl")).boxed())
-}
-
 /// Stub for destack.io.event.attach.
 pub unsafe fn destack_io_event_attach(
     context: &RuntimeCallContext,
@@ -187,75 +152,6 @@ pub unsafe fn destack_io_event_close(
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.event.close")).boxed())
 }
 
-/// Stub for destack.io.event.fdClose.
-pub unsafe fn destack_io_event_fd_close(
-    context: &RuntimeCallContext,
-    handle: resource::EventFdHandle,
-) -> RuntimeResult<()> {
-    context.check_policy(IO_EVENT_FD_CLOSE)?;
-    let _ = handle;
-
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.event.fdClose")).boxed())
-}
-
-/// Stub for destack.io.event.fdOpen.
-pub unsafe fn destack_io_event_fd_open(
-    context: &RuntimeCallContext,
-    out: *mut resource::EventFdHandle,
-    initial: u64,
-    flags: EventFdFlags,
-) -> RuntimeResult<()> {
-    context.check_policy(IO_EVENT_FD_OPEN)?;
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, initial, flags);
-
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.event.fdOpen")).boxed())
-}
-
-/// Stub for destack.io.event.fdRead.
-pub unsafe fn destack_io_event_fd_read(
-    context: &RuntimeCallContext,
-    out: *mut u64,
-    handle: resource::EventFdHandle,
-) -> RuntimeResult<()> {
-    context.check_policy(IO_EVENT_FD_READ)?;
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle);
-
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.event.fdRead")).boxed())
-}
-
-/// Stub for destack.io.event.fdTryRead.
-pub unsafe fn destack_io_event_fd_try_read(
-    context: &RuntimeCallContext,
-    out: *mut u64,
-    handle: resource::EventFdHandle,
-) -> RuntimeResult<()> {
-    context.check_policy(IO_EVENT_FD_TRY_READ)?;
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle);
-
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.event.fdTryRead")).boxed())
-}
-
-/// Stub for destack.io.event.fdWrite.
-pub unsafe fn destack_io_event_fd_write(
-    context: &RuntimeCallContext,
-    handle: resource::EventFdHandle,
-    value: u64,
-) -> RuntimeResult<()> {
-    context.check_policy(IO_EVENT_FD_WRITE)?;
-    let _ = (handle, value);
-
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.event.fdWrite")).boxed())
-}
-
 /// Stub for destack.io.event.open.
 pub unsafe fn destack_io_event_open(
     context: &RuntimeCallContext,
@@ -271,21 +167,6 @@ pub unsafe fn destack_io_event_open(
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.event.open")).boxed())
 }
 
-/// Stub for destack.io.event.read.
-pub unsafe fn destack_io_event_read(
-    context: &RuntimeCallContext,
-    out: *mut u64,
-    token: EventToken,
-) -> RuntimeResult<()> {
-    context.check_policy(IO_EVENT_READ)?;
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, token);
-
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.event.read")).boxed())
-}
-
 /// Stub for destack.io.event.signal.
 pub unsafe fn destack_io_event_signal(
     context: &RuntimeCallContext,
@@ -296,21 +177,6 @@ pub unsafe fn destack_io_event_signal(
     let _ = (token, value);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.event.signal")).boxed())
-}
-
-/// Stub for destack.io.event.tryRead.
-pub unsafe fn destack_io_event_try_read(
-    context: &RuntimeCallContext,
-    out: *mut u64,
-    token: EventToken,
-) -> RuntimeResult<()> {
-    context.check_policy(IO_EVENT_TRY_READ)?;
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, token);
-
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.event.tryRead")).boxed())
 }
 
 /// Stub for destack.io.poll.close.

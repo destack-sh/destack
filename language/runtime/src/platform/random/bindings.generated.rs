@@ -142,7 +142,7 @@ fn decode_array<T>(
 
 /// Decode arguments for destack.random.secure.bytes.
 #[inline]
-fn decode_destack_random_bytes_args(
+fn decode_destack_random_secure_bytes_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmSlice<u8>,)> {
@@ -153,7 +153,7 @@ fn decode_destack_random_bytes_args(
 
 /// Encode the result for destack.random.secure.bytes.
 #[inline]
-fn encode_destack_random_bytes_result(
+fn encode_destack_random_secure_bytes_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -165,7 +165,7 @@ fn encode_destack_random_bytes_result(
 
 /// Decode arguments for destack.random.secure.bytesTry.
 #[inline]
-fn decode_destack_random_bytes_try_args(
+fn decode_destack_random_secure_bytes_try_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmSlice<u8>,)> {
@@ -176,7 +176,7 @@ fn decode_destack_random_bytes_try_args(
 
 /// Encode the result for destack.random.secure.bytesTry.
 #[inline]
-fn encode_destack_random_bytes_try_result(
+fn encode_destack_random_secure_bytes_try_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -188,7 +188,7 @@ fn encode_destack_random_bytes_try_result(
 
 /// Encode the result for destack.random.secure.info.
 #[inline]
-fn encode_destack_random_info_result(
+fn encode_destack_random_secure_info_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<SecureRandomInfoVm>,
 ) -> RuntimeResult<vm::Value> {
@@ -208,7 +208,7 @@ fn encode_destack_random_info_result(
 
 /// Decode arguments for destack.random.stream.export.
 #[inline]
-fn decode_destack_random_export_args(
+fn decode_destack_random_stream_export_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(RandomStream,)> {
@@ -223,7 +223,7 @@ fn decode_destack_random_export_args(
 
 /// Encode the result for destack.random.stream.export.
 #[inline]
-fn encode_destack_random_export_result(
+fn encode_destack_random_stream_export_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<RandomStreamStateVm>,
 ) -> RuntimeResult<vm::Value> {
@@ -236,7 +236,7 @@ fn encode_destack_random_export_result(
 
 /// Decode arguments for destack.random.stream.fillBytes.
 #[inline]
-fn decode_destack_random_fill_bytes_args(
+fn decode_destack_random_stream_fill_bytes_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmSlice<u8>,)> {
@@ -247,7 +247,7 @@ fn decode_destack_random_fill_bytes_args(
 
 /// Encode the result for destack.random.stream.fillBytes.
 #[inline]
-fn encode_destack_random_fill_bytes_result(
+fn encode_destack_random_stream_fill_bytes_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -259,7 +259,7 @@ fn encode_destack_random_fill_bytes_result(
 
 /// Decode arguments for destack.random.stream.fillBytesFrom.
 #[inline]
-fn decode_destack_random_fill_bytes_from_args(
+fn decode_destack_random_stream_fill_bytes_from_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(RandomStream, VmSlice<u8>)> {
@@ -273,7 +273,7 @@ fn decode_destack_random_fill_bytes_from_args(
 
 /// Encode the result for destack.random.stream.fillBytesFrom.
 #[inline]
-fn encode_destack_random_fill_bytes_from_result(
+fn encode_destack_random_stream_fill_bytes_from_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -285,7 +285,7 @@ fn encode_destack_random_fill_bytes_from_result(
 
 /// Decode arguments for destack.random.stream.import.
 #[inline]
-fn decode_destack_random_import_args(
+fn decode_destack_random_stream_import_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(RandomStream, RandomStreamStateVm)> {
@@ -323,7 +323,7 @@ fn decode_destack_random_import_args(
 
 /// Encode the result for destack.random.stream.import.
 #[inline]
-fn encode_destack_random_import_result(
+fn encode_destack_random_stream_import_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -335,7 +335,7 @@ fn encode_destack_random_import_result(
 
 /// Decode arguments for destack.random.stream.in.
 #[inline]
-fn decode_destack_random_in_args(
+fn decode_destack_random_stream_in_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(RandomStreamDomain,)> {
@@ -360,7 +360,7 @@ fn decode_destack_random_in_args(
 
 /// Encode the result for destack.random.stream.in.
 #[inline]
-fn encode_destack_random_in_result(
+fn encode_destack_random_stream_in_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<RandomStream>,
 ) -> RuntimeResult<vm::Value> {
@@ -372,7 +372,7 @@ fn encode_destack_random_in_result(
 
 /// Decode arguments for destack.random.stream.jump.
 #[inline]
-fn decode_destack_random_jump_args(
+fn decode_destack_random_stream_jump_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(RandomStream, u64)> {
@@ -389,7 +389,7 @@ fn decode_destack_random_jump_args(
 
 /// Encode the result for destack.random.stream.jump.
 #[inline]
-fn encode_destack_random_jump_result(
+fn encode_destack_random_stream_jump_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -401,7 +401,7 @@ fn encode_destack_random_jump_result(
 
 /// Encode the result for destack.random.stream.nextU64.
 #[inline]
-fn encode_destack_random_next_u64_result(
+fn encode_destack_random_stream_next_u64_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
@@ -413,7 +413,7 @@ fn encode_destack_random_next_u64_result(
 
 /// Decode arguments for destack.random.stream.nextU64From.
 #[inline]
-fn decode_destack_random_next_u64_from_args(
+fn decode_destack_random_stream_next_u64_from_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(RandomStream,)> {
@@ -428,7 +428,7 @@ fn decode_destack_random_next_u64_from_args(
 
 /// Encode the result for destack.random.stream.nextU64From.
 #[inline]
-fn encode_destack_random_next_u64_from_result(
+fn encode_destack_random_stream_next_u64_from_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
@@ -440,7 +440,7 @@ fn encode_destack_random_next_u64_from_result(
 
 /// Decode arguments for destack.random.stream.split.
 #[inline]
-fn decode_destack_random_split_args(
+fn decode_destack_random_stream_split_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(RandomStream,)> {
@@ -455,7 +455,7 @@ fn decode_destack_random_split_args(
 
 /// Encode the result for destack.random.stream.split.
 #[inline]
-fn encode_destack_random_split_result(
+fn encode_destack_random_stream_split_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<RandomStream>,
 ) -> RuntimeResult<vm::Value> {
@@ -467,7 +467,7 @@ fn encode_destack_random_split_result(
 
 /// Encode the result for destack.random.stream.stream.
 #[inline]
-fn encode_destack_random_stream_result(
+fn encode_destack_random_stream_stream_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<RandomStream>,
 ) -> RuntimeResult<vm::Value> {
@@ -479,110 +479,115 @@ fn encode_destack_random_stream_result(
 
 /// Replay payload for destack.random.secure.bytesTry.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct BytesTryReplay {
+struct RandomSecureBytesTryReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.random.secure.info.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct InfoReplay {
+struct RandomSecureInfoReplay {
     /// Replay result payload.
     pub result: Result<SecureRandomInfoReplay, PlatformError>,
 }
 
 /// Replay payload for destack.random.stream.export.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct ExportReplay {
+struct RandomStreamExportReplay {
     /// Replay result payload.
     pub result: Result<RandomStreamStateReplay, PlatformError>,
 }
 
 /// Replay payload for destack.random.stream.import.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct ImportReplay {
+struct RandomStreamImportReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.random.stream.in.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct InReplay {
+struct RandomStreamInReplay {
     /// Replay result payload.
     pub result: Result<RandomStream, PlatformError>,
 }
 
 /// Replay payload for destack.random.stream.jump.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct JumpReplay {
+struct RandomStreamJumpReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.random.stream.split.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct SplitReplay {
+struct RandomStreamSplitReplay {
     /// Replay result payload.
     pub result: Result<RandomStream, PlatformError>,
 }
 
 /// Binding descriptor for destack.random.secure.bytes.
-pub const BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.random.secure.bytes",
-    "export function secureBytes(buffer: Slice<uint8>): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Random(RandomEventKind::Bytes),
-    &["random.secure"],
-    BindingScope::Hybrid,
-    BindingBlocking::Sometimes,
-);
+pub const RANDOM_SECURE_BYTES: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.random.secure.bytes",
+        "export function secureBytes(buffer: Slice<uint8>): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Random(RandomEventKind::Bytes),
+        &["random.secure"],
+        BindingScope::Hybrid,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.random.secure.bytesTry.
-pub const BYTES_TRY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.random.secure.bytesTry",
-    "export function secureBytesTry(buffer: Slice<uint8>): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["random.secure"],
-    BindingScope::Hybrid,
-    BindingBlocking::Never,
-);
+pub const RANDOM_SECURE_BYTES_TRY: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.random.secure.bytesTry",
+        "export function secureBytesTry(buffer: Slice<uint8>): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["random.secure"],
+        BindingScope::Hybrid,
+        BindingBlocking::Never,
+    );
 
 /// Binding descriptor for destack.random.secure.info.
-pub const INFO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.random.secure.info",
-    "export function secureInfo(): Result<SecureRandomInfo, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["random.secure"],
-    BindingScope::Hybrid,
-    BindingBlocking::Never,
-);
+pub const RANDOM_SECURE_INFO: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.random.secure.info",
+        "export function secureInfo(): Result<SecureRandomInfo, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["random.secure"],
+        BindingScope::Hybrid,
+        BindingBlocking::Never,
+    );
 
 /// Binding descriptor for destack.random.stream.export.
-pub const EXPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.random.stream.export",
-    "export function streamExport(stream: RandomStream): Result<RandomStreamState, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["random.deterministic"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-);
+pub const RANDOM_STREAM_EXPORT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.random.stream.export",
+        "export function streamExport(stream: RandomStream): Result<RandomStreamState, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["random.deterministic"],
+        BindingScope::Runtime,
+        BindingBlocking::Never,
+    );
 
 /// Binding descriptor for destack.random.stream.fillBytes.
-pub const FILL_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.random.stream.fillBytes",
-    "export function fillBytes(buffer: Slice<uint8>): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Random(RandomEventKind::Bytes),
-    &["random.deterministic"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-);
+pub const RANDOM_STREAM_FILL_BYTES: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.random.stream.fillBytes",
+        "export function fillBytes(buffer: Slice<uint8>): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Random(RandomEventKind::Bytes),
+        &["random.deterministic"],
+        BindingScope::Runtime,
+        BindingBlocking::Never,
+    );
 
 /// Binding descriptor for destack.random.stream.fillBytesFrom.
-pub const FILL_BYTES_FROM: BindingDescriptor =
+pub const RANDOM_STREAM_FILL_BYTES_FROM: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.random.stream.fillBytesFrom",
         "export function fillBytesFrom(stream: RandomStream, buffer: Slice<uint8>): Result<void, PlatformError>",
@@ -594,97 +599,104 @@ pub const FILL_BYTES_FROM: BindingDescriptor =
     );
 
 /// Binding descriptor for destack.random.stream.import.
-pub const IMPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.random.stream.import",
-    "export function streamImport(stream: RandomStream, state: RandomStreamState): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["random.deterministic"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-);
+pub const RANDOM_STREAM_IMPORT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.random.stream.import",
+        "export function streamImport(stream: RandomStream, state: RandomStreamState): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["random.deterministic"],
+        BindingScope::Runtime,
+        BindingBlocking::Never,
+    );
 
 /// Binding descriptor for destack.random.stream.in.
-pub const IN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.random.stream.in",
-    "export function streamIn(domain: RandomStreamDomain): Result<RandomStream, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["random.deterministic"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-);
+pub const RANDOM_STREAM_IN: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.random.stream.in",
+        "export function streamIn(domain: RandomStreamDomain): Result<RandomStream, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["random.deterministic"],
+        BindingScope::Runtime,
+        BindingBlocking::Never,
+    );
 
 /// Binding descriptor for destack.random.stream.jump.
-pub const JUMP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.random.stream.jump",
-    "export function streamJump(stream: RandomStream, jump: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["random.deterministic"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-);
+pub const RANDOM_STREAM_JUMP: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.random.stream.jump",
+        "export function streamJump(stream: RandomStream, jump: uint64): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["random.deterministic"],
+        BindingScope::Runtime,
+        BindingBlocking::Never,
+    );
 
 /// Binding descriptor for destack.random.stream.nextU64.
-pub const NEXT_U64: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.random.stream.nextU64",
-    "export function nextU64(): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Random(RandomEventKind::NextU64),
-    &["random.deterministic"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-);
+pub const RANDOM_STREAM_NEXT_U64: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.random.stream.nextU64",
+        "export function nextU64(): Result<uint64, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Random(RandomEventKind::NextU64),
+        &["random.deterministic"],
+        BindingScope::Runtime,
+        BindingBlocking::Never,
+    );
 
 /// Binding descriptor for destack.random.stream.nextU64From.
-pub const NEXT_U64_FROM: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.random.stream.nextU64From",
-    "export function nextU64From(stream: RandomStream): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Random(RandomEventKind::NextU64),
-    &["random.deterministic"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-);
+pub const RANDOM_STREAM_NEXT_U64_FROM: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.random.stream.nextU64From",
+        "export function nextU64From(stream: RandomStream): Result<uint64, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Random(RandomEventKind::NextU64),
+        &["random.deterministic"],
+        BindingScope::Runtime,
+        BindingBlocking::Never,
+    );
 
 /// Binding descriptor for destack.random.stream.split.
-pub const SPLIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.random.stream.split",
-    "export function streamSplit(parent: RandomStream): Result<RandomStream, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["random.deterministic"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-);
+pub const RANDOM_STREAM_SPLIT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.random.stream.split",
+        "export function streamSplit(parent: RandomStream): Result<RandomStream, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["random.deterministic"],
+        BindingScope::Runtime,
+        BindingBlocking::Never,
+    );
 
 /// Binding descriptor for destack.random.stream.stream.
-pub const STREAM: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.random.stream.stream",
-    "export function stream(): Result<RandomStream, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Random(RandomEventKind::Stream),
-    &["random.deterministic"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-);
+pub const RANDOM_STREAM_STREAM: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.random.stream.stream",
+        "export function stream(): Result<RandomStream, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Random(RandomEventKind::Stream),
+        &["random.deterministic"],
+        BindingScope::Runtime,
+        BindingBlocking::Never,
+    );
 
 /// Binding descriptors for random.
 pub const BINDINGS: &[BindingDescriptor] = &[
-    BYTES,
-    BYTES_TRY,
-    INFO,
-    EXPORT,
-    FILL_BYTES,
-    FILL_BYTES_FROM,
-    IMPORT,
-    IN,
-    JUMP,
-    NEXT_U64,
-    NEXT_U64_FROM,
-    SPLIT,
-    STREAM,
+    RANDOM_SECURE_BYTES,
+    RANDOM_SECURE_BYTES_TRY,
+    RANDOM_SECURE_INFO,
+    RANDOM_STREAM_EXPORT,
+    RANDOM_STREAM_FILL_BYTES,
+    RANDOM_STREAM_FILL_BYTES_FROM,
+    RANDOM_STREAM_IMPORT,
+    RANDOM_STREAM_IN,
+    RANDOM_STREAM_JUMP,
+    RANDOM_STREAM_NEXT_U64,
+    RANDOM_STREAM_NEXT_U64_FROM,
+    RANDOM_STREAM_SPLIT,
+    RANDOM_STREAM_STREAM,
 ];
 
 /// Native binding set for random.
@@ -692,88 +704,88 @@ pub const RANDOM_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "random",
     bindings: &[
         NativeBinding::new(
-            BYTES,
+            RANDOM_SECURE_BYTES,
             "destack.random.secure.bytes",
-            destack_random_bytes as *const (),
+            destack_random_secure_bytes as *const (),
         ),
         NativeBinding::new(
-            BYTES_TRY,
+            RANDOM_SECURE_BYTES_TRY,
             "destack.random.secure.bytesTry",
-            destack_random_bytes_try as *const (),
+            destack_random_secure_bytes_try as *const (),
         ),
         NativeBinding::new(
-            INFO,
+            RANDOM_SECURE_INFO,
             "destack.random.secure.info",
-            destack_random_info as *const (),
+            destack_random_secure_info as *const (),
         ),
         NativeBinding::new(
-            EXPORT,
+            RANDOM_STREAM_EXPORT,
             "destack.random.stream.export",
-            destack_random_export as *const (),
+            destack_random_stream_export as *const (),
         ),
         NativeBinding::new(
-            FILL_BYTES,
+            RANDOM_STREAM_FILL_BYTES,
             "destack.random.stream.fillBytes",
-            destack_random_fill_bytes as *const (),
+            destack_random_stream_fill_bytes as *const (),
         ),
         NativeBinding::new(
-            FILL_BYTES_FROM,
+            RANDOM_STREAM_FILL_BYTES_FROM,
             "destack.random.stream.fillBytesFrom",
-            destack_random_fill_bytes_from as *const (),
+            destack_random_stream_fill_bytes_from as *const (),
         ),
         NativeBinding::new(
-            IMPORT,
+            RANDOM_STREAM_IMPORT,
             "destack.random.stream.import",
-            destack_random_import as *const (),
+            destack_random_stream_import as *const (),
         ),
         NativeBinding::new(
-            IN,
+            RANDOM_STREAM_IN,
             "destack.random.stream.in",
-            destack_random_in as *const (),
+            destack_random_stream_in as *const (),
         ),
         NativeBinding::new(
-            JUMP,
+            RANDOM_STREAM_JUMP,
             "destack.random.stream.jump",
-            destack_random_jump as *const (),
+            destack_random_stream_jump as *const (),
         ),
         NativeBinding::new(
-            NEXT_U64,
+            RANDOM_STREAM_NEXT_U64,
             "destack.random.stream.nextU64",
-            destack_random_next_u64 as *const (),
+            destack_random_stream_next_u64 as *const (),
         ),
         NativeBinding::new(
-            NEXT_U64_FROM,
+            RANDOM_STREAM_NEXT_U64_FROM,
             "destack.random.stream.nextU64From",
-            destack_random_next_u64_from as *const (),
+            destack_random_stream_next_u64_from as *const (),
         ),
         NativeBinding::new(
-            SPLIT,
+            RANDOM_STREAM_SPLIT,
             "destack.random.stream.split",
-            destack_random_split as *const (),
+            destack_random_stream_split as *const (),
         ),
         NativeBinding::new(
-            STREAM,
+            RANDOM_STREAM_STREAM,
             "destack.random.stream.stream",
-            destack_random_stream as *const (),
+            destack_random_stream_stream as *const (),
         ),
     ],
 };
 
 /// Native replay implementations for random bindings.
 #[inline]
-fn destack_random_bytes_try_replay(
+fn destack_random_secure_bytes_try_replay(
     context: &RuntimeCallContext,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = &buffer;
 
     context.replay().run_binding(
-        BYTES_TRY,
-        || unsafe { platform_native::destack_random_bytes_try(context, buffer) },
+        RANDOM_SECURE_BYTES_TRY,
+        || unsafe { platform_native::destack_random_secure_bytes_try(context, buffer) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = BytesTryReplay {
+                let payload = RandomSecureBytesTryReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -782,7 +794,7 @@ fn destack_random_bytes_try_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    BytesTryReplay { result }
+                    RandomSecureBytesTryReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -800,13 +812,13 @@ fn destack_random_bytes_try_replay(
 }
 
 #[inline]
-fn destack_random_info_replay(
+fn destack_random_secure_info_replay(
     context: &RuntimeCallContext,
     out: *mut SecureRandomInfo,
 ) -> RuntimeResult<()> {
     context.replay().run_binding(
-        INFO,
-        || unsafe { platform_native::destack_random_info(context, out) },
+        RANDOM_SECURE_INFO,
+        || unsafe { platform_native::destack_random_secure_info(context, out) },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
@@ -832,7 +844,7 @@ fn destack_random_info_replay(
                     is_fips_approved: result_replay_is_fips_approved,
                     entropy_bits_per_byte: result_replay_entropy_bits_per_byte,
                 };
-                let payload = InfoReplay {
+                let payload = RandomSecureInfoReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -841,7 +853,7 @@ fn destack_random_info_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    InfoReplay { result }
+                    RandomSecureInfoReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -880,7 +892,7 @@ fn destack_random_info_replay(
 }
 
 #[inline]
-fn destack_random_export_replay(
+fn destack_random_stream_export_replay(
     context: &RuntimeCallContext,
     out: *mut RandomStreamState,
     stream: RandomStream,
@@ -888,8 +900,8 @@ fn destack_random_export_replay(
     let _ = &stream;
 
     context.replay().run_binding(
-        EXPORT,
-        || unsafe { platform_native::destack_random_export(context, out, stream) },
+        RANDOM_STREAM_EXPORT,
+        || unsafe { platform_native::destack_random_stream_export(context, out, stream) },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
@@ -910,7 +922,7 @@ fn destack_random_export_replay(
                     version: result_replay_version,
                     bytes: result_replay_bytes,
                 };
-                let payload = ExportReplay {
+                let payload = RandomStreamExportReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -919,7 +931,7 @@ fn destack_random_export_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ExportReplay { result }
+                    RandomStreamExportReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -953,7 +965,7 @@ fn destack_random_export_replay(
 }
 
 #[inline]
-fn destack_random_import_replay(
+fn destack_random_stream_import_replay(
     context: &RuntimeCallContext,
     stream: RandomStream,
     state: RandomStreamState,
@@ -961,12 +973,12 @@ fn destack_random_import_replay(
     let _ = (&stream, &state);
 
     context.replay().run_binding(
-        IMPORT,
-        || unsafe { platform_native::destack_random_import(context, stream, state) },
+        RANDOM_STREAM_IMPORT,
+        || unsafe { platform_native::destack_random_stream_import(context, stream, state) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = ImportReplay {
+                let payload = RandomStreamImportReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -975,7 +987,7 @@ fn destack_random_import_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ImportReplay { result }
+                    RandomStreamImportReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -993,7 +1005,7 @@ fn destack_random_import_replay(
 }
 
 #[inline]
-fn destack_random_in_replay(
+fn destack_random_stream_in_replay(
     context: &RuntimeCallContext,
     out: *mut RandomStream,
     domain: RandomStreamDomain,
@@ -1001,8 +1013,8 @@ fn destack_random_in_replay(
     let _ = &domain;
 
     context.replay().run_binding(
-        IN,
-        || unsafe { platform_native::destack_random_in(context, out, domain) },
+        RANDOM_STREAM_IN,
+        || unsafe { platform_native::destack_random_stream_in(context, out, domain) },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
@@ -1012,7 +1024,7 @@ fn destack_random_in_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = InReplay {
+                let payload = RandomStreamInReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1021,7 +1033,7 @@ fn destack_random_in_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    InReplay { result }
+                    RandomStreamInReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1045,7 +1057,7 @@ fn destack_random_in_replay(
 }
 
 #[inline]
-fn destack_random_jump_replay(
+fn destack_random_stream_jump_replay(
     context: &RuntimeCallContext,
     stream: RandomStream,
     jump: u64,
@@ -1053,12 +1065,12 @@ fn destack_random_jump_replay(
     let _ = (&stream, &jump);
 
     context.replay().run_binding(
-        JUMP,
-        || unsafe { platform_native::destack_random_jump(context, stream, jump) },
+        RANDOM_STREAM_JUMP,
+        || unsafe { platform_native::destack_random_stream_jump(context, stream, jump) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = JumpReplay {
+                let payload = RandomStreamJumpReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1067,7 +1079,7 @@ fn destack_random_jump_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    JumpReplay { result }
+                    RandomStreamJumpReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1085,7 +1097,7 @@ fn destack_random_jump_replay(
 }
 
 #[inline]
-fn destack_random_split_replay(
+fn destack_random_stream_split_replay(
     context: &RuntimeCallContext,
     out: *mut RandomStream,
     parent: RandomStream,
@@ -1093,8 +1105,8 @@ fn destack_random_split_replay(
     let _ = &parent;
 
     context.replay().run_binding(
-        SPLIT,
-        || unsafe { platform_native::destack_random_split(context, out, parent) },
+        RANDOM_STREAM_SPLIT,
+        || unsafe { platform_native::destack_random_stream_split(context, out, parent) },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
@@ -1104,7 +1116,7 @@ fn destack_random_split_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = SplitReplay {
+                let payload = RandomStreamSplitReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1113,7 +1125,7 @@ fn destack_random_split_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    SplitReplay { result }
+                    RandomStreamSplitReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1138,14 +1150,14 @@ fn destack_random_split_replay(
 
 /// Native export wrappers for random bindings.
 #[unsafe(export_name = "destack.random.secure.bytes")]
-pub unsafe extern "C" fn destack_random_bytes(buffer: NativeSlice<u8>) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_random_secure_bytes(buffer: NativeSlice<u8>) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(BYTES)?;
+        context.check_policy(RANDOM_SECURE_BYTES)?;
         let _ = &buffer;
 
         context.replay().run_random_bytes(
             context.random_stream_id(),
-            || unsafe { platform_native::destack_random_bytes(context, buffer) },
+            || unsafe { platform_native::destack_random_secure_bytes(context, buffer) },
             || {
                 let slice = unsafe { buffer.as_slice()? };
                 Ok(slice.to_vec())
@@ -1167,48 +1179,50 @@ pub unsafe extern "C" fn destack_random_bytes(buffer: NativeSlice<u8>) -> Runtim
 }
 
 #[unsafe(export_name = "destack.random.secure.bytesTry")]
-pub unsafe extern "C" fn destack_random_bytes_try(buffer: NativeSlice<u8>) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_random_secure_bytes_try(buffer: NativeSlice<u8>) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(BYTES_TRY)?;
+        context.check_policy(RANDOM_SECURE_BYTES_TRY)?;
         let _ = &buffer;
 
-        destack_random_bytes_try_replay(context, buffer)
+        destack_random_secure_bytes_try_replay(context, buffer)
     })
 }
 
 #[unsafe(export_name = "destack.random.secure.info")]
-pub unsafe extern "C" fn destack_random_info(out: *mut SecureRandomInfo) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_random_secure_info(out: *mut SecureRandomInfo) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(INFO)?;
+        context.check_policy(RANDOM_SECURE_INFO)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = &out;
 
-        destack_random_info_replay(context, out)
+        destack_random_secure_info_replay(context, out)
     })
 }
 
 #[unsafe(export_name = "destack.random.stream.export")]
-pub unsafe extern "C" fn destack_random_export(
+pub unsafe extern "C" fn destack_random_stream_export(
     out: *mut RandomStreamState,
     stream: RandomStream,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(EXPORT)?;
+        context.check_policy(RANDOM_STREAM_EXPORT)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &stream);
 
-        destack_random_export_replay(context, out, stream)
+        destack_random_stream_export_replay(context, out, stream)
     })
 }
 
 #[unsafe(export_name = "destack.random.stream.fillBytes")]
-pub unsafe extern "C" fn destack_random_fill_bytes(buffer: NativeSlice<u8>) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_random_stream_fill_bytes(
+    buffer: NativeSlice<u8>,
+) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(FILL_BYTES)?;
+        context.check_policy(RANDOM_STREAM_FILL_BYTES)?;
         let _ = &buffer;
 
         context.replay().run_random_bytes(
@@ -1235,12 +1249,12 @@ pub unsafe extern "C" fn destack_random_fill_bytes(buffer: NativeSlice<u8>) -> R
 }
 
 #[unsafe(export_name = "destack.random.stream.fillBytesFrom")]
-pub unsafe extern "C" fn destack_random_fill_bytes_from(
+pub unsafe extern "C" fn destack_random_stream_fill_bytes_from(
     stream: RandomStream,
     buffer: NativeSlice<u8>,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(FILL_BYTES_FROM)?;
+        context.check_policy(RANDOM_STREAM_FILL_BYTES_FROM)?;
         let _ = (&stream, &buffer);
 
         context.replay().run_random_bytes(
@@ -1267,48 +1281,51 @@ pub unsafe extern "C" fn destack_random_fill_bytes_from(
 }
 
 #[unsafe(export_name = "destack.random.stream.import")]
-pub unsafe extern "C" fn destack_random_import(
+pub unsafe extern "C" fn destack_random_stream_import(
     stream: RandomStream,
     state: RandomStreamState,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(IMPORT)?;
+        context.check_policy(RANDOM_STREAM_IMPORT)?;
         let _ = (&stream, &state);
 
-        destack_random_import_replay(context, stream, state)
+        destack_random_stream_import_replay(context, stream, state)
     })
 }
 
 #[unsafe(export_name = "destack.random.stream.in")]
-pub unsafe extern "C" fn destack_random_in(
+pub unsafe extern "C" fn destack_random_stream_in(
     out: *mut RandomStream,
     domain: RandomStreamDomain,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(IN)?;
+        context.check_policy(RANDOM_STREAM_IN)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &domain);
 
-        destack_random_in_replay(context, out, domain)
+        destack_random_stream_in_replay(context, out, domain)
     })
 }
 
 #[unsafe(export_name = "destack.random.stream.jump")]
-pub unsafe extern "C" fn destack_random_jump(stream: RandomStream, jump: u64) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_random_stream_jump(
+    stream: RandomStream,
+    jump: u64,
+) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(JUMP)?;
+        context.check_policy(RANDOM_STREAM_JUMP)?;
         let _ = (&stream, &jump);
 
-        destack_random_jump_replay(context, stream, jump)
+        destack_random_stream_jump_replay(context, stream, jump)
     })
 }
 
 #[unsafe(export_name = "destack.random.stream.nextU64")]
-pub unsafe extern "C" fn destack_random_next_u64(out: *mut u64) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_random_stream_next_u64(out: *mut u64) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(NEXT_U64)?;
+        context.check_policy(RANDOM_STREAM_NEXT_U64)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
@@ -1328,12 +1345,12 @@ pub unsafe extern "C" fn destack_random_next_u64(out: *mut u64) -> RuntimeStatus
 }
 
 #[unsafe(export_name = "destack.random.stream.nextU64From")]
-pub unsafe extern "C" fn destack_random_next_u64_from(
+pub unsafe extern "C" fn destack_random_stream_next_u64_from(
     out: *mut u64,
     stream: RandomStream,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(NEXT_U64_FROM)?;
+        context.check_policy(RANDOM_STREAM_NEXT_U64_FROM)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
@@ -1353,25 +1370,25 @@ pub unsafe extern "C" fn destack_random_next_u64_from(
 }
 
 #[unsafe(export_name = "destack.random.stream.split")]
-pub unsafe extern "C" fn destack_random_split(
+pub unsafe extern "C" fn destack_random_stream_split(
     out: *mut RandomStream,
     parent: RandomStream,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(SPLIT)?;
+        context.check_policy(RANDOM_STREAM_SPLIT)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &parent);
 
-        destack_random_split_replay(context, out, parent)
+        destack_random_stream_split_replay(context, out, parent)
     })
 }
 
 #[unsafe(export_name = "destack.random.stream.stream")]
-pub unsafe extern "C" fn destack_random_stream(out: *mut RandomStream) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_random_stream_stream(out: *mut RandomStream) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(STREAM)?;
+        context.check_policy(RANDOM_STREAM_STREAM)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
@@ -1390,20 +1407,20 @@ pub unsafe extern "C" fn destack_random_stream(out: *mut RandomStream) -> Runtim
 
 /// VM replay implementations for random bindings.
 #[inline]
-fn destack_random_bytes_try_vm_replay(
+fn destack_random_secure_bytes_try_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        BYTES_TRY,
+        RANDOM_SECURE_BYTES_TRY,
         context,
-        |context| platform_vm::destack_random_bytes_try(runtime, context, buffer),
+        |context| platform_vm::destack_random_secure_bytes_try(runtime, context, buffer),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = BytesTryReplay {
+                let payload = RandomSecureBytesTryReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1412,7 +1429,7 @@ fn destack_random_bytes_try_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    BytesTryReplay { result }
+                    RandomSecureBytesTryReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1428,19 +1445,19 @@ fn destack_random_bytes_try_vm_replay(
             }
         },
     );
-    let result = encode_destack_random_bytes_try_result(context, result)?;
+    let result = encode_destack_random_secure_bytes_try_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_random_info_vm_replay(
+fn destack_random_secure_info_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        INFO,
+        RANDOM_SECURE_INFO,
         context,
-        |context| platform_vm::destack_random_info(runtime, context),
+        |context| platform_vm::destack_random_secure_info(runtime, context),
         |context, result| {
             let _ = &context;
             if let Ok(value) = result {
@@ -1466,7 +1483,7 @@ fn destack_random_info_vm_replay(
                     is_fips_approved: result_replay_is_fips_approved,
                     entropy_bits_per_byte: result_replay_entropy_bits_per_byte,
                 };
-                let payload = InfoReplay {
+                let payload = RandomSecureInfoReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1475,7 +1492,7 @@ fn destack_random_info_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    InfoReplay { result }
+                    RandomSecureInfoReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1512,20 +1529,20 @@ fn destack_random_info_vm_replay(
             }
         },
     );
-    let result = encode_destack_random_info_result(context, result)?;
+    let result = encode_destack_random_secure_info_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_random_export_vm_replay(
+fn destack_random_stream_export_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     stream: RandomStream,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        EXPORT,
+        RANDOM_STREAM_EXPORT,
         context,
-        |context| platform_vm::destack_random_export(runtime, context, stream),
+        |context| platform_vm::destack_random_stream_export(runtime, context, stream),
         |context, result| {
             let _ = &context;
             if let Ok(value) = result {
@@ -1536,7 +1553,7 @@ fn destack_random_export_vm_replay(
                     version: result_replay_version,
                     bytes: result_replay_bytes,
                 };
-                let payload = ExportReplay {
+                let payload = RandomStreamExportReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1545,7 +1562,7 @@ fn destack_random_export_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ExportReplay { result }
+                    RandomStreamExportReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1569,26 +1586,26 @@ fn destack_random_export_vm_replay(
             }
         },
     );
-    let result = encode_destack_random_export_result(context, result)?;
+    let result = encode_destack_random_stream_export_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_random_import_vm_replay(
+fn destack_random_stream_import_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     stream: RandomStream,
     state: RandomStreamStateVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        IMPORT,
+        RANDOM_STREAM_IMPORT,
         context,
-        |context| platform_vm::destack_random_import(runtime, context, stream, state),
+        |context| platform_vm::destack_random_stream_import(runtime, context, stream, state),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = ImportReplay {
+                let payload = RandomStreamImportReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1597,7 +1614,7 @@ fn destack_random_import_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ImportReplay { result }
+                    RandomStreamImportReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1613,26 +1630,26 @@ fn destack_random_import_vm_replay(
             }
         },
     );
-    let result = encode_destack_random_import_result(context, result)?;
+    let result = encode_destack_random_stream_import_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_random_in_vm_replay(
+fn destack_random_stream_in_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     domain: RandomStreamDomain,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        IN,
+        RANDOM_STREAM_IN,
         context,
-        |context| platform_vm::destack_random_in(runtime, context, domain),
+        |context| platform_vm::destack_random_stream_in(runtime, context, domain),
         |context, result| {
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = InReplay {
+                let payload = RandomStreamInReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1641,7 +1658,7 @@ fn destack_random_in_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    InReplay { result }
+                    RandomStreamInReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1660,26 +1677,26 @@ fn destack_random_in_vm_replay(
             }
         },
     );
-    let result = encode_destack_random_in_result(context, result)?;
+    let result = encode_destack_random_stream_in_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_random_jump_vm_replay(
+fn destack_random_stream_jump_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     stream: RandomStream,
     jump: u64,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        JUMP,
+        RANDOM_STREAM_JUMP,
         context,
-        |context| platform_vm::destack_random_jump(runtime, context, stream, jump),
+        |context| platform_vm::destack_random_stream_jump(runtime, context, stream, jump),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = JumpReplay {
+                let payload = RandomStreamJumpReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1688,7 +1705,7 @@ fn destack_random_jump_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    JumpReplay { result }
+                    RandomStreamJumpReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1704,26 +1721,26 @@ fn destack_random_jump_vm_replay(
             }
         },
     );
-    let result = encode_destack_random_jump_result(context, result)?;
+    let result = encode_destack_random_stream_jump_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_random_split_vm_replay(
+fn destack_random_stream_split_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     parent: RandomStream,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        SPLIT,
+        RANDOM_STREAM_SPLIT,
         context,
-        |context| platform_vm::destack_random_split(runtime, context, parent),
+        |context| platform_vm::destack_random_stream_split(runtime, context, parent),
         |context, result| {
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = SplitReplay {
+                let payload = RandomStreamSplitReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1732,7 +1749,7 @@ fn destack_random_split_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    SplitReplay { result }
+                    RandomStreamSplitReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1751,243 +1768,312 @@ fn destack_random_split_vm_replay(
             }
         },
     );
-    let result = encode_destack_random_split_result(context, result)?;
+    let result = encode_destack_random_stream_split_result(context, result)?;
     Ok(result)
 }
 
 /// Register VM bindings for random.
 pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
-        binding!(registry, isolate, BYTES, move |context, args| {
+        binding!(
+            registry,
+            isolate,
+            RANDOM_SECURE_BYTES,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(RANDOM_SECURE_BYTES)?;
+
+                    // decode args
+                    let (buffer,) = decode_destack_random_secure_bytes_args(context, args)?;
+
+                    // execute binding
+                    let context_ptr = context as *mut vm::RuntimeContext<'_>;
+                    let result = runtime.replay().run_random_bytes(
+                        runtime.random_stream_id(),
+                        || unsafe {
+                            platform_vm::destack_random_secure_bytes(
+                                runtime,
+                                &mut *context_ptr,
+                                buffer,
+                            )
+                        },
+                        || unsafe { buffer.read_bytes(&*context_ptr) },
+                        |bytes| unsafe { buffer.write_bytes(&mut *context_ptr, &bytes) },
+                    );
+                    encode_destack_random_secure_bytes_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            RANDOM_SECURE_BYTES_TRY,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(RANDOM_SECURE_BYTES_TRY)?;
+
+                    // decode args
+                    let (buffer,) = decode_destack_random_secure_bytes_try_args(context, args)?;
+
+                    // execute binding
+                    destack_random_secure_bytes_try_vm_replay(runtime, context, buffer)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            RANDOM_SECURE_INFO,
+            move |context, _args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(RANDOM_SECURE_INFO)?;
+
+                    // execute binding
+                    destack_random_secure_info_vm_replay(runtime, context)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            RANDOM_STREAM_EXPORT,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(RANDOM_STREAM_EXPORT)?;
+
+                    // decode args
+                    let (stream,) = decode_destack_random_stream_export_args(context, args)?;
+
+                    // execute binding
+                    destack_random_stream_export_vm_replay(runtime, context, stream)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            RANDOM_STREAM_FILL_BYTES,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(RANDOM_STREAM_FILL_BYTES)?;
+
+                    // decode args
+                    let (buffer,) = decode_destack_random_stream_fill_bytes_args(context, args)?;
+
+                    // execute binding
+                    let context_ptr = context as *mut vm::RuntimeContext<'_>;
+                    let result = runtime.replay().run_random_bytes(
+                        runtime.random_stream_id(),
+                        || unsafe {
+                            platform_vm::destack_random_fill_bytes(
+                                runtime,
+                                &mut *context_ptr,
+                                buffer,
+                            )
+                        },
+                        || unsafe { buffer.read_bytes(&*context_ptr) },
+                        |bytes| unsafe { buffer.write_bytes(&mut *context_ptr, &bytes) },
+                    );
+                    encode_destack_random_stream_fill_bytes_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            RANDOM_STREAM_FILL_BYTES_FROM,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(RANDOM_STREAM_FILL_BYTES_FROM)?;
+
+                    // decode args
+                    let (stream, buffer) =
+                        decode_destack_random_stream_fill_bytes_from_args(context, args)?;
+
+                    // execute binding
+                    let context_ptr = context as *mut vm::RuntimeContext<'_>;
+                    let result = runtime.replay().run_random_bytes(
+                        RandomStreamId::new(stream.0),
+                        || unsafe {
+                            platform_vm::destack_random_fill_bytes_from(
+                                runtime,
+                                &mut *context_ptr,
+                                stream,
+                                buffer,
+                            )
+                        },
+                        || unsafe { buffer.read_bytes(&*context_ptr) },
+                        |bytes| unsafe { buffer.write_bytes(&mut *context_ptr, &bytes) },
+                    );
+                    encode_destack_random_stream_fill_bytes_from_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            RANDOM_STREAM_IMPORT,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(RANDOM_STREAM_IMPORT)?;
+
+                    // decode args
+                    let (stream, state) = decode_destack_random_stream_import_args(context, args)?;
+
+                    // execute binding
+                    destack_random_stream_import_vm_replay(runtime, context, stream, state)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, RANDOM_STREAM_IN, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(BYTES)?;
+                runtime.check_policy(RANDOM_STREAM_IN)?;
 
                 // decode args
-                let (buffer,) = decode_destack_random_bytes_args(context, args)?;
+                let (domain,) = decode_destack_random_stream_in_args(context, args)?;
 
                 // execute binding
-                let context_ptr = context as *mut vm::RuntimeContext<'_>;
-                let result = runtime.replay().run_random_bytes(
-                    runtime.random_stream_id(),
-                    || unsafe {
-                        platform_vm::destack_random_bytes(runtime, &mut *context_ptr, buffer)
-                    },
-                    || unsafe { buffer.read_bytes(&*context_ptr) },
-                    |bytes| unsafe { buffer.write_bytes(&mut *context_ptr, &bytes) },
-                );
-                encode_destack_random_bytes_result(context, result)
+                destack_random_stream_in_vm_replay(runtime, context, domain)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, BYTES_TRY, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(BYTES_TRY)?;
+        binding!(
+            registry,
+            isolate,
+            RANDOM_STREAM_JUMP,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(RANDOM_STREAM_JUMP)?;
 
-                // decode args
-                let (buffer,) = decode_destack_random_bytes_try_args(context, args)?;
+                    // decode args
+                    let (stream, jump) = decode_destack_random_stream_jump_args(context, args)?;
 
-                // execute binding
-                destack_random_bytes_try_vm_replay(runtime, context, buffer)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    destack_random_stream_jump_vm_replay(runtime, context, stream, jump)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, INFO, move |context, _args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(INFO)?;
+        binding!(
+            registry,
+            isolate,
+            RANDOM_STREAM_NEXT_U64,
+            move |context, _args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(RANDOM_STREAM_NEXT_U64)?;
 
-                // execute binding
-                destack_random_info_vm_replay(runtime, context)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    let result = runtime
+                        .replay()
+                        .run_random_u64(runtime.random_stream_id(), || {
+                            platform_vm::destack_random_next_u64(runtime, context)
+                        });
+                    encode_destack_random_stream_next_u64_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, EXPORT, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(EXPORT)?;
+        binding!(
+            registry,
+            isolate,
+            RANDOM_STREAM_NEXT_U64_FROM,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(RANDOM_STREAM_NEXT_U64_FROM)?;
 
-                // decode args
-                let (stream,) = decode_destack_random_export_args(context, args)?;
+                    // decode args
+                    let (stream,) = decode_destack_random_stream_next_u64_from_args(context, args)?;
 
-                // execute binding
-                destack_random_export_vm_replay(runtime, context, stream)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    let result = runtime
+                        .replay()
+                        .run_random_u64(RandomStreamId::new(stream.0), || {
+                            platform_vm::destack_random_next_u64_from(runtime, context, stream)
+                        });
+                    encode_destack_random_stream_next_u64_from_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, FILL_BYTES, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(FILL_BYTES)?;
+        binding!(
+            registry,
+            isolate,
+            RANDOM_STREAM_SPLIT,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(RANDOM_STREAM_SPLIT)?;
 
-                // decode args
-                let (buffer,) = decode_destack_random_fill_bytes_args(context, args)?;
+                    // decode args
+                    let (parent,) = decode_destack_random_stream_split_args(context, args)?;
 
-                // execute binding
-                let context_ptr = context as *mut vm::RuntimeContext<'_>;
-                let result = runtime.replay().run_random_bytes(
-                    runtime.random_stream_id(),
-                    || unsafe {
-                        platform_vm::destack_random_fill_bytes(runtime, &mut *context_ptr, buffer)
-                    },
-                    || unsafe { buffer.read_bytes(&*context_ptr) },
-                    |bytes| unsafe { buffer.write_bytes(&mut *context_ptr, &bytes) },
-                );
-                encode_destack_random_fill_bytes_result(context, result)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    destack_random_stream_split_vm_replay(runtime, context, parent)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, FILL_BYTES_FROM, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(FILL_BYTES_FROM)?;
+        binding!(
+            registry,
+            isolate,
+            RANDOM_STREAM_STREAM,
+            move |context, _args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(RANDOM_STREAM_STREAM)?;
 
-                // decode args
-                let (stream, buffer) = decode_destack_random_fill_bytes_from_args(context, args)?;
-
-                // execute binding
-                let context_ptr = context as *mut vm::RuntimeContext<'_>;
-                let result = runtime.replay().run_random_bytes(
-                    RandomStreamId::new(stream.0),
-                    || unsafe {
-                        platform_vm::destack_random_fill_bytes_from(
-                            runtime,
-                            &mut *context_ptr,
-                            stream,
-                            buffer,
-                        )
-                    },
-                    || unsafe { buffer.read_bytes(&*context_ptr) },
-                    |bytes| unsafe { buffer.write_bytes(&mut *context_ptr, &bytes) },
-                );
-                encode_destack_random_fill_bytes_from_result(context, result)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, IMPORT, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(IMPORT)?;
-
-                // decode args
-                let (stream, state) = decode_destack_random_import_args(context, args)?;
-
-                // execute binding
-                destack_random_import_vm_replay(runtime, context, stream, state)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, IN, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(IN)?;
-
-                // decode args
-                let (domain,) = decode_destack_random_in_args(context, args)?;
-
-                // execute binding
-                destack_random_in_vm_replay(runtime, context, domain)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, JUMP, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(JUMP)?;
-
-                // decode args
-                let (stream, jump) = decode_destack_random_jump_args(context, args)?;
-
-                // execute binding
-                destack_random_jump_vm_replay(runtime, context, stream, jump)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, NEXT_U64, move |context, _args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(NEXT_U64)?;
-
-                // execute binding
-                let result = runtime
-                    .replay()
-                    .run_random_u64(runtime.random_stream_id(), || {
-                        platform_vm::destack_random_next_u64(runtime, context)
+                    // execute binding
+                    let result = runtime.replay().run_random_stream(|| {
+                        platform_vm::destack_random_stream(runtime, context).map(|stream| stream.0)
                     });
-                encode_destack_random_next_u64_result(context, result)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, NEXT_U64_FROM, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(NEXT_U64_FROM)?;
-
-                // decode args
-                let (stream,) = decode_destack_random_next_u64_from_args(context, args)?;
-
-                // execute binding
-                let result = runtime
-                    .replay()
-                    .run_random_u64(RandomStreamId::new(stream.0), || {
-                        platform_vm::destack_random_next_u64_from(runtime, context, stream)
-                    });
-                encode_destack_random_next_u64_from_result(context, result)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, SPLIT, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(SPLIT)?;
-
-                // decode args
-                let (parent,) = decode_destack_random_split_args(context, args)?;
-
-                // execute binding
-                destack_random_split_vm_replay(runtime, context, parent)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, STREAM, move |context, _args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(STREAM)?;
-
-                // execute binding
-                let result = runtime.replay().run_random_stream(|| {
-                    platform_vm::destack_random_stream(runtime, context).map(|stream| stream.0)
-                });
-                let result = result.map(RandomStream);
-                encode_destack_random_stream_result(context, result)
-            })
-            .map_err(Into::into)
-        });
+                    let result = result.map(RandomStream);
+                    encode_destack_random_stream_stream_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
 }
 

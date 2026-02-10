@@ -30,14 +30,42 @@ pub(crate) unsafe fn destack_fs_fallocate(
     length: FileSize,
     flags: AllocFlags,
 ) -> RuntimeResult<()> {
+    // reject negative offsets
+    if offset.0 < 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "offset",
+            "offset must be non-negative",
+        ))
+        .boxed());
+    }
+
+    // validate flags
     if flags.0 != 0 {
         return Err(
             RuntimeError::from(PlatformError::not_supported("destack.fs.fallocate flags")).boxed(),
         );
     }
 
+    // resolve the handle
     let handle = file_handle(_context, handle)?;
-    let end = offset.0.saturating_add(length.0) as i64;
+
+    // compute the allocation end offset
+    let length = i64::try_from(length.0).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "length",
+            "length is too large",
+        ))
+        .boxed()
+    })?;
+    let end = offset.0.checked_add(length).ok_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "length",
+            "allocation end overflows file offset",
+        ))
+        .boxed()
+    })?;
+
+    // set the allocation size
     let allocation = FILE_ALLOCATION_INFO {
         AllocationSize: end,
     };

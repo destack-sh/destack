@@ -1,9 +1,14 @@
+#![cfg_attr(windows, allow(dead_code, unused_imports))]
 use std::net::ToSocketAddrs;
 
 use destack_vm as vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeErrorId, RuntimeResult, RuntimeStatus};
-use crate::platform::fs::{OsPath, OsPathVm, PathBytesAbi, PathEncoding, PathUtf16Abi};
+use crate::platform::abi::{NativeAbi, VmAbi};
+use crate::platform::diagnostic::PlatformErrorCode;
+#[cfg(unix)]
+use crate::platform::fs::PathBytesAbi;
+use crate::platform::fs::{OsPath, OsPathVm, PathEncoding, PathUtf16Abi};
 use crate::platform::resource::{ListenerHandle, ResourceId, SocketHandle};
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, PlatformError, VmArray, VmSlice, VmValueCodec,
@@ -12,10 +17,11 @@ use crate::platform::{
 use crate::runtime::RuntimeCallContext;
 use crate::tests::runtime::TestRuntime;
 use platform_net::{
-    AcceptFlags, KeepAliveConfig, Linger, LingerVm, ResolveFlags, SocketAddress, SocketAddressVm,
-    SocketCredentials, SocketCredentialsVm, SocketFamily, SocketMessageFlags, SocketProtocol,
-    SocketRecvMessage, SocketSendMessage, SocketSendMessageVm, SocketShutdown, SocketType,
-    UdpMessageFlags, UdpReceive, UdpReceiveVm, vm as platform_vm,
+    AcceptFlags, KeepAliveConfig, Linger, LingerVm, ResolveFlags, ResolveQuery, ReverseLookupFlags,
+    ReverseLookupName, SocketAddress, SocketAddressVm, SocketCredentials, SocketCredentialsVm,
+    SocketFamily, SocketMessageFlags, SocketProtocol, SocketRecvBatchRequest, SocketRecvMessage,
+    SocketSendBatchEntry, SocketSendMessage, SocketSendMessageVm, SocketShutdown, SocketType,
+    UdpMessageFlags, UdpReceive, UdpReceiveVm, UdsAddress, UdsAddressKind, vm as platform_vm,
 };
 
 /// Selects the backing harness kind for network tests.
@@ -57,8 +63,7 @@ impl<'call> NetHarnessContext<'call> {
 
     /// Convert a native status into a test-friendly result.
     pub(crate) fn status_ok(&self, status: RuntimeStatus, label: &str) -> RuntimeResult<()> {
-        self.runtime.assert_status_ok(status, label);
-        Ok(())
+        self.status_result(status, label)
     }
 
     /// Convert a native status into a runtime result.
@@ -68,6 +73,10 @@ impl<'call> NetHarnessContext<'call> {
         }
 
         if status.error_id == 0 {
+            if status.code == PlatformErrorCode::NotSupported.number().saturating_add(1) {
+                return Err(RuntimeError::from(PlatformError::not_supported(label)).boxed());
+            }
+
             return Err(RuntimeError::from(PlatformError::io(format!(
                 "{label} failed without runtime error id",
             )))
@@ -147,8 +156,8 @@ impl<'call> NetHarnessContext<'call> {
         } else {
             SocketFamily::IPv4
         };
-        let socket_type = SocketType(libc::SOCK_STREAM as u32);
-        let protocol = SocketProtocol(libc::IPPROTO_TCP);
+        let socket_type = tcp_stream_socket_type();
+        let protocol = tcp_protocol();
 
         match self.vm_context_mut() {
             Some(context) => {
@@ -372,6 +381,7 @@ impl<'call> NetHarnessContext<'call> {
                     SocketMessageFlags(recv_flags),
                     max_fds,
                     want_credentials,
+                    0,
                 )?;
                 let read_bytes = vm_slice.read_bytes(context)?;
                 let count = receive.bytes as usize;
@@ -403,6 +413,7 @@ impl<'call> NetHarnessContext<'call> {
                         SocketMessageFlags(recv_flags),
                         max_fds,
                         want_credentials,
+                        0,
                     )
                 };
                 self.status_ok(status, "recv msg")?;
@@ -446,8 +457,20 @@ impl<'call> NetHarnessContext<'call> {
             Some(context) => {
                 let vm_slice = VmSlice::from_bytes(context, buffer);
                 let fds = VmArray::from_values(context, &[]).expect("empty fd array should encode");
+                let address = SocketAddressVm {
+                    family: 0,
+                    length: 0,
+                    bytes: VmArray::from_bytes(context, &[]),
+                };
+                let control = platform_net::SocketControlBufferAbi::<VmAbi>(VmArray::from_bytes(
+                    context,
+                    &[],
+                ));
                 let message = SocketSendMessageVm {
+                    has_address: false,
+                    address,
                     fds,
+                    control,
                     flags: SocketMessageFlags(flags),
                     has_credentials,
                     credentials: SocketCredentialsVm {
@@ -467,12 +490,29 @@ impl<'call> NetHarnessContext<'call> {
             None => {
                 let slice = native_slice(buffer);
                 let mut out = 0u64;
+                let address = SocketAddress {
+                    family: 0,
+                    length: 0,
+                    bytes: NativeArray {
+                        data: std::ptr::null_mut(),
+                        len: 0,
+                        capacity: 0,
+                    },
+                };
+                let control = platform_net::SocketControlBufferAbi::<NativeAbi>(NativeArray {
+                    data: std::ptr::null_mut(),
+                    len: 0,
+                    capacity: 0,
+                });
                 let message = SocketSendMessage {
+                    has_address: false,
+                    address,
                     fds: NativeArray {
                         data: std::ptr::null_mut(),
                         len: 0,
                         capacity: 0,
                     },
+                    control,
                     flags: SocketMessageFlags(flags),
                     has_credentials,
                     credentials: SocketCredentials {
@@ -498,40 +538,58 @@ impl<'call> NetHarnessContext<'call> {
     ) -> RuntimeResult<u64> {
         match self.vm_context_mut() {
             // call the VM binding
-            Some(context) => {
-                // encode nested VM slices
-                let mut vm_buffers = Vec::with_capacity(buffers.len());
-                for buffer in buffers {
-                    vm_buffers.push(VmSlice::from_bytes(context, buffer));
-                }
-                let vm_buffers = vm_slice_of_slices(context, &vm_buffers);
-
-                platform_vm::destack_net_send_mmsg(
-                    self.call_context,
-                    context,
-                    handle,
-                    vm_buffers,
-                    SocketMessageFlags(send_flags),
-                )
-            }
+            Some(_context) => Err(RuntimeError::from(PlatformError::not_supported(
+                "destack.net.sendMmsg",
+            ))
+            .boxed()),
 
             // call the native binding
             None => {
-                // build nested native slices
-                let native_buffers = buffers
+                // build native batch entries
+                let entries = buffers
                     .iter()
-                    .map(|buffer| native_slice(buffer))
+                    .map(|buffer| SocketSendBatchEntry {
+                        payload: native_slice(buffer),
+                        message: SocketSendMessage {
+                            has_address: false,
+                            address: SocketAddress {
+                                family: 0,
+                                length: 0,
+                                bytes: NativeArray {
+                                    data: std::ptr::null_mut(),
+                                    len: 0,
+                                    capacity: 0,
+                                },
+                            },
+                            fds: NativeArray {
+                                data: std::ptr::null_mut(),
+                                len: 0,
+                                capacity: 0,
+                            },
+                            control: platform_net::SocketControlBufferAbi::<NativeAbi>(
+                                NativeArray {
+                                    data: std::ptr::null_mut(),
+                                    len: 0,
+                                    capacity: 0,
+                                },
+                            ),
+                            flags: SocketMessageFlags(send_flags),
+                            has_credentials: false,
+                            credentials: SocketCredentials {
+                                pid: 0,
+                                uid: 0,
+                                gid: 0,
+                            },
+                        },
+                    })
                     .collect::<Vec<_>>();
-                let native_buffers = native_slice_slices(&native_buffers);
-                let mut out = 0u64;
-                let status = unsafe {
-                    platform_net::destack_net_send_mmsg(
-                        &mut out,
-                        handle,
-                        native_buffers,
-                        SocketMessageFlags(send_flags),
-                    )
+                let entries = NativeSlice {
+                    data: entries.as_ptr() as *mut SocketSendBatchEntry,
+                    len: entries.len() as u32,
                 };
+                let mut out = 0u64;
+                let status =
+                    unsafe { platform_net::destack_net_send_mmsg(&mut out, handle, entries) };
                 self.status_result(status, "send mmsg")?;
 
                 Ok(out)
@@ -548,69 +606,48 @@ impl<'call> NetHarnessContext<'call> {
     ) -> RuntimeResult<Vec<u64>> {
         match self.vm_context_mut() {
             // call the VM binding
-            Some(context) => {
-                // encode nested VM slices
-                let mut vm_buffers = Vec::with_capacity(buffers.len());
-                for buffer in buffers.iter() {
-                    vm_buffers.push(VmSlice::from_bytes(context, &vec![0u8; buffer.len()]));
-                }
-                let vm_buffer_slice = vm_slice_of_slices(context, &vm_buffers);
-
-                // receive and decode counts
-                let counts = platform_vm::destack_net_recv_mmsg(
-                    self.call_context,
-                    context,
-                    handle,
-                    vm_buffer_slice,
-                    SocketMessageFlags(recv_flags),
-                )?;
-                let counts = counts.read_values(context)?;
-
-                // copy bytes back into host buffers
-                for (index, vm_buffer) in vm_buffers.into_iter().enumerate() {
-                    if index >= counts.len() {
-                        break;
-                    }
-
-                    let bytes = vm_buffer.read_bytes(context)?;
-                    let count = counts[index] as usize;
-                    if count > buffers[index].len() || count > bytes.len() {
-                        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                            "buffers",
-                            "received byte count exceeded buffer length",
-                        ))
-                        .boxed());
-                    }
-
-                    buffers[index][..count].copy_from_slice(&bytes[..count]);
-                }
-
-                Ok(counts)
-            }
+            Some(_context) => Err(RuntimeError::from(PlatformError::not_supported(
+                "destack.net.recvMmsg",
+            ))
+            .boxed()),
 
             // call the native binding
             None => {
-                // build nested native slices
-                let mut native_buffers = buffers
+                // build native batch requests
+                let mut payloads = buffers
                     .iter_mut()
                     .map(|buffer| native_slice_mut(buffer))
                     .collect::<Vec<_>>();
-                let native_buffers = native_slice_slices_mut(&mut native_buffers);
+                let requests = payloads
+                    .iter_mut()
+                    .map(|payload| SocketRecvBatchRequest {
+                        payload: *payload,
+                        recv_flags: SocketMessageFlags(recv_flags),
+                    })
+                    .collect::<Vec<_>>();
+                let requests = NativeSlice {
+                    data: requests.as_ptr() as *mut SocketRecvBatchRequest,
+                    len: requests.len() as u32,
+                };
 
-                // receive counts
-                let mut out = std::mem::MaybeUninit::<NativeArray<u64>>::uninit();
+                // receive messages
+                let mut out = std::mem::MaybeUninit::<NativeArray<SocketRecvMessage>>::uninit();
                 let status = unsafe {
                     platform_net::destack_net_recv_mmsg(
                         out.as_mut_ptr(),
                         handle,
-                        native_buffers,
-                        SocketMessageFlags(recv_flags),
+                        requests,
+                        0,
+                        false,
+                        0,
                     )
                 };
                 self.status_result(status, "recv mmsg")?;
-                let counts = unsafe { out.assume_init() };
-                let counts = unsafe { counts.as_slice()? }.to_vec();
-
+                let messages = unsafe { out.assume_init() };
+                let counts = unsafe { messages.as_slice()? }
+                    .iter()
+                    .map(|message| message.bytes)
+                    .collect::<Vec<_>>();
                 Ok(counts)
             }
         }
@@ -688,14 +725,14 @@ impl<'call> NetHarnessContext<'call> {
                 platform_vm::destack_net_set_reuse_addr(self.call_context, context, handle, enabled)
             }
             None => {
-                let status = unsafe { platform_net::destack_net_set_reuse_addr(handle, enabled) };
+                let status =
+                    unsafe { platform_net::destack_net_reuse_set_reuse_addr(handle, enabled) };
                 self.status_ok(status, "set reuse addr")
             }
         }
     }
 
     /// Enable or disable SO_REUSEPORT.
-    #[cfg(unix)]
     pub(crate) fn set_reuse_port(
         &mut self,
         handle: SocketHandle,
@@ -706,7 +743,8 @@ impl<'call> NetHarnessContext<'call> {
                 platform_vm::destack_net_set_reuse_port(self.call_context, context, handle, enabled)
             }
             None => {
-                let status = unsafe { platform_net::destack_net_set_reuse_port(handle, enabled) };
+                let status =
+                    unsafe { platform_net::destack_net_reuse_set_reuse_port(handle, enabled) };
                 self.status_ok(status, "set reuse port")
             }
         }
@@ -747,8 +785,9 @@ impl<'call> NetHarnessContext<'call> {
             // call the native binding
             None => {
                 let mut out = std::mem::MaybeUninit::<SocketAddress>::uninit();
-                let status =
-                    unsafe { platform_net::destack_net_local_address(out.as_mut_ptr(), handle) };
+                let status = unsafe {
+                    platform_net::destack_net_address_local_address(out.as_mut_ptr(), handle)
+                };
                 self.status_ok(status, "local address raw")?;
                 let address = unsafe { out.assume_init() };
 
@@ -774,8 +813,9 @@ impl<'call> NetHarnessContext<'call> {
             // call the native binding
             None => {
                 let mut out = std::mem::MaybeUninit::<SocketAddress>::uninit();
-                let status =
-                    unsafe { platform_net::destack_net_peer_address(out.as_mut_ptr(), handle) };
+                let status = unsafe {
+                    platform_net::destack_net_address_peer_address(out.as_mut_ptr(), handle)
+                };
                 self.status_ok(status, "peer address raw")?;
                 let address = unsafe { out.assume_init() };
 
@@ -796,7 +836,7 @@ impl<'call> NetHarnessContext<'call> {
                 platform_vm::destack_net_set_no_delay(self.call_context, context, handle, enabled)
             }
             None => {
-                let status = unsafe { platform_net::destack_net_set_no_delay(handle, enabled) };
+                let status = unsafe { platform_net::destack_net_tcp_set_no_delay(handle, enabled) };
                 self.status_ok(status, "set no delay")
             }
         }
@@ -840,7 +880,8 @@ impl<'call> NetHarnessContext<'call> {
                 platform_vm::destack_net_set_keep_alive(self.call_context, context, handle, config)
             }
             None => {
-                let status = unsafe { platform_net::destack_net_set_keep_alive(handle, config) };
+                let status =
+                    unsafe { platform_net::destack_net_tcp_set_keep_alive(handle, config) };
                 self.status_result(status, "set keep alive")
             }
         }
@@ -863,7 +904,8 @@ impl<'call> NetHarnessContext<'call> {
                 platform_vm::destack_net_set_linger(self.call_context, context, handle, linger)
             }
             None => {
-                let status = unsafe { platform_net::destack_net_set_linger(handle, linger) };
+                let status =
+                    unsafe { platform_net::destack_net_options_set_linger(handle, linger) };
                 self.status_result(status, "set linger")
             }
         }
@@ -876,7 +918,8 @@ impl<'call> NetHarnessContext<'call> {
                 platform_vm::destack_net_set_recv_buffer(self.call_context, context, handle, size)
             }
             None => {
-                let status = unsafe { platform_net::destack_net_set_recv_buffer(handle, size) };
+                let status =
+                    unsafe { platform_net::destack_net_options_set_recv_buffer(handle, size) };
                 self.status_result(status, "set recv buffer")
             }
         }
@@ -889,7 +932,8 @@ impl<'call> NetHarnessContext<'call> {
                 platform_vm::destack_net_set_send_buffer(self.call_context, context, handle, size)
             }
             None => {
-                let status = unsafe { platform_net::destack_net_set_send_buffer(handle, size) };
+                let status =
+                    unsafe { platform_net::destack_net_options_set_send_buffer(handle, size) };
                 self.status_result(status, "set send buffer")
             }
         }
@@ -906,7 +950,8 @@ impl<'call> NetHarnessContext<'call> {
                 platform_vm::destack_net_set_broadcast(self.call_context, context, handle, enabled)
             }
             None => {
-                let status = unsafe { platform_net::destack_net_set_broadcast(handle, enabled) };
+                let status =
+                    unsafe { platform_net::destack_net_options_set_broadcast(handle, enabled) };
                 self.status_result(status, "set broadcast")
             }
         }
@@ -919,7 +964,7 @@ impl<'call> NetHarnessContext<'call> {
                 platform_vm::destack_net_set_ttl(self.call_context, context, handle, ttl)
             }
             None => {
-                let status = unsafe { platform_net::destack_net_set_ttl(handle, ttl) };
+                let status = unsafe { platform_net::destack_net_options_set_ttl(handle, ttl) };
                 self.status_result(status, "set ttl")
             }
         }
@@ -932,7 +977,7 @@ impl<'call> NetHarnessContext<'call> {
                 platform_vm::destack_net_set_tos(self.call_context, context, handle, tos)
             }
             None => {
-                let status = unsafe { platform_net::destack_net_set_tos(handle, tos) };
+                let status = unsafe { platform_net::destack_net_options_set_tos(handle, tos) };
                 self.status_result(status, "set tos")
             }
         }
@@ -952,8 +997,9 @@ impl<'call> NetHarnessContext<'call> {
                 timeout_ms,
             ),
             None => {
-                let status =
-                    unsafe { platform_net::destack_net_set_read_timeout(handle, timeout_ms) };
+                let status = unsafe {
+                    platform_net::destack_net_options_set_read_timeout(handle, timeout_ms)
+                };
                 self.status_result(status, "set read timeout")
             }
         }
@@ -973,8 +1019,9 @@ impl<'call> NetHarnessContext<'call> {
                 timeout_ms,
             ),
             None => {
-                let status =
-                    unsafe { platform_net::destack_net_set_write_timeout(handle, timeout_ms) };
+                let status = unsafe {
+                    platform_net::destack_net_options_set_write_timeout(handle, timeout_ms)
+                };
                 self.status_result(status, "set write timeout")
             }
         }
@@ -1135,22 +1182,35 @@ impl<'call> NetHarnessContext<'call> {
         match self.vm_context_mut() {
             Some(context) => {
                 let host = host_from_vm(context, host);
-                let addresses = platform_vm::destack_net_resolve(
-                    self.call_context,
-                    context,
+                let service_text = port.to_string();
+                let service = host_from_vm(context, &service_text);
+                let query = platform_net::ResolveQueryVm {
+                    has_host: true,
                     host,
-                    port,
+                    has_service: true,
+                    service,
                     family,
                     flags,
-                )?;
+                };
+                let addresses =
+                    platform_vm::destack_net_resolve(self.call_context, context, query)?;
                 socket_addresses_vm(context, addresses)
             }
             None => {
                 let host = NativeStringRef::from(host);
-                let mut out = std::mem::MaybeUninit::<NativeArray<SocketAddress>>::uninit();
-                let status = unsafe {
-                    platform_net::destack_net_resolve(out.as_mut_ptr(), host, port, family, flags)
+                let service_text = port.to_string();
+                let service = NativeStringRef::from(service_text.as_str());
+                let query = ResolveQuery {
+                    has_host: true,
+                    host,
+                    has_service: true,
+                    service,
+                    family,
+                    flags,
                 };
+                let mut out = std::mem::MaybeUninit::<NativeArray<SocketAddress>>::uninit();
+                let status =
+                    unsafe { platform_net::destack_net_resolve_resolve(out.as_mut_ptr(), query) };
                 self.status_ok(status, "resolve")?;
                 let addresses = unsafe { out.assume_init() };
                 socket_addresses_native(addresses)
@@ -1184,9 +1244,13 @@ impl<'call> NetHarnessContext<'call> {
                     resolved_port,
                     resolved_family,
                 )?;
-                let names =
-                    platform_vm::destack_net_reverse_lookup(self.call_context, context, address)?;
-                string_array_vm(context, names)
+                let names = platform_vm::destack_net_reverse_lookup(
+                    self.call_context,
+                    context,
+                    address,
+                    ReverseLookupFlags(0),
+                )?;
+                reverse_lookup_names_vm(context, names)
             }
             None => {
                 let address = socket_address_native_from_host_port(
@@ -1195,13 +1259,17 @@ impl<'call> NetHarnessContext<'call> {
                     resolved_port,
                     resolved_family,
                 )?;
-                let mut out = std::mem::MaybeUninit::<NativeArray<NativeStringRef>>::uninit();
+                let mut out = std::mem::MaybeUninit::<NativeArray<ReverseLookupName>>::uninit();
                 let status = unsafe {
-                    platform_net::destack_net_reverse_lookup(out.as_mut_ptr(), address.address())
+                    platform_net::destack_net_resolve_reverse_lookup(
+                        out.as_mut_ptr(),
+                        address.address(),
+                        ReverseLookupFlags(0),
+                    )
                 };
                 self.status_result(status, "reverse lookup")?;
                 let names = unsafe { out.assume_init() };
-                string_array_native(names)
+                reverse_lookup_names_native(names)
             }
         }
     }
@@ -1395,14 +1463,16 @@ impl<'call> NetHarnessContext<'call> {
         match self.vm_context_mut() {
             Some(context) => {
                 let path = path_ref_vm(context, path);
-                platform_vm::destack_net_uds_listen(self.call_context, context, path, backlog)
+                let address = uds_path_address_vm(context, path);
+                platform_vm::destack_net_uds_listen(self.call_context, context, address, backlog)
             }
             None => {
                 let (path_bytes, path_ref) = path_ref_native(path);
                 let _ = path_bytes;
+                let address = uds_path_address_native(path_ref);
                 let mut handle = ListenerHandle(ResourceId(0));
                 let status =
-                    unsafe { platform_net::destack_net_uds_listen(&mut handle, path_ref, backlog) };
+                    unsafe { platform_net::destack_net_uds_listen(&mut handle, address, backlog) };
                 self.status_ok(status, "uds listen")?;
                 Ok(handle)
             }
@@ -1419,14 +1489,16 @@ impl<'call> NetHarnessContext<'call> {
         match self.vm_context_mut() {
             Some(context) => {
                 let path = path_ref_vm_utf16(context, path);
-                platform_vm::destack_net_uds_listen(self.call_context, context, path, backlog)
+                let address = uds_path_address_vm(context, path);
+                platform_vm::destack_net_uds_listen(self.call_context, context, address, backlog)
             }
             None => {
                 let (path_utf16, path_ref) = path_ref_native_utf16(path);
                 let _ = path_utf16;
+                let address = uds_path_address_native(path_ref);
                 let mut handle = ListenerHandle(ResourceId(0));
                 let status =
-                    unsafe { platform_net::destack_net_uds_listen(&mut handle, path_ref, backlog) };
+                    unsafe { platform_net::destack_net_uds_listen(&mut handle, address, backlog) };
                 self.status_ok(status, "uds listen utf16")?;
                 Ok(handle)
             }
@@ -1438,14 +1510,15 @@ impl<'call> NetHarnessContext<'call> {
         match self.vm_context_mut() {
             Some(context) => {
                 let path = path_ref_vm(context, path);
-                platform_vm::destack_net_uds_connect(self.call_context, context, path)
+                let address = uds_path_address_vm(context, path);
+                platform_vm::destack_net_uds_connect(self.call_context, context, address)
             }
             None => {
                 let (path_bytes, path_ref) = path_ref_native(path);
                 let _ = path_bytes;
+                let address = uds_path_address_native(path_ref);
                 let mut handle = SocketHandle(ResourceId(0));
-                let status =
-                    unsafe { platform_net::destack_net_uds_connect(&mut handle, path_ref) };
+                let status = unsafe { platform_net::destack_net_uds_connect(&mut handle, address) };
                 self.status_ok(status, "uds connect")?;
                 Ok(handle)
             }
@@ -1461,14 +1534,15 @@ impl<'call> NetHarnessContext<'call> {
         match self.vm_context_mut() {
             Some(context) => {
                 let path = path_ref_vm_utf16(context, path);
-                platform_vm::destack_net_uds_connect(self.call_context, context, path)
+                let address = uds_path_address_vm(context, path);
+                platform_vm::destack_net_uds_connect(self.call_context, context, address)
             }
             None => {
                 let (path_utf16, path_ref) = path_ref_native_utf16(path);
                 let _ = path_utf16;
+                let address = uds_path_address_native(path_ref);
                 let mut handle = SocketHandle(ResourceId(0));
-                let status =
-                    unsafe { platform_net::destack_net_uds_connect(&mut handle, path_ref) };
+                let status = unsafe { platform_net::destack_net_uds_connect(&mut handle, address) };
                 self.status_ok(status, "uds connect utf16")?;
                 Ok(handle)
             }
@@ -1607,6 +1681,22 @@ where
     });
 }
 
+/// Return whether a runtime error maps to a not-supported platform error.
+pub(crate) fn is_not_supported_error(error: &RuntimeError) -> bool {
+    error
+        .platform_error()
+        .is_some_and(|platform| platform.code == PlatformErrorCode::NotSupported)
+}
+
+/// Keep tests green when a binding is intentionally unsupported on a backend.
+pub(crate) fn allow_not_supported(result: RuntimeResult<()>) -> RuntimeResult<()> {
+    match result {
+        Ok(()) => Ok(()),
+        Err(error) if is_not_supported_error(&error) => Ok(()),
+        Err(error) => Err(error),
+    }
+}
+
 /// Build a NativeSlice from a mutable byte buffer.
 pub(crate) fn native_slice_mut(buffer: &mut [u8]) -> NativeSlice<u8> {
     NativeSlice {
@@ -1704,30 +1794,43 @@ fn socket_addresses_vm(
     Ok(decoded)
 }
 
-/// Decode a native string array.
-fn string_array_native(values: NativeArray<NativeStringRef>) -> RuntimeResult<Vec<String>> {
+/// Decode reverse lookup names from native values.
+fn reverse_lookup_names_native(
+    values: NativeArray<ReverseLookupName>,
+) -> RuntimeResult<Vec<String>> {
     let values = unsafe { values.as_slice()? };
     let mut decoded = Vec::with_capacity(values.len());
     for value in values {
-        let value = unsafe { value.as_str()? };
-        decoded.push(value.to_string());
+        let host = unsafe { value.host.as_str()? };
+        decoded.push(host.to_string());
     }
 
     Ok(decoded)
 }
 
-/// Decode a VM string array.
-fn string_array_vm(
+/// Decode reverse lookup names from VM values.
+fn reverse_lookup_names_vm(
     context: &mut vm::RuntimeContext<'_>,
-    values: VmArray<vm::StringHandle>,
+    values: VmArray<platform_net::ReverseLookupNameVm>,
 ) -> RuntimeResult<Vec<String>> {
-    let values = values.read_values(context)?;
+    let values = values.raw_values(context)?;
     let mut decoded = Vec::with_capacity(values.len());
     for value in values {
-        let value = context
-            .string_ref(value)
+        let slots = context
+            .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        decoded.push(value.as_str().to_string());
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "names",
+                "expected reverse lookup name aggregate with 2 fields",
+            ))
+            .boxed());
+        }
+        let host = vm::StringHandle::new(slots[0]);
+        let host = context
+            .string_ref(host)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        decoded.push(host.as_str().to_string());
     }
 
     Ok(decoded)
@@ -1748,6 +1851,27 @@ fn udp_receive_vm(
     Ok((host, port, family, receive.bytes))
 }
 
+#[cfg(unix)]
+fn tcp_stream_socket_type() -> SocketType {
+    SocketType(libc::SOCK_STREAM as u32)
+}
+
+#[cfg(windows)]
+fn tcp_stream_socket_type() -> SocketType {
+    SocketType(windows_sys::Win32::Networking::WinSock::SOCK_STREAM as u32)
+}
+
+#[cfg(unix)]
+fn tcp_protocol() -> SocketProtocol {
+    SocketProtocol(libc::IPPROTO_TCP)
+}
+
+#[cfg(windows)]
+fn tcp_protocol() -> SocketProtocol {
+    SocketProtocol(windows_sys::Win32::Networking::WinSock::IPPROTO_TCP)
+}
+
+#[cfg(unix)]
 fn socket_address_from_raw(
     family: u16,
     bytes: &[u8],
@@ -1805,6 +1929,51 @@ fn socket_address_from_raw(
     .boxed())
 }
 
+#[cfg(windows)]
+fn socket_address_from_raw(
+    family: u16,
+    bytes: &[u8],
+) -> RuntimeResult<(String, u16, SocketFamily)> {
+    // decode ipv4
+    if family == windows_sys::Win32::Networking::WinSock::AF_INET as u16 {
+        if bytes.len() < 16 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "address.bytes",
+                "invalid ipv4 socket address bytes",
+            ))
+            .boxed());
+        }
+
+        let port = u16::from_be_bytes([bytes[2], bytes[3]]);
+        let ip = std::net::Ipv4Addr::new(bytes[4], bytes[5], bytes[6], bytes[7]);
+        return Ok((ip.to_string(), port, SocketFamily::IPv4));
+    }
+
+    // decode ipv6
+    if family == windows_sys::Win32::Networking::WinSock::AF_INET6 as u16 {
+        if bytes.len() < 28 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "address.bytes",
+                "invalid ipv6 socket address bytes",
+            ))
+            .boxed());
+        }
+
+        let port = u16::from_be_bytes([bytes[2], bytes[3]]);
+        let mut octets = [0u8; 16];
+        octets.copy_from_slice(&bytes[8..24]);
+        let ip = std::net::Ipv6Addr::from(octets);
+        return Ok((ip.to_string(), port, SocketFamily::IPv6));
+    }
+
+    Err(RuntimeError::from(PlatformError::invalid_argument_value(
+        "address.family",
+        "unsupported address family",
+    ))
+    .boxed())
+}
+
+#[cfg(unix)]
 fn socket_address_native_from_host_port(
     _context: &RuntimeCallContext,
     host: &str,
@@ -1937,6 +2106,120 @@ fn socket_address_native_from_host_port(
     })
 }
 
+#[cfg(windows)]
+fn socket_address_native_from_host_port(
+    _context: &RuntimeCallContext,
+    host: &str,
+    port: u16,
+    family: SocketFamily,
+) -> RuntimeResult<NativeSocketAddressArg> {
+    let (family, bytes): (u16, Vec<u8>) = match family {
+        // encode ipv4 sockaddr bytes
+        SocketFamily::IPv4 => {
+            let ip = if let Ok(ip) = host.parse::<std::net::Ipv4Addr>() {
+                ip
+            } else {
+                let mut addresses = (host, port).to_socket_addrs().map_err(|_| {
+                    RuntimeError::from(PlatformError::invalid_argument_value(
+                        "host",
+                        "failed to resolve ipv4 host",
+                    ))
+                    .boxed()
+                })?;
+                let Some(ip) = addresses.find_map(|address| match address {
+                    std::net::SocketAddr::V4(address) => Some(*address.ip()),
+                    std::net::SocketAddr::V6(_) => None,
+                }) else {
+                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                        "host",
+                        "failed to resolve ipv4 host",
+                    ))
+                    .boxed());
+                };
+                ip
+            };
+
+            let mut bytes = vec![0u8; 16];
+            let family_bytes =
+                (windows_sys::Win32::Networking::WinSock::AF_INET as u16).to_ne_bytes();
+            bytes[0] = family_bytes[0];
+            bytes[1] = family_bytes[1];
+            let port_bytes = port.to_be_bytes();
+            bytes[2] = port_bytes[0];
+            bytes[3] = port_bytes[1];
+            bytes[4..8].copy_from_slice(&ip.octets());
+
+            (
+                windows_sys::Win32::Networking::WinSock::AF_INET as u16,
+                bytes,
+            )
+        }
+        // encode ipv6 sockaddr bytes
+        SocketFamily::IPv6 => {
+            let ip = if let Ok(ip) = host.parse::<std::net::Ipv6Addr>() {
+                ip
+            } else {
+                let mut addresses = (host, port).to_socket_addrs().map_err(|_| {
+                    RuntimeError::from(PlatformError::invalid_argument_value(
+                        "host",
+                        "failed to resolve ipv6 host",
+                    ))
+                    .boxed()
+                })?;
+                let Some(ip) = addresses.find_map(|address| match address {
+                    std::net::SocketAddr::V4(_) => None,
+                    std::net::SocketAddr::V6(address) => Some(*address.ip()),
+                }) else {
+                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                        "host",
+                        "failed to resolve ipv6 host",
+                    ))
+                    .boxed());
+                };
+                ip
+            };
+
+            let mut bytes = vec![0u8; 28];
+            let family_bytes =
+                (windows_sys::Win32::Networking::WinSock::AF_INET6 as u16).to_ne_bytes();
+            bytes[0] = family_bytes[0];
+            bytes[1] = family_bytes[1];
+            let port_bytes = port.to_be_bytes();
+            bytes[2] = port_bytes[0];
+            bytes[3] = port_bytes[1];
+            bytes[8..24].copy_from_slice(&ip.octets());
+
+            (
+                windows_sys::Win32::Networking::WinSock::AF_INET6 as u16,
+                bytes,
+            )
+        }
+        SocketFamily::Unspecified => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "family",
+                "unspecified family is not supported for literal address encoding",
+            ))
+            .boxed());
+        }
+    };
+
+    let mut bytes = bytes;
+    let address = SocketAddress {
+        family,
+        length: bytes.len() as u32,
+        bytes: NativeArray {
+            data: bytes.as_mut_ptr(),
+            len: bytes.len() as u32,
+            capacity: bytes.len() as u32,
+        },
+    };
+
+    Ok(NativeSocketAddressArg {
+        _bytes: bytes,
+        address,
+    })
+}
+
 fn socket_address_vm_from_host_port(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
@@ -2031,37 +2314,28 @@ fn path_ref_native(path: &std::path::Path) -> (Vec<u8>, OsPath) {
     let bytes = path.as_os_str().as_bytes().to_vec();
     let path_ref = OsPath {
         encoding: PathEncoding::Bytes,
-        bytes: PathBytesAbi(NativeArray {
+        data: PathBytesAbi(NativeArray {
             data: bytes.as_ptr() as *mut u8,
             len: bytes.len() as u32,
             capacity: bytes.len() as u32,
-        }),
-        utf16: PathUtf16Abi(NativeArray {
-            data: std::ptr::null_mut(),
-            len: 0,
-            capacity: 0,
         }),
     };
     (bytes, path_ref)
 }
 
 #[cfg(unix)]
-fn path_ref_native_utf16(path: &std::path::Path) -> (Vec<u16>, OsPath) {
+fn path_ref_native_utf16(path: &std::path::Path) -> (Vec<u8>, OsPath) {
     use std::os::unix::ffi::OsStrExt;
 
     // decode bytes as utf8 for deterministic utf16 test paths
     let bytes = path.as_os_str().as_bytes();
     let text = std::str::from_utf8(bytes).expect("test path should be valid utf8");
-    let utf16: Vec<u16> = text.encode_utf16().collect();
+    let units: Vec<u16> = text.encode_utf16().collect();
+    let utf16 = utf16_units_to_le_bytes(&units);
     let path_ref = OsPath {
         encoding: PathEncoding::Utf16,
-        bytes: PathBytesAbi(NativeArray {
-            data: std::ptr::null_mut(),
-            len: 0,
-            capacity: 0,
-        }),
-        utf16: PathUtf16Abi(NativeArray {
-            data: utf16.as_ptr() as *mut u16,
+        data: PathUtf16Abi(NativeArray {
+            data: utf16.as_ptr() as *mut u8,
             len: utf16.len() as u32,
             capacity: utf16.len() as u32,
         }),
@@ -2071,18 +2345,14 @@ fn path_ref_native_utf16(path: &std::path::Path) -> (Vec<u16>, OsPath) {
 }
 
 #[cfg(windows)]
-fn path_ref_native(path: &std::path::Path) -> (Vec<u16>, OsPath) {
+fn path_ref_native(path: &std::path::Path) -> (Vec<u8>, OsPath) {
     use std::os::windows::ffi::OsStrExt;
-    let utf16: Vec<u16> = path.as_os_str().encode_wide().collect();
+    let units: Vec<u16> = path.as_os_str().encode_wide().collect();
+    let utf16 = utf16_units_to_le_bytes(&units);
     let path_ref = OsPath {
         encoding: PathEncoding::Utf16,
-        bytes: PathBytesAbi(NativeArray {
-            data: std::ptr::null_mut(),
-            len: 0,
-            capacity: 0,
-        }),
-        utf16: PathUtf16Abi(NativeArray {
-            data: utf16.as_ptr() as *mut u16,
+        data: PathUtf16Abi(NativeArray {
+            data: utf16.as_ptr() as *mut u8,
             len: utf16.len() as u32,
             capacity: utf16.len() as u32,
         }),
@@ -2098,22 +2368,19 @@ fn path_ref_vm(context: &mut vm::RuntimeContext<'_>, path: &std::path::Path) -> 
         let array = VmArray::from_bytes(context, bytes);
         OsPathVm {
             encoding: PathEncoding::Bytes,
-            bytes: PathBytesAbi(array),
-            utf16: PathUtf16Abi(
-                VmArray::from_values(context, &[]).expect("empty vm utf16 should encode"),
-            ),
+            data: PathBytesAbi(array),
         }
     }
 
     #[cfg(windows)]
     {
         use std::os::windows::ffi::OsStrExt;
-        let utf16: Vec<u16> = path.as_os_str().encode_wide().collect();
+        let units: Vec<u16> = path.as_os_str().encode_wide().collect();
+        let utf16 = utf16_units_to_le_bytes(&units);
         let array = VmArray::from_values(context, &utf16).expect("vm utf16 path should encode");
         OsPathVm {
             encoding: PathEncoding::Utf16,
-            bytes: PathBytesAbi(VmArray::from_bytes(context, &[])),
-            utf16: PathUtf16Abi(array),
+            data: PathUtf16Abi(array),
         }
     }
 }
@@ -2125,12 +2392,46 @@ fn path_ref_vm_utf16(context: &mut vm::RuntimeContext<'_>, path: &std::path::Pat
     // decode bytes as utf8 for deterministic utf16 test paths
     let bytes = path.as_os_str().as_bytes();
     let text = std::str::from_utf8(bytes).expect("test path should be valid utf8");
-    let utf16: Vec<u16> = text.encode_utf16().collect();
+    let units: Vec<u16> = text.encode_utf16().collect();
+    let utf16 = utf16_units_to_le_bytes(&units);
     let array = VmArray::from_values(context, &utf16).expect("vm utf16 path should encode");
 
     OsPathVm {
         encoding: PathEncoding::Utf16,
-        bytes: PathBytesAbi(VmArray::from_bytes(context, &[])),
-        utf16: PathUtf16Abi(array),
+        data: PathUtf16Abi(array),
+    }
+}
+
+/// Encode UTF-16 code units into little-endian bytes.
+fn utf16_units_to_le_bytes(units: &[u16]) -> Vec<u8> {
+    let mut bytes = Vec::with_capacity(units.len() * 2);
+    for unit in units {
+        bytes.extend_from_slice(&unit.to_le_bytes());
+    }
+    bytes
+}
+
+/// Build a unix domain socket path address for native calls.
+fn uds_path_address_native(path: OsPath) -> UdsAddress {
+    UdsAddress {
+        kind: UdsAddressKind::Path,
+        path,
+        abstract_name: NativeArray {
+            data: std::ptr::null_mut(),
+            len: 0,
+            capacity: 0,
+        },
+    }
+}
+
+/// Build a unix domain socket path address for VM calls.
+fn uds_path_address_vm(
+    context: &mut vm::RuntimeContext<'_>,
+    path: OsPathVm,
+) -> platform_net::UdsAddressVm {
+    platform_net::UdsAddressVm {
+        kind: UdsAddressKind::Path,
+        path,
+        abstract_name: VmArray::from_bytes(context, &[]),
     }
 }

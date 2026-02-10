@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::fs::OsPath;
 use crate::platform::net::{
@@ -82,6 +84,7 @@ pub(crate) unsafe fn destack_net_recv_msg(
     recv_flags: SocketMessageFlags,
     max_fds: u32,
     want_credentials: bool,
+    max_control_bytes: u32,
 ) -> RuntimeResult<()> {
     let _ = (
         context,
@@ -91,6 +94,7 @@ pub(crate) unsafe fn destack_net_recv_msg(
         recv_flags,
         max_fds,
         want_credentials,
+        max_control_bytes,
     );
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.recvMsg")).boxed())
 }

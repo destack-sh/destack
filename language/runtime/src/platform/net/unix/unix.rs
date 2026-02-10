@@ -3,8 +3,9 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::fs::OsPath;
 use crate::platform::net::{
-    AcceptFlags, Linger, ResolveFlags, SocketAddress, SocketCredentials, SocketFamily,
-    SocketMessageFlags, SocketRecvMessage, SocketSendMessage, SocketShutdown, core as core_net,
+    AcceptFlags, Linger, ResolveFlags, SocketAddress, SocketControlBufferAbi, SocketCredentials,
+    SocketFamily, SocketMessageFlags, SocketRecvMessage, SocketSendMessage, SocketShutdown,
+    core as core_net,
 };
 use crate::platform::resource::{
     ListenerHandle, ResourceEntry, ResourceFinalizer, ResourceKind, SocketHandle, TransferredHandle,
@@ -941,6 +942,7 @@ pub(crate) unsafe fn destack_net_writev(
 }
 
 /// Receive multiple messages into multiple buffers.
+#[allow(dead_code)]
 pub(crate) unsafe fn destack_net_recv_mmsg(
     context: &RuntimeCallContext,
     out: *mut NativeArray<u64>,
@@ -1014,6 +1016,7 @@ pub(crate) unsafe fn destack_net_recv_msg(
     recv_flags: SocketMessageFlags,
     max_fds: u32,
     want_credentials: bool,
+    max_control_bytes: u32,
 ) -> RuntimeResult<()> {
     // ensure the output pointer is valid
     if out.is_null() {
@@ -1057,6 +1060,11 @@ pub(crate) unsafe fn destack_net_recv_msg(
         control_len = control_len.saturating_add(unsafe {
             libc::CMSG_SPACE(std::mem::size_of::<libc::ucred>() as u32)
         } as usize);
+    }
+
+    // cap control extraction to caller budget
+    if max_control_bytes > 0 {
+        control_len = control_len.min(max_control_bytes as usize);
     }
 
     // allocate the control buffer
@@ -1154,6 +1162,12 @@ pub(crate) unsafe fn destack_net_recv_msg(
 
     // build the response payload
     let fds = context.store_array(handles);
+    let control = context.store_array(Vec::<u8>::new());
+    let address = SocketAddress {
+        family: 0,
+        length: 0,
+        bytes: context.store_array(Vec::new()),
+    };
     let has_credentials = credentials.is_some();
     let credentials = if let Some(credentials) = credentials {
         credentials
@@ -1167,9 +1181,12 @@ pub(crate) unsafe fn destack_net_recv_msg(
     unsafe {
         *out = SocketRecvMessage {
             bytes: rc as u64,
+            has_address: false,
+            address,
             recv_flags,
             payload_truncated,
             control_truncated,
+            control: SocketControlBufferAbi(control),
             fds,
             has_credentials,
             credentials,
@@ -1340,6 +1357,7 @@ pub(crate) unsafe fn destack_net_send_msg(
 }
 
 /// Send multiple messages from multiple buffers.
+#[allow(dead_code)]
 pub(crate) unsafe fn destack_net_send_mmsg(
     context: &RuntimeCallContext,
     out: *mut u64,
