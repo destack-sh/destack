@@ -1,54 +1,9 @@
-use std::cmp::Ordering;
-
-use destack_ast::{
-    DependencyItem, DependencyKind, Expression, ImportSource, ImportTarget, LocalNodeId, NodeTree,
-};
+use destack_ast::{DependencyItem, Expression, ImportSource, ImportTarget, LocalNodeId, NodeTree};
 use destack_base::ImmutableStringPool;
-use destack_workspace::ImportSortOrder;
-
-/// Import group category for sorting.
-///
-/// Groups are ordered by priority (lower = earlier in file).
-/// The ordering is: Builtin → Package → Alias → Relative
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum ImportGroup {
-    /// Builtin modules with protocol prefix (e.g. `node:fs`, `bun:test`, `deno:path`)
-    Builtin,
-    /// External packages (e.g. `lodash`, `@org/pkg`, `react`)
-    Package,
-    /// Path aliases (e.g. `@/utils`, `~/lib`, `#internal`)
-    Alias,
-    /// Relative imports (e.g. `./foo`, `../bar`, `/absolute`)
-    Relative,
-}
-
-/// Categorize an import target path into a group.
-pub fn categorize_import(target: &str) -> ImportGroup {
-    // builtin protocols: "protocol:module" but not URLs ("protocol://...")
-    if let Some(colon_pos) = target.find(':')
-        && !target[colon_pos..].starts_with("://")
-    {
-        return ImportGroup::Builtin;
-    }
-
-    // relative imports
-    if target.starts_with("./") || target.starts_with("../") {
-        return ImportGroup::Relative;
-    }
-
-    // absolute path (treated as relative/local)
-    if target.starts_with('/') {
-        return ImportGroup::Relative;
-    }
-
-    // alias imports: @/ ~/ # (but not scoped packages like @org/pkg)
-    if target.starts_with("@/") || target.starts_with("~/") || target.starts_with('#') {
-        return ImportGroup::Alias;
-    }
-
-    // everything else is a package (including scoped packages @org/pkg)
-    ImportGroup::Package
-}
+use destack_workspace::{
+    ImportDeclarationKey, ImportSortOrder, categorize_import, sort_dependency_items as sort_items,
+    sort_import_declaration_indices,
+};
 
 /// Get the inner import expression, unwrapping Statement if needed.
 pub fn get_import_expression(
@@ -100,98 +55,32 @@ pub fn sort_imports(
     tree: &NodeTree,
     strings: &ImmutableStringPool,
 ) -> Vec<LocalNodeId<Expression>> {
-    // separate side effect imports, preserve order, from regular imports
-    let mut side_effects: Vec<LocalNodeId<Expression>> = Vec::new();
-    let mut regular: Vec<(ImportGroup, &str, LocalNodeId<Expression>)> = Vec::new();
+    let mut expression_ids = Vec::new();
+    let mut order_keys = Vec::new();
 
+    // collect sortable declaration keys
     for &expr_id in imports {
         if let Some(Expression::Import { items, target, .. }) = get_import_expression(expr_id, tree)
         {
             let ImportTarget::String(target) = target else {
                 continue;
             };
+
             let target_str = strings.get(*target);
-            if items.is_empty() {
-                // side effect import: preserve relative order
-                side_effects.push(expr_id);
-            } else {
-                let group = categorize_import(target_str);
-                regular.push((group, target_str, expr_id));
-            }
+            expression_ids.push(expr_id);
+            order_keys.push(ImportDeclarationKey {
+                target: target_str,
+                is_side_effect: items.is_empty(),
+            });
         }
     }
 
-    // sort regular imports by group, then alphabetically by target
-    regular.sort_by(|a, b| match a.0.cmp(&b.0) {
-        Ordering::Equal => a.1.cmp(b.1),
-        other => other,
-    });
-
-    // build result: side effects first, then sorted regular imports
-    let mut result: Vec<LocalNodeId<Expression>> = Vec::with_capacity(imports.len());
-    result.extend(side_effects);
-    result.extend(regular.into_iter().map(|(_, _, id)| id));
-    result
-}
-
-/// Compare two strings using natural sort order (numbers ordered as integers).
-fn natural_cmp(a: &str, b: &str) -> Ordering {
-    let mut a_chars = a.chars().peekable();
-    let mut b_chars = b.chars().peekable();
-
-    loop {
-        match (a_chars.peek(), b_chars.peek()) {
-            (None, None) => return Ordering::Equal,
-            (None, Some(_)) => return Ordering::Less,
-            (Some(_), None) => return Ordering::Greater,
-            (Some(ac), Some(bc)) => {
-                // compare numeric runs as numbers
-                if ac.is_ascii_digit() && bc.is_ascii_digit() {
-                    let mut a_number: u64 = 0;
-                    while let Some(&character) = a_chars.peek()
-                        && character.is_ascii_digit()
-                    {
-                        a_number = a_number
-                            .saturating_mul(10)
-                            .saturating_add((character as u64) - ('0' as u64));
-                        a_chars.next();
-                    }
-
-                    let mut b_number: u64 = 0;
-                    while let Some(&character) = b_chars.peek()
-                        && character.is_ascii_digit()
-                    {
-                        b_number = b_number
-                            .saturating_mul(10)
-                            .saturating_add((character as u64) - ('0' as u64));
-                        b_chars.next();
-                    }
-
-                    match a_number.cmp(&b_number) {
-                        Ordering::Equal => continue,
-                        ordering => return ordering,
-                    }
-                }
-
-                // compare characters case-insensitively
-                let ac_lower = ac.to_ascii_lowercase();
-                let bc_lower = bc.to_ascii_lowercase();
-                match ac_lower.cmp(&bc_lower) {
-                    Ordering::Equal => {
-                        // if only case differs, keep uppercase first
-                        match ac.cmp(bc) {
-                            Ordering::Equal => {
-                                a_chars.next();
-                                b_chars.next();
-                            }
-                            ordering => return ordering,
-                        }
-                    }
-                    ordering => return ordering,
-                }
-            }
-        }
-    }
+    // map declaration order back to expression ids
+    let order = sort_import_declaration_indices(&order_keys);
+    order
+        .into_iter()
+        .map(|index| expression_ids[index])
+        .collect()
 }
 
 /// Sort dependency items by kind and configured key order.
@@ -201,40 +90,7 @@ pub fn sort_dependency_items(
     strings: &ImmutableStringPool,
     sort_order: ImportSortOrder,
 ) -> Vec<LocalNodeId<DependencyItem>> {
-    let mut sorted_items: Vec<_> = items.to_vec();
-
-    sorted_items.sort_by(|a, b| {
-        let a_item = tree.get(*a);
-        let b_item = tree.get(*b);
-
-        // type imports come before value imports
-        let a_is_type = a_item.kind == Some(DependencyKind::Type);
-        let b_is_type = b_item.kind == Some(DependencyKind::Type);
-        match (a_is_type, b_is_type) {
-            (true, false) => return Ordering::Less,
-            (false, true) => return Ordering::Greater,
-            _ => {}
-        }
-
-        // sort by alias first when present, otherwise by item name
-        let a_key = a_item
-            .alias
-            .or(a_item.name.map(|name| name.string()))
-            .map(|string_id| strings.get(string_id))
-            .unwrap_or("");
-        let b_key = b_item
-            .alias
-            .or(b_item.name.map(|name| name.string()))
-            .map(|string_id| strings.get(string_id))
-            .unwrap_or("");
-
-        match sort_order {
-            ImportSortOrder::Natural => natural_cmp(a_key, b_key),
-            ImportSortOrder::Alphabetical => a_key.cmp(b_key),
-        }
-    });
-
-    sorted_items
+    sort_items(items, tree, strings, sort_order)
 }
 
 /// Determine if a blank line should be inserted between two imports.

@@ -328,6 +328,7 @@ let x = 1;
 switch (x) {
     case 1: {
         console.log("one")
+
         break
     }
     case 2: {
@@ -392,6 +393,7 @@ switch (x) {
     case 1: break
     case 2: {
         console.log("two")
+
         break
     }
     case 3: break

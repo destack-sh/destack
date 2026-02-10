@@ -78,8 +78,11 @@ fn expression_target_specifier(expression: &dir::Expression) -> Option<StringId>
     match expression {
         dir::Expression::Import { target, .. }
         | dir::Expression::ReExport { target, .. }
-        | dir::Expression::UnresolvedImport { target, .. }
         | dir::Expression::UnresolvedReExport { target, .. } => Some(*target),
+        dir::Expression::UnresolvedImport {
+            target: dir::ImportTarget::String(target),
+            ..
+        } => Some(*target),
         _ => None,
     }
 }

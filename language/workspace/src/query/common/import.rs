@@ -1,13 +1,15 @@
+use std::cmp::Ordering;
 use std::path::Path;
 
 use destack_ast::{
-    DependencyKind, DependencyMode, Expression, ImportTarget, NodeTree, ScalarLiteral, TokenType,
+    DependencyItem, DependencyKind, DependencyMode, Expression, ImportTarget, LocalNodeId,
+    NodeTree, ScalarLiteral, TokenType,
 };
-use destack_base::StringId;
+use destack_base::{ImmutableStringPool, StringId};
 use destack_source::{Edit, FileId, PathExt, Span};
 
-use crate::Session;
 use crate::query::common::{QueryContext, normalize_separators, relative_path};
+use crate::{ImportSortOrder, Session};
 
 /// Information about an existing import in the file.
 #[derive(Debug, Clone)]
@@ -126,6 +128,161 @@ impl ImportGroup {
         // everything else is a package
         ImportGroup::Package
     }
+}
+
+/// One import declaration key for ordering.
+#[derive(Debug, Clone, Copy)]
+pub struct ImportDeclarationKey<'a> {
+    /// The import target string.
+    pub target: &'a str,
+    /// Whether this declaration is a side effect only import.
+    pub is_side_effect: bool,
+}
+
+/// Categorize an import target path into a group.
+pub fn categorize_import(target: &str) -> ImportGroup {
+    ImportGroup::from_path(target)
+}
+
+/// Compare two import targets by canonical declaration order.
+pub fn compare_import_targets(left: &str, right: &str) -> Ordering {
+    match categorize_import(left).cmp(&categorize_import(right)) {
+        Ordering::Equal => left.cmp(right),
+        ordering => ordering,
+    }
+}
+
+/// Return declaration indices ordered by canonical import order.
+///
+/// Side effect imports preserve source order and stay above regular imports.
+pub fn sort_import_declaration_indices(keys: &[ImportDeclarationKey<'_>]) -> Vec<usize> {
+    let mut side_effect_indices = Vec::new();
+    let mut regular_indices = Vec::new();
+
+    // split side effect and regular imports
+    for (index, key) in keys.iter().enumerate() {
+        if key.is_side_effect {
+            side_effect_indices.push(index);
+        } else {
+            regular_indices.push(index);
+        }
+    }
+
+    // sort regular imports by canonical target order
+    regular_indices.sort_by(|left, right| {
+        let left_target = keys[*left].target;
+        let right_target = keys[*right].target;
+        compare_import_targets(left_target, right_target)
+    });
+
+    // side effects first, then sorted regular imports
+    let mut result = Vec::with_capacity(keys.len());
+    result.extend(side_effect_indices);
+    result.extend(regular_indices);
+    result
+}
+
+/// Compare two strings using natural sort order.
+fn natural_cmp(left: &str, right: &str) -> Ordering {
+    let mut left_chars = left.chars().peekable();
+    let mut right_chars = right.chars().peekable();
+
+    loop {
+        match (left_chars.peek(), right_chars.peek()) {
+            (None, None) => return Ordering::Equal,
+            (None, Some(_)) => return Ordering::Less,
+            (Some(_), None) => return Ordering::Greater,
+            (Some(left_char), Some(right_char)) => {
+                // compare numeric runs as integers
+                if left_char.is_ascii_digit() && right_char.is_ascii_digit() {
+                    let mut left_number: u64 = 0;
+                    while let Some(&character) = left_chars.peek()
+                        && character.is_ascii_digit()
+                    {
+                        left_number = left_number
+                            .saturating_mul(10)
+                            .saturating_add((character as u64) - ('0' as u64));
+                        left_chars.next();
+                    }
+
+                    let mut right_number: u64 = 0;
+                    while let Some(&character) = right_chars.peek()
+                        && character.is_ascii_digit()
+                    {
+                        right_number = right_number
+                            .saturating_mul(10)
+                            .saturating_add((character as u64) - ('0' as u64));
+                        right_chars.next();
+                    }
+
+                    match left_number.cmp(&right_number) {
+                        Ordering::Equal => continue,
+                        ordering => return ordering,
+                    }
+                }
+
+                // compare case-insensitively first
+                let left_lower = left_char.to_ascii_lowercase();
+                let right_lower = right_char.to_ascii_lowercase();
+                match left_lower.cmp(&right_lower) {
+                    Ordering::Equal => {
+                        // preserve deterministic case ordering when only case differs
+                        match left_char.cmp(right_char) {
+                            Ordering::Equal => {
+                                left_chars.next();
+                                right_chars.next();
+                            }
+                            ordering => return ordering,
+                        }
+                    }
+                    ordering => return ordering,
+                }
+            }
+        }
+    }
+}
+
+/// Return dependency items sorted by kind and configured key order.
+pub fn sort_dependency_items(
+    items: &[LocalNodeId<DependencyItem>],
+    tree: &NodeTree,
+    strings: &ImmutableStringPool,
+    sort_order: ImportSortOrder,
+) -> Vec<LocalNodeId<DependencyItem>> {
+    let mut sorted_items: Vec<_> = items.to_vec();
+
+    sorted_items.sort_by(|left_id, right_id| {
+        let left_item = tree.get(*left_id);
+        let right_item = tree.get(*right_id);
+
+        // type imports come before value imports
+        let left_is_type = left_item.kind == Some(DependencyKind::Type);
+        let right_is_type = right_item.kind == Some(DependencyKind::Type);
+        match (left_is_type, right_is_type) {
+            (true, false) => return Ordering::Less,
+            (false, true) => return Ordering::Greater,
+            _ => {}
+        }
+
+        // alias key first when present, then fallback to item name
+        let left_key = left_item
+            .alias
+            .or(left_item.name.map(|name| name.string()))
+            .map(|string_id| strings.get(string_id))
+            .unwrap_or("");
+        let right_key = right_item
+            .alias
+            .or(right_item.name.map(|name| name.string()))
+            .map(|string_id| strings.get(string_id))
+            .unwrap_or("");
+
+        match sort_order {
+            ImportSortOrder::Natural => natural_cmp(left_key, right_key),
+            ImportSortOrder::Alphabetical => left_key.cmp(right_key),
+        }
+    });
+
+    sorted_items
 }
 
 /// Check if a specifier is a known alias form.
@@ -491,5 +648,71 @@ mod tests {
         assert_eq!(ImportGroup::from_path("#internal"), ImportGroup::Alias);
         assert_eq!(ImportGroup::from_path("./local"), ImportGroup::Relative);
         assert_eq!(ImportGroup::from_path("../parent"), ImportGroup::Relative);
+    }
+
+    /// Keep side effect imports stable and ahead of sorted regular imports.
+    #[test]
+    fn test_sort_import_declaration_indices_preserves_side_effect_order() {
+        let keys = vec![
+            ImportDeclarationKey {
+                target: "./side_b",
+                is_side_effect: true,
+            },
+            ImportDeclarationKey {
+                target: "zod",
+                is_side_effect: false,
+            },
+            ImportDeclarationKey {
+                target: "./side_a",
+                is_side_effect: true,
+            },
+            ImportDeclarationKey {
+                target: "axios",
+                is_side_effect: false,
+            },
+        ];
+
+        let order = sort_import_declaration_indices(&keys);
+        assert_eq!(order, vec![0, 2, 3, 1]);
+    }
+
+    /// Sort regular imports by canonical group then lexical target.
+    #[test]
+    fn test_sort_import_declaration_indices_groups_then_targets() {
+        let keys = vec![
+            ImportDeclarationKey {
+                target: "./local",
+                is_side_effect: false,
+            },
+            ImportDeclarationKey {
+                target: "@/internal",
+                is_side_effect: false,
+            },
+            ImportDeclarationKey {
+                target: "react",
+                is_side_effect: false,
+            },
+            ImportDeclarationKey {
+                target: "node:fs",
+                is_side_effect: false,
+            },
+        ];
+
+        let order = sort_import_declaration_indices(&keys);
+        assert_eq!(order, vec![3, 2, 1, 0]);
+    }
+
+    /// Compare import targets using canonical group ordering.
+    #[test]
+    fn test_compare_import_targets_uses_group_priority() {
+        assert_eq!(compare_import_targets("node:fs", "react"), Ordering::Less);
+        assert_eq!(
+            compare_import_targets("react", "@/internal"),
+            Ordering::Less
+        );
+        assert_eq!(
+            compare_import_targets("@/internal", "./local"),
+            Ordering::Less
+        );
     }
 }
