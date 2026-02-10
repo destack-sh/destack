@@ -21,7 +21,7 @@ use crate::harness::{
     load_expected_failures, save_expected_failures,
 };
 
-use super::manifest::{EcosystemManifest, EcosystemPhase};
+use super::manifest::{CompilerOptionsConfig, EcosystemManifest, EcosystemPhase};
 
 const DEFAULT_INCLUDE_PATTERNS: &[&str] = &["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"];
 const DEFAULT_EXCLUDE_PATTERNS: &[&str] = &["**/node_modules/**", "**/dist/**", "**/build/**"];
@@ -199,7 +199,7 @@ impl EcosystemSuite {
             };
         }
 
-        let phase_result = run_phase_tier(&package_dir, phase, &files);
+        let phase_result = run_phase_tier(&package_dir, manifest, phase, &files);
         phase_result
     }
 
@@ -701,11 +701,12 @@ fn parse_readme_summary_rows(
         if !line.trim_start().starts_with('|') {
             continue;
         }
-        if line.contains("---") {
+
+        let cells = line.split('|').map(str::trim).collect::<Vec<_>>();
+        if is_readme_separator_row(&cells) {
             continue;
         }
 
-        let cells = line.split('|').map(str::trim).collect::<Vec<_>>();
         if cells.len() < phases.len() + 9 {
             continue;
         }
@@ -728,6 +729,24 @@ fn parse_readme_summary_rows(
     Some(rows)
 }
 
+/// Return whether a parsed markdown table row is a separator row.
+fn is_readme_separator_row(cells: &[&str]) -> bool {
+    let mut has_non_empty_cell = false;
+
+    for cell in cells {
+        if cell.is_empty() {
+            continue;
+        }
+
+        has_non_empty_cell = true;
+        if !cell.chars().all(|character| matches!(character, '-' | ':')) {
+            return false;
+        }
+    }
+
+    has_non_empty_cell
+}
+
 fn readme_section<'a>(content: &'a str, section_name: &str) -> Option<&'a str> {
     let begin_marker = format!("<!-- begin:{section_name} -->");
     let end_marker = format!("<!-- end:{section_name} -->");
@@ -743,7 +762,8 @@ fn replace_readme_section(content: &str, section_name: &str, new_section: &str) 
     let end_marker = format!("<!-- end:{section_name} -->");
 
     let begin_index = content.find(&begin_marker)?;
-    let end_index = content.find(&end_marker)?;
+    let section_start = begin_index + begin_marker.len();
+    let end_index = content[section_start..].find(&end_marker)? + section_start;
 
     Some(format!(
         "{}\n{}\n{}{}",
@@ -1096,6 +1116,7 @@ fn path_is_supported_source(path: &Path) -> bool {
         Some(
             FileType::TypeScript
                 | FileType::TypeScriptXml
+                | FileType::TypeScriptDeclaration
                 | FileType::JavaScript
                 | FileType::JavaScriptXml
         )
@@ -1103,9 +1124,14 @@ fn path_is_supported_source(path: &Path) -> bool {
 }
 
 /// Run one phase tier for one package workload.
-fn run_phase_tier(package_dir: &Path, phase: EcosystemPhase, files: &[PathBuf]) -> TestResult {
+fn run_phase_tier(
+    package_dir: &Path,
+    manifest: &EcosystemManifest,
+    phase: EcosystemPhase,
+    files: &[PathBuf],
+) -> TestResult {
     match phase {
-        EcosystemPhase::Parse => run_parse_phase(package_dir, files),
+        EcosystemPhase::Parse => run_parse_phase(package_dir, manifest, files),
         EcosystemPhase::Resolve | EcosystemPhase::Analyze | EcosystemPhase::Lower => {
             run_compiler_phase(package_dir, phase, files)
         }
@@ -1113,12 +1139,16 @@ fn run_phase_tier(package_dir: &Path, phase: EcosystemPhase, files: &[PathBuf]) 
 }
 
 /// Run parser level checks across files.
-fn run_parse_phase(package_dir: &Path, files: &[PathBuf]) -> TestResult {
+fn run_parse_phase(
+    package_dir: &Path,
+    manifest: &EcosystemManifest,
+    files: &[PathBuf],
+) -> TestResult {
     let mut failures = Vec::new();
     let mut failure_messages = Vec::new();
 
     for path in files {
-        match parse_file(path) {
+        match parse_file(path, manifest) {
             Ok(()) => {}
             Err(output) => {
                 let relative = path.strip_prefix(package_dir).unwrap_or(path);
@@ -1548,12 +1578,11 @@ fn strip_supported_module_suffix(value: &str) -> &str {
 }
 
 /// Parse one source file and fail when parser diagnostics contain errors.
-fn parse_file(path: &Path) -> Result<(), String> {
+fn parse_file(path: &Path, manifest: &EcosystemManifest) -> Result<(), String> {
     let content = fs::read_to_string(path).map_err(|error| format!("read error: {error}"))?;
 
-    let extension = path.extension().and_then(|ext| ext.to_str()).unwrap_or("");
-    let file_type = FileType::from_extension(extension).unwrap_or(FileType::TypeScript);
-    let language_type = LanguageType::from(file_type);
+    let file_type = FileType::from_path(path).unwrap_or(FileType::TypeScript);
+    let language_type = language_type_for_parse(file_type, &manifest.compiler_options);
 
     let uri = Uri::from_path(path);
     let files = Arc::new(FileRegistry::new());
@@ -1614,6 +1643,19 @@ fn parse_file(path: &Path) -> Result<(), String> {
     );
 
     Err(diagnostic_output.trim_end().to_string())
+}
+
+/// Resolve parse language mode for a discovered source file.
+fn language_type_for_parse(
+    file_type: FileType,
+    compiler_options: &CompilerOptionsConfig,
+) -> LanguageType {
+    // allow explicit js to jsx parse mode override
+    if file_type == FileType::JavaScript && compiler_options.js_as_jsx() {
+        return LanguageType::JavaScriptXml;
+    }
+
+    LanguageType::from(file_type)
 }
 
 /// Ensure patch overlays are applied exactly once per patch snapshot.
@@ -1944,5 +1986,107 @@ pub fn fetch_all_packages(options: FetchOptions) -> ExitCode {
         ExitCode::FAILURE
     } else {
         ExitCode::SUCCESS
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        ReadmeCellStatus, language_type_for_parse, parse_readme_summary_rows,
+        path_is_supported_source, replace_readme_section,
+    };
+    use crate::ecosystem::manifest::{CompilerOptionsConfig, EcosystemPhase};
+    use destack_source::{FileType, LanguageType};
+    use std::path::Path;
+
+    #[test]
+    fn test_parse_readme_summary_rows_keeps_ignored_cells() {
+        // include ignored cells in package rows and ensure we still parse them
+        let content = r#"
+<!-- begin:summary-results -->
+| Package | parse | resolve | analyze | lower | Passed | Failed | Ignored | Total |  Rate   | Incl. Rate |
+|:--------|:--------:|:--------:|:--------:|:--------:|-------:|-------:|--------:|------:|--------:|-----------:|
+| astro |   ---    |    x     |    ✓     |   ---    |     1  |     1  |       2  |     4 |  50.00% |    25.00% |
+<!-- end:summary-results -->
+"#;
+
+        // parse the row and assert each phase cell maps to the expected status
+        let rows = parse_readme_summary_rows(content).unwrap();
+        let row = rows.get("astro").unwrap();
+        assert_eq!(
+            row.get(&EcosystemPhase::Parse).copied(),
+            Some(ReadmeCellStatus::Ignored)
+        );
+        assert_eq!(
+            row.get(&EcosystemPhase::Resolve).copied(),
+            Some(ReadmeCellStatus::Fail)
+        );
+        assert_eq!(
+            row.get(&EcosystemPhase::Analyze).copied(),
+            Some(ReadmeCellStatus::Pass)
+        );
+        assert_eq!(
+            row.get(&EcosystemPhase::Lower).copied(),
+            Some(ReadmeCellStatus::Ignored)
+        );
+    }
+
+    #[test]
+    fn test_replace_readme_section_uses_end_marker_after_begin() {
+        // ensure replacement uses the matching end marker after the section begin marker
+        let content = r#"
+<!-- end:summary-results -->
+prefix
+<!-- begin:summary-results -->
+old content
+<!-- end:summary-results -->
+suffix
+"#;
+
+        let new_content =
+            replace_readme_section(content, "summary-results", "new content").unwrap();
+
+        assert!(
+            new_content.contains(
+                "<!-- begin:summary-results -->\nnew content\n<!-- end:summary-results -->"
+            )
+        );
+        assert!(new_content.contains("prefix"));
+        assert!(new_content.contains("suffix"));
+    }
+
+    #[test]
+    fn test_path_is_supported_source_accepts_typescript_declaration() {
+        assert!(path_is_supported_source(Path::new("index.d.ts")));
+        assert!(path_is_supported_source(Path::new("index.d.mts")));
+        assert!(path_is_supported_source(Path::new("index.d.cts")));
+    }
+
+    #[test]
+    fn test_language_type_for_parse_promotes_js_to_jsx_for_jsx_packages() {
+        let compiler_options = CompilerOptionsConfig {
+            js_as_jsx: Some(true),
+        };
+
+        let language = language_type_for_parse(FileType::JavaScript, &compiler_options);
+        assert_eq!(language, LanguageType::JavaScriptXml);
+    }
+
+    #[test]
+    fn test_language_type_for_parse_keeps_js_without_jsx_tag() {
+        let compiler_options = CompilerOptionsConfig { js_as_jsx: None };
+
+        let language = language_type_for_parse(FileType::JavaScript, &compiler_options);
+        assert_eq!(language, LanguageType::JavaScript);
+    }
+
+    #[test]
+    fn test_language_type_for_parse_keeps_typescript_declaration() {
+        let compiler_options = CompilerOptionsConfig {
+            js_as_jsx: Some(true),
+        };
+
+        let language = language_type_for_parse(FileType::TypeScriptDeclaration, &compiler_options);
+        assert_eq!(language, LanguageType::TypeScriptDeclaration);
     }
 }

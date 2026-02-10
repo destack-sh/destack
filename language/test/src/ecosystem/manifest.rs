@@ -52,6 +52,9 @@ pub struct EcosystemManifest {
     /// Base file discovery configuration used by all phases.
     #[serde(default)]
     pub discovery: DiscoveryConfig,
+    /// Compiler options overrides for ecosystem compatibility.
+    #[serde(default)]
+    pub compiler_options: CompilerOptionsConfig,
     /// Per-phase workload settings for discovery and caps.
     #[serde(default)]
     pub workloads: WorkloadConfig,
@@ -101,6 +104,20 @@ pub struct DiscoveryConfig {
     /// Glob patterns to exclude when discovering files.
     #[serde(default)]
     pub exclude: Vec<String>,
+}
+
+/// Parser behavior overrides.
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct CompilerOptionsConfig {
+    /// Parse `.js`/`.mjs`/`.cjs` files in JSX mode.
+    pub js_as_jsx: Option<bool>,
+}
+
+impl CompilerOptionsConfig {
+    /// Return whether plain js files should parse in jsx mode.
+    pub fn js_as_jsx(&self) -> bool {
+        self.js_as_jsx.unwrap_or(false)
+    }
 }
 
 /// Per-phase workload configuration.
@@ -167,5 +184,47 @@ impl EcosystemManifest {
         }
         manifests.sort();
         manifests
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::EcosystemManifest;
+
+    fn parse_manifest(content: &str) -> EcosystemManifest {
+        toml::from_str(content).unwrap()
+    }
+
+    #[test]
+    fn test_parse_compiler_options_js_as_jsx() {
+        let manifest = parse_manifest(
+            r#"
+[package]
+name = "demo"
+repo = "https://example.com/repo.git"
+ref = "main"
+language = "ts"
+
+[compiler_options]
+js_as_jsx = true
+"#,
+        );
+
+        assert!(manifest.compiler_options.js_as_jsx());
+    }
+
+    #[test]
+    fn test_parse_compiler_options_js_as_jsx_default_false() {
+        let manifest = parse_manifest(
+            r#"
+[package]
+name = "demo"
+repo = "https://example.com/repo.git"
+ref = "main"
+language = "ts"
+"#,
+        );
+
+        assert!(!manifest.compiler_options.js_as_jsx());
     }
 }

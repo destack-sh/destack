@@ -9,3 +9,6 @@ tags = ["frontend", "jsx", "framework"]
 [discovery]
 include = ["packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx"]
 exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/fixtures/**", "**/dist/**", "**/node_modules/**"]
+
+[compiler_options]
+js_as_jsx = true
