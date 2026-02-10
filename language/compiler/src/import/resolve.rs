@@ -113,7 +113,8 @@ impl Compiler {
         loader_override: Option<Loader>,
     ) -> ImportResult<ModuleResolution> {
         let value_target = self
-            .resolve_specifier_to_module(
+            .resolve_specifier_to_module_with_loader(
+                None,
                 specifier,
                 source_module,
                 DependencyKind::Value,
@@ -122,7 +123,8 @@ impl Compiler {
             .ok()
             .map(ModuleTarget::Module);
         let type_target = self
-            .resolve_specifier_to_module(
+            .resolve_specifier_to_module_with_loader(
+                None,
                 specifier,
                 source_module,
                 DependencyKind::Type,

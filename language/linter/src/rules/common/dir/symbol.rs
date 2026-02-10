@@ -55,6 +55,7 @@ pub fn expression_candidate_symbols(
 }
 
 /// Map decorators found on expression candidate symbols.
+#[allow(clippy::too_many_arguments)]
 pub fn expression_decorator_map<T>(
     program: &Program,
     profile_id: ProfileId,
@@ -95,6 +96,7 @@ pub fn expression_decorator_map<T>(
 }
 
 /// Return true when an expression candidate symbol matches one decorator predicate.
+#[allow(clippy::too_many_arguments)]
 pub fn expression_has_decorator(
     program: &Program,
     profile_id: ProfileId,

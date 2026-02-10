@@ -1,7 +1,7 @@
 use super::{NetHarness, native_slice, native_string, with_native_harness};
 use crate::platform::net::{
-    destack_net_accept, destack_net_close, destack_net_close_listener, destack_net_connect,
-    destack_net_listen, destack_net_read, destack_net_write,
+    destack_net_accept, destack_net_close, destack_net_close_listener, destack_net_listen,
+    destack_net_read, destack_net_write,
 };
 use crate::platform::resource::{ListenerHandle, ResourceId, SocketHandle};
 

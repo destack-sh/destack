@@ -54,11 +54,13 @@
       "$ref": "#/$defs/DsConfigRuntimeOptionsJson",
       "default": {
         "executionMode": null,
+        "capabilities": null,
         "replayLog": null,
         "time": null,
         "random": null,
         "scheduler": null,
-        "gc": null
+        "gc": null,
+        "platform": null
       }
     },
     "formatter": {
@@ -820,6 +822,16 @@
             }
           ]
         },
+        "capabilities": {
+          "description": "Exact capabilities granted to platform bindings.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
         "replayLog": {
           "description": "Replay log configuration.",
           "anyOf": [
@@ -869,6 +881,17 @@
           "anyOf": [
             {
               "$ref": "#/$defs/GcOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "platform": {
+          "description": "Platform-specific runtime configuration.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PlatformOptionsJson"
             },
             {
               "type": "null"
@@ -1120,6 +1143,17 @@
           "format": "uint64",
           "minimum": 0
         },
+        "pollerBackend": {
+          "description": "Platform poller backend selection.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PollerBackendJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "policy": {
           "description": "Scheduling policy for task pools.",
           "anyOf": [
@@ -1168,6 +1202,41 @@
           "minimum": 0
         }
       }
+    },
+    "PollerBackendJson": {
+      "description": "Poller backend options for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Choose the best available backend for the platform.",
+          "type": "string",
+          "const": "auto"
+        },
+        {
+          "description": "Use io_uring (Linux only).",
+          "type": "string",
+          "const": "ioUring"
+        },
+        {
+          "description": "Use epoll (Linux only).",
+          "type": "string",
+          "const": "epoll"
+        },
+        {
+          "description": "Use kqueue (BSD/macOS only).",
+          "type": "string",
+          "const": "kqueue"
+        },
+        {
+          "description": "Use poll (portable Unix fallback).",
+          "type": "string",
+          "const": "poll"
+        },
+        {
+          "description": "Use the Windows IOCP backend.",
+          "type": "string",
+          "const": "windows"
+        }
+      ]
     },
     "SchedulerPolicyJson": {
       "description": "Scheduler policy for JSON deserialization.",
@@ -1259,6 +1328,36 @@
           "const": "verbose"
         }
       ]
+    },
+    "PlatformOptionsJson": {
+      "description": "Platform runtime options for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "windows": {
+          "description": "Windows-specific runtime configuration.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PlatformWindowsOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "PlatformWindowsOptionsJson": {
+      "description": "Windows runtime options for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "posixDomainSid": {
+          "description": "Optional POSIX domain SID for uid/gid mapping.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
     },
     "DsConfigFormatterJson": {
       "description": "Formatter options (top-level, like Biome/Deno).\n\nField names use Prettier-compatible naming for familiarity.",

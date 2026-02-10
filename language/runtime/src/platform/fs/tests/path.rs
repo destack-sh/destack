@@ -52,7 +52,7 @@ fn test_fs_rename_unlink_copyfile() {
 
             let (_bytes, from) = path_bytes(&file_b);
             let (_bytes, to) = path_bytes(&file_d);
-            let status = unsafe { destack_fs_copyfile_bytes(from, to) };
+            let status = unsafe { destack_fs_copyfile_bytes(from, to, 0) };
             runtime.assert_status_ok(status, "copyfile");
 
             let (_bytes, path) = path_bytes(&file_c);

@@ -127,15 +127,15 @@ impl<'a, 'b> UnnecessaryConditionVisitor<'a, 'b> {
         let nullishness = type_nullishness(self.ctx.types, type_id);
 
         let (message, label) = match nullishness {
-            Nullishness::NeverNullish => (
+            Nullishness::Never => (
                 "left side of ?? is never nullish".to_string(),
                 "the right side is unreachable",
             ),
-            Nullishness::AlwaysNullish => (
+            Nullishness::Always => (
                 "left side of ?? is always nullish".to_string(),
                 "the left side is unreachable",
             ),
-            Nullishness::MaybeNullish => return,
+            Nullishness::Maybe => return,
         };
 
         let severity = self.ctx.get_effective_severity(self.meta, expression_id);
@@ -303,11 +303,11 @@ enum Truthiness {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Nullishness {
     /// The type can never be nullish.
-    NeverNullish,
+    Never,
     /// The type is always nullish.
-    AlwaysNullish,
+    Always,
     /// The type can be nullish or non-nullish.
-    MaybeNullish,
+    Maybe,
 }
 
 /// Resolve truthiness certainty for a type.
@@ -464,21 +464,21 @@ fn type_nullishness_inner(
     visited: &mut HashSet<dir::LocalTypeId>,
 ) -> Nullishness {
     if !visited.insert(type_id) {
-        return Nullishness::MaybeNullish;
+        return Nullishness::Maybe;
     }
 
     match types.get_type(type_id) {
         dir::Type::TypeLiteral { value } => match value {
-            dir::TypeLiteral::Null | dir::TypeLiteral::Undefined => Nullishness::AlwaysNullish,
-            dir::TypeLiteral::Never => Nullishness::MaybeNullish,
+            dir::TypeLiteral::Null | dir::TypeLiteral::Undefined => Nullishness::Always,
+            dir::TypeLiteral::Never => Nullishness::Maybe,
             dir::TypeLiteral::Any | dir::TypeLiteral::Infer | dir::TypeLiteral::Unknown => {
-                Nullishness::MaybeNullish
+                Nullishness::Maybe
             }
-            dir::TypeLiteral::Void => Nullishness::AlwaysNullish,
+            dir::TypeLiteral::Void => Nullishness::Always,
             dir::TypeLiteral::Object
             | dir::TypeLiteral::Primitive(_)
             | dir::TypeLiteral::Intrinsic(_)
-            | dir::TypeLiteral::ScalarLiteral(_) => Nullishness::NeverNullish,
+            | dir::TypeLiteral::ScalarLiteral(_) => Nullishness::Never,
         },
         dir::Type::Value { value } => type_nullishness_inner(types, *value, visited),
         dir::Type::ValueOf { right, .. }
@@ -492,7 +492,7 @@ fn type_nullishness_inner(
                 return type_nullishness_inner(types, value_type_id, visited);
             }
 
-            Nullishness::NeverNullish
+            Nullishness::Never
         }
         dir::Type::Union { elements } => combine_nullishness(
             elements
@@ -516,12 +516,12 @@ fn type_nullishness_inner(
         | dir::Type::Predicate { .. }
         | dir::Type::Unary { .. }
         | dir::Type::Binary { .. }
-        | dir::Type::Error => Nullishness::MaybeNullish,
+        | dir::Type::Error => Nullishness::Maybe,
         dir::Type::Array { .. }
         | dir::Type::ArraySized { .. }
         | dir::Type::Tuple { .. }
         | dir::Type::Object { .. }
-        | dir::Type::Function { .. } => Nullishness::NeverNullish,
+        | dir::Type::Function { .. } => Nullishness::Never,
     }
 }
 
@@ -552,16 +552,16 @@ fn combine_nullishness(values: impl Iterator<Item = Nullishness>) -> Nullishness
 
     for value in values {
         match value {
-            Nullishness::AlwaysNullish => saw_nullish = true,
-            Nullishness::NeverNullish => saw_non_nullish = true,
-            Nullishness::MaybeNullish => return Nullishness::MaybeNullish,
+            Nullishness::Always => saw_nullish = true,
+            Nullishness::Never => saw_non_nullish = true,
+            Nullishness::Maybe => return Nullishness::Maybe,
         }
     }
 
     match (saw_nullish, saw_non_nullish) {
-        (true, false) => Nullishness::AlwaysNullish,
-        (false, true) => Nullishness::NeverNullish,
-        _ => Nullishness::MaybeNullish,
+        (true, false) => Nullishness::Always,
+        (false, true) => Nullishness::Never,
+        _ => Nullishness::Maybe,
     }
 }
 

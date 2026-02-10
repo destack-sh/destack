@@ -1634,9 +1634,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
                         self.build_expression(*target, current_block_id)
                     }
                 };
-                let Some(current_block_id) = current_block_id else {
-                    return None;
-                };
+                let current_block_id = current_block_id?;
                 self.build_arguments(arguments.as_deref(), current_block_id)
             }
             Expression::Import { arguments, .. } => {

@@ -100,10 +100,10 @@ fn source_expression_matches_target_type(
         || assertion_target_is_explicit_any(ctx.tree, target_expression_id);
 
     // prefer expression type comparisons from the current module
-    if let Some(source_type_id) = assertion_operand_type_id(ctx, source_expression_id) {
-        if dir::are_types_equal(source_type_id, target_type_id, ctx.types) {
-            return true;
-        }
+    if let Some(source_type_id) = assertion_operand_type_id(ctx, source_expression_id)
+        && dir::are_types_equal(source_type_id, target_type_id, ctx.types)
+    {
+        return true;
     }
 
     // preserve `any as any` behavior when flow types are narrower than declared any

@@ -1791,13 +1791,15 @@ impl<'a> InterpreterContext<'a> {
         heap: &mut HeapStore,
         args: &[Value],
     ) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(heap, args, "atomic.fetch.umin", |a, b| match (a.tag(), b.tag()) {
-            (ValueTag::UInt, ValueTag::UInt) => {
-                let av = a.raw_data();
-                let bv = b.raw_data();
-                Value::uint(av.min(bv), a.width())
+        self.execute_atomic_rmw(heap, args, "atomic.fetch.umin", |a, b| {
+            match (a.tag(), b.tag()) {
+                (ValueTag::UInt, ValueTag::UInt) => {
+                    let av = a.raw_data();
+                    let bv = b.raw_data();
+                    Value::uint(av.min(bv), a.width())
+                }
+                _ => *a,
             }
-            _ => *a,
         })
     }
 
@@ -1807,13 +1809,15 @@ impl<'a> InterpreterContext<'a> {
         heap: &mut HeapStore,
         args: &[Value],
     ) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(heap, args, "atomic.fetch.umax", |a, b| match (a.tag(), b.tag()) {
-            (ValueTag::UInt, ValueTag::UInt) => {
-                let av = a.raw_data();
-                let bv = b.raw_data();
-                Value::uint(av.max(bv), a.width())
+        self.execute_atomic_rmw(heap, args, "atomic.fetch.umax", |a, b| {
+            match (a.tag(), b.tag()) {
+                (ValueTag::UInt, ValueTag::UInt) => {
+                    let av = a.raw_data();
+                    let bv = b.raw_data();
+                    Value::uint(av.max(bv), a.width())
+                }
+                _ => *a,
             }
-            _ => *a,
         })
     }
 
@@ -1823,18 +1827,20 @@ impl<'a> InterpreterContext<'a> {
         heap: &mut HeapStore,
         args: &[Value],
     ) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(heap, args, "atomic.fetch.fadd", |a, b| match (a.tag(), b.tag()) {
-            (ValueTag::Float64, ValueTag::Float64) => {
-                let av = f64::from_bits(a.raw_data());
-                let bv = f64::from_bits(b.raw_data());
-                Value::float64(av + bv)
+        self.execute_atomic_rmw(heap, args, "atomic.fetch.fadd", |a, b| {
+            match (a.tag(), b.tag()) {
+                (ValueTag::Float64, ValueTag::Float64) => {
+                    let av = f64::from_bits(a.raw_data());
+                    let bv = f64::from_bits(b.raw_data());
+                    Value::float64(av + bv)
+                }
+                (ValueTag::Float32, ValueTag::Float32) => {
+                    let av = f32::from_bits(a.raw_data() as u32);
+                    let bv = f32::from_bits(b.raw_data() as u32);
+                    Value::float32(av + bv)
+                }
+                _ => *a,
             }
-            (ValueTag::Float32, ValueTag::Float32) => {
-                let av = f32::from_bits(a.raw_data() as u32);
-                let bv = f32::from_bits(b.raw_data() as u32);
-                Value::float32(av + bv)
-            }
-            _ => *a,
         })
     }
 
@@ -1844,18 +1850,20 @@ impl<'a> InterpreterContext<'a> {
         heap: &mut HeapStore,
         args: &[Value],
     ) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(heap, args, "atomic.fetch.fmin", |a, b| match (a.tag(), b.tag()) {
-            (ValueTag::Float64, ValueTag::Float64) => {
-                let av = f64::from_bits(a.raw_data());
-                let bv = f64::from_bits(b.raw_data());
-                Value::float64(av.min(bv))
+        self.execute_atomic_rmw(heap, args, "atomic.fetch.fmin", |a, b| {
+            match (a.tag(), b.tag()) {
+                (ValueTag::Float64, ValueTag::Float64) => {
+                    let av = f64::from_bits(a.raw_data());
+                    let bv = f64::from_bits(b.raw_data());
+                    Value::float64(av.min(bv))
+                }
+                (ValueTag::Float32, ValueTag::Float32) => {
+                    let av = f32::from_bits(a.raw_data() as u32);
+                    let bv = f32::from_bits(b.raw_data() as u32);
+                    Value::float32(av.min(bv))
+                }
+                _ => *a,
             }
-            (ValueTag::Float32, ValueTag::Float32) => {
-                let av = f32::from_bits(a.raw_data() as u32);
-                let bv = f32::from_bits(b.raw_data() as u32);
-                Value::float32(av.min(bv))
-            }
-            _ => *a,
         })
     }
 
@@ -1865,18 +1873,20 @@ impl<'a> InterpreterContext<'a> {
         heap: &mut HeapStore,
         args: &[Value],
     ) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(heap, args, "atomic.fetch.fmax", |a, b| match (a.tag(), b.tag()) {
-            (ValueTag::Float64, ValueTag::Float64) => {
-                let av = f64::from_bits(a.raw_data());
-                let bv = f64::from_bits(b.raw_data());
-                Value::float64(av.max(bv))
+        self.execute_atomic_rmw(heap, args, "atomic.fetch.fmax", |a, b| {
+            match (a.tag(), b.tag()) {
+                (ValueTag::Float64, ValueTag::Float64) => {
+                    let av = f64::from_bits(a.raw_data());
+                    let bv = f64::from_bits(b.raw_data());
+                    Value::float64(av.max(bv))
+                }
+                (ValueTag::Float32, ValueTag::Float32) => {
+                    let av = f32::from_bits(a.raw_data() as u32);
+                    let bv = f32::from_bits(b.raw_data() as u32);
+                    Value::float32(av.max(bv))
+                }
+                _ => *a,
             }
-            (ValueTag::Float32, ValueTag::Float32) => {
-                let av = f32::from_bits(a.raw_data() as u32);
-                let bv = f32::from_bits(b.raw_data() as u32);
-                Value::float32(av.max(bv))
-            }
-            _ => *a,
         })
     }
 

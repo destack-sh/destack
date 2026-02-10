@@ -41,11 +41,13 @@ impl NetHarness for NativeNetHarness {
 }
 
 /// VM network harness backed by VM bindings.
+#[allow(dead_code)]
 pub(crate) struct VmNetHarness {
     /// Runtime that powers the harness.
     runtime: TestRuntime,
 }
 
+#[allow(dead_code)]
 impl VmNetHarness {
     /// Create a new VM network harness.
     pub(crate) fn new() -> Self {
