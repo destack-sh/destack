@@ -154,7 +154,7 @@ impl Parser {
         let items = if self.peek_dependency_binding().is_ok() {
             has_binding = true;
             let allow_type_modifier = kind != Some(DependencyKind::Type);
-            self.eat_dependency_items_block(allow_type_modifier)?
+            self.eat_dependency_items_block(allow_type_modifier, false)?
         } else {
             vec![]
         };
@@ -502,7 +502,7 @@ impl Parser {
 
         // binding
         let allow_type_modifier = kind != Some(DependencyKind::Type);
-        let items = self.eat_dependency_items_block(allow_type_modifier)?;
+        let items = self.eat_dependency_items_block(allow_type_modifier, true)?;
         let (target, target_span) = if self.peek_keyword(Keyword::From).is_ok() {
             self.bump(); // eat from
             let (target, span) = self.eat_dependency_target_with_span()?;
@@ -624,6 +624,7 @@ impl Parser {
     fn eat_dependency_items_block(
         &mut self,
         allow_type_modifier: bool,
+        allow_literal_alias: bool,
     ) -> ParseResult<Vec<LocalNodeId<DependencyItem>>> {
         let mut items: Vec<LocalNodeId<DependencyItem>> = Vec::new();
 
@@ -676,7 +677,7 @@ impl Parser {
             self.eat_token(TokenType::OpenBrace)?;
             self.eat_newlines_maybe()?;
             while !self.peek_is(TokenType::CloseBrace) {
-                let item = self.eat_dependency_item(allow_type_modifier)?;
+                let item = self.eat_dependency_item(allow_type_modifier, allow_literal_alias)?;
                 items.push(item);
 
                 self.eat_newlines_maybe()?;
@@ -707,6 +708,7 @@ impl Parser {
     pub(crate) fn eat_dependency_item(
         &mut self,
         allow_type_modifier: bool,
+        allow_literal_alias: bool,
     ) -> ParseResult<LocalNodeId<DependencyItem>> {
         let start = self.mark();
 
@@ -730,7 +732,8 @@ impl Parser {
             let (alias, alias_span) =
                 if self.peek_keyword(Keyword::As).is_ok() || self.peek_is(TokenType::Colon) {
                     self.bump(); // eat `as` or `:`
-                    let (alias, alias_span) = self.eat_identifier_with_span()?;
+                    let (alias, alias_span) =
+                        self.eat_dependency_item_alias_with_span(allow_literal_alias)?;
                     (Some(alias), Some(alias_span))
                 } else {
                     (None, None)
@@ -761,7 +764,8 @@ impl Parser {
             let (alias, alias_span) =
                 if self.peek_keyword(Keyword::As).is_ok() || self.peek_is(TokenType::Colon) {
                     self.bump(); // eat `as` or `:`
-                    let (alias, alias_span) = self.eat_identifier_with_span()?;
+                    let (alias, alias_span) =
+                        self.eat_dependency_item_alias_with_span(allow_literal_alias)?;
                     (Some(alias), Some(alias_span))
                 } else {
                     (None, None)
@@ -827,6 +831,28 @@ impl Parser {
             return Ok((Name::String(name), span));
         }
 
+        Err(ParseError::expected(
+            self.peek()?.span,
+            TokenType::Identifier,
+        ))
+    }
+
+    /// Eat a dependency alias and return its interned string and span.
+    fn eat_dependency_item_alias_with_span(
+        &mut self,
+        allow_literal_alias: bool,
+    ) -> ParseResult<(StringId, destack_source::Span)> {
+        // identifier aliases are always valid
+        if self.peek_is(TokenType::Identifier) {
+            return self.eat_identifier_with_span();
+        }
+
+        // export specifiers also allow string literal aliases
+        if allow_literal_alias && self.peek_string_literal().is_ok() {
+            return self.eat_string_literal_with_span();
+        }
+
+        // all other forms are invalid aliases
         Err(ParseError::expected(
             self.peek()?.span,
             TokenType::Identifier,
@@ -1602,6 +1628,26 @@ export type { CreateUIMessage, UIMessage }
                 assert_eq!(*kind, None);
                 assert_string!(parser, name.string(), "if");
                 assert_string!(parser, *alias, "foo");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_export_keyword_string_alias_without_target() {
+        // source: export { viteLegacyPluginCjs as 'module.exports' }
+        let mut test = TestParser::new("export { viteLegacyPluginCjs as 'module.exports' }");
+        let mut parser = test.prepare();
+        let export_id = parser.eat_export().unwrap();
+
+        assert_node!(parser.tree, export_id, Expression::Export { kind, target, items, .. } => {
+            assert_eq!(*kind, DependencyKind::Value);
+            assert!(target.is_none());
+            assert_eq!(items.len(), 1);
+            assert_node!(parser.tree, items[0], DependencyItem { mode, kind, name: Some(name), alias: Some(alias), .. } => {
+                assert_eq!(*mode, DependencyMode::Item);
+                assert_eq!(*kind, None);
+                assert_string!(parser, name.string(), "viteLegacyPluginCjs");
+                assert_string!(parser, *alias, "module.exports");
             });
         });
     }
