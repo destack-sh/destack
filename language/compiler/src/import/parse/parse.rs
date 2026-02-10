@@ -153,7 +153,7 @@ impl Compiler {
         }
 
         // parse
-        let language_type = LanguageType::from(file.ty);
+        let language_type = self.language_type_for_code_file(file.ty, package_id);
         let mut parser = {
             let _timing = self.timing_scope(tags::IMPORT_MODULE_PARSE_LEX);
             Parser::lex_file_with_settings(
@@ -238,6 +238,28 @@ impl Compiler {
 
         tracing::trace!(?module_id, "import.module.parse.code");
         Ok(())
+    }
+
+    /// Resolve parser language type for one code file.
+    fn language_type_for_code_file(
+        &self,
+        file_type: FileType,
+        package_id: destack_source::PackageId,
+    ) -> LanguageType {
+        // honor explicit workspace parse override for js sources
+        if file_type == FileType::JavaScript {
+            let package = self.program.packages.get(package_id);
+            let package = package.read();
+            if package
+                .dsconfig
+                .as_ref()
+                .is_some_and(|dsconfig| dsconfig.options.compiler.js_as_jsx)
+            {
+                return LanguageType::JavaScriptXml;
+            }
+        }
+
+        LanguageType::from(file_type)
     }
 
     /// Parse a JSON module.
