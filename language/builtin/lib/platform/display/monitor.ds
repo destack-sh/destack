@@ -5,27 +5,27 @@ import { DisplayHandle } from "../resource/index.ds";
 /// Display mode information.
 export struct DisplayMode {
     /// Pixel width.
-    width: uint32,
+    width: uint32;
     /// Pixel height.
-    height: uint32,
+    height: uint32;
     /// Refresh rate in millihertz.
-    refreshMilliHz: uint32,
+    refreshMilliHz: uint32;
     /// Color format identifier.
-    format: uint32,
+    format: uint32;
 }
 
 /// Display device information.
 export struct DisplayInfo {
     /// Stable runtime display identifier.
-    id: string,
+    id: string;
     /// Host display name.
-    name: string,
+    name: string;
     /// Physical width in millimeters.
-    widthMm: uint32,
+    widthMm: uint32;
     /// Physical height in millimeters.
-    heightMm: uint32,
+    heightMm: uint32;
     /// Whether this display is primary.
-    primary: boolean,
+    primary: boolean;
 }
 
 /// Display monitor bindings.

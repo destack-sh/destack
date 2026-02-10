@@ -5,11 +5,11 @@ import { Array, Slice } from "native";
 /// Completion queue event.
 export struct CompletionEvent {
     /// User-assigned completion key.
-    key: uint64,
+    key: uint64;
     /// Operation result payload.
-    result: int64,
+    result: int64;
     /// Completion flags.
-    flags: uint32,
+    flags: uint32;
 }
 
 /// Completion operation kind.
@@ -35,21 +35,21 @@ export enum CompletionOperationKind {
 /// Completion operation descriptor.
 export struct CompletionOperation {
     /// Operation kind.
-    kind: CompletionOperationKind,
+    kind: CompletionOperationKind;
     /// Operation target resource identifier.
-    target: ResourceId,
+    target: ResourceId;
     /// User-assigned completion key.
-    key: uint64,
+    key: uint64;
     /// Primary operation offset or position.
-    offset: uint64,
+    offset: uint64;
     /// Primary operation length.
-    length: uint32,
+    length: uint32;
     /// Operation flags.
-    flags: uint32,
+    flags: uint32;
     /// Opaque argument lane 0.
-    argument0: uint64,
+    argument0: uint64;
     /// Opaque argument lane 1.
-    argument1: uint64,
+    argument1: uint64;
 }
 
 /// Completion queue bindings.

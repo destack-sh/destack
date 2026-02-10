@@ -14,9 +14,9 @@ export enum SecurityPolicyMode {
 /// Structured policy rule for one capability.
 export struct SecurityPolicyRule {
     /// Capability selector for the rule.
-    capability: PlatformCapability,
+    capability: PlatformCapability;
     /// Decision mode for the capability.
-    mode: SecurityPolicyMode,
+    mode: SecurityPolicyMode;
 }
 
 /// Security policy bindings.

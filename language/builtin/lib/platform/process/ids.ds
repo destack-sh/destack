@@ -13,21 +13,21 @@ export newtype GroupId = uint32;
 /// Real, effective, and saved-set user identifiers.
 export struct ProcessUserIds {
     /// Real user identifier.
-    real: UserId,
+    real: UserId;
     /// Effective user identifier.
-    effective: UserId,
+    effective: UserId;
     /// Saved-set user identifier.
-    saved: UserId,
+    saved: UserId;
 }
 
 /// Real, effective, and saved-set group identifiers.
 export struct ProcessGroupIds {
     /// Real group identifier.
-    real: GroupId,
+    real: GroupId;
     /// Effective group identifier.
-    effective: GroupId,
+    effective: GroupId;
     /// Saved-set group identifier.
-    saved: GroupId,
+    saved: GroupId;
 }
 
 /// Process identity bindings for the native runtime.

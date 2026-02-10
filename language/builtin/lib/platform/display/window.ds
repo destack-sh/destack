@@ -4,29 +4,29 @@ import { DisplayHandle, WindowHandle } from "../resource/index.ds";
 /// Window creation options.
 export struct WindowOptions {
     /// Initial window width in pixels.
-    width: uint32,
+    width: uint32;
     /// Initial window height in pixels.
-    height: uint32,
+    height: uint32;
     /// Initial window x position.
-    x: int32,
+    x: int32;
     /// Initial window y position.
-    y: int32,
+    y: int32;
     /// Window option flags.
-    flags: uint32,
+    flags: uint32;
     /// Window title string.
-    title: string,
+    title: string;
 }
 
 /// Window event payload.
 export struct WindowEvent {
     /// Event kind selector.
-    kind: uint32,
+    kind: uint32;
     /// Primary event payload field.
-    a: int64,
+    a: int64;
     /// Secondary event payload field.
-    b: int64,
+    b: int64;
     /// Event timestamp in nanoseconds.
-    timestampNs: uint64,
+    timestampNs: uint64;
 }
 
 /// Window bindings.

@@ -16,9 +16,9 @@ declare namespace timer {
     /// Timer scheduling options.
     export struct TimerOptions {
         /// Clock domain used for deadline interpretation.
-        clock: TimerClock,
+        clock: TimerClock;
         /// Timer behavior flags.
-        flags: TimerFlags,
+        flags: TimerFlags;
     }
 
     /// Schedule a one-shot timer.

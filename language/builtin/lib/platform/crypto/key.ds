@@ -46,33 +46,33 @@ export newtype CryptoKeyUsageMask = uint32;
 /// Key generation options.
 export struct CryptoKeySpec {
     /// Key algorithm.
-    algorithm: CryptoKeyAlgorithm,
+    algorithm: CryptoKeyAlgorithm;
     /// Key size in bits when applicable.
-    sizeBits: uint32,
+    sizeBits: uint32;
     /// Key usage mask.
-    usageMask: CryptoKeyUsageMask,
+    usageMask: CryptoKeyUsageMask;
     /// Key label.
-    label: string,
+    label: string;
     /// Whether key material may be exported.
-    extractable: boolean,
+    extractable: boolean;
     /// Whether hardware-backed keys are required.
-    hardwareBacked: boolean,
+    hardwareBacked: boolean;
 }
 
 /// Key metadata.
 export struct CryptoKeyMetadata {
     /// Key algorithm.
-    algorithm: CryptoKeyAlgorithm,
+    algorithm: CryptoKeyAlgorithm;
     /// Key size in bits when applicable.
-    sizeBits: uint32,
+    sizeBits: uint32;
     /// Key usage mask.
-    usageMask: CryptoKeyUsageMask,
+    usageMask: CryptoKeyUsageMask;
     /// Key label.
-    label: string,
+    label: string;
     /// Whether key material may be exported.
-    extractable: boolean,
+    extractable: boolean;
     /// Whether key is hardware-backed.
-    hardwareBacked: boolean,
+    hardwareBacked: boolean;
 }
 
 /// Key bindings for host provider key objects.

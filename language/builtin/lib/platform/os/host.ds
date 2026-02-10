@@ -3,13 +3,13 @@ import type { PlatformError } from "../error/index.ds";
 /// Host identity descriptor.
 export struct HostIdentity {
     /// Hostname string.
-    hostname: string,
+    hostname: string;
     /// Kernel or operating-system name.
-    kernel: string,
+    kernel: string;
     /// Kernel or operating-system release string.
-    release: string,
+    release: string;
     /// Machine architecture string.
-    architecture: string,
+    architecture: string;
 }
 
 /// Host identity bindings.

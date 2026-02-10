@@ -1,11 +1,11 @@
 /// Native dynamic array.
 export struct Array<T> {
     /// Number of elements in the array.
-    length: uint32,
+    length: uint32;
     /// Allocated capacity (in elements).
-    capacity: uint32,
+    capacity: uint32;
     /// Pointer to contiguous element storage.
-    data: *T,
+    data: *T;
 }
 
 /// Readonly view of a dynamic array.

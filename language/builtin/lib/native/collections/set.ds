@@ -1,13 +1,13 @@
 /// Native hash set using open addressing with Robin Hood hashing.
-struct Set<T> {
+export struct Set<T> {
     /// Number of elements in the set.
-    length: uint32,
+    length: uint32;
     /// Number of allocated buckets.
-    capacity: uint32,
+    capacity: uint32;
     /// Control bytes for SIMD-friendly probing.
-    ctrl: *uint8,
+    ctrl: *uint8;
     /// Pointer to element storage.
-    buckets: *T,
+    buckets: *T;
 }
 
 extension<T> for Set<T> implements Iterable<T> {

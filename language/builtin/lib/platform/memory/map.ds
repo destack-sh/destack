@@ -3,9 +3,9 @@ import type { PlatformError } from "../error/index.ds";
 /// Memory range descriptor.
 export struct MemoryRange {
     /// Base address of the mapped range.
-    address: uint64,
+    address: uint64;
     /// Length of the mapped range in bytes.
-    length: uint64,
+    length: uint64;
 }
 
 /// Virtual memory map bindings.

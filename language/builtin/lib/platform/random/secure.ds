@@ -20,19 +20,19 @@ declare namespace random {
     /// Host secure randomness source metadata.
     export struct SecureRandomInfo {
         /// Source kind for secure randomness.
-        source: SecureRandomSource,
+        source: SecureRandomSource;
         /// Source backend label.
-        backendName: string,
+        backendName: string;
         /// Whether calls may block waiting for entropy.
-        mayBlock: boolean,
+        mayBlock: boolean;
         /// Whether the source is considered cryptographic.
-        isCryptographic: boolean,
+        isCryptographic: boolean;
         /// Whether the source is currently seeded.
-        isSeeded: boolean,
+        isSeeded: boolean;
         /// Whether the source is validated for FIPS mode.
-        isFipsApproved: boolean,
+        isFipsApproved: boolean;
         /// Estimated entropy bits per output byte.
-        entropyBitsPerByte: float64,
+        entropyBitsPerByte: float64;
     }
 
     /// Fill a slice with cryptographically secure random bytes.

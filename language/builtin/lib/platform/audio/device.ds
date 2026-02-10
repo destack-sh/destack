@@ -31,19 +31,19 @@ export enum AudioSampleFormat {
 /// Audio device information.
 export struct AudioDeviceInfo {
     /// Stable runtime device identifier.
-    id: string,
+    id: string;
     /// Host-facing device name.
-    name: string,
+    name: string;
     /// Device direction capability.
-    direction: AudioDeviceDirection,
+    direction: AudioDeviceDirection;
     /// Preferred sample rate.
-    sampleRate: uint32,
+    sampleRate: uint32;
     /// Minimum channel count.
-    minChannels: uint16,
+    minChannels: uint16;
     /// Maximum channel count.
-    maxChannels: uint16,
+    maxChannels: uint16;
     /// Default low-latency period in frames.
-    defaultPeriodFrames: uint32,
+    defaultPeriodFrames: uint32;
 }
 
 /// Audio device bindings.

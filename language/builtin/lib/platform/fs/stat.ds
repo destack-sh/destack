@@ -15,97 +15,97 @@ export newtype StatFsFlags = uint64;
 /// File metadata returned by stat calls.
 export struct Stat {
     /// Device id.
-    dev: uint64,
+    dev: uint64;
     /// Inode number.
-    ino: uint64,
+    ino: uint64;
     /// File mode bits.
-    mode: FileMode,
+    mode: FileMode;
     /// Hard link count.
-    nlink: uint32,
+    nlink: uint32;
     /// User id of owner.
-    uid: uint32,
+    uid: uint32;
     /// Group id of owner.
-    gid: uint32,
+    gid: uint32;
     /// Device id for special files.
-    rdev: uint64,
+    rdev: uint64;
     /// File size in bytes.
-    size: FileSize,
+    size: FileSize;
     /// Block size for filesystem I/O.
-    blksize: uint64,
+    blksize: uint64;
     /// Number of allocated blocks.
-    blocks: uint64,
+    blocks: uint64;
     /// Last access time in nanoseconds.
-    atimeNs: uint64,
+    atimeNs: uint64;
     /// Last modification time in nanoseconds.
-    mtimeNs: uint64,
+    mtimeNs: uint64;
     /// Last status change time in nanoseconds.
-    ctimeNs: uint64,
+    ctimeNs: uint64;
     /// File creation time in nanoseconds.
-    birthtimeNs: uint64,
+    birthtimeNs: uint64;
 }
 
 /// Filesystem metadata returned by statfs calls.
 export struct StatFs {
     /// Optimal transfer block size.
-    bsize: uint64,
+    bsize: uint64;
     /// Fragment size.
-    frsize: uint64,
+    frsize: uint64;
     /// Total data blocks in filesystem.
-    blocks: uint64,
+    blocks: uint64;
     /// Free blocks in filesystem.
-    bfree: uint64,
+    bfree: uint64;
     /// Free blocks available to unprivileged user.
-    bavail: uint64,
+    bavail: uint64;
     /// Total file nodes in filesystem.
-    files: uint64,
+    files: uint64;
     /// Free file nodes in filesystem.
-    ffree: uint64,
+    ffree: uint64;
     /// Filesystem ID.
-    fsid: uint64,
+    fsid: uint64;
     /// Mount flags.
-    flags: StatFsFlags,
+    flags: StatFsFlags;
     /// Maximum filename length.
-    namelen: uint64,
+    namelen: uint64;
 }
 
 /// Extended stat metadata returned by statx.
 export struct Statx {
     /// Mask of fields populated by the kernel.
-    mask: StatxMask,
+    mask: StatxMask;
     /// Block size for filesystem I/O.
-    blksize: uint32,
+    blksize: uint32;
     /// Mount identifier.
-    mountId: uint64,
+    mountId: uint64;
     /// Device major number.
-    devMajor: uint32,
+    devMajor: uint32;
     /// Device minor number.
-    devMinor: uint32,
+    devMinor: uint32;
     /// Inode number.
-    ino: uint64,
+    ino: uint64;
     /// File mode bits.
-    mode: FileMode,
+    mode: FileMode;
     /// Hard link count.
-    nlink: uint32,
+    nlink: uint32;
     /// User id of owner.
-    uid: uint32,
+    uid: uint32;
     /// Group id of owner.
-    gid: uint32,
+    gid: uint32;
     /// Device major for special files.
-    rdevMajor: uint32,
+    rdevMajor: uint32;
     /// Device minor for special files.
-    rdevMinor: uint32,
+    rdevMinor: uint32;
     /// File size in bytes.
-    size: FileSize,
+    size: FileSize;
     /// Number of allocated blocks.
-    blocks: uint64,
+    blocks: uint64;
     /// Last access time in nanoseconds.
-    atimeNs: uint64,
+    atimeNs: uint64;
     /// Creation time in nanoseconds.
-    btimeNs: uint64,
+    btimeNs: uint64;
     /// Last status change time in nanoseconds.
-    ctimeNs: uint64,
+    ctimeNs: uint64;
     /// Last modification time in nanoseconds.
-    mtimeNs: uint64,
+    mtimeNs: uint64;
 }
 
 /// Stat bindings for the native runtime.

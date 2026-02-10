@@ -19,41 +19,41 @@ export enum GpuShaderStage {
 /// GPU shader module options.
 export struct GpuShaderOptions {
     /// Shader stage selector.
-    stage: GpuShaderStage,
+    stage: GpuShaderStage;
     /// Shader binary format selector.
-    format: uint32,
+    format: uint32;
     /// Shader entry point name.
-    entry: string,
+    entry: string;
 }
 
 /// Compute pipeline creation options.
 export struct GpuComputePipelineOptions {
     /// Compute shader module.
-    shader: GpuShaderHandle,
+    shader: GpuShaderHandle;
     /// Compute shader entry point.
-    entry: string,
+    entry: string;
     /// Pipeline option flags.
-    flags: uint32,
+    flags: uint32;
 }
 
 /// Render pipeline creation options.
 export struct GpuRenderPipelineOptions {
     /// Vertex shader module.
-    vertexShader: GpuShaderHandle,
+    vertexShader: GpuShaderHandle;
     /// Vertex shader entry point.
-    vertexEntry: string,
+    vertexEntry: string;
     /// Fragment shader module.
-    fragmentShader: GpuShaderHandle,
+    fragmentShader: GpuShaderHandle;
     /// Fragment shader entry point.
-    fragmentEntry: string,
+    fragmentEntry: string;
     /// Color attachment format identifier.
-    colorFormat: uint32,
+    colorFormat: uint32;
     /// Depth stencil format identifier, zero when unused.
-    depthStencilFormat: uint32,
+    depthStencilFormat: uint32;
     /// Sample count.
-    sampleCount: uint32,
+    sampleCount: uint32;
     /// Pipeline option flags.
-    flags: uint32,
+    flags: uint32;
 }
 
 /// GPU pipeline bindings.

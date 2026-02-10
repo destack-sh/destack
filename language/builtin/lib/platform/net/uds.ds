@@ -16,11 +16,11 @@ export enum UdsAddressKind {
 /// Unix domain socket address payload.
 export struct UdsAddress {
     /// Address payload kind.
-    kind: UdsAddressKind,
+    kind: UdsAddressKind;
     /// Filesystem path when `kind` is Path.
-    path: OsPath,
+    path: OsPath;
     /// Abstract namespace name when `kind` is Abstract.
-    abstractName: uint8[],
+    abstractName: uint8[];
 }
 
 /// Unix domain socket (UDS) bindings for the native runtime.

@@ -4,13 +4,13 @@ import { TtyHandle } from "../resource/index.ds";
 /// TTY mode snapshot.
 export struct TtyMode {
     /// Input-mode bit flags.
-    inputFlags: uint64,
+    inputFlags: uint64;
     /// Output-mode bit flags.
-    outputFlags: uint64,
+    outputFlags: uint64;
     /// Control-mode bit flags.
-    controlFlags: uint64,
+    controlFlags: uint64;
     /// Local-mode bit flags.
-    localFlags: uint64,
+    localFlags: uint64;
 }
 
 /// TTY mode bindings.

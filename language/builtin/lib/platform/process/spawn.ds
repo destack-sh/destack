@@ -21,13 +21,13 @@ export enum ProcessStdioKind {
 /// Stdio entry for process spawning.
 export struct ProcessStdio {
     /// Selected stdio wiring mode.
-    kind: ProcessStdioKind,
+    kind: ProcessStdioKind;
     /// File handle used when the mode is file.
-    file: FileHandle,
+    file: FileHandle;
     /// Pipe handle used when the mode is pipe.
-    pipe: PipeHandle,
+    pipe: PipeHandle;
     /// Numeric descriptor used when the mode is descriptor.
-    descriptor: int32,
+    descriptor: int32;
 }
 
 /// File descriptor action for process spawning.
@@ -43,29 +43,29 @@ export enum ProcessFdActionKind {
 /// File descriptor action for process spawning.
 export struct ProcessFdAction {
     /// Action opcode.
-    op: ProcessFdActionKind,
+    op: ProcessFdActionKind;
     /// Source descriptor.
-    source: int32,
+    source: int32;
     /// Target descriptor.
-    target: int32,
+    target: int32;
     /// Path used by open actions.
-    path: OsPath,
+    path: OsPath;
     /// Open flags for open actions.
-    flags: OpenFlags,
+    flags: OpenFlags;
     /// Open mode for open actions.
-    mode: FileMode,
+    mode: FileMode;
 }
 
 /// Process spawn options.
 export struct ProcessSpawnOptions {
     /// Current directory for the child process.
-    cwd: OsPath,
+    cwd: OsPath;
     /// Whether to create a detached child process.
-    detached: boolean,
+    detached: boolean;
     /// Whether to reset signal dispositions in the child.
-    resetSignals: boolean,
+    resetSignals: boolean;
     /// Whether to create a new process group.
-    newProcessGroup: boolean,
+    newProcessGroup: boolean;
 }
 
 /// Process spawn bindings for the native runtime.

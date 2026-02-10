@@ -9,31 +9,31 @@ export newtype UdpMessageFlags = uint32;
 /// UDP receive metadata with a raw socket address payload.
 export struct UdpReceive {
     /// Remote socket address.
-    address: SocketAddress,
+    address: SocketAddress;
     /// Number of bytes read.
-    bytes: uint64,
+    bytes: uint64;
     /// Flags returned by recvfrom-style calls.
-    recvFlags: UdpMessageFlags,
+    recvFlags: UdpMessageFlags;
 }
 
 /// IPv4 source-specific multicast membership tuple.
 export struct UdpSourceMembershipV4 {
     /// Multicast group address.
-    group: string,
+    group: string;
     /// Source address.
-    source: string,
+    source: string;
     /// Local interface address.
-    interfaceAddress: string,
+    interfaceAddress: string;
 }
 
 /// IPv6 source-specific multicast membership tuple.
 export struct UdpSourceMembershipV6 {
     /// Multicast group address.
-    group: string,
+    group: string;
     /// Source address.
-    source: string,
+    source: string;
     /// Local interface index.
-    interfaceIndex: uint32,
+    interfaceIndex: uint32;
 }
 
 /// UDP bindings for the native runtime.

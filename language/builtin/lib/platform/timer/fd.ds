@@ -20,9 +20,9 @@ export newtype TimerFdSetFlags = uint32;
 /// Timerfd schedule specification in nanoseconds.
 export struct TimerFdSpec {
     /// Initial expiration offset or absolute deadline.
-    initialNs: uint64,
+    initialNs: uint64;
     /// Repeating interval, zero for one-shot timers.
-    intervalNs: uint64,
+    intervalNs: uint64;
 }
 
 /// Timerfd bindings for the native runtime.

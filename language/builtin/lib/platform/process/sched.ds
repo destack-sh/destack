@@ -4,7 +4,7 @@ import { ProcessId } from "./ids.ds";
 /// CPU affinity set.
 export struct ProcessCpuSet {
     /// CPU indices in the affinity set.
-    cpus: uint32[],
+    cpus: uint32[];
 }
 
 /// Process scheduler policy.
@@ -26,11 +26,11 @@ export enum ProcessSchedulerPolicy {
 /// Scheduler configuration for one process.
 export struct ProcessSchedulerConfig {
     /// Scheduler policy.
-    policy: ProcessSchedulerPolicy,
+    policy: ProcessSchedulerPolicy;
     /// Scheduler priority within the selected policy.
-    priority: int32,
+    priority: int32;
     /// Scheduler flags forwarded to host APIs.
-    flags: uint32,
+    flags: uint32;
 }
 
 /// Process scheduler bindings for the native runtime.

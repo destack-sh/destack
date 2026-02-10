@@ -6,9 +6,9 @@ export newtype ProcessLimitResource = uint32;
 /// Process resource limit payload.
 export struct ProcessLimit {
     /// Soft limit value.
-    soft: uint64,
+    soft: uint64;
     /// Hard limit value.
-    hard: uint64,
+    hard: uint64;
 }
 
 /// Process limit bindings for the native runtime.

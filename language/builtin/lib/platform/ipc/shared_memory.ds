@@ -4,9 +4,9 @@ import { SharedMemoryHandle } from "../resource/index.ds";
 /// Shared memory mapping result.
 export struct SharedMemoryMapping {
     /// Base address in the process virtual space.
-    address: uint64,
+    address: uint64;
     /// Mapping length in bytes.
-    length: uint64,
+    length: uint64;
 }
 
 /// Shared memory bindings.

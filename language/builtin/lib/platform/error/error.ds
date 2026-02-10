@@ -229,11 +229,11 @@ export enum PlatformSystemSourceKind {
 /// Host-level system source metadata.
 export struct PlatformSystemSource {
     /// Host source kind.
-    kind: PlatformSystemSourceKind,
+    kind: PlatformSystemSourceKind;
     /// Numeric source value.
-    value: int32,
+    value: int32;
     /// Optional symbolic source name.
-    name?: string,
+    name?: string;
 }
 
 /// Path payload encoding for error context.
@@ -247,9 +247,9 @@ export enum PlatformPathEncoding {
 /// Path payload attached to an error context.
 export struct PlatformPathPayload {
     /// Path payload encoding.
-    encoding: PlatformPathEncoding,
+    encoding: PlatformPathEncoding;
     /// Encoded path bytes.
-    data: uint8[],
+    data: uint8[];
 }
 
 /// Context kind for platform error metadata.
@@ -289,55 +289,55 @@ export enum PlatformErrorContextKind {
 /// Typed context for platform error metadata.
 export struct PlatformErrorContext {
     /// Context kind.
-    kind: PlatformErrorContextKind,
+    kind: PlatformErrorContextKind;
     /// Optional syscall or host API name.
-    syscall?: string,
+    syscall?: string;
     /// Optional primary path payload.
-    path?: PlatformPathPayload,
+    path?: PlatformPathPayload;
     /// Optional destination path payload.
-    dest?: PlatformPathPayload,
+    dest?: PlatformPathPayload;
     /// Optional primary path text fallback.
-    pathText?: string,
+    pathText?: string;
     /// Optional destination path text fallback.
-    destText?: string,
+    destText?: string;
     /// Optional file descriptor.
-    fd?: int32,
+    fd?: int32;
     /// Optional network address text.
-    address?: string,
+    address?: string;
     /// Optional network port.
-    port?: uint16,
+    port?: uint16;
     /// Optional host name.
-    hostname?: string,
+    hostname?: string;
     /// Optional process id.
-    pid?: uint64,
+    pid?: uint64;
     /// Optional signal name.
-    signal?: string,
+    signal?: string;
     /// Optional exit code.
-    exitCode?: int32,
+    exitCode?: int32;
     /// Optional timer id.
-    timerId?: uint64,
+    timerId?: uint64;
     /// Optional timer deadline.
-    deadlineNs?: uint64,
+    deadlineNs?: uint64;
     /// Optional resource id.
-    resourceId?: uint64,
+    resourceId?: uint64;
     /// Optional resource kind.
-    resourceKind?: string,
+    resourceKind?: string;
     /// Optional capability name.
-    capability?: string,
+    capability?: string;
     /// Optional policy name.
-    policy?: string,
+    policy?: string;
     /// Optional FFI library name.
-    library?: string,
+    library?: string;
     /// Optional FFI symbol name.
-    symbol?: string,
+    symbol?: string;
     /// Optional thread id.
-    threadId?: uint64,
+    threadId?: uint64;
     /// Optional argument name.
-    argument?: string,
+    argument?: string;
     /// Optional pointer label.
-    pointer?: string,
+    pointer?: string;
     /// Optional feature identifier.
-    feature?: string,
+    feature?: string;
 }
 
 /// Error returned by platform bindings.

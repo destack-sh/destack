@@ -5,21 +5,21 @@ import { SocketHandle, TransferredHandle } from "../resource/index.ds";
 /// Peer credentials for one unix-domain socket endpoint.
 export struct UnixPeerCredentials {
     /// Peer process identifier.
-    pid: uint32,
+    pid: uint32;
     /// Peer user identifier.
-    uid: uint32,
+    uid: uint32;
     /// Peer group identifier.
-    gid: uint32,
+    gid: uint32;
 }
 
 /// Received unix ancillary payload.
 export struct UnixReceiveAncillary {
     /// Received payload bytes.
-    bytes: uint64,
+    bytes: uint64;
     /// Received transferred handles.
-    handles: Array<TransferredHandle>,
+    handles: Array<TransferredHandle>;
     /// Peer credentials when available.
-    credentials: UnixPeerCredentials,
+    credentials: UnixPeerCredentials;
 }
 
 /// Unix ancillary bindings.

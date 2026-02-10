@@ -21,17 +21,17 @@ export enum InputDeviceKind {
 /// Input device information.
 export struct InputDeviceInfo {
     /// Stable runtime input device identifier.
-    id: string,
+    id: string;
     /// Host device name.
-    name: string,
+    name: string;
     /// Device kind.
-    kind: InputDeviceKind,
+    kind: InputDeviceKind;
     /// Vendor identifier when available.
-    vendorId: uint16,
+    vendorId: uint16;
     /// Product identifier when available.
-    productId: uint16,
+    productId: uint16;
     /// Whether this device is currently connected.
-    connected: boolean,
+    connected: boolean;
 }
 
 /// Input device bindings.

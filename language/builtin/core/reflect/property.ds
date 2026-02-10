@@ -26,26 +26,26 @@ import { type DecoratorInfo } from "./decorator.ds";
 /// ```
 export struct Property {
     /// The name of this property.
-    name: string,
+    name: string;
 
     /// The type of this property.
-    type: Type<unknown>,
+    type: Type<unknown>;
 
     /// Whether this property is optional (`?`).
-    optional: boolean,
+    optional: boolean;
 
     /// Whether this property is readonly.
-    readonly : boolean,
+    readonly : boolean;
 
     /// Decorators on this property.
-    decorators: readonly DecoratorInfo[],
+    decorators: readonly DecoratorInfo[];
 
     /// Default value factory, if specified.
     /// Called to produce the default when not provided.
-    default?: () => unknown,
+    default?: () => unknown;
 
     /// Documentation comment (block prefix), if present.
-    description?: string,
+    description?: string;
 }
 
 /// A variant in an enum type.
@@ -69,12 +69,12 @@ export struct Property {
 /// ```
 export struct Variant {
     /// The name of this variant.
-    name: string,
+    name: string;
 
     /// The explicit value, if this is a valued enum.
     /// For simple enums, this is the auto-assigned numeric value.
-    value: int | string,
+    value: int | string;
 
     /// Documentation comment (block prefix), if present.
-    description?: string,
+    description?: string;
 }

@@ -11,21 +11,21 @@ export newtype DescriptorControlFlags = uint32;
 /// Generic descriptor request payload.
 export struct DescriptorRequest {
     /// Request code.
-    code: uint64,
+    code: uint64;
     /// Opaque input payload forwarded to the host.
-    input: Slice<uint8>,
+    input: Slice<uint8>;
     /// Maximum output payload size requested from the host.
-    outputSize: uint32,
+    outputSize: uint32;
     /// Request flags.
-    flags: uint32,
+    flags: uint32;
 }
 
 /// Generic descriptor response payload.
 export struct DescriptorResult {
     /// Host return value for the request.
-    returnValue: int64,
+    returnValue: int64;
     /// Opaque output payload returned by the host.
-    output: Slice<uint8>,
+    output: Slice<uint8>;
 }
 
 /// Descriptor control bindings.

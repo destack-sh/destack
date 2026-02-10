@@ -14,11 +14,11 @@ export enum SocketFamily {
 /// Raw socket address payload.
 export struct SocketAddress {
     /// Native address family.
-    family: uint16,
+    family: uint16;
     /// Length of the valid sockaddr payload in bytes.
-    length: uint32,
+    length: uint32;
     /// Raw sockaddr bytes.
-    bytes: uint8[],
+    bytes: uint8[];
 }
 
 /// Socket address bindings for the native runtime.

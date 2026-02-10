@@ -17,9 +17,9 @@ declare namespace random {
     /// Encoded deterministic random stream state.
     export struct RandomStreamState {
         /// Stream state version for compatibility checks.
-        version: uint32,
+        version: uint32;
         /// Encoded state payload bytes.
-        bytes: Array<uint8>,
+        bytes: Array<uint8>;
     }
 
     /// Allocate a deterministic random stream identifier.

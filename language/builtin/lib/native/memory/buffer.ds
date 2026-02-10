@@ -7,11 +7,11 @@ import { Slice } from "../collections/slice.ds";
 /// data structures. Most code should use Array<T> instead.
 struct RawBuffer {
     /// Pointer to buffer data.
-    data: *uint8,
+    data: *uint8;
     /// Size in bytes.
-    size: uint64,
+    size: uint64;
     /// Allocated capacity.
-    capacity: uint64,
+    capacity: uint64;
 }
 
 extension for RawBuffer {

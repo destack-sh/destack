@@ -23,15 +23,15 @@ export enum ProcessWaitKind {
 /// Child process status payload.
 export struct ProcessWaitStatus {
     /// Child process identifier.
-    pid: ProcessId,
+    pid: ProcessId;
     /// Status kind.
-    kind: ProcessWaitKind,
+    kind: ProcessWaitKind;
     /// Exit code when available.
-    exitCode: int32,
+    exitCode: int32;
     /// Signal number when available.
-    signal: Signal,
+    signal: Signal;
     /// Whether a core file was produced.
-    coreDumped: boolean,
+    coreDumped: boolean;
 }
 
 /// Process wait bindings for the native runtime.

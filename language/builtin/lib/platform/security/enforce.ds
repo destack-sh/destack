@@ -23,13 +23,13 @@ export enum SecurityFilterKind {
 /// Host filter descriptor for sandbox installation.
 export struct SecurityFilter {
     /// Filter kind selector.
-    kind: SecurityFilterKind,
+    kind: SecurityFilterKind;
     /// Filter payload bytes.
-    payload: Slice<uint8>,
+    payload: Slice<uint8>;
     /// Filter flags forwarded to host APIs.
-    flags: uint32,
+    flags: uint32;
     /// Optional profile name for host-side lookup.
-    profileName: string,
+    profileName: string;
 }
 
 /// Security enforcement bindings.

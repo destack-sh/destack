@@ -25,31 +25,31 @@ export newtype WatchMask = uint32;
 /// Filesystem watch options.
 export struct WatchOptions {
     /// Event mask to subscribe to.
-    mask: WatchMask,
+    mask: WatchMask;
     /// Whether recursive watching is requested.
-    recursive: boolean,
+    recursive: boolean;
     /// Whether to follow symlinks.
-    followSymlinks: boolean,
+    followSymlinks: boolean;
 }
 
 /// Filesystem watch event payload.
 export struct WatchEvent {
     /// Event kind.
-    kind: WatchEventKind,
+    kind: WatchEventKind;
     /// Watched path.
-    path: OsPath,
+    path: OsPath;
     /// Optional related path for rename pairs.
-    relatedPath: OsPath,
+    relatedPath: OsPath;
     /// Backend event cookie when available.
-    cookie: uint64,
+    cookie: uint64;
 }
 
 /// Batch of filesystem watch events.
 export struct WatchBatch {
     /// Event records returned by the backend.
-    events: Array<WatchEvent>,
+    events: Array<WatchEvent>;
     /// Whether the backend reported overflow.
-    overflowed: boolean,
+    overflowed: boolean;
 }
 
 /// Filesystem watch bindings for the native runtime.
