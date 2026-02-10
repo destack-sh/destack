@@ -156,11 +156,9 @@ impl Parser {
             if next_token == TokenType::End {
                 break;
             }
-            // reject unmatched close braces at the implicit root block
-            else if next_token == TokenType::CloseBrace {
-                if format == BlockFormat::Implicit {
-                    return Err(ParseError::unexpected(self.peek()?.span));
-                }
+            // explicit blocks stop at close brace
+            // NOTE #Cleanup: recover block parse more explicitly?
+            else if next_token == TokenType::CloseBrace && format != BlockFormat::Implicit {
                 break;
             }
             // consume any expression stops (semicolon or newline)
@@ -645,6 +643,32 @@ mod tests {
         let block_id = parser.eat_block().unwrap();
         let block = parser.tree.get(block_id);
         assert!(block.expressions.is_empty());
+    }
+
+    #[test]
+    fn test_parse_root_unmatched_close_brace_recovery() {
+        let mut test = TestParser::new("}\nnextValue");
+        let mut parser = test.prepare();
+        let expressions = parser.parse_without_finish();
+
+        assert_eq!(expressions.len(), 2);
+        assert_node!(parser.tree, expressions[0], Expression::Error);
+        assert_node!(parser.tree, expressions[1], Expression::Statement(expression_id) => {
+            assert_expression_path!(parser, parser.tree.get(*expression_id), "nextValue");
+        });
+    }
+
+    #[test]
+    fn test_parse_root_unmatched_close_parenthesis_recovery() {
+        let mut test = TestParser::new(")\nnextValue");
+        let mut parser = test.prepare();
+        let expressions = parser.parse_without_finish();
+
+        assert_eq!(expressions.len(), 2);
+        assert_node!(parser.tree, expressions[0], Expression::Error);
+        assert_node!(parser.tree, expressions[1], Expression::Statement(expression_id) => {
+            assert_expression_path!(parser, parser.tree.get(*expression_id), "nextValue");
+        });
     }
 
     #[test]

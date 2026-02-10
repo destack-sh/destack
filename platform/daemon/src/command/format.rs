@@ -323,18 +323,16 @@ fn format_file(file: Arc<File>, formatter: FormatterOptions) -> (String, Diagnos
         language_type,
         ..formatter.into()
     };
-    let context = DestackFormatContext {
-        options: format_options,
-        file: file.as_ref(),
-        tree: &parser.tree,
-        source_map: &parser.tree.source_map,
+    let context = DestackFormatContext::new(
+        format_options,
+        file.as_ref(),
+        &parser.tree,
+        &tokens,
+        &side_tokens,
+        &side_span,
+        &strings,
         parents,
-        tokens: &tokens,
-        side_tokens: &side_tokens,
-        side_span: &side_span,
-        strings: &strings,
-        current_argument_group_id: None,
-    };
+    );
 
     let mut result = if expressions.is_empty() {
         String::new()
