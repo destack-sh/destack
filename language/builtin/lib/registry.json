@@ -339,7 +339,8 @@
       "TemplateStringsArray"
     ],
     "js": [
-      "Slice"
+      "Slice",
+      "Vector"
     ],
     "native": [
       "String",
@@ -348,6 +349,7 @@
       "arrayOf",
       "arrayFill",
       "Slice",
+      "Vector",
       "Map",
       "Record",
       "Set",

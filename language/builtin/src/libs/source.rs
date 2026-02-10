@@ -301,6 +301,7 @@ macro_rules! builtin_lib_source {
 
 #[macro_export]
 macro_rules! builtin_lib_sources {
+    ([]) => {};
     ([$(($name:ident, $root:literal, $path:literal, $file:literal)),+ $(,)?]) => {
         $(
             $crate::builtin_lib_source!($name, $root, $path, $file);
@@ -352,6 +353,7 @@ macro_rules! builtin_lib_source_targeted {
 
 #[macro_export]
 macro_rules! builtin_lib_sources_targeted {
+    ($runtimes:expr, $outputs:expr, $platforms:expr, []) => {};
     ($runtimes:expr, $outputs:expr, $platforms:expr, [$(($name:ident, $root:literal, $path:literal, $file:literal)),+ $(,)?]) => {
         $(
             $crate::builtin_lib_source_targeted!(
