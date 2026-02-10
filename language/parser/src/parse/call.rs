@@ -107,7 +107,7 @@ impl Parser {
 
         // static arguments (may be empty)
         if static_arguments.is_none() {
-            static_arguments = self.eat_static_arguments_maybe()?;
+            static_arguments = self.eat_static_arguments_with_follow_maybe(false, true, true);
         }
 
         // dynamic arguments (optional in JS: `new Foo` is valid without parentheses)
@@ -199,7 +199,9 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{Argument, Expression, LocalNodeId, Path, PostfixPosition, ScalarLiteral};
+    use destack_ast::{
+        Argument, BinaryOperator, Expression, LocalNodeId, Path, PostfixPosition, ScalarLiteral,
+    };
     use smallvec::smallvec;
 
     use crate::{Parser, TestParser, assert_expression_path, assert_node, assert_path};
@@ -356,6 +358,131 @@ mod tests {
             assert!(static_arguments.is_none());
             // (1, 2)
             assert_eq!(dynamic_arguments.len(), 2);
+        });
+    }
+
+    #[test]
+    fn test_parse_new_type_arguments_before_if_keyword() {
+        let mut test = TestParser::new_with_options(
+            "new A<T> if (0);",
+            destack_source::LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::New { left, static_arguments: Some(static_arguments), dynamic_arguments } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "A");
+            assert_eq!(static_arguments.len(), 1);
+            assert_node!(parser.tree, static_arguments[0], Argument::Positional { modifiers, value } => {
+                assert!(modifiers.is_none());
+                assert_expression_path!(parser, parser.tree.get(*value), "T");
+            });
+            assert!(dynamic_arguments.is_empty());
+        });
+    }
+
+    #[test]
+    fn test_parse_new_type_arguments_without_parenthesized_call() {
+        let mut test =
+            TestParser::new_with_options("new A<T>", destack_source::LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::New { left, static_arguments: Some(static_arguments), dynamic_arguments } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "A");
+            assert_eq!(static_arguments.len(), 1);
+            assert_node!(parser.tree, static_arguments[0], Argument::Positional { modifiers, value } => {
+                assert!(modifiers.is_none());
+                assert_expression_path!(parser, parser.tree.get(*value), "T");
+            });
+            assert!(dynamic_arguments.is_empty());
+        });
+    }
+
+    #[test]
+    fn test_parse_new_type_arguments_without_parentheses_as_comparison() {
+        let mut test =
+            TestParser::new_with_options("new A < T", destack_source::LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::Binary { left, operator, right } => {
+            assert_eq!(*operator, BinaryOperator::LessThan);
+            assert_node!(parser.tree, *left, Expression::New { left, static_arguments, dynamic_arguments } => {
+                assert_expression_path!(parser, parser.tree.get(*left), "A");
+                assert!(static_arguments.is_none());
+                assert!(dynamic_arguments.is_empty());
+            });
+            assert_expression_path!(parser, parser.tree.get(*right), "T");
+        });
+    }
+
+    #[test]
+    fn test_parse_new_multiple_comparisons_without_parenthesized_call() {
+        let mut test =
+            TestParser::new_with_options("new A < B > C", destack_source::LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::Binary { left, operator, right } => {
+            assert_eq!(*operator, BinaryOperator::GreaterThan);
+            assert_expression_path!(parser, parser.tree.get(*right), "C");
+            assert_node!(parser.tree, *left, Expression::Binary { left, operator, right } => {
+                assert_eq!(*operator, BinaryOperator::LessThan);
+                assert_node!(parser.tree, *left, Expression::New { left, static_arguments, dynamic_arguments } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "A");
+                    assert!(static_arguments.is_none());
+                    assert!(dynamic_arguments.is_empty());
+                });
+                assert_expression_path!(parser, parser.tree.get(*right), "B");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_new_with_type_identifier_receiver_and_spread_argument() {
+        let mut test = TestParser::new_with_options(
+            "new type(...instances)",
+            destack_source::LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::New { left, static_arguments, dynamic_arguments } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "type");
+            assert!(static_arguments.is_none());
+            assert_eq!(dynamic_arguments.len(), 1);
+            assert_node!(parser.tree, dynamic_arguments[0], Argument::Spread { modifiers, label, value } => {
+                assert!(modifiers.is_none());
+                assert!(label.is_none());
+                assert_expression_path!(parser, parser.tree.get(*value), "instances");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_new_parenthesized_cast_receiver_with_static_arguments() {
+        let mut test = TestParser::new_with_options(
+            "new (Promise as PromiseConstructor)<Foo>((resolve, reject) => {})",
+            destack_source::LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::New { left, static_arguments: Some(static_arguments), dynamic_arguments } => {
+            assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+                assert_node!(parser.tree, *expression, Expression::TypeBinary { operator, .. } => {
+                    assert_eq!(*operator, destack_ast::TypeBinaryOperator::Cast);
+                });
+            });
+            assert_eq!(static_arguments.len(), 1);
+            assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
+                assert_expression_path!(parser, parser.tree.get(*value), "Foo");
+            });
+            assert_eq!(dynamic_arguments.len(), 1);
+            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Declaration(_) );
+            });
         });
     }
 }

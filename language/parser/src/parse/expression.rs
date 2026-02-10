@@ -507,26 +507,47 @@ impl Parser {
         self.peek_is(TokenType::OpenBrace)
     }
 
-    /// Eat static arguments in expression position if the follow token allows it.
-    fn eat_static_arguments_in_expression(
+    /// Check whether static arguments can be followed by a statement-start keyword.
+    #[inline]
+    fn can_follow_type_arguments_with_statement_keyword(&mut self) -> bool {
+        let index = if self.peek_is(TokenType::Newline) {
+            self.next_non_newline_index_from(self.pos_index())
+        } else {
+            self.pos_index()
+        };
+        self.token_type_at(index) == TokenType::Identifier
+            && self.keyword_for_index(index).is_some()
+    }
+
+    /// Speculatively eat static arguments and validate a compatible follow token.
+    pub(crate) fn eat_static_arguments_with_follow_maybe(
         &mut self,
         allow_object_literal: bool,
+        allow_statement_keyword: bool,
+        allow_newline_prefix: bool,
     ) -> Option<Vec<LocalNodeId<Argument>>> {
-        if !self.peek_is(TokenType::LessThan) && !self.peek_is(TokenType::ShiftLeft) {
+        // static argument start
+        let has_static_argument_start = self.peek_is(TokenType::LessThan)
+            || self.peek_is(TokenType::ShiftLeft)
+            || allow_newline_prefix
+                && self.peek_is(TokenType::Newline)
+                && (self.peek_next_is(TokenType::LessThan)
+                    || self.peek_next_is(TokenType::ShiftLeft));
+        if !has_static_argument_start {
             return None;
         }
 
-        // avoid path-attached static arguments in typescript expression positions
-        if self.language.is_typescript()
-            && !self.options.in_type
-            && !self.options.in_decorator
-            && !self.options.in_new_receiver
-        {
-            return None;
-        }
-
+        // parse static arguments speculatively
         let speculative_start = self.mark();
         let speculative_start_idx = self.tree.next_id();
+
+        // normalize optional newline prefix before `<...>`
+        if allow_newline_prefix {
+            while self.peek_is(TokenType::Newline) {
+                self.bump();
+            }
+        }
+
         match self.eat_static_arguments() {
             Ok(static_arguments) => {
                 // in type or decorator context, type arguments are always valid
@@ -537,6 +558,11 @@ impl Parser {
                 // validate that a follow token makes sense for a type argument list
                 let mut can_follow = self.can_follow_type_arguments_in_expression();
                 if allow_object_literal && self.can_follow_type_arguments_in_object_literal() {
+                    can_follow = true;
+                }
+                if allow_statement_keyword
+                    && self.can_follow_type_arguments_with_statement_keyword()
+                {
                     can_follow = true;
                 }
                 if can_follow {
@@ -551,6 +577,25 @@ impl Parser {
                 None
             }
         }
+    }
+
+    /// Eat static arguments in expression position if the follow token allows it.
+    fn eat_static_arguments_in_expression(
+        &mut self,
+        allow_object_literal: bool,
+    ) -> Option<Vec<LocalNodeId<Argument>>> {
+        // new receivers parse static arguments in `eat_new` with dedicated follow validation
+        if self.options.in_new_receiver {
+            return None;
+        }
+
+        // in typescript value expressions, defer static arguments to postfix parsing
+        // this keeps `f<T>` and `obj.method<T>` as instantiation or call forms
+        if self.language.is_typescript() && !self.options.in_type && !self.options.in_decorator {
+            return None;
+        }
+
+        self.eat_static_arguments_with_follow_maybe(allow_object_literal, false, false)
     }
 
     /// Eat a TypeScript angle bracket type assertion.
@@ -590,6 +635,24 @@ impl Parser {
             .not_in_position()
             .in_left_precedence(TypeBinaryOperator::Cast.precedence());
         let asserted_value = self.with_options(right_options, |parser| parser.eat_expression())?;
+
+        // in typescript, angle assertions require a real expression value: `<T>()` is invalid
+        if self.language.is_typescript()
+            && matches!(
+                self.tree.get(asserted_value),
+                Expression::TupleExpression { elements, .. } if elements.is_empty()
+            )
+        {
+            return Err(ParseError::unexpected(self.tree.get_span(asserted_value)));
+        }
+        if self.language.is_typescript()
+            && matches!(
+                self.tree.get(asserted_value),
+                Expression::SequenceExpression { expressions } if expressions.is_empty()
+            )
+        {
+            return Err(ParseError::unexpected(self.tree.get_span(asserted_value)));
+        }
 
         // lower to the same cast node used by `as`
         let expression_id = self.tree.insert(
@@ -712,16 +775,13 @@ impl Parser {
             || matches!(token.token.literal, Some(LiteralType::Boolean { .. }))
     }
 
-    /// Return true when js or ts sees decimal integer member access without a separator.
+    /// Return true when a decimal integer uses member access without a separator.
     #[inline]
     fn invalid_decimal_integer_member_access(
         &mut self,
         left_expression_id: LocalNodeId<Expression>,
         distance: u8,
     ) -> bool {
-        if !(self.language.is_javascript() || self.language.is_typescript()) {
-            return false;
-        }
         if distance != 2 {
             return false;
         }
@@ -1408,7 +1468,7 @@ impl Parser {
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
         match keyword {
             // namespace declaration
-            Keyword::Namespace if is_declaration_start => {
+            Keyword::Namespace if next_token_type == TokenType::Identifier => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let namespace_id = self.eat_namespace(start, descriptor)?;
                 Ok(Some(self.tree.insert(
@@ -1658,6 +1718,16 @@ impl Parser {
                     }
                 }
             }
+            // override is contextual in value expressions
+            Keyword::Override if !self.options.in_type => Ok(None),
+            // abstract is contextual outside declaration positions
+            Keyword::Abstract
+                if !self.options.in_type
+                    && !self.options.in_statement_position
+                    && descriptor.export.is_none() =>
+            {
+                Ok(None)
+            }
             // function or method declaration
             Keyword::Function | Keyword::Abstract | Keyword::Override => {
                 // require a valid function signature start
@@ -1851,8 +1921,29 @@ impl Parser {
                     Ok(None)
                 }
             }
-            // type or readonly type alias declaration
+            // readonly type operator in ts and js type contexts
+            Keyword::Readonly if self.language.is_typescript() || self.language.is_javascript() => {
+                // in new receiver context, readonly behaves like an identifier
+                if self.options.in_new_receiver {
+                    return Ok(None);
+                }
+
+                // ts and js parse readonly as a type unary in type positions
+                if self.options.in_type {
+                    let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                    return Ok(Some(self.eat_type(start, descriptor)?));
+                }
+
+                // value positions keep readonly contextual
+                Ok(None)
+            }
+            // type alias declaration and destack readonly/newtype aliases
             Keyword::Type | Keyword::Readonly => {
+                // in new receiver context, `type` and `readonly` behave like identifiers
+                if self.options.in_new_receiver {
+                    return Ok(None);
+                }
+
                 let next_keyword = if next_token_type == TokenType::Identifier {
                     self.keyword_for_index(self.index_for_next())
                 } else {
@@ -1880,15 +1971,22 @@ impl Parser {
                         | TokenType::SaturatingShiftLeft
                 );
 
-                // require a valid type alias start
-                let can_start_type_alias = matches!(
-                    next_token_type,
-                    TokenType::Identifier
-                        | TokenType::OpenBrace
-                        | TokenType::OpenParenthesis
-                        | TokenType::OpenBracket
-                        | TokenType::Literal
-                ) && !starts_type_operator;
+                // typescript and javascript only allow identifier names in type alias declarations
+                let can_start_type_alias =
+                    if self.language.is_typescript() || self.language.is_javascript() {
+                        next_token_type == TokenType::Identifier && !starts_type_operator
+                    }
+                    // destack keeps broader alias starts
+                    else {
+                        matches!(
+                            next_token_type,
+                            TokenType::Identifier
+                                | TokenType::OpenBrace
+                                | TokenType::OpenParenthesis
+                                | TokenType::OpenBracket
+                                | TokenType::Literal
+                        ) && !starts_type_operator
+                    };
 
                 // parse type alias when it can start
                 if can_start_type_alias {
@@ -2313,12 +2411,34 @@ impl Parser {
                     let next_token_type = self.peek_next_token_type();
                     let is_declaration_start = DECLARATION_START_TOKENS.contains(&next_token_type);
                     let module_identifier_matches = !self.options.in_decorator
+                        && !self.options.in_type
                         && self.language.supports_module_declaration()
                         && self.module_identifier.is_some_and(|id| {
                             self.identifier_for_index(self.pos_index()) == Some(id)
                         });
-                    let is_module_declaration_start =
-                        module_identifier_matches && is_declaration_start;
+                    let next_keyword = if next_token_type == TokenType::Identifier {
+                        self.keyword_for_index(self.index_for_next())
+                    } else {
+                        None
+                    };
+                    let is_module_name_start =
+                        matches!(next_token_type, TokenType::Identifier | TokenType::Literal);
+                    let is_module_type_operator = matches!(
+                        next_keyword,
+                        Some(
+                            Keyword::As
+                                | Keyword::Satisfies
+                                | Keyword::Extends
+                                | Keyword::Implements
+                                | Keyword::In
+                                | Keyword::InstanceOf
+                                | Keyword::Is
+                        )
+                    );
+                    let is_module_declaration_start = module_identifier_matches
+                        && is_declaration_start
+                        && is_module_name_start
+                        && !is_module_type_operator;
                     let mut primary_expression_id = None;
 
                     // shorthand lambda function value
@@ -2345,10 +2465,13 @@ impl Parser {
                         };
                         match decorator_keyword {
                             Some(
-                                Keyword::Await
+                                Keyword::Async
+                                | Keyword::Await
                                 | Keyword::This
                                 | Keyword::New
                                 | Keyword::Delete
+                                | Keyword::Function
+                                | Keyword::Class
                                 | Keyword::Typeof
                                 | Keyword::Void,
                             ) => decorator_keyword,
@@ -3180,7 +3303,7 @@ impl Parser {
                 else if let Ok(distance) = self.peek_member_name() {
                     self.bump_by(distance - 1); // keep the identifier
 
-                    // in js and ts: decimal integer literals need a separator before member access
+                    // decimal integer literals need a separator before member access
                     if self.invalid_decimal_integer_member_access(left_expression_id, distance) {
                         return Err(ParseError::unexpected(self.prev().expect("peeked").span));
                     }
@@ -3243,6 +3366,7 @@ impl Parser {
                     || self.peek_is(TokenType::Dot)
                         && (self.peek_next_is(TokenType::LessThan)
                             || self.peek_next_is(TokenType::ShiftLeft)))
+                    && !matches!(self.tree.get(left_expression_id), Expression::New { .. })
                     && !self.options.in_new_receiver
                     && !self.options.in_tree_literal
                     && !self.language.is_javascript()
@@ -3489,6 +3613,17 @@ impl Parser {
         {
             let _timing = self.timing_scope(tags::PARSE_EXPRESSION_INFIX);
             while self.has_more_tokens() {
+                // new receivers stop before type argument delimiters at top-level receiver scope
+                if self.options.in_new_receiver
+                    && !self.options.in_parenthesis
+                    && (self.peek_is(TokenType::LessThan)
+                        || self.peek_is(TokenType::ShiftLeft)
+                        || self.peek_is(TokenType::Newline)
+                            && (self.peek_next_is(TokenType::LessThan)
+                                || self.peek_next_is(TokenType::ShiftLeft)))
+                {
+                    break;
+                }
                 // stop before conditional boundaries so infix lookahead does not lex past `?`
                 if self.peek_is(TokenType::Maybe)
                     || self.peek_is(TokenType::Newline) && self.peek_next_is(TokenType::Maybe)
@@ -3529,17 +3664,17 @@ impl Parser {
                     {
                         (operator, operator_offset)
                     }
-                    // infix operator after multiple newlines in type expressions
+                    // infix operator after multiple newlines
                     else if self.peek_is(TokenType::Newline)
-                        && self.options.in_type
                         && let Ok((operator, operator_offset)) =
                             self.peek_infix_operator_after_newlines()
-                        && matches!(
-                            operator,
-                            InfixOperator::Binary(
-                                BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
-                            )
-                        )
+                        && (!self.options.in_type
+                            || matches!(
+                                operator,
+                                InfixOperator::Binary(
+                                    BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
+                                )
+                            ))
                         && (self.options.left_precedence.is_none()
                             || self.options.left_precedence.unwrap() < operator.precedence())
                     {
@@ -3567,6 +3702,11 @@ impl Parser {
                     .options
                     .not_in_position()
                     .in_left_precedence(right_operator.precedence());
+
+                // type operators in value expressions parse a full type expression on the right
+                if !self.options.in_type && matches!(right_operator, InfixOperator::TypeBinary(_)) {
+                    right_options = right_options.not_in_left_precedence();
+                }
 
                 // type binary operators parse the right side as a type expression
                 if matches!(right_operator, InfixOperator::TypeBinary(_)) {
@@ -3745,12 +3885,13 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration,
+        Argument, AssignOperator, Asynchrony, BinaryOperator, BindingKind, Block, Declaration,
         DeclarationDescriptor, Declarator, DependencyItem, DependencyKind, DependencyMode,
         EnumField, EnumKind, Expression, FunctionKind, IfCondition, IfKind, ImportAliasTarget,
-        ImportSource, ImportTarget, IntType, Key, Mutability, Name, Parameter, Pattern,
-        PatternField, PostfixPosition, Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral,
-        TypePredicateSubject, TypeUnaryOperator, UnaryOperator, VarianceBound,
+        ImportSource, ImportTarget, IntType, Key, Member, Mutability, Name, Parameter, Pattern,
+        PatternField, PostfixPosition, Property, ScalarLiteral, TemplateLiteral,
+        TypeBinaryOperator, TypeLiteral, TypePredicateSubject, TypeUnaryOperator, UnaryOperator,
+        VarianceBound,
     };
     use destack_source::LanguageType;
 
@@ -3802,6 +3943,41 @@ mod tests {
         assert_node!(parser.tree, expression_id, Expression::Member { left, name, .. } => {
             assert_node!(parser.tree, *left, Expression::Super);
             assert_string!(parser, *name, "value");
+        });
+    }
+
+    /// Reject decimal integer member access without a separator in destack.
+    #[test]
+    fn test_reject_decimal_integer_member_access_without_separator_in_destack() {
+        let mut test = TestParser::new("1.foo");
+        let mut parser = test.prepare();
+
+        let result = parser.eat_expression();
+        assert!(result.is_err());
+    }
+
+    /// Reject decimal integer member access without a separator in typescript.
+    #[test]
+    fn test_reject_decimal_integer_member_access_without_separator_in_typescript() {
+        let mut test = TestParser::new_with_options("1.foo", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+
+        let result = parser.eat_expression();
+        assert!(result.is_err());
+    }
+
+    /// Parse parenthesized integer member access in destack.
+    #[test]
+    fn test_parse_parenthesized_integer_member_access_in_destack() {
+        let mut test = TestParser::new("(1).foo");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::Member { left, name, .. } => {
+            assert_string!(parser, *name, "foo");
+            assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+                assert_node!(parser.tree, *expression, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            });
         });
     }
 
@@ -3907,11 +4083,212 @@ type = type * 2
         parser.eat_newline().unwrap();
     }
 
+    /// Parse `namespace` as an identifier in indexed assignment expressions.
+    #[test]
+    fn test_parse_namespace_as_identifier_in_index_assignment() {
+        let mut test =
+            TestParser::new_with_options("namespace[this.dest] = values", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+
+        let expression_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expression_id, Expression::Assign { left, operator, right, .. } => {
+            assert_eq!(*operator, AssignOperator::Assign);
+
+            assert_node!(parser.tree, *left, Expression::Index { left, index, .. } => {
+                assert_expression_path!(parser, parser.tree.get(*left), "namespace");
+
+                assert_node!(parser.tree, index.expect("expected index"), Expression::Member { left, name, .. } => {
+                    assert_node!(parser.tree, *left, Expression::This);
+                    assert_string!(parser, *name, "dest");
+                });
+            });
+
+            assert_expression_path!(parser, parser.tree.get(*right), "values");
+        });
+    }
+
+    /// Parse override as an identifier in call expressions.
+    #[test]
+    fn test_parse_override_as_identifier_call_in_typescript() {
+        let mut test = TestParser::new_with_options("override(value)", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+
+        let expression_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "override");
+            assert_eq!(dynamic_arguments.len(), 1);
+            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                assert_expression_path!(parser, parser.tree.get(*value), "value");
+            });
+        });
+    }
+
+    /// Parse override as an identifier in call expressions in destack mode.
+    #[test]
+    fn test_parse_override_as_identifier_call_in_destack() {
+        let mut test = TestParser::new("override(value)");
+        let mut parser = test.prepare();
+
+        let expression_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "override");
+            assert_eq!(dynamic_arguments.len(), 1);
+            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                assert_expression_path!(parser, parser.tree.get(*value), "value");
+            });
+        });
+    }
+
+    /// Parse abstract as an identifier in call expressions in destack mode.
+    #[test]
+    fn test_parse_abstract_as_identifier_call_in_destack() {
+        let mut test = TestParser::new("abstract(value)");
+        let mut parser = test.prepare();
+
+        let expression_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "abstract");
+            assert_eq!(dynamic_arguments.len(), 1);
+            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                assert_expression_path!(parser, parser.tree.get(*value), "value");
+            });
+        });
+    }
+
+    /// Parse type as an identifier in call expressions.
+    #[test]
+    fn test_parse_type_as_identifier_call_in_typescript() {
+        let mut test = TestParser::new_with_options("type(123)", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+
+        let expression_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "type");
+            assert_eq!(dynamic_arguments.len(), 1);
+            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(123)));
+            });
+        });
+    }
+
+    /// Parse typed object methods in decorator style call arguments.
+    #[test]
+    fn test_parse_typed_object_method_in_call_argument() {
+        let mut test = TestParser::new_with_options(
+            r#"connect({
+    num(state: State) {
+        return state.counter.num;
+    },
+    inc: "inc",
+})"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+
+        let expression_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "connect");
+            assert_eq!(dynamic_arguments.len(), 1);
+
+            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::ObjectExpression { properties, .. } => {
+                    assert_eq!(properties.len(), 2);
+
+                    assert_node!(parser.tree, properties[0], Property::Method { key: Some(Key::Name(Name::Identifier(name))), signature, body: Some(body), .. } => {
+                        assert_string!(parser, *name, "num");
+                        assert_eq!(signature.dynamic_parameters.len(), 1);
+
+                        assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty: Some(ty), .. } => {
+                            assert_string!(parser, *name, "state");
+                            assert_expression_path!(parser, parser.tree.get(*ty), "State");
+                        });
+
+                        assert_node!(parser.tree, *body, Expression::Block(block_id) => {
+                            assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                                assert_eq!(expressions.len(), 1);
+                                assert_node!(parser.tree, expressions[0], Expression::Statement(statement) => {
+                                    assert_node!(parser.tree, *statement, Expression::Return { value: Some(value) } => {
+                                        assert_expression_path!(parser, parser.tree.get(*value), "state.counter.num");
+                                    });
+                                });
+                            });
+                        });
+                    });
+
+                    assert_node!(parser.tree, properties[1], Property::Field { key: Some(Key::Name(Name::Identifier(name))), value: Some(value), .. } => {
+                        assert_string!(parser, *name, "inc");
+                        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(value)) => {
+                            assert_string!(parser, *value, "inc");
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse typed object methods in decorator call arguments.
+    #[test]
+    fn test_parse_typed_object_method_in_decorator_argument() {
+        let mut test = TestParser::new_with_options(
+            r#"connect({
+    num(state: State) {
+        if (state.counter.num === 0) return true;
+        return new Promise((resolve, reject) => {
+            setTimeout(() => {
+                resolve(state.counter.num !== 0);
+            }, 1);
+        });
+    },
+    inc: "inc",
+})"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expression_id = parser
+            .with_options(parser.options.in_decorator(), |parser| {
+                parser.eat_expression()
+            })
+            .unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "connect");
+            assert_eq!(dynamic_arguments.len(), 1);
+
+            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::ObjectExpression { properties, .. } => {
+                    assert_eq!(properties.len(), 2);
+
+                    assert_node!(parser.tree, properties[0], Property::Method { key: Some(Key::Name(Name::Identifier(name))), body: Some(body), .. } => {
+                        assert_string!(parser, *name, "num");
+                        assert_node!(parser.tree, *body, Expression::Block(block_id) => {
+                            assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                                assert_eq!(expressions.len(), 2);
+                                assert_node!(parser.tree, expressions[0], Expression::If { .. });
+                                assert_node!(parser.tree, expressions[1], Expression::Statement(statement) => {
+                                    assert_node!(parser.tree, *statement, Expression::Return { value: Some(value) } => {
+                                        assert_node!(parser.tree, *value, Expression::New { .. });
+                                    });
+                                });
+                            });
+                        });
+                    });
+
+                    assert_node!(parser.tree, properties[1], Property::Field { key: Some(Key::Name(Name::Identifier(name))), value: Some(value), .. } => {
+                        assert_string!(parser, *name, "inc");
+                        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(value)) => {
+                            assert_string!(parser, *value, "inc");
+                        });
+                    });
+                });
+            });
+        });
+    }
+
     /// Parse keywords as fields and identifiers.
     #[test]
     fn test_parse_keywords_as_fields_and_identifiers() {
         let mut test = TestParser::new(
-            "{ 
+            "{
     // can be used as both fields and bindings
     namespace: namespace,
     module: module,
@@ -3942,7 +4319,31 @@ type = type * 2
 }",
         );
         let mut parser = test.prepare();
-        let _ = parser.eat_expression().unwrap();
+        let expression_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::ObjectExpression { properties, .. } => {
+            assert_eq!(properties.len(), 25);
+
+            assert_node!(parser.tree, properties[0], Property::Field { key: Some(Key::Name(Name::Identifier(name))), value: Some(value), .. } => {
+                assert_string!(parser, *name, "namespace");
+                assert_expression_path!(parser, parser.tree.get(*value), "namespace");
+            });
+
+            assert_node!(parser.tree, properties[10], Property::Field { key: Some(Key::Name(Name::Identifier(name))), value: Some(value), .. } => {
+                assert_string!(parser, *name, "constructor");
+                assert_expression_path!(parser, parser.tree.get(*value), "constructor");
+            });
+
+            assert_node!(parser.tree, properties[11], Property::Field { key: Some(Key::Name(Name::Identifier(name))), value: Some(value), .. } => {
+                assert_string!(parser, *name, "let");
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+            });
+
+            assert_node!(parser.tree, properties[24], Property::Field { key: Some(Key::Name(Name::Identifier(name))), value: Some(value), .. } => {
+                assert_string!(parser, *name, "match");
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+            });
+        });
     }
 
     /// Parse an if extends condition without consuming the block.
@@ -5267,6 +5668,61 @@ f<x> !== g<y>;
         });
     }
 
+    /// Parse an object property value that is a named class expression.
+    #[test]
+    fn test_parse_object_property_named_class_expression_value() {
+        let mut test = TestParser::new_with_options(
+            "{ useClass: class MyExampleClass {} }",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::ObjectExpression { properties, .. } => {
+            assert_eq!(properties.len(), 1);
+            assert_node!(parser.tree, properties[0], Property::Field { key: Some(Key::Name(Name::Identifier(name))), value: Some(value), default: None, .. } => {
+                assert_string!(parser, *name, "useClass");
+                assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
+                    assert_node!(parser.tree, *declaration_id, Declaration::Class { descriptor, members, .. } => {
+                        assert_string!(parser, descriptor.name.unwrap().string(), "MyExampleClass");
+                        assert!(members.is_empty());
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse class expression values in decorator call arguments.
+    #[test]
+    fn test_parse_decorator_object_property_named_class_expression_value() {
+        let mut test = TestParser::new_with_options(
+            "Component({ useClass: class MyExampleClass {} })",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser
+            .with_options(parser.options.in_decorator(), |parser| {
+                parser.eat_expression()
+            })
+            .unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Call { dynamic_arguments, .. } => {
+            assert_eq!(dynamic_arguments.len(), 1);
+            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::ObjectExpression { properties, .. } => {
+                    assert_eq!(properties.len(), 1);
+                    assert_node!(parser.tree, properties[0], Property::Field { key: Some(Key::Name(Name::Identifier(name))), value: Some(value), default: None, .. } => {
+                        assert_string!(parser, *name, "useClass");
+                        assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
+                            assert_node!(parser.tree, *declaration_id, Declaration::Class { descriptor, members, .. } => {
+                                assert_string!(parser, descriptor.name.unwrap().string(), "MyExampleClass");
+                                assert!(members.is_empty());
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
     /// Parse a lambda function type with empty parameters.
     #[test]
     fn test_parse_lambda_function_empty_type() {
@@ -5619,6 +6075,118 @@ f<x> !== g<y>;
         });
     }
 
+    /// Parse nested lambda types inside arrow return tuple types.
+    #[test]
+    fn test_parse_lambda_return_type_tuple_with_nested_lambda_type() {
+        // source: <T, N>(): [T, (action: N) => void] => {}
+        let mut test = TestParser::new_with_options(
+            "<T, N>(): [T, (action: N) => void] => {}",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // <T, N>(): [T, (action: N) => void] => {}
+        assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+                let return_type = signature.return_type.expect("expected return type");
+                assert_node!(parser.tree, return_type, Expression::ArrayExpression { elements } => {
+                    assert_eq!(elements.len(), 2);
+
+                    assert_node!(parser.tree, elements[0], Argument::Positional { value, .. } => {
+                        assert_expression_path!(parser, parser.tree.get(*value), "T");
+                    });
+
+                    assert_node!(parser.tree, elements[1], Argument::Positional { value, .. } => {
+                        assert_node!(parser.tree, *value, Expression::Declaration(function_id) => {
+                            assert_node!(parser.tree, *function_id, Declaration::Function { signature, .. } => {
+                                assert_eq!(signature.dynamic_parameters.len(), 1);
+                                assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty: Some(ty), .. } => {
+                                    assert_string!(parser, *name, "action");
+                                    assert_expression_path!(parser, parser.tree.get(*ty), "N");
+                                });
+                                assert_node!(parser.tree, signature.return_type.expect("expected nested return type"), Expression::TypeLiteral(TypeLiteral::Void));
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse a typed arrow predicate with a nested optional-parameter function type.
+    #[test]
+    fn test_parse_arrow_return_type_predicate_with_nested_optional_parameter_function_type() {
+        let mut test = TestParser::new_with_options(
+            "(b): b is FormField<unknown> & { focus: (options?: FocusOptions) => void } => b.focus !== undefined",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+                assert_node!(parser.tree, signature.return_type.expect("expected return type"), Expression::TypePredicate { asserts, subject, target } => {
+                    assert!(!*asserts);
+                    assert_eq!(*subject, TypePredicateSubject::Identifier(parser.strings.intern("b")));
+                    assert_node!(parser.tree, target.expect("expected type predicate target"), Expression::Binary { operator, right, .. } => {
+                        assert_eq!(*operator, BinaryOperator::ElementwiseAnd);
+                        assert_node!(parser.tree, *right, Expression::ObjectExpression { properties, .. } => {
+                            assert_eq!(properties.len(), 1);
+                            assert_node!(parser.tree, properties[0], Property::Field { key: Some(Key::Name(Name::Identifier(name))), value: Some(value), default: None, .. } => {
+                                assert_string!(parser, *name, "focus");
+                                assert_node!(parser.tree, *value, Expression::Declaration(function_id) => {
+                                    assert_node!(parser.tree, *function_id, Declaration::Function { signature, .. } => {
+                                        assert_eq!(signature.dynamic_parameters.len(), 1);
+                                        assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { modifiers: Some(modifiers), name, ty: Some(ty), .. } => {
+                                            assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
+                                            assert_string!(parser, *name, "options");
+                                            assert_expression_path!(parser, parser.tree.get(*ty), "FocusOptions");
+                                        });
+                                        assert_node!(parser.tree, signature.return_type.expect("expected function type return"), Expression::TypeLiteral(TypeLiteral::Void));
+                                    });
+                                });
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse static parameter constraints with object keys named `in`.
+    #[test]
+    fn test_parse_static_parameter_constraint_object_property_named_in() {
+        // source: <V extends { in: string }>() => {}
+        let mut test = TestParser::new_with_options(
+            "<V extends { in: string }>() => {}",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // <V extends { in: string }>() => {}
+        assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+                let generics = signature.generics.as_ref().expect("expected generics");
+                let static_parameters = generics.static_parameters.as_ref().expect("expected static parameters");
+                assert_eq!(static_parameters.len(), 1);
+
+                assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, ty: Some(ty), .. } => {
+                    assert_string!(parser, *name, "V");
+                    assert_node!(parser.tree, *ty, Expression::ObjectExpression { properties, .. } => {
+                        assert_eq!(properties.len(), 1);
+                        assert_node!(parser.tree, properties[0], Property::Field { key: Some(key), value: Some(value), .. } => {
+                            assert_node!(key, Key::Name(Name::Identifier(name)) => {
+                                assert_string!(parser, *name, "in");
+                            });
+                            assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::String));
+                        });
+                    });
+                });
+            });
+        });
+    }
+
     /// Parse a lambda function value with a shorthand argument.
     #[test]
     fn test_parse_lambda_function_value_shorthand() {
@@ -5693,7 +6261,7 @@ f<x> !== g<y>;
     fn test_parse_struct_literal_path_with_static_parameters() {
         let mut test = TestParser::new(
             r##"
-geom.Mesh<2, 4> { 
+geom.Mesh<2, 4> {
     vertices: [1, 2],
     y,
 }"##,
@@ -5925,9 +6493,9 @@ geom.Mesh<2, 4> {
     fn test_parse_let_multiline_infix() {
         let mut test = TestParser::new(
             r"
-const x = 
+const x =
     foo.parse()
-        + 2 
+        + 2
         + x
 ",
         );
@@ -6132,6 +6700,30 @@ self
         });
     }
 
+    /// Parse regex literals inside template interpolation expressions.
+    #[test]
+    fn test_parse_tagged_template_with_regex_interpolation() {
+        let mut test = TestParser::new_with_options("re`/^${/^$/}$/u`", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::TaggedTemplateExpression { tag, value } => {
+            assert_expression_path!(parser, parser.tree.get(*tag), "re");
+            match value {
+                TemplateLiteral::InterpolatedString { strings, arguments } => {
+                    assert_eq!(strings.len(), 2);
+                    assert_eq!(arguments.len(), 1);
+                    assert_string!(parser, strings[0], "/^");
+                    assert_string!(parser, strings[1], "$/u");
+                    assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
+                        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
+                    });
+                }
+                other => panic!("expected interpolated template, got {other:?}"),
+            }
+        });
+    }
+
     /// Parse regex literal after assign with a newline.
     #[test]
     fn test_parse_regex_literal_after_assign_newline() {
@@ -6178,6 +6770,69 @@ self
                     });
                 });
             });
+        });
+    }
+
+    /// Parse regex literal after unary not.
+    #[test]
+    fn test_parse_regex_literal_after_unary_not() {
+        // source: !/[A-Z]/.test(k)
+        let mut test = TestParser::new_with_options("!/[A-Z]/.test(k)", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // !/[A-Z]/.test(k)
+        assert_node!(parser.tree, expr_id, Expression::Unary { operator, right } => {
+            assert_eq!(*operator, UnaryOperator::Not);
+            assert_node!(parser.tree, *right, Expression::Call { left, dynamic_arguments, .. } => {
+                assert_eq!(dynamic_arguments.len(), 1);
+                assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
+                    assert_string!(parser, *name, "test");
+                    assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
+                });
+            });
+        });
+    }
+
+    /// Parse regex literal after coalesce assignment.
+    #[test]
+    fn test_parse_regex_literal_after_coalesce_assign() {
+        // source: encoded ??= /[%+]/.test(url)
+        let mut test =
+            TestParser::new_with_options("encoded ??= /[%+]/.test(url)", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // encoded ??= /[%+]/.test(url)
+        assert_node!(parser.tree, expr_id, Expression::Assign { left, operator, right } => {
+            assert_eq!(*operator, AssignOperator::CoalesceAssign);
+            assert_expression_path!(parser, parser.tree.get(*left), "encoded");
+            assert_node!(parser.tree, *right, Expression::Call { left, dynamic_arguments, .. } => {
+                assert_eq!(dynamic_arguments.len(), 1);
+                assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
+                    assert_string!(parser, *name, "test");
+                    assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
+                });
+            });
+        });
+    }
+
+    /// Parse division after a TypeScript non-null assertion.
+    #[test]
+    fn test_parse_divide_after_typescript_non_null_assertion() {
+        // source: x! / 2
+        let mut test = TestParser::new_with_options("x! / 2", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // x! / 2
+        assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right } => {
+            assert_eq!(*operator, BinaryOperator::Divide);
+            assert_node!(parser.tree, *left, Expression::Must { left, position } => {
+                assert_eq!(*position, PostfixPosition::Direct);
+                assert_expression_path!(parser, parser.tree.get(*left), "x");
+            });
+            assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
         });
     }
 
@@ -7044,6 +7699,267 @@ self
         });
     }
 
+    #[test]
+    fn test_parse_module_identifier_as_cast_expression() {
+        let mut test =
+            TestParser::new_with_options("module as DynamicModule", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::TypeBinary { left, operator, right } => {
+            assert_eq!(*operator, TypeBinaryOperator::Cast);
+            assert_expression_path!(parser, parser.tree.get(*left), "module");
+            assert_expression_path!(parser, parser.tree.get(*right), "DynamicModule");
+        });
+    }
+
+    #[test]
+    fn test_parse_cast_with_keyof_typeof_type_argument() {
+        let mut test = TestParser::new_with_options(
+            "Object.keys(touchedFields) as Array<keyof typeof touchedFields>",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::TypeBinary { left, operator, right } => {
+            assert_eq!(*operator, TypeBinaryOperator::Cast);
+            assert_node!(parser.tree, *left, Expression::Call { left, dynamic_arguments, .. } => {
+                assert_expression_path!(parser, parser.tree.get(*left), "Object.keys");
+                assert_eq!(dynamic_arguments.len(), 1);
+                assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*value), "touchedFields");
+                });
+            });
+            assert_node!(parser.tree, *right, Expression::Path { path, static_arguments: Some(static_arguments) } => {
+                assert_path!(parser, *path, "Array");
+                assert_eq!(static_arguments.len(), 1);
+                assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
+                    assert_node!(parser.tree, *value, Expression::TypeUnary { operator, right } => {
+                        assert_eq!(*operator, TypeUnaryOperator::Keyof);
+                        assert_node!(parser.tree, *right, Expression::TypeUnary { operator, right } => {
+                            assert_eq!(*operator, TypeUnaryOperator::Typeof);
+                            assert_expression_path!(parser, parser.tree.get(*right), "touchedFields");
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse casts whose type target is a conditional type.
+    #[test]
+    fn test_parse_cast_with_conditional_type_target() {
+        let mut test = TestParser::new_with_options(
+            "value as Flag extends true ? Selected : Rejected",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // value as ...
+        assert_node!(parser.tree, expr_id, Expression::TypeBinary { left, operator, right } => {
+            assert_eq!(*operator, TypeBinaryOperator::Cast);
+            // value
+            assert_expression_path!(parser, parser.tree.get(*left), "value");
+            // Flag extends true ? Selected : Rejected
+            assert_node!(parser.tree, *right, Expression::TypeConditional { left, right, then_type, else_type } => {
+                // Flag
+                assert_expression_path!(parser, parser.tree.get(*left), "Flag");
+                // true
+                assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
+                // Selected
+                assert_expression_path!(parser, parser.tree.get(*then_type), "Selected");
+                // Rejected
+                assert_expression_path!(parser, parser.tree.get(*else_type), "Rejected");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_parenthesized_cast_followed_by_flat_map_call() {
+        let mut test = TestParser::new_with_options(
+            "(Object.keys(touchedFields) as Array<keyof typeof touchedFields>).flatMap((topLevelKey) => topLevelKey)",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Call { left, dynamic_arguments, .. } => {
+            assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
+                assert_string!(parser, *name, "flatMap");
+                assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+                    assert_node!(parser.tree, *expression, Expression::TypeBinary { operator, .. } => {
+                        assert_eq!(*operator, TypeBinaryOperator::Cast);
+                    });
+                });
+            });
+            assert_eq!(dynamic_arguments.len(), 1);
+            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
+                    assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+                        assert_eq!(signature.dynamic_parameters.len(), 1);
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse relational arrow values without swallowing following object properties.
+    #[test]
+    fn test_parse_call_argument_object_relational_arrow_then_typed_block_arrow() {
+        let mut test = TestParser::new_with_options(
+            r#"morgan({
+  skip: (req, res) => res.statusCode < 400,
+  write: (str: string) => {
+    str;
+  },
+})"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "morgan");
+            assert_eq!(dynamic_arguments.len(), 1);
+
+            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::ObjectExpression { properties, .. } => {
+                    assert_eq!(properties.len(), 2);
+
+                    // skip: (req, res) => res.statusCode < 400
+                    assert_node!(parser.tree, properties[0], Property::Field { key: Some(Key::Name(Name::Identifier(name))), value: Some(value), .. } => {
+                        assert_string!(parser, *name, "skip");
+                        assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
+                            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body: Some(body), .. } => {
+                                assert_eq!(signature.dynamic_parameters.len(), 2);
+                                assert_node!(parser.tree, *body, Expression::Binary { operator, .. } => {
+                                    assert_eq!(*operator, BinaryOperator::LessThan);
+                                });
+                            });
+                        });
+                    });
+
+                    // write: (str: string) => { str }
+                    assert_node!(parser.tree, properties[1], Property::Field { key: Some(Key::Name(Name::Identifier(name))), value: Some(value), .. } => {
+                        assert_string!(parser, *name, "write");
+                        assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
+                            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body: Some(body), .. } => {
+                                assert_eq!(signature.dynamic_parameters.len(), 1);
+                                assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty: Some(ty), .. } => {
+                                    assert_string!(parser, *name, "str");
+                                    assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::String));
+                                });
+                                assert_node!(parser.tree, *body, Expression::Block(block_id) => {
+                                    assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                                        assert_eq!(expressions.len(), 1);
+                                        assert_node!(parser.tree, expressions[0], Expression::Statement(statement) => {
+                                            assert_expression_path!(parser, parser.tree.get(*statement), "str");
+                                        });
+                                    });
+                                });
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse readonly tuple type annotations in function parameters.
+    #[test]
+    fn test_parse_function_parameter_readonly_tuple_type_annotation() {
+        let mut test = TestParser::new_with_options(
+            r#"function flattenPairs(pair: readonly [string, number], acc: Array<string | number>): Array<string | number> {
+  return acc.concat(pair);
+}"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+                assert_eq!(signature.dynamic_parameters.len(), 2);
+                assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty: Some(ty), .. } => {
+                    assert_string!(parser, *name, "pair");
+                    assert_node!(parser.tree, *ty, Expression::TypeUnary { operator, right } => {
+                        assert_eq!(*operator, TypeUnaryOperator::Readonly);
+                        assert_node!(parser.tree, *right, Expression::ArrayExpression { elements } => {
+                            assert_eq!(elements.len(), 2);
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse function expressions in decorator call arguments.
+    #[test]
+    fn test_parse_decorator_call_with_function_expression_argument() {
+        let mut test = TestParser::new_with_options(
+            r#"computed("fullName", function(this: Foo) {
+  return this.fullName.toUpperCase();
+})"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expression_id = parser
+            .with_options(parser.options.in_decorator(), |parser| {
+                parser.eat_expression()
+            })
+            .unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "computed");
+            assert_eq!(dynamic_arguments.len(), 2);
+
+            assert_node!(parser.tree, dynamic_arguments[1], Argument::Positional { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
+                    assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body: Some(body), .. } => {
+                        assert!(signature.this_parameter.is_some());
+
+                        assert_node!(parser.tree, *body, Expression::Block(block_id) => {
+                            assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                                assert_eq!(expressions.len(), 1);
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse new class expressions with generic implements clauses.
+    #[test]
+    fn test_parse_new_class_expression_with_generic_implements_clause() {
+        let mut test = TestParser::new_with_options(
+            r#"new class implements Iterable<string> {
+  *[Symbol.iterator]() {
+    yield "value";
+  }
+}()"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::New { left, dynamic_arguments, .. } => {
+            assert_eq!(dynamic_arguments.len(), 0);
+            assert_node!(parser.tree, *left, Expression::Declaration(declaration_id) => {
+                assert_node!(parser.tree, *declaration_id, Declaration::Class { heritage, members, .. } => {
+                    let implements_types = heritage.implements_types.as_ref().expect("expected implements types");
+                    assert_eq!(implements_types.len(), 1);
+                    assert_eq!(members.len(), 1);
+                    assert_node!(parser.tree, members[0], Member::Method { signature, .. } => {
+                        assert_eq!(signature.cardinality, destack_ast::FunctionCardinality::Generator);
+                    });
+                });
+            });
+        });
+    }
+
     /// Parse type aliases named `as` and `satisfies`.
     #[test]
     fn test_parse_type_alias_named_as_or_satisfies() {
@@ -7200,6 +8116,26 @@ function isStringy(value: any): asserts value is string {
                     .expect("expected predicate main span");
                 assert_eq!(parser.get_span_str(main_span), "value");
             });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_predicate_in_before_block_context() {
+        let mut test = TestParser::new_with_options(
+            "module is DynamicModule { value: true }",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expression_id = parser
+            .with_options(parser.options.in_type().in_before_block(), |parser| {
+                parser.eat_expression()
+            })
+            .unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::TypePredicate { asserts, subject, target } => {
+            assert!(!asserts);
+            assert_eq!(*subject, TypePredicateSubject::Identifier(parser.strings.intern("module")));
+            assert_expression_path!(parser, parser.tree.get(target.unwrap()), "DynamicModule");
         });
     }
 
@@ -7371,12 +8307,22 @@ const value =
     }
 
     #[test]
-    fn test_parse_new_without_arguments_missing_semicolon() {
-        let options = LanguageType::TypeScript;
-        let mut test = TestParser::new_with_options("new A<T> if (0);", options);
+    fn test_parse_new_without_parenthesized_type_arguments_in_statement() {
+        let mut test = TestParser::new_with_options("new A < T;", LanguageType::TypeScript);
         let mut parser = test.prepare();
-        let err = parser.try_eat_statement_expression_with_flag().unwrap_err();
-        assert_eq!(err.leaf_span().start, 9);
+        let expression_id = parser.try_eat_statement_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::Statement(statement_id) => {
+            assert_node!(parser.tree, *statement_id, Expression::Binary { left, operator, right } => {
+                assert_eq!(*operator, BinaryOperator::LessThan);
+                assert_node!(parser.tree, *left, Expression::New { left, static_arguments, dynamic_arguments } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "A");
+                    assert!(static_arguments.is_none());
+                    assert!(dynamic_arguments.is_empty());
+                });
+                assert_expression_path!(parser, parser.tree.get(*right), "T");
+            });
+        });
     }
 
     /// Comma in parentheses parses as sequence expression.
@@ -7415,6 +8361,45 @@ const value =
         });
     }
 
+    /// Sequence expressions should parse inside lambda block bodies in TS.
+    #[test]
+    fn test_parse_sequence_expression_in_lambda_block_body() {
+        let options = LanguageType::TypeScript;
+        let mut test = TestParser::new_with_options(
+            "() => { (lastIndex = history.state?.index), (lastY = scrollY), (lastX = scrollX); }",
+            options,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // () => { ... }
+        assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { body: Some(body), .. } => {
+                // { ... }
+                assert_node!(parser.tree, *body, Expression::Block(block_id) => {
+                    let block = parser.tree.get(*block_id);
+                    assert_eq!(block.expressions.len(), 1);
+
+                    // ((lastIndex = ...), (lastY = ...), (lastX = ...));
+                    assert_node!(parser.tree, block.expressions[0], Expression::Statement(statement_id) => {
+                        assert_node!(parser.tree, *statement_id, Expression::SequenceExpression { expressions } => {
+                            assert_eq!(expressions.len(), 3);
+                            assert_node!(parser.tree, expressions[0], Expression::Parenthesized { expression } => {
+                                assert_node!(parser.tree, *expression, Expression::Assign { .. });
+                            });
+                            assert_node!(parser.tree, expressions[1], Expression::Parenthesized { expression } => {
+                                assert_node!(parser.tree, *expression, Expression::Assign { .. });
+                            });
+                            assert_node!(parser.tree, expressions[2], Expression::Parenthesized { expression } => {
+                                assert_node!(parser.tree, *expression, Expression::Assign { .. });
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
     #[test]
     fn test_parse_sequence_expression_with_ternary_tail() {
         let options = LanguageType::TypeScript;
@@ -7450,6 +8435,33 @@ const value =
             });
             assert_node!(parser.tree, expressions[1], Expression::If { kind, .. } => {
                 assert_eq!(*kind, IfKind::Ternary);
+            });
+        });
+    }
+
+    /// Parse multiline logical chains with comment-only lines between operators.
+    #[test]
+    fn test_parse_multiline_logical_chain_after_comment_lines() {
+        let options = LanguageType::TypeScript;
+        let mut test =
+            TestParser::new_with_options("a == 1\n// keep chaining\n&& b == 0\n&& c == 1", options);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // a == 1 && b == 0 && c == 1
+        assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right } => {
+            assert_eq!(*operator, BinaryOperator::And);
+            assert_node!(parser.tree, *right, Expression::Binary { operator, .. } => {
+                assert_eq!(*operator, BinaryOperator::Equal);
+            });
+            assert_node!(parser.tree, *left, Expression::Binary { left, operator, right } => {
+                assert_eq!(*operator, BinaryOperator::And);
+                assert_node!(parser.tree, *left, Expression::Binary { operator, .. } => {
+                    assert_eq!(*operator, BinaryOperator::Equal);
+                });
+                assert_node!(parser.tree, *right, Expression::Binary { operator, .. } => {
+                    assert_eq!(*operator, BinaryOperator::Equal);
+                });
             });
         });
     }
@@ -7702,8 +8714,8 @@ const value =
                         assert_eq!(extends_types.len(), 1);
 
                         // Component<Omit<...>, C>
-                        assert_node!(parser.tree, extends_types[0], Expression::Path { path, static_arguments: Some(static_arguments) } => {
-                            assert_path!(parser, *path, "Component");
+                        assert_node!(parser.tree, extends_types[0], Expression::Instantiation { left, static_arguments } => {
+                            assert_expression_path!(parser, parser.tree.get(*left), "Component");
                             assert_eq!(static_arguments.len(), 2);
                         });
                     });
@@ -7740,8 +8752,8 @@ const value =
                         assert_eq!(extends_types.len(), 1);
 
                         // React.Component<Omit<...>, Props>
-                        assert_node!(parser.tree, extends_types[0], Expression::Path { path, static_arguments: Some(static_arguments) } => {
-                            assert_path!(parser, *path, "React.Component");
+                        assert_node!(parser.tree, extends_types[0], Expression::Instantiation { left, static_arguments } => {
+                            assert_expression_path!(parser, parser.tree.get(*left), "React.Component");
                             assert_eq!(static_arguments.len(), 2);
                         });
                     });
