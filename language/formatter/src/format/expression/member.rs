@@ -1,5 +1,6 @@
 use super::*;
 use destack_fir::{format_args, write};
+use smallvec::SmallVec;
 
 /// Format a member expression.
 pub(super) fn format_member_expression<'ast>(
@@ -288,6 +289,9 @@ pub(super) struct BinaryOperand {
     pub(super) expression: LocalNodeId<Expression>,
 }
 
+/// Store flattened binary operands with an inline-first buffer.
+pub(super) type BinaryOperands = SmallVec<[BinaryOperand; 8]>;
+
 /// Flattens a binary expression chain into a list of operands.
 ///
 /// For `a + b + c`, returns [(None, a), (Some(+), b), (Some(+), c)].
@@ -295,8 +299,8 @@ pub(super) fn flatten_binary_expression(
     tree: &NodeTree,
     expression_id: LocalNodeId<Expression>,
     target_operator: BinaryOperator,
-) -> Vec<BinaryOperand> {
-    let mut operands = Vec::new();
+) -> BinaryOperands {
+    let mut operands = BinaryOperands::new();
     flatten_binary_recursive(tree, expression_id, target_operator, &mut operands, None);
     operands
 }
@@ -306,10 +310,19 @@ pub(super) fn flatten_type_binary_expression(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
     target_operator: BinaryOperator,
-) -> Vec<BinaryOperand> {
-    let mut operands = Vec::new();
+) -> BinaryOperands {
+    let mut operands = BinaryOperands::new();
     flatten_type_binary_recursive(context, expression_id, target_operator, &mut operands, None);
     operands
+}
+
+/// Return the operand count for a flattened binary expression chain.
+pub(super) fn flattened_binary_operand_count(
+    tree: &NodeTree,
+    expression_id: LocalNodeId<Expression>,
+    target_operator: BinaryOperator,
+) -> usize {
+    count_flattened_binary_recursive(tree, expression_id, target_operator)
 }
 
 /// Recursively flatten type binary chains and preserve operand operators.
@@ -317,7 +330,7 @@ fn flatten_type_binary_recursive(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
     target_operator: BinaryOperator,
-    operands: &mut Vec<BinaryOperand>,
+    operands: &mut BinaryOperands,
     preceding_operator: Option<BinaryOperator>,
 ) {
     let expression_id =
@@ -385,7 +398,7 @@ fn flatten_binary_recursive(
     tree: &NodeTree,
     expression_id: LocalNodeId<Expression>,
     target_operator: BinaryOperator,
-    operands: &mut Vec<BinaryOperand>,
+    operands: &mut BinaryOperands,
     preceding_operator: Option<BinaryOperator>,
 ) {
     if let Expression::Binary {
@@ -411,6 +424,27 @@ fn flatten_binary_recursive(
         operator: preceding_operator,
         expression: expression_id,
     });
+}
+
+/// Recursively count flattened binary operands without allocating.
+fn count_flattened_binary_recursive(
+    tree: &NodeTree,
+    expression_id: LocalNodeId<Expression>,
+    target_operator: BinaryOperator,
+) -> usize {
+    if let Expression::Binary {
+        left,
+        operator,
+        right,
+    } = tree.get(expression_id)
+        && should_flatten_binary(*operator, target_operator)
+    {
+        let left_count = count_flattened_binary_recursive(tree, *left, target_operator);
+        let right_count = count_flattened_binary_recursive(tree, *right, target_operator);
+        return left_count.saturating_add(right_count);
+    }
+
+    1
 }
 
 /// Whether an expression variant is type specific.

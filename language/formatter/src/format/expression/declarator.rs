@@ -260,7 +260,7 @@ pub(super) fn format_declarator<'ast>(
     let value_has_internal_comment = span_has_comment(f.context(), value_span);
     let value_binary_operand_count = match value_inner_expr {
         Expression::Binary { operator, .. } => {
-            flatten_binary_expression(tree, value_inner_id, *operator).len()
+            flattened_binary_operand_count(tree, value_inner_id, *operator)
         }
         _ => 0,
     };

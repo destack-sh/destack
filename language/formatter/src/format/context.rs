@@ -467,6 +467,8 @@ pub struct DestackFormatContext<'a> {
     pub argument_annotation_profile_cache: RefCell<Vec<Option<CachedArgumentAnnotationProfile>>>,
     /// Cached call argument expansion facts keyed by call expression node id.
     pub call_argument_facts_cache: RefCell<Vec<Option<CachedCallArgumentFacts>>>,
+    /// Cached chain call force-expand decisions keyed by call expression node id.
+    pub call_argument_chain_force_expand_cache: RefCell<Vec<Option<bool>>>,
     /// Cached transparent inner expression ids keyed by expression node id.
     pub transparent_inner_expression_cache: RefCell<Vec<Option<LocalNodeId<Expression>>>>,
     /// Cached type-context decisions keyed by expression node id.
@@ -588,6 +590,10 @@ impl<'a> DestackFormatContext<'a> {
             ]),
             argument_annotation_profile_cache: RefCell::new(vec![None; tree.next_id() as usize]),
             call_argument_facts_cache: RefCell::new(vec![None; tree.next_id() as usize]),
+            call_argument_chain_force_expand_cache: RefCell::new(vec![
+                None;
+                tree.next_id() as usize
+            ]),
             transparent_inner_expression_cache: RefCell::new(vec![None; tree.next_id() as usize]),
             expression_type_context_cache: vec![
                 Cell::new(TYPE_CONTEXT_STATE_UNKNOWN);
@@ -1460,6 +1466,32 @@ impl<'a> DestackFormatContext<'a> {
         facts: CachedCallArgumentFacts,
     ) {
         self.cache_set_copy_entry(&self.call_argument_facts_cache, call_node_id.id, facts);
+    }
+
+    /// Return cached chain call force-expand decision for one call expression node.
+    #[inline]
+    pub fn cached_call_argument_chain_force_expand(
+        &self,
+        call_node_id: LocalNodeId<Expression>,
+    ) -> Option<bool> {
+        self.cache_get_copy_entry(
+            &self.call_argument_chain_force_expand_cache,
+            call_node_id.id,
+        )
+    }
+
+    /// Cache one chain call force-expand decision for one call expression node.
+    #[inline]
+    pub fn cache_call_argument_chain_force_expand(
+        &self,
+        call_node_id: LocalNodeId<Expression>,
+        force_expand: bool,
+    ) {
+        self.cache_set_copy_entry(
+            &self.call_argument_chain_force_expand_cache,
+            call_node_id.id,
+            force_expand,
+        );
     }
 
     /// Return cached regular and chain call argument expansion profiles for one call node.

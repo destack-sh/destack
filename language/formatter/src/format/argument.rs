@@ -18,7 +18,7 @@ use destack_ast::{
     Keyword, LocalNodeId, Member, Node, NodeTree, NodeTreeImpl, NodeType, Parameter, Property,
 };
 use destack_fir::prelude::*;
-use destack_fir::{best_fitting, format_args, write};
+use destack_fir::{format_args, write};
 use destack_source::Span;
 
 /// The kind of list, which affects trailing comma behavior.
@@ -340,8 +340,8 @@ where
                     format_inline.format(f)?;
                 } else {
                     f.context()
-                        .record_best_fitting("best_fitting.argument.single_parenthesized", 2);
-                    best_fitting![format_inline, format_indented].format(f)?;
+                        .increment_counter("profile.argument.single_parenthesized.grouped", 1);
+                    format_grouped.format(f)?;
                 }
             }
         } else {
