@@ -582,6 +582,8 @@ pub struct SchedulerOptions {
     pub max_timer_coalesce_ns: Option<u64>,
     /// Preemption interval for long-running tasks in nanoseconds.
     pub preempt_interval_ns: Option<u64>,
+    /// Platform poller backend selection.
+    pub poller_backend: PollerBackend,
 
     // task pools
     /// Scheduling policy for task pools.
@@ -594,6 +596,47 @@ pub struct SchedulerOptions {
     pub blocking_threads: Option<u64>,
     /// Maximum number of concurrent tasks.
     pub max_tasks: Option<u64>,
+}
+
+/// Platform poller backend selection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+pub enum PollerBackend {
+    /// Choose the best available backend for the platform.
+    #[default]
+    Auto,
+    /// Use io_uring (Linux only).
+    IoUring,
+    /// Use epoll (Linux only).
+    Epoll,
+    /// Use kqueue (BSD/macOS only).
+    Kqueue,
+    /// Use poll (portable Unix fallback).
+    Poll,
+    /// Use the Windows IOCP backend.
+    Windows,
+}
+
+impl std::str::FromStr for PollerBackend {
+    type Err = ();
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value.to_lowercase().replace('-', "_").as_str() {
+            "auto" => Ok(Self::Auto),
+            "io_uring" | "uring" => Ok(Self::IoUring),
+            "epoll" => Ok(Self::Epoll),
+            "kqueue" => Ok(Self::Kqueue),
+            "poll" => Ok(Self::Poll),
+            "windows" | "iocp" => Ok(Self::Windows),
+            _ => Err(()),
+        }
+    }
+}
+
+impl PollerBackend {
+    /// Parse a poller backend from a string.
+    pub fn parse(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
 }
 
 /// Runtime garbage collector configuration.
@@ -628,6 +671,8 @@ impl Default for GcOptions {
 pub struct RuntimeOptions {
     /// Execution mode for runtime scheduling and replay.
     pub execution_mode: ExecutionMode,
+    /// Exact capabilities granted to platform bindings.
+    pub capabilities: Vec<String>,
     /// Replay log configuration.
     pub replay_log: ReplayLogOptions,
     /// Runtime clock configuration.
@@ -638,6 +683,22 @@ pub struct RuntimeOptions {
     pub scheduler: SchedulerOptions,
     /// Runtime garbage collector configuration.
     pub gc: GcOptions,
+    /// Platform-specific runtime configuration.
+    pub platform: PlatformOptions,
+}
+
+/// Platform-specific runtime configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct PlatformOptions {
+    /// Windows runtime configuration.
+    pub windows: PlatformWindowsOptions,
+}
+
+/// Windows runtime configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct PlatformWindowsOptions {
+    /// Optional POSIX domain SID for uid/gid mapping.
+    pub posix_domain_sid: Option<String>,
 }
 
 /// Symbol stripping policy.

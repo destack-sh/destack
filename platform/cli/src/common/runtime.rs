@@ -168,6 +168,7 @@ impl RuntimeArgs {
                     .map(|path| path.to_string_lossy().into()),
                 template: self.replay_log_template.clone(),
                 chunk_size_mb: self.replay_log_chunk_mb,
+                payload: None,
             })
         } else {
             None
@@ -227,6 +228,7 @@ impl RuntimeArgs {
                 io_threads: self.scheduler_io_threads,
                 blocking_threads: self.scheduler_blocking_threads,
                 max_tasks: self.scheduler_max_tasks,
+                poller_backend: None,
             })
         } else {
             None
@@ -256,6 +258,8 @@ impl RuntimeArgs {
             random,
             scheduler,
             gc,
+            capabilities: None,
+            platform: None,
         })
     }
 }

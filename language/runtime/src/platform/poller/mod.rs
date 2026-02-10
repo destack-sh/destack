@@ -12,6 +12,7 @@ mod event;
 mod kqueue;
 mod poller;
 #[cfg(unix)]
+#[path = "unix.rs"]
 mod unix;
 #[cfg(windows)]
 mod windows;

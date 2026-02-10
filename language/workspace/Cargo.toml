@@ -33,7 +33,6 @@ destack_source = { workspace = true }
 crossbeam-deque = { workspace = true }
 dashmap = { workspace = true }
 filetime = { workspace = true }
-fs2 = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 parking_lot = { workspace = true }
 rayon = { workspace = true }
@@ -44,6 +43,9 @@ serde_json = { workspace = true, features = ["preserve_order"] }
 smallvec = { workspace = true }
 tracing = { workspace = true }
 postcard = { workspace = true }
+
+[target.'cfg(not(target_os = "wasi"))'.dependencies]
+fs2 = { workspace = true }
 
 [dev-dependencies]
 tracing-subscriber = { workspace = true }

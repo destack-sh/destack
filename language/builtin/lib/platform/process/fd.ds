@@ -2,7 +2,7 @@ import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
 import { ProcessFdHandle, ProcessHandle, SignalFdHandle } from "../resource/index.ds";
 import { ProcessId } from "./ids.ds";
-import { Signal, SignalEvent } from "./signals.ds";
+import { Signal, SignalEvent, SignalFdFlags } from "./signals.ds";
 import { ProcessWaitStatus } from "./wait.ds";
 
 /// Process file descriptor flags.
@@ -16,9 +16,6 @@ export newtype ProcessControlCommand = uint32;
 
 /// Process control flag mask.
 export newtype ProcessControlFlags = uint32;
-
-/// Signal file descriptor flags.
-export newtype SignalFdFlags = uint32;
 
 /// Process descriptor bindings.
 declare namespace process {
