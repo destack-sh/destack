@@ -145,10 +145,12 @@ impl Parser {
             if in_parenthesis {
                 // open parenthesis
                 self.bump();
+                self.eat_newlines_maybe()?;
             }
 
             // binding
             let binding = self.eat_for_each_binding()?;
+            self.eat_newlines_maybe()?;
 
             // in
             let kind = match self.eat_keyword_in(&[Keyword::In, Keyword::Of])? {
@@ -167,6 +169,7 @@ impl Parser {
             }
 
             // iterator
+            self.eat_newlines_maybe()?;
             let iterator_id = self
                 .with_options(self.options.nested().in_before_block(), |parser| {
                     parser.eat_expression()
@@ -174,6 +177,7 @@ impl Parser {
 
             if in_parenthesis {
                 // close parenthesis
+                self.eat_newlines_maybe()?;
                 self.eat_token(TokenType::CloseParenthesis)?;
             }
 
@@ -352,12 +356,14 @@ impl Parser {
 mod tests {
     use destack_ast::{
         Asynchrony, BinaryOperator, Block, Declarator, Expression, ForEachBinding,
-        ForEachDeclarationKind, ForEachKind, Mutability, Pattern, ScalarLiteral, UnaryOperator,
-        WhileKind,
+        ForEachDeclarationKind, ForEachKind, Mutability, Pattern, PatternField, ScalarLiteral,
+        UnaryOperator, WhileKind,
     };
     use destack_source::LanguageType;
 
-    use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
+    use crate::{
+        TestParser, assert_expression_path, assert_name, assert_node, assert_path, assert_string,
+    };
 
     #[test]
     fn test_parse_loop() {
@@ -452,6 +458,57 @@ for await (const item of items) {
             });
             // items
             assert_expression_path!(parser, parser.tree.get(*iterator), "items");
+        });
+    }
+
+    /// Parse for of headers with multiline destructured bindings.
+    #[test]
+    fn test_parse_for_of_multiline_destructured_binding() {
+        let mut test = TestParser::new_with_options(
+            r###"
+for (
+  const {
+    tsKey: selectedRelationTsKey,
+    relation,
+  }
+  of selectedRelations
+) {}
+"###,
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let for_id = parser.eat_for().unwrap();
+        // for (const { ... } of selectedRelations) {}
+        assert_node!(parser.tree, for_id, Expression::ForEach { asynchrony, kind, binding, iterator, body } => {
+            assert_eq!(*asynchrony, Asynchrony::Sync);
+            assert_eq!(*kind, ForEachKind::Of);
+
+            // const { tsKey: selectedRelationTsKey, relation }
+            assert_node!(binding, ForEachBinding::Pattern { pattern, declaration_kind } => {
+                assert_eq!(*declaration_kind, Some(ForEachDeclarationKind::Const));
+                assert_node!(parser.tree, *pattern, Pattern::Object { fields } => {
+                    assert_eq!(fields.len(), 2);
+
+                    // tsKey: selectedRelationTsKey
+                    assert_node!(parser.tree, fields[0], PatternField::Alias { name, alias, default: None, .. } => {
+                        assert_name!(parser, *name, "tsKey");
+                        assert_string!(parser, *alias, "selectedRelationTsKey");
+                    });
+
+                    // relation
+                    assert_node!(parser.tree, fields[1], PatternField::Named { name, pattern: None, default: None, .. } => {
+                        assert_name!(parser, *name, "relation");
+                    });
+                });
+            });
+
+            // selectedRelations
+            assert_expression_path!(parser, parser.tree.get(*iterator), "selectedRelations");
+            assert_node!(parser.tree, *body, Block { expressions, .. } => {
+                assert!(expressions.is_empty());
+            });
         });
     }
 
