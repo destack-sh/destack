@@ -11,8 +11,8 @@ use serde_json::json;
 
 use destack_ast::{Expression, LocalNodeId, NodeParentIndex};
 use destack_formatter::{
-    DestackFormatContext, DestackFormatOptions, FormatterCacheStatsSnapshot, FormatterCounterEntry,
-    FormatterTimingEntry, statement_list,
+    DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions,
+    FormatterCacheStatsSnapshot, FormatterCounterEntry, FormatterTimingEntry, statement_list,
 };
 use destack_parser::Parser as DestackParser;
 use destack_source::{File, FileId, FileType, LanguageType, MultiSpan, Uri};
@@ -834,13 +834,15 @@ fn benchmark_file(
         DestackFormatOptions::default().with_respect_file_ignore(mode == BenchMode::RealWorld);
     let context = DestackFormatContext::new_with_timings(
         options,
-        file.as_ref(),
-        &tree,
-        &tokens,
-        &side_tokens,
-        &side_span,
-        &strings,
-        parents,
+        DestackFormatArtifacts {
+            file: file.as_ref(),
+            tree: &tree,
+            tokens: &tokens,
+            side_tokens: &side_tokens,
+            side_span: &side_span,
+            strings: &strings,
+            parents,
+        },
         timings_enabled,
     );
     let timing_collector = context.timings.clone();
@@ -1228,7 +1230,7 @@ fn print_table(summary: &BenchSummary, color: bool) {
         "total",
         "share",
         "lines/s",
-        "fmt l/s",
+        "fmt cpu/s",
         bold = style.bold,
         reset = style.reset
     );
@@ -1262,6 +1264,11 @@ fn print_table(summary: &BenchSummary, color: bool) {
 
     println!(
         "  {dim}share is run total divided by run mean total{reset}",
+        dim = style.dim,
+        reset = style.reset
+    );
+    println!(
+        "  {dim}fmt cpu/s is formatted lines divided by cumulative format stage time{reset}",
         dim = style.dim,
         reset = style.reset
     );
@@ -1545,11 +1552,11 @@ fn print_table(summary: &BenchSummary, color: bool) {
         format_count_rate_per_second(summary.parse_lines_per_second)
     );
     println!(
-        "  format lines/s:    {:>10}",
+        "  format cpu/s:      {:>10}",
         format_count_rate_per_second(summary.format_lines_per_second)
     );
     println!(
-        "  fmt lines/s work:  {:>10}",
+        "  fmt work cpu/s:    {:>10}",
         format_count_rate_per_second(summary.format_formatted_lines_per_second)
     );
     println!(
@@ -1645,7 +1652,7 @@ fn print_table(summary: &BenchSummary, color: bool) {
 /// Print csv benchmark output.
 fn print_csv(summary: &BenchSummary) {
     println!(
-        "root,mode,files,formatted_files_per_run,skipped_files_per_run,warmup_runs,measured_runs,source_lines_per_run,formatted_lines_per_run,skipped_lines_per_run,source_bytes_per_run,formatted_bytes_per_run,skipped_bytes_per_run,output_bytes_per_run,min_ms,mean_ms,median_ms,p95_ms,max_ms,stddev_ms,cv_pct,parse_mean_ms,format_mean_ms,print_mean_ms,files_per_sec,lines_per_sec,formatted_lines_per_sec,parse_lines_per_sec,format_lines_per_sec,format_formatted_lines_per_sec,print_lines_per_sec,input_mib_per_sec,output_mib_per_sec,span_text_hits,span_text_misses,span_newline_hits,span_newline_misses,span_comment_hits,span_comment_misses,annotation_hits,annotation_misses,sink"
+        "root,mode,files,formatted_files_per_run,skipped_files_per_run,warmup_runs,measured_runs,source_lines_per_run,formatted_lines_per_run,skipped_lines_per_run,source_bytes_per_run,formatted_bytes_per_run,skipped_bytes_per_run,output_bytes_per_run,min_ms,mean_ms,median_ms,p95_ms,max_ms,stddev_ms,cv_pct,parse_mean_ms,format_mean_ms,print_mean_ms,files_per_sec,lines_per_sec,formatted_lines_per_sec,parse_lines_per_sec,format_cpu_lines_per_sec,format_work_cpu_lines_per_sec,print_lines_per_sec,input_mib_per_sec,output_mib_per_sec,span_text_hits,span_text_misses,span_newline_hits,span_newline_misses,span_comment_hits,span_comment_misses,annotation_hits,annotation_misses,sink"
     );
     let summary_row = vec![
         format!("\"{}\"", summary.root.display()),
@@ -1695,7 +1702,7 @@ fn print_csv(summary: &BenchSummary) {
 
     println!();
     println!(
-        "run,total_ms,work_ms,parse_ms,format_ms,print_ms,source_lines,formatted_lines,skipped_lines,lines_per_sec,format_lines_per_sec,format_work_lines_per_sec"
+        "run,total_ms,work_ms,parse_ms,format_ms,print_ms,source_lines,formatted_lines,skipped_lines,lines_per_sec,format_cpu_lines_per_sec,format_work_cpu_lines_per_sec"
     );
     for (index, run) in summary.runs.iter().enumerate() {
         let run_lines_per_second = run.source_lines as f64 / run.total.as_secs_f64().max(0.000_001);
@@ -1705,7 +1712,7 @@ fn print_csv(summary: &BenchSummary) {
             run.formatted_lines as f64 / run.format.as_secs_f64().max(0.000_001);
         println!(
             "{}",
-            vec![
+            [
                 (index + 1).to_string(),
                 format!("{:.3}", duration_ms(run.total)),
                 format!("{:.3}", duration_ms(run.work_total)),
@@ -1715,9 +1722,9 @@ fn print_csv(summary: &BenchSummary) {
                 run.source_lines.to_string(),
                 run.formatted_lines.to_string(),
                 run.skipped_lines.to_string(),
-                format!("{:.3}", run_lines_per_second),
-                format!("{:.3}", run_format_lines_per_second),
-                format!("{:.3}", run_format_work_lines_per_second),
+                format!("{run_lines_per_second:.3}"),
+                format!("{run_format_lines_per_second:.3}"),
+                format!("{run_format_work_lines_per_second:.3}"),
             ]
             .join(","),
         );
@@ -2125,7 +2132,7 @@ fn format_data_rate_mib_per_second(value: f64) -> String {
         return format!("{:.2} GiB/s", value / 1024.0);
     }
     if value >= 1.0 {
-        return format!("{:.2} MiB/s", value);
+        return format!("{value:.2} MiB/s");
     }
 
     format!("{:.2} KiB/s", value * 1024.0)

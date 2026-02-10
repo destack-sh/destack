@@ -4,7 +4,9 @@ use std::sync::Arc;
 
 use destack_ast::NodeParentIndex;
 use destack_fir::format as fir_format;
-use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
+use destack_formatter::{
+    DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, statement_list,
+};
 use destack_json::{JsonFormatOptions, format_json, parse as parse_json};
 use destack_parser::{Parser, colorize_source, source_colorizer};
 use destack_resolver::{CachePolicy, ResolveOptions, Resolver};
@@ -325,13 +327,15 @@ fn format_file(file: Arc<File>, formatter: FormatterOptions) -> (String, Diagnos
     };
     let context = DestackFormatContext::new(
         format_options,
-        file.as_ref(),
-        &parser.tree,
-        &tokens,
-        &side_tokens,
-        &side_span,
-        &strings,
-        parents,
+        DestackFormatArtifacts {
+            file: file.as_ref(),
+            tree: &parser.tree,
+            tokens: &tokens,
+            side_tokens: &side_tokens,
+            side_span: &side_span,
+            strings: &strings,
+            parents,
+        },
     );
 
     let mut result = if expressions.is_empty() {

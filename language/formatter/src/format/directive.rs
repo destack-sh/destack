@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::collections::HashMap;
 
 use destack_ast::{
     Annotation, AnnotationPosition, Comment, LocalNodeId, Node, NodeTree, NodeTreeImpl, TokenSpan,
@@ -235,6 +236,39 @@ where
     }
 
     None
+}
+
+/// Collect ignore ranges for a list of nodes keyed by node id.
+pub fn collect_ignore_ranges_for_nodes<T: Node + Clone>(
+    context: &DestackFormatContext<'_>,
+    node_ids: &[LocalNodeId<T>],
+    comment_tokens: &[TokenSpan],
+) -> HashMap<u32, Span>
+where
+    NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Annotation> + NodeTreeImpl<Comment>,
+{
+    let mut ignore_ranges = HashMap::new();
+    for node_id in node_ids.iter().copied() {
+        if let Some(range_span) = ignore_range_for_node(context, node_id, comment_tokens) {
+            ignore_ranges.insert(node_id.id, range_span);
+        }
+    }
+    ignore_ranges
+}
+
+/// Return whether any node in a list has an ignore range.
+pub fn any_ignore_range_for_nodes<T: Node + Clone>(
+    context: &DestackFormatContext<'_>,
+    node_ids: &[LocalNodeId<T>],
+    comment_tokens: &[TokenSpan],
+) -> bool
+where
+    NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Annotation> + NodeTreeImpl<Comment>,
+{
+    node_ids
+        .iter()
+        .copied()
+        .any(|node_id| ignore_range_for_node(context, node_id, comment_tokens).is_some())
 }
 
 /// Return whether a comment token starts at the first non-whitespace position on its line.
@@ -522,7 +556,7 @@ mod tests {
     use destack_workspace::FormatterOptions;
 
     use super::{collect_comment_tokens, ignore_range_for_node};
-    use crate::{DestackFormatContext, DestackFormatOptions};
+    use crate::{DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions};
 
     #[test]
     fn test_format_ignore_range_for_statement() {
@@ -550,13 +584,15 @@ mod tests {
         );
         let context = DestackFormatContext::new(
             options,
-            &file,
-            &parser.tree,
-            &tokens,
-            &side_tokens,
-            &side_span,
-            &strings,
-            parents,
+            DestackFormatArtifacts {
+                file: &file,
+                tree: &parser.tree,
+                tokens: &tokens,
+                side_tokens: &side_tokens,
+                side_span: &side_span,
+                strings: &strings,
+                parents,
+            },
         );
 
         let comment_tokens = collect_comment_tokens(&context);

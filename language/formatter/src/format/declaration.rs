@@ -5,7 +5,9 @@ use crate::annotation::{
 use crate::argument::list_like;
 use crate::block::format_block_of_statements;
 use crate::expression::{
-    is_expression_breakable, lambda_expression_should_break, source_min_inline_char_len,
+    expression_has_non_doc_multiline_block_prefix_comment_annotation,
+    expression_has_static_type_arguments, is_expression_breakable, lambda_expression_should_break,
+    source_min_inline_char_len,
 };
 use crate::key::format_key_with_quote_policy;
 use crate::property::format_block_of_members;
@@ -75,6 +77,32 @@ fn lambda_parameter_is_simple_tail(
     )
 }
 
+/// Append lambda arrow prefix annotations for one node into the output buffer.
+fn append_lambda_arrow_prefix_annotations<T: destack_ast::Node + Clone>(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+    output: &mut Vec<LocalNodeId<Annotation>>,
+) where
+    destack_ast::NodeTree: destack_ast::NodeTreeImpl<T>,
+{
+    let Some(annotations) = context.get_annotations(node_id) else {
+        return;
+    };
+
+    for annotation_id in annotations {
+        let annotation = context.tree.get::<Annotation>(annotation_id);
+        let should_defer = is_lambda_arrow_prefix_annotation(
+            context,
+            node_id,
+            annotation_id,
+            annotation.position(),
+        );
+        if should_defer {
+            output.push(annotation_id);
+        }
+    }
+}
+
 /// Collect deferred prefix annotations that belong between lambda parameters and arrow token.
 fn collect_lambda_arrow_prefix_annotations(
     context: &DestackFormatContext<'_>,
@@ -82,38 +110,13 @@ fn collect_lambda_arrow_prefix_annotations(
     expression_id: Option<LocalNodeId<Expression>>,
     argument_id: Option<LocalNodeId<Argument>>,
 ) -> Vec<LocalNodeId<Annotation>> {
-    fn append_node_annotations<T: destack_ast::Node + Clone>(
-        context: &DestackFormatContext<'_>,
-        node_id: LocalNodeId<T>,
-        output: &mut Vec<LocalNodeId<Annotation>>,
-    ) where
-        destack_ast::NodeTree: destack_ast::NodeTreeImpl<T>,
-    {
-        let Some(annotations) = context.get_annotations(node_id) else {
-            return;
-        };
-
-        for annotation_id in annotations {
-            let annotation = context.tree.get::<Annotation>(annotation_id);
-            let should_defer = is_lambda_arrow_prefix_annotation(
-                context,
-                node_id,
-                annotation_id,
-                annotation.position(),
-            );
-            if should_defer {
-                output.push(annotation_id);
-            }
-        }
-    }
-
     let mut annotations = Vec::new();
-    append_node_annotations(context, declaration_id, &mut annotations);
+    append_lambda_arrow_prefix_annotations(context, declaration_id, &mut annotations);
     if let Some(expression_id) = expression_id {
-        append_node_annotations(context, expression_id, &mut annotations);
+        append_lambda_arrow_prefix_annotations(context, expression_id, &mut annotations);
     }
     if let Some(argument_id) = argument_id {
-        append_node_annotations(context, argument_id, &mut annotations);
+        append_lambda_arrow_prefix_annotations(context, argument_id, &mut annotations);
     }
 
     annotations.sort_by_key(|annotation_id| {
@@ -264,58 +267,6 @@ fn format_declaration_heritage<'ast>(
     Ok(())
 }
 
-/// Return whether a heritage type expression includes static type arguments.
-fn heritage_type_has_static_arguments(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    match context.tree.get(expression_id) {
-        Expression::Path {
-            static_arguments, ..
-        } => static_arguments
-            .as_ref()
-            .is_some_and(|arguments| !arguments.is_empty()),
-        Expression::Member {
-            left,
-            static_arguments,
-            ..
-        }
-        | Expression::PrivateMember {
-            left,
-            static_arguments,
-            ..
-        } => {
-            static_arguments
-                .as_ref()
-                .is_some_and(|arguments| !arguments.is_empty())
-                || heritage_type_has_static_arguments(context, *left)
-        }
-        Expression::Call {
-            left,
-            static_arguments,
-            ..
-        }
-        | Expression::New {
-            left,
-            static_arguments,
-            ..
-        } => {
-            static_arguments
-                .as_ref()
-                .is_some_and(|arguments| !arguments.is_empty())
-                || heritage_type_has_static_arguments(context, *left)
-        }
-        Expression::Instantiation {
-            left,
-            static_arguments,
-        } => !static_arguments.is_empty() || heritage_type_has_static_arguments(context, *left),
-        Expression::Parenthesized { expression } | Expression::Statement(expression) => {
-            heritage_type_has_static_arguments(context, *expression)
-        }
-        _ => false,
-    }
-}
-
 /// Format anonymous class heritage, preserving oxfmt style for generic extends and implements.
 fn format_anonymous_class_heritage<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -327,7 +278,7 @@ fn format_anonymous_class_heritage<'ast>(
         let has_generic_extends = extends_types
             .iter()
             .copied()
-            .any(|type_id| heritage_type_has_static_arguments(f.context(), type_id));
+            .any(|type_id| expression_has_static_type_arguments(f.context(), type_id));
         if has_generic_extends {
             write!(f, [space(), Keyword::Extends, space(), token("(")])?;
             write!(
@@ -353,7 +304,7 @@ fn format_anonymous_class_heritage<'ast>(
         let has_generic_implements = implements_types
             .iter()
             .copied()
-            .any(|type_id| heritage_type_has_static_arguments(f.context(), type_id));
+            .any(|type_id| expression_has_static_type_arguments(f.context(), type_id));
         if has_generic_implements {
             write!(f, [space(), Keyword::Implements, space()])?;
             write!(
@@ -886,25 +837,12 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     _ => false,
                 };
                 let value_parenthesized_inner_has_block_prefix_annotation = match value_expression {
-                    Expression::Parenthesized { expression } => f
-                        .context()
-                        .get_annotations(*expression)
-                        .is_some_and(|annotation_ids| {
-                            annotation_ids.iter().any(|annotation_id| {
-                                let annotation = f.context().tree.get::<Annotation>(*annotation_id);
-                                if !matches!(annotation.position(), AnnotationPosition::BlockPrefix)
-                                    || !matches!(annotation, Annotation::Comment { .. })
-                                {
-                                    return false;
-                                }
-
-                                let annotation_span =
-                                    f.context().get_span::<Annotation>(*annotation_id);
-                                let annotation_source = f.context().get_span_str(annotation_span);
-                                let trimmed = annotation_source.trim_start();
-                                annotation_source.contains('\n') && !trimmed.starts_with("/**")
-                            })
-                        }),
+                    Expression::Parenthesized { expression } => {
+                        expression_has_non_doc_multiline_block_prefix_comment_annotation(
+                            f.context(),
+                            *expression,
+                        )
+                    }
                     _ => false,
                 };
                 if should_break_after_equals
@@ -919,55 +857,44 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                         && inline_total_len <= line_width
                     {
                         format_inline.format(f)?;
-                    } else {
-                        if value_has_prefix_annotation {
-                            if inline_is_impossible {
-                                // when inline is impossible, prefix-commented values should break after `=`
-                                format_soft_break.format(f)?;
-                            } else {
-                                f.context()
-                                    .record_best_fitting("best_fitting.declaration", 3);
-                                best_fitting![format_inline, format_soft_break, format_indented]
-                                    .format(f)?;
-                            }
+                    } else if value_has_prefix_annotation {
+                        if inline_is_impossible {
+                            // when inline is impossible, prefix-commented values should break after `=`
+                            format_soft_break.format(f)?;
                         } else {
-                            if inline_is_impossible {
-                                // long conditional-like type values can skip best fitting probes
-                                if matches!(
-                                    value_expression,
-                                    Expression::TypeConditional { .. }
-                                        | Expression::If {
-                                            kind: IfKind::Ternary,
-                                            ..
-                                        }
-                                ) {
-                                    format_inline_expanded.format(f)?;
-                                } else {
-                                    f.context()
-                                        .record_best_fitting("best_fitting.declaration", 2);
-                                    best_fitting![format_inline_expanded, format_indented]
-                                        .format(f)?;
-                                }
-                            } else {
-                                f.context()
-                                    .record_best_fitting("best_fitting.declaration", 3);
-                                best_fitting![
-                                    format_inline,
-                                    format_inline_expanded,
-                                    format_indented
-                                ]
+                            f.context()
+                                .record_best_fitting("best_fitting.declaration", 3);
+                            best_fitting![format_inline, format_soft_break, format_indented]
                                 .format(f)?;
-                            }
                         }
-                    }
-                } else {
-                    if inline_is_impossible {
-                        format_indented.format(f)?;
+                    } else if inline_is_impossible {
+                        // long conditional-like type values can skip best fitting probes
+                        if matches!(
+                            value_expression,
+                            Expression::TypeConditional { .. }
+                                | Expression::If {
+                                    kind: IfKind::Ternary,
+                                    ..
+                                }
+                        ) {
+                            format_inline_expanded.format(f)?;
+                        } else {
+                            f.context()
+                                .record_best_fitting("best_fitting.declaration", 2);
+                            best_fitting![format_inline_expanded, format_indented].format(f)?;
+                        }
                     } else {
                         f.context()
-                            .record_best_fitting("best_fitting.declaration", 2);
-                        best_fitting![format_inline, format_indented].format(f)?;
+                            .record_best_fitting("best_fitting.declaration", 3);
+                        best_fitting![format_inline, format_inline_expanded, format_indented]
+                            .format(f)?;
                     }
+                } else if inline_is_impossible {
+                    format_indented.format(f)?;
+                } else {
+                    f.context()
+                        .record_best_fitting("best_fitting.declaration", 2);
+                    best_fitting![format_inline, format_indented].format(f)?;
                 }
                 // type alias declarations need trailing semicolon (like const/let)
                 write!(f, [token(";")])?;

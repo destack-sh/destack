@@ -1127,7 +1127,10 @@ fn is_identifier_or_static_member_only(
 
 #[cfg(test)]
 mod tests {
-    use crate::{DestackFormatContext, DestackFormatOptions, TestFormatter, assert_format};
+    use crate::{
+        DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, TestFormatter,
+        assert_format,
+    };
     use destack_ast::{
         Annotation, AnnotationPosition, Argument, Declaration, DeclarationDescriptor, Expression,
         LocalNodeId, Member, NodeParentIndex, NodeType, Parameter, Property,
@@ -1137,13 +1140,15 @@ mod tests {
     fn context_from_formatter(formatter: &TestFormatter) -> DestackFormatContext<'_> {
         DestackFormatContext::new(
             DestackFormatOptions::default(),
-            &formatter.file,
-            &formatter.tree,
-            &formatter.tokens,
-            &formatter.side_tokens,
-            &formatter.side_span,
-            &formatter.strings,
-            NodeParentIndex::from_tree(&formatter.tree),
+            DestackFormatArtifacts {
+                file: &formatter.file,
+                tree: &formatter.tree,
+                tokens: &formatter.tokens,
+                side_tokens: &formatter.side_tokens,
+                side_span: &formatter.side_span,
+                strings: &formatter.strings,
+                parents: NodeParentIndex::from_tree(&formatter.tree),
+            },
         )
     }
 

@@ -5,8 +5,7 @@ use destack_fir::format::{FormatResult, GroupId};
 use destack_workspace::TrailingComma;
 
 use crate::annotation::parameter_type_separator_prefix_annotations;
-use crate::directive::{ignore_range_for_node, ignored_span_source, write_ignored_span};
-use crate::expression::source_min_inline_char_len;
+use crate::directive::{collect_ignore_ranges_for_nodes, ignored_span_source, write_ignored_span};
 use crate::property::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
 };
@@ -132,15 +131,9 @@ where
         let should_add_space = self.include_space && options.bracket_spacing && has_elements;
 
         let ignore_ranges_by_id = if f.context().has_ignore_directive_markers() {
-            let mut ignore_ranges_by_id = HashMap::new();
             let comment_tokens = f.context().comment_tokens();
-            for element_id in self.elements {
-                if let Some(range_span) =
-                    ignore_range_for_node(f.context(), *element_id, &comment_tokens)
-                {
-                    ignore_ranges_by_id.insert(element_id.id, range_span);
-                }
-            }
+            let ignore_ranges_by_id =
+                collect_ignore_ranges_for_nodes(f.context(), self.elements, comment_tokens);
             if ignore_ranges_by_id.is_empty() {
                 None
             } else {
@@ -307,10 +300,6 @@ where
                 } else {
                     format_grouped.format(f)?;
                 }
-            } else if (self.start_token == "[" && self.end_token == "]")
-                || (self.start_token == "{" && self.end_token == "}")
-            {
-                format_grouped.format(f)?;
             } else {
                 format_grouped.format(f)?;
             }
@@ -324,11 +313,12 @@ where
             if should_force_inline {
                 format_inline.format(f)?;
             } else {
-                let element_source = f.context().get_span_str(element_span);
                 let line_width = usize::from(options.line_width);
-                let element_min_len = source_min_inline_char_len(element_source);
+                let element_len = f.context().span_char_len(element_span);
+                let element_source = f.context().get_span_str(element_span);
+                let delimiter_len = self.start_token.len().saturating_add(self.end_token.len());
                 let can_skip_best_fitting = element_source.is_ascii()
-                    && element_min_len <= line_width.saturating_sub(2)
+                    && element_len <= line_width.saturating_sub(delimiter_len)
                     && f.context().get_parent(element_id).is_some_and(
                         |(parent_id, parent_type)| {
                             if parent_type != NodeType::Expression {
@@ -340,7 +330,7 @@ where
                                 f.context().get_span::<Expression>(parent_expression_id);
                             let parent_source = f.context().get_span_str(parent_span);
                             parent_source.is_ascii()
-                                && source_min_inline_char_len(parent_source) <= line_width
+                                && f.context().span_char_len(parent_span) <= line_width
                         },
                     );
 

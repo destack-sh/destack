@@ -1,4 +1,7 @@
-use crate::{DestackFormatContext, DestackFormatOptions, TestFormatter, assert_format};
+use crate::{
+    DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, TestFormatter,
+    assert_format,
+};
 use destack_ast::{
     Argument, BinaryOperator, Declaration, DeclarationDescriptor, Expression, LocalNodeId,
     NodeParentIndex, NodeTree, NodeType,
@@ -9,13 +12,15 @@ use destack_source::{FileType, LanguageType};
 fn context_from_formatter(formatter: &TestFormatter) -> DestackFormatContext<'_> {
     DestackFormatContext::new(
         DestackFormatOptions::default(),
-        &formatter.file,
-        &formatter.tree,
-        &formatter.tokens,
-        &formatter.side_tokens,
-        &formatter.side_span,
-        &formatter.strings,
-        NodeParentIndex::from_tree(&formatter.tree),
+        DestackFormatArtifacts {
+            file: &formatter.file,
+            tree: &formatter.tree,
+            tokens: &formatter.tokens,
+            side_tokens: &formatter.side_tokens,
+            side_span: &formatter.side_span,
+            strings: &formatter.strings,
+            parents: NodeParentIndex::from_tree(&formatter.tree),
+        },
     )
 }
 
@@ -452,7 +457,7 @@ fn test_format_member_chain_breaks_before_long_boundary_comment_with_optional_ca
 fn test_format_chain_planner_promotes_head_in_call_like_argument() {
     assert_format!(
         "render(foo.bar.getResource(id).map(transform).finalize())",
-        "render(foo.bar.getResource(id)\n    .map(transform)\n    .finalize(),)",
+        "render(\n    foo.bar.getResource(id)\n        .map(transform)\n        .finalize(),\n)",
         |p| p.eat_expression(),
         DestackFormatOptions::default_with_line_width(30)
     );
@@ -878,8 +883,10 @@ fn test_format_type_single_member_leading_intersection_parenthesized_array() {
     let (test, expression_id) =
         TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| p.eat_expression())
             .expect("parse typescript expression");
-    let mut options = DestackFormatOptions::default();
-    options.language_type = LanguageType::TypeScript;
+    let options = DestackFormatOptions {
+        language_type: LanguageType::TypeScript,
+        ..DestackFormatOptions::default()
+    };
     let formatted = test.format(&expression_id, options);
     assert_eq!(formatted, expected);
 }

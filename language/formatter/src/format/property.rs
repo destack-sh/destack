@@ -1,9 +1,7 @@
-use std::collections::HashMap;
-
 use crate::argument::list_like;
 use crate::directive::{
-    FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node, ignore_range_for_node,
-    ignored_node_source, write_ignored_span,
+    FormatterDirectiveKind, FormatterDirectivePosition, collect_ignore_ranges_for_nodes,
+    directive_for_node, ignored_node_source, write_ignored_span,
 };
 use crate::key::{format_key_with_quote_policy, is_identifier_for_quotes};
 use crate::signature::{
@@ -17,9 +15,10 @@ use crate::signature::{
 use crate::r#where::format_where_clause_with_break;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    AbstractionModifier, AccessorKind, BindingAnchor, BindingKind, BindingModifier,
-    BindingOperator, Declaration, Expression, FunctionSignature, Key, Keyword, LocalNodeId, Member,
-    Mutability, Name, NodeType, Property, Timing, VarianceModifier,
+    AbstractionModifier, AccessorKind, Annotation, BindingAnchor, BindingKind, BindingModifier,
+    BindingOperator, Comment, Declaration, Expression, FunctionSignature, Key, Keyword,
+    LocalNodeId, Member, Mutability, Name, Node, NodeTree, NodeTreeImpl, NodeType, Property,
+    Timing, VarianceModifier,
 };
 use destack_fir::format::{FormatResult, text};
 use destack_fir::prelude::*;
@@ -141,100 +140,80 @@ fn method_signature_source_is_multiline(
     context.get_span_str(signature_span).contains('\n')
 }
 
-/// Format a block of properties with appropriate empty annotations.
-/// Format a block of properties.
+/// Format a block of properties with empty-annotation and ignore-range handling.
 #[allow(unused)]
 pub(crate) fn format_block_of_properties<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     properties: &[LocalNodeId<Property>],
     separator: &'static str,
 ) -> FormatResult<()> {
-    let comment_tokens = f.context().comment_tokens();
-    let mut ignore_ranges: HashMap<u32, Span> = HashMap::new();
-    for &property_id in properties {
-        if let Some(range_span) = ignore_range_for_node(f.context(), property_id, &comment_tokens) {
-            ignore_ranges.insert(property_id.id, range_span);
-        }
-    }
-
-    let mut skip_until: Option<u32> = None;
-    for (i, &property_id) in properties.iter().enumerate() {
+    format_block_nodes_with_ignore_ranges(f, properties, |f, property_id| {
         let property = f.context().tree.get(property_id);
-        let property_span = f.context().get_span(property_id);
-
-        if let Some(skip_end) = skip_until {
-            if property_span.start < skip_end {
-                continue;
-            }
-            skip_until = None;
-        }
-
-        // blank line between properties
-        if i > 0 {
-            write!(f, [hard_line_break()])?;
-        }
-
-        if let Some(range_span) = ignore_ranges.get(&property_id.id) {
-            write_ignored_span(f, *range_span)?;
-            skip_until = Some(range_span.end);
-            continue;
-        }
-
         property_id.format(f)?;
-        // comma after field properties
+
+        // separators
         if matches!(
             property,
             Property::Field { .. } | Property::Method { .. } | Property::Spread { .. }
         ) {
             write!(f, [token(separator)])?;
         }
-    }
-    Ok(())
+
+        Ok(())
+    })
 }
 
-/// Format a block of members with appropriate empty annotations.
-/// Format a block of members.
+/// Format a block of members with empty-annotation and ignore-range handling.
 #[allow(unused)]
 pub(crate) fn format_block_of_members<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     members: &[LocalNodeId<Member>],
 ) -> FormatResult<()> {
+    format_block_nodes_with_ignore_ranges(f, members, |f, member_id| member_id.format(f))
+}
+
+/// Format a block of nodes while honoring ignore ranges and spacing.
+fn format_block_nodes_with_ignore_ranges<'ast, T, F>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_ids: &[LocalNodeId<T>],
+    mut format_node: F,
+) -> FormatResult<()>
+where
+    T: Node + Clone,
+    NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Annotation> + NodeTreeImpl<Comment>,
+    F: FnMut(&mut DestackFormatter<'ast, '_>, LocalNodeId<T>) -> FormatResult<()>,
+{
     let comment_tokens = f.context().comment_tokens();
-    let mut ignore_ranges: HashMap<u32, Span> = HashMap::new();
-    for &member_id in members {
-        if let Some(range_span) = ignore_range_for_node(f.context(), member_id, &comment_tokens) {
-            ignore_ranges.insert(member_id.id, range_span);
-        }
-    }
+    let ignore_ranges = collect_ignore_ranges_for_nodes(f.context(), node_ids, comment_tokens);
 
     let mut skip_until: Option<u32> = None;
-    for (i, &member_id) in members.iter().enumerate() {
-        let member_span = f.context().get_span(member_id);
+    for (index, node_id) in node_ids.iter().copied().enumerate() {
+        let node_span = f.context().get_span(node_id);
 
         if let Some(skip_end) = skip_until {
-            if member_span.start < skip_end {
+            if node_span.start < skip_end {
                 continue;
             }
             skip_until = None;
         }
 
-        // blank line between members
-        if i > 0 {
+        // blank line between entries
+        if index > 0 {
             write!(f, [hard_line_break()])?;
         }
 
-        if let Some(range_span) = ignore_ranges.get(&member_id.id) {
+        if let Some(range_span) = ignore_ranges.get(&node_id.id) {
             write_ignored_span(f, *range_span)?;
             skip_until = Some(range_span.end);
             continue;
         }
 
-        member_id.format(f)?;
+        format_node(f, node_id)?;
     }
+
     Ok(())
 }
 
-/// Check whether a key requires quotes under identifier rules.
 /// Return whether a key requires quoting.
 #[inline]
 fn key_requires_quotes<'ast>(f: &DestackFormatter<'ast, '_>, key: Key) -> bool {
@@ -248,7 +227,6 @@ fn key_requires_quotes<'ast>(f: &DestackFormatter<'ast, '_>, key: Key) -> bool {
     }
 }
 
-/// Check whether any object key forces consistent quoting.
 /// Return whether object properties should force quoted keys.
 #[inline]
 fn force_quote_keys_for_object<'ast>(
@@ -266,7 +244,6 @@ fn force_quote_keys_for_object<'ast>(
     })
 }
 
-/// Check whether any type member key forces consistent quoting.
 /// Return whether members should force quoted keys.
 #[inline]
 fn force_quote_keys_for_members<'ast>(
@@ -284,7 +261,6 @@ fn force_quote_keys_for_members<'ast>(
     })
 }
 
-/// Decide whether this property should force consistent key quoting.
 /// Return whether one property should force quoted keys.
 #[inline]
 fn should_force_quote_keys_for_property<'ast>(
@@ -315,7 +291,6 @@ fn should_force_quote_keys_for_property<'ast>(
     force_quote_keys_for_object(f, properties)
 }
 
-/// Decide whether this member should force consistent key quoting.
 /// Return whether one member should force quoted keys.
 #[inline]
 fn should_force_quote_keys_for_member<'ast>(
@@ -368,18 +343,9 @@ fn should_keep_field_default_inline<'ast>(
         return true;
     }
 
-    // single line call like defaults should only stay inline when short
-    let line_width = usize::from(f.context().options.line_width);
-    let expression_len = f
-        .context()
-        .get_span_str(f.context().get_span(expression_id))
-        .chars()
-        .count();
-
-    expression_len <= line_width / 2
+    false
 }
 
-/// Write a field-like type annotation after `:`.
 /// Write a field type annotation.
 #[inline]
 fn write_field_type_annotation<'ast>(
@@ -444,7 +410,7 @@ fn format_method_like<'ast>(
     signature: &FunctionSignature,
     body: Option<LocalNodeId<Expression>>,
     force_quote_keys: bool,
-    signature_source_is_multiline_at_80: bool,
+    signature_source_is_multiline: bool,
 ) -> FormatResult<()> {
     let generics = signature.generics.as_ref();
 
@@ -471,7 +437,7 @@ fn format_method_like<'ast>(
     if signature.dynamic_parameters.len() == 1
         && single_parameter_should_hug(f.context(), signature.dynamic_parameters[0])
         && !signature_return_type_is_multiline(f.context(), signature.return_type)
-        && !signature_source_is_multiline_at_80
+        && !signature_source_is_multiline
     {
         write!(f, [token("("), signature.dynamic_parameters[0], token(")")])?;
     } else {
@@ -529,85 +495,95 @@ fn format_method_like<'ast>(
     Ok(())
 }
 
+/// Format one node with shared directive handling and annotations.
+fn format_node_with_directive<'ast, T, F>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<T>,
+    mut format_node: F,
+) -> FormatResult<()>
+where
+    T: Node + Clone,
+    NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Annotation> + NodeTreeImpl<Comment>,
+    F: FnMut(&mut DestackFormatter<'ast, '_>) -> FormatResult<()>,
+{
+    let directive = directive_for_node(f.context(), node_id);
+    write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
+    if let Some(directive) = directive
+        && directive.kind == FormatterDirectiveKind::IgnoreFormat
+    {
+        let raw = ignored_node_source(f.context(), node_id, directive);
+        write!(f, [text(&raw)])?;
+
+        if !matches!(
+            directive.position,
+            FormatterDirectivePosition::Postfix { .. }
+        ) {
+            write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
+        }
+
+        return Ok(());
+    }
+
+    format_node(f)?;
+    write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
+
+    Ok(())
+}
+
 impl<'ast> FormatNode<'ast, Property> for Property {
     fn format_node(
         &self,
         node_id: LocalNodeId<Property>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        // ignore formatting when requested
-        let directive = directive_for_node(f.context(), node_id);
-
-        // prefix annotations
-        write!(f, [f.context().any_prefix_annotations(node_id)])?;
-
-        // raw node formatting for ignore directives
-        if let Some(directive) = directive
-            && directive.kind == FormatterDirectiveKind::IgnoreFormat
-        {
-            let raw_property = ignored_node_source(f.context(), node_id, directive);
-            write!(f, [text(&raw_property)])?;
-
-            if !matches!(
-                directive.position,
-                FormatterDirectivePosition::Postfix { .. }
-            ) {
-                write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
-            }
-
-            return Ok(());
-        }
-
-        match self {
-            Property::Field {
-                modifiers,
-                key,
-                value,
-                default,
-            } => {
-                let force_quote_keys = should_force_quote_keys_for_property(f, node_id);
-                format_field_like(f, *modifiers, *key, *value, *default, force_quote_keys)?;
-            }
-            Property::Method {
-                modifiers,
-                key,
-                signature,
-                body,
-            } => {
-                let force_quote_keys = should_force_quote_keys_for_property(f, node_id);
-                let signature_source_is_multiline_at_80 =
-                    usize::from(f.context().options.line_width) <= 80
-                        && method_signature_source_is_multiline(
-                            f.context(),
-                            f.context().get_span(node_id),
-                            *body,
-                        );
-                format_method_like(
-                    f,
-                    *modifiers,
-                    *key,
+        format_node_with_directive(f, node_id, |f| {
+            match self {
+                Property::Field {
+                    modifiers,
+                    key,
+                    value,
+                    default,
+                } => {
+                    let force_quote_keys = should_force_quote_keys_for_property(f, node_id);
+                    format_field_like(f, *modifiers, *key, *value, *default, force_quote_keys)?;
+                }
+                Property::Method {
+                    modifiers,
+                    key,
                     signature,
-                    *body,
-                    force_quote_keys,
-                    signature_source_is_multiline_at_80,
-                )?;
+                    body,
+                } => {
+                    let force_quote_keys = should_force_quote_keys_for_property(f, node_id);
+                    let signature_source_is_multiline = method_signature_source_is_multiline(
+                        f.context(),
+                        f.context().get_span(node_id),
+                        *body,
+                    );
+                    format_method_like(
+                        f,
+                        *modifiers,
+                        *key,
+                        signature,
+                        *body,
+                        force_quote_keys,
+                        signature_source_is_multiline,
+                    )?;
+                }
+                Property::Spread { modifiers, value } => {
+                    // modifiers
+                    format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                    // keyword
+                    write!(f, [token("...")])?;
+                    // value
+                    write!(f, [value])?;
+                    // modifiers
+                    format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+                }
             }
-            Property::Spread { modifiers, value } => {
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-                // keyword
-                write!(f, [token("...")])?;
-                // value
-                write!(f, [value])?;
-                // modifiers
-                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
-            }
-        }
 
-        // postfix annotations
-        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
-
-        Ok(())
+            Ok(())
+        })
     }
 }
 
@@ -617,169 +593,143 @@ impl<'ast> FormatNode<'ast, Member> for Member {
         node_id: LocalNodeId<Member>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        // ignore formatting when requested
-        let directive = directive_for_node(f.context(), node_id);
-
-        // prefix annotations
-        write!(f, [f.context().any_prefix_annotations(node_id)])?;
-
-        // raw node formatting for ignore directives
-        if let Some(directive) = directive
-            && directive.kind == FormatterDirectiveKind::IgnoreFormat
-        {
-            let raw_member = ignored_node_source(f.context(), node_id, directive);
-            write!(f, [text(&raw_member)])?;
-
-            if !matches!(
-                directive.position,
-                FormatterDirectivePosition::Postfix { .. }
-            ) {
-                write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
-            }
-
-            return Ok(());
-        }
-
-        match self {
-            Member::Type {
-                modifiers,
-                name,
-                static_parameters,
-                where_clauses,
-                ty,
-                value,
-            } => {
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-                // keyword
-                write!(f, [Keyword::Type, space()])?;
-                // name
-                write!(f, [name])?;
-                // static parameters
-                if let Some(static_parameters) = static_parameters
-                    && !static_parameters.is_empty()
-                {
-                    write!(f, [list_like("<", ">", ",", static_parameters)])?;
+        format_node_with_directive(f, node_id, |f| {
+            match self {
+                Member::Type {
+                    modifiers,
+                    name,
+                    static_parameters,
+                    where_clauses,
+                    ty,
+                    value,
+                } => {
+                    // modifiers
+                    format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                    // keyword
+                    write!(f, [Keyword::Type, space()])?;
+                    // name
+                    write!(f, [name])?;
+                    // static parameters
+                    if let Some(static_parameters) = static_parameters
+                        && !static_parameters.is_empty()
+                    {
+                        write!(f, [list_like("<", ">", ",", static_parameters)])?;
+                    }
+                    // where clauses
+                    if let Some(where_clauses) = where_clauses
+                        && !where_clauses.is_empty()
+                    {
+                        write!(f, [space(), Keyword::Where, space()])?;
+                        write!(f, [list_like("", "", ",", where_clauses)])?;
+                    }
+                    // type bound
+                    if let Some(ty) = ty {
+                        write!(f, [token(":"), space(), ty])?;
+                    }
+                    // value
+                    if let Some(value) = value {
+                        write!(f, [space(), token("="), space(), value])?;
+                    }
                 }
-                // where clauses
-                if let Some(where_clauses) = where_clauses
-                    && !where_clauses.is_empty()
-                {
-                    write!(f, [space(), Keyword::Where, space()])?;
-                    write!(f, [list_like("", "", ",", where_clauses)])?;
-                }
-                // type bound
-                if let Some(ty) = ty {
-                    write!(f, [token(":"), space(), ty])?;
-                }
-                // value
-                if let Some(value) = value {
-                    write!(f, [space(), token("="), space(), value])?;
-                }
-            }
-            Member::ComptimeConst {
-                modifiers,
-                name,
-                ty,
-                value,
-            } => {
-                // keep non comptime modifiers before the associated keyword pair
-                if let Some(mut modifiers) = *modifiers {
-                    modifiers.timing = None;
-                    modifiers.operator = None;
-                    format_binding_modifiers_prefix(f, modifiers)?;
-                }
+                Member::ComptimeConst {
+                    modifiers,
+                    name,
+                    ty,
+                    value,
+                } => {
+                    // keep non comptime modifiers before the associated keyword pair
+                    if let Some(mut modifiers) = *modifiers {
+                        modifiers.timing = None;
+                        modifiers.operator = None;
+                        format_binding_modifiers_prefix(f, modifiers)?;
+                    }
 
-                // associated comptime constants are always emitted in canonical order
-                write!(
-                    f,
-                    [Keyword::Comptime, space(), Keyword::Const, space(), name]
-                )?;
+                    // associated comptime constants are always emitted in canonical order
+                    write!(
+                        f,
+                        [Keyword::Comptime, space(), Keyword::Const, space(), name]
+                    )?;
 
-                // optional type annotation
-                if let Some(ty) = ty {
-                    write!(f, [token(":"), space(), ty])?;
-                }
+                    // optional type annotation
+                    if let Some(ty) = ty {
+                        write!(f, [token(":"), space(), ty])?;
+                    }
 
-                // optional initializer
-                if let Some(value) = value {
-                    write!(f, [space(), token("="), space(), value])?;
+                    // optional initializer
+                    if let Some(value) = value {
+                        write!(f, [space(), token("="), space(), value])?;
+                    }
                 }
-            }
-            Member::Field {
-                modifiers,
-                key,
-                value,
-                default,
-            } => {
-                let force_quote_keys = should_force_quote_keys_for_member(f, node_id);
-                format_field_like(f, *modifiers, *key, *value, *default, force_quote_keys)?;
-            }
-            Member::Method {
-                modifiers,
-                key,
-                signature,
-                body,
-            } => {
-                let force_quote_keys = should_force_quote_keys_for_member(f, node_id);
-                let signature_source_is_multiline_at_80 =
-                    usize::from(f.context().options.line_width) <= 80
-                        && method_signature_source_is_multiline(
-                            f.context(),
-                            f.context().get_span(node_id),
-                            *body,
-                        );
-                format_method_like(
-                    f,
-                    *modifiers,
-                    *key,
+                Member::Field {
+                    modifiers,
+                    key,
+                    value,
+                    default,
+                } => {
+                    let force_quote_keys = should_force_quote_keys_for_member(f, node_id);
+                    format_field_like(f, *modifiers, *key, *value, *default, force_quote_keys)?;
+                }
+                Member::Method {
+                    modifiers,
+                    key,
                     signature,
-                    *body,
-                    force_quote_keys,
-                    signature_source_is_multiline_at_80,
-                )?;
-            }
-            Member::Embed { modifiers, value } => {
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-                // keyword
-                write!(f, [token("...")])?;
-                // value
-                write!(f, [value])?;
-                // modifiers
-                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
-            }
-            Member::StaticBlock { body, .. } => {
-                // keyword
-                write!(f, [Keyword::Static, space()])?;
-                // body
-                write!(f, [body])?;
-            }
-            Member::ComptimeBlock { modifiers, body } => {
-                // modifiers prefix
-                if let Some(mut modifiers) = *modifiers {
-                    modifiers.timing = None;
-                    format_binding_modifiers_prefix(f, modifiers)?;
+                    body,
+                } => {
+                    let force_quote_keys = should_force_quote_keys_for_member(f, node_id);
+                    let signature_source_is_multiline = method_signature_source_is_multiline(
+                        f.context(),
+                        f.context().get_span(node_id),
+                        *body,
+                    );
+                    format_method_like(
+                        f,
+                        *modifiers,
+                        *key,
+                        signature,
+                        *body,
+                        force_quote_keys,
+                        signature_source_is_multiline,
+                    )?;
                 }
-                // keyword
-                write!(f, [Keyword::Comptime, space()])?;
-                // body
-                write!(f, [body])?;
+                Member::Embed { modifiers, value } => {
+                    // modifiers
+                    format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                    // keyword
+                    write!(f, [token("...")])?;
+                    // value
+                    write!(f, [value])?;
+                    // modifiers
+                    format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+                }
+                Member::StaticBlock { body, .. } => {
+                    // keyword
+                    write!(f, [Keyword::Static, space()])?;
+                    // body
+                    write!(f, [body])?;
+                }
+                Member::ComptimeBlock { modifiers, body } => {
+                    // modifiers prefix
+                    if let Some(mut modifiers) = *modifiers {
+                        modifiers.timing = None;
+                        format_binding_modifiers_prefix(f, modifiers)?;
+                    }
+                    // keyword
+                    write!(f, [Keyword::Comptime, space()])?;
+                    // body
+                    write!(f, [body])?;
+                }
             }
-        }
 
-        let needs_semicolon = matches!(
-            self,
-            Member::Field { .. } | Member::Method { body: None, .. }
-        );
-        if needs_semicolon {
-            write!(f, [token(";")])?;
-        }
+            let needs_semicolon = matches!(
+                self,
+                Member::Field { .. } | Member::Method { body: None, .. }
+            );
+            if needs_semicolon {
+                write!(f, [token(";")])?;
+            }
 
-        // postfix annotations
-        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
-
-        Ok(())
+            Ok(())
+        })
     }
 }
 

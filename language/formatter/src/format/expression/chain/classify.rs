@@ -25,7 +25,6 @@ pub(crate) fn is_simple_chain_head(
     context: &DestackFormatContext<'_>,
     head_id: LocalNodeId<Expression>,
 ) -> bool {
-    let threshold = usize::from(context.options.line_width) / 4;
     let expression = context.tree.get(head_id);
 
     match expression {
@@ -37,7 +36,6 @@ pub(crate) fn is_simple_chain_head(
             static_arguments.is_none()
                 && !context.has_annotation(head_id)
                 && path.segments.len() <= 2
-                && expression_source_len(context, head_id) <= threshold.max(6)
         }
         _ => false,
     }
@@ -48,7 +46,6 @@ pub(crate) fn is_short_chain_argument(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    let threshold = usize::from(context.options.line_width) / 4;
     argument_is_simple_with_options(
         context,
         argument_id,
@@ -57,7 +54,6 @@ pub(crate) fn is_short_chain_argument(
             reject_non_blank_argument_annotation: false,
             reject_value_annotation: true,
             reject_lambda_values: false,
-            max_value_len: threshold.max(8),
         },
     )
 }
@@ -481,7 +477,6 @@ pub(crate) fn is_simple_chain_argument(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    let threshold = usize::from(context.options.line_width) / 4;
     argument_is_simple_with_options(
         context,
         argument_id,
@@ -490,7 +485,6 @@ pub(crate) fn is_simple_chain_argument(
             reject_non_blank_argument_annotation: false,
             reject_value_annotation: true,
             reject_lambda_values: true,
-            max_value_len: threshold.max(10),
         },
     )
 }
@@ -798,18 +792,13 @@ pub(crate) fn chain_has_parent_intervening_break_or_comment(
 
     let node_span = context.get_span(node_id);
     let node_anchor_end = expression_trivia_anchor_end(context, node_id);
-    let parent_gap_end = if let Some(parent_main_span) = context.tree.get_main_span(parent_id) {
-        if node_span.file != parent_main_span.file || parent_main_span.start <= node_anchor_end {
-            return false;
-        }
-        parent_main_span.start
-    } else {
-        let parent_span = context.get_span(parent_id);
-        if node_span.file != parent_span.file || parent_span.end <= node_anchor_end {
-            return false;
-        }
-        parent_span.end
+    let Some(parent_main_span) = context.tree.get_main_span(parent_id) else {
+        return false;
     };
+    if node_span.file != parent_main_span.file || parent_main_span.start <= node_anchor_end {
+        return false;
+    }
+    let parent_gap_end = parent_main_span.start;
 
     let between = context.get_span_str(Span::new(node_span.file, node_anchor_end, parent_gap_end));
     between.contains('\n')

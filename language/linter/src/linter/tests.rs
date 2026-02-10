@@ -6,7 +6,9 @@ use std::sync::{Arc, LazyLock, Once};
 use destack_ast::NodeParentIndex;
 use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, ImportTask, ResolveTask};
 use destack_fir::format as fir_format;
-use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
+use destack_formatter::{
+    DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, statement_list,
+};
 use destack_parser::Parser;
 use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, DiffOptions, Edit, File, FileId, FileType,
@@ -744,13 +746,15 @@ impl<'a> LintResult<'a> {
         let format_options = DestackFormatOptions::default();
         let context = DestackFormatContext::new(
             format_options,
-            file.as_ref(),
-            &parser.tree,
-            &tokens,
-            &side_tokens,
-            &side_span,
-            &strings,
-            parents,
+            DestackFormatArtifacts {
+                file: file.as_ref(),
+                tree: &parser.tree,
+                tokens: &tokens,
+                side_tokens: &side_tokens,
+                side_span: &side_span,
+                strings: &strings,
+                parents,
+            },
         );
 
         // format

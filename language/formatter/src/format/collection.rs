@@ -80,8 +80,6 @@ where
 pub(crate) fn collection_value_should_force_break(
     has_multiple_items: bool,
     has_complex_items: bool,
-    value_source_len: usize,
-    complex_len_threshold: usize,
 ) -> bool {
-    has_multiple_items && (has_complex_items || value_source_len > complex_len_threshold)
+    has_multiple_items && has_complex_items
 }

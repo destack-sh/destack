@@ -13,7 +13,7 @@ use destack_dir::{
     DynamicKey, Expression, FunctionKind, GlobalSymbolId, LocalNodeId, NodeTree, Pattern,
     ScalarLiteral, StringId, Symbol, SymbolTable, TypeTable,
 };
-use destack_formatter::{DestackFormatContext, DestackFormatOptions};
+use destack_formatter::{DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions};
 use destack_mir as mir;
 use destack_mir::{MirFormatOptions, format_mir};
 use destack_source::{
@@ -1021,13 +1021,15 @@ impl TestProgram {
         let empty_side_span = MultiSpan::new(vec![]);
         let context = DestackFormatContext::new(
             DestackFormatOptions::default(),
-            &file,
-            &unbound.tree,
-            &empty_tokens,
-            &empty_side_tokens,
-            &empty_side_span,
-            &strings,
-            NodeParentIndex::from_tree(&unbound.tree),
+            DestackFormatArtifacts {
+                file: &file,
+                tree: &unbound.tree,
+                tokens: &empty_tokens,
+                side_tokens: &empty_side_tokens,
+                side_span: &empty_side_span,
+                strings: &strings,
+                parents: NodeParentIndex::from_tree(&unbound.tree),
+            },
         );
 
         // format each root expression and join with blank lines

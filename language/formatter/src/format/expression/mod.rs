@@ -25,7 +25,7 @@ use self::classify::{
     array_elements_are_fill_candidates, array_has_only_boundary_comments, span_has_comment,
 };
 use self::control::*;
-use self::core::*;
+use self::declarator::*;
 use self::generic::*;
 use self::jsx::*;
 use self::member::*;
@@ -41,7 +41,7 @@ use crate::annotation::call_argument_inline_boundary_prefix_annotations;
 use crate::argument::list_like;
 use crate::directive::{
     FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
-    ignore_range_for_node, ignored_node_source,
+    ignored_node_source,
 };
 use crate::literal::{format_scalar_literal, format_template_literal};
 use crate::property::format_block_of_properties;
@@ -58,6 +58,7 @@ mod chain;
 mod classify;
 mod control;
 mod core;
+mod declarator;
 mod generic;
 mod jsx;
 mod member;
@@ -79,13 +80,10 @@ pub use self::classify::{
     is_trivial_argument, is_trivial_expression, is_trivial_property,
 };
 pub(crate) use self::core::format_expression;
-pub(crate) use self::scan::source_min_inline_char_len;
-
-// chain head promotion limits
-const MAX_CHAIN_HEAD_OPS: usize = 4;
-const MAX_CHAIN_HEAD_LEN_DIVISOR: usize = 2;
-const DECLARATOR_PREFIX_PADDING: usize = 6;
-const ASSIGNMENT_CHAIN_TAIL_RESERVE: usize = 0;
+pub(crate) use self::scan::{
+    expression_has_non_doc_multiline_block_prefix_comment_annotation,
+    expression_has_static_type_arguments, source_min_inline_char_len,
+};
 
 #[cfg(test)]
 mod tests;

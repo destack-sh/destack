@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use destack_ast::{
     Annotation, AnnotationPosition, Block, Declaration, Expression, FunctionKind, LocalNodeId,
     Node, NodeTree, NodeTreeImpl, NodeType, ScalarLiteral,
@@ -12,8 +10,9 @@ use destack_source::{FileId, Span};
 use super::imports;
 use super::timing::tags;
 use crate::directive::{
-    FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
-    has_file_ignore_directive, ignore_range_for_node, ignored_span_source, write_ignored_span,
+    FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition,
+    collect_ignore_ranges_for_nodes, directive_for_node, has_file_ignore_directive,
+    ignored_span_source, write_ignored_span,
 };
 use crate::expression::format_expression;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
@@ -259,8 +258,7 @@ pub(crate) fn format_block_body_wide<'ast>(
     )
 }
 
-/// Format a block of expression statements (with appropriate empty annotations).
-/// Format a block statement body.
+/// Format a block statement body with statement-level spacing and ignore handling.
 pub(crate) fn format_block_of_statements<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expressions: &[LocalNodeId<Expression>],
@@ -271,13 +269,7 @@ pub(crate) fn format_block_of_statements<'ast>(
     let strings = f.context().strings;
     let comment_tokens = f.context().comment_tokens();
 
-    let mut ignore_ranges: HashMap<u32, Span> = HashMap::new();
-    for &expression_id in expressions {
-        if let Some(range_span) = ignore_range_for_node(f.context(), expression_id, &comment_tokens)
-        {
-            ignore_ranges.insert(expression_id.id, range_span);
-        }
-    }
+    let ignore_ranges = collect_ignore_ranges_for_nodes(f.context(), expressions, comment_tokens);
     let has_ignore_ranges = !ignore_ranges.is_empty();
 
     // find contiguous import section at the start
