@@ -77,6 +77,22 @@ pub(super) fn is_type_context(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
+    if let Some(is_type_context) = context.cached_expression_type_context(node_id) {
+        context.increment_counter("cache.type_context.hits", 1);
+        return is_type_context;
+    }
+    context.increment_counter("cache.type_context.misses", 1);
+
+    let is_type_context = is_type_context_uncached(context, node_id);
+    context.set_cached_expression_type_context(node_id, is_type_context);
+    is_type_context
+}
+
+/// Whether a binary expression is in a type position.
+fn is_type_context_uncached(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
     let mut current_id = node_id.id;
 
     // walk ancestors and check for type slots

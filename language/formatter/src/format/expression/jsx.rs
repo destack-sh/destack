@@ -2,6 +2,19 @@ use super::*;
 use crate::collection::{collection_nodes_have_annotations, collection_value_should_force_break};
 use destack_fir::{format_args, write};
 
+/// Return a compact lower bound for inline width from source text.
+#[inline]
+fn source_min_inline_char_len(source: &str) -> usize {
+    if source.is_ascii() {
+        source
+            .bytes()
+            .filter(|byte| !byte.is_ascii_whitespace())
+            .count()
+    } else {
+        source.chars().filter(|ch| !ch.is_whitespace()).count()
+    }
+}
+
 /// Return whether JSX argument formatting should force multiline mode.
 pub(super) fn has_multiline_jsx_argument(
     tree: &NodeTree,
@@ -685,18 +698,21 @@ pub(super) fn format_hugged<'ast>(
     } else {
         let line_width = usize::from(f.context().options.line_width);
         let value_span = f.context().get_span(value_id);
-        let value_source_len = expression_source_len(f.context(), value_id);
-        let inline_candidate_len = config
+        let inline_compact_candidate_len = config
             .open
             .len()
             .saturating_add(config.close.len())
-            .saturating_add(value_source_len)
+            .saturating_add(source_min_inline_char_len(
+                f.context().get_span_str(value_span),
+            ))
             .saturating_add(usize::from(config.force_trailing));
-        let can_use_inline_fast_path = !f.context().has_newline(value_span)
-            && !f.context().has_annotation(argument_id)
+        let should_skip_probe_for_overflow = config.prefer_hugged_on_overflow
+            && !is_arrow_function
+            && inline_compact_candidate_len > line_width;
+        let can_use_inline_fast_path = !f.context().has_annotation(argument_id)
             && !f.context().has_annotation(value_id)
             && !is_arrow_function
-            && inline_candidate_len <= line_width;
+            && inline_compact_candidate_len <= line_width;
         if can_use_inline_fast_path {
             f.context()
                 .increment_counter("profile.jsx.hug.inline.fast_path", 1);
@@ -704,11 +720,16 @@ pub(super) fn format_hugged<'ast>(
             return Ok(true);
         }
 
+        if should_skip_probe_for_overflow {
+            f.context()
+                .increment_counter("profile.jsx.hug.skip_probe_overflow", 1);
+            hugged_format.format(f)?;
+            return Ok(true);
+        }
+
         f.context()
             .record_best_fitting("best_fitting.expression.jsx", 2);
-        best_fitting![inline_format, hugged_format]
-            .with_mode(BestFittingMode::AllLines)
-            .format(f)?;
+        best_fitting![inline_format, hugged_format].format(f)?;
     }
 
     Ok(true)
@@ -775,11 +796,12 @@ pub(super) fn format_tree_attribute_value<'ast>(
 
             let line_width = usize::from(f.context().options.line_width);
             let value_span = f.context().get_span(value_id);
-            let value_source_len = expression_source_len(f.context(), value_id);
-            let inline_candidate_len = 3usize.saturating_add(value_source_len);
-            let can_use_inline_fast_path = !f.context().has_newline(value_span)
-                && !f.context().has_annotation(value_id)
-                && inline_candidate_len <= line_width;
+            let inline_compact_candidate_len = 3usize.saturating_add(source_min_inline_char_len(
+                f.context().get_span_str(value_span),
+            ));
+            let should_skip_probe_for_overflow = inline_compact_candidate_len > line_width;
+            let can_use_inline_fast_path =
+                !f.context().has_annotation(value_id) && inline_compact_candidate_len <= line_width;
             if can_use_inline_fast_path {
                 f.context()
                     .increment_counter("profile.jsx.attribute.inline.fast_path", 1);
@@ -787,11 +809,16 @@ pub(super) fn format_tree_attribute_value<'ast>(
                 return Ok(());
             }
 
+            if should_skip_probe_for_overflow {
+                f.context()
+                    .increment_counter("profile.jsx.attribute.skip_probe_overflow", 1);
+                hugged_format.format(f)?;
+                return Ok(());
+            }
+
             f.context()
                 .record_best_fitting("best_fitting.expression.jsx", 2);
-            best_fitting![inline_format, hugged_format]
-                .with_mode(BestFittingMode::AllLines)
-                .format(f)?;
+            best_fitting![inline_format, hugged_format].format(f)?;
         }
         Expression::ArrayExpression { elements } => {
             let elements = elements.clone();
@@ -836,11 +863,12 @@ pub(super) fn format_tree_attribute_value<'ast>(
 
             let line_width = usize::from(f.context().options.line_width);
             let value_span = f.context().get_span(value_id);
-            let value_source_len = expression_source_len(f.context(), value_id);
-            let inline_candidate_len = 3usize.saturating_add(value_source_len);
-            let can_use_inline_fast_path = !f.context().has_newline(value_span)
-                && !f.context().has_annotation(value_id)
-                && inline_candidate_len <= line_width;
+            let inline_compact_candidate_len = 3usize.saturating_add(source_min_inline_char_len(
+                f.context().get_span_str(value_span),
+            ));
+            let should_skip_probe_for_overflow = inline_compact_candidate_len > line_width;
+            let can_use_inline_fast_path =
+                !f.context().has_annotation(value_id) && inline_compact_candidate_len <= line_width;
             if can_use_inline_fast_path {
                 f.context()
                     .increment_counter("profile.jsx.attribute.inline.fast_path", 1);
@@ -848,11 +876,16 @@ pub(super) fn format_tree_attribute_value<'ast>(
                 return Ok(());
             }
 
+            if should_skip_probe_for_overflow {
+                f.context()
+                    .increment_counter("profile.jsx.attribute.skip_probe_overflow", 1);
+                hugged_format.format(f)?;
+                return Ok(());
+            }
+
             f.context()
                 .record_best_fitting("best_fitting.expression.jsx", 2);
-            best_fitting![inline_format, hugged_format]
-                .with_mode(BestFittingMode::AllLines)
-                .format(f)?;
+            best_fitting![inline_format, hugged_format].format(f)?;
         }
         _ => {
             // regular format for non-huggable values

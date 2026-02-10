@@ -677,7 +677,6 @@ pub(super) fn format_declarator<'ast>(
                         format_header_expanded,
                         format_value_expanded_strict
                     ]
-                    .with_mode(BestFittingMode::AllLines)
                     .format(f)?;
                 } else {
                     f.context().record_best_fitting(
@@ -689,7 +688,6 @@ pub(super) fn format_declarator<'ast>(
                         format_header_expanded,
                         format_value_expanded_strict
                     ]
-                    .with_mode(BestFittingMode::AllLines)
                     .format(f)?;
                 }
             }
@@ -732,7 +730,6 @@ pub(super) fn format_declarator<'ast>(
                     format_header_expanded,
                     format_indented
                 ]
-                .with_mode(BestFittingMode::AllLines)
                 .format(f)?;
             }
             (true, false) => {
@@ -747,7 +744,6 @@ pub(super) fn format_declarator<'ast>(
                         3,
                     );
                     best_fitting![format_header_expanded, format_inline, format_indented]
-                        .with_mode(BestFittingMode::AllLines)
                         .format(f)?;
                 } else if value_is_long {
                     if pattern_has_comments_or_annotations {
@@ -760,7 +756,6 @@ pub(super) fn format_declarator<'ast>(
                             format_break_after_operator_for_binary,
                             format_header_expanded
                         ]
-                        .with_mode(BestFittingMode::AllLines)
                         .format(f)?;
                     } else {
                         if inline_declarator_fits {

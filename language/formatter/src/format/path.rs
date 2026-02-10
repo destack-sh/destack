@@ -5,14 +5,18 @@ use destack_fir::write;
 
 impl<'ast> Format<DestackFormatContext<'ast>> for Path {
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
-        // a.b.c
-        write!(
-            f,
-            [format_with(|f| f
-                .join_with(token("."))
-                .entries(&self.segments)
-                .finish())]
-        )
+        let mut segments = self.segments.iter().copied();
+        let Some(first_segment) = segments.next() else {
+            return Ok(());
+        };
+
+        write!(f, [first_segment])?;
+
+        for segment in segments {
+            write!(f, [token("."), segment])?;
+        }
+
+        Ok(())
     }
 }
 

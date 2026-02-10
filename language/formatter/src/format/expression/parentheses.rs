@@ -1,3 +1,4 @@
+use super::super::timing::tags;
 use super::*;
 use crate::scan::next_non_whitespace_after_span;
 
@@ -80,6 +81,8 @@ pub(super) fn collect_parenthesized_boundary_comments(
     parenthesized_id: LocalNodeId<Expression>,
     inner_expression_id: LocalNodeId<Expression>,
 ) -> Vec<String> {
+    let _timing =
+        context.timing_scope(tags::FORMAT_EXPRESSION_PRIMARY_PARENTHESES_BOUNDARY_COMMENTS);
     if matches!(
         context.tree.get(inner_expression_id),
         Expression::TreeExpression { .. }
@@ -89,9 +92,28 @@ pub(super) fn collect_parenthesized_boundary_comments(
 
     let parenthesized_span = context.get_span(parenthesized_id);
     let inner_span = context.get_span(inner_expression_id);
-    let mut comments: Vec<(u32, String)> = Vec::new();
+    if parenthesized_span.file != inner_span.file || inner_span.end >= parenthesized_span.end {
+        return Vec::new();
+    }
 
-    for comment_token in context.comment_tokens().iter().copied() {
+    let boundary_span = Span::new(
+        parenthesized_span.file,
+        inner_span.end,
+        parenthesized_span.end,
+    );
+    if !context.has_comment(boundary_span) {
+        return Vec::new();
+    }
+
+    let comment_tokens = context.comment_tokens();
+    let first_relevant_index =
+        comment_tokens.partition_point(|comment_token| comment_token.span.end < inner_span.end);
+
+    let mut comments: Vec<(u32, String)> = Vec::new();
+    for comment_token in comment_tokens[first_relevant_index..].iter().copied() {
+        if comment_token.span.start > parenthesized_span.end {
+            break;
+        }
         if !matches!(
             comment_token.token.ty,
             TokenType::BlockComment | TokenType::DocBlockComment
@@ -104,7 +126,7 @@ pub(super) fn collect_parenthesized_boundary_comments(
             continue;
         }
 
-        let comment_source = context.get_token_str(comment_token).trim().to_string();
+        let comment_source = context.get_token_str(comment_token).trim();
         if comment_source.is_empty() {
             continue;
         }
@@ -112,7 +134,7 @@ pub(super) fn collect_parenthesized_boundary_comments(
             continue;
         }
 
-        comments.push((comment_token.span.start, comment_source));
+        comments.push((comment_token.span.start, comment_source.to_string()));
     }
 
     comments.sort_by_key(|(start, _)| *start);
@@ -144,6 +166,7 @@ fn parenthesized_has_leading_inner_pattern(
     inner_expression_id: LocalNodeId<Expression>,
     include_newline: bool,
 ) -> bool {
+    let _timing = context.timing_scope(tags::FORMAT_EXPRESSION_PRIMARY_PARENTHESES_LEADING_TRIVIA);
     let parenthesized_span = context.get_span(parenthesized_id);
     let inner_span = context.get_span(inner_expression_id);
 
@@ -463,6 +486,7 @@ pub(super) fn should_drop_parenthesized_type_expression(
     node_id: LocalNodeId<Expression>,
     inner_id: LocalNodeId<Expression>,
 ) -> bool {
+    let _timing = context.timing_scope(tags::FORMAT_EXPRESSION_PRIMARY_PARENTHESES_TYPE_DROP);
     if !is_type_context(context, node_id) {
         return false;
     }
@@ -572,6 +596,7 @@ fn should_drop_parenthesized_expression_wrapper(
     node_id: LocalNodeId<Expression>,
     inner_expression_id: LocalNodeId<Expression>,
 ) -> bool {
+    let _timing = context.timing_scope(tags::FORMAT_EXPRESSION_PRIMARY_PARENTHESES_DROP_POLICY);
     let should_drop_type_parentheses =
         should_drop_parenthesized_type_expression(context, node_id, inner_expression_id);
 

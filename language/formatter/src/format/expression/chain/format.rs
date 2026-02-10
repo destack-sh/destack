@@ -454,9 +454,7 @@ pub(crate) fn format_expression_chain<'ast>(
     // prefer inline, otherwise chain
     f.context()
         .record_best_fitting("best_fitting.expression.chain", 2);
-    best_fitting![format_inline, format_chain]
-        .with_mode(BestFittingMode::AllLines)
-        .format(f)
+    best_fitting![format_inline, format_chain].format(f)
 }
 /// Format the base segment of a chain.
 fn format_chain_base<'ast>(
