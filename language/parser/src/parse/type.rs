@@ -303,7 +303,10 @@ impl Parser {
 
         // alias (or expression with static parameters)
         if self.peek_identifier().is_ok()
-            && (self.peek_next_is(TokenType::Assign) || self.peek_next_is(TokenType::LessThan))
+            && (self.peek_next_is(TokenType::LessThan)
+                || self
+                    .peek_token_after_newlines(self.pos(), TokenType::Assign)
+                    .is_ok())
         {
             // identifier
             // (speculative because we don't know yet if we'll have a `=` afterwards)
@@ -345,9 +348,14 @@ impl Parser {
             };
 
             // if followed by =, then it's a type alias
-            if self.peek_is(TokenType::Assign) {
+            if self.peek_is(TokenType::Assign)
+                || self
+                    .peek_token_after_newlines(self.pos(), TokenType::Assign)
+                    .is_ok()
+            {
                 let _timing = self.timing_scope(tags::PARSE_TYPE_DECLARATION);
                 // =
+                self.eat_newlines_maybe()?;
                 self.eat_token(TokenType::Assign)?;
                 self.eat_newlines_maybe()?;
                 // value
@@ -355,8 +363,9 @@ impl Parser {
                 if self.options.in_type_conditional_right {
                     value_options = value_options.in_type_conditional_right();
                 }
-                let value_id =
-                    self.with_options(value_options, |parser| parser.eat_expression())?;
+                let value_id = self.with_options(value_options, |parser| {
+                    parser.eat_type_expression_with_optional_leading_binary_operator()
+                })?;
                 if let Some(name) = descriptor.name.as_ref() {
                     self.apply_intrinsic_type_literal(name, value_id);
                 }
@@ -386,7 +395,9 @@ impl Parser {
                 if self.options.in_type_conditional_right {
                     right_options = right_options.in_type_conditional_right();
                 }
-                let right = self.with_options(right_options, |parser| parser.eat_expression())?;
+                let right = self.with_options(right_options, |parser| {
+                    parser.eat_type_expression_with_optional_leading_binary_operator()
+                })?;
                 let operator = if mutability == Some(Mutability::Immutable) {
                     TypeUnaryOperator::Readonly
                 } else if kind == TypeKind::Nominal {
@@ -404,7 +415,9 @@ impl Parser {
             if self.options.in_type_conditional_right {
                 right_options = right_options.in_type_conditional_right();
             }
-            let right = self.with_options(right_options, |parser| parser.eat_expression())?;
+            let right = self.with_options(right_options, |parser| {
+                parser.eat_type_expression_with_optional_leading_binary_operator()
+            })?;
             let operator = if mutability == Some(Mutability::Immutable) {
                 TypeUnaryOperator::Readonly
             } else if kind == TypeKind::Nominal {
@@ -415,6 +428,19 @@ impl Parser {
             let expression = Expression::TypeUnary { operator, right };
             Ok(self.tree.insert(expression, self.get_span_from(start)))
         }
+    }
+
+    /// Eat a type expression, allowing one leading `|` or `&` separator.
+    fn eat_type_expression_with_optional_leading_binary_operator(
+        &mut self,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        // allow ts style multiline unions and intersections that start with separators
+        if self.peek_is(TokenType::ElementwiseOr) || self.peek_is(TokenType::ElementwiseAnd) {
+            self.bump(); // eat leading | or &
+            self.eat_newlines_maybe()?;
+        }
+
+        self.eat_expression()
     }
 
     /// Apply an intrinsic type literal to a value expression.
@@ -833,6 +859,8 @@ impl Parser {
             } => (*left, Some(*right)),
             _ => (constraint, None),
         };
+
+        self.eat_newlines_maybe()?;
 
         // optional key remap: [K in T as ...]
         if self.peek_keyword(Keyword::As).is_ok() {
@@ -2345,6 +2373,32 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_type_mapped_expression_with_newline_before_remap_typescript_declaration() {
+        let mut test = TestParser::new_with_options(
+            r#"type T<O> = {
+  [K in keyof O
+  as O[K] extends {} ? K : never]: O[K]
+}"#,
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeMapped { parameter, .. } => {
+                    assert_string!(parser, parameter.name, "K");
+                    assert_node!(
+                        parser.tree,
+                        parameter.key_remap.expect("expected key remap"),
+                        Expression::TypeConditional { .. }
+                    );
+                });
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_leading_intersection_with_mapped_types_typescript_declaration() {
         let mut test = TestParser::new_with_options(
             r#"type T = (
@@ -2417,6 +2471,28 @@ mod tests {
                         assert_node!(parser.tree, *left, Expression::TypeMapped { .. });
                         assert_expression_path!(parser, parser.tree.get(*right), "A");
                     });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_leading_union_in_type_alias_typescript() {
+        let mut test = TestParser::new_with_options(
+            r#"type IframeChannelIncomingEvent
+  = | IframeViewportEvent
+    | ChannelDoneEvent"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Binary { operator, left, right } => {
+                    assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                    assert_expression_path!(parser, parser.tree.get(*left), "IframeViewportEvent");
+                    assert_expression_path!(parser, parser.tree.get(*right), "ChannelDoneEvent");
                 });
             });
         });
@@ -3406,6 +3482,44 @@ mod tests {
                             assert_path!(parser, *path, "MyType");
                         });
                     });
+                });
+            });
+        });
+    }
+
+    /// Parse typeof queries that target readonly named values in TypeScript.
+    #[test]
+    fn test_parse_typeof_query_with_readonly_identifier_in_typescript() {
+        let mut test =
+            TestParser::new_with_options("type T = typeof readonly", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        // type T = typeof readonly
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeUnary { operator, right } => {
+                    assert_eq!(*operator, TypeUnaryOperator::Typeof);
+                    assert_expression_path!(parser, parser.tree.get(*right), "readonly");
+                });
+            });
+        });
+    }
+
+    /// Parse typeof queries that target type named values in TypeScript.
+    #[test]
+    fn test_parse_typeof_query_with_type_identifier_in_typescript() {
+        let mut test =
+            TestParser::new_with_options("type T = typeof type", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        // type T = typeof type
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeUnary { operator, right } => {
+                    assert_eq!(*operator, TypeUnaryOperator::Typeof);
+                    assert_expression_path!(parser, parser.tree.get(*right), "type");
                 });
             });
         });

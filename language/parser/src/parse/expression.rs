@@ -7,8 +7,8 @@ use destack_ast::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, BindingAnchor, Block, BlockFormat,
     Declaration, DeclarationAbstraction, DeclarationDescriptor, DeclarationKind, DependencyMode,
     EnumKind, Expression, FunctionKind, IfCondition, IfKind, InfixOperator, Keyword, LiteralType,
-    LocalNodeId, NodeType, PostfixPosition, Token, TokenSpan, TokenType, TypeBinaryOperator,
-    TypeKind, TypeUnaryOperator, UnaryOperator,
+    LocalNodeId, NodeType, PostfixPosition, TokenSpan, TokenType, TypeBinaryOperator, TypeKind,
+    TypeUnaryOperator, UnaryOperator,
 };
 use destack_base::StringId;
 use destack_source::LanguageType;
@@ -99,40 +99,84 @@ enum DescriptorHead {
     Expression(LocalNodeId<Expression>),
 }
 
+/// Return whether a keyword is one of the type-relation operators in expression position.
+#[inline]
+fn is_type_relation_keyword(keyword: Option<Keyword>) -> bool {
+    matches!(
+        keyword,
+        Some(
+            Keyword::As
+                | Keyword::Satisfies
+                | Keyword::Extends
+                | Keyword::Implements
+                | Keyword::In
+                | Keyword::InstanceOf
+                | Keyword::Is
+        )
+    )
+}
+
+/// Recover a shift operator from adjacent `>` tokens that were split in type-close contexts.
+#[inline]
+fn recover_split_shift_operator(
+    token: &TokenSpan,
+    next_token: Option<&TokenSpan>,
+    next_next_token: Option<&TokenSpan>,
+    options: ParserOptions,
+) -> Option<(InfixOperator, u8)> {
+    // this recovery only applies in value expression contexts
+    if options.in_static || options.in_tree_literal || options.in_type {
+        return None;
+    }
+    if token.token.ty != TokenType::GreaterThan {
+        return None;
+    }
+
+    // split recovery only applies when the next tokens are raw `>` and physically adjacent
+    let has_adjacent_shift_tokens = next_token
+        .filter(|next| next.token.ty == TokenType::GreaterThan)
+        .is_some_and(|next| token.span.end == next.span.start);
+    if !has_adjacent_shift_tokens {
+        return None;
+    }
+
+    // `>>>` requires all three `>` tokens to be adjacent
+    let has_adjacent_unsigned_shift_tokens =
+        next_token
+            .zip(next_next_token)
+            .is_some_and(|(next, next_next)| {
+                next_next.token.ty == TokenType::GreaterThan
+                    && next.span.end == next_next.span.start
+            });
+
+    if has_adjacent_unsigned_shift_tokens {
+        Some((InfixOperator::Binary(BinaryOperator::UnsignedShiftRight), 3))
+    } else {
+        Some((InfixOperator::Binary(BinaryOperator::ShiftRight), 2))
+    }
+}
+
 /// Make an infix operator (in context).
 #[inline]
 fn to_infix_operator(
     token_str: &str,
     token: &TokenSpan,
-    next_token: &TokenSpan,
-    next_next_token: &TokenSpan,
+    next_token: Option<&TokenSpan>,
+    next_next_token: Option<&TokenSpan>,
     options: ParserOptions,
     language: LanguageType,
     has_newline: bool,
 ) -> ParseResult<(InfixOperator, u8)> {
-    // `>>` and `>>>` require adjacent tokens: comments or trivia between `>` tokens must not glue
-    let has_adjacent_shift_tokens = token.span.end == next_token.span.start;
-    let has_adjacent_unsigned_shift_tokens =
-        has_adjacent_shift_tokens && next_token.span.end == next_next_token.span.start;
-
-    // special case for shift right (`>>`) and unsigned shift right (`>>>`) to avoid ungluing ambiguity
-    if !options.in_static
-        && !options.in_tree_literal
-        && !options.in_type
-        && token.token.ty == TokenType::GreaterThan
-        && next_token.token.ty == TokenType::GreaterThan
-        && has_adjacent_shift_tokens
+    // recover shift operators after type-angle token splitting
+    if let Some(operator) =
+        recover_split_shift_operator(token, next_token, next_next_token, options)
     {
-        if next_next_token.token.ty == TokenType::GreaterThan && has_adjacent_unsigned_shift_tokens
-        {
-            Ok((InfixOperator::Binary(BinaryOperator::UnsignedShiftRight), 3))
-        } else {
-            Ok((InfixOperator::Binary(BinaryOperator::ShiftRight), 2))
-        }
+        return Ok(operator);
     }
+
     // regular binary operator
     // (only a subset of binary operators are allowed in static and tree contexts)
-    else if let Some(binary_operator) = BinaryOperator::from_token(token_str, token.token.ty)
+    if let Some(binary_operator) = BinaryOperator::from_token(token_str, token.token.ty)
         && (!options.in_type
             || options.in_static
             || matches!(
@@ -143,7 +187,7 @@ fn to_infix_operator(
         && (!options.in_tree_literal || !NOT_IN_TREE_BINARY_OPERATORS.contains(&binary_operator))
         && (!options.in_for_each || !NOT_IN_FOR_EACH_BINARY_OPERATORS.contains(&binary_operator))
     {
-        Ok((InfixOperator::Binary(binary_operator), 1))
+        return Ok((InfixOperator::Binary(binary_operator), 1));
     }
     // regular type binary operator
     // (forbidden in super type clauses, avoid newline glue in TS mode)
@@ -166,7 +210,7 @@ fn to_infix_operator(
                 )))
         && (language.is_destack() || !has_newline)
     {
-        Ok((InfixOperator::TypeBinary(type_binary_operator), 1))
+        return Ok((InfixOperator::TypeBinary(type_binary_operator), 1));
     }
     // regular assign operator
     // (not allowed in static, type, and tree contexts)
@@ -175,12 +219,10 @@ fn to_infix_operator(
         && !options.in_tree_literal
         && let Some(assign_operator) = AssignOperator::from_token(token.token.ty)
     {
-        Ok((InfixOperator::Assign(assign_operator), 1))
+        return Ok((InfixOperator::Assign(assign_operator), 1));
     }
     // unexpected
-    else {
-        Err(ParseError::unexpected(token.span))
-    }
+    Err(ParseError::unexpected(token.span))
 }
 
 impl Parser {
@@ -230,6 +272,45 @@ impl Parser {
 
         // unparenthesized unary expressions are not valid tagged template receivers
         !matches!(self.tree.get(expression_id), Expression::Unary { .. })
+    }
+
+    /// Look ahead at a parenthesized group and infer tuple or lambda cues.
+    fn try_lookahead_parenthesized_group_shape(&mut self) -> ParseResult<(bool, bool, bool)> {
+        // run delimiter lookahead without committing parser state
+        let lookahead_mark = self.mark();
+        let lookahead_result: ParseResult<(bool, bool, bool)> = (|| {
+            let open_pos = self.pos();
+            let closing_pos = self.find_matching_close_in_expression(
+                open_pos,
+                TokenType::OpenParenthesis,
+                TokenType::CloseParenthesis,
+            )?;
+            let closing_pos_for_follow = self.skip_newlines(closing_pos)?;
+            let has_top_level_comma = self.language.is_destack()
+                && self.has_token_before_matching_close(
+                    open_pos,
+                    closing_pos,
+                    TokenType::Comma,
+                    self.options.in_type,
+                )?;
+            let next_token_type = self
+                .token_ref_at(closing_pos_for_follow as usize + 1)
+                .map(|token| token.token.ty);
+            let has_arrow = matches!(
+                next_token_type,
+                Some(TokenType::Arrow | TokenType::ArrowWide)
+            );
+            let has_colon = matches!(next_token_type, Some(TokenType::Colon));
+            Ok((has_top_level_comma, has_arrow, has_colon))
+        })();
+        self.rewind(lookahead_mark);
+
+        // lookahead disambiguation should never surface parse errors directly
+        if let Ok(group_shape) = lookahead_result {
+            Ok(group_shape)
+        } else {
+            Ok((false, false, false))
+        }
     }
 
     /// Peek a unary prefix operator.
@@ -341,14 +422,20 @@ impl Parser {
     #[inline]
     pub fn peek_infix_operator(&mut self) -> ParseResult<(InfixOperator, u8)> {
         let token = *self.peek()?;
-        let next_token = *self.peek_next()?;
-        let next_next_token = *self.peek_next_next()?;
+        let (next_token, next_next_token) = if token.token.ty == TokenType::GreaterThan {
+            (
+                self.peek_next().ok().copied(),
+                self.peek_next_next().ok().copied(),
+            )
+        } else {
+            (None, None)
+        };
         let token_str = self.get_span_str(token.span);
         to_infix_operator(
             token_str,
             &token,
-            &next_token,
-            &next_next_token,
+            next_token.as_ref(),
+            next_next_token.as_ref(),
             self.options,
             self.language,
             false,
@@ -359,14 +446,20 @@ impl Parser {
     #[inline]
     pub fn peek_next_infix_operator(&mut self) -> ParseResult<(InfixOperator, u8)> {
         let token = *self.peek_next()?;
-        let next_token = *self.peek_next_next()?;
-        let next_next_token = *self.peek_next_next_next()?;
+        let (next_token, next_next_token) = if token.token.ty == TokenType::GreaterThan {
+            (
+                self.peek_next_next().ok().copied(),
+                self.peek_next_next_next().ok().copied(),
+            )
+        } else {
+            (None, None)
+        };
         let token_str = self.get_span_str(token.span);
         to_infix_operator(
             token_str,
             &token,
-            &next_token,
-            &next_next_token,
+            next_token.as_ref(),
+            next_next_token.as_ref(),
             self.options,
             self.language,
             true,
@@ -391,20 +484,17 @@ impl Parser {
         let token = *self
             .token_ref_at(pos + 1)
             .ok_or(ParseError::unexpected(eof_span))?;
-        let next_token = self.token_at(pos + 2).unwrap_or(TokenSpan {
-            token: Token::end(),
-            span: self.eof_span(),
-        });
-        let next_next_token = self.token_at(pos + 3).unwrap_or(TokenSpan {
-            token: Token::end(),
-            span: self.eof_span(),
-        });
+        let (next_token, next_next_token) = if token.token.ty == TokenType::GreaterThan {
+            (self.token_at(pos + 2), self.token_at(pos + 3))
+        } else {
+            (None, None)
+        };
         let token_str = self.get_span_str(token.span);
         to_infix_operator(
             token_str,
             &token,
-            &next_token,
-            &next_next_token,
+            next_token.as_ref(),
+            next_next_token.as_ref(),
             self.options,
             self.language,
             true,
@@ -1468,7 +1558,11 @@ impl Parser {
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
         match keyword {
             // namespace declaration
-            Keyword::Namespace if next_token_type == TokenType::Identifier => {
+            Keyword::Namespace
+                if is_declaration_start
+                    && next_token_type == TokenType::Identifier
+                    && !is_type_relation_keyword(self.keyword_for_index(self.index_for_next())) =>
+            {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let namespace_id = self.eat_namespace(start, descriptor)?;
                 Ok(Some(self.tree.insert(
@@ -1952,24 +2046,14 @@ impl Parser {
                 let next_index = self.index_for_next();
                 let after_next_index = self.next_non_newline_index_from(next_index + 1);
                 let after_next_token_type = self.token_type_at(after_next_index);
-                let starts_type_operator = matches!(
-                    next_keyword,
-                    Some(
-                        Keyword::As
-                            | Keyword::Satisfies
-                            | Keyword::Extends
-                            | Keyword::Implements
-                            | Keyword::In
-                            | Keyword::InstanceOf
-                            | Keyword::Is
-                    )
-                ) && !matches!(
-                    after_next_token_type,
-                    TokenType::Assign
-                        | TokenType::LessThan
-                        | TokenType::ShiftLeft
-                        | TokenType::SaturatingShiftLeft
-                );
+                let starts_type_operator = is_type_relation_keyword(next_keyword)
+                    && !matches!(
+                        after_next_token_type,
+                        TokenType::Assign
+                            | TokenType::LessThan
+                            | TokenType::ShiftLeft
+                            | TokenType::SaturatingShiftLeft
+                    );
 
                 // typescript and javascript only allow identifier names in type alias declarations
                 let can_start_type_alias =
@@ -2423,18 +2507,7 @@ impl Parser {
                     };
                     let is_module_name_start =
                         matches!(next_token_type, TokenType::Identifier | TokenType::Literal);
-                    let is_module_type_operator = matches!(
-                        next_keyword,
-                        Some(
-                            Keyword::As
-                                | Keyword::Satisfies
-                                | Keyword::Extends
-                                | Keyword::Implements
-                                | Keyword::In
-                                | Keyword::InstanceOf
-                                | Keyword::Is
-                        )
-                    );
+                    let is_module_type_operator = is_type_relation_keyword(next_keyword);
                     let is_module_declaration_start = module_identifier_matches
                         && is_declaration_start
                         && is_module_name_start
@@ -2476,6 +2549,16 @@ impl Parser {
                                 | Keyword::Void,
                             ) => decorator_keyword,
                             _ => None,
+                        }
+                    } else if self.options.in_typeof_query && has_active_split {
+                        match self.peek_any_keyword().ok() {
+                            Some(Keyword::Type | Keyword::Readonly) => None,
+                            keyword => keyword,
+                        }
+                    } else if self.options.in_typeof_query {
+                        match self.keyword_for_index(self.pos_index()) {
+                            Some(Keyword::Type | Keyword::Readonly) => None,
+                            keyword => keyword,
                         }
                     } else if has_active_split {
                         self.peek_any_keyword().ok()
@@ -2582,6 +2665,12 @@ impl Parser {
                             .not_in_position()
                             .in_type()
                             .in_left_precedence(operator.precedence());
+
+                        // parse typeof targets with contextual keyword tolerance
+                        if operator == TypeUnaryOperator::Typeof {
+                            right_options = right_options.in_typeof_query();
+                        }
+
                         if self.options.in_type_conditional_right {
                             right_options = right_options.in_type_conditional_right();
                         }
@@ -2714,34 +2803,8 @@ impl Parser {
                     else if token_type == TokenType::OpenParenthesis {
                         let _group_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_GROUP);
                         // look ahead for lambda and tuple cues without committing tokens
-                        let lookahead_mark = self.mark();
-                        let lookahead_result = (|| {
-                            let open_pos = self.pos();
-                            let closing_pos = self.find_matching_close(
-                                None,
-                                TokenType::OpenParenthesis,
-                                TokenType::CloseParenthesis,
-                            )?;
-                            let closing_pos_for_follow = self.skip_newlines(closing_pos)?;
-                            let has_top_level_comma = self.language.is_destack()
-                                && self.has_token_before_matching_close(
-                                    open_pos,
-                                    closing_pos,
-                                    TokenType::Comma,
-                                    self.options.in_type,
-                                )?;
-                            let next_token_type = self
-                                .token_ref_at(closing_pos_for_follow as usize + 1)
-                                .map(|token| token.token.ty);
-                            let has_arrow = matches!(
-                                next_token_type,
-                                Some(TokenType::Arrow | TokenType::ArrowWide)
-                            );
-                            let has_colon = matches!(next_token_type, Some(TokenType::Colon));
-                            Ok((has_top_level_comma, has_arrow, has_colon))
-                        })();
-                        self.rewind(lookahead_mark);
-                        let (has_top_level_comma, has_arrow, has_colon) = lookahead_result?;
+                        let (has_top_level_comma, has_arrow, has_colon) =
+                            self.try_lookahead_parenthesized_group_shape()?;
                         let is_colon_lambda_allowed = has_colon
                             && (self.language.is_destack() || self.language.is_typescript())
                             && !self.options.in_before_type
@@ -5921,6 +5984,48 @@ f<x> !== g<y>;
         });
     }
 
+    /// Parse map callbacks with parenthesized TSX element bodies.
+    #[test]
+    fn test_parse_tsx_parenthesized_tree_callback_body() {
+        let mut test = TestParser::new_with_options(
+            "items.map((item) => (<option>{item}</option>))",
+            LanguageType::TypeScriptXml,
+        );
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "items.map");
+            assert_eq!(dynamic_arguments.len(), 1);
+
+            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
+                    assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body: Some(body), .. } => {
+                        assert_eq!(signature.kind, FunctionKind::Lambda);
+                        assert_eq!(signature.dynamic_parameters.len(), 1);
+
+                        assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, .. } => {
+                            assert_string!(parser, *name, "item");
+                        });
+
+                        assert_node!(parser.tree, *body, Expression::Parenthesized { expression } => {
+                            assert_node!(parser.tree, *expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+                                assert_expression_path!(parser, parser.tree.get(*left), "option");
+                                assert!(arguments.is_none());
+
+                                let elements = elements.as_ref().expect("expected option children");
+                                assert_eq!(elements.len(), 1);
+                                assert_node!(parser.tree, elements[0], Argument::Positional { value, .. } => {
+                                    assert_expression_path!(parser, parser.tree.get(*value), "item");
+                                });
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
     /// Parse TSX generic arrows without explicit disambiguators.
     #[test]
     fn test_parse_tsx_generic_arrow_without_disambiguator() {
@@ -7738,6 +7843,28 @@ self
             assert_eq!(*operator, TypeBinaryOperator::Cast);
             assert_expression_path!(parser, parser.tree.get(*left), "module");
             assert_expression_path!(parser, parser.tree.get(*right), "DynamicModule");
+        });
+    }
+
+    #[test]
+    fn test_parse_namespace_identifier_as_cast_call_argument() {
+        let mut test = TestParser::new_with_options(
+            "render(cloned, rootContainer, namespace as ElementNamespace)",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Call { left, dynamic_arguments, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "render");
+            assert_eq!(dynamic_arguments.len(), 3);
+            assert_node!(parser.tree, dynamic_arguments[2], Argument::Positional { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeBinary { left, operator, right } => {
+                    assert_eq!(*operator, TypeBinaryOperator::Cast);
+                    assert_expression_path!(parser, parser.tree.get(*left), "namespace");
+                    assert_expression_path!(parser, parser.tree.get(*right), "ElementNamespace");
+                });
+            });
         });
     }
 

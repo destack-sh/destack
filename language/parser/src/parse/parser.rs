@@ -130,6 +130,9 @@ pub(crate) struct ParserOptions {
     /// Whether we're parsing a new receiver.
     /// Disallows call-like expressions to disambiguate dynamic arguments.
     pub in_new_receiver: bool = false,
+    /// Whether we're parsing a typeof type query operand.
+    /// Keeps contextual keywords available as identifier paths.
+    pub in_typeof_query: bool = false,
     /// Whether we're parsing inside a generator function.
     /// Makes `yield` a keyword instead of an identifier.
     pub in_generator: bool = false,
@@ -399,6 +402,15 @@ impl ParserOptions {
     pub(crate) fn not_in_new_receiver(self) -> Self {
         Self {
             in_new_receiver: false,
+            ..self
+        }
+    }
+
+    /// Set `in_typeof_query=true`.
+    #[inline]
+    pub(crate) fn in_typeof_query(self) -> Self {
+        Self {
+            in_typeof_query: true,
             ..self
         }
     }

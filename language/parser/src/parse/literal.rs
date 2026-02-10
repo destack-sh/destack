@@ -3001,6 +3001,68 @@ mod tests {
         });
     }
 
+    /// Parse tsx fragment text nodes with standalone colon content.
+    #[test]
+    fn test_parse_tsx_fragment_with_colon_text_node() {
+        let input = r#"<code>{value && <>:</>}</code>"#;
+        let mut test = TestParser::new_with_options(input, LanguageType::TypeScriptXml);
+        let mut parser = test.prepare();
+        let expression = parser.eat_tree_literal().unwrap();
+
+        // verify logical-and fragment text parsing
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), elements, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "code");
+            let elements = elements.as_ref().expect("expected code children");
+            assert_eq!(elements.len(), 1);
+
+            // verify the right side of `value && ...`
+            assert_node!(parser.tree, elements[0], Argument::Positional { modifiers: _, value } => {
+                assert_node!(parser.tree, *value, Expression::Binary { operator, right, .. } => {
+                    assert_eq!(*operator, BinaryOperator::And);
+                    assert_node!(parser.tree, *right, Expression::TreeExpression { left: None, elements, .. } => {
+                        let elements = elements.as_ref().expect("expected fragment children");
+                        assert_eq!(elements.len(), 1);
+                        assert_node!(parser.tree, elements[0], Argument::Positional { modifiers: _, value } => {
+                            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+                                assert_string!(parser, *string_id, ":");
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse logical and with a fragment that contains a nested ternary tree literal.
+    #[test]
+    fn test_parse_tsx_logical_and_fragment_with_nested_ternary_tree() {
+        let input = r#"<div>{condition && <>{show ? <Box /> : null}</>}</div>"#;
+        let mut test = TestParser::new_with_options(input, LanguageType::TypeScriptXml);
+        let mut parser = test.prepare();
+        let expression = parser.eat_tree_literal().unwrap();
+
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), elements, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "div");
+            let elements = elements.as_ref().expect("expected div children");
+            assert_eq!(elements.len(), 1);
+
+            assert_node!(parser.tree, elements[0], Argument::Positional { modifiers: _, value } => {
+                assert_node!(parser.tree, *value, Expression::Binary { operator, right, .. } => {
+                    assert_eq!(*operator, BinaryOperator::And);
+                    assert_node!(parser.tree, *right, Expression::TreeExpression { left: None, elements, .. } => {
+                        let elements = elements.as_ref().expect("expected fragment children");
+                        assert_eq!(elements.len(), 1);
+                        assert_node!(parser.tree, elements[0], Argument::Positional { modifiers: _, value } => {
+                            assert_node!(parser.tree, *value, Expression::If { kind, .. } => {
+                                assert_eq!(*kind, IfKind::Ternary);
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
     /// Reject tree literal namespace and member combinations during parse.
     #[test]
     fn test_reject_tree_literal_namespace_member_path_parse_error() {
@@ -3127,6 +3189,52 @@ function test() {
                         _ => block.expressions[1],
                     };
                     assert_node!(parser.tree, tree_expression, Expression::TreeExpression { .. });
+                });
+            });
+        });
+    }
+
+    /// Parse return parenthesized tree literal containing logical-and fragment with long text.
+    #[test]
+    fn test_parse_return_parenthesized_tree_with_logical_fragment_long_text() {
+        let input = r#"
+function app() {
+  return (
+    <Box>
+      {obj.alpha.size > 0 && <>
+        <Text wrap={`wrap`}>
+          Because of those files having been modified, the following workspaces may need to be released again (note that private workspaces are also shown here, because even though they won't be published, releasing them will allow us to flag their dependents for potential re-release):
+        </Text>
+      </>}
+    </Box>
+  );
+}
+"#;
+        let mut test = TestParser::new_with_options(input, LanguageType::TypeScriptXml);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert_eq!(expressions.len(), 1);
+        assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { body, .. } => {
+                let body = body.expect("expected function body");
+                assert_node!(parser.tree, body, Expression::Block(block_id) => {
+                    let block = parser.tree.get(*block_id);
+                    assert_eq!(block.expressions.len(), 1);
+                    let return_expression = match parser.tree.get(block.expressions[0]) {
+                        Expression::Statement(expression_id) => *expression_id,
+                        _ => block.expressions[0],
+                    };
+                    assert_node!(parser.tree, return_expression, Expression::Return { value } => {
+                        let value = value.expect("expected return value");
+                        assert_node!(parser.tree, value, Expression::Parenthesized { expression } => {
+                            assert_node!(parser.tree, *expression, Expression::TreeExpression { left: Some(left), elements, .. } => {
+                                assert_expression_path!(parser, parser.tree.get(*left), "Box");
+                                let elements = elements.as_ref().expect("expected box children");
+                                assert_eq!(elements.len(), 1);
+                            });
+                        });
+                    });
                 });
             });
         });
