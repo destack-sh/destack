@@ -96,25 +96,15 @@ pub struct RenameResponse {
 ///
 /// Returns the range and current name if renameable.
 pub fn prepare_rename(session: &Session, file: FileId, offset: u32) -> Option<PrepareRenameResult> {
-    // find the symbol at offset
-    let symbol_at = find_symbol_at_offset(session, file, offset)?;
+    session.with_query_context_mode(true, || {
+        // resolve the rename target at the cursor
+        let (symbol_at, _, name) = resolve_rename_target(session, file, offset)?;
 
-    // reject non modifier keywords at the cursor
-    let token = token_at_offset(session, file, offset);
-    if token.is_some_and(|token| is_keyword(&token) && !is_modifier_keyword(&token)) {
-        return None;
-    }
-
-    // get canonical symbol
-    let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
-
-    // resolve the rename placeholder name
-    let name = resolve_rename_name(session, canonical_id, &symbol_at)?;
-
-    // return the range and current name
-    Some(PrepareRenameResult {
-        range: symbol_at.span,
-        placeholder: name,
+        // return the range and current name
+        Some(PrepareRenameResult {
+            range: symbol_at.span,
+            placeholder: name,
+        })
     })
 }
 
@@ -127,6 +117,66 @@ pub fn rename(
     offset: u32,
     new_name: &str,
 ) -> Option<RenameResult> {
+    session.with_query_context_mode(true, || {
+        // validate new_name is a valid identifier
+        if !is_simple_identifier(new_name) {
+            return None;
+        }
+
+        // resolve the rename target at the cursor
+        let (_, canonical_id, old_name) = resolve_rename_target(session, file, offset)?;
+        let interface_member_target = resolve_interface_member_target(session, canonical_id);
+
+        // collect primary symbol spans and group by file
+        let mut edits_by_file: HashMap<FileId, Vec<Span>> = HashMap::new();
+        extend_spans_by_file(
+            &mut edits_by_file,
+            collect_symbol_rename_spans(session, canonical_id, &old_name),
+        );
+
+        // include implementation member spans when renaming interface members
+        if let Some(interface_member_target) = interface_member_target {
+            let implementation_members = collect_interface_member_implementations(
+                session,
+                &interface_member_target,
+                &old_name,
+            );
+
+            for member_symbol in implementation_members {
+                if member_symbol == canonical_id {
+                    continue;
+                }
+
+                let spans = collect_symbol_rename_spans(session, member_symbol, &old_name);
+                extend_spans_by_file(&mut edits_by_file, spans);
+            }
+        }
+
+        // normalize span ordering and remove duplicates per file
+        for spans in edits_by_file.values_mut() {
+            sort_and_dedup_spans(spans);
+        }
+
+        // create BatchEdit from collected spans
+        let mut batch_edit = BatchEdit::new();
+        for (file_id, spans) in edits_by_file {
+            let edits: Vec<Edit> = spans
+                .into_iter()
+                .map(|span| Edit::replace(span, new_name.to_string()))
+                .collect();
+            batch_edit.push(FileEdit::with_edits(file_id, edits));
+        }
+
+        Some(RenameResult::from_edits(batch_edit))
+    })
+}
+
+/// Resolve the symbol targeted by rename at a file offset.
+fn resolve_rename_target(
+    session: &Session,
+    file: FileId,
+    offset: u32,
+) -> Option<(SymbolAtOffset, dir::GlobalSymbolId, String)> {
     // find the symbol at offset
     let symbol_at = find_symbol_at_offset(session, file, offset)?;
 
@@ -136,108 +186,84 @@ pub fn rename(
         return None;
     }
 
-    // validate new_name is a valid identifier
-    if !is_simple_identifier(new_name) {
-        return None;
-    }
-
-    // get canonical symbol
+    // resolve canonical symbol and stable rename name
     let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
+    let name = resolve_rename_name(session, canonical_id, &symbol_at)?;
 
-    // resolve the existing symbol name for span targeting
-    let old_name = resolve_rename_name(session, canonical_id, &symbol_at)?;
-    let interface_member_target = resolve_interface_member_target(session, canonical_id);
+    Some((symbol_at, canonical_id, name))
+}
 
-    // collect all spans to rename, grouped by file
-    let mut edits_by_file: HashMap<FileId, Vec<Span>> = HashMap::new();
-
-    // add the definition
-    if let Some(definition_span) = get_symbol_definition_span(session, canonical_id) {
-        edits_by_file
-            .entry(definition_span.file)
-            .or_default()
-            .push(definition_span);
-    }
-
-    // configure reference collection for rename behavior
-    let reference_options = ReferenceCollectionOptions {
+/// Build reference collection options used by rename.
+fn rename_reference_options<'a>(target_name: &'a str) -> ReferenceCollectionOptions<'a> {
+    ReferenceCollectionOptions {
         include_expressions: true,
         include_members: true,
         include_dependencies: true,
         include_namespace_members: true,
         skip_dependency_aliases: true,
         use_dependency_name_spans: true,
-        target_name: Some(&old_name),
+        target_name: Some(target_name),
         limit_to_file: None,
-    };
+    }
+}
 
-    // collect references across all modules
+/// Collect all rename spans for one canonical symbol.
+fn collect_symbol_rename_spans(
+    session: &Session,
+    canonical_id: dir::GlobalSymbolId,
+    target_name: &str,
+) -> Vec<Span> {
+    // seed spans with the declaration site
+    let mut spans = Vec::new();
+    if let Some(definition_span) = get_symbol_definition_span(session, canonical_id) {
+        spans.push(definition_span);
+    }
+
+    // collect references across user modules
+    let reference_options = rename_reference_options(target_name);
+    let reference_spans = collect_symbol_reference_spans_across_user_modules(
+        session,
+        canonical_id,
+        reference_options,
+    );
+    spans.extend(reference_spans);
+
+    // normalize for deterministic edits
+    sort_and_dedup_spans(&mut spans);
+    spans
+}
+
+/// Collect symbol reference spans across user modules.
+fn collect_symbol_reference_spans_across_user_modules(
+    session: &Session,
+    canonical_id: dir::GlobalSymbolId,
+    options: ReferenceCollectionOptions<'_>,
+) -> Vec<Span> {
+    let mut spans = Vec::new();
+
     for module in session.modules.iter() {
         let module = module.read();
+        if !module.is_user() {
+            continue;
+        }
+
         let Some(ctx) = session.query_context(&module) else {
             continue;
         };
 
-        // collect spans for this module and group them by file
-        let spans =
-            collect_symbol_references_in_context(session, &ctx, canonical_id, reference_options);
-        for span in spans {
-            edits_by_file.entry(span.file).or_default().push(span);
-        }
+        let module_spans =
+            collect_symbol_references_in_context(session, &ctx, canonical_id, options);
+        spans.extend(module_spans);
     }
 
-    // include implementations when renaming interface members
-    if let Some(interface_member_target) = interface_member_target {
-        let implementation_members =
-            collect_interface_member_implementations(session, &interface_member_target, &old_name);
+    spans
+}
 
-        for member_symbol in implementation_members {
-            if member_symbol == canonical_id {
-                continue;
-            }
-
-            if let Some(definition_span) = get_symbol_definition_span(session, member_symbol) {
-                edits_by_file
-                    .entry(definition_span.file)
-                    .or_default()
-                    .push(definition_span);
-            }
-
-            for module in session.modules.iter() {
-                let module = module.read();
-                let Some(ctx) = session.query_context(&module) else {
-                    continue;
-                };
-
-                let spans = collect_symbol_references_in_context(
-                    session,
-                    &ctx,
-                    member_symbol,
-                    reference_options,
-                );
-                for span in spans {
-                    edits_by_file.entry(span.file).or_default().push(span);
-                }
-            }
-        }
+/// Append spans into a per-file span map.
+fn extend_spans_by_file(edits_by_file: &mut HashMap<FileId, Vec<Span>>, spans: Vec<Span>) {
+    for span in spans {
+        edits_by_file.entry(span.file).or_default().push(span);
     }
-
-    // normalize span ordering and remove duplicates per file
-    for spans in edits_by_file.values_mut() {
-        sort_and_dedup_spans(spans);
-    }
-
-    // create BatchEdit from collected spans
-    let mut batch_edit = BatchEdit::new();
-    for (file_id, spans) in edits_by_file {
-        let edits: Vec<Edit> = spans
-            .into_iter()
-            .map(|span| Edit::replace(span, new_name.to_string()))
-            .collect();
-        batch_edit.push(FileEdit::with_edits(file_id, edits));
-    }
-
-    Some(RenameResult::from_edits(batch_edit))
 }
 
 fn resolve_rename_name(

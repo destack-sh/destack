@@ -11,7 +11,7 @@ use destack_source::{
     FileWatchEventKind, FileWatchRescanReason, FileWatchStatus, ModuleId, ModuleStamp,
 };
 use destack_workspace::{
-    FileUpdate, InvalidationKind, InvalidationPlan, ModuleGraphKey, ProfileId, Program, TargetId,
+    FileUpdate, InvalidationKind, InvalidationPlan, Module, ModuleGraphKey, Program, TargetId,
 };
 use parking_lot::Mutex;
 
@@ -290,10 +290,13 @@ impl Daemon {
         let program = handle.program.as_ref();
         let compiler = handle.compiler.as_ref();
 
-        // collect module file ids
+        // collect user module file ids
         let mut file_ids = HashSet::new();
         for module in program.modules.iter() {
             let module = module.read();
+            if !self.is_workspace_module(&module) {
+                continue;
+            }
             file_ids.insert(module.file_id);
         }
 
@@ -561,11 +564,11 @@ impl Daemon {
         // clear diagnostics collector before recompiling
         let _ = program.diagnostics.drain();
 
-        // enqueue analysis tasks and compile
+        // enqueue analysis task and compile
         let profile = program.default_profile_id_for_module(module_id);
         let module = compiler.module_stamp(module_id);
         let profile = compiler.profile_stamp(profile);
-        compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate { module, profile });
+        compiler.enqueue(AnalyzeTask::AnalyzeModule { module, profile });
         compiler.compile();
 
         // group diagnostics by file id
@@ -618,7 +621,9 @@ impl Daemon {
         let mut module_ids = HashSet::new();
         let mut file_ids = HashSet::new();
         for update in updates.iter() {
-            if let Some(module_id) = update.module_id {
+            if let Some(module_id) = update.module_id
+                && self.is_workspace_module_id(program, module_id)
+            {
                 module_ids.insert(module_id);
             }
             file_ids.insert(update.file_id);
@@ -628,6 +633,10 @@ impl Daemon {
         let mut extra_updates = Vec::new();
         for update in updates.iter() {
             for module_id in update.invalidation.modules.iter().copied() {
+                if !self.is_workspace_module_id(program, module_id) {
+                    continue;
+                }
+
                 module_ids.insert(module_id);
                 let module = program.modules.get(module_id);
                 let module = module.read();
@@ -650,7 +659,7 @@ impl Daemon {
             let _ = program.diagnostics.drain();
         }
 
-        // ensure module graphs are ready before expanding dependents
+        // rebuild missing or stale module graph entries before dependent fanout
         self.ensure_module_graphs_ready(program, compiler, &module_ids);
 
         // expand updates using module graph dependents when available
@@ -673,6 +682,10 @@ impl Daemon {
                 }
 
                 for dependent in graph.dependents_for(module_id) {
+                    if !self.is_workspace_module_id(program, dependent) {
+                        continue;
+                    }
+
                     if module_ids.insert(dependent) {
                         queue.push_back(dependent);
                     }
@@ -702,7 +715,7 @@ impl Daemon {
                 let profile = program.default_profile_id_for_module(*module_id);
                 let module = compiler.module_stamp(*module_id);
                 let profile = compiler.profile_stamp(profile);
-                compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate { module, profile });
+                compiler.enqueue(AnalyzeTask::AnalyzeModule { module, profile });
             }
 
             // run the analysis pass
@@ -748,53 +761,35 @@ impl Daemon {
         Ok(())
     }
 
-    /// Ensure module graphs are available for dependency fan-out.
+    /// Ensure module graph entries exist for the modules used in fanout.
+    /// TODO #Cleanup #Architecture:  daemon's ensure_module_graphs_ready seems partially redundant?
     fn ensure_module_graphs_ready(
         &self,
         program: &Program,
         compiler: &Compiler,
         module_ids: &HashSet<ModuleId>,
     ) {
-        // skip when there are no modules to update
+        // skip when there is no module work
         if module_ids.is_empty() {
             return;
         }
 
-        // group modules by profile
-        let mut modules_by_profile: HashMap<ProfileId, Vec<ModuleId>> = HashMap::new();
-        for module_id in module_ids {
-            let profile_id = program.default_profile_id_for_module(*module_id);
-            modules_by_profile
-                .entry(profile_id)
-                .or_default()
-                .push(*module_id);
-        }
-
-        // collect resolve tasks required for graph updates
+        // collect canonical resolve tasks needed to seed graph entries
         let mut resolve_tasks = Vec::new();
-        let mut profiles_with_builtins = HashSet::new();
-
-        for (profile_id, modules) in modules_by_profile {
+        let mut queued = HashSet::new();
+        for module_id in module_ids.iter().copied() {
+            let profile_id = program.default_profile_id_for_module(module_id);
             let graph_key = ModuleGraphKey::new(profile_id);
-            let graph_entry = program.index.module_graphs.get(&graph_key);
-            let module_count = program.modules.len();
-            let needs_full = match graph_entry.as_ref() {
-                None => true,
-                Some(graph) => graph.module_versions.len() != module_count,
-            };
-
-            if needs_full {
-                // enqueue builtins/libs before resolving modules
-                if profiles_with_builtins.insert(profile_id) {
-                    let profile = compiler.profile_stamp(profile_id);
-                    resolve_tasks.push(ResolveTask::ResolveBuiltins { profile });
-                    resolve_tasks.push(ResolveTask::ResolveLibs { profile });
+            if let Some(graph) = program.index.module_graphs.get(&graph_key) {
+                let module = program.modules.get(module_id);
+                let module = module.read();
+                let graph_version = graph.module_versions.get(&module_id).copied();
+                if graph_version == Some(module.version) {
+                    continue;
                 }
 
-                // enqueue resolve tasks for all modules in this profile
-                for module in program.modules.iter() {
-                    let module = module.read();
-                    let module = ModuleStamp::new(module.id, module.version);
+                if queued.insert((module_id, profile_id)) {
+                    let module = ModuleStamp::new(module_id, module.version);
                     let profile = compiler.profile_stamp(profile_id);
                     let graph = compiler.module_graph_stamp(profile_id);
                     resolve_tasks.push(ResolveTask::ResolveModuleCanonical {
@@ -807,23 +802,18 @@ impl Daemon {
                 continue;
             }
 
-            if let Some(graph) = graph_entry {
-                for module_id in modules {
-                    let module = program.modules.get(module_id);
-                    let module_version = module.read().version;
-                    let graph_version = graph.module_versions.get(&module_id).copied();
-                    if graph_version == Some(module_version) {
-                        continue;
-                    }
+            // the graph is missing: seed it from user modules in this profile
+            for module in program.modules.iter() {
+                let module = module.read();
+                if !self.is_workspace_module(&module) {
+                    continue;
+                }
+                if program.default_profile_id_for_module(module.id) != profile_id {
+                    continue;
+                }
 
-                    // enqueue builtins/libs before resolving modules
-                    if profiles_with_builtins.insert(profile_id) {
-                        let profile = compiler.profile_stamp(profile_id);
-                        resolve_tasks.push(ResolveTask::ResolveBuiltins { profile });
-                        resolve_tasks.push(ResolveTask::ResolveLibs { profile });
-                    }
-
-                    let module = ModuleStamp::new(module_id, module_version);
+                if queued.insert((module.id, profile_id)) {
+                    let module = ModuleStamp::new(module.id, module.version);
                     let profile = compiler.profile_stamp(profile_id);
                     let graph = compiler.module_graph_stamp(profile_id);
                     resolve_tasks.push(ResolveTask::ResolveModuleCanonical {
@@ -835,12 +825,10 @@ impl Daemon {
             }
         }
 
-        // skip when no resolve work is required
+        // run graph rebuild tasks
         if resolve_tasks.is_empty() {
             return;
         }
-
-        // run resolve tasks to populate module graphs
         for task in resolve_tasks {
             compiler.enqueue(task);
         }
@@ -1078,6 +1066,18 @@ impl Daemon {
 
         // allow code, data, and text files
         file_type.is_code() || file_type.is_data() || file_type.is_text()
+    }
+
+    /// Return true when a module is part of the user workspace surface.
+    fn is_workspace_module(&self, module: &Module) -> bool {
+        module.is_user() && module.path.is_some()
+    }
+
+    /// Return true when the module id maps to a workspace module.
+    fn is_workspace_module_id(&self, program: &Program, module_id: ModuleId) -> bool {
+        let module = program.modules.get(module_id);
+        let module = module.read();
+        self.is_workspace_module(&module)
     }
 
     /// Check if a path is a config filename.

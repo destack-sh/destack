@@ -3,6 +3,7 @@
 
 pub mod query;
 pub mod server;
+mod uri;
 
 pub use query::*;
 pub use server::DestackLanguageServer;

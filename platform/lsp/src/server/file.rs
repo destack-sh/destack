@@ -6,7 +6,6 @@ use destack_ast::{Expression, LocalNodeId, NodeParentIndex};
 use destack_daemon::protocol::FileSnapshot;
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
-use destack_lsp_server::UriExt;
 use destack_lsp_types as lsp;
 use destack_parser::Parser;
 use destack_source::{
@@ -18,17 +17,6 @@ use super::daemon::LspDaemonClient;
 
 /// Globs for config files tracked by the LSP.
 pub(super) const CONFIG_GLOBS: [&str; 2] = ["**/dsconfig.json", "**/tsconfig*.json"];
-
-/// Build an LSP URI for a file using its on-disk path when available.
-pub(super) fn lsp_uri_for_file(file: &File) -> Option<lsp::Uri> {
-    // prefer a file:// URI derived from the file path
-    if let Some(path) = file.path.as_ref() {
-        return lsp::Uri::from_file_path(path);
-    }
-
-    // fall back to parsing the stored uri string
-    file.uri.as_ref().parse::<lsp::Uri>().ok()
-}
 
 /// Upsert a file in the session registry from a snapshot.
 pub(super) fn upsert_file_from_snapshot(

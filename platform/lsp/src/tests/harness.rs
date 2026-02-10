@@ -7,6 +7,7 @@ use destack_lsp_types as lsp;
 use destack_source::TemporaryPhysicalFileSystem;
 use futures::{SinkExt, StreamExt};
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use tokio::sync::mpsc;
 use tower::Service;
 
@@ -34,6 +35,8 @@ pub struct LspHarness {
     client_rx: mpsc::Receiver<Request>,
     /// Root directory for the test workspace.
     pub root: PathBuf,
+    /// Request id counter for typed test requests.
+    next_request_id: i64,
 }
 
 impl LspHarness {
@@ -65,6 +68,7 @@ impl LspHarness {
             service,
             client_rx,
             root,
+            next_request_id: 10,
         }
     }
 
@@ -74,6 +78,26 @@ impl LspHarness {
             .call(request)
             .await
             .expect("lsp request failed")
+    }
+
+    /// Send a typed request and decode the result payload.
+    pub async fn request_result<T, R>(&mut self, method: &str, params: T) -> R
+    where
+        T: Serialize,
+        R: DeserializeOwned,
+    {
+        let request_id = self.next_request_id;
+        self.next_request_id += 1;
+
+        let request = request_with_params(method, request_id, params);
+        let response = self.call(request).await.expect("request response");
+        assert!(response.is_ok());
+
+        let result = response
+            .result()
+            .cloned()
+            .expect("response should contain result");
+        serde_json::from_value(result).expect("typed response decode")
     }
 
     /// Send a JSON-RPC notification to the server.
@@ -273,6 +297,47 @@ impl LspHarness {
         // send the notification
         let notification = notification_with_params("workspace/didChangeWorkspaceFolders", params);
         self.notify(notification).await;
+    }
+
+    /// Request goto definition for a text document position.
+    pub async fn goto_definition(
+        &mut self,
+        uri: lsp::Uri,
+        position: lsp::Position,
+    ) -> Option<lsp::GotoDefinitionResponse> {
+        self.request_result(
+            "textDocument/definition",
+            lsp::GotoDefinitionParams {
+                text_document_position_params: lsp::TextDocumentPositionParams {
+                    text_document: lsp::TextDocumentIdentifier::new(uri),
+                    position,
+                },
+                work_done_progress_params: lsp::WorkDoneProgressParams {
+                    work_done_token: None,
+                },
+                partial_result_params: lsp::PartialResultParams {
+                    partial_result_token: None,
+                },
+            },
+        )
+        .await
+    }
+
+    /// Request hover for a text document position.
+    pub async fn hover(&mut self, uri: lsp::Uri, position: lsp::Position) -> Option<lsp::Hover> {
+        self.request_result(
+            "textDocument/hover",
+            lsp::HoverParams {
+                text_document_position_params: lsp::TextDocumentPositionParams {
+                    text_document: lsp::TextDocumentIdentifier::new(uri),
+                    position,
+                },
+                work_done_progress_params: lsp::WorkDoneProgressParams {
+                    work_done_token: None,
+                },
+            },
+        )
+        .await
     }
 
     /// Initialize the LSP server with a workspace root.

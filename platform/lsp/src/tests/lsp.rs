@@ -12,6 +12,7 @@ use destack_workspace::{MemoryCacheStore, Session, Workspace};
 use futures::{SinkExt, StreamExt};
 use tower::Service;
 
+use super::fixture::TestLsp;
 use super::harness::{
     LspHarness, harness_for_fs, notification_with_params, request_with_params, test_fs,
     uri_for_path,
@@ -21,16 +22,12 @@ use crate::server::daemon::LspDaemonClient;
 /// LSP didOpen publishes diagnostics for the document.
 #[tokio::test]
 async fn test_lsp_did_open_publishes_diagnostics() {
-    let fs = test_fs("did_open");
-    let mut harness = harness_for_fs(&fs).await;
-
-    let path = fs.path_for("main.ds");
-    let uri = uri_for_path(&path);
-    harness
-        .did_open(uri.clone(), "export const x: number = 1;\n")
+    let mut test = TestLsp::new("did_open").await;
+    let path = test.path_for("main.ds");
+    let uri = test.uri_for_path(&path);
+    let diagnostics = test
+        .open_and_get_diagnostics(&path, "export const x: number = 1;\n")
         .await;
-
-    let diagnostics = harness.next_diagnostics_for(&uri).await;
 
     // check that the diagnostics match the opened document
     assert_eq!(diagnostics.uri, uri);
@@ -88,22 +85,18 @@ fn test_lsp_daemon_client_virtual_update_emits_diagnostics() {
 /// LSP didChange publishes updated diagnostics.
 #[tokio::test]
 async fn test_lsp_did_change_updates_diagnostics() {
-    let fs = test_fs("did_change");
-    let mut harness = harness_for_fs(&fs).await;
-
-    let path = fs.path_for("main.ds");
-    let uri = uri_for_path(&path);
-    harness
-        .did_open(uri.clone(), "export const x: number = 1;\n")
+    let mut test = TestLsp::new("did_change").await;
+    let path = test.path_for("main.ds");
+    let uri = test.uri_for_path(&path);
+    let initial = test
+        .open_and_get_diagnostics(&path, "export const x: number = 1;\n")
         .await;
 
-    let initial = harness.next_diagnostics_for(&uri).await;
-
-    harness
+    test.harness
         .did_change(uri.clone(), "export const x = ;\n", 2)
         .await;
 
-    let updated = harness.next_diagnostics_for(&uri).await;
+    let updated = test.harness.next_diagnostics_for(&uri).await;
 
     // check that the diagnostics update for the same document
     assert_eq!(initial.uri, uri);
@@ -144,6 +137,86 @@ async fn test_lsp_did_change_incremental_updates_diagnostics() {
     assert_eq!(initial.uri, uri);
     assert_eq!(updated.uri, uri);
     assert!(!updated.diagnostics.is_empty());
+}
+
+/// Definition and hover resolve for simple local symbols.
+#[tokio::test]
+async fn test_lsp_navigation_resolves_local_symbols() {
+    let mut test = TestLsp::new("navigation_local").await;
+    let path = test.write_text(
+        "main.ds",
+        "export function foo(x: number): number { return x; }\nconst y = foo(1);\n",
+    );
+    let text = "export function foo(x: number): number { return x; }\nconst y = foo(1);\n";
+    let diagnostics = test.open_and_get_diagnostics(&path, text).await;
+    let uri = diagnostics.uri;
+
+    let definition = test
+        .goto_definition(
+            &uri,
+            lsp::Position {
+                line: 1,
+                character: 11,
+            },
+        )
+        .await;
+    assert!(definition.is_some());
+
+    let hover = test
+        .hover(
+            &uri,
+            lsp::Position {
+                line: 1,
+                character: 11,
+            },
+        )
+        .await;
+    assert!(hover.is_some());
+}
+
+/// Document diagnostics include open virtual file updates.
+#[tokio::test]
+async fn test_lsp_document_diagnostic_reflects_open_virtual_content() {
+    let fs = test_fs("document_diagnostic_virtual");
+    let path = fs
+        .write_text("main.ds", "export const x: number = 1;\n")
+        .expect("write main");
+
+    let mut harness = harness_for_fs(&fs).await;
+    let uri = uri_for_path(&path);
+    harness.did_open(uri.clone(), "export const x = ;\n").await;
+    let pushed = harness.next_diagnostics_for(&uri).await;
+    assert!(!pushed.diagnostics.is_empty());
+
+    let request = request_with_params(
+        "textDocument/diagnostic",
+        12,
+        lsp::DocumentDiagnosticParams {
+            text_document: lsp::TextDocumentIdentifier::new(uri),
+            identifier: Some("destack".to_string()),
+            previous_result_id: None,
+            work_done_progress_params: lsp::WorkDoneProgressParams {
+                work_done_token: None,
+            },
+            partial_result_params: lsp::PartialResultParams {
+                partial_result_token: None,
+            },
+        },
+    );
+    let response = harness
+        .call(request)
+        .await
+        .expect("document diagnostic response");
+    assert!(response.is_ok());
+
+    let report: lsp::DocumentDiagnosticReportResult = decode_response_result(&response);
+    let lsp::DocumentDiagnosticReportResult::Report(report) = report else {
+        panic!("expected full document diagnostic report");
+    };
+    let lsp::DocumentDiagnosticReport::Full(full) = report else {
+        panic!("expected full diagnostics");
+    };
+    assert!(!full.full_document_diagnostic_report.items.is_empty());
 }
 
 /// LSP watched file changes publish diagnostics.
@@ -431,6 +504,51 @@ async fn test_lsp_workspace_diagnostic_streams_partial_results() {
     let report: lsp::WorkspaceDiagnosticReportPartialResult =
         serde_json::from_value(progress).expect("decode partial diagnostics");
     assert!(!report.items.is_empty());
+}
+
+/// Workspace diagnostics include open virtual file diagnostics.
+#[tokio::test]
+async fn test_lsp_workspace_diagnostic_reflects_open_virtual_content() {
+    let fs = test_fs("workspace_diagnostic_virtual");
+    let path = fs
+        .write_text("main.ds", "export const x: number = 1;\n")
+        .expect("write main");
+
+    let mut harness = harness_for_fs(&fs).await;
+    let uri = uri_for_path(&path);
+    harness.did_open(uri.clone(), "export const x = ;\n").await;
+    let _ = harness.next_diagnostics_for(&uri).await;
+
+    let params = lsp::WorkspaceDiagnosticParams {
+        identifier: None,
+        previous_result_ids: Vec::new(),
+        work_done_progress_params: lsp::WorkDoneProgressParams {
+            work_done_token: None,
+        },
+        partial_result_params: lsp::PartialResultParams {
+            partial_result_token: None,
+        },
+    };
+    let request = request_with_params("workspace/diagnostic", 13, params);
+    let response = harness
+        .call(request)
+        .await
+        .expect("workspace diagnostic response");
+    assert!(response.is_ok());
+
+    let report: lsp::WorkspaceDiagnosticReportResult = decode_response_result(&response);
+    let lsp::WorkspaceDiagnosticReportResult::Report(report) = report else {
+        panic!("expected full workspace diagnostic report");
+    };
+    let target = report
+        .items
+        .into_iter()
+        .find_map(|item| match item {
+            lsp::WorkspaceDocumentDiagnosticReport::Full(full) if full.uri == uri => Some(full),
+            _ => None,
+        })
+        .expect("missing workspace diagnostics for opened uri");
+    assert!(!target.full_document_diagnostic_report.items.is_empty());
 }
 
 /// Selection ranges stream partial results.

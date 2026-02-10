@@ -1,7 +1,7 @@
 set shell := ["bash", "-cu"]
 
 # all platform crates
-packages := "-p destack_cli -p destack_lsp -p destack_vscode -p destack_daemon"
+packages := "-p destack_cli -p destack_lsp -p destack_vscode -p destack_daemon -p destack_zed"
 
 _default:
     @just --list --unsorted
@@ -21,6 +21,10 @@ build:
 build-vscode:
     cd vscode && bun run bundle && bun run package
 
+# build zed extension
+build-zed:
+    cd zed && cargo check
+
 # format code
 format:
     cargo fmt {{ packages }}
@@ -32,6 +36,7 @@ alias fmt := format
 clean:
     cargo clean
     rm -rf vscode/out vscode/*.vsix
+    rm -rf zed/grammars zed/extension.wasm
 
 # --- test ---
 
@@ -39,6 +44,7 @@ clean:
 test:
     cargo test --release --all-targets {{ packages }}
     just test-vscode
+    just test-zed
 
 # --- schema ---
 
@@ -52,6 +58,13 @@ schema := "generate-schema"
 # test vscode grammar
 test-vscode:
     cd vscode && bun run test:grammar
+
+# test zed extension and shared tree sitter overlays
+test-zed:
+    cd zed && cargo test --release
+    cd zed && cargo build --target wasm32-wasip2 --release
+    node ../language/grammar/scripts/check-overlay.mjs
+
 
 # --- release ---
 

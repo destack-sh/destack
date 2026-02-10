@@ -6,9 +6,9 @@ use {destack_ast as ast, destack_dir as dir};
 use crate::Session;
 use crate::query::common::{
     QueryContext, enclosing_spans_with_previous, extract_string_literal_prefix,
-    find_symbol_at_offset, get_module_by_file_id, import_clause_brace_span,
-    resolve_nominal_symbol_from_initializer, resolve_nominal_symbol_from_type_expression,
-    sorted_enclosing_spans, span_for_dir_node, visible_symbols,
+    get_module_by_file_id, import_clause_brace_span, resolve_nominal_symbol_from_initializer,
+    resolve_nominal_symbol_from_type_expression, sorted_enclosing_spans, span_for_dir_node,
+    visible_symbols,
 };
 
 /// Describes the context for a completion request.
@@ -581,9 +581,6 @@ fn member_access_context_at_offset(
             let receiver_global = receiver_local.into_global(ctx.module_id);
             let receiver_symbol = get_expression_symbol(&dir_tree, *left);
 
-            // release the dir tree guard before type queries
-            drop(dir_tree);
-
             // resolve the receiver type
             let receiver_type = get_receiver_type(session, ctx, receiver_global, receiver_symbol);
 
@@ -597,9 +594,6 @@ fn member_access_context_at_offset(
         // otherwise treat the expression itself as the receiver
         let receiver_symbol = actual_expr.target_symbol();
         let receiver_global = actual_node_id.into_global(ctx.module_id);
-
-        // release the dir tree guard before type queries
-        drop(dir_tree);
 
         // resolve the receiver type
         let receiver_type = get_receiver_type(session, ctx, receiver_global, receiver_symbol);
@@ -649,12 +643,6 @@ fn member_access_context_from_tokens(
 
     let mut receiver_node = None;
     let mut receiver_symbol = None;
-
-    // resolve receiver symbol directly from the offset when possible
-    if let Some(symbol_at) = find_symbol_at_offset(session, file_id, receiver_offset) {
-        receiver_node = Some(symbol_at.node_id);
-        receiver_symbol = Some(symbol_at.symbol_id);
-    }
 
     // fall back to resolving the receiver node from enclosing AST spans
     if receiver_node.is_none() {
@@ -737,6 +725,12 @@ fn member_access_context_from_tokens(
             }
         }
 
+        // fall back to a module wide symbol name match when scope based resolution fails
+        if resolved.is_none() {
+            let symbols = ctx.symbols();
+            resolved = resolve_symbol_by_name_any_space(session, &symbols, name);
+        }
+
         if let Some((symbol_id, node_id)) = resolved {
             receiver_symbol = Some(symbol_id);
             if receiver_node.is_none() {
@@ -773,6 +767,50 @@ fn member_access_context_from_tokens(
         receiver_symbol,
         receiver_type,
     })
+}
+
+/// Resolve a symbol by name from the module symbol table.
+fn resolve_symbol_by_name_any_space(
+    session: &Session,
+    symbols: &dir::SymbolTable,
+    receiver_name: &str,
+) -> Option<(dir::GlobalSymbolId, Option<dir::LocalNodeIdAny>)> {
+    let mut best: Option<(dir::LocalSymbolId, u8, Option<dir::LocalNodeIdAny>)> = None;
+
+    // prefer active symbols and rank type spaces above value space for static member access
+    for symbol_id in symbols.active_symbol_ids() {
+        let symbol = symbols.get_symbol(symbol_id);
+        let Some(name_id) = symbol.name() else {
+            continue;
+        };
+        if session.strings.get(name_id) != receiver_name {
+            continue;
+        }
+
+        let score = match symbol.space {
+            dir::SymbolSpace::TypeValue => 3,
+            dir::SymbolSpace::Type => 2,
+            dir::SymbolSpace::Value => 1,
+            _ => 0,
+        };
+
+        if best
+            .as_ref()
+            .is_none_or(|(_, best_score, _)| score > *best_score)
+        {
+            let node_id = symbol.primary_declaration.map(|decl| decl.local_id);
+            best = Some((symbol_id, score, node_id));
+        }
+    }
+
+    let (local_id, _score, node_id) = best?;
+    Some((
+        dir::GlobalSymbolId {
+            module_id: symbols.module_id,
+            local_id,
+        },
+        node_id,
+    ))
 }
 
 /// Resolve a visible symbol by name within a scope.
@@ -1919,11 +1957,6 @@ fn detect_new_expression_context(
 ) -> Option<CompletionContext> {
     // resolve enclosing spans at the cursor
     let enclosing = sorted_enclosing_spans(ctx, offset, offset);
-
-    // bail out when there are no spans
-    if enclosing.is_empty() {
-        return None;
-    }
 
     // load dir tables for node inspection
     let dir_tree = ctx.tree();

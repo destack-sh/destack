@@ -12,8 +12,8 @@ use destack_lsp_server::{Client, LanguageServer, UriExt, jsonrpc};
 use destack_lsp_types as lsp;
 use destack_resolver::{ResolveOptions, Resolver};
 use destack_source::{
-    BatchEdit, File, FileId, FileSystem, FileWatchEvent, FileWatchEventKind, OverlayFileSystem,
-    PhysicalFileSystem, Span,
+    BatchEdit, Diagnostic, File, FileId, FileSystem, FileWatchEvent, FileWatchEventKind,
+    OverlayFileSystem, PhysicalFileSystem, Span,
 };
 use destack_workspace::{Session, Workspace, query};
 use serde::{Deserialize, Serialize};
@@ -33,15 +33,17 @@ use crate::query::semantic;
 use crate::server::daemon::LspDaemonClient;
 use crate::server::file::{
     apply_text_changes, build_file_watchers, completion_kind_to_lsp, create_daemon_client,
-    diagnostic_result_id, format_file, format_range, lsp_uri_for_file, normalize_line_endings,
-    tracked_file_globs, upsert_file_from_snapshot,
+    diagnostic_result_id, format_file, format_range, normalize_line_endings, tracked_file_globs,
+    upsert_file_from_snapshot,
 };
 use crate::server::progress::WorkDoneProgressTracker;
 use crate::server::token::semantic_tokens_edits;
+use crate::uri::lsp_uri_for_file;
 
 const PARTIAL_RESULT_CHUNK_SIZE: usize = 128;
 const WORKSPACE_DIAGNOSTIC_PARTIAL_CHUNK_SIZE: usize = 128;
 const AUTO_IMPORT_DETAIL_PREFIX: &str = "Auto import from ";
+const QUERY_ANALYZE_MAX_ATTEMPTS: usize = 3;
 
 /// State for an open document.
 #[derive(Debug)]
@@ -136,6 +138,8 @@ pub struct DestackLanguageServer {
     daemon: OnceLock<Arc<LspDaemonClient>>,
     /// The open documents.
     open_documents: DashMap<String, OpenDocument>,
+    /// The latest diagnostics for open virtual documents.
+    virtual_diagnostics: DashMap<FileId, Vec<Diagnostic>>,
     /// Cached semantic tokens per document.
     semantic_tokens_cache: DashMap<String, SemanticTokensCache>,
     /// Monotonic counter for semantic token result ids.
@@ -165,6 +169,7 @@ impl DestackLanguageServer {
             session: OnceLock::new(),
             daemon: OnceLock::new(),
             open_documents: DashMap::new(),
+            virtual_diagnostics: DashMap::new(),
             semantic_tokens_cache: DashMap::new(),
             semantic_tokens_counter: AtomicU64::new(1),
             cancelled_progress_tokens: DashSet::new(),
@@ -361,20 +366,62 @@ impl DestackLanguageServer {
     }
 
     /// Load a file snapshot for query operations.
-    fn get_query_file(&self, file_id: FileId) -> Arc<File> {
-        self.session().files.get(file_id)
+    fn get_query_file(&self, file_id: FileId) -> Option<Arc<File>> {
+        let file = self.session().files.get_maybe(file_id);
+        if file.is_none() {
+            tracing::debug!(?file_id, "lsp.query.file_not_found");
+        }
+
+        file
+    }
+
+    /// Check whether strict query context is ready for a file.
+    fn has_query_context_for_file(&self, file_id: FileId) -> bool {
+        let Some(module) = self.session().modules.get_by_file_id(file_id) else {
+            return false;
+        };
+
+        let module = module.read();
+        self.session().query_context(&module).is_some()
     }
 
     /// Ensure analysis state is current for a file backed by a physical path.
     fn ensure_analyzed_for_file(&self, file_id: FileId) {
-        let file = self.session().files.get(file_id);
-        let Some(path) = file.path.as_ref() else {
+        if self.has_query_context_for_file(file_id) {
+            return;
+        }
+
+        let Some(file) = self.session().files.get_maybe(file_id) else {
+            tracing::debug!(?file_id, "lsp.query.ensure_analyzed.file_not_found");
+            return;
+        };
+        let Some(path) = file.path.clone() else {
             return;
         };
 
-        if let Err(error) = self.daemon().ensure_analyzed_for_path(path) {
-            tracing::debug!(?error, path = ?path, "lsp.query.analyze_failed");
+        for attempt in 0..QUERY_ANALYZE_MAX_ATTEMPTS {
+            if let Err(error) = self.daemon().ensure_analyzed_for_path(&path) {
+                tracing::debug!(?error, path = ?path, "lsp.query.analyze_failed");
+                return;
+            }
+
+            if self.has_query_context_for_file(file_id) {
+                return;
+            }
+
+            tracing::debug!(
+                path = ?path,
+                attempt = attempt + 1,
+                max_attempts = QUERY_ANALYZE_MAX_ATTEMPTS,
+                "lsp.query.context_not_ready_after_analyze"
+            );
         }
+    }
+
+    /// Ensure query analysis is ready and load a file snapshot for an open document.
+    fn get_query_file_for_open_document(&self, doc: &OpenDocument) -> Option<Arc<File>> {
+        self.ensure_analyzed_for_file(doc.file_id);
+        self.get_query_file(doc.file_id)
     }
 
     /// Convert an LSP code action kind into workspace query kinds.
@@ -639,6 +686,11 @@ impl DestackLanguageServer {
             if update.diagnostics.is_empty() {
                 update.diagnostics = diagnostics_by_file.remove(&file.id).unwrap_or_default();
             }
+
+            // cache diagnostics for pull based clients while the document is open
+            self.virtual_diagnostics
+                .insert(file.id, update.diagnostics.clone());
+
             let uri = if update
                 .file
                 .path
@@ -1047,7 +1099,9 @@ impl LanguageServer for DestackLanguageServer {
 
     async fn did_close(&self, params: lsp::DidCloseTextDocumentParams) {
         let uri_str = params.text_document.uri.to_string();
-        self.open_documents.remove(&uri_str);
+        if let Some((_, document)) = self.open_documents.remove(&uri_str) {
+            self.virtual_diagnostics.remove(&document.file_id);
+        }
         self.semantic_tokens_cache.remove(&uri_str);
 
         // remove overlay to fall back to disk content
@@ -1331,9 +1385,26 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(lsp::DocumentDiagnosticReportResult::Report(report));
         };
 
-        let file = self.get_query_file(file_id);
-        let program = query::program_for_file(session, file_id);
-        let diagnostics = program.diagnostic_store.diagnostics_for_file(file_id);
+        let Some(file) = self.get_query_file(file_id) else {
+            let report =
+                lsp::DocumentDiagnosticReport::Full(lsp::RelatedFullDocumentDiagnosticReport {
+                    related_documents: None,
+                    full_document_diagnostic_report: lsp::FullDocumentDiagnosticReport {
+                        result_id: None,
+                        items: Vec::new(),
+                    },
+                });
+            return Ok(lsp::DocumentDiagnosticReportResult::Report(report));
+        };
+        let diagnostics = if let Some(open_document) = doc_entry.as_ref()
+            && let Some(cached) = self.virtual_diagnostics.get(&open_document.file_id)
+        {
+            cached.value().clone()
+        } else {
+            self.ensure_analyzed_for_file(file_id);
+            let program = query::program_for_file(session, file_id);
+            program.diagnostic_store.diagnostics_for_file(file_id)
+        };
         let result_id = diagnostic_result_id(&diagnostics);
 
         if params.previous_result_id.as_ref() == Some(&result_id) {
@@ -1388,7 +1459,11 @@ impl LanguageServer for DestackLanguageServer {
         for entry in self.open_documents.iter() {
             let doc = entry.value();
             open_versions.insert(doc.file_id, doc.version);
-            diagnostics_by_file.entry(doc.file_id).or_insert(Vec::new());
+            if let Some(cached) = self.virtual_diagnostics.get(&doc.file_id) {
+                diagnostics_by_file.insert(doc.file_id, cached.value().clone());
+            } else {
+                diagnostics_by_file.entry(doc.file_id).or_insert(Vec::new());
+            }
         }
 
         // collect partial results when supported
@@ -1409,7 +1484,10 @@ impl LanguageServer for DestackLanguageServer {
         // allow cancellation between chunks
         let mut processed = 0usize;
         for (file_id, diagnostics) in diagnostics_by_file {
-            let file = session.files.get(file_id);
+            let Some(file) = session.files.get_maybe(file_id) else {
+                tracing::debug!(?file_id, "lsp.workspace_diagnostic.file_not_found");
+                continue;
+            };
             let Some(uri) = lsp_uri_for_file(&file) else {
                 continue;
             };
@@ -1551,15 +1629,18 @@ impl LanguageServer for DestackLanguageServer {
         };
 
         // keep refactor inputs on a fresh analyzed snapshot
-        self.ensure_analyzed_for_file(doc.file_id);
-        let file = self.get_query_file(doc.file_id);
+        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+            return Ok(None);
+        };
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
         else {
             return Ok(None);
         };
 
         // query for definition
-        let Some(result) = query::goto_definition(session, doc.file_id, offset) else {
+        let Some(result) = session.with_query_context_mode(true, || {
+            query::goto_definition(session, doc.file_id, offset)
+        }) else {
             return Ok(None);
         };
 
@@ -1582,14 +1663,18 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_query_file(doc.file_id);
+        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+            return Ok(None);
+        };
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
         else {
             return Ok(None);
         };
 
-        // query for declaration (same as definition for now)
-        let Some(result) = query::goto_declaration(session, doc.file_id, offset) else {
+        // query for declaration
+        let Some(result) = session.with_query_context_mode(true, || {
+            query::goto_declaration(session, doc.file_id, offset)
+        }) else {
             return Ok(None);
         };
 
@@ -1611,14 +1696,18 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_query_file(doc.file_id);
+        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+            return Ok(None);
+        };
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
         else {
             return Ok(None);
         };
 
         // query for type definition
-        let Some(result) = query::goto_type_definition(session, doc.file_id, offset) else {
+        let Some(result) = session.with_query_context_mode(true, || {
+            query::goto_type_definition(session, doc.file_id, offset)
+        }) else {
             return Ok(None);
         };
 
@@ -1636,13 +1725,17 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_query_file(doc.file_id);
+        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+            return Ok(None);
+        };
         let Some(offset) = position_to_byte(&file, &params.text_document_position.position) else {
             return Ok(None);
         };
 
         // query for references (include declaration in results)
-        let Some(refs) = query::find_references(session, doc.file_id, offset, true) else {
+        let Some(refs) = session.with_query_context_mode(true, || {
+            query::find_references(session, doc.file_id, offset, true)
+        }) else {
             return Ok(None);
         };
         if refs.is_empty() {
@@ -1722,7 +1815,8 @@ impl LanguageServer for DestackLanguageServer {
         };
 
         // query for document symbols
-        let symbols = query::document_symbols(session, doc.file_id);
+        let symbols =
+            session.with_query_context_mode(true, || query::document_symbols(session, doc.file_id));
         if symbols.is_empty() {
             return Ok(None);
         }
@@ -1736,7 +1830,9 @@ impl LanguageServer for DestackLanguageServer {
         .await;
 
         // convert to LSP symbols
-        let file = self.get_query_file(doc.file_id);
+        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+            return Ok(None);
+        };
         let partial_token = params.partial_result_params.partial_result_token;
         let mut lsp_symbols = Vec::new();
         let mut partial_symbols = Vec::new();
@@ -1796,7 +1892,9 @@ impl LanguageServer for DestackLanguageServer {
         let session = self.session();
 
         // query workspace symbols
-        let symbols = query::workspace_symbols(session, &params.query, 100);
+        let symbols = session.with_query_context_mode(true, || {
+            query::workspace_symbols(session, &params.query, 100)
+        });
 
         let mut progress = WorkDoneProgressTracker::start(
             self,
@@ -1872,14 +1970,18 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_query_file(doc.file_id);
+        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+            return Ok(None);
+        };
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
         else {
             return Ok(None);
         };
 
         // query for highlights
-        let highlights = query::document_highlight(session, doc.file_id, offset);
+        let highlights = session.with_query_context_mode(true, || {
+            query::document_highlight(session, doc.file_id, offset)
+        });
         if highlights.is_empty() {
             return Ok(None);
         }
@@ -1959,14 +2061,18 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_query_file(doc.file_id);
+        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+            return Ok(None);
+        };
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
         else {
             return Ok(None);
         };
 
-        // query for hover info
-        let Some(hover_info) = query::hover(session, doc.file_id, offset) else {
+        // query hover info
+        let Some(hover_info) =
+            session.with_query_context_mode(true, || query::hover(session, doc.file_id, offset))
+        else {
             return Ok(None);
         };
 
@@ -1991,7 +2097,9 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_query_file(doc.file_id);
+        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+            return Ok(None);
+        };
         let Some(offset) = position_to_byte(&file, &params.text_document_position.position) else {
             return Ok(None);
         };
@@ -2169,7 +2277,9 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_query_file(doc.file_id);
+        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+            return Ok(None);
+        };
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
         else {
             return Ok(None);
@@ -2232,7 +2342,9 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_query_file(doc.file_id);
+        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+            return Ok(None);
+        };
 
         // query semantic tokens
         let tokens = query::semantic_tokens(session, doc.file_id);
@@ -2273,7 +2385,9 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_query_file(doc.file_id);
+        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+            return Ok(None);
+        };
 
         // query semantic tokens
         let tokens = query::semantic_tokens(session, doc.file_id);
@@ -2330,7 +2444,9 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_query_file(doc.file_id);
+        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+            return Ok(None);
+        };
 
         // convert range to span
         let Some(start) = position_to_byte(&file, &params.range.start) else {
@@ -2459,7 +2575,9 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_query_file(doc.file_id);
+        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+            return Ok(None);
+        };
 
         // get formatter options from program (respects dsconfig.json)
         let formatter = file
@@ -2505,7 +2623,9 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_query_file(doc.file_id);
+        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+            return Ok(None);
+        };
 
         // get formatter options from program
         let formatter = file
@@ -2552,7 +2672,9 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_query_file(doc.file_id);
+        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+            return Ok(None);
+        };
 
         // convert positions to byte offsets
         let positions: Vec<u32> = params
@@ -2631,7 +2753,9 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_query_file(doc.file_id);
+        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+            return Ok(None);
+        };
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
         else {
             return Ok(None);
@@ -2664,7 +2788,9 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_query_file(doc.file_id);
+        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+            return Ok(None);
+        };
 
         // query document links
         let links = query::document_links(session, doc.file_id);
@@ -2750,7 +2876,9 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_query_file(doc.file_id);
+        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+            return Ok(None);
+        };
 
         // convert range to span
         let Some(start) = position_to_byte(&file, &params.range.start) else {
@@ -2909,7 +3037,9 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_query_file(doc.file_id);
+        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+            return Ok(None);
+        };
 
         // query code lenses
         let lenses = query::code_lenses(session, doc.file_id);
@@ -2981,7 +3111,9 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_query_file(doc.file_id);
+        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+            return Ok(None);
+        };
 
         // convert range to span
         let Some(start) = position_to_byte(&file, &params.range.start) else {
@@ -3024,7 +3156,9 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_query_file(doc.file_id);
+        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+            return Ok(None);
+        };
         let Some(offset) = position_to_byte(&file, &params.position) else {
             return Ok(None);
         };
@@ -3052,7 +3186,9 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_query_file(doc.file_id);
+        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+            return Ok(None);
+        };
         let Some(offset) = position_to_byte(&file, &params.text_document_position.position) else {
             return Ok(None);
         };
@@ -3085,7 +3221,9 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_query_file(doc.file_id);
+        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+            return Ok(None);
+        };
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
         else {
             return Ok(None);
@@ -3175,7 +3313,9 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_query_file(doc.file_id);
+        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+            return Ok(None);
+        };
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
         else {
             return Ok(None);
