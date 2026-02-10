@@ -5,9 +5,9 @@ import { DeviceHandle } from "../resource/index.ds";
 /// Device control operation payload.
 export struct DeviceControlOperation {
     /// Device-specific request code.
-    request: uint64,
+    request: uint64;
     /// Operation flags.
-    flags: uint32,
+    flags: uint32;
 }
 
 /// Device control bindings.

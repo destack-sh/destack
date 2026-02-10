@@ -60,14 +60,14 @@ declare var Promise: PromiseConstructor;
 
 /// Success variant of Result.
 export struct Ok<T> {
-    kind: "ok" = "ok",
-    value: T,
+    kind: "ok" = "ok";
+    value: T;
 }
 
 /// Error variant of Result.
 export struct Err<E> {
-    kind: "err" = "err",
-    error: E,
+    kind: "err" = "err";
+    error: E;
 }
 
 /// A type that represents either success (`Ok`) or failure (`Err`).

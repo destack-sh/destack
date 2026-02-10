@@ -4,13 +4,13 @@ import { SocketHandle } from "../resource/index.ds";
 /// TCP keepalive parameters.
 export struct KeepAliveConfig {
     /// Whether keepalive probes are enabled.
-    enabled: boolean,
+    enabled: boolean;
     /// Idle time before probes begin, in seconds.
-    idleSeconds: uint32,
+    idleSeconds: uint32;
     /// Interval between probes, in seconds.
-    intervalSeconds: uint32,
+    intervalSeconds: uint32;
     /// Number of failed probes before timeout.
-    probeCount: uint32,
+    probeCount: uint32;
 }
 
 /// TCP socket option bindings for the native runtime.

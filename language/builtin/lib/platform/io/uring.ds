@@ -5,25 +5,25 @@ import { Slice } from "native";
 /// io_uring setup parameters.
 export struct UringParameters {
     /// Submission queue entry count.
-    entries: uint32,
+    entries: uint32;
     /// io_uring setup flags.
-    flags: uint32,
+    flags: uint32;
     /// SQ poll idle timeout in milliseconds.
-    sqThreadIdleMs: uint32,
+    sqThreadIdleMs: uint32;
 }
 
 /// io_uring feature probe result.
 export struct UringFeatures {
     /// Whether submission polling is available.
-    hasSubmissionPolling: boolean,
+    hasSubmissionPolling: boolean;
     /// Whether kernel-side thread polling is available.
-    hasKernelPolling: boolean,
+    hasKernelPolling: boolean;
     /// Whether fixed-file registration is available.
-    hasFixedFiles: boolean,
+    hasFixedFiles: boolean;
     /// Whether fixed-buffer registration is available.
-    hasFixedBuffers: boolean,
+    hasFixedBuffers: boolean;
     /// Maximum submission queue depth reported by the kernel.
-    maxEntries: uint32,
+    maxEntries: uint32;
 }
 
 /// io_uring bindings.

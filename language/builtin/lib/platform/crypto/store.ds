@@ -17,29 +17,29 @@ export enum CryptoStoreKind {
 /// Crypto store options.
 export struct CryptoStoreOptions {
     /// Store backend kind.
-    kind: CryptoStoreKind,
+    kind: CryptoStoreKind;
     /// Provider name for provider-backed stores.
-    providerName: string,
+    providerName: string;
 }
 
 /// Key query selector for store enumeration.
 export struct CryptoKeyQuery {
     /// Label prefix filter.
-    labelPrefix: string,
+    labelPrefix: string;
     /// Algorithm filter name.
-    algorithm: string,
+    algorithm: string;
     /// Required key usage mask bits.
-    usageMask: uint32,
+    usageMask: uint32;
 }
 
 /// Certificate query selector for store enumeration.
 export struct CryptoCertificateQuery {
     /// Subject substring filter.
-    subjectContains: string,
+    subjectContains: string;
     /// Issuer substring filter.
-    issuerContains: string,
+    issuerContains: string;
     /// Required subject alternative name entry.
-    subjectAlternativeName: string,
+    subjectAlternativeName: string;
 }
 
 /// Crypto store bindings for host provider stores.

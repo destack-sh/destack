@@ -21,12 +21,12 @@ export interface TypeBase<T> {
 
 /// Primitive type descriptor (string, int, float, boolean, null).
 export struct PrimitiveType<T> implements TypeBase<T> {
-    kind: "primitive" = "primitive",
-    name: string,
-    id: TypeId,
+    kind: "primitive" = "primitive";
+    name: string;
+    id: TypeId;
 
     /// The specific primitive kind.
-    primitive: PrimitiveKind,
+    primitive: PrimitiveKind;
 }
 
 /// The specific kind of primitive type.
@@ -52,174 +52,174 @@ export type PrimitiveKind = "string"
 
 /// Struct type descriptor.
 export struct StructType<T> implements TypeBase<T> {
-    kind: "struct" = "struct",
-    name: string,
-    id: TypeId,
+    kind: "struct" = "struct";
+    name: string;
+    id: TypeId;
 
     /// Properties of this struct.
-    properties: readonly Property[],
+    properties: readonly Property[];
 
     /// Decorators on the struct declaration.
-    decorators: readonly DecoratorInfo[],
+    decorators: readonly DecoratorInfo[];
 
     /// Documentation comment, if present.
-    description?: string,
+    description?: string;
 }
 
 /// Class type descriptor.
 export struct ClassType<T> implements TypeBase<T> {
-    kind: "class" = "class",
-    name: string,
-    id: TypeId,
+    kind: "class" = "class";
+    name: string;
+    id: TypeId;
 
     /// Properties of this class (instance fields).
-    properties: readonly Property[],
+    properties: readonly Property[];
 
     /// Parent class, if any.
-    extends?: Type<unknown>,
+    extends?: Type<unknown>;
 
     /// Implemented interfaces.
-    implements: readonly Type<unknown>[],
+    implements: readonly Type<unknown>[];
 
     /// Decorators on the class declaration.
-    decorators: readonly DecoratorInfo[],
+    decorators: readonly DecoratorInfo[];
 
     /// Documentation comment, if present.
-    description?: string,
+    description?: string;
 }
 
 /// Enum type descriptor.
 export struct EnumType<T> implements TypeBase<T> {
-    kind: "enum" = "enum",
-    name: string,
-    id: TypeId,
+    kind: "enum" = "enum";
+    name: string;
+    id: TypeId;
 
     /// Variants of this enum.
-    variants: readonly Variant[],
+    variants: readonly Variant[];
 
     /// Decorators on the enum declaration.
-    decorators: readonly DecoratorInfo[],
+    decorators: readonly DecoratorInfo[];
 
     /// Documentation comment, if present.
-    description?: string,
+    description?: string;
 }
 
 /// Interface type descriptor.
 export struct InterfaceType<T> implements TypeBase<T> {
-    kind: "interface" = "interface",
-    name: string,
-    id: TypeId,
+    kind: "interface" = "interface";
+    name: string;
+    id: TypeId;
 
     /// Whether this is a nominal interface (newtype interface).
-    nominal: boolean,
+    nominal: boolean;
 
     /// Properties defined in this interface.
-    properties: readonly Property[],
+    properties: readonly Property[];
 
     /// Extended interfaces.
-    extends: readonly Type<unknown>[],
+    extends: readonly Type<unknown>[];
 
     /// Documentation comment, if present.
-    description?: string,
+    description?: string;
 }
 
 /// Newtype type descriptor (nominal wrapper around another type).
 export struct NewtypeType<T> implements TypeBase<T> {
-    kind: "newtype" = "newtype",
-    name: string,
-    id: TypeId,
+    kind: "newtype" = "newtype";
+    name: string;
+    id: TypeId;
 
     /// The underlying type being wrapped.
-    underlying: Type<unknown>,
+    underlying: Type<unknown>;
 
     /// Decorators on the newtype declaration.
-    decorators: readonly DecoratorInfo[],
+    decorators: readonly DecoratorInfo[];
 
     /// Documentation comment, if present.
-    description?: string,
+    description?: string;
 }
 
 /// Array type descriptor.
 export struct ArrayType<T> implements TypeBase<T> {
-    kind: "array" = "array",
-    name: string,
-    id: TypeId,
+    kind: "array" = "array";
+    name: string;
+    id: TypeId;
 
     /// The element type.
-    element: Type<unknown>,
+    element: Type<unknown>;
 
     /// Fixed length, if this is a fixed-size array (e.g., `int[10]`).
-    length?: int,
+    length?: int;
 }
 
 /// Tuple type descriptor.
 export struct TupleType<T> implements TypeBase<T> {
-    kind: "tuple" = "tuple",
-    name: string,
-    id: TypeId,
+    kind: "tuple" = "tuple";
+    name: string;
+    id: TypeId;
 
     /// Element types, in order.
-    elements: readonly Type<unknown>[],
+    elements: readonly Type<unknown>[];
 
     /// Element names, if this is a named tuple.
-    names?: readonly string[],
+    names?: readonly string[];
 }
 
 /// Union type descriptor.
 export struct UnionType<T> implements TypeBase<T> {
-    kind: "union" = "union",
-    name: string,
-    id: TypeId,
+    kind: "union" = "union";
+    name: string;
+    id: TypeId;
 
     /// Member types of the union.
-    members: readonly Type<unknown>[],
+    members: readonly Type<unknown>[];
 }
 
 /// Intersection type descriptor.
 export struct IntersectionType<T> implements TypeBase<T> {
-    kind: "intersection" = "intersection",
-    name: string,
-    id: TypeId,
+    kind: "intersection" = "intersection";
+    name: string;
+    id: TypeId;
 
     /// Member types of the intersection.
-    members: readonly Type<unknown>[],
+    members: readonly Type<unknown>[];
 }
 
 /// Function type descriptor.
 export struct FunctionType<T> implements TypeBase<T> {
-    kind: "function" = "function",
-    name: string,
-    id: TypeId,
+    kind: "function" = "function";
+    name: string;
+    id: TypeId;
 
     /// Parameter types.
-    parameters: readonly Parameter[],
+    parameters: readonly Parameter[];
 
     /// Return type.
-    returnType: Type<unknown>,
+    returnType: Type<unknown>;
 
     /// Whether this function is async.
-    isAsync: boolean,
+    isAsync: boolean;
 
     /// Whether this function is a generator.
-    isGenerator: boolean,
+    isGenerator: boolean;
 }
 
 /// A function parameter.
 export struct Parameter {
-    name: string,
-    type: Type<unknown>,
-    optional: boolean,
-    rest: boolean,
+    name: string;
+    type: Type<unknown>;
+    optional: boolean;
+    rest: boolean;
 }
 
 /// Object type descriptor (anonymous structural type `{ x: T, y: U }`).
 export struct ObjectType<T> implements TypeBase<T> {
-    kind: "object" = "object",
-    name: string,
-    id: TypeId,
+    kind: "object" = "object";
+    name: string;
+    id: TypeId;
 
     /// Properties of this object type.
-    properties: readonly Property[],
+    properties: readonly Property[];
 }
 
 /// A type descriptor.

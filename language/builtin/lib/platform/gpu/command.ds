@@ -12,79 +12,79 @@ import {
 /// Command encoder creation options.
 export struct GpuCommandEncoderOptions {
     /// Encoder option flags.
-    flags: uint32,
+    flags: uint32;
 }
 
 /// Queue submission options.
 export struct GpuSubmitOptions {
     /// Submit option flags.
-    flags: uint32,
+    flags: uint32;
     /// Optional wait timeout in nanoseconds.
-    timeoutNs: uint64,
+    timeoutNs: uint64;
 }
 
 /// Render pass descriptor.
 export struct GpuRenderPassOptions {
     /// Color attachment texture.
-    colorTexture: GpuTextureHandle,
+    colorTexture: GpuTextureHandle;
     /// Whether depth attachment is enabled.
-    hasDepth: boolean,
+    hasDepth: boolean;
     /// Depth attachment texture when enabled.
-    depthTexture: GpuTextureHandle,
+    depthTexture: GpuTextureHandle;
     /// Clear color red component.
-    clearColorR: float64,
+    clearColorR: float64;
     /// Clear color green component.
-    clearColorG: float64,
+    clearColorG: float64;
     /// Clear color blue component.
-    clearColorB: float64,
+    clearColorB: float64;
     /// Clear color alpha component.
-    clearColorA: float64,
+    clearColorA: float64;
     /// Clear depth value.
-    clearDepth: float64,
+    clearDepth: float64;
 }
 
 /// 3D extent descriptor.
 export struct GpuExtent3D {
     /// Width in texels.
-    width: uint32,
+    width: uint32;
     /// Height in texels.
-    height: uint32,
+    height: uint32;
     /// Depth or array layer count.
-    depthOrArrayLayers: uint32,
+    depthOrArrayLayers: uint32;
 }
 
 /// Texture copy source or destination descriptor.
 export struct GpuTextureCopy {
     /// Texture handle.
-    texture: GpuTextureHandle,
+    texture: GpuTextureHandle;
     /// Mip level index.
-    mipLevel: uint32,
+    mipLevel: uint32;
     /// Origin x coordinate.
-    originX: uint32,
+    originX: uint32;
     /// Origin y coordinate.
-    originY: uint32,
+    originY: uint32;
     /// Origin z coordinate.
-    originZ: uint32,
+    originZ: uint32;
     /// Texture aspect selector.
-    aspect: uint32,
+    aspect: uint32;
 }
 
 /// Buffer copy layout descriptor.
 export struct GpuBufferCopyLayout {
     /// Byte offset in the buffer.
-    offset: uint64,
+    offset: uint64;
     /// Bytes per row.
-    bytesPerRow: uint32,
+    bytesPerRow: uint32;
     /// Rows per image.
-    rowsPerImage: uint32,
+    rowsPerImage: uint32;
 }
 
 /// Buffer copy source or destination descriptor.
 export struct GpuBufferCopy {
     /// Buffer handle.
-    buffer: GpuBufferHandle,
+    buffer: GpuBufferHandle;
     /// Buffer layout metadata.
-    layout: GpuBufferCopyLayout,
+    layout: GpuBufferCopyLayout;
 }
 
 /// GPU command bindings.

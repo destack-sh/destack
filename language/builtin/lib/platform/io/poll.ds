@@ -21,11 +21,11 @@ export newtype PollInterest = uint32;
 /// Poll event result.
 export struct PollEvent {
     /// User-assigned event key.
-    key: uint64,
+    key: uint64;
     /// Ready interest mask.
-    ready: PollInterest,
+    ready: PollInterest;
     /// Host error code for this event.
-    error: int32,
+    error: int32;
 }
 
 /// Poll bindings.

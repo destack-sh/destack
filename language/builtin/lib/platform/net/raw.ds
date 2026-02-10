@@ -16,35 +16,35 @@ export enum PacketTimestampMode {
 /// Packet capture options.
 export struct PacketCaptureOptions {
     /// Interface index for capture.
-    interfaceIndex: uint32,
+    interfaceIndex: uint32;
     /// Maximum frame bytes per packet.
-    snapLength: uint32,
+    snapLength: uint32;
     /// Capture timeout in milliseconds.
-    timeoutMs: int32,
+    timeoutMs: int32;
     /// Whether promiscuous mode is requested.
-    promiscuous: boolean,
+    promiscuous: boolean;
 }
 
 /// Captured packet metadata.
 export struct PacketCaptureRecord {
     /// Number of packet bytes written to the target buffer.
-    bytes: uint64,
+    bytes: uint64;
     /// Interface index that produced the packet.
-    interfaceIndex: uint32,
+    interfaceIndex: uint32;
     /// Capture timestamp in nanoseconds.
-    timestampNs: uint64,
+    timestampNs: uint64;
     /// Whether packet bytes were truncated.
-    truncated: boolean,
+    truncated: boolean;
 }
 
 /// Packet capture backend statistics.
 export struct PacketCaptureStats {
     /// Number of packets received by the backend.
-    receivedPackets: uint64,
+    receivedPackets: uint64;
     /// Number of packets dropped by the backend.
-    droppedPackets: uint64,
+    droppedPackets: uint64;
     /// Number of packets dropped by the interface.
-    interfaceDroppedPackets: uint64,
+    interfaceDroppedPackets: uint64;
 }
 
 /// Packet fanout mode for shared packet sockets.
@@ -66,25 +66,25 @@ export enum PacketFanoutMode {
 /// Packet fanout options for packet sockets.
 export struct PacketFanoutOptions {
     /// Fanout group identifier.
-    groupId: uint16,
+    groupId: uint16;
     /// Fanout algorithm mode.
-    mode: PacketFanoutMode,
+    mode: PacketFanoutMode;
     /// Mode-specific fanout flags.
-    flags: uint16,
+    flags: uint16;
 }
 
 /// Packet ring options for rx and tx packet queues.
 export struct PacketRingOptions {
     /// Ring block size in bytes.
-    blockSize: uint32,
+    blockSize: uint32;
     /// Number of blocks in the ring.
-    blockCount: uint32,
+    blockCount: uint32;
     /// Frame size in bytes.
-    frameSize: uint32,
+    frameSize: uint32;
     /// Number of frames in the ring.
-    frameCount: uint32,
+    frameCount: uint32;
     /// Block retire timeout in milliseconds.
-    retireTimeoutMs: uint32,
+    retireTimeoutMs: uint32;
 }
 
 /// Raw network bindings for the native runtime.

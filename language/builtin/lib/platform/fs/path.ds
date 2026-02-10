@@ -22,11 +22,11 @@ export enum PathEncoding {
 /// When encoding is `Utf16`, `utf16` stores UTF-16 code units.
 export struct OsPath {
     /// Path encoding tag.
-    encoding: PathEncoding,
+    encoding: PathEncoding;
     /// Raw byte payload for `PathEncoding.Bytes`.
-    bytes: PathBytes,
+    bytes: PathBytes;
     /// UTF-16 payload for `PathEncoding.Utf16`.
-    utf16: PathUtf16,
+    utf16: PathUtf16;
 }
 
 /// Build an `OsPath` from raw platform bytes.

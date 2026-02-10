@@ -1,9 +1,9 @@
 /// A borrowed view into contiguous memory.
 export struct Slice<T> {
     /// Pointer to the first element.
-    data: *T,
+    data: *T;
     /// Number of elements in the slice.
-    length: uint32,
+    length: uint32;
 }
 
 extension<T> for Slice<T> implements Index<number, T>, IndexSet<number, T>, Iterable<T> {

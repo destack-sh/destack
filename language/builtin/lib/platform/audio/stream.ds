@@ -6,25 +6,25 @@ import { AudioSampleFormat } from "./device.ds";
 /// Audio stream configuration.
 export struct AudioStreamConfig {
     /// Sample rate in hertz.
-    sampleRate: uint32,
+    sampleRate: uint32;
     /// Channel count.
-    channels: uint16,
+    channels: uint16;
     /// Audio sample format.
-    format: AudioSampleFormat,
+    format: AudioSampleFormat;
     /// Target period size in frames.
-    periodFrames: uint32,
+    periodFrames: uint32;
     /// Host stream option flags.
-    flags: uint32,
+    flags: uint32;
 }
 
 /// Audio stream state snapshot.
 export struct AudioStreamState {
     /// Whether the stream is currently running.
-    running: boolean,
+    running: boolean;
     /// Frames buffered by the host backend.
-    bufferedFrames: uint64,
+    bufferedFrames: uint64;
     /// Host latency estimate in nanoseconds.
-    latencyNs: uint64,
+    latencyNs: uint64;
 }
 
 /// Audio stream bindings.

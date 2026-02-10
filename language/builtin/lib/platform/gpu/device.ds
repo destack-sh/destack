@@ -8,31 +8,31 @@ import {
 /// Device limits contract.
 export struct GpuDeviceLimits {
     /// Maximum bind groups.
-    maxBindGroups: uint32,
+    maxBindGroups: uint32;
     /// Maximum 2D texture dimension.
-    maxTextureDimension2D: uint32,
+    maxTextureDimension2D: uint32;
     /// Maximum uniform buffer binding size.
-    maxUniformBufferBindingSize: uint64,
+    maxUniformBufferBindingSize: uint64;
     /// Maximum storage buffer binding size.
-    maxStorageBufferBindingSize: uint64,
+    maxStorageBufferBindingSize: uint64;
 }
 
 /// GPU device creation options.
 export struct GpuDeviceOptions {
     /// Required feature bitset.
-    requiredFeatureMask: uint64,
+    requiredFeatureMask: uint64;
     /// Required minimum limits.
-    requiredLimits: GpuDeviceLimits,
+    requiredLimits: GpuDeviceLimits;
     /// Device option flags.
-    flags: uint32,
+    flags: uint32;
 }
 
 /// Runtime-visible device metadata.
 export struct GpuDeviceInfo {
     /// Feature bitset enabled on this device.
-    enabledFeatureMask: uint64,
+    enabledFeatureMask: uint64;
     /// Effective device limits.
-    effectiveLimits: GpuDeviceLimits,
+    effectiveLimits: GpuDeviceLimits;
 }
 
 /// GPU device bindings.

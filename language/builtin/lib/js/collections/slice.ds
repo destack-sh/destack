@@ -1,11 +1,11 @@
 /// A borrowed view into a JS array.
 struct Slice<T> {
     /// Backing array storage.
-    data: Array<T>,
+    data: Array<T>;
     /// Start offset within the backing array.
-    start: uint32,
+    start: uint32;
     /// Number of elements in the slice.
-    length: uint32,
+    length: uint32;
 }
 
 extension<T> for Slice<T> implements Index<number, T>, IndexSet<number, T>, Iterable<T> {

@@ -5,9 +5,9 @@ import { SocketHandle } from "../resource/index.ds";
 /// Socket linger settings.
 export struct Linger {
     /// Whether linger is enabled.
-    enabled: boolean,
+    enabled: boolean;
     /// Linger duration in seconds.
-    seconds: uint32,
+    seconds: uint32;
 }
 
 /// Packet timestamping mode.

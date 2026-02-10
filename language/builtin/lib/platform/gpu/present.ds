@@ -4,23 +4,23 @@ import { GpuDeviceHandle, GpuQueueHandle, WindowHandle } from "../resource/index
 /// Surface configuration options.
 export struct GpuSurfaceOptions {
     /// Surface width in pixels.
-    width: uint32,
+    width: uint32;
     /// Surface height in pixels.
-    height: uint32,
+    height: uint32;
     /// Surface texture format identifier.
-    format: uint32,
+    format: uint32;
     /// Present mode selector.
-    presentMode: uint32,
+    presentMode: uint32;
     /// Alpha mode selector.
-    alphaMode: uint32,
+    alphaMode: uint32;
 }
 
 /// Present options.
 export struct GpuPresentOptions {
     /// Present option flags.
-    flags: uint32,
+    flags: uint32;
     /// Target frame identifier when supported.
-    frameId: uint64,
+    frameId: uint64;
 }
 
 /// Present bindings.

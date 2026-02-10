@@ -10,43 +10,43 @@ import {
 /// GPU buffer creation options.
 export struct GpuBufferOptions {
     /// Buffer size in bytes.
-    size: uint64,
+    size: uint64;
     /// Buffer usage bitset.
-    usage: uint64,
+    usage: uint64;
     /// Buffer option flags.
-    flags: uint32,
+    flags: uint32;
 }
 
 /// GPU texture creation options.
 export struct GpuTextureOptions {
     /// Texture width in texels.
-    width: uint32,
+    width: uint32;
     /// Texture height in texels.
-    height: uint32,
+    height: uint32;
     /// Texture depth or layer count.
-    depthOrLayers: uint32,
+    depthOrLayers: uint32;
     /// Texture mip level count.
-    mipLevels: uint32,
+    mipLevels: uint32;
     /// Texture sample count.
-    samples: uint32,
+    samples: uint32;
     /// Texture format identifier.
-    format: uint32,
+    format: uint32;
     /// Texture usage bitset.
-    usage: uint64,
+    usage: uint64;
 }
 
 /// GPU sampler creation options.
 export struct GpuSamplerOptions {
     /// Minification filter selector.
-    minFilter: uint32,
+    minFilter: uint32;
     /// Magnification filter selector.
-    magFilter: uint32,
+    magFilter: uint32;
     /// Address mode u selector.
-    addressU: uint32,
+    addressU: uint32;
     /// Address mode v selector.
-    addressV: uint32,
+    addressV: uint32;
     /// Address mode w selector.
-    addressW: uint32,
+    addressW: uint32;
 }
 
 /// GPU buffer map mode.

@@ -6,13 +6,13 @@ export struct DecoratorInfo {
     ///
     /// For `@foo`, this is "foo".
     /// For `@foo.bar`, this is "foo.bar".
-    name: string,
+    name: string;
 
     /// Arguments passed to the decorator.
     ///
     /// For `@foo(1, "hello")`, this is [1, "hello"].
     /// For `@foo` (no call), this is [].
-    args: readonly unknown[],
+    args: readonly unknown[];
 
     /// The decorator value itself.
     ///
@@ -25,5 +25,5 @@ export struct DecoratorInfo {
     ///     console.warn("This is deprecated");
     /// }
     /// ```
-    value: unknown,
+    value: unknown;
 }

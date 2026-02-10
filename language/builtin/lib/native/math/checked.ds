@@ -1,9 +1,9 @@
 /// Result of a checked arithmetic operation.
 struct OverflowResult<T> {
     /// The wrapped result value.
-    value: T,
+    value: T;
     /// Whether overflow occurred.
-    overflow: boolean,
+    overflow: boolean;
 }
 
 /// Add with overflow detection.

@@ -25,11 +25,11 @@ export enum SocketShutdown {
 /// Socket credentials captured from ancillary data.
 export struct SocketCredentials {
     /// Process identifier.
-    pid: uint32,
+    pid: uint32;
     /// User identifier.
-    uid: uint32,
+    uid: uint32;
     /// Group identifier.
-    gid: uint32,
+    gid: uint32;
 }
 
 /// Raw ancillary control buffer payload.
@@ -38,85 +38,85 @@ export newtype SocketControlBuffer = uint8[];
 /// Outbound message metadata for sendmsg.
 export struct SocketSendMessage {
     /// Whether to send to one explicit destination address.
-    hasAddress: boolean,
+    hasAddress: boolean;
     /// Destination address when `hasAddress` is true.
-    address: SocketAddress,
+    address: SocketAddress;
     /// Resource handles to pass.
-    fds: Array<TransferredHandle>,
+    fds: Array<TransferredHandle>;
     /// Raw ancillary control payload.
-    control: SocketControlBuffer,
+    control: SocketControlBuffer;
     /// Per-send flags passed to sendmsg.
-    flags: SocketMessageFlags,
+    flags: SocketMessageFlags;
     /// Whether to include explicit credentials.
-    hasCredentials: boolean,
+    hasCredentials: boolean;
     /// Credentials to send when enabled.
-    credentials: SocketCredentials,
+    credentials: SocketCredentials;
 }
 
 /// Inbound message metadata for recvmsg.
 export struct SocketRecvMessage {
     /// Number of payload bytes received.
-    bytes: uint64,
+    bytes: uint64;
     /// Whether one source address was returned.
-    hasAddress: boolean,
+    hasAddress: boolean;
     /// Source address when `hasAddress` is true.
-    address: SocketAddress,
+    address: SocketAddress;
     /// Flags returned by recvmsg.
-    recvFlags: SocketMessageFlags,
+    recvFlags: SocketMessageFlags;
     /// Whether payload bytes were truncated.
-    payloadTruncated: boolean,
+    payloadTruncated: boolean;
     /// Whether ancillary data was truncated.
-    controlTruncated: boolean,
+    controlTruncated: boolean;
     /// Raw ancillary control payload.
-    control: SocketControlBuffer,
+    control: SocketControlBuffer;
     /// Resource handles received from the peer.
-    fds: Array<TransferredHandle>,
+    fds: Array<TransferredHandle>;
     /// Whether credentials were captured.
-    hasCredentials: boolean,
+    hasCredentials: boolean;
     /// Credentials captured from the peer when available.
-    credentials: SocketCredentials,
+    credentials: SocketCredentials;
 }
 
 /// Outbound payload for sendto-style calls.
 export struct SocketSendTo {
     /// Destination address.
-    address: SocketAddress,
+    address: SocketAddress;
     /// Per-send flags passed to sendto.
-    flags: SocketMessageFlags,
+    flags: SocketMessageFlags;
 }
 
 /// Inbound payload for recvfrom-style calls.
 export struct SocketRecvFrom {
     /// Number of payload bytes received.
-    bytes: uint64,
+    bytes: uint64;
     /// Source address.
-    address: SocketAddress,
+    address: SocketAddress;
     /// Flags returned by recvfrom-style calls.
-    recvFlags: SocketMessageFlags,
+    recvFlags: SocketMessageFlags;
 }
 
 /// One sendmmsg entry payload.
 export struct SocketSendBatchEntry {
     /// Payload bytes for this message.
-    payload: Slice<uint8>,
+    payload: Slice<uint8>;
     /// Message metadata for this payload.
-    message: SocketSendMessage,
+    message: SocketSendMessage;
 }
 
 /// One recvmmsg entry request.
 export struct SocketRecvBatchRequest {
     /// Payload buffer for this message.
-    payload: Slice<uint8>,
+    payload: Slice<uint8>;
     /// Per-message receive flags.
-    recvFlags: SocketMessageFlags,
+    recvFlags: SocketMessageFlags;
 }
 
 /// Pair of connected socket handles.
 export struct SocketPair {
     /// First socket in the pair.
-    first: SocketHandle,
+    first: SocketHandle;
     /// Second socket in the pair.
-    second: SocketHandle,
+    second: SocketHandle;
 }
 
 /// Socket bindings for the native runtime.

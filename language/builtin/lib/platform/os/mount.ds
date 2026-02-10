@@ -4,13 +4,13 @@ import { OsPath } from "../fs/path.ds";
 /// Mount table entry.
 export struct MountEntry {
     /// Source device or backing object.
-    source: string,
+    source: string;
     /// Target mount path.
-    target: OsPath,
+    target: OsPath;
     /// Filesystem type name.
-    fileSystem: string,
+    fileSystem: string;
     /// Mount flags bitmask.
-    flags: uint64,
+    flags: uint64;
 }
 
 /// Mount bindings.

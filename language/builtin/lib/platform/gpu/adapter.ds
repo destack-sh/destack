@@ -43,35 +43,35 @@ export enum GpuPowerPreference {
 /// Adapter discovery options.
 export struct GpuAdapterRequest {
     /// Preferred backend. Zero means backend agnostic.
-    backend: uint32,
+    backend: uint32;
     /// Preferred power profile.
-    powerPreference: GpuPowerPreference,
+    powerPreference: GpuPowerPreference;
     /// Whether software fallback adapters are allowed.
-    allowFallback: boolean,
+    allowFallback: boolean;
 }
 
 /// GPU adapter information.
 export struct GpuAdapterInfo {
     /// Stable runtime adapter identifier.
-    id: string,
+    id: string;
     /// Host adapter name.
-    name: string,
+    name: string;
     /// Backend API kind.
-    backend: GpuBackend,
+    backend: GpuBackend;
     /// Adapter category.
-    adapterType: GpuAdapterType,
+    adapterType: GpuAdapterType;
     /// Vendor identifier when available.
-    vendorId: uint32,
+    vendorId: uint32;
     /// Device identifier when available.
-    deviceId: uint32,
+    deviceId: uint32;
     /// Supported feature bitset.
-    featureMask: uint64,
+    featureMask: uint64;
     /// Maximum bind groups supported by this adapter.
-    maxBindGroups: uint32,
+    maxBindGroups: uint32;
     /// Maximum 2D texture dimension.
-    maxTextureDimension2D: uint32,
+    maxTextureDimension2D: uint32;
     /// Maximum storage buffer binding size.
-    maxStorageBufferBindingSize: uint64,
+    maxStorageBufferBindingSize: uint64;
 }
 
 /// GPU adapter bindings.

@@ -1,19 +1,19 @@
 /// Native hash map using open addressing with Robin Hood hashing.
 export struct Map<K, V> {
     /// Number of entries in the map.
-    length: uint32,
+    length: uint32;
     /// Number of allocated buckets.
-    capacity: uint32,
+    capacity: uint32;
     /// Control bytes for SIMD-friendly probing (like Swiss Table).
-    ctrl: *uint8,
+    ctrl: *uint8;
     /// Pointer to bucket storage.
-    buckets: *MapEntry<K, V>,
+    buckets: *MapEntry<K, V>;
 }
 
 // internal entry structure
 struct MapEntry<K, V> {
-    key: K,
-    value: V,
+    key: K;
+    value: V;
 }
 
 /// TypeScript-compatible Record type alias.

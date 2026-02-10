@@ -4,13 +4,13 @@ import { TtyHandle } from "../resource/index.ds";
 /// Terminal size descriptor.
 export struct TtySize {
     /// Character rows.
-    rows: uint32,
+    rows: uint32;
     /// Character columns.
-    columns: uint32,
+    columns: uint32;
     /// Horizontal pixel size.
-    xPixels: uint32,
+    xPixels: uint32;
     /// Vertical pixel size.
-    yPixels: uint32,
+    yPixels: uint32;
 }
 
 /// Terminal size bindings.

@@ -27,17 +27,17 @@ export enum DirentKind {
 /// Directory entry metadata.
 export struct Dirent {
     /// Entry name.
-    name: OsPath,
+    name: OsPath;
     /// Entry kind.
-    kind: DirentKind,
+    kind: DirentKind;
 }
 
 /// Result payload for incremental directory iteration.
 export struct DirentNext {
     /// Whether an entry was returned.
-    hasEntry: boolean,
+    hasEntry: boolean;
     /// The current entry when present.
-    entry: Dirent,
+    entry: Dirent;
 }
 
 /// Directory bindings for the native runtime.

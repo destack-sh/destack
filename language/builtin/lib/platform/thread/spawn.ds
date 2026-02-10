@@ -4,9 +4,9 @@ import { ThreadHandle } from "../resource/index.ds";
 /// Thread spawn options.
 export struct ThreadOptions {
     /// Requested stack size in bytes.
-    stackBytes: uint64,
+    stackBytes: uint64;
     /// Thread creation flags.
-    flags: uint32,
+    flags: uint32;
 }
 
 /// Thread lifecycle bindings.

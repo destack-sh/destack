@@ -24,21 +24,21 @@ export enum InputEventKind {
 /// Input event payload.
 export struct InputEvent {
     /// Event kind selector.
-    kind: InputEventKind,
+    kind: InputEventKind;
     /// Event timestamp in nanoseconds.
-    timestampNs: uint64,
+    timestampNs: uint64;
     /// Event source device handle.
-    device: InputDeviceHandle,
+    device: InputDeviceHandle;
     /// Event code value.
-    code: uint32,
+    code: uint32;
     /// Event value payload.
-    value: int64,
+    value: int64;
     /// Event x coordinate when applicable.
-    x: float64,
+    x: float64;
     /// Event y coordinate when applicable.
-    y: float64,
+    y: float64;
     /// Event modifiers bitset.
-    modifiers: uint32,
+    modifiers: uint32;
 }
 
 /// Input event bindings.

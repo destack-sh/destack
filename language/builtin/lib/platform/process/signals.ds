@@ -19,9 +19,9 @@ export enum SignalMaskHow {
 /// Signal event payload delivered by a subscription.
 export struct SignalEvent {
     /// Signal number observed by the runtime.
-    signal: Signal,
+    signal: Signal;
     /// Process id associated with the signal when provided by the platform.
-    pid: ProcessId,
+    pid: ProcessId;
 }
 
 /// Flags for signalfd style descriptors.

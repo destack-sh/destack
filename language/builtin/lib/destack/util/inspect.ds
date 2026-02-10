@@ -5,27 +5,27 @@ import { typeOf } from "../../core/reflect/type.ds";
 /// Options for inspect formatting.
 export struct InspectOptions {
     /// Include non enumerable properties.
-    showHidden?: boolean,
+    showHidden?: boolean;
     /// Maximum depth for recursive inspection.
-    depth?: int | null,
+    depth?: int | null;
     /// Enable ANSI color output.
-    colors?: boolean,
+    colors?: boolean;
     /// Allow custom inspect hooks.
-    customInspect?: boolean,
+    customInspect?: boolean;
     /// Maximum array length before truncation.
-    maxArrayLength?: number,
+    maxArrayLength?: number;
     /// Maximum string length before truncation.
-    maxStringLength?: number,
+    maxStringLength?: number;
     /// Preferred line break length.
-    breakLength?: number,
+    breakLength?: number;
     /// Compact formatting level.
-    compact?: boolean | number,
+    compact?: boolean | number;
     /// Sort keys when formatting objects.
-    sorted?: boolean | ((a: string, b: string) => number),
+    sorted?: boolean | ((a: string, b: string) => number);
     /// Control getter formatting.
-    getters?: boolean | "get" | "set",
+    getters?: boolean | "get" | "set";
     /// Insert numeric separators.
-    numericSeparator?: boolean,
+    numericSeparator?: boolean;
 }
 
 /// Format a list of values like node util format.
@@ -125,21 +125,21 @@ export namespace inspect {
 /// Internal inspection context.
 struct InspectContext {
     /// User supplied options.
-    options: InspectOptions,
+    options: InspectOptions;
     /// Seen objects for circular detection.
-    seen: unknown[],
+    seen: unknown[];
     /// Remaining depth for recursion.
-    depth: int,
+    depth: int;
     /// Stylize function based on color mode.
-    stylize: (text: string, style: string) => string,
+    stylize: (text: string, style: string) => string;
 }
 
 /// Result of format parsing.
 struct FormattedString {
     /// Formatted output.
-    text: string,
+    text: string;
     /// Remaining values that were not consumed by format specifiers.
-    remaining: unknown[],
+    remaining: unknown[];
 }
 
 /// Build an inspection context from options.

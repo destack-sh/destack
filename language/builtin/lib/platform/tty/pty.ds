@@ -4,9 +4,9 @@ import { PtyHandle, TtyHandle } from "../resource/index.ds";
 /// Open pseudo-terminal pair.
 export struct PtyPair {
     /// Controller endpoint.
-    controller: PtyHandle,
+    controller: PtyHandle;
     /// Worker terminal endpoint.
-    worker: TtyHandle,
+    worker: TtyHandle;
 }
 
 /// Pseudo-terminal bindings.

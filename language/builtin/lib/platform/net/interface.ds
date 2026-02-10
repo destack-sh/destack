@@ -8,17 +8,17 @@ export newtype NetInterfaceFlags = uint64;
 /// Network interface descriptor.
 export struct NetInterface {
     /// Interface name.
-    name: string,
+    name: string;
     /// Interface index.
-    index: uint32,
+    index: uint32;
     /// Interface flags.
-    flags: NetInterfaceFlags,
+    flags: NetInterfaceFlags;
     /// Interface mtu in bytes.
-    mtu: uint32,
+    mtu: uint32;
     /// Interface hardware address.
-    macAddress: uint8[],
+    macAddress: uint8[];
     /// Interface addresses.
-    addresses: Array<SocketAddress>,
+    addresses: Array<SocketAddress>;
 }
 
 /// Network interface bindings for the native runtime.

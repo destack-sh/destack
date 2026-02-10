@@ -21,15 +21,15 @@ export enum TlsRole {
 /// Options for opening one tls context.
 export struct TlsContextOptions {
     /// Client or server role.
-    role: TlsRole,
+    role: TlsRole;
     /// Minimum protocol version.
-    minVersion: TlsVersion,
+    minVersion: TlsVersion;
     /// Maximum protocol version.
-    maxVersion: TlsVersion,
+    maxVersion: TlsVersion;
     /// Require peer certificate validation.
-    verifyPeer: boolean,
+    verifyPeer: boolean;
     /// Application layer protocol names in preference order.
-    alpnProtocols: Slice<string>,
+    alpnProtocols: Slice<string>;
 }
 
 /// Tls hostname verification mode.

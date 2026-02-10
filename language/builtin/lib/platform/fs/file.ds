@@ -89,19 +89,19 @@ declare namespace fs {
     /// Options for openat2-style calls.
 export struct OpenOptions {
         /// Open flags.
-        flags: OpenFlags,
+        flags: OpenFlags;
         /// File mode for creation.
-        mode: FileMode,
+        mode: FileMode;
         /// Path resolution flags.
-        resolve: OpenResolveFlags,
+        resolve: OpenResolveFlags;
     }
 
     /// Positioned descriptor cursor for splice style operations.
     export struct SpliceCursor {
         /// Whether the cursor offset is active.
-        hasOffset: boolean,
+        hasOffset: boolean;
         /// Cursor offset when active.
-        offset: FileOffset,
+        offset: FileOffset;
     }
 
     /// Open a file relative to a directory handle with openat2 semantics.

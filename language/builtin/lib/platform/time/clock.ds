@@ -33,13 +33,13 @@ declare namespace time {
     /// Runtime clock metadata.
     export struct ClockInfo {
         /// Clock identifier.
-        id: ClockId,
+        id: ClockId;
         /// Host clock source kind.
-        source: ClockSource,
+        source: ClockSource;
         /// Reported resolution in nanoseconds.
-        resolutionNs: uint64,
+        resolutionNs: uint64;
         /// Whether the clock is monotonic.
-        isMonotonic: boolean,
+        isMonotonic: boolean;
     }
 
     /// Return wall clock time in nanoseconds since the runtime epoch.

@@ -18,17 +18,17 @@ newtype StringFlags = uint32;
 /// Native UTF-8 string with cached UTF-16 length for TypeScript compatibility.
 export struct String {
     /// UTF-16 code unit count (for .length compatibility with JS/TS).
-    lengthUtf16: uint32,
+    lengthUtf16: uint32;
     /// Byte length of UTF-8 data.
-    lengthBytes: uint32,
+    lengthBytes: uint32;
     /// Cached hash (0 = not yet computed).
-    hash: uint64,
+    hash: uint64;
     /// Allocated capacity in bytes.
-    capacity: uint32,
+    capacity: uint32;
     /// Runtime metadata flags.
-    flags: StringFlags,
+    flags: StringFlags;
     /// Pointer to UTF-8 byte data.
-    data: *uint8,
+    data: *uint8;
 }
 
 // FUGU: support proper native String

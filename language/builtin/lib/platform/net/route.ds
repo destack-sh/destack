@@ -20,19 +20,19 @@ export enum RouteKind {
 /// Route table entry.
 export struct RouteEntry {
     /// Route family.
-    family: SocketFamily,
+    family: SocketFamily;
     /// Destination prefix address.
-    destination: SocketAddress,
+    destination: SocketAddress;
     /// Prefix length in bits.
-    prefixLength: uint8,
+    prefixLength: uint8;
     /// Next-hop gateway address.
-    gateway: SocketAddress,
+    gateway: SocketAddress;
     /// Output interface index.
-    interfaceIndex: uint32,
+    interfaceIndex: uint32;
     /// Route metric.
-    metric: uint32,
+    metric: uint32;
     /// Route kind.
-    kind: RouteKind,
+    kind: RouteKind;
 }
 
 /// Route table bindings for the native runtime.

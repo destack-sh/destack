@@ -4,9 +4,9 @@ import { InspectorHandle } from "../resource/index.ds";
 /// Inspector endpoint metadata.
 export struct InspectorEndpoint {
     /// Transport URL for the inspector session.
-    url: string,
+    url: string;
     /// Host process identifier that owns the session.
-    pid: uint32,
+    pid: uint32;
 }
 
 /// Inspector transport bindings.

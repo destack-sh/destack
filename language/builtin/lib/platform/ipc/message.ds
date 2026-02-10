@@ -5,9 +5,9 @@ import { MessageQueueHandle } from "../resource/index.ds";
 /// Message queue receive result.
 export struct MessageQueueReceive {
     /// Number of payload bytes copied into the caller buffer.
-    bytes: uint32,
+    bytes: uint32;
     /// Priority value for the received message.
-    priority: uint32,
+    priority: uint32;
 }
 
 /// Message queue bindings.

@@ -5,9 +5,9 @@ import { PipeHandle } from "../resource/index.ds";
 /// Pair of pipe handles.
 export struct PipePair {
     /// Read endpoint.
-    read: PipeHandle,
+    read: PipeHandle;
     /// Write endpoint.
-    write: PipeHandle,
+    write: PipeHandle;
 }
 
 /// Pipe bindings.
