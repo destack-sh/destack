@@ -1,7 +1,9 @@
-use destack_ast::{self as ast, Declaration, FunctionKind};
+use destack_ast::{
+    self as ast, Declaration, FunctionKind, NodeVisitor, NodeVisitorOptions, walk_expression,
+};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Require explicit return type annotations on functions.
@@ -15,7 +17,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -33,7 +35,10 @@ impl LintRule for ExplicitFunctionReturnType {
 
         for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
             let declaration = ctx.tree.get(node_id);
-            let Declaration::Function { signature, .. } = declaration else {
+            let Declaration::Function {
+                signature, body, ..
+            } = declaration
+            else {
                 continue;
             };
 
@@ -52,19 +57,102 @@ impl LintRule for ExplicitFunctionReturnType {
                 continue;
             }
             let span = ctx.tree.get_span(node_id);
-            ctx.report(
-                LintDiagnostic::new(
-                    EXPLICIT_FUNCTION_RETURN_TYPE.id,
-                    EXPLICIT_FUNCTION_RETURN_TYPE.code,
-                    EXPLICIT_FUNCTION_RETURN_TYPE.category,
-                    severity,
-                    "function is missing explicit return type",
-                    ctx.module.file_id,
-                    span,
-                )
-                .with_label("add return type annotation"),
-            );
+            let mut diagnostic = LintDiagnostic::new(
+                EXPLICIT_FUNCTION_RETURN_TYPE.id,
+                EXPLICIT_FUNCTION_RETURN_TYPE.code,
+                EXPLICIT_FUNCTION_RETURN_TYPE.category,
+                severity,
+                "function is missing explicit return type",
+                ctx.module.file_id,
+                span,
+            )
+            .with_label("add return type annotation");
+
+            // suggest one void return annotation for functions that never return values
+            if ctx.compute_fixes
+                && let Some(body_expression_id) = body
+                && let Some(fix) =
+                    explicit_function_return_type_fix(ctx, node_id, *body_expression_id)
+            {
+                diagnostic = diagnostic.with_fix(fix);
+            }
+
+            ctx.report(diagnostic);
         }
+    }
+}
+
+/// Build a safe fix by inserting a `: void` return annotation.
+fn explicit_function_return_type_fix(
+    ctx: &LintModuleAstContext<'_>,
+    declaration_id: ast::LocalNodeId<ast::Declaration>,
+    body_expression_id: ast::LocalNodeId<ast::Expression>,
+) -> Option<LintFix> {
+    if contains_return_expression(ctx, body_expression_id) {
+        return None;
+    }
+
+    let body_span = ctx.tree.get_span(body_expression_id);
+    let declaration_span = ctx.tree.get_span(declaration_id);
+    if body_span.start <= declaration_span.start || body_span.start >= declaration_span.end {
+        return None;
+    }
+
+    let edits = ctx
+        .edit_builder()
+        .insert(body_span.start, ": void ")
+        .into_edits();
+    Some(LintFix::safe("Add explicit `void` return type").with_edits(edits))
+}
+
+/// Return true when an expression contains a return in this function body.
+fn contains_return_expression(
+    ctx: &LintModuleAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    let expression = ctx.tree.get(expression_id);
+    let mut visitor = ReturnDetectorVisitor::default();
+    visitor.visit_expression(ctx.tree, expression_id, expression);
+    visitor.has_return
+}
+
+/// Detect one return expression while skipping nested function bodies.
+#[derive(Default)]
+struct ReturnDetectorVisitor {
+    /// Whether one return expression has been found.
+    has_return: bool,
+    /// Visitor options.
+    options: NodeVisitorOptions,
+}
+
+impl NodeVisitor for ReturnDetectorVisitor {
+    fn options(&self) -> &NodeVisitorOptions {
+        &self.options
+    }
+
+    fn visit_expression(
+        &mut self,
+        tree: &ast::NodeTree,
+        id: ast::LocalNodeId<ast::Expression>,
+        expression: &ast::Expression,
+    ) {
+        if self.has_return {
+            return;
+        }
+
+        if matches!(expression, ast::Expression::Return { .. }) {
+            self.has_return = true;
+            return;
+        }
+
+        if let ast::Expression::Declaration(declaration) = expression {
+            let declaration = tree.get(*declaration);
+            if matches!(declaration, ast::Declaration::Function { .. }) {
+                return;
+            }
+        }
+
+        walk_expression(self, tree, id, expression);
     }
 }
 
@@ -129,5 +217,73 @@ const foo = () => 42;
         );
         test.result(result)
             .assert_no_lint("explicit-function-return-type");
+    }
+
+    #[test]
+    fn test_fix_adds_void_return_type_for_non_returning_function() {
+        let test = TestProgram::for_rule_without_prelude(ExplicitFunctionReturnType);
+        let result = test.lint_ast(
+            "explicit_function_return_type/test_fix_adds_void_return_type_for_non_returning_function.ts",
+            r#"
+function logMessage(message: string) {
+    console.log(message);
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("explicit-function-return-type")
+            .assert_safe_fixed(
+                r#"
+function logMessage(message: string): void {
+    console.log(message);
+}
+"#,
+            );
+    }
+
+    #[test]
+    fn test_no_fix_when_function_returns_value() {
+        let test = TestProgram::for_rule_without_prelude(ExplicitFunctionReturnType);
+        let result = test.lint_ast(
+            "explicit_function_return_type/test_no_fix_when_function_returns_value.ts",
+            r#"
+function toNumber(value: string) {
+    return parseInt(value, 10);
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("explicit-function-return-type")
+            .assert_has_no_fix("explicit-function-return-type");
+    }
+
+    #[test]
+    fn test_fix_ignores_return_inside_nested_function_body() {
+        let test = TestProgram::for_rule_without_prelude(ExplicitFunctionReturnType);
+        let result = test.lint_ast(
+            "explicit_function_return_type/test_fix_ignores_return_inside_nested_function_body.ts",
+            r#"
+function run(message: string) {
+    const format = (): string => {
+        return `[${message}]`;
+    };
+
+    console.log(format());
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("explicit-function-return-type")
+            .assert_safe_fixed(
+                r#"
+function run(message: string): void {
+    const format = (): string => {
+        return `[${message}]`;
+    };
+
+    console.log(format());
+}
+"#,
+            );
     }
 }

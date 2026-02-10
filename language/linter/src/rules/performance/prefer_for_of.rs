@@ -7,7 +7,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::is_array_type;
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `for-of` over index-based `for` loops.
@@ -21,12 +21,23 @@ declare_lint! {
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
     pub PreferForOf,
     "Prefer for-of over index-based for loops"
+}
+
+/// Extracted loop pattern data for `for (let i = 0; i < arr.length; i += 1)`.
+#[derive(Clone, Copy)]
+struct ForLoopPattern {
+    /// The loop index symbol.
+    index_symbol: GlobalSymbolId,
+    /// The iterated array symbol.
+    array_symbol: GlobalSymbolId,
+    /// The array expression used in the condition.
+    array_expression_id: LocalNodeId<dir::Expression>,
 }
 
 impl LintRule for PreferForOf {
@@ -101,21 +112,24 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
             return;
         };
 
-        // extract the index variable from initialization
-        let Some((index_symbol, array_symbol)) = self.extract_for_loop_pattern(init_id, cond_id)
-        else {
+        // extract the index and array loop pattern
+        let Some(pattern) = self.extract_for_loop_pattern(init_id, cond_id) else {
             return;
         };
 
         // verify the increment is i++ or i += 1
-        if !self.is_simple_increment(incr_id, index_symbol) {
+        if !self.is_simple_increment(incr_id, pattern.index_symbol) {
             return;
         }
 
-        // scan the body to see if the index is only used for array indexing
-        if !self.index_only_used_for_indexing(body, index_symbol, array_symbol) {
+        // collect array index rewrites and reject unsupported index uses
+        let Some(index_accesses) = self.collect_index_accesses_for_rewrite(
+            body,
+            pattern.index_symbol,
+            pattern.array_symbol,
+        ) else {
             return;
-        }
+        };
 
         // honor per node severity
         let severity = self.ctx.get_effective_severity(self.meta, expression_id);
@@ -125,18 +139,23 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
 
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
-        self.ctx.report(
-            LintDiagnostic::new(
-                PREFER_FOR_OF.id,
-                PREFER_FOR_OF.code,
-                PREFER_FOR_OF.category,
-                severity,
-                "prefer for-of over index-based for loop",
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label("use for-of to iterate directly over elements"),
-        );
+        let mut diagnostic = LintDiagnostic::new(
+            PREFER_FOR_OF.id,
+            PREFER_FOR_OF.code,
+            PREFER_FOR_OF.category,
+            severity,
+            "prefer for-of over index-based for loop",
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label("use for-of to iterate directly over elements");
+        if self.ctx.include_fixes
+            && let Some(fix) = self.prefer_for_of_fix(expression_id, body, pattern, &index_accesses)
+        {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
     }
 
     /// Extract the index variable and array from a for loop pattern.
@@ -144,7 +163,7 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
         &self,
         init_id: LocalNodeId<dir::Expression>,
         cond_id: LocalNodeId<dir::Expression>,
-    ) -> Option<(GlobalSymbolId, GlobalSymbolId)> {
+    ) -> Option<ForLoopPattern> {
         // match initialization: let i = 0
         let init = self.ctx.tree.get(init_id);
         let dir::Expression::Let {
@@ -215,7 +234,11 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
             return None;
         }
 
-        Some((index_symbol, array_symbol))
+        Some(ForLoopPattern {
+            index_symbol,
+            array_symbol,
+            array_expression_id: *left,
+        })
     }
 
     /// Check if the increment is a simple i++ or i += 1.
@@ -270,19 +293,20 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
         false
     }
 
-    /// Check if the index variable is only used for array indexing in the body.
-    fn index_only_used_for_indexing(
+    /// Collect all `arr[i]` index accesses used for a safe for-of rewrite.
+    fn collect_index_accesses_for_rewrite(
         &self,
         body_id: LocalNodeId<dir::Block>,
         index_symbol: GlobalSymbolId,
         array_symbol: GlobalSymbolId,
-    ) -> bool {
+    ) -> Option<Vec<LocalNodeId<dir::Expression>>> {
         // collect all uses of the index variable
         let mut collector = IndexUseCollector {
             index_symbol,
             array_symbol,
             all_uses_are_indexing: true,
             found_any_use: false,
+            index_accesses: Vec::new(),
             options: NodeVisitorOptions::default(),
         };
 
@@ -290,7 +314,62 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
         collector.visit_block(self.ctx.tree, body_id, body);
 
         // require at least one use and all uses to be indexing
-        collector.found_any_use && collector.all_uses_are_indexing
+        if !collector.found_any_use || !collector.all_uses_are_indexing {
+            return None;
+        }
+
+        Some(collector.index_accesses)
+    }
+
+    /// Build an unsafe `for` to `for-of` rewrite for index-only loops.
+    fn prefer_for_of_fix(
+        &self,
+        expression_id: LocalNodeId<dir::Expression>,
+        body_id: LocalNodeId<dir::Block>,
+        pattern: ForLoopPattern,
+        index_accesses: &[LocalNodeId<dir::Expression>],
+    ) -> Option<LintFix> {
+        // choose a stable loop binding name
+        let body_span = self.ctx.get_span(body_id);
+        let body_text = self.ctx.get_span_text(body_span).to_string();
+        let binding_name = "item";
+
+        // replace each `arr[i]` with the loop binding inside body text
+        let mut rewritten_body = body_text;
+        let mut spans = index_accesses
+            .iter()
+            .map(|expression_id| self.ctx.get_span(*expression_id))
+            .collect::<Vec<_>>();
+        spans.sort_by(|left, right| right.start.cmp(&left.start));
+        for span in spans {
+            if span.start < body_span.start || span.end > body_span.end {
+                return None;
+            }
+
+            let start = (span.start - body_span.start) as usize;
+            let end = (span.end - body_span.start) as usize;
+            rewritten_body.replace_range(start..end, binding_name);
+        }
+
+        // build a for-of loop replacement
+        let mut array_text = self
+            .ctx
+            .get_span_text(self.ctx.get_span(pattern.array_expression_id))
+            .to_string();
+        if let Some(stripped) = strip_dot_member_suffix(&array_text, "length") {
+            array_text = stripped.to_string();
+        }
+        let replacement = format!(
+            "for (const {binding_name} of {array}) {body}",
+            array = array_text,
+            body = rewritten_body,
+        );
+        let edits = self
+            .ctx
+            .edit_builder()
+            .replace(self.ctx.get_span(expression_id), replacement)
+            .into_edits();
+        Some(LintFix::r#unsafe("Rewrite index loop as for-of loop").with_edits(edits))
     }
 }
 
@@ -300,6 +379,7 @@ struct IndexUseCollector {
     array_symbol: GlobalSymbolId,
     all_uses_are_indexing: bool,
     found_any_use: bool,
+    index_accesses: Vec<LocalNodeId<dir::Expression>>,
     options: NodeVisitorOptions,
 }
 
@@ -327,6 +407,7 @@ impl NodeVisitor for IndexUseCollector {
                     && index_expr.target_symbol() == Some(self.index_symbol)
                 {
                     self.found_any_use = true;
+                    self.index_accesses.push(id);
                     // don't descend into children, we've handled this
                     return;
                 }
@@ -344,6 +425,12 @@ impl NodeVisitor for IndexUseCollector {
         // walk children
         walk_expression(self, tree, id, expression);
     }
+}
+
+/// Strip one `.member` suffix from member expression text.
+fn strip_dot_member_suffix<'a>(text: &'a str, member: &str) -> Option<&'a str> {
+    let suffix = format!(".{member}");
+    text.strip_suffix(&suffix).map(str::trim_end)
 }
 
 impl NodeVisitor for PreferForOfVisitor<'_, '_> {
@@ -392,7 +479,16 @@ for (let i = 0; i < items.length; i += 1) {
 }
 "#,
         );
-        test.result(result).assert_lint("prefer-for-of");
+        test.result(result)
+            .assert_lint("prefer-for-of")
+            .assert_unsafe_fixed(
+                r#"
+let items = [1, 2, 3];
+for (const item of items) {
+    console.log(item);
+}
+"#,
+            );
     }
 
     /// Flag with i++ increment.

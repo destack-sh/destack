@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::ExpressionDuplicateTracker;
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow duplicate conditions in if-else-if chains.
@@ -16,7 +16,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Always,
         stability = Stable
     )]
@@ -53,35 +53,57 @@ impl LintRule for NoDuplicateElseIf {
             // collect all conditions in the chain
             let mut conditions = Vec::new();
             if let ast::IfCondition::Expression { condition } = condition {
-                conditions.push(*condition);
+                conditions.push(ConditionEntry {
+                    condition_id: *condition,
+                    owner_if_id: node_id,
+                });
             }
             collect_else_if_conditions(ctx, *else_expr, &mut conditions);
 
             // check for duplicates using structural comparison
             let mut seen = ExpressionDuplicateTracker::new();
-            for condition_id in conditions {
-                if seen.find_duplicate_or_insert(ctx, condition_id).is_some() {
-                    let severity = ctx.get_effective_severity(meta, condition_id);
+            for condition in conditions {
+                if seen
+                    .find_duplicate_or_insert(ctx, condition.condition_id)
+                    .is_some()
+                {
+                    let severity = ctx.get_effective_severity(meta, condition.condition_id);
                     if !severity.is_enabled() {
                         continue;
                     }
 
-                    ctx.report(
-                        LintDiagnostic::new(
-                            NO_DUPLICATE_ELSE_IF.id,
-                            NO_DUPLICATE_ELSE_IF.code,
-                            NO_DUPLICATE_ELSE_IF.category,
-                            severity,
-                            "duplicate condition in if-else-if chain",
-                            ctx.module.file_id,
-                            ctx.tree.get_span(condition_id),
-                        )
-                        .with_label("this condition was already checked above"),
-                    );
+                    let mut diagnostic = LintDiagnostic::new(
+                        NO_DUPLICATE_ELSE_IF.id,
+                        NO_DUPLICATE_ELSE_IF.code,
+                        NO_DUPLICATE_ELSE_IF.category,
+                        severity,
+                        "duplicate condition in if-else-if chain",
+                        ctx.module.file_id,
+                        ctx.tree.get_span(condition.condition_id),
+                    )
+                    .with_label("this condition was already checked above");
+
+                    // compute fixes only when requested by the runner
+                    if ctx.compute_fixes
+                        && let Some(fix) = no_duplicate_else_if_fix(ctx, condition.owner_if_id)
+                    {
+                        diagnostic = diagnostic.with_fix(fix);
+                    }
+
+                    ctx.report(diagnostic);
                 }
             }
         }
     }
+}
+
+/// One condition entry in an if else-if chain.
+#[derive(Clone, Copy)]
+struct ConditionEntry {
+    /// The condition expression.
+    condition_id: ast::LocalNodeId<ast::Expression>,
+    /// The if expression that owns the condition.
+    owner_if_id: ast::LocalNodeId<ast::Expression>,
 }
 
 /// Check if this if expression is the else-if of a parent if.
@@ -114,7 +136,7 @@ fn is_else_if_of_parent(
 fn collect_else_if_conditions(
     ctx: &LintModuleAstContext<'_>,
     expr_id: ast::LocalNodeId<ast::Expression>,
-    conditions: &mut Vec<ast::LocalNodeId<ast::Expression>>,
+    conditions: &mut Vec<ConditionEntry>,
 ) {
     let expr = ctx.tree.get(expr_id);
     if let ast::Expression::If {
@@ -125,12 +147,42 @@ fn collect_else_if_conditions(
     } = expr
     {
         if let ast::IfCondition::Expression { condition } = condition {
-            conditions.push(*condition);
+            conditions.push(ConditionEntry {
+                condition_id: *condition,
+                owner_if_id: expr_id,
+            });
         }
         if let Some(else_expr) = else_expression {
             collect_else_if_conditions(ctx, *else_expr, conditions);
         }
     }
+}
+
+/// Build an unsafe fix for one duplicate else-if by replacing it with its fallback branch.
+fn no_duplicate_else_if_fix(
+    ctx: &LintModuleAstContext<'_>,
+    if_expression_id: ast::LocalNodeId<ast::Expression>,
+) -> Option<LintFix> {
+    // keep fixes for nested else-if expressions only
+    if !is_else_if_of_parent(ctx, if_expression_id) {
+        return None;
+    }
+
+    let expression = ctx.tree.get(if_expression_id);
+    let ast::Expression::If {
+        else_expression: Some(else_expression_id),
+        ..
+    } = expression
+    else {
+        return None;
+    };
+
+    let replacement = ctx.get_span_text(ctx.tree.get_span(*else_expression_id));
+    let edits = ctx
+        .edit_builder()
+        .replace(ctx.tree.get_span(if_expression_id), replacement)
+        .into_edits();
+    Some(LintFix::r#unsafe("Remove duplicate else-if branch").with_edits(edits))
 }
 
 #[cfg(test)]
@@ -173,6 +225,34 @@ if (x > 0) {
     }
 
     #[test]
+    fn test_fix_rewrites_duplicate_else_if_to_fallback_branch() {
+        let test = TestProgram::for_rule_without_prelude(NoDuplicateElseIf);
+        let result = test.lint_ast(
+            "no_duplicate_else_if/test_fix_rewrites_duplicate_else_if_to_fallback_branch.ds",
+            r#"
+if (x > 0) {
+    a()
+} else if (x > 0) {
+    b()
+} else {
+    c()
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-duplicate-else-if")
+            .assert_unsafe_fixed(
+                r#"
+if (x > 0) {
+    a()
+} else {
+    c()
+}
+"#,
+            );
+    }
+
+    #[test]
     fn test_allows_different_conditions() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateElseIf);
         let result = test.lint_ast(
@@ -204,5 +284,23 @@ if (x > 0) {
 "#,
         );
         test.result(result).assert_no_lint("no-duplicate-else-if");
+    }
+
+    #[test]
+    fn test_no_fix_for_duplicate_terminal_else_if_without_fallback() {
+        let test = TestProgram::for_rule_without_prelude(NoDuplicateElseIf);
+        let result = test.lint_ast(
+            "no_duplicate_else_if/test_no_fix_for_duplicate_terminal_else_if_without_fallback.ds",
+            r#"
+if (x > 0) {
+    a()
+} else if (x > 0) {
+    b()
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-duplicate-else-if")
+            .assert_has_no_fix("no-duplicate-else-if");
     }
 }

@@ -4,7 +4,7 @@ use destack_ast::{
 };
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer range literals over C-style for loops.
@@ -18,7 +18,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -42,88 +42,118 @@ impl LintRule for PreferRangeLiteral {
                 initialization: Some(initialization_id),
                 condition: Some(condition_id),
                 increment: Some(increment_id),
-                body: _,
+                body,
             } = expr
             else {
                 continue;
             };
 
             // check if this looks like a simple counting loop
-            if !is_simple_counting_loop(ctx.tree, *initialization_id, *condition_id, *increment_id)
-            {
+            let Some(candidate) =
+                counting_loop_candidate(ctx.tree, *initialization_id, *condition_id, *increment_id)
+            else {
                 continue;
-            }
+            };
 
             let severity = ctx.get_effective_severity(meta, node_id);
             if !severity.is_enabled() {
                 continue;
             }
 
-            ctx.report(
-                LintDiagnostic::new(
-                    PREFER_RANGE_LITERAL.id,
-                    PREFER_RANGE_LITERAL.code,
-                    PREFER_RANGE_LITERAL.category,
-                    severity,
-                    "use range literal instead of C-style for loop",
-                    ctx.module.file_id,
-                    ctx.tree.get_span(node_id),
-                )
-                .with_label("use `for (i in 0..n) { ... }` instead"),
-            );
+            let mut diagnostic = LintDiagnostic::new(
+                PREFER_RANGE_LITERAL.id,
+                PREFER_RANGE_LITERAL.code,
+                PREFER_RANGE_LITERAL.category,
+                severity,
+                "use range literal instead of C-style for loop",
+                ctx.module.file_id,
+                ctx.tree.get_span(node_id),
+            )
+            .with_label("use `for (i in 0..n) { ... }` instead");
+            if ctx.compute_fixes
+                && let Some(fix) = prefer_range_literal_fix(ctx, node_id, *body, &candidate)
+            {
+                diagnostic = diagnostic.with_fix(fix);
+            }
+            ctx.report(diagnostic);
         }
     }
 }
 
-/// Check if a for loop is a simple counting loop that can use a range.
-#[allow(clippy::let_and_return)]
-fn is_simple_counting_loop(
+/// A simple counting loop that can be lowered to a range loop.
+struct CountingLoopCandidate {
+    /// The loop variable name.
+    loop_variable_name: StringId,
+    /// The declaration kind for the loop variable.
+    declaration_kind: ast::LetKind,
+    /// The start expression for the range.
+    start_expression_id: ast::LocalNodeId<Expression>,
+    /// The end expression for the range.
+    end_expression_id: ast::LocalNodeId<Expression>,
+    /// Whether the range end is inclusive.
+    is_inclusive: bool,
+}
+
+/// Extract a simple counting loop candidate from a C style for loop.
+fn counting_loop_candidate(
     tree: &ast::NodeTree,
     initialization_id: ast::LocalNodeId<Expression>,
     condition_id: ast::LocalNodeId<Expression>,
     increment_id: ast::LocalNodeId<Expression>,
-) -> bool {
+) -> Option<CountingLoopCandidate> {
     let initialization = tree.get(initialization_id);
     let condition = tree.get(condition_id);
     let increment = tree.get(increment_id);
 
     // check initialization is a let binding with integer literal
-    let loop_var = match initialization {
-        Expression::Let { declarators, .. } if declarators.len() == 1 => {
+    let (declaration_kind, loop_var, start_expression_id) = match initialization {
+        Expression::Let {
+            kind, declarators, ..
+        } if declarators.len() == 1 => {
             let declarator: &Declarator = tree.get(declarators[0]);
             let pattern = tree.get(declarator.pattern);
             let Pattern::Binding { name, .. } = pattern else {
-                return false;
+                return None;
             };
-            let Some(value_id) = declarator.value else {
-                return false;
+            let Some(start_expression_id) = declarator.value else {
+                return None;
             };
-            let value = tree.get(value_id);
+            let value = tree.get(start_expression_id);
             // must initialize to an integer literal
             if !matches!(value, Expression::ScalarLiteral(ScalarLiteral::Integer(_))) {
-                return false;
+                return None;
             }
-            *name
+            (*kind, *name, start_expression_id)
         }
-        _ => return false,
+        _ => return None,
     };
 
     // check condition is a comparison with the loop variable
-    let uses_loop_var_in_condition = match condition {
+    let (end_expression_id, is_inclusive) = match condition {
         Expression::Binary {
             left,
-            operator: BinaryOperator::LessThan | BinaryOperator::LessThanOrEqual,
-            right: _,
+            operator: BinaryOperator::LessThan,
+            right,
         } => {
             let left_expr = tree.get(*left);
-            is_simple_identifier(left_expr, loop_var)
+            if !is_simple_identifier(left_expr, loop_var) {
+                return None;
+            }
+            (*right, false)
         }
-        _ => false,
+        Expression::Binary {
+            left,
+            operator: BinaryOperator::LessThanOrEqual,
+            right,
+        } => {
+            let left_expr = tree.get(*left);
+            if !is_simple_identifier(left_expr, loop_var) {
+                return None;
+            }
+            (*right, true)
+        }
+        _ => return None,
     };
-
-    if !uses_loop_var_in_condition {
-        return false;
-    }
 
     // check increment is i++ or i += 1
     let is_simple_increment = match increment {
@@ -161,7 +191,17 @@ fn is_simple_counting_loop(
         _ => false,
     };
 
-    is_simple_increment
+    if !is_simple_increment {
+        return None;
+    }
+
+    Some(CountingLoopCandidate {
+        loop_variable_name: loop_var,
+        declaration_kind,
+        start_expression_id,
+        end_expression_id,
+        is_inclusive,
+    })
 }
 
 /// Check if an expression is a simple identifier matching the given name.
@@ -173,6 +213,35 @@ fn is_simple_identifier(expr: &Expression, name: StringId) -> bool {
         } => path.segments.len() == 1 && path.segments[0] == name,
         _ => false,
     }
+}
+
+/// Build an unsafe fix that rewrites a counted for loop to a range loop.
+fn prefer_range_literal_fix(
+    ctx: &LintModuleAstContext<'_>,
+    for_expression_id: ast::LocalNodeId<Expression>,
+    body_id: ast::LocalNodeId<ast::Block>,
+    candidate: &CountingLoopCandidate,
+) -> Option<LintFix> {
+    let declaration_keyword = match candidate.declaration_kind {
+        ast::LetKind::Let => "let",
+        ast::LetKind::Var => "var",
+        ast::LetKind::Const => "const",
+    };
+    let loop_variable_name = ctx.strings.get(candidate.loop_variable_name).to_string();
+    let start_text = ctx.get_span_text(ctx.tree.get_span(candidate.start_expression_id));
+    let end_text = ctx.get_span_text(ctx.tree.get_span(candidate.end_expression_id));
+    let body_text = ctx.get_span_text(ctx.tree.get_span(body_id));
+    let range_operator = if candidate.is_inclusive { "..=" } else { ".." };
+    let replacement = format!(
+        "for ({declaration_keyword} {loop_variable_name} in {start_text}{range_operator}{end_text}) {body_text}"
+    );
+
+    let for_span = ctx.tree.get_span(for_expression_id);
+    let edits = ctx
+        .edit_builder()
+        .replace(for_span, replacement)
+        .into_edits();
+    Some(LintFix::r#unsafe("Rewrite C-style loop to range loop").with_edits(edits))
 }
 
 #[cfg(test)]
@@ -191,7 +260,15 @@ for (let i = 0; i < 10; i++) {
 }
 "#,
         );
-        test.result(result).assert_lint("prefer-range-literal");
+        test.result(result)
+            .assert_lint("prefer-range-literal")
+            .assert_unsafe_fixed(
+                r#"
+for (let i in 0..10) {
+    print(i)
+}
+"#,
+            );
     }
 
     #[test]
@@ -205,7 +282,37 @@ for (let i = 0; i < n; i += 1) {
 }
 "#,
         );
-        test.result(result).assert_lint("prefer-range-literal");
+        test.result(result)
+            .assert_lint("prefer-range-literal")
+            .assert_unsafe_fixed(
+                r#"
+for (let i in 0..n) {
+    print(i)
+}
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_preserves_inclusive_range_condition() {
+        let test = TestProgram::for_rule_without_prelude(PreferRangeLiteral);
+        let result = test.lint_ast(
+            "prefer_range_literal/test_fix_preserves_inclusive_range_condition.ds",
+            r#"
+for (let i = 0; i <= 10; i++) {
+    print(i)
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-range-literal")
+            .assert_unsafe_fixed(
+                r#"
+for (let i in 0..=10) {
+    print(i)
+}
+"#,
+            );
     }
 
     #[test]

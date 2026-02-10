@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow default exports.
@@ -15,7 +15,7 @@ declare_lint! {
         level = Dir,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Off,
         stability = Stable
     )]
@@ -75,21 +75,48 @@ impl LintRule for NoDefaultExport {
                     continue;
                 }
                 let span = ctx.get_span(node_id);
-                ctx.report(
-                    LintDiagnostic::new(
-                        NO_DEFAULT_EXPORT.id,
-                        NO_DEFAULT_EXPORT.code,
-                        NO_DEFAULT_EXPORT.category,
-                        severity,
-                        "default export",
-                        ctx.module.file_id,
-                        span,
-                    )
-                    .with_label("use named exports instead"),
-                );
+                let mut diagnostic = LintDiagnostic::new(
+                    NO_DEFAULT_EXPORT.id,
+                    NO_DEFAULT_EXPORT.code,
+                    NO_DEFAULT_EXPORT.category,
+                    severity,
+                    "default export",
+                    ctx.module.file_id,
+                    span,
+                )
+                .with_label("use named exports instead");
+
+                // compute fixes only when requested by the runner
+                if ctx.include_fixes
+                    && let Some(fix) = default_export_declaration_fix(ctx, node_id)
+                {
+                    diagnostic = diagnostic.with_fix(fix);
+                }
+
+                ctx.report(diagnostic);
             }
         }
     }
+}
+
+/// Build an unsafe fix that rewrites declaration default exports to named exports.
+fn default_export_declaration_fix(
+    ctx: &LintModuleDirContext<'_>,
+    declaration_id: dir::LocalNodeId<dir::Declaration>,
+) -> Option<LintFix> {
+    let declaration_span = ctx.get_span(declaration_id);
+    let declaration_text = ctx.get_span_text(declaration_span);
+    let declaration_text: &str = declaration_text.as_ref();
+    let replacement = declaration_text.replacen("export default ", "export ", 1);
+    if replacement == declaration_text {
+        return None;
+    }
+
+    let edits = ctx
+        .edit_builder()
+        .replace(declaration_span, replacement)
+        .into_edits();
+    Some(LintFix::r#unsafe("Rewrite default declaration export to named export").with_edits(edits))
 }
 
 #[cfg(test)]
@@ -105,7 +132,9 @@ mod tests {
             "export default function foo() {}",
         );
         test.check_clean();
-        test.result(result).assert_lint("no-default-export");
+        test.result(result)
+            .assert_lint("no-default-export")
+            .assert_unsafe_fixed("export function foo() {}\n");
     }
 
     #[test]
@@ -116,7 +145,9 @@ mod tests {
             "export default class Foo {}",
         );
         test.check_clean();
-        test.result(result).assert_lint("no-default-export");
+        test.result(result)
+            .assert_lint("no-default-export")
+            .assert_unsafe_fixed("export class Foo {}\n");
     }
 
     #[test]
@@ -149,6 +180,27 @@ mod tests {
             "const foo = 1;\nexport default foo;",
         );
         test.check_clean();
-        test.result(result).assert_lint("no-default-export");
+        test.result(result)
+            .assert_lint("no-default-export")
+            .assert_has_no_fix("no-default-export");
+    }
+
+    #[test]
+    fn test_mutation_fix_rewrites_default_export_async_function() {
+        let test = TestProgram::for_rule_without_prelude(NoDefaultExport);
+        let result = test.lint_dir(
+            "no_default_export/test_mutation_fix_rewrites_default_export_async_function.ds",
+            "export default async function foo() { return 1; }",
+        );
+        test.check_clean();
+        test.result(result)
+            .assert_lint("no-default-export")
+            .assert_unsafe_fixed(
+                r#"
+export async function foo() {
+    return 1;
+}
+"#,
+            );
     }
 }

@@ -1,10 +1,11 @@
 use destack_ast::{
-    AssignOperator, Block, Declarator, Expression, IfKind, LocalNodeId, NodeTree, Pattern,
+    self as ast, AssignOperator, Block, Declarator, Expression, IfCondition, IfKind, LetKind,
+    LocalNodeId, NodeTree, Pattern,
 };
 use destack_base::StringId;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer expression-based if over statement-based pattern.
@@ -19,12 +20,31 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
     pub PreferExpression,
     "Prefer expression-based if over statement pattern"
+}
+
+/// One matched let-then-if assignment pattern.
+#[derive(Clone, Copy)]
+struct ExpressionPatternCandidate {
+    /// The original let expression id from the block.
+    let_expression_id: LocalNodeId<Expression>,
+    /// The original if expression id from the block.
+    if_expression_id: LocalNodeId<Expression>,
+    /// The declaration kind (`let`, `var`, or `const`).
+    declaration_kind: LetKind,
+    /// The declarator id for preserving annotations.
+    declarator_id: LocalNodeId<Declarator>,
+    /// The if condition expression id.
+    condition_expression_id: LocalNodeId<Expression>,
+    /// The then-branch assigned value expression.
+    then_value_expression_id: LocalNodeId<Expression>,
+    /// The else-branch assigned value expression.
+    else_value_expression_id: LocalNodeId<Expression>,
 }
 
 impl LintRule for PreferExpression {
@@ -46,9 +66,9 @@ fn check_expression(
     ctx: &mut LintModuleAstContext<'_>,
     meta: &'static crate::LintMeta,
     tree: &NodeTree,
-    expr_id: LocalNodeId<Expression>,
+    expression_id: LocalNodeId<Expression>,
 ) {
-    let expression = tree.get(expr_id);
+    let expression = tree.get(expression_id);
 
     // check blocks for the pattern
     if let Expression::Block(block_id) = expression {
@@ -59,8 +79,8 @@ fn check_expression(
     match expression {
         Expression::Block(block_id) => {
             let block = tree.get(*block_id);
-            for &child_id in &block.expressions {
-                check_expression(ctx, meta, tree, child_id);
+            for child_expression_id in &block.expressions {
+                check_expression(ctx, meta, tree, *child_expression_id);
             }
         }
         Expression::If {
@@ -69,16 +89,16 @@ fn check_expression(
             ..
         } => {
             check_expression(ctx, meta, tree, *then_expression);
-            if let Some(else_id) = else_expression {
-                check_expression(ctx, meta, tree, *else_id);
+            if let Some(else_expression_id) = else_expression {
+                check_expression(ctx, meta, tree, *else_expression_id);
             }
         }
         Expression::Declaration(declaration_id) => {
             let declaration = tree.get(*declaration_id);
-            if let destack_ast::Declaration::Function { body, .. } = declaration
-                && let Some(body_id) = body
+            if let ast::Declaration::Function { body, .. } = declaration
+                && let Some(body_expression_id) = body
             {
-                check_expression(ctx, meta, tree, *body_id);
+                check_expression(ctx, meta, tree, *body_expression_id);
             }
         }
         _ => {}
@@ -95,75 +115,200 @@ fn check_block(
     let block = tree.get(block_id);
     let expressions = &block.expressions;
 
-    // need at least 2 consecutive expressions
+    // keep adjacent let + if pairs
     for window_index in 0..expressions.len().saturating_sub(1) {
-        let let_expr_id = expressions[window_index];
-        let if_expr_id = expressions[window_index + 1];
+        let let_expression_id = expressions[window_index];
+        let if_expression_id = expressions[window_index + 1];
 
-        // check if we have a let followed by an if
-        if let Some(variable_name) = get_uninitialized_let(tree, let_expr_id)
-            && check_if_assigns_to_variable(tree, if_expr_id, variable_name)
-        {
-            let severity = ctx.get_effective_severity(meta, let_expr_id);
-            if !severity.is_enabled() {
-                continue;
-            }
+        let Some(candidate) =
+            expression_pattern_candidate(tree, let_expression_id, if_expression_id)
+        else {
+            continue;
+        };
 
-            ctx.report(
-                LintDiagnostic::new(
-                    PREFER_EXPRESSION.id,
-                    PREFER_EXPRESSION.code,
-                    PREFER_EXPRESSION.category,
-                    severity,
-                    "prefer expression-based if over statement pattern",
-                    ctx.module.file_id,
-                    tree.get_span(let_expr_id),
-                )
-                .with_label("use `const x = if (condition) { a } else { b }` instead"),
-            );
+        let severity = ctx.get_effective_severity(meta, candidate.let_expression_id);
+        if !severity.is_enabled() {
+            continue;
         }
+
+        let mut diagnostic = LintDiagnostic::new(
+            PREFER_EXPRESSION.id,
+            PREFER_EXPRESSION.code,
+            PREFER_EXPRESSION.category,
+            severity,
+            "prefer expression-based if over statement pattern",
+            ctx.module.file_id,
+            tree.get_span(candidate.let_expression_id),
+        )
+        .with_label("use `const x = if (condition) { a } else { b }` instead");
+        if ctx.compute_fixes
+            && let Some(fix) = prefer_expression_fix(ctx, candidate)
+        {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        ctx.report(diagnostic);
     }
 }
 
-/// Check if an expression is a let binding with no initializer, return the variable name.
-fn get_uninitialized_let(tree: &NodeTree, expr_id: LocalNodeId<Expression>) -> Option<StringId> {
-    let expression = tree.get(expr_id);
+/// Build one expression-pattern candidate from adjacent expressions.
+fn expression_pattern_candidate(
+    tree: &NodeTree,
+    let_expression_id: LocalNodeId<Expression>,
+    if_expression_id: LocalNodeId<Expression>,
+) -> Option<ExpressionPatternCandidate> {
+    let (declaration_kind, declarator_id, variable_name) =
+        uninitialized_let_declarator(tree, let_expression_id)?;
+    let (condition_expression_id, then_value_expression_id, else_value_expression_id) =
+        if_assignment_pattern(tree, if_expression_id, variable_name)?;
 
-    // unwrap Statement wrapper if present
-    let expression = if let Expression::Statement(inner_id) = expression {
-        tree.get(*inner_id)
-    } else {
-        expression
-    };
+    Some(ExpressionPatternCandidate {
+        let_expression_id,
+        if_expression_id,
+        declaration_kind,
+        declarator_id,
+        condition_expression_id,
+        then_value_expression_id,
+        else_value_expression_id,
+    })
+}
 
-    let Expression::Let { declarators, .. } = expression else {
+/// Return the declaration kind, declarator, and name for an uninitialized let binding.
+fn uninitialized_let_declarator(
+    tree: &NodeTree,
+    expression_id: LocalNodeId<Expression>,
+) -> Option<(LetKind, LocalNodeId<Declarator>, StringId)> {
+    let expression_id = unwrap_statement_expression(tree, expression_id);
+    let expression = tree.get(expression_id);
+    let Expression::Let {
+        kind, declarators, ..
+    } = expression
+    else {
         return None;
     };
 
-    // only handle single declarator for now
+    // keep one declarator without initializer
     if declarators.len() != 1 {
         return None;
     }
 
     let declarator_id = declarators[0];
-    let declarator: &Declarator = tree.get(declarator_id);
-
-    // must have no initializer
+    let declarator = tree.get(declarator_id);
     if declarator.value.is_some() {
         return None;
     }
 
-    // extract the simple variable name from the pattern
-    get_simple_identifier_from_pattern(tree, declarator.pattern)
+    let variable_name = simple_binding_name(tree, declarator.pattern)?;
+    Some((*kind, declarator_id, variable_name))
 }
 
-/// Extract a simple identifier name from a pattern (if it's a simple binding).
-fn get_simple_identifier_from_pattern(
+/// Return assignment details for `if` patterns that assign both branches.
+fn if_assignment_pattern(
     tree: &NodeTree,
-    pattern_id: LocalNodeId<Pattern>,
-) -> Option<StringId> {
-    let pattern = tree.get(pattern_id);
+    expression_id: LocalNodeId<Expression>,
+    variable_name: StringId,
+) -> Option<(
+    LocalNodeId<Expression>,
+    LocalNodeId<Expression>,
+    LocalNodeId<Expression>,
+)> {
+    let expression_id = unwrap_statement_expression(tree, expression_id);
+    let expression = tree.get(expression_id);
+    let Expression::If {
+        kind: IfKind::If,
+        condition,
+        then_expression,
+        else_expression: Some(else_expression),
+    } = expression
+    else {
+        return None;
+    };
 
+    // keep explicit expression conditions
+    let IfCondition::Expression { condition } = condition else {
+        return None;
+    };
+
+    // keep one assignment in each branch
+    let then_value_expression_id = branch_assigned_value(tree, *then_expression, variable_name)?;
+    let else_value_expression_id = branch_assigned_value(tree, *else_expression, variable_name)?;
+
+    Some((
+        *condition,
+        then_value_expression_id,
+        else_value_expression_id,
+    ))
+}
+
+/// Return the assigned value in a branch when it is one simple assignment.
+fn branch_assigned_value(
+    tree: &NodeTree,
+    expression_id: LocalNodeId<Expression>,
+    variable_name: StringId,
+) -> Option<LocalNodeId<Expression>> {
+    let expression = tree.get(expression_id);
+
+    // keep one expression blocks only
+    let assignment_expression_id = if let Expression::Block(block_id) = expression {
+        let block = tree.get(*block_id);
+        if block.expressions.len() != 1 {
+            return None;
+        }
+        unwrap_statement_expression(tree, block.expressions[0])
+    } else {
+        unwrap_statement_expression(tree, expression_id)
+    };
+
+    let assignment_expression = tree.get(assignment_expression_id);
+    let Expression::Assign {
+        left,
+        operator: AssignOperator::Assign,
+        right,
+    } = assignment_expression
+    else {
+        return None;
+    };
+
+    // keep plain `name = value` assignments
+    if !is_path_with_name(tree, *left, variable_name) {
+        return None;
+    }
+
+    Some(*right)
+}
+
+/// Build a safe rewrite from `let x; if (...) { x = a } else { x = b }` to expression form.
+fn prefer_expression_fix(
+    ctx: &LintModuleAstContext<'_>,
+    candidate: ExpressionPatternCandidate,
+) -> Option<LintFix> {
+    let declaration_kind = match candidate.declaration_kind {
+        LetKind::Let => "let",
+        LetKind::Var => "var",
+        LetKind::Const => "const",
+    };
+
+    let declarator_text = ctx.get_span_text(ctx.tree.get_span(candidate.declarator_id));
+    let condition_text = ctx.get_span_text(ctx.tree.get_span(candidate.condition_expression_id));
+    let then_value_text = ctx.get_span_text(ctx.tree.get_span(candidate.then_value_expression_id));
+    let else_value_text = ctx.get_span_text(ctx.tree.get_span(candidate.else_value_expression_id));
+
+    let replacement = format!(
+        "{declaration_kind} {declarator_text} = if {condition_text} {{ {then_value_text} }} else {{ {else_value_text} }};"
+    );
+
+    let edits = ctx
+        .edit_builder()
+        .replace(ctx.tree.get_span(candidate.let_expression_id), replacement)
+        .replace(ctx.tree.get_span(candidate.if_expression_id), "")
+        .into_edits();
+
+    Some(LintFix::safe("Rewrite adjacent let-if assignment to expression form").with_edits(edits))
+}
+
+/// Return the simple binding name from one pattern.
+fn simple_binding_name(tree: &NodeTree, pattern_id: LocalNodeId<Pattern>) -> Option<StringId> {
+    let pattern = tree.get(pattern_id);
     match pattern {
         Pattern::Binding {
             name,
@@ -174,91 +319,31 @@ fn get_simple_identifier_from_pattern(
     }
 }
 
-/// Check if an if expression assigns to the given variable in both branches.
-fn check_if_assigns_to_variable(
+/// Return true when one expression is a simple path to the given name.
+fn is_path_with_name(
     tree: &NodeTree,
-    expr_id: LocalNodeId<Expression>,
-    variable_name: StringId,
+    expression_id: LocalNodeId<Expression>,
+    name: StringId,
 ) -> bool {
-    let expression = tree.get(expr_id);
+    let expression = tree.get(expression_id);
+    if let Expression::Path { path, .. } = expression {
+        return path.segments.len() == 1 && path.segments[0] == name;
+    }
 
-    // unwrap Statement wrapper if present
-    let expression = if let Expression::Statement(inner_id) = expression {
-        tree.get(*inner_id)
-    } else {
-        expression
-    };
-
-    let Expression::If {
-        kind: IfKind::If,
-        then_expression,
-        else_expression: Some(else_expression),
-        ..
-    } = expression
-    else {
-        return false;
-    };
-
-    // both branches must be blocks that assign to the variable
-    block_assigns_to_variable(tree, *then_expression, variable_name)
-        && block_assigns_to_variable(tree, *else_expression, variable_name)
+    false
 }
 
-/// Check if a block (or expression) assigns to the given variable.
-fn block_assigns_to_variable(
+/// Unwrap one statement wrapper when present.
+fn unwrap_statement_expression(
     tree: &NodeTree,
-    expr_id: LocalNodeId<Expression>,
-    variable_name: StringId,
-) -> bool {
-    let expression = tree.get(expr_id);
-
-    match expression {
-        Expression::Block(block_id) => {
-            let block = tree.get(*block_id);
-            // check if any expression in the block assigns to the variable
-            // for simplicity, we check if the first expression does
-            if let Some(&first_expr_id) = block.expressions.first() {
-                assigns_to_variable(tree, first_expr_id, variable_name)
-            } else {
-                false
-            }
-        }
-        _ => assigns_to_variable(tree, expr_id, variable_name),
+    expression_id: LocalNodeId<Expression>,
+) -> LocalNodeId<Expression> {
+    let expression = tree.get(expression_id);
+    if let Expression::Statement(inner_expression_id) = expression {
+        return *inner_expression_id;
     }
-}
 
-/// Check if an expression is an assignment to the given variable.
-fn assigns_to_variable(
-    tree: &NodeTree,
-    expr_id: LocalNodeId<Expression>,
-    variable_name: StringId,
-) -> bool {
-    let expression = tree.get(expr_id);
-
-    // unwrap Statement wrapper if present
-    let expression = if let Expression::Statement(inner_id) = expression {
-        tree.get(*inner_id)
-    } else {
-        expression
-    };
-
-    let Expression::Assign {
-        left,
-        operator: AssignOperator::Assign,
-        ..
-    } = expression
-    else {
-        return false;
-    };
-
-    // check if the left side is a simple identifier reference
-    let left_expr = tree.get(*left);
-    if let Expression::Path { path, .. } = left_expr {
-        // simple identifier is a path with a single segment
-        path.segments.len() == 1 && path.segments[0] == variable_name
-    } else {
-        false
-    }
+    expression_id
 }
 
 #[cfg(test)]
@@ -282,7 +367,42 @@ function foo(condition: boolean) {
 }
 "#,
         );
-        test.result(result).assert_lint("prefer-expression");
+        test.result(result)
+            .assert_lint("prefer-expression")
+            .assert_safe_fixed(
+                r#"
+function foo(condition: boolean) {
+    let x = if (condition) { 1 } else { 2 };
+}
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_preserves_type_annotation() {
+        let test = TestProgram::for_rule_without_prelude(PreferExpression);
+        let result = test.lint_ast(
+            "prefer_expression/test_fix_preserves_type_annotation.ds",
+            r#"
+function foo(condition: boolean) {
+    let x: int32;
+    if (condition) {
+        x = 1;
+    } else {
+        x = 2;
+    }
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-expression")
+            .assert_safe_fixed(
+                r#"
+function foo(condition: boolean) {
+    let x: int32 = if (condition) { 1 } else { 2 };
+}
+"#,
+            );
     }
 
     #[test]
@@ -365,6 +485,47 @@ function foo(condition: boolean) {
     let x;
     console.log("something");
     if (condition) {
+        x = 1;
+    } else {
+        x = 2;
+    }
+}
+"#,
+        );
+        test.result(result).assert_no_lint("prefer-expression");
+    }
+
+    #[test]
+    fn test_allows_if_expression_without_assignment_branches() {
+        let test = TestProgram::for_rule_without_prelude(PreferExpression);
+        let result = test.lint_ast(
+            "prefer_expression/test_allows_if_expression_without_assignment_branches.ds",
+            r#"
+function foo(condition: boolean): int32 {
+    let x;
+    if (condition) {
+        x = 1;
+    } else {
+        return 2;
+    }
+
+    return x;
+}
+"#,
+        );
+        test.result(result).assert_no_lint("prefer-expression");
+    }
+
+    #[test]
+    fn test_allows_branch_with_multiple_statements() {
+        let test = TestProgram::for_rule_without_prelude(PreferExpression);
+        let result = test.lint_ast(
+            "prefer_expression/test_allows_branch_with_multiple_statements.ds",
+            r#"
+function foo(condition: boolean) {
+    let x;
+    if (condition) {
+        console.log("yes");
         x = 1;
     } else {
         x = 2;

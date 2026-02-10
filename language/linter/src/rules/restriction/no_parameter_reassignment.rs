@@ -4,7 +4,7 @@ use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{collect_parameter_value_binding_symbols, expression_target_symbol};
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow reassigning function and method parameters.
@@ -17,7 +17,7 @@ declare_lint! {
         level = Dir,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Off,
         stability = Stable,
         declarations = Exclude
@@ -39,6 +39,7 @@ impl LintRule for NoParameterReassignment {
         if parameter_symbols.is_empty() {
             return;
         }
+        let statement_expression_ids = collect_statement_expression_ids(ctx);
 
         // inspect assignment expressions and match direct reference targets
         for (expression_id, expression) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
@@ -61,20 +62,160 @@ impl LintRule for NoParameterReassignment {
                 continue;
             }
 
-            // report parameter reassignment
             let span = ctx.get_span(expression_id);
-            ctx.report(
-                LintDiagnostic::new(
-                    NO_PARAMETER_REASSIGNMENT.id,
-                    NO_PARAMETER_REASSIGNMENT.code,
-                    NO_PARAMETER_REASSIGNMENT.category,
-                    severity,
-                    "parameter reassignment",
-                    ctx.module.file_id,
-                    span,
+            let mut diagnostic = LintDiagnostic::new(
+                NO_PARAMETER_REASSIGNMENT.id,
+                NO_PARAMETER_REASSIGNMENT.code,
+                NO_PARAMETER_REASSIGNMENT.category,
+                severity,
+                "parameter reassignment",
+                ctx.module.file_id,
+                span,
+            )
+            .with_label("do not reassign function parameters");
+
+            // rewrite standalone assignments to local shadow declarations when redeclaration policy allows it
+            if ctx.include_fixes
+                && let Some(fix) = no_parameter_reassignment_fix(
+                    ctx,
+                    expression_id,
+                    expression,
+                    target_symbol,
+                    &statement_expression_ids,
                 )
-                .with_label("do not reassign function parameters"),
-            );
+            {
+                diagnostic = diagnostic.with_fix(fix);
+            }
+
+            ctx.report(diagnostic);
+        }
+    }
+}
+
+/// Build one unsafe fix by converting one parameter assignment into a local shadow declaration.
+fn no_parameter_reassignment_fix(
+    ctx: &LintModuleDirContext<'_>,
+    assignment_expression_id: dir::LocalNodeId<dir::Expression>,
+    assignment_expression: &dir::Expression,
+    target_symbol: dir::GlobalSymbolId,
+    statement_expression_ids: &HashSet<u32>,
+) -> Option<LintFix> {
+    if target_symbol.module_id != ctx.module_id() {
+        return None;
+    }
+    if !statement_expression_ids.contains(&assignment_expression_id.id) {
+        return None;
+    }
+
+    let assignment_span = ctx.get_span(assignment_expression_id);
+    if parameter_is_used_after_span(ctx, target_symbol, assignment_span.end) {
+        return None;
+    }
+
+    let dir::Expression::Assign { right, .. } = assignment_expression else {
+        return None;
+    };
+
+    let symbol = ctx.symbols.get_symbol(target_symbol.local_id);
+    let symbol_name_id = symbol.name()?;
+    let symbol_name = ctx.program.strings.get(symbol_name_id).to_string();
+    if !is_simple_identifier(&symbol_name) {
+        return None;
+    }
+
+    let right_text = ctx.get_span_text(ctx.get_span(*right)).trim().to_string();
+    if right_text.is_empty() {
+        return None;
+    }
+    let shadow_name = unique_shadow_name(ctx, assignment_expression_id, &symbol_name);
+    let replacement_text = format!("let {shadow_name} = {right_text}");
+    let edits = ctx
+        .edit_builder()
+        .replace(ctx.get_span(assignment_expression_id), replacement_text)
+        .into_edits();
+    Some(
+        LintFix::r#unsafe("Introduce local shadow instead of parameter reassignment")
+            .with_edits(edits),
+    )
+}
+
+/// Return true when one parameter symbol is referenced after a source offset.
+fn parameter_is_used_after_span(
+    ctx: &LintModuleDirContext<'_>,
+    parameter_symbol: dir::GlobalSymbolId,
+    offset: u32,
+) -> bool {
+    for (expression_id, expression) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
+        if expression.target_symbol() != Some(parameter_symbol) {
+            continue;
+        }
+
+        let span = ctx.get_span(expression_id);
+        if span.start >= offset {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Collect expression ids that appear directly as block statements.
+fn collect_statement_expression_ids(ctx: &LintModuleDirContext<'_>) -> HashSet<u32> {
+    let mut expression_ids = HashSet::new();
+    for (_, expression) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
+        if let dir::Expression::Statement { statement } = expression {
+            expression_ids.insert(statement.id);
+        }
+    }
+    expression_ids
+}
+
+/// Return true when one text is a simple identifier.
+fn is_simple_identifier(text: &str) -> bool {
+    let mut chars = text.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    if !(first.is_ascii_alphabetic() || first == '_' || first == '$') {
+        return false;
+    }
+    chars.all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '$')
+}
+
+/// Build one unique local shadow name for a reassigned parameter.
+fn unique_shadow_name(
+    ctx: &LintModuleDirContext<'_>,
+    insertion_expression_id: dir::LocalNodeId<dir::Expression>,
+    parameter_name: &str,
+) -> String {
+    let (_, scope, mark) = ctx.symbols.get_scope(insertion_expression_id, ctx.tree);
+
+    let base_name = format!("{parameter_name}Shadow");
+    let base_name_id = ctx.program.strings.intern(&base_name);
+    let base_name_key = dir::StaticKey::Name(base_name_id);
+    if ctx
+        .symbols
+        .find_active_symbol_up_to(scope, base_name_key, mark)
+        .is_none()
+    {
+        return base_name;
+    }
+
+    let mut suffix = 2_u32;
+    loop {
+        let candidate = format!("{base_name}{suffix}");
+        let candidate_id = ctx.program.strings.intern(&candidate);
+        let candidate_key = dir::StaticKey::Name(candidate_id);
+        if ctx
+            .symbols
+            .find_active_symbol_up_to(scope, candidate_key, mark)
+            .is_none()
+        {
+            return candidate;
+        }
+        suffix += 1;
+        if suffix > 1024 {
+            return base_name;
         }
     }
 }
@@ -247,5 +388,94 @@ function run(value: int32): int32 {
 "#,
         );
         test.result(result).assert_lint("no-parameter-reassignment");
+    }
+
+    /// Rewrite simple parameter reassignment to a local shadow declaration.
+    #[test]
+    fn test_fix_rewrites_parameter_assignment_to_local_shadow() {
+        let test = TestProgram::for_rule_without_prelude(NoParameterReassignment);
+        let result = test.lint_dir(
+            "no_parameter_reassignment/test_fix_rewrites_parameter_assignment_to_local_shadow.ds",
+            r#"
+function run(value: int32): int32 {
+    value = 1;
+    return 0;
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-parameter-reassignment")
+            .assert_has_fix("no-parameter-reassignment")
+            .assert_unsafe_fixed(
+                r#"
+function run(value: int32): int32 {
+    let valueShadow = 1;
+    return 0;
+}
+"#,
+            );
+    }
+
+    /// Skip fixes when reassigned parameters are read later.
+    #[test]
+    fn test_no_fix_when_parameter_is_used_after_assignment() {
+        let test = TestProgram::for_rule_without_prelude(NoParameterReassignment);
+        let result = test.lint_dir(
+            "no_parameter_reassignment/test_no_fix_when_parameter_is_used_after_assignment.ds",
+            r#"
+function run(value: int32): int32 {
+    value = 1;
+    return value;
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-parameter-reassignment")
+            .assert_has_no_fix("no-parameter-reassignment");
+    }
+
+    /// Skip fixes when parameter reassignment appears in expression position.
+    #[test]
+    fn test_no_fix_for_expression_position_reassignment() {
+        let test = TestProgram::for_rule_without_prelude(NoParameterReassignment);
+        let result = test.lint_dir(
+            "no_parameter_reassignment/test_no_fix_for_expression_position_reassignment.ds",
+            r#"
+function run(value: int32): int32 {
+    return value = 1;
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-parameter-reassignment")
+            .assert_has_no_fix("no-parameter-reassignment");
+    }
+
+    /// Pick a unique shadow suffix when preferred replacement is already bound.
+    #[test]
+    fn test_fix_uses_suffix_when_shadow_name_exists() {
+        let test = TestProgram::for_rule_without_prelude(NoParameterReassignment);
+        let result = test.lint_dir(
+            "no_parameter_reassignment/test_fix_uses_suffix_when_shadow_name_exists.ds",
+            r#"
+function run(value: int32): int32 {
+    let valueShadow = 0;
+    value = 1;
+    return valueShadow;
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-parameter-reassignment")
+            .assert_has_fix("no-parameter-reassignment")
+            .assert_unsafe_fixed(
+                r#"
+function run(value: int32): int32 {
+    let valueShadow = 0;
+    let valueShadow2 = 1;
+    return valueShadow;
+}
+"#,
+            );
     }
 }

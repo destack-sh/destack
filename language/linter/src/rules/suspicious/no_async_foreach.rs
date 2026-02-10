@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{is_array_type, is_async_function_type};
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `forEach` with async callback.
@@ -19,7 +19,7 @@ declare_lint! {
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Always,
         stability = Stable
     )]
@@ -143,19 +143,141 @@ impl<'a, 'b> AsyncForeachVisitor<'a, 'b> {
 
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
-        self.ctx.report(
-            LintDiagnostic::new(
-                NO_ASYNC_FOREACH.id,
-                NO_ASYNC_FOREACH.code,
-                NO_ASYNC_FOREACH.category,
-                severity,
-                "async callback in forEach will not be awaited",
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label("use for...of with await, or Promise.all() with map()"),
-        );
+        let mut diagnostic = LintDiagnostic::new(
+            NO_ASYNC_FOREACH.id,
+            NO_ASYNC_FOREACH.code,
+            NO_ASYNC_FOREACH.category,
+            severity,
+            "async callback in forEach will not be awaited",
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label("use for...of with await, or Promise.all() with map()");
+        if self.ctx.include_fixes
+            && let Some(fix) = self.no_async_foreach_fix(expression_id)
+        {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
     }
+
+    /// Build an unsafe async forEach to for-of rewrite for simple inline callbacks.
+    fn no_async_foreach_fix(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<LintFix> {
+        let expression = self.ctx.tree.get(expression_id);
+        let dir::Expression::Call {
+            left,
+            static_arguments,
+            dynamic_arguments,
+        } = expression
+        else {
+            return None;
+        };
+
+        // require no static args and exactly one callback arg
+        if static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty())
+            || dynamic_arguments.len() != 1
+        {
+            return None;
+        }
+
+        // keep statement-level calls only
+        let parent_id = self.ctx.tree.get_parent_id(expression_id.id)?;
+        if self.ctx.tree.get_node_type(parent_id) != dir::NodeType::Expression {
+            return None;
+        }
+        let statement_id = dir::LocalNodeId::<dir::Expression>::new(parent_id);
+        let parent_expression = self.ctx.tree.get(statement_id);
+        if !matches!(
+            parent_expression,
+            dir::Expression::Statement { statement } if *statement == expression_id
+        ) {
+            return None;
+        }
+
+        // require a direct `.forEach` member access
+        let member_expression = self.ctx.tree.get(*left);
+        let dir::Expression::Member {
+            left: _receiver_id,
+            name,
+            ..
+        } = member_expression
+        else {
+            return None;
+        };
+        if *name != self.foreach_name {
+            return None;
+        }
+
+        // require an inline async function callback
+        let callback_argument = self.ctx.tree.get(dynamic_arguments[0]);
+        let dir::Argument::Positional {
+            value: callback_id, ..
+        } = callback_argument
+        else {
+            return None;
+        };
+        let callback_expression = self.ctx.tree.get(*callback_id);
+        let dir::Expression::Declaration { declaration } = callback_expression else {
+            return None;
+        };
+        let callback_declaration = self.ctx.tree.get(*declaration);
+        let dir::Declaration::Function {
+            signature,
+            body: Some(body_id),
+            ..
+        } = callback_declaration
+        else {
+            return None;
+        };
+        if signature.asynchrony != dir::Asynchrony::Async || signature.dynamic_parameters.len() != 1
+        {
+            return None;
+        }
+
+        // require a single named parameter without modifiers/default
+        let parameter_id = signature.dynamic_parameters[0];
+        let parameter = self.ctx.tree.get(parameter_id);
+        let dir::Parameter::Named {
+            modifiers: None,
+            name,
+            default: None,
+            ..
+        } = parameter
+        else {
+            return None;
+        };
+
+        // require block body for direct statement preservation
+        let body_expression = self.ctx.tree.get(*body_id);
+        if !matches!(body_expression, dir::Expression::Block { .. }) {
+            return None;
+        }
+
+        // rewrite to an async-friendly for-of loop
+        let parameter_name = self.ctx.program.strings.get(*name).to_string();
+        let member_text = self.ctx.get_span_text(self.ctx.get_span(*left));
+        let receiver_text = strip_dot_member_suffix(member_text.as_ref(), "forEach")?;
+        let body_text = self.ctx.get_span_text(self.ctx.get_span(*body_id));
+        let replacement = format!("for (const {parameter_name} of {receiver_text}) {body_text}");
+        let edits = self
+            .ctx
+            .edit_builder()
+            .replace(self.ctx.get_span(statement_id), replacement)
+            .into_edits();
+        Some(LintFix::r#unsafe("Rewrite async forEach callback as for-of loop").with_edits(edits))
+    }
+}
+
+/// Strip one `.member` suffix from member expression text.
+fn strip_dot_member_suffix<'a>(text: &'a str, member: &str) -> Option<&'a str> {
+    let suffix = format!(".{member}");
+    text.strip_suffix(&suffix).map(str::trim_end)
 }
 
 impl NodeVisitor for AsyncForeachVisitor<'_, '_> {
@@ -201,7 +323,16 @@ items.forEach(async (item) => {
 });
 "#,
         );
-        test.result(result).assert_lint("no-async-foreach");
+        test.result(result)
+            .assert_lint("no-async-foreach")
+            .assert_unsafe_fixed(
+                r#"
+let items = [1, 2, 3];
+for (const item of items) {
+    await something(item);
+}
+"#,
+            );
     }
 
     #[test]
@@ -232,5 +363,40 @@ let results = items.map(async (item) => {
 "#,
         );
         test.result(result).assert_no_lint("no-async-foreach");
+    }
+
+    #[test]
+    fn test_no_fix_for_async_index_callback() {
+        let test = TestProgram::for_rule_without_prelude(NoAsyncForeach);
+        let result = test.lint_dir(
+            "no_async_foreach/test_no_fix_for_async_index_callback.ds",
+            r#"
+let items = [1, 2, 3];
+items.forEach(async (item, index) => {
+    await something(item, index);
+});
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-async-foreach")
+            .assert_has_no_fix("no-async-foreach");
+    }
+
+    #[test]
+    fn test_no_fix_for_non_inline_async_callback() {
+        let test = TestProgram::for_rule_without_prelude(NoAsyncForeach);
+        let result = test.lint_dir(
+            "no_async_foreach/test_no_fix_for_non_inline_async_callback.ds",
+            r#"
+let items = [1, 2, 3];
+const run = async (item) => {
+    await something(item);
+};
+items.forEach(run);
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-async-foreach")
+            .assert_has_no_fix("no-async-foreach");
     }
 }

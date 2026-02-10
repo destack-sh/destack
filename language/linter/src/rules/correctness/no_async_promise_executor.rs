@@ -3,7 +3,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{expression_target_symbol, is_async_function_type};
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow async functions as Promise executors.
@@ -17,7 +17,7 @@ declare_lint! {
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Promise)],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Always,
         stability = Stable
     )]
@@ -112,19 +112,99 @@ impl<'a, 'b> AsyncPromiseExecutorVisitor<'a, 'b> {
 
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
-        self.ctx.report(
-            LintDiagnostic::new(
-                NO_ASYNC_PROMISE_EXECUTOR.id,
-                NO_ASYNC_PROMISE_EXECUTOR.code,
-                NO_ASYNC_PROMISE_EXECUTOR.category,
-                severity,
-                "async Promise executor detected",
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label("remove async from the executor function"),
-        );
+        let mut diagnostic = LintDiagnostic::new(
+            NO_ASYNC_PROMISE_EXECUTOR.id,
+            NO_ASYNC_PROMISE_EXECUTOR.code,
+            NO_ASYNC_PROMISE_EXECUTOR.category,
+            severity,
+            "async Promise executor detected",
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label("remove async from the executor function");
+
+        // compute fixes only when requested by the runner
+        if self.ctx.include_fixes
+            && let Some(fix) = async_promise_executor_fix(self.ctx, value_id)
+        {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
     }
+}
+
+/// Build an unsafe fix that removes the async modifier from an inline executor.
+fn async_promise_executor_fix(
+    ctx: &LintModuleDirContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<LintFix> {
+    let expression_id = unwrap_parenthesized_expression(ctx.tree, expression_id);
+    let expression = ctx.tree.get(expression_id);
+    if !matches!(expression, dir::Expression::Declaration { .. }) {
+        return None;
+    }
+
+    let expression_span = ctx.get_span(expression_id);
+    let expression_text = ctx.get_span_text(expression_span);
+    let rewritten = strip_leading_async(expression_text.as_ref())?;
+    if rewritten == expression_text.as_ref() {
+        return None;
+    }
+
+    let edits = ctx
+        .edit_builder()
+        .replace(expression_span, rewritten)
+        .into_edits();
+    Some(LintFix::r#unsafe("Remove async from Promise executor").with_edits(edits))
+}
+
+/// Unwrap parenthesized expressions.
+fn unwrap_parenthesized_expression(
+    tree: &dir::NodeTree,
+    mut expression_id: dir::LocalNodeId<dir::Expression>,
+) -> dir::LocalNodeId<dir::Expression> {
+    loop {
+        let expression = tree.get(expression_id);
+        let dir::Expression::Parenthesized { expression } = expression else {
+            return expression_id;
+        };
+        expression_id = *expression;
+    }
+}
+
+/// Strip one leading async keyword from a function expression text.
+fn strip_leading_async(expression_text: &str) -> Option<String> {
+    let leading_whitespace_count = expression_text
+        .chars()
+        .take_while(|character| character.is_whitespace())
+        .map(char::len_utf8)
+        .sum::<usize>();
+    let trimmed = &expression_text[leading_whitespace_count..];
+    if !trimmed.starts_with("async") {
+        return None;
+    }
+
+    let boundary = trimmed.chars().nth(5)?;
+    if !boundary.is_whitespace() && boundary != '(' && boundary != '<' {
+        return None;
+    }
+
+    let mut offset = leading_whitespace_count + "async".len();
+    while expression_text[offset..]
+        .chars()
+        .next()
+        .is_some_and(|character| character.is_whitespace())
+    {
+        offset += expression_text[offset..].chars().next()?.len_utf8();
+    }
+
+    let rewritten = format!(
+        "{}{}",
+        &expression_text[..leading_whitespace_count],
+        &expression_text[offset..]
+    );
+    Some(rewritten)
 }
 
 impl NodeVisitor for AsyncPromiseExecutorVisitor<'_, '_> {
@@ -176,7 +256,15 @@ let task = new Promise(async (resolve, reject) => {
 });
 "#,
         );
-        test.result(result).assert_lint("no-async-promise-executor");
+        test.result(result)
+            .assert_lint("no-async-promise-executor")
+            .assert_unsafe_fixed(
+                r#"
+let task = new Promise((resolve, reject) => {
+    resolve(1);
+});
+"#,
+            );
     }
 
     #[test]
@@ -207,6 +295,52 @@ async function executor(resolve, reject) {
 let task = new Promise(executor);
 "#,
         );
-        test.result(result).assert_lint("no-async-promise-executor");
+        test.result(result)
+            .assert_lint("no-async-promise-executor")
+            .assert_has_no_fix("no-async-promise-executor");
+    }
+
+    #[test]
+    fn test_fix_removes_async_from_function_executor_expression() {
+        let test = TestProgram::for_rule_with_prelude(NoAsyncPromiseExecutor);
+        let result = test.lint_dir(
+            "no_async_promise_executor/test_fix_removes_async_from_function_executor_expression.ds",
+            r#"
+let task = new Promise(async function(resolve, reject) {
+    resolve(1);
+});
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-async-promise-executor")
+            .assert_unsafe_fixed(
+                r#"
+let task = new Promise(function (resolve, reject) {
+    resolve(1);
+});
+"#,
+            );
+    }
+
+    #[test]
+    fn test_mutation_fix_removes_async_from_parenthesized_arrow_executor() {
+        let test = TestProgram::for_rule_with_prelude(NoAsyncPromiseExecutor);
+        let result = test.lint_dir(
+            "no_async_promise_executor/test_mutation_fix_removes_async_from_parenthesized_arrow_executor.ds",
+            r#"
+let task = new Promise((async (resolve, reject) => {
+    resolve(1);
+}));
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-async-promise-executor")
+            .assert_unsafe_fixed(
+                r#"
+let task = new Promise(((resolve, reject) => {
+    resolve(1);
+}));
+"#,
+            );
     }
 }

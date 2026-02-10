@@ -671,4 +671,49 @@ Promise.reject("failed")
 "#,
             );
     }
+
+    /// Flag explicit any on the first callback parameter when later parameters exist.
+    #[test]
+    fn test_flags_any_first_parameter_with_second_parameter() {
+        let test = TestProgram::for_rule_with_prelude(UseUnknownInCatchCallbackVariable);
+        let result = test.lint_dir(
+            "use_unknown_in_catch_callback_variable/test_flags_any_first_parameter_with_second_parameter.ds",
+            r#"
+Promise.reject("failed").catch((error: any, context: unknown) => {
+    return [error, context];
+});
+"#,
+        );
+        test.result(result)
+            .assert_lint("use-unknown-in-catch-callback-variable")
+            .assert_safe_fixed(
+                r#"
+Promise.reject("failed")
+    .catch((error: unknown, context: unknown) => {
+        return [error, context];
+    });
+"#,
+            );
+    }
+
+    /// Ignore method reference callbacks when callback declaration cannot be resolved precisely.
+    #[test]
+    fn test_ignores_method_reference_callback_with_any_parameter() {
+        let test = TestProgram::for_rule_with_prelude(UseUnknownInCatchCallbackVariable);
+        let result = test.lint_dir(
+            "use_unknown_in_catch_callback_variable/test_ignores_method_reference_callback_with_any_parameter.ds",
+            r#"
+class Handler {
+    onError(error: any): any {
+        return error;
+    }
+}
+
+const handler = new Handler();
+Promise.reject("failed").catch(handler.onError);
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("use-unknown-in-catch-callback-variable");
+    }
 }

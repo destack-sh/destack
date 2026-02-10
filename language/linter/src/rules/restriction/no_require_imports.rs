@@ -118,7 +118,16 @@ fn expression_uses_require_import(
         return false;
     };
     let callee = tree.get(*left);
+    // match unresolved bare require paths
     if let dir::Expression::UnresolvedPath { path, .. } = callee
+        && path.segments.len() == 1
+        && path.segments[0] == require_name
+    {
+        return true;
+    }
+
+    // match resolved global require paths
+    if let dir::Expression::GlobalReference { path, .. } = callee
         && path.segments.len() == 1
         && path.segments[0] == require_name
     {

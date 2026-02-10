@@ -381,6 +381,41 @@ const value = {
         test.result(result).assert_lint("no-mixed-key-types");
     }
 
+    /// Flag mixed key kinds for symbol and numeric keys.
+    #[test]
+    fn test_flags_mixed_symbol_and_numeric_keys() {
+        let test = TestProgram::for_rule_with_prelude(NoMixedKeyTypes);
+        let result = test.lint_dir(
+            "no_mixed_key_types/test_flags_mixed_symbol_and_numeric_keys.ds",
+            r#"
+const symbolKey = Symbol("id");
+const value = {
+    [symbolKey]: 1,
+    1: 2,
+};
+"#,
+        );
+        test.result(result).assert_lint("no-mixed-key-types");
+    }
+
+    /// Allow objects with consistently symbol-like keys.
+    #[test]
+    fn test_allows_consistent_symbol_keys() {
+        let test = TestProgram::for_rule_with_prelude(NoMixedKeyTypes);
+        let result = test.lint_dir(
+            "no_mixed_key_types/test_allows_consistent_symbol_keys.ds",
+            r#"
+const first = Symbol("first");
+const second = Symbol("second");
+const value = {
+    [first]: 1,
+    [second]: 2,
+};
+"#,
+        );
+        test.result(result).assert_no_lint("no-mixed-key-types");
+    }
+
     /// Allow ambiguous computed keys that are not statically classifiable.
     #[test]
     fn test_allows_ambiguous_computed_keys() {

@@ -5,7 +5,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     resolution_target_symbols, symbol_primary_declaration_for, symbol_value_type_id_for,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 const DEFAULT_RELATION_CACHE_KEY: u64 = 0;
 
@@ -21,7 +21,7 @@ declare_lint! {
         level = Dir,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable,
         declarations = Exclude
@@ -117,18 +117,82 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
         }
 
         let span = self.ctx.get_span(expression_id);
-        self.ctx.report(
-            LintDiagnostic::new(
-                UNBOUND_METHOD.id,
-                UNBOUND_METHOD.code,
-                UNBOUND_METHOD.category,
-                severity,
-                "unbound method reference",
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label("bind this method or wrap it in a lambda"),
-        );
+        let mut diagnostic = LintDiagnostic::new(
+            UNBOUND_METHOD.id,
+            UNBOUND_METHOD.code,
+            UNBOUND_METHOD.category,
+            severity,
+            "unbound method reference",
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label("bind this method or wrap it in a lambda");
+        if self.ctx.include_fixes
+            && let Some(fix) = self.unbound_method_fix(expression_id)
+        {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
+    }
+
+    /// Build a conservative bind fix for one unbound method reference.
+    fn unbound_method_fix(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<LintFix> {
+        let expression = self.ctx.tree.get(expression_id);
+        let (left_expression_id, method_name, is_private, method_text_span) = match expression {
+            dir::Expression::Member { left, name, .. } => {
+                // skip helper names: this expression is itself not a method reference target
+                if *name == self.bind_name || *name == self.call_name || *name == self.apply_name {
+                    return None;
+                }
+
+                (*left, *name, false, self.ctx.get_span(expression_id))
+            }
+            dir::Expression::PrivateMember { left, name, .. } => {
+                // skip helper names: this expression is itself not a method reference target
+                if *name == self.bind_name || *name == self.call_name || *name == self.apply_name {
+                    return None;
+                }
+
+                (*left, *name, true, self.ctx.get_span(expression_id))
+            }
+            _ => return None,
+        };
+
+        // skip helper chains like `method.call()` and `method.bind()`
+        if parent_is_receiver_helper(
+            self.ctx.tree,
+            expression_id,
+            self.bind_name,
+            self.call_name,
+            self.apply_name,
+        ) {
+            return None;
+        }
+
+        // keep direct expression text for robust source-preserving rewrites
+        let method_text = self.ctx.get_span_text(method_text_span).to_string();
+        let left_text = receiver_text_for_member_expression(
+            self.ctx,
+            left_expression_id,
+            &method_text,
+            method_name,
+            is_private,
+        )?;
+        if method_text.is_empty() || left_text.is_empty() {
+            return None;
+        }
+
+        let replacement = format!("{method_text}.bind({left_text})");
+        let edits = self
+            .ctx
+            .edit_builder()
+            .replace(method_text_span, replacement)
+            .into_edits();
+        Some(LintFix::r#unsafe("Bind method receiver explicitly").with_edits(edits))
     }
 
     /// Return true when a method reference is already safely used.
@@ -311,6 +375,65 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
     }
 }
 
+/// Return receiver text for one method expression.
+fn receiver_text_for_member_expression(
+    ctx: &LintModuleDirContext<'_>,
+    left_expression_id: dir::LocalNodeId<dir::Expression>,
+    method_text: &str,
+    method_name: StringId,
+    is_private: bool,
+) -> Option<String> {
+    let method_name = ctx.program.strings.get(method_name);
+    let suffix = if is_private {
+        format!(".#{}", method_name.as_ref())
+    } else {
+        format!(".{}", method_name.as_ref())
+    };
+
+    // prefer parsing from full method text for best source fidelity
+    if let Some(receiver) = method_text.strip_suffix(&suffix) {
+        let receiver = receiver.trim();
+        if !receiver.is_empty() {
+            return Some(receiver.to_string());
+        }
+    }
+
+    // fall back to left expression span text
+    let left_span = ctx.get_span(left_expression_id);
+    let left_text = ctx.get_span_text(left_span).trim().to_string();
+    if left_text.is_empty() {
+        return None;
+    }
+
+    Some(left_text)
+}
+
+/// Return true when this expression is used as receiver helper target.
+fn parent_is_receiver_helper(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    bind_name: StringId,
+    call_name: StringId,
+    apply_name: StringId,
+) -> bool {
+    let Some(parent) = tree.get_parent(expression_id.id) else {
+        return false;
+    };
+    if parent.ty != dir::NodeType::Expression {
+        return false;
+    }
+
+    let parent_id = parent.into_typed::<dir::Expression>();
+    let parent_expression = tree.get(parent_id);
+    matches!(
+        parent_expression,
+        dir::Expression::Member { left, name, .. }
+            | dir::Expression::PrivateMember { left, name, .. }
+            if *left == expression_id
+                && (*name == bind_name || *name == call_name || *name == apply_name)
+    )
+}
+
 impl NodeVisitor for UnboundMethodVisitor<'_, '_> {
     fn options(&self) -> &NodeVisitorOptions {
         &self.options
@@ -408,7 +531,22 @@ let counter = new Counter();
 let callback = counter.increment;
 "#,
         );
-        test.result(result).assert_lint("unbound-method");
+        test.result(result)
+            .assert_lint("unbound-method")
+            .assert_unsafe_fixed(
+                r#"
+class Counter {
+    value: number = 0;
+
+    increment() {
+        this.value += 1;
+    }
+}
+
+let counter = new Counter();
+let callback = counter.increment.bind(counter);
+"#,
+            );
     }
 
     /// Allow direct method calls.
@@ -620,7 +758,9 @@ let counter = new Counter();
 let bindRef = counter.increment.bind;
 "#,
         );
-        test.result(result).assert_lint("unbound-method");
+        test.result(result)
+            .assert_lint("unbound-method")
+            .assert_has_no_fix("unbound-method");
     }
 
     /// Flag unbound private method references.

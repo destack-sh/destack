@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, BinaryOperator, Expression, MatchCase, Pattern};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest moving match guards into the pattern.
@@ -30,7 +30,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -69,56 +69,67 @@ impl LintRule for PreferPatternOverGuard {
             // check if the pattern is a simple binding and the guard compares it to a literal
             let pattern = ctx.tree.get(*pattern_id);
             let guard_expression = ctx.tree.get(*guard_expr_id);
-            if let Some(binding_name) = get_simple_binding_name(ctx, pattern)
-                && is_equality_with_literal(ctx, guard_expression, &binding_name)
+            if let Some(binding_name) = get_simple_binding_name(pattern)
+                && let Some(literal_expression_id) =
+                    equality_literal_for_binding(ctx, guard_expression, binding_name)
             {
                 let severity = ctx.get_effective_severity(meta, node_id);
                 if !severity.is_enabled() {
                     continue;
                 }
 
-                ctx.report(
-                    LintDiagnostic::new(
-                        PREFER_PATTERN_OVER_GUARD.id,
-                        PREFER_PATTERN_OVER_GUARD.code,
-                        PREFER_PATTERN_OVER_GUARD.category,
-                        severity,
-                        "guard comparing binding to literal can be a pattern",
-                        ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
+                let mut diagnostic = LintDiagnostic::new(
+                    PREFER_PATTERN_OVER_GUARD.id,
+                    PREFER_PATTERN_OVER_GUARD.code,
+                    PREFER_PATTERN_OVER_GUARD.category,
+                    severity,
+                    "guard comparing binding to literal can be a pattern",
+                    ctx.module.file_id,
+                    ctx.tree.get_span(node_id),
+                )
+                .with_label("replace with literal pattern");
+                if ctx.compute_fixes
+                    && let Some(fix) = prefer_pattern_over_guard_fix(
+                        ctx,
+                        *pattern_id,
+                        *guard_expr_id,
+                        literal_expression_id,
                     )
-                    .with_label("replace with literal pattern"),
-                );
+                {
+                    diagnostic = diagnostic.with_fix(fix);
+                }
+
+                ctx.report(diagnostic);
             }
         }
     }
 }
 
 /// Get the name of a simple binding pattern, if it is one.
-fn get_simple_binding_name(ctx: &LintModuleAstContext<'_>, pattern: &Pattern) -> Option<String> {
+fn get_simple_binding_name(pattern: &Pattern) -> Option<ast::StringId> {
     match pattern {
         Pattern::Binding {
             name,
             pattern: None,
             ..
-        } => Some(ctx.strings.get(*name).to_string()),
+        } => Some(*name),
         _ => None,
     }
 }
 
-/// Check if the guard is an equality comparison of the binding to a literal.
-fn is_equality_with_literal(
+/// Return the literal expression when the guard is `binding == literal` or `literal == binding`.
+fn equality_literal_for_binding(
     ctx: &LintModuleAstContext<'_>,
     guard: &Expression,
-    binding_name: &str,
-) -> bool {
+    binding_name: ast::StringId,
+) -> Option<ast::LocalNodeId<ast::Expression>> {
     let Expression::Binary {
         operator,
         left,
         right,
     } = guard
     else {
-        return false;
+        return None;
     };
 
     // check for == or === (strict equals)
@@ -126,23 +137,34 @@ fn is_equality_with_literal(
         operator,
         BinaryOperator::Equal | BinaryOperator::EqualStrict
     ) {
-        return false;
+        return None;
     }
 
     let left_expression = ctx.tree.get(*left);
     let right_expression = ctx.tree.get(*right);
 
-    // check if one side is the binding and the other is a literal
+    // keep one binding side and one literal side
     let left_is_binding = is_path_with_name(ctx, left_expression, binding_name);
     let right_is_binding = is_path_with_name(ctx, right_expression, binding_name);
     let left_is_literal = is_simple_literal(left_expression);
     let right_is_literal = is_simple_literal(right_expression);
 
-    (left_is_binding && right_is_literal) || (right_is_binding && left_is_literal)
+    if left_is_binding && right_is_literal {
+        return Some(*right);
+    }
+    if right_is_binding && left_is_literal {
+        return Some(*left);
+    }
+
+    None
 }
 
 /// Check if an expression is a simple path with the given name.
-fn is_path_with_name(ctx: &LintModuleAstContext<'_>, expression: &Expression, name: &str) -> bool {
+fn is_path_with_name(
+    _ctx: &LintModuleAstContext<'_>,
+    expression: &Expression,
+    name: ast::StringId,
+) -> bool {
     let Expression::Path { path, .. } = expression else {
         return false;
     };
@@ -151,8 +173,7 @@ fn is_path_with_name(ctx: &LintModuleAstContext<'_>, expression: &Expression, na
         return false;
     }
 
-    let path_name = ctx.strings.get(path.segments[0]);
-    path_name.as_ref() == name
+    path.segments[0] == name
 }
 
 /// Check if an expression is a simple literal (number, string, char, bool).
@@ -161,6 +182,40 @@ fn is_simple_literal(expression: &Expression) -> bool {
         expression,
         Expression::ScalarLiteral(_) | Expression::TypeLiteral(_)
     )
+}
+
+/// Build a safe guard-to-pattern rewrite fix.
+fn prefer_pattern_over_guard_fix(
+    ctx: &LintModuleAstContext<'_>,
+    pattern_id: ast::LocalNodeId<ast::Pattern>,
+    guard_expression_id: ast::LocalNodeId<ast::Expression>,
+    literal_expression_id: ast::LocalNodeId<ast::Expression>,
+) -> Option<LintFix> {
+    let pattern_span = ctx.tree.get_span(pattern_id);
+    let guard_span = ctx.tree.get_span(guard_expression_id);
+    if guard_span.end <= pattern_span.end {
+        return None;
+    }
+
+    // keep source with an explicit `if` guard separator
+    let separator_span =
+        destack_source::Span::new(pattern_span.file, pattern_span.end, guard_span.start);
+    let separator_text = ctx.get_span_text(separator_span);
+    if !separator_text.contains("if") {
+        return None;
+    }
+
+    // replace pattern with the literal and drop trailing `if <guard>`
+    let literal_text = ctx.get_span_text(ctx.tree.get_span(literal_expression_id));
+    let edits = ctx
+        .edit_builder()
+        .replace(pattern_span, literal_text)
+        .replace(
+            destack_source::Span::new(pattern_span.file, pattern_span.end, guard_span.end),
+            "",
+        )
+        .into_edits();
+    Some(LintFix::safe("Rewrite guard equality as literal pattern").with_edits(edits))
 }
 
 #[cfg(test)]
@@ -182,7 +237,18 @@ function foo(x: int32) {
 }
 "#,
         );
-        test.result(result).assert_lint("prefer-pattern-over-guard");
+        test.result(result)
+            .assert_lint("prefer-pattern-over-guard")
+            .assert_safe_fixed(
+                r#"
+function foo(x: int32) {
+    match (x) {
+        1 => doX()
+        _ => doY()
+    }
+}
+"#,
+            );
     }
 
     #[test]
@@ -216,7 +282,18 @@ function foo(x: int32) {
 }
 "#,
         );
-        test.result(result).assert_lint("prefer-pattern-over-guard");
+        test.result(result)
+            .assert_lint("prefer-pattern-over-guard")
+            .assert_safe_fixed(
+                r#"
+function foo(x: int32) {
+    match (x) {
+        1 => doX()
+        _ => doY()
+    }
+}
+"#,
+            );
     }
 
     #[test]

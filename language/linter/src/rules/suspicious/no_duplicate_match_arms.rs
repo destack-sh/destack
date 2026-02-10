@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{BlockDuplicateTracker, ExpressionDuplicateTracker};
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Warn on match arms with identical bodies.
@@ -17,7 +17,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Always,
         recommended = Always,
         stability = Stable
     )]
@@ -71,22 +71,39 @@ impl LintRule for NoDuplicateMatchArms {
                         continue;
                     }
 
-                    ctx.report(
-                        LintDiagnostic::new(
-                            NO_DUPLICATE_MATCH_ARMS.id,
-                            NO_DUPLICATE_MATCH_ARMS.code,
-                            NO_DUPLICATE_MATCH_ARMS.category,
-                            severity,
-                            "duplicate match arm body",
-                            ctx.module.file_id,
-                            ctx.tree.get_span(*case_id),
-                        )
-                        .with_label("this arm has the same body as a previous arm"),
-                    );
+                    let mut diagnostic = LintDiagnostic::new(
+                        NO_DUPLICATE_MATCH_ARMS.id,
+                        NO_DUPLICATE_MATCH_ARMS.code,
+                        NO_DUPLICATE_MATCH_ARMS.category,
+                        severity,
+                        "duplicate match arm body",
+                        ctx.module.file_id,
+                        ctx.tree.get_span(*case_id),
+                    )
+                    .with_label("this arm has the same body as a previous arm");
+
+                    // compute fixes only when requested by the runner
+                    if ctx.compute_fixes
+                        && let Some(fix) = duplicate_match_arm_fix(ctx, *case_id)
+                    {
+                        diagnostic = diagnostic.with_fix(fix);
+                    }
+
+                    ctx.report(diagnostic);
                 }
             }
         }
     }
+}
+
+/// Build an unsafe fix that removes one duplicate match arm.
+fn duplicate_match_arm_fix(
+    ctx: &LintModuleAstContext<'_>,
+    case_id: ast::LocalNodeId<ast::MatchCase>,
+) -> Option<LintFix> {
+    let case_span = ctx.tree.get_span(case_id);
+    let edits = ctx.edit_builder().delete(case_span).into_edits();
+    Some(LintFix::r#unsafe("Remove duplicate match arm").with_edits(edits))
 }
 
 #[cfg(test)]
@@ -159,5 +176,60 @@ match (x) {
 "#,
         );
         test.result(result).assert_lint("no-duplicate-match-arms");
+    }
+
+    #[test]
+    fn test_fix_removes_duplicate_match_arm() {
+        let test = TestProgram::for_rule_without_prelude(NoDuplicateMatchArms);
+        let result = test.lint_ast(
+            "no_duplicate_match_arms/test_fix_removes_duplicate_match_arm.ds",
+            r#"
+match (x) {
+    1 => foo()
+    2 => foo()
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-duplicate-match-arms")
+            .assert_unsafe_fixed(
+                r#"
+match (x) {
+    1 => foo()
+}
+"#,
+            );
+    }
+
+    #[test]
+    fn test_mutation_fix_removes_duplicate_block_match_arm() {
+        let test = TestProgram::for_rule_without_prelude(NoDuplicateMatchArms);
+        let result = test.lint_ast(
+            "no_duplicate_match_arms/test_mutation_fix_removes_duplicate_block_match_arm.ds",
+            r#"
+match (x) {
+    1 => {
+        let y = x + 1;
+        y
+    }
+    2 => {
+        let y = x + 1;
+        y
+    }
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-duplicate-match-arms")
+            .assert_unsafe_fixed(
+                r#"
+match (x) {
+    1 => {
+        let y = x + 1;
+        y
+    }
+}
+"#,
+            );
     }
 }

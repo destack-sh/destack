@@ -1,6 +1,7 @@
 use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::{fresh_name_in_symbol_scope, rename_local_symbol_fix};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -14,7 +15,7 @@ declare_lint! {
         level = Dir,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Off,
         stability = Stable,
         declarations = Exclude
@@ -59,19 +60,33 @@ impl LintRule for NoShadow {
             let shadowed_note = symbol_name_text(ctx, shadowed_symbol)
                 .map(|name| format!("shadows outer binding `{name}`"))
                 .unwrap_or_else(|| "shadows an outer binding".to_string());
-            ctx.report(
-                LintDiagnostic::new(
-                    NO_SHADOW.id,
-                    NO_SHADOW.code,
-                    NO_SHADOW.category,
-                    severity,
-                    format!("shadowed binding `{symbol_name}`"),
-                    ctx.module.file_id,
-                    span,
+            let mut diagnostic = LintDiagnostic::new(
+                NO_SHADOW.id,
+                NO_SHADOW.code,
+                NO_SHADOW.category,
+                severity,
+                format!("shadowed binding `{symbol_name}`"),
+                ctx.module.file_id,
+                span,
+            )
+            .with_label("rename this binding to avoid shadowing")
+            .with_note(shadowed_note);
+
+            // offer a local rename fix when symbol references are directly editable
+            if ctx.include_fixes
+                && let Some(replacement_name) =
+                    fresh_name_in_symbol_scope(ctx, symbol_id, &symbol_name)
+                && let Some(fix) = rename_local_symbol_fix(
+                    ctx,
+                    symbol_id,
+                    &replacement_name,
+                    &format!("Rename `{symbol_name}` to `{replacement_name}`"),
                 )
-                .with_label("rename this binding to avoid shadowing")
-                .with_note(shadowed_note),
-            );
+            {
+                diagnostic = diagnostic.with_fix(fix);
+            }
+
+            ctx.report(diagnostic);
         }
     }
 }
@@ -396,5 +411,61 @@ class Box {
         );
 
         test.result(diagnostics).assert_no_lint("no-shadow");
+    }
+
+    /// Provide a rename fix for simple shadowed local bindings.
+    #[test]
+    fn test_fixes_shadowed_binding_with_local_rename() {
+        let test = TestProgram::for_rule_without_prelude(NoShadow);
+        let diagnostics = test.lint_dir(
+            "no_shadow/test_fixes_shadowed_binding_with_local_rename.ds",
+            r#"
+function run(): int32 {
+    let value = 1;
+
+    {
+        let value = 2;
+        return value + value;
+    }
+}
+"#,
+        );
+
+        test.result(diagnostics)
+            .assert_lint("no-shadow")
+            .assert_has_fix("no-shadow")
+            .assert_unsafe_fixed(
+                r#"
+function run(): int32 {
+    let value = 1;
+
+    {
+        let value_shadow = 2;
+        return value_shadow + value_shadow;
+    }
+}
+"#,
+            );
+    }
+
+    /// Skip rename fixes when the declaration span is ambiguous.
+    #[test]
+    fn test_skips_fix_for_ambiguous_pattern_declaration() {
+        let test = TestProgram::for_rule_without_prelude(NoShadow);
+        let diagnostics = test.lint_dir(
+            "no_shadow/test_skips_fix_for_ambiguous_pattern_declaration.ds",
+            r#"
+const value = 1;
+
+function run(input: { value: int32 }): int32 {
+    let { value: value } = input;
+    return value;
+}
+"#,
+        );
+
+        test.result(diagnostics)
+            .assert_lint("no-shadow")
+            .assert_has_no_fix("no-shadow");
     }
 }

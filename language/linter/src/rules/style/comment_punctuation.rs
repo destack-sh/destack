@@ -1,11 +1,12 @@
 use destack_ast as ast;
+use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     has_doc_terminal_punctuation, is_directive_comment, is_non_prose_doc_line,
     is_separator_comment, parse_keyword_comment_with_options,
 };
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce comment punctuation conventions.
@@ -19,7 +20,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -68,18 +69,25 @@ impl LintRule for CommentPunctuation {
                             continue;
                         }
 
-                        ctx.report(
-                            LintDiagnostic::new(
-                                COMMENT_PUNCTUATION.id,
-                                COMMENT_PUNCTUATION.code,
-                                COMMENT_PUNCTUATION.category,
-                                severity,
-                                "inline comment should not end with a period",
-                                ctx.module.file_id,
-                                ctx.tree.get_span(node_id),
-                            )
-                            .with_label("remove trailing period"),
-                        );
+                        let mut diagnostic = LintDiagnostic::new(
+                            COMMENT_PUNCTUATION.id,
+                            COMMENT_PUNCTUATION.code,
+                            COMMENT_PUNCTUATION.category,
+                            severity,
+                            "inline comment should not end with a period",
+                            ctx.module.file_id,
+                            ctx.tree.get_span(node_id),
+                        )
+                        .with_label("remove trailing period");
+
+                        // compute fixes only when requested by the runner
+                        if ctx.compute_fixes
+                            && let Some(fix) = inline_comment_trailing_period_fix(ctx, node_id)
+                        {
+                            diagnostic = diagnostic.with_fix(fix);
+                        }
+
+                        ctx.report(diagnostic);
                     }
                 }
 
@@ -131,6 +139,35 @@ impl LintRule for CommentPunctuation {
     }
 }
 
+/// Build a safe fix that removes one trailing period from an inline comment.
+fn inline_comment_trailing_period_fix(
+    ctx: &LintModuleAstContext<'_>,
+    annotation_id: ast::LocalNodeId<ast::Annotation>,
+) -> Option<LintFix> {
+    let annotation_span = ctx.tree.get_span(annotation_id);
+    let annotation_text = ctx.get_span_text(annotation_span);
+
+    // find the last non-whitespace character in the comment text
+    let mut last_non_whitespace = None;
+    for (offset, character) in annotation_text.char_indices() {
+        if !character.is_whitespace() {
+            last_non_whitespace = Some((offset, character));
+        }
+    }
+    let (offset, character) = last_non_whitespace?;
+    if character != '.' {
+        return None;
+    }
+
+    let period_span = Span::new(
+        annotation_span.file,
+        annotation_span.start + offset as u32,
+        annotation_span.start + offset as u32 + 1,
+    );
+    let edits = ctx.edit_builder().delete(period_span).into_edits();
+    Some(LintFix::safe("Remove trailing comment period").with_edits(edits))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -162,6 +199,25 @@ let x = 1 // increment counter.
         test.result(result).assert_lint("comment-punctuation");
     }
 
+    /// Remove trailing periods from inline comments.
+    #[test]
+    fn test_fix_removes_inline_trailing_period() {
+        let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
+        let result = test.lint_ast(
+            "comment_punctuation/test_fix_removes_inline_trailing_period.ds",
+            r#"
+let x = 1 // increment counter.
+"#,
+        );
+        test.result(result)
+            .assert_lint("comment-punctuation")
+            .assert_safe_fixed(
+                r#"
+let x = 1; // increment counter
+"#,
+            );
+    }
+
     /// Allow doc comments with periods.
     #[test]
     fn test_doc_with_period_allowed() {
@@ -188,6 +244,22 @@ function foo() {}
 "#,
         );
         test.result(result).assert_lint("comment-punctuation");
+    }
+
+    /// Avoid auto-fixing missing punctuation in doc comments.
+    #[test]
+    fn test_no_fix_for_missing_doc_punctuation() {
+        let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
+        let result = test.lint_ast(
+            "comment_punctuation/test_no_fix_for_missing_doc_punctuation.ds",
+            r#"
+/// Increments the counter
+function foo() {}
+"#,
+        );
+        test.result(result)
+            .assert_lint("comment-punctuation")
+            .assert_has_no_fix("comment-punctuation");
     }
 
     /// Allow doc comment lines ending with question marks.

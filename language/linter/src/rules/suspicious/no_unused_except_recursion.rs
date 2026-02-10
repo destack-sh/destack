@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::rename_local_symbol_fix;
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -17,7 +18,7 @@ declare_lint! {
         level = Dir,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Experimental,
         declarations = Exclude
@@ -128,19 +129,109 @@ fn report_recursive_only_parameters(
 
         // report recursion only parameter
         let span = ctx.get_span(parameter_id);
-        ctx.report(
-            LintDiagnostic::new(
-                NO_UNUSED_EXCEPT_RECURSION.id,
-                NO_UNUSED_EXCEPT_RECURSION.code,
-                NO_UNUSED_EXCEPT_RECURSION.category,
-                severity,
-                "parameter used only for recursion",
-                ctx.module.file_id,
-                span,
-            )
-            .with_label("this parameter is only forwarded into recursive self calls"),
-        );
+        let mut diagnostic = LintDiagnostic::new(
+            NO_UNUSED_EXCEPT_RECURSION.id,
+            NO_UNUSED_EXCEPT_RECURSION.code,
+            NO_UNUSED_EXCEPT_RECURSION.category,
+            severity,
+            "parameter used only for recursion",
+            ctx.module.file_id,
+            span,
+        )
+        .with_label("this parameter is only forwarded into recursive self calls");
+        if ctx.include_fixes
+            && let Some(replacement_name) =
+                recursion_parameter_replacement_name(ctx, parameter_symbol)
+        {
+            if let Some(fix) = rename_local_symbol_fix(
+                ctx,
+                parameter_symbol,
+                &replacement_name,
+                &format!("Rename recursion-only parameter to `{replacement_name}`"),
+            ) {
+                diagnostic = diagnostic.with_fix(fix);
+            }
+        }
+
+        ctx.report(diagnostic);
     }
+}
+
+/// Build one underscore-prefixed replacement name for a recursion-only parameter.
+fn recursion_parameter_replacement_name(
+    ctx: &LintModuleDirContext<'_>,
+    symbol_id: dir::LocalSymbolId,
+) -> Option<String> {
+    let symbol = ctx.symbols.get_symbol(symbol_id);
+    let symbol_name_id = symbol.name()?;
+    let symbol_name = ctx.program.strings.get(symbol_name_id).to_string();
+
+    let base_name = if symbol_name.starts_with('_') {
+        format!("{symbol_name}Recursive")
+    } else {
+        format!("_{symbol_name}")
+    };
+    if !is_simple_identifier(&base_name) {
+        return None;
+    }
+
+    let scope_id = symbol.scope.0;
+    let mut candidate = base_name.clone();
+    let mut suffix = 2_u32;
+    loop {
+        let candidate_id = ctx.program.strings.intern(&candidate);
+        if !scope_subtree_contains_name(ctx, scope_id, candidate_id) {
+            return Some(candidate);
+        }
+
+        candidate = format!("{base_name}{suffix}");
+        suffix += 1;
+        if suffix > 1024 {
+            return None;
+        }
+    }
+}
+
+/// Return true when a scope or one of its descendants defines a given name.
+fn scope_subtree_contains_name(
+    ctx: &LintModuleDirContext<'_>,
+    scope_id: dir::LocalScopeId,
+    name_id: dir::StringId,
+) -> bool {
+    let mut pending = vec![scope_id];
+    let mut visited_scope_ids = HashSet::new();
+    while let Some(current_scope_id) = pending.pop() {
+        if !visited_scope_ids.insert(current_scope_id) {
+            continue;
+        }
+
+        let scope = ctx.symbols.get_scope_by_id(current_scope_id);
+
+        for (_, symbol_id) in ctx.symbols.active_named_symbols(scope) {
+            let symbol = ctx.symbols.get_symbol(symbol_id);
+            if symbol.name() == Some(name_id) {
+                return true;
+            }
+        }
+
+        for child_scope_id in &scope.children {
+            pending.push(*child_scope_id);
+        }
+    }
+
+    false
+}
+
+/// Return true when one text is a simple identifier.
+fn is_simple_identifier(text: &str) -> bool {
+    let mut chars = text.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    if !(first.is_ascii_alphabetic() || first == '_' || first == '$') {
+        return false;
+    }
+    chars.all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '$')
 }
 
 /// Collect parameter symbol usage while tracking recursive call argument context.
@@ -421,6 +512,23 @@ function recurse(value: int32): int32 {
             .assert_no_lint("no-unused-except-recursion");
     }
 
+    /// Allow parameters referenced by nested callbacks.
+    #[test]
+    fn test_allows_parameter_used_in_nested_callback() {
+        let test = TestProgram::for_rule_without_prelude(NoUnusedExceptRecursion);
+        let result = test.lint_dir(
+            "no_unused_except_recursion/test_allows_parameter_used_in_nested_callback.ds",
+            r#"
+function recurse(value: int32): int32 {
+    const read = () => value;
+    return recurse(value + read());
+}
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-unused-except-recursion");
+    }
+
     /// Flag multiple recursion-only parameters in one recursive function.
     #[test]
     fn test_flags_multiple_recursion_only_parameters() {
@@ -436,5 +544,79 @@ function recurse(left: int32, right: int32): int32 {
         test.result(result)
             .assert_lint("no-unused-except-recursion")
             .assert_lint_count("no-unused-except-recursion", 2);
+    }
+
+    /// Suggest renaming recursion-only parameters to underscore-prefixed names.
+    #[test]
+    fn test_fix_renames_recursion_only_parameter() {
+        let test = TestProgram::for_rule_without_prelude(NoUnusedExceptRecursion);
+        let result = test.lint_dir(
+            "no_unused_except_recursion/test_fix_renames_recursion_only_parameter.ds",
+            r#"
+function recurse(value: int32): int32 {
+    return recurse(value);
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-unused-except-recursion")
+            .assert_has_fix("no-unused-except-recursion")
+            .assert_unsafe_fixed(
+                r#"
+function recurse(_value: int32): int32 {
+    return recurse(_value);
+}
+"#,
+            );
+    }
+
+    /// Use recursive suffix for leading-underscore parameters.
+    #[test]
+    fn test_fix_uses_recursive_suffix_for_underscored_parameter() {
+        let test = TestProgram::for_rule_without_prelude(NoUnusedExceptRecursion);
+        let result = test.lint_dir(
+            "no_unused_except_recursion/test_fix_uses_recursive_suffix_for_underscored_parameter.ds",
+            r#"
+function recurse(_value: int32): int32 {
+    return recurse(_value);
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-unused-except-recursion")
+            .assert_has_fix("no-unused-except-recursion")
+            .assert_unsafe_fixed(
+                r#"
+function recurse(_valueRecursive: int32): int32 {
+    return recurse(_valueRecursive);
+}
+"#,
+            );
+    }
+
+    /// Pick a stable suffix when the preferred replacement already exists.
+    #[test]
+    fn test_fix_uses_suffix_when_recursive_replacement_exists() {
+        let test = TestProgram::for_rule_without_prelude(NoUnusedExceptRecursion);
+        let result = test.lint_dir(
+            "no_unused_except_recursion/test_fix_uses_suffix_when_recursive_replacement_exists.ds",
+            r#"
+function recurse(_value: int32): int32 {
+    let _valueRecursive = 1;
+    return recurse(_value);
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-unused-except-recursion")
+            .assert_has_fix("no-unused-except-recursion")
+            .assert_unsafe_fixed(
+                r#"
+function recurse(_valueRecursive2: int32): int32 {
+    let _valueRecursive = 1;
+    return recurse(_valueRecursive2);
+}
+"#,
+            );
     }
 }
