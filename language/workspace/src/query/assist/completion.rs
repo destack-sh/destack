@@ -843,184 +843,182 @@ pub fn completions(
     offset: u32,
     trigger: CompletionTrigger,
 ) -> Vec<Completion> {
-    session.with_query_context_mode(true, || {
-        // detect completion context
-        let ContextResult { context, token } = detect_completion_context(session, file, offset);
-        let prefix = token.as_ref().map(|t| t.text.as_str()).unwrap_or("");
-        let allow_short_prefix = matches!(trigger, CompletionTrigger::Invoked);
+    // detect completion context
+    let ContextResult { context, token } = detect_completion_context(session, file, offset);
+    let prefix = token.as_ref().map(|t| t.text.as_str()).unwrap_or("");
+    let allow_short_prefix = matches!(trigger, CompletionTrigger::Invoked);
 
-        // resolve base completions for the detected context
-        let mut results = match &context {
-            CompletionContext::MemberAccess {
-                receiver_symbol,
-                receiver_type,
-                ..
-            } => complete_members(session, file, *receiver_type, *receiver_symbol),
+    // resolve base completions for the detected context
+    let mut results = match &context {
+        CompletionContext::MemberAccess {
+            receiver_symbol,
+            receiver_type,
+            ..
+        } => complete_members(session, file, *receiver_type, *receiver_symbol),
 
-            CompletionContext::TypePosition {
-                scope_id,
-                scope_mark,
-            } => complete_types(session, file, *scope_id, *scope_mark),
+        CompletionContext::TypePosition {
+            scope_id,
+            scope_mark,
+        } => complete_types(session, file, *scope_id, *scope_mark),
 
-            CompletionContext::ValuePosition {
-                scope_id,
-                scope_mark,
-            } => complete_values(session, file, *scope_id, *scope_mark, false),
+        CompletionContext::ValuePosition {
+            scope_id,
+            scope_mark,
+        } => complete_values(session, file, *scope_id, *scope_mark, false),
 
-            CompletionContext::StatementPosition {
-                scope_id,
-                scope_mark,
-            } => complete_values(
-                session,
-                file,
-                *scope_id,
-                *scope_mark,
-                matches!(trigger, CompletionTrigger::Invoked),
-            ),
+        CompletionContext::StatementPosition {
+            scope_id,
+            scope_mark,
+        } => complete_values(
+            session,
+            file,
+            *scope_id,
+            *scope_mark,
+            matches!(trigger, CompletionTrigger::Invoked),
+        ),
 
-            CompletionContext::ObjectLiteral {
-                expected_type,
-                existing_fields,
-                scope_id,
-                scope_mark,
-                ..
-            } => complete_object_literal(
-                session,
-                file,
-                *expected_type,
-                existing_fields,
-                *scope_id,
-                *scope_mark,
-            ),
-            CompletionContext::ObjectLiteralValue {
-                scope_id,
-                scope_mark,
-            } => complete_values(session, file, *scope_id, *scope_mark, false),
-            CompletionContext::CallArgument {
-                scope_id,
-                scope_mark,
-            } => complete_values(session, file, *scope_id, *scope_mark, false),
-            CompletionContext::NewExpression {
-                scope_id,
-                scope_mark,
-            } => complete_new_expression(session, file, *scope_id, *scope_mark),
+        CompletionContext::ObjectLiteral {
+            expected_type,
+            existing_fields,
+            scope_id,
+            scope_mark,
+            ..
+        } => complete_object_literal(
+            session,
+            file,
+            *expected_type,
+            existing_fields,
+            *scope_id,
+            *scope_mark,
+        ),
+        CompletionContext::ObjectLiteralValue {
+            scope_id,
+            scope_mark,
+        } => complete_values(session, file, *scope_id, *scope_mark, false),
+        CompletionContext::CallArgument {
+            scope_id,
+            scope_mark,
+        } => complete_values(session, file, *scope_id, *scope_mark, false),
+        CompletionContext::NewExpression {
+            scope_id,
+            scope_mark,
+        } => complete_new_expression(session, file, *scope_id, *scope_mark),
 
-            CompletionContext::ImportPath { partial_path } => {
-                complete_import_paths(session, file, partial_path)
-            }
-
-            CompletionContext::ImportClause {
-                target_module,
-                existing_names,
-                space_filter,
-            } => complete_imports(session, *target_module, existing_names, *space_filter),
-
-            CompletionContext::Unknown => {
-                complete_all(session, file, matches!(trigger, CompletionTrigger::Invoked))
-            }
-        };
-
-        // add auto import completions for relevant positions
-        match context {
-            CompletionContext::ValuePosition {
-                scope_id,
-                scope_mark,
-            } => {
-                let auto_imports = complete_auto_imports_with_visibility(
-                    session,
-                    file,
-                    prefix,
-                    Some(SymbolSpace::Value),
-                    scope_id,
-                    scope_mark,
-                    allow_short_prefix,
-                );
-                results.extend(auto_imports);
-            }
-            CompletionContext::StatementPosition {
-                scope_id,
-                scope_mark,
-            } => {
-                let auto_imports = complete_auto_imports_with_visibility(
-                    session,
-                    file,
-                    prefix,
-                    Some(SymbolSpace::Value),
-                    scope_id,
-                    scope_mark,
-                    allow_short_prefix,
-                );
-                results.extend(auto_imports);
-            }
-            CompletionContext::TypePosition {
-                scope_id,
-                scope_mark,
-            } => {
-                let auto_imports = complete_auto_imports_with_visibility(
-                    session,
-                    file,
-                    prefix,
-                    Some(SymbolSpace::Type),
-                    scope_id,
-                    scope_mark,
-                    allow_short_prefix,
-                );
-                results.extend(auto_imports);
-            }
-            CompletionContext::ObjectLiteralValue {
-                scope_id,
-                scope_mark,
-            } => {
-                let auto_imports = complete_auto_imports_with_visibility(
-                    session,
-                    file,
-                    prefix,
-                    Some(SymbolSpace::Value),
-                    scope_id,
-                    scope_mark,
-                    allow_short_prefix,
-                );
-                results.extend(auto_imports);
-            }
-            CompletionContext::CallArgument {
-                scope_id,
-                scope_mark,
-            } => {
-                let auto_imports = complete_auto_imports_with_visibility(
-                    session,
-                    file,
-                    prefix,
-                    Some(SymbolSpace::Value),
-                    scope_id,
-                    scope_mark,
-                    allow_short_prefix,
-                );
-                results.extend(auto_imports);
-            }
-            CompletionContext::NewExpression {
-                scope_id,
-                scope_mark,
-            } => {
-                let mut auto_imports = complete_auto_imports_with_visibility(
-                    session,
-                    file,
-                    prefix,
-                    Some(SymbolSpace::Value),
-                    scope_id,
-                    scope_mark,
-                    allow_short_prefix,
-                );
-
-                // filter to constructable auto import entries
-                auto_imports.retain(is_constructable_completion);
-                results.extend(auto_imports);
-            }
-            _ => {}
+        CompletionContext::ImportPath { partial_path } => {
+            complete_import_paths(session, file, partial_path)
         }
 
-        // apply fuzzy matching to filter and rank results
-        filter_and_rank_completions(results, token.as_ref())
-    })
+        CompletionContext::ImportClause {
+            target_module,
+            existing_names,
+            space_filter,
+        } => complete_imports(session, *target_module, existing_names, *space_filter),
+
+        CompletionContext::Unknown => {
+            complete_all(session, file, matches!(trigger, CompletionTrigger::Invoked))
+        }
+    };
+
+    // add auto import completions for relevant positions
+    match context {
+        CompletionContext::ValuePosition {
+            scope_id,
+            scope_mark,
+        } => {
+            let auto_imports = complete_auto_imports_with_visibility(
+                session,
+                file,
+                prefix,
+                Some(SymbolSpace::Value),
+                scope_id,
+                scope_mark,
+                allow_short_prefix,
+            );
+            results.extend(auto_imports);
+        }
+        CompletionContext::StatementPosition {
+            scope_id,
+            scope_mark,
+        } => {
+            let auto_imports = complete_auto_imports_with_visibility(
+                session,
+                file,
+                prefix,
+                Some(SymbolSpace::Value),
+                scope_id,
+                scope_mark,
+                allow_short_prefix,
+            );
+            results.extend(auto_imports);
+        }
+        CompletionContext::TypePosition {
+            scope_id,
+            scope_mark,
+        } => {
+            let auto_imports = complete_auto_imports_with_visibility(
+                session,
+                file,
+                prefix,
+                Some(SymbolSpace::Type),
+                scope_id,
+                scope_mark,
+                allow_short_prefix,
+            );
+            results.extend(auto_imports);
+        }
+        CompletionContext::ObjectLiteralValue {
+            scope_id,
+            scope_mark,
+        } => {
+            let auto_imports = complete_auto_imports_with_visibility(
+                session,
+                file,
+                prefix,
+                Some(SymbolSpace::Value),
+                scope_id,
+                scope_mark,
+                allow_short_prefix,
+            );
+            results.extend(auto_imports);
+        }
+        CompletionContext::CallArgument {
+            scope_id,
+            scope_mark,
+        } => {
+            let auto_imports = complete_auto_imports_with_visibility(
+                session,
+                file,
+                prefix,
+                Some(SymbolSpace::Value),
+                scope_id,
+                scope_mark,
+                allow_short_prefix,
+            );
+            results.extend(auto_imports);
+        }
+        CompletionContext::NewExpression {
+            scope_id,
+            scope_mark,
+        } => {
+            let mut auto_imports = complete_auto_imports_with_visibility(
+                session,
+                file,
+                prefix,
+                Some(SymbolSpace::Value),
+                scope_id,
+                scope_mark,
+                allow_short_prefix,
+            );
+
+            // filter to constructable auto import entries
+            auto_imports.retain(is_constructable_completion);
+            results.extend(auto_imports);
+        }
+        _ => {}
+    }
+
+    // apply fuzzy matching to filter and rank results
+    filter_and_rank_completions(results, token.as_ref())
 }
 
 /// Complete members of a type (after `.`).

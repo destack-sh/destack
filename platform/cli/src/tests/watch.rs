@@ -310,12 +310,12 @@ fn test_run_watch_loop_handles_config_update() {
     };
     let (exit_code, state) = harness.run_once(test.root.clone(), event);
 
-    // check that the config updates trigger rescan compiles
+    // check that config updates trigger rescan compiles
     assert_eq!(exit_code, 0);
     assert_eq!(state.rescan_calls, 1);
     assert_eq!(state.compile_calls, 1);
-    assert_eq!(state.last_reason, Some(WatchCompileReason::UpdateRescan));
-    assert_eq!(state.last_updated, Some(true));
+    assert_eq!(state.last_reason, Some(WatchCompileReason::Rescan));
+    assert_eq!(state.last_updated, Some(false));
     assert_eq!(state.last_rescan, Some(true));
 }
 

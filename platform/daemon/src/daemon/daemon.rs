@@ -118,3 +118,12 @@ impl DaemonRescanResult {
         !self.updates.is_empty()
     }
 }
+
+/// Outcome of an explicit analyze request.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AnalyzeOutcome {
+    /// Whether query context is ready for the analyzed module.
+    pub query_context_ready: bool,
+    /// Optional detail when query context is not ready.
+    pub detail: Option<String>,
+}

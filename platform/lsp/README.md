@@ -5,10 +5,16 @@ Provides classic IDE features: diagnostics, completions, go-to-definition, seman
 
 ## Integration
 
-The LSP server is a thin client over the daemon session.
-The daemon is auto spawned per workspace and accessed over local IPC.
-Editor edits are applied to the overlay file system and forwarded as file change events.
-The daemon performs incremental compilation and returns diagnostics and query data.
+The LSP server owns its workspace session in process.
+It uses `destack_workspace` and `destack_compiler` directly through an LSP local workspace driver.
+Editor edits are applied to an overlay file system and then analyzed in the same process.
+The LSP crate does not depend on `destack_daemon`.
+
+## Relationship To Daemon
+
+The daemon is a separate service used by CLI and automation flows.
+Both daemon and LSP are clients of the same `destack_workspace` query layer.
+This keeps editor behavior consistent with daemon backed workflows without coupling LSP transport to daemon IPC.
 
 ## Change Flow
 

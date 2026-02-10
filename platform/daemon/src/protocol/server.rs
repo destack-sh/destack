@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
+use destack_source::{ModuleId, ProfileId};
 use parking_lot::Mutex;
 
 use destack_workspace::{
@@ -596,12 +597,15 @@ impl ProtocolServer {
             ));
         }
 
-        self.daemon
+        let outcome = self
+            .daemon
             .analyze_path(&request.path)
             .map_err(|error| self.protocol_error_from_daemon(error))?;
 
         Ok(DaemonResponse::Analyzed(super::AnalyzeResponse {
             handle: request.handle,
+            query_context_ready: outcome.query_context_ready,
+            detail: outcome.detail,
         }))
     }
 
@@ -1000,7 +1004,7 @@ impl ProtocolServer {
     fn module_graph_payload(
         &self,
         root: &Path,
-        profile_id: destack_source::ProfileId,
+        profile_id: ProfileId,
     ) -> Result<BinaryPayload, ProtocolError> {
         let program = self.program_for_root(root)?;
         let key = ModuleGraphKey::new(profile_id);
@@ -1020,8 +1024,8 @@ impl ProtocolServer {
     fn module_signature_payload(
         &self,
         root: &Path,
-        module_id: destack_source::ModuleId,
-        profile_id: destack_source::ProfileId,
+        module_id: ModuleId,
+        profile_id: ProfileId,
     ) -> Result<BinaryPayload, ProtocolError> {
         let program = self.program_for_root(root)?;
         let key = ModuleSignatureKey::new(module_id, profile_id);

@@ -96,15 +96,13 @@ pub struct RenameResponse {
 ///
 /// Returns the range and current name if renameable.
 pub fn prepare_rename(session: &Session, file: FileId, offset: u32) -> Option<PrepareRenameResult> {
-    session.with_query_context_mode(true, || {
-        // resolve the rename target at the cursor
-        let (symbol_at, _, name) = resolve_rename_target(session, file, offset)?;
+    // resolve the rename target at the cursor
+    let (symbol_at, _, name) = resolve_rename_target(session, file, offset)?;
 
-        // return the range and current name
-        Some(PrepareRenameResult {
-            range: symbol_at.span,
-            placeholder: name,
-        })
+    // return the range and current name
+    Some(PrepareRenameResult {
+        range: symbol_at.span,
+        placeholder: name,
     })
 }
 
@@ -117,58 +115,53 @@ pub fn rename(
     offset: u32,
     new_name: &str,
 ) -> Option<RenameResult> {
-    session.with_query_context_mode(true, || {
-        // validate new_name is a valid identifier
-        if !is_simple_identifier(new_name) {
-            return None;
-        }
+    // validate new_name is a valid identifier
+    if !is_simple_identifier(new_name) {
+        return None;
+    }
 
-        // resolve the rename target at the cursor
-        let (_, canonical_id, old_name) = resolve_rename_target(session, file, offset)?;
-        let interface_member_target = resolve_interface_member_target(session, canonical_id);
+    // resolve the rename target at the cursor
+    let (_, canonical_id, old_name) = resolve_rename_target(session, file, offset)?;
+    let interface_member_target = resolve_interface_member_target(session, canonical_id);
 
-        // collect primary symbol spans and group by file
-        let mut edits_by_file: HashMap<FileId, Vec<Span>> = HashMap::new();
-        extend_spans_by_file(
-            &mut edits_by_file,
-            collect_symbol_rename_spans(session, canonical_id, &old_name),
-        );
+    // collect primary symbol spans and group by file
+    let mut edits_by_file: HashMap<FileId, Vec<Span>> = HashMap::new();
+    extend_spans_by_file(
+        &mut edits_by_file,
+        collect_symbol_rename_spans(session, canonical_id, &old_name),
+    );
 
-        // include implementation member spans when renaming interface members
-        if let Some(interface_member_target) = interface_member_target {
-            let implementation_members = collect_interface_member_implementations(
-                session,
-                &interface_member_target,
-                &old_name,
-            );
+    // include implementation member spans when renaming interface members
+    if let Some(interface_member_target) = interface_member_target {
+        let implementation_members =
+            collect_interface_member_implementations(session, &interface_member_target, &old_name);
 
-            for member_symbol in implementation_members {
-                if member_symbol == canonical_id {
-                    continue;
-                }
-
-                let spans = collect_symbol_rename_spans(session, member_symbol, &old_name);
-                extend_spans_by_file(&mut edits_by_file, spans);
+        for member_symbol in implementation_members {
+            if member_symbol == canonical_id {
+                continue;
             }
-        }
 
-        // normalize span ordering and remove duplicates per file
-        for spans in edits_by_file.values_mut() {
-            sort_and_dedup_spans(spans);
+            let spans = collect_symbol_rename_spans(session, member_symbol, &old_name);
+            extend_spans_by_file(&mut edits_by_file, spans);
         }
+    }
 
-        // create BatchEdit from collected spans
-        let mut batch_edit = BatchEdit::new();
-        for (file_id, spans) in edits_by_file {
-            let edits: Vec<Edit> = spans
-                .into_iter()
-                .map(|span| Edit::replace(span, new_name.to_string()))
-                .collect();
-            batch_edit.push(FileEdit::with_edits(file_id, edits));
-        }
+    // normalize span ordering and remove duplicates per file
+    for spans in edits_by_file.values_mut() {
+        sort_and_dedup_spans(spans);
+    }
 
-        Some(RenameResult::from_edits(batch_edit))
-    })
+    // create BatchEdit from collected spans
+    let mut batch_edit = BatchEdit::new();
+    for (file_id, spans) in edits_by_file {
+        let edits: Vec<Edit> = spans
+            .into_iter()
+            .map(|span| Edit::replace(span, new_name.to_string()))
+            .collect();
+        batch_edit.push(FileEdit::with_edits(file_id, edits));
+    }
+
+    Some(RenameResult::from_edits(batch_edit))
 }
 
 /// Resolve the symbol targeted by rename at a file offset.

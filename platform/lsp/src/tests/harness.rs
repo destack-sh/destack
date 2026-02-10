@@ -12,17 +12,16 @@ use tokio::sync::mpsc;
 use tower::Service;
 
 use crate::DestackLanguageServer;
-use crate::server::daemon::LSP_DAEMON_IN_PROCESS_ENV;
 
 const MAX_CLIENT_REQUESTS: usize = 16;
 const DEFAULT_DIAGNOSTICS_TIMEOUT: Duration = Duration::from_secs(5);
 
-/// Harness mode for daemon connectivity.
+/// Harness mode for workspace connectivity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LspHarnessMode {
-    /// Use the in process daemon.
+    /// Use the in process workspace.
     InProcess,
-    /// Use the ipc daemon.
+    /// Use the ipc workspace.
     Ipc,
 }
 
@@ -45,18 +44,11 @@ impl LspHarness {
         Self::new_with_mode(root, LspHarnessMode::InProcess)
     }
 
-    /// Create a new harness with explicit daemon connectivity.
+    /// Create a new harness with explicit workspace connectivity.
     pub fn new_with_mode(root: PathBuf, mode: LspHarnessMode) -> Self {
-        // configure daemon mode for tests
-        unsafe {
-            match mode {
-                LspHarnessMode::InProcess => {
-                    std::env::set_var(LSP_DAEMON_IN_PROCESS_ENV, "1");
-                }
-                LspHarnessMode::Ipc => {
-                    std::env::remove_var(LSP_DAEMON_IN_PROCESS_ENV);
-                }
-            }
+        // workspace mode
+        if matches!(mode, LspHarnessMode::Ipc) {
+            panic!("ipc workspace mode is not supported for lsp tests");
         }
 
         // create the server and client socket
@@ -366,7 +358,7 @@ impl LspHarness {
         self.notify(notification).await;
     }
 
-    /// Shutdown the LSP server and close the daemon connection.
+    /// Shutdown the LSP server and close the workspace connection.
     pub async fn shutdown(&mut self) {
         // send shutdown request
         let request = request_with_params("shutdown", 2, serde_json::Value::Null);

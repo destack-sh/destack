@@ -17,7 +17,7 @@ use super::harness::{
     LspHarness, harness_for_fs, notification_with_params, request_with_params, test_fs,
     uri_for_path,
 };
-use crate::server::daemon::LspDaemonClient;
+use crate::server::workspace::LspWorkspaceDriver;
 
 /// LSP didOpen publishes diagnostics for the document.
 #[tokio::test]
@@ -34,10 +34,10 @@ async fn test_lsp_did_open_publishes_diagnostics() {
     assert!(diagnostics.diagnostics.is_empty());
 }
 
-/// LSP daemon client emits diagnostics for virtual updates.
+/// LSP workspace driver emits diagnostics for virtual updates.
 #[test]
-fn test_lsp_daemon_client_virtual_update_emits_diagnostics() {
-    let fs = TemporaryPhysicalFileSystem::new_with_prefix("lsp_daemon_client");
+fn test_lsp_workspace_driver_virtual_update_emits_diagnostics() {
+    let fs = TemporaryPhysicalFileSystem::new_with_prefix("lsp_workspace_client");
     let overlay = Arc::new(OverlayFileSystem::with_inner(Arc::new(
         PhysicalFileSystem::new(),
     )));
@@ -52,12 +52,12 @@ fn test_lsp_daemon_client_virtual_update_emits_diagnostics() {
     let session = Arc::new(session.with_workspace(workspace));
     session.add_root(root.clone());
 
-    let daemon = LspDaemonClient::new_in_process(session.clone(), vec![root.clone()])
-        .expect("expected daemon client");
+    let workspace_driver = LspWorkspaceDriver::new_in_process(session.clone(), vec![root.clone()])
+        .expect("expected workspace driver");
 
     let path = root.join("main.ds");
     let _ = fs.write_text("main.ds", "export const x: number = 1;\n");
-    let initial = daemon
+    let initial = workspace_driver
         .update_virtual_file(&path, "export const x: number = 1;\n".to_string())
         .expect("expected initial update");
     assert!(
@@ -68,7 +68,7 @@ fn test_lsp_daemon_client_virtual_update_emits_diagnostics() {
         "expected no diagnostics for valid content"
     );
 
-    let updated = daemon
+    let updated = workspace_driver
         .update_virtual_file(&path, "export const x = ;\n".to_string())
         .expect("expected updated diagnostics");
     assert!(
@@ -79,7 +79,7 @@ fn test_lsp_daemon_client_virtual_update_emits_diagnostics() {
         "expected diagnostics for invalid content"
     );
 
-    daemon.shutdown();
+    workspace_driver.shutdown();
 }
 
 /// LSP didChange publishes updated diagnostics.
@@ -377,7 +377,7 @@ async fn test_lsp_config_change_fanout_publishes_diagnostics() {
     // initialize the server
     let mut harness = harness_for_fs(&fs).await;
 
-    // open both modules to register them with the daemon
+    // open both modules to register them with the workspace
     let uri_a = uri_for_path(&module_a);
     let uri_b = uri_for_path(&module_b);
     harness
@@ -443,7 +443,7 @@ async fn test_lsp_multi_root_scopes_diagnostics() {
         .did_change_workspace_folders(vec![root_b.clone()], vec![])
         .await;
 
-    // open both modules to register them with the daemon
+    // open both modules to register them with the workspace
     let uri_a = uri_for_path(&module_a);
     let uri_b = uri_for_path(&module_b);
     harness
