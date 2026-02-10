@@ -7,5 +7,22 @@ language = "ts"
 tags = ["frontend", "jsx", "library"]
 
 [discovery]
-include = ["src/**/*.ts", "src/**/*.tsx", "hooks/**/*.ts", "compat/**/*.ts", "packages/**/*.ts", "packages/**/*.tsx"]
+include = [
+  "src/**/*.ts",
+  "src/**/*.tsx",
+  "src/**/*.js",
+  "src/**/*.jsx",
+  "hooks/**/*.ts",
+  "hooks/**/*.tsx",
+  "hooks/**/*.js",
+  "hooks/**/*.jsx",
+  "compat/**/*.ts",
+  "compat/**/*.tsx",
+  "compat/**/*.js",
+  "compat/**/*.jsx",
+  "packages/**/*.ts",
+  "packages/**/*.tsx",
+  "packages/**/*.js",
+  "packages/**/*.jsx",
+]
 exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/fixtures/**", "**/dist/**", "**/node_modules/**"]

@@ -8,4 +8,12 @@ tags = ["tooling", "package-manager", "monorepo"]
 
 [discovery]
 include = ["packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "scripts/**/*.ts"]
-exclude = ["**/*.test.*", "**/__tests__/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/node_modules/**"]
+exclude = [
+    "**/*.test.*",
+    "**/__tests__/**",
+    "**/tests/**",
+    "**/fixtures/**",
+    "**/dist/**",
+    "**/node_modules/**",
+    "packages/*/bin/*.js",
+]
