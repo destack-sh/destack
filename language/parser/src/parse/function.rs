@@ -292,6 +292,7 @@ impl Parser {
                     .options
                     .in_statement_position()
                     .in_before_block()
+                    .not_in_decorator()
                     .with_generator(is_generator);
                 options.allow_sequence_expression = true;
                 let body_start = self.mark();
@@ -317,9 +318,10 @@ impl Parser {
                         .options
                         .in_statement_position()
                         .in_before_block()
+                        .not_in_decorator()
                         .with_generator(is_generator);
-                    // avoid swallowing commas from surrounding contexts
-                    options.allow_sequence_expression = false;
+                    // block bodies are delimited, so sequence expressions stay local
+                    options.allow_sequence_expression = true;
                     self.with_options(options, |parser| {
                         let block_id = parser.eat_block()?;
                         let body = parser.tree.insert(
@@ -329,7 +331,11 @@ impl Parser {
                         Ok(body)
                     })?
                 } else {
-                    let mut options = self.options.in_before_block().with_generator(is_generator);
+                    let mut options = self
+                        .options
+                        .in_before_block()
+                        .not_in_decorator()
+                        .with_generator(is_generator);
                     // avoid swallowing commas from surrounding contexts
                     options.allow_sequence_expression = false;
                     self.with_options(options, |parser| parser.eat_expression())?

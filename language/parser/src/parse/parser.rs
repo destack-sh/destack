@@ -186,6 +186,15 @@ impl ParserOptions {
         }
     }
 
+    /// Set `in_type=false`.
+    #[inline]
+    pub(crate) fn not_in_type(self) -> Self {
+        Self {
+            in_type: false,
+            ..self
+        }
+    }
+
     /// Set `in_super_type=true`.
     #[inline]
     pub(crate) fn in_super_type(self) -> Self {
@@ -385,6 +394,15 @@ impl ParserOptions {
         }
     }
 
+    /// Set `in_new_receiver=false`.
+    #[inline]
+    pub(crate) fn not_in_new_receiver(self) -> Self {
+        Self {
+            in_new_receiver: false,
+            ..self
+        }
+    }
+
     /// Set `allow_private_hash_key=true`.
     #[inline]
     pub(crate) fn allow_private_hash_key(self) -> Self {
@@ -412,6 +430,15 @@ impl ParserOptions {
         }
     }
 
+    /// Set `in_decorator=false`.
+    #[inline]
+    pub(crate) fn not_in_decorator(self) -> Self {
+        Self {
+            in_decorator: false,
+            ..self
+        }
+    }
+
     /// Set `left_precedence=precedence`.
     #[inline]
     pub(crate) fn in_left_precedence(self, precedence: u16) -> Self {
@@ -435,6 +462,15 @@ impl ParserOptions {
     pub(crate) fn not_in_sequence_expression(self) -> Self {
         Self {
             allow_sequence_expression: false,
+            ..self
+        }
+    }
+
+    /// Disallow arrow return type shielding for nested expressions.
+    #[inline]
+    pub(crate) fn not_in_arrow_return_type(self) -> Self {
+        Self {
+            in_arrow_return_type: false,
             ..self
         }
     }
