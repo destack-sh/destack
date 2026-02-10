@@ -1120,7 +1120,9 @@ impl Parser {
         let _timing = self.timing_scope(tags::PARSE_LITERAL);
         let start = self.mark();
         self.eat_token(TokenType::LessThan)?;
-        if !self.token_stream.in_tree_literal() || self.token_stream.in_tree_attribute_expression()
+        if !self.token_stream.in_tree_literal()
+            || self.token_stream.in_tree_attribute_expression()
+            || !self.options.in_tree_literal
         {
             self.token_stream.enter_tree_opening_tag();
         }
@@ -1156,6 +1158,7 @@ impl Parser {
         } else {
             None
         };
+        self.eat_newlines_maybe()?;
 
         // header (arguments separated by `=`)
         let arguments: Option<Vec<LocalNodeId<Argument>>> = {
@@ -2180,6 +2183,39 @@ mod tests {
         });
     }
 
+    /// Parse a TSX tree literal with static arguments and multiline attributes.
+    #[test]
+    fn test_parse_tree_with_static_arguments_and_multiline_attributes() {
+        let mut test = TestParser::new_with_options(
+            r#"<Tags<ValueTagData>
+  defaultValue={value}
+/>"#,
+            LanguageType::TypeScriptXml,
+        );
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_tree_literal().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+            assert_node!(parser.tree, *left, Expression::Path { path, static_arguments } => {
+                assert_path!(parser, *path, "Tags");
+                let static_arguments = static_arguments.as_ref().expect("expected static arguments");
+                assert_eq!(static_arguments.len(), 1);
+                assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*value), "ValueTagData");
+                });
+            });
+
+            let arguments = arguments.as_ref().expect("expected attributes");
+            assert_eq!(arguments.len(), 1);
+            assert_node!(parser.tree, arguments[0], Argument::Named { name: Name::Identifier(name), value, .. } => {
+                assert_string!(parser, *name, "defaultValue");
+                assert_expression_path!(parser, parser.tree.get(*value), "value");
+            });
+
+            assert!(elements.is_none());
+        });
+    }
+
     /// Reject ambiguous TSX generic arrows without disambiguators.
     #[test]
     fn test_peek_tree_literal_ambiguous_tsx_generic_arrow() {
@@ -2612,6 +2648,38 @@ mod tests {
                     assert_eq!(dynamic_arguments.len(), 1);
                     assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { modifiers: _, value } => {
                         assert_expression_path!(parser, parser.tree.get(*value), "x");
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse logical and with an inline tree containing attributes and text.
+    #[test]
+    fn test_parse_tree_expression_container_logical_and_inline_tree_with_text() {
+        let mut test = TestParser::new_with_options(
+            r#"<div>{errors.Checkbox && <p id="Checkbox">Checkbox Error</p>}</div>"#,
+            LanguageType::TypeScriptXml,
+        );
+        let mut parser = test.prepare();
+        let expression = parser.eat_tree_literal().unwrap();
+
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), elements, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "div");
+            let elements = elements.as_ref().expect("expected div children");
+            assert_eq!(elements.len(), 1);
+            assert_node!(parser.tree, elements[0], Argument::Positional { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Binary { operator, right, .. } => {
+                    assert_eq!(*operator, BinaryOperator::And);
+                    assert_node!(parser.tree, *right, Expression::TreeExpression { left: Some(right_left), arguments: Some(arguments), elements: Some(right_elements), .. } => {
+                        assert_expression_path!(parser, parser.tree.get(*right_left), "p");
+                        assert_eq!(arguments.len(), 1);
+                        assert_eq!(right_elements.len(), 1);
+                        assert_node!(parser.tree, right_elements[0], Argument::Positional { value, .. } => {
+                            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(value)) => {
+                                assert_string!(parser, *value, "Checkbox Error");
+                            });
+                        });
                     });
                 });
             });
