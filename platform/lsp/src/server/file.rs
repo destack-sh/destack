@@ -236,18 +236,16 @@ pub(super) fn format_file(
         if let Some(ast) = module.ast_maybe() {
             let side_span = Parser::compute_side_span_from_tree(&ast.tree);
             let strings = ast.strings.clone().into_immutable();
-            let context = DestackFormatContext {
-                options: format_options,
-                file: file.as_ref(),
-                tree: &ast.tree,
-                source_map: &ast.tree.source_map,
-                parents: ast.parents.clone(),
-                tokens: &ast.tokens,
-                side_tokens: &ast.side_tokens,
-                side_span: &side_span,
-                strings: &strings,
-                current_argument_group_id: None,
-            };
+            let context = DestackFormatContext::new(
+                format_options,
+                file.as_ref(),
+                &ast.tree,
+                &ast.tokens,
+                &ast.side_tokens,
+                &side_span,
+                &strings,
+                ast.parents.clone(),
+            );
 
             return format_expressions(&context, &ast.roots);
         }
@@ -271,18 +269,16 @@ pub(super) fn format_file(
     let (tokens, side_tokens) = parser.take_tokens();
     let strings = parser.strings.into_immutable();
     let parents = NodeParentIndex::from_tree(&parser.tree);
-    let context = DestackFormatContext {
-        options: format_options,
-        file: file.as_ref(),
-        tree: &parser.tree,
-        source_map: &parser.tree.source_map,
+    let context = DestackFormatContext::new(
+        format_options,
+        file.as_ref(),
+        &parser.tree,
+        &tokens,
+        &side_tokens,
+        &side_span,
+        &strings,
         parents,
-        tokens: &tokens,
-        side_tokens: &side_tokens,
-        side_span: &side_span,
-        strings: &strings,
-        current_argument_group_id: None,
-    };
+    );
 
     format_expressions(&context, &expressions)
 }
@@ -357,18 +353,16 @@ pub(super) fn format_range(
         language_type,
         ..formatter.into()
     };
-    let context = DestackFormatContext {
-        options: format_options,
-        file: file.as_ref(),
-        tree: &parser.tree,
-        source_map: &parser.tree.source_map,
+    let context = DestackFormatContext::new(
+        format_options,
+        file.as_ref(),
+        &parser.tree,
+        &tokens,
+        &side_tokens,
+        &side_span,
+        &strings,
         parents,
-        tokens: &tokens,
-        side_tokens: &side_tokens,
-        side_span: &side_span,
-        strings: &strings,
-        current_argument_group_id: None,
-    };
+    );
 
     // format overlapping expressions
     let formatted = fir_format!(context.clone(), [statement_list(&overlapping)]).ok()?;
