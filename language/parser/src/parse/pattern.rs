@@ -1,8 +1,9 @@
 use crate::parse::prelude::*;
-use crate::{ParseResult, Parser};
+use crate::{ParseError, ParseResult, Parser};
 
 use destack_ast::{
-    Expression, LocalNodeId, NodeType, Pattern, PatternField, TokenType, TypeLiteral,
+    Expression, Keyword, LocalNodeId, Name, NodeType, Pattern, PatternField, ScalarLiteral,
+    TokenType, TypeLiteral,
 };
 
 impl Parser {
@@ -338,28 +339,39 @@ impl Parser {
         terminator: TokenType,
     ) -> ParseResult<Vec<LocalNodeId<PatternField>>> {
         let mut fields: Vec<LocalNodeId<PatternField>> = Vec::new();
-        let in_js_or_ts = self.language.is_javascript() || self.language.is_typescript();
+        let is_object_pattern = terminator == TokenType::CloseBrace;
+        let enforce_terminal_spread =
+            self.language.is_javascript() || self.language.is_typescript();
         let mut has_spread_field = false;
+
         while self.has_more_tokens() {
+            // stop at the pattern terminator
             if self.peek_token_type() == terminator {
                 break;
             }
 
-            // in js and ts: spread fields must be terminal
-            if in_js_or_ts && has_spread_field {
+            // in JS/TS: spread fields must be terminal
+            if enforce_terminal_spread && has_spread_field {
                 return Err(ParseError::unexpected(self.peek()?.span));
             }
 
-            // field
+            // parse one field
             let field_start = self.mark();
             let mut name_span = None;
+            let has_numeric_object_alias_head = is_object_pattern
+                && self.peek_numeric_literal().is_ok()
+                && self.peek_next_is(TokenType::Colon);
+            let can_start_named_or_spread_field = self.peek_name().is_ok()
+                || has_numeric_object_alias_head
+                || self.peek_mutability().is_ok()
+                || self.peek_is(TokenType::Spread);
             let pattern_field = {
                 // elision: empty slot before separator (like `[,a]` or `[,,b]`)
                 if self.peek_token_type() == seperator {
                     PatternField::Elision
                 }
                 // positional wildcard for tuples/arrays
-                else if terminator != TokenType::CloseBrace
+                else if !is_object_pattern
                     && self.peek_identifier_str("_").is_ok()
                     && !self.peek_next_is(TokenType::Colon)
                 {
@@ -367,7 +379,7 @@ impl Parser {
                     PatternField::Positional { pattern }
                 }
                 // computed property (object patterns only)
-                else if terminator == TokenType::CloseBrace
+                else if is_object_pattern
                     && (self.peek_is(TokenType::OpenBracket)
                         || (self.peek_mutability().is_ok()
                             && self.peek_next_is(TokenType::OpenBracket)))
@@ -382,16 +394,7 @@ impl Parser {
                     self.eat_newlines_maybe()?;
                     self.eat_token(TokenType::Colon)?;
                     let pattern = self.eat_pattern().for_node_type(NodeType::Pattern)?;
-                    let default = if self.peek_is(TokenType::Assign) {
-                        self.bump(); // eat assign
-                        let default = self.with_options(
-                            self.options.not_in_position().not_in_sequence_expression(),
-                            |parser| parser.eat_expression(),
-                        )?;
-                        Some(default)
-                    } else {
-                        None
-                    };
+                    let default = self.eat_pattern_field_default_maybe()?;
                     PatternField::Computed {
                         mutability,
                         key,
@@ -399,17 +402,27 @@ impl Parser {
                         default,
                     }
                 }
-                // named or named alias or spread
-                else if self.peek_name().is_ok()
-                    || self.peek_mutability().is_ok()
-                    || self.peek_is(TokenType::Spread)
-                {
-                    // mutability
-                    let mutability = self.eat_mutability_maybe()?;
+                // named field variants and spread fields
+                else if can_start_named_or_spread_field {
+                    // field modifiers
+                    let mutability = if is_object_pattern
+                        && self.peek_keyword(Keyword::Readonly).is_ok()
+                        && (self.peek_next_is(TokenType::Colon)
+                            || self.peek_next_is(seperator)
+                            || self.peek_next_is(terminator)
+                            || self.peek_next_is(TokenType::Assign)
+                            || self.peek_next_is(TokenType::Maybe))
+                    {
+                        None
+                    } else {
+                        self.eat_mutability_maybe()?
+                    };
 
-                    // spread
+                    // spread fields
                     if self.peek_is(TokenType::Spread) {
                         self.bump(); // eat spread
+
+                        // spread with omitted target is allowed before separators and terminators
                         let pattern = if self.peek_is(TokenType::Newline)
                             && (self
                                 .peek_token_after_newlines(self.pos(), seperator)
@@ -431,80 +444,61 @@ impl Parser {
                             pattern,
                         }
                     }
-                    // alias or pattern
-                    else if self.peek_name().is_ok() && self.peek_next_is(TokenType::Colon) {
-                        let (name, _name_span) = self.eat_name_with_span()?;
-                        self.bump(); // eat colon
-                        // named alias
-                        if self.peek_identifier().is_ok() {
-                            let (alias, alias_span) = self
-                                .eat_binding_identifier_with_span()
-                                .for_node_type(NodeType::Pattern)?;
-                            name_span = Some(alias_span);
-                            // default
-                            let default = if self.peek_is(TokenType::Assign) {
-                                self.bump(); // eat assign
-                                let default = self.with_options(
-                                    self.options.not_in_position().not_in_sequence_expression(),
-                                    |parser| parser.eat_expression(),
-                                )?;
-                                Some(default)
-                            } else {
-                                None
-                            };
-                            PatternField::Alias {
-                                mutability,
-                                name,
-                                alias,
-                                default,
+                    // named alias and named pattern fields
+                    else {
+                        let has_named_colon =
+                            self.peek_name().is_ok() && self.peek_next_is(TokenType::Colon);
+                        let has_numeric_named_colon = is_object_pattern
+                            && self.peek_numeric_literal().is_ok()
+                            && self.peek_next_is(TokenType::Colon);
+                        let has_named_colon_field = has_named_colon || has_numeric_named_colon;
+                        if has_named_colon_field {
+                            let (name, _name_span) =
+                                self.eat_pattern_field_name_with_span(terminator)?;
+                            self.bump(); // eat colon
+
+                            // named alias field
+                            if self.peek_identifier().is_ok() {
+                                let (alias, alias_span) = self
+                                    .eat_binding_identifier_with_span()
+                                    .for_node_type(NodeType::Pattern)?;
+                                name_span = Some(alias_span);
+                                let default = self.eat_pattern_field_default_maybe()?;
+                                PatternField::Alias {
+                                    mutability,
+                                    name,
+                                    alias,
+                                    default,
+                                }
+                            }
+                            // named field with nested pattern
+                            else {
+                                let pattern =
+                                    self.eat_pattern().for_node_type(NodeType::Pattern)?;
+                                let default = self.eat_pattern_field_default_maybe()?;
+                                PatternField::Named {
+                                    mutability,
+                                    name,
+                                    pattern: Some(pattern),
+                                    default,
+                                }
                             }
                         }
-                        // named with pattern
+                        // named shorthand field
                         else {
-                            let pattern = self.eat_pattern().for_node_type(NodeType::Pattern)?;
-                            // default
-                            let default = if self.peek_is(TokenType::Assign) {
-                                self.bump(); // eat assign
-                                let default = self.with_options(
-                                    self.options.not_in_position().not_in_sequence_expression(),
-                                    |parser| parser.eat_expression(),
-                                )?;
-                                Some(default)
-                            } else {
-                                None
-                            };
+                            let (name, span) = self.eat_pattern_field_name_with_span(terminator)?;
+                            name_span = Some(span);
+                            let default = self.eat_pattern_field_default_maybe()?;
                             PatternField::Named {
                                 mutability,
                                 name,
-                                pattern: Some(pattern),
+                                pattern: None,
                                 default,
                             }
                         }
                     }
-                    // named without pattern
-                    else {
-                        let (name, span) = self.eat_name_with_span()?;
-                        name_span = Some(span);
-                        // default
-                        let default = if self.peek_is(TokenType::Assign) {
-                            self.bump(); // eat assign
-                            let default = self.with_options(
-                                self.options.not_in_position().not_in_sequence_expression(),
-                                |parser| parser.eat_expression(),
-                            )?;
-                            Some(default)
-                        } else {
-                            None
-                        };
-                        PatternField::Named {
-                            mutability,
-                            name,
-                            pattern: None,
-                            default,
-                        }
-                    }
                 }
-                // positional
+                // positional field
                 else {
                     let pattern = self.eat_pattern().for_node_type(NodeType::Pattern)?;
                     PatternField::Positional { pattern }
@@ -518,8 +512,9 @@ impl Parser {
             }
             fields.push(pattern_field_id);
 
-            // in js and ts: no separator after spread fields
-            if in_js_or_ts && matches!(self.tree.get(pattern_field_id), PatternField::Spread { .. })
+            // in JS/TS: no separator after spread fields
+            if enforce_terminal_spread
+                && matches!(self.tree.get(pattern_field_id), PatternField::Spread { .. })
             {
                 has_spread_field = true;
                 let has_separator_after_spread = self.peek_token_type() == seperator;
@@ -532,7 +527,7 @@ impl Parser {
                 }
             }
 
-            // separator or newline
+            // consume separators and newline separators
             if self.peek_token_type() == seperator || self.peek_is(TokenType::Newline) {
                 self.bump(); // eat separator
                 self.eat_newlines_maybe()?;
@@ -543,11 +538,56 @@ impl Parser {
 
         Ok(fields)
     }
+
+    // eat a pattern field default assignment if present
+    fn eat_pattern_field_default_maybe(&mut self) -> ParseResult<Option<LocalNodeId<Expression>>> {
+        if !self.peek_is(TokenType::Assign) {
+            return Ok(None);
+        }
+
+        self.bump(); // eat assign
+        let default = self.with_options(
+            self.options.not_in_position().not_in_sequence_expression(),
+            |parser| parser.eat_expression(),
+        )?;
+        Ok(Some(default))
+    }
+
+    // eat a name for object pattern fields
+    fn eat_pattern_field_name_with_span(
+        &mut self,
+        terminator: TokenType,
+    ) -> ParseResult<(Name, destack_source::Span)> {
+        let is_numeric_object_key =
+            terminator == TokenType::CloseBrace && self.peek_numeric_literal().is_ok();
+        if is_numeric_object_key {
+            return self.eat_numeric_pattern_name_with_span();
+        }
+
+        self.eat_name_with_span()
+    }
+
+    // eat a numeric pattern field name as Name::Number
+    fn eat_numeric_pattern_name_with_span(&mut self) -> ParseResult<(Name, destack_source::Span)> {
+        let token = *self.peek_numeric_literal()?;
+        let key_string = self.file.span_str(token.span).to_string();
+
+        let numeric_literal = self.eat_scalar_literal()?;
+        if !matches!(
+            numeric_literal,
+            ScalarLiteral::Integer(_) | ScalarLiteral::Float(_) | ScalarLiteral::Bigint(_)
+        ) {
+            return Err(ParseError::unexpected(token.span));
+        }
+
+        let key_name = self.strings.intern(key_string);
+        Ok((Name::Number(key_name), token.span))
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{Expression, Mutability, Pattern, PatternField, ScalarLiteral};
+    use destack_ast::{Expression, Mutability, Name, Pattern, PatternField, ScalarLiteral};
     use destack_source::LanguageType;
 
     use crate::{
@@ -694,12 +734,34 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_pattern_tuple_spread_non_terminal_destack() {
+        let mut test = TestParser::new("(x, ...rest, z)");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::Tuple { fields, .. } => {
+            assert_eq!(fields.len(), 3);
+            assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: None, mutability: None, default: None } => {
+                assert_name!(parser, *name, "x");
+            });
+            assert_node!(parser.tree, fields[1], PatternField::Spread { mutability: None, pattern: Some(pattern) } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None, .. } => {
+                    assert_string!(parser, *name, "rest");
+                });
+            });
+            assert_node!(parser.tree, fields[2], PatternField::Named { name, pattern: None, mutability: None, default: None } => {
+                assert_name!(parser, *name, "z");
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_pattern_tuple_newline_separated() {
         let mut test = TestParser::new(
             "
 (
     x: 1
-    2, 
+    2,
     ...
 )",
         );
@@ -803,6 +865,49 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_pattern_struct_numeric_name_aliases() {
+        let mut test = TestParser::new("{ 0: fieldNameOrOptions, 1: from, length: argc }");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
+            assert_eq!(fields.len(), 3);
+            assert_node!(parser.tree, fields[0], PatternField::Alias { name, alias, .. } => {
+                assert_node!(name, Name::Number(name) => {
+                    assert_string!(parser, *name, "0");
+                });
+                assert_string!(parser, *alias, "fieldNameOrOptions");
+            });
+            assert_node!(parser.tree, fields[1], PatternField::Alias { name, alias, .. } => {
+                assert_node!(name, Name::Number(name) => {
+                    assert_string!(parser, *name, "1");
+                });
+                assert_string!(parser, *alias, "from");
+            });
+            assert_node!(parser.tree, fields[2], PatternField::Alias { name, alias, .. } => {
+                assert_name!(parser, *name, "length");
+                assert_string!(parser, *alias, "argc");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_pattern_struct_numeric_literal_field() {
+        let mut test = TestParser::new_with_options("{ 5 }", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
+            assert_eq!(fields.len(), 1);
+            assert_node!(parser.tree, fields[0], PatternField::Positional { pattern } => {
+                assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
+                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(5)));
+                });
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_pattern_struct_computed_field() {
         let mut test = TestParser::new("{ [key]: value }");
         let mut parser = test.prepare();
@@ -857,14 +962,12 @@ mod tests {
 
         assert_node!(parser.tree, pattern_id, Pattern::Array { fields } => {
             assert_eq!(fields.len(), 2);
-
             // 1
             assert_node!(parser.tree, fields[0], PatternField::Positional { pattern } => {
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
                 });
             });
-
             // ...
             assert_node!(parser.tree, fields[1], PatternField::Spread { mutability: None, pattern: None } => {
             });
@@ -890,6 +993,49 @@ mod tests {
                         assert_name!(parser, *name, "y");
                     });
                 });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_pattern_object_readonly_shorthand_typescript() {
+        let mut test = TestParser::new_with_options("{ readonly }", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
+            assert_eq!(fields.len(), 1);
+            assert_node!(parser.tree, fields[0], PatternField::Named { name, mutability: None, pattern: None, default: None } => {
+                assert_name!(parser, *name, "readonly");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_pattern_object_readonly_shorthand_destack() {
+        let mut test = TestParser::new("{ readonly }");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
+            assert_eq!(fields.len(), 1);
+            assert_node!(parser.tree, fields[0], PatternField::Named { name, mutability: None, pattern: None, default: None } => {
+                assert_name!(parser, *name, "readonly");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_pattern_object_readonly_modifier_with_name_destack() {
+        let mut test = TestParser::new("{ readonly value }");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
+            assert_eq!(fields.len(), 1);
+            assert_node!(parser.tree, fields[0], PatternField::Named { name, mutability: Some(mutability), pattern: None, default: None } => {
+                assert_name!(parser, *name, "value");
+                assert_eq!(*mutability, Mutability::Immutable);
             });
         });
     }
@@ -960,12 +1106,10 @@ mod tests {
             let start = start.expect("expected range start");
             let end = end.expect("expected range end");
             assert!(*is_inclusive);
-
             // 1
             assert_node!(parser.tree, start, Pattern::Expression { value } => {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             });
-
             // 4
             assert_node!(parser.tree, end, Pattern::Expression { value } => {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(4)));
