@@ -281,7 +281,7 @@ mod tests {
         let module_id = test.add_module(
             "test.ds",
             r#"
-struct Point { x: int32, y: int32 }
+struct Point { x: int32; y: int32 }
 
 function getX(p: Point): int32 {
     p.x
@@ -360,8 +360,8 @@ function first(arr): int32 | undefined {
         let module_id = test.add_module(
             "test.ds",
             r#"
-struct User { name: string, role: string }
-struct Admin { name: string, level: int32 }
+struct User { name: string; role: string }
+struct Admin { name: string; level: int32 }
 
 function getName(person: User | Admin): string {
     person.name

@@ -1066,7 +1066,7 @@ impl Parser {
         let mut types: Vec<LocalNodeId<Expression>> = Vec::new();
         let mut expect_type = true;
 
-        // ts/js require explicit comma separators in type heritage lists
+        // TS/JS require explicit comma separators in type heritage lists
         let allow_newline_separator =
             !(self.language.is_javascript() || self.language.is_typescript());
 

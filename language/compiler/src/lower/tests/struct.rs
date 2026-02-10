@@ -9,7 +9,7 @@ fn test_lower_constructs_struct_and_accesses_fields() {
     let module_id = test.add_module(
         "test.ds",
         r#"
-struct Point { x: number, y: number }
+struct Point { x: number; y: number }
 
 function sumFields(a: number, b: number): number {
     let p: Point = Point { x: a, y: b };
@@ -38,7 +38,7 @@ fn test_lower_constructs_struct_with_new() {
     let module_id = test.add_module(
         "test.ds",
         r#"
-struct Point { x: number, y: number }
+struct Point { x: number; y: number }
 
 function sumFieldsNew(a: number, b: number): number {
     let p: Point = new Point(a, b);
@@ -68,7 +68,7 @@ fn test_lower_inlines_struct_new_value() {
     let module_id = test.add_module(
         "test.ds",
         r#"
-struct Point { x: int32, y: int32 }
+struct Point { x: int32; y: int32 }
 
 function sumPoint(a: int32, b: int32): int32 {
     let p: Point = new Point(a, b);
@@ -399,7 +399,7 @@ fn test_lower_struct_field_order_independence() {
     let module_id = test.add_module(
         "test.ds",
         r#"
-struct Vec2 { x: number, y: number }
+struct Vec2 { x: number; y: number }
 
 function makeReversed(a: number, b: number): number {
     let v: Vec2 = Vec2 { y: b, x: a };
@@ -430,7 +430,7 @@ fn test_lower_nested_struct_access() {
         "test.ds",
         r#"
 struct Inner { value: number }
-struct Outer { inner: Inner, scale: number }
+struct Outer { inner: Inner; scale: number }
 
 function getScaledValue(v: number, s: number): number {
     let inner: Inner = Inner { value: v };

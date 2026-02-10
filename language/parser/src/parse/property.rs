@@ -1125,7 +1125,7 @@ impl Parser {
             }
             // consume any stop
             else if self.is_any_stop() {
-                // class bodies do not allow comma separators
+                // declarations that disallow comma separators
                 if !allow_comma_separators && self.peek_is(TokenType::Comma) {
                     return Err(ParseError::unexpected(self.peek()?.span));
                 }
