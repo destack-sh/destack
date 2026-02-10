@@ -843,182 +843,184 @@ pub fn completions(
     offset: u32,
     trigger: CompletionTrigger,
 ) -> Vec<Completion> {
-    // detect completion context
-    let ContextResult { context, token } = detect_completion_context(session, file, offset);
-    let prefix = token.as_ref().map(|t| t.text.as_str()).unwrap_or("");
-    let allow_short_prefix = matches!(trigger, CompletionTrigger::Invoked);
+    session.with_query_context_mode(true, || {
+        // detect completion context
+        let ContextResult { context, token } = detect_completion_context(session, file, offset);
+        let prefix = token.as_ref().map(|t| t.text.as_str()).unwrap_or("");
+        let allow_short_prefix = matches!(trigger, CompletionTrigger::Invoked);
 
-    // resolve base completions for the detected context
-    let mut results = match &context {
-        CompletionContext::MemberAccess {
-            receiver_symbol,
-            receiver_type,
-            ..
-        } => complete_members(session, file, *receiver_type, *receiver_symbol),
+        // resolve base completions for the detected context
+        let mut results = match &context {
+            CompletionContext::MemberAccess {
+                receiver_symbol,
+                receiver_type,
+                ..
+            } => complete_members(session, file, *receiver_type, *receiver_symbol),
 
-        CompletionContext::TypePosition {
-            scope_id,
-            scope_mark,
-        } => complete_types(session, file, *scope_id, *scope_mark),
-
-        CompletionContext::ValuePosition {
-            scope_id,
-            scope_mark,
-        } => complete_values(session, file, *scope_id, *scope_mark, false),
-
-        CompletionContext::StatementPosition {
-            scope_id,
-            scope_mark,
-        } => complete_values(
-            session,
-            file,
-            *scope_id,
-            *scope_mark,
-            matches!(trigger, CompletionTrigger::Invoked),
-        ),
-
-        CompletionContext::ObjectLiteral {
-            expected_type,
-            existing_fields,
-            scope_id,
-            scope_mark,
-            ..
-        } => complete_object_literal(
-            session,
-            file,
-            *expected_type,
-            existing_fields,
-            *scope_id,
-            *scope_mark,
-        ),
-        CompletionContext::ObjectLiteralValue {
-            scope_id,
-            scope_mark,
-        } => complete_values(session, file, *scope_id, *scope_mark, false),
-        CompletionContext::CallArgument {
-            scope_id,
-            scope_mark,
-        } => complete_values(session, file, *scope_id, *scope_mark, false),
-        CompletionContext::NewExpression {
-            scope_id,
-            scope_mark,
-        } => complete_new_expression(session, file, *scope_id, *scope_mark),
-
-        CompletionContext::ImportPath { partial_path } => {
-            complete_import_paths(session, file, partial_path)
-        }
-
-        CompletionContext::ImportClause {
-            target_module,
-            existing_names,
-            space_filter,
-        } => complete_imports(session, *target_module, existing_names, *space_filter),
-
-        CompletionContext::Unknown => {
-            complete_all(session, file, matches!(trigger, CompletionTrigger::Invoked))
-        }
-    };
-
-    // add auto import completions for relevant positions
-    match context {
-        CompletionContext::ValuePosition {
-            scope_id,
-            scope_mark,
-        } => {
-            let auto_imports = complete_auto_imports_with_visibility(
-                session,
-                file,
-                prefix,
-                Some(SymbolSpace::Value),
+            CompletionContext::TypePosition {
                 scope_id,
                 scope_mark,
-                allow_short_prefix,
-            );
-            results.extend(auto_imports);
-        }
-        CompletionContext::StatementPosition {
-            scope_id,
-            scope_mark,
-        } => {
-            let auto_imports = complete_auto_imports_with_visibility(
-                session,
-                file,
-                prefix,
-                Some(SymbolSpace::Value),
-                scope_id,
-                scope_mark,
-                allow_short_prefix,
-            );
-            results.extend(auto_imports);
-        }
-        CompletionContext::TypePosition {
-            scope_id,
-            scope_mark,
-        } => {
-            let auto_imports = complete_auto_imports_with_visibility(
-                session,
-                file,
-                prefix,
-                Some(SymbolSpace::Type),
-                scope_id,
-                scope_mark,
-                allow_short_prefix,
-            );
-            results.extend(auto_imports);
-        }
-        CompletionContext::ObjectLiteralValue {
-            scope_id,
-            scope_mark,
-        } => {
-            let auto_imports = complete_auto_imports_with_visibility(
-                session,
-                file,
-                prefix,
-                Some(SymbolSpace::Value),
-                scope_id,
-                scope_mark,
-                allow_short_prefix,
-            );
-            results.extend(auto_imports);
-        }
-        CompletionContext::CallArgument {
-            scope_id,
-            scope_mark,
-        } => {
-            let auto_imports = complete_auto_imports_with_visibility(
-                session,
-                file,
-                prefix,
-                Some(SymbolSpace::Value),
-                scope_id,
-                scope_mark,
-                allow_short_prefix,
-            );
-            results.extend(auto_imports);
-        }
-        CompletionContext::NewExpression {
-            scope_id,
-            scope_mark,
-        } => {
-            let mut auto_imports = complete_auto_imports_with_visibility(
-                session,
-                file,
-                prefix,
-                Some(SymbolSpace::Value),
-                scope_id,
-                scope_mark,
-                allow_short_prefix,
-            );
+            } => complete_types(session, file, *scope_id, *scope_mark),
 
-            // filter to constructable auto import entries
-            auto_imports.retain(is_constructable_completion);
-            results.extend(auto_imports);
-        }
-        _ => {}
-    }
+            CompletionContext::ValuePosition {
+                scope_id,
+                scope_mark,
+            } => complete_values(session, file, *scope_id, *scope_mark, false),
 
-    // apply fuzzy matching to filter and rank results
-    filter_and_rank_completions(results, token.as_ref())
+            CompletionContext::StatementPosition {
+                scope_id,
+                scope_mark,
+            } => complete_values(
+                session,
+                file,
+                *scope_id,
+                *scope_mark,
+                matches!(trigger, CompletionTrigger::Invoked),
+            ),
+
+            CompletionContext::ObjectLiteral {
+                expected_type,
+                existing_fields,
+                scope_id,
+                scope_mark,
+                ..
+            } => complete_object_literal(
+                session,
+                file,
+                *expected_type,
+                existing_fields,
+                *scope_id,
+                *scope_mark,
+            ),
+            CompletionContext::ObjectLiteralValue {
+                scope_id,
+                scope_mark,
+            } => complete_values(session, file, *scope_id, *scope_mark, false),
+            CompletionContext::CallArgument {
+                scope_id,
+                scope_mark,
+            } => complete_values(session, file, *scope_id, *scope_mark, false),
+            CompletionContext::NewExpression {
+                scope_id,
+                scope_mark,
+            } => complete_new_expression(session, file, *scope_id, *scope_mark),
+
+            CompletionContext::ImportPath { partial_path } => {
+                complete_import_paths(session, file, partial_path)
+            }
+
+            CompletionContext::ImportClause {
+                target_module,
+                existing_names,
+                space_filter,
+            } => complete_imports(session, *target_module, existing_names, *space_filter),
+
+            CompletionContext::Unknown => {
+                complete_all(session, file, matches!(trigger, CompletionTrigger::Invoked))
+            }
+        };
+
+        // add auto import completions for relevant positions
+        match context {
+            CompletionContext::ValuePosition {
+                scope_id,
+                scope_mark,
+            } => {
+                let auto_imports = complete_auto_imports_with_visibility(
+                    session,
+                    file,
+                    prefix,
+                    Some(SymbolSpace::Value),
+                    scope_id,
+                    scope_mark,
+                    allow_short_prefix,
+                );
+                results.extend(auto_imports);
+            }
+            CompletionContext::StatementPosition {
+                scope_id,
+                scope_mark,
+            } => {
+                let auto_imports = complete_auto_imports_with_visibility(
+                    session,
+                    file,
+                    prefix,
+                    Some(SymbolSpace::Value),
+                    scope_id,
+                    scope_mark,
+                    allow_short_prefix,
+                );
+                results.extend(auto_imports);
+            }
+            CompletionContext::TypePosition {
+                scope_id,
+                scope_mark,
+            } => {
+                let auto_imports = complete_auto_imports_with_visibility(
+                    session,
+                    file,
+                    prefix,
+                    Some(SymbolSpace::Type),
+                    scope_id,
+                    scope_mark,
+                    allow_short_prefix,
+                );
+                results.extend(auto_imports);
+            }
+            CompletionContext::ObjectLiteralValue {
+                scope_id,
+                scope_mark,
+            } => {
+                let auto_imports = complete_auto_imports_with_visibility(
+                    session,
+                    file,
+                    prefix,
+                    Some(SymbolSpace::Value),
+                    scope_id,
+                    scope_mark,
+                    allow_short_prefix,
+                );
+                results.extend(auto_imports);
+            }
+            CompletionContext::CallArgument {
+                scope_id,
+                scope_mark,
+            } => {
+                let auto_imports = complete_auto_imports_with_visibility(
+                    session,
+                    file,
+                    prefix,
+                    Some(SymbolSpace::Value),
+                    scope_id,
+                    scope_mark,
+                    allow_short_prefix,
+                );
+                results.extend(auto_imports);
+            }
+            CompletionContext::NewExpression {
+                scope_id,
+                scope_mark,
+            } => {
+                let mut auto_imports = complete_auto_imports_with_visibility(
+                    session,
+                    file,
+                    prefix,
+                    Some(SymbolSpace::Value),
+                    scope_id,
+                    scope_mark,
+                    allow_short_prefix,
+                );
+
+                // filter to constructable auto import entries
+                auto_imports.retain(is_constructable_completion);
+                results.extend(auto_imports);
+            }
+            _ => {}
+        }
+
+        // apply fuzzy matching to filter and rank results
+        filter_and_rank_completions(results, token.as_ref())
+    })
 }
 
 /// Complete members of a type (after `.`).
@@ -1056,7 +1058,25 @@ fn complete_members(
             results.push(completion);
         }
 
-        return results;
+        if !results.is_empty() {
+            return results;
+        }
+    }
+
+    // fallback path: resolve members directly from the receiver symbol
+    if let Some(symbol_id) = receiver_symbol {
+        let members = resolve_reference_members(symbol_id, session, current_module_id);
+        for member in members {
+            let Some(completion) = completion_for_member(session, member, None) else {
+                continue;
+            };
+
+            results.push(completion);
+        }
+
+        if !results.is_empty() {
+            return results;
+        }
     }
 
     // fallback path: resolve nominal type from the receiver initializer
@@ -1105,6 +1125,8 @@ fn complete_members(
         };
         let symbols = symbol_ctx.symbols();
         let types = symbol_ctx.types();
+        let receiver_symbol = symbols.get_symbol(symbol_id.local_id);
+        let is_enum_receiver = receiver_symbol.ty == SymbolType::Enum;
 
         // get the scope owned by this symbol (for types like struct/class)
         if let Some(owned_scope_id) = owned_scope_for_symbol(&symbols, symbol_id.local_id) {
@@ -1115,7 +1137,11 @@ fn complete_members(
                 if let dir::StaticKey::Name(name_id) = key {
                     let member_symbol = symbols.get_symbol(member_id);
                     let name = session.strings.get(name_id).to_string();
-                    let kind = CompletionKind::from(member_symbol.ty);
+                    let kind = if is_enum_receiver {
+                        CompletionKind::EnumMember
+                    } else {
+                        CompletionKind::from(member_symbol.ty)
+                    };
 
                     let mut completion =
                         Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL);
@@ -1545,10 +1571,6 @@ fn complete_new_expression(
     scope_id: Option<dir::LocalScopeId>,
     scope_mark: Option<dir::LocalScopeMark>,
 ) -> Vec<Completion> {
-    if scope_id.is_none() {
-        return Vec::new();
-    }
-
     // resolve the module and query context
     let Some(module) = get_module_by_file_id(session, file) else {
         return Vec::new();
@@ -1562,34 +1584,56 @@ fn complete_new_expression(
     // prepare result containers
     let mut results = Vec::new();
     let mut seen = HashSet::new();
-    let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
+    // prefer scoped symbol lookup when scope context exists
+    if let Some(scope_id) = scope_id {
+        let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
 
-    // prefer scoped symbol lookup when possible
-    for visible in visible_symbols(
-        &symbols,
-        scope_id.expect("scope_id is required for new expression completions"),
-        mark,
-        Some(SymbolSpace::Value),
-    ) {
-        // skip symbols that are not constructable
-        if !is_constructable_symbol(visible.symbol.ty) {
-            continue;
+        for visible in visible_symbols(&symbols, scope_id, mark, None) {
+            // skip symbols that are not constructable
+            if !is_constructable_symbol(visible.symbol.ty) {
+                continue;
+            }
+
+            // resolve the symbol name key
+            let dir::StaticKey::Name(name_id) = visible.key else {
+                continue;
+            };
+
+            // skip duplicate names
+            let name = session.strings.get(name_id).to_string();
+            if !seen.insert(name.clone()) {
+                continue;
+            }
+
+            // push a completion entry
+            let kind = CompletionKind::from(visible.symbol.ty);
+            results.push(Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL));
         }
+    }
 
-        // resolve the symbol name key
-        let dir::StaticKey::Name(name_id) = visible.key else {
-            continue;
-        };
+    // fall back to all active constructable symbols when scoped lookup is unavailable
+    if results.is_empty() {
+        for symbol_id in symbols.active_symbol_ids() {
+            let symbol = symbols.get_symbol(symbol_id);
 
-        // skip duplicate names
-        let name = session.strings.get(name_id).to_string();
-        if !seen.insert(name.clone()) {
-            continue;
+            // skip symbols that are not constructable
+            if !is_constructable_symbol(symbol.ty) {
+                continue;
+            }
+
+            // resolve a display name for this symbol
+            let Some(name_id) = symbol.name() else {
+                continue;
+            };
+            let name = session.strings.get(name_id).to_string();
+            if !seen.insert(name.clone()) {
+                continue;
+            }
+
+            // push a completion entry
+            let kind = CompletionKind::from(symbol.ty);
+            results.push(Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL));
         }
-
-        // push a completion entry
-        let kind = CompletionKind::from(visible.symbol.ty);
-        results.push(Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL));
     }
 
     // return the new expression completions

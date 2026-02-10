@@ -14,10 +14,10 @@ use crate::protocol::{
 use crate::tests::{RequestRetryPolicy, TestDaemon, TestProtocolHarness};
 use destack_source::Uri;
 use destack_workspace::query::{
-    DocumentSymbolsRequest, FindReferencesRequest, HoverRequest, QueryRequest,
-    QueryRequestEnvelope, QueryRequestOptions, QueryResponse,
+    DocumentSymbolsRequest, FindReferencesRequest, GotoDefinitionRequest, HoverRequest,
+    QueryRequest, QueryRequestEnvelope, QueryRequestOptions, QueryResponse,
 };
-use destack_workspace::{CacheValidate, WorkspaceIndexHeader, WorkspaceIndexSnapshot};
+use destack_workspace::{CacheValidate, WorkspaceIndexHeader, WorkspaceIndexSnapshot, query};
 
 /// Performs a handshake and ping roundtrip.
 #[test]
@@ -375,6 +375,89 @@ fn test_protocol_virtual_update_emits_diagnostics() {
         updates.iter().any(|update| !update.diagnostics.is_empty()),
         "expected diagnostics for invalid virtual content"
     );
+
+    harness.shutdown();
+}
+
+/// Resolves goto definition from a virtual update.
+#[test]
+fn test_protocol_virtual_update_query_goto_definition() {
+    // build the protocol harness
+    let harness = TestProtocolHarness::new();
+
+    // handshake and open the workspace
+    let _ = harness.handshake();
+    let handle = harness.open_workspace();
+
+    let path = harness.test.root.join("virtual.ds");
+    let content = concat!(
+        "export function greet(name: string): string {\n",
+        "    return \"Hello, \" + name;\n",
+        "}\n",
+        "\n",
+        "const msg = greet(\"World\");\n"
+    );
+
+    // apply a valid virtual update
+    let update = FileUpdate {
+        path: path.clone(),
+        update: FileUpdateKind::Text {
+            content: content.to_string(),
+        },
+        write_to_disk: false,
+    };
+    let response = harness.send_request(DaemonRequest::ApplyFileUpdate(FileUpdateRequest {
+        handle,
+        update,
+    }));
+    assert!(matches!(response, DaemonResponse::FileUpdated(_)));
+
+    // query goto definition on the call site
+    let offset = content.find("greet(\"World\")").unwrap_or(0) as u32 + 1;
+
+    // assert direct query behavior on the same session state
+    let file_id = harness
+        .test
+        .session
+        .files
+        .get_id_by_path(&path)
+        .expect("expected file id for virtual source");
+    let direct = harness.test.session.with_query_context_mode(true, || {
+        query::goto_definition(harness.test.session.as_ref(), file_id, offset)
+    });
+    assert!(direct.is_some(), "expected direct goto definition result");
+
+    let response = harness.send_request_with_retry(
+        || {
+            let request = QueryRequestEnvelope {
+                options: QueryRequestOptions { allow_stale: true },
+                snapshot_id: None,
+                request: QueryRequest::GotoDefinition(GotoDefinitionRequest {
+                    uri: Uri::from_path(&path),
+                    offset,
+                }),
+            };
+
+            DaemonRequest::Query(DaemonQuery::WorkspaceQuery { handle, request })
+        },
+        RequestRetryPolicy::default(),
+    );
+
+    let envelope = match response {
+        DaemonResponse::QueryResult(DaemonQueryResponse::WorkspaceQuery(envelope)) => envelope,
+        other => panic!("unexpected response: {other:?}"),
+    };
+
+    // assert goto definition response content
+    match envelope.response {
+        QueryResponse::GotoDefinition(payload) => {
+            let Some(result) = payload.result else {
+                panic!("expected goto definition result");
+            };
+            assert!(!result.locations.is_empty());
+        }
+        other => panic!("unexpected query response: {other:?}"),
+    }
 
     harness.shutdown();
 }

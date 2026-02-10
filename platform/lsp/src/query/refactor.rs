@@ -6,6 +6,7 @@ use destack_source::{BatchEdit, File, FileId};
 use destack_workspace::Session;
 
 use super::common::byte_span_to_range;
+use crate::uri::lsp_uri_for_file;
 
 /// File content view for workspace edits.
 enum FileForEdit {
@@ -28,7 +29,7 @@ impl FileForEdit {
 /// Resolve file content for workspace edit calculations.
 fn file_for_workspace_edit(session: &Session, file_id: FileId) -> Option<FileForEdit> {
     // return the file when content is loaded
-    let file = session.files.get(file_id);
+    let file = session.files.get_maybe(file_id)?;
     if file.is_loaded() && file.line_start_offsets.is_some() {
         return Some(FileForEdit::Borrowed(file));
     }
@@ -60,7 +61,7 @@ pub fn batch_edit_to_workspace_edit(session: &Session, batch: &BatchEdit) -> lsp
             continue;
         };
         let file = file_view.file();
-        let Some(uri) = file.uri.as_ref().parse::<lsp::Uri>().ok() else {
+        let Some(uri) = lsp_uri_for_file(file) else {
             continue;
         };
 

@@ -5,6 +5,7 @@ use destack_workspace::{Session, query};
 use serde_json::json;
 
 use super::common::{byte_span_to_range, span_to_location, symbol_kind_to_lsp};
+use crate::uri::lsp_uri_for_file;
 
 /// Resolve a typed symbol id from LSP item data.
 fn symbol_id_from_lsp_data(session: &Session, data: &serde_json::Value) -> Option<GlobalSymbolId> {
@@ -139,8 +140,8 @@ pub fn call_hierarchy_item_to_lsp(
     session: &Session,
     item: &query::CallHierarchyItem,
 ) -> Option<lsp::CallHierarchyItem> {
-    let file = session.files.get(item.file);
-    let uri = file.uri.as_ref().parse::<lsp::Uri>().ok()?;
+    let file = session.files.get_maybe(item.file)?;
+    let uri = lsp_uri_for_file(&file)?;
     let range = byte_span_to_range(&file, item.range);
     let selection_range = byte_span_to_range(&file, item.selection_range);
     let kind = match item.kind {
@@ -183,7 +184,7 @@ pub fn incoming_call_to_lsp(
     call: &query::CallHierarchyIncomingCall,
 ) -> Option<lsp::CallHierarchyIncomingCall> {
     let from = call_hierarchy_item_to_lsp(session, &call.from)?;
-    let file = session.files.get(call.from.file);
+    let file = session.files.get_maybe(call.from.file)?;
     let from_ranges = call
         .from_ranges
         .iter()
@@ -205,9 +206,11 @@ pub fn outgoing_call_to_lsp(
     let from_ranges = call
         .from_ranges
         .iter()
-        .map(|span| {
-            let file = session.files.get(span.file);
-            byte_span_to_range(&file, *span)
+        .filter_map(|span| {
+            session
+                .files
+                .get_maybe(span.file)
+                .map(|file| byte_span_to_range(&file, *span))
         })
         .collect();
 
@@ -219,8 +222,8 @@ pub fn type_hierarchy_item_to_lsp(
     session: &Session,
     item: &query::TypeHierarchyItem,
 ) -> Option<lsp::TypeHierarchyItem> {
-    let file = session.files.get(item.file);
-    let uri = file.uri.as_ref().parse::<lsp::Uri>().ok()?;
+    let file = session.files.get_maybe(item.file)?;
+    let uri = lsp_uri_for_file(&file)?;
     let range = byte_span_to_range(&file, item.range);
     let selection_range = byte_span_to_range(&file, item.selection_range);
     let kind = match item.kind {
@@ -265,8 +268,8 @@ pub fn workspace_symbol_to_lsp(
     session: &Session,
     symbol: &query::WorkspaceSymbol,
 ) -> Option<lsp::SymbolInformation> {
-    let file = session.files.get(symbol.file);
-    let uri = file.uri.as_ref().parse::<lsp::Uri>().ok()?;
+    let file = session.files.get_maybe(symbol.file)?;
+    let uri = lsp_uri_for_file(&file)?;
     let range = byte_span_to_range(&file, symbol.range);
     let kind = symbol_kind_to_lsp(symbol.kind);
 

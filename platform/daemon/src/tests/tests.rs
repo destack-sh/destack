@@ -4,7 +4,7 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use destack_source::{
-    FileSystem, FileWatchEvent, FileWatchEventKind, FileWatchOptions, MemoryFileSystem,
+    FileId, FileSystem, FileWatchEvent, FileWatchEventKind, FileWatchOptions, MemoryFileSystem,
     MemoryFileWatcher,
 };
 use destack_workspace::{MemoryCacheStore, Program, Session};
@@ -151,22 +151,61 @@ impl TestDaemon {
             .unwrap_or_else(|error| panic!("update failed for {}: {error}", path.display()))
     }
 
+    /// Update a virtual file and return all daemon updates.
+    pub fn update_virtual_file(&self, path: impl AsRef<Path>, content: &str) -> Vec<DaemonUpdate> {
+        let path = self.resolve_path(path);
+        self.daemon
+            .update_virtual_file(&path, content.to_string())
+            .unwrap_or_else(|error| panic!("virtual update failed for {}: {error}", path.display()))
+    }
+
+    /// Resolve the tracked file id for a path.
+    pub fn file_id_for_path(&self, path: impl AsRef<Path>) -> FileId {
+        let path = self.resolve_path(path);
+        self.session
+            .files
+            .get_id_by_path(&path)
+            .unwrap_or_else(|| panic!("missing file id for {}", path.display()))
+    }
+
+    /// Return the update for a specific file id.
+    pub fn update_for_file_id<'a>(
+        &self,
+        updates: &'a [DaemonUpdate],
+        file_id: FileId,
+    ) -> &'a DaemonUpdate {
+        updates
+            .iter()
+            .find(|update| update.file_id == file_id)
+            .unwrap_or_else(|| panic!("missing update for file id {file_id}"))
+    }
+
+    /// Return the update for a specific path.
+    pub fn update_for_path<'a>(
+        &self,
+        updates: &'a [DaemonUpdate],
+        path: impl AsRef<Path>,
+    ) -> &'a DaemonUpdate {
+        let file_id = self.file_id_for_path(path);
+        self.update_for_file_id(updates, file_id)
+    }
+
     /// Update a file and return the update for the target file.
     pub fn update_file_for_path(&self, path: impl AsRef<Path>, content: &str) -> DaemonUpdate {
         let path = self.resolve_path(path);
-        let updates = self
-            .daemon
-            .update_file(&path, content.to_string())
-            .unwrap_or_else(|error| panic!("update failed for {}: {error}", path.display()));
-        let file_id = self
-            .session
-            .files
-            .get_id_by_path(&path)
-            .unwrap_or_else(|| panic!("missing file id for {}", path.display()));
-        updates
-            .into_iter()
-            .find(|update| update.file_id == file_id)
-            .unwrap_or_else(|| panic!("missing update for {}", path.display()))
+        let updates = self.update_file(&path, content);
+        self.update_for_path(&updates, &path).clone()
+    }
+
+    /// Update a virtual file and return the update for the target file.
+    pub fn update_virtual_file_for_path(
+        &self,
+        path: impl AsRef<Path>,
+        content: &str,
+    ) -> DaemonUpdate {
+        let path = self.resolve_path(path);
+        let updates = self.update_virtual_file(&path, content);
+        self.update_for_path(&updates, &path).clone()
     }
 
     /// Build a watch coordinator for the test roots.

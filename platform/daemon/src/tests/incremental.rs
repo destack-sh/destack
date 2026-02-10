@@ -1,10 +1,60 @@
+use std::path::Path;
 use std::sync::Arc;
 
 use destack_source::{FileContent, FileSystem, TemporaryPhysicalFileSystem};
-use destack_workspace::{MemoryCacheStore, ModuleGraphKey, Session};
+use destack_workspace::{MemoryCacheStore, ModuleGraphKey, Session, query};
 
 use crate::Daemon;
 use crate::tests::TestDaemon;
+
+const NAVIGATION_SOURCE: &str = r#"function greet(name: string): string {
+    return "Hello, " + name;
+}
+
+const msg = greet("World");
+"#;
+
+const EXPORTED_NAVIGATION_SOURCE: &str = r#"export function greet(name: string): string {
+    return "Hello, " + name;
+}
+
+const msg = greet("World");
+"#;
+
+const IMPORT_A_VALUE_SOURCE: &str = r#"import { value } from "./a.ds";
+
+value;
+"#;
+
+/// Assert navigation query readiness for a virtual source file.
+fn assert_virtual_navigation_ready(session: &Session, path: &Path, source: &str) {
+    // resolve the file id from the tracked path
+    let file_id = session
+        .files
+        .get_id_by_path(path)
+        .expect("expected file id for virtual source");
+
+    // require strict query context for navigation
+    let module = session
+        .modules
+        .get_by_file_id(file_id)
+        .expect("expected module for virtual source");
+    let module = module.read();
+    assert!(
+        session.query_context(&module).is_some(),
+        "expected strict query context for virtual source"
+    );
+    drop(module);
+
+    // verify goto definition on the call expression resolves
+    let offset = source
+        .find(r#"greet("World")"#)
+        .expect("expected call marker") as u32
+        + 1;
+    let result =
+        session.with_query_context_mode(true, || query::goto_definition(session, file_id, offset));
+    assert!(result.is_some(), "expected goto definition result");
+}
 
 /// Ensure daemon updates emit diagnostics for invalid syntax.
 #[test]
@@ -35,33 +85,14 @@ fn test_daemon_virtual_update_emits_diagnostics() {
     let path = test.root.join("main.ds");
 
     // initial diagnostics are empty
-    let initial = test
-        .daemon
-        .update_virtual_file(&path, "export const value = 1;".to_string())
-        .expect("virtual update failed");
-    let file_id = test
-        .session
-        .files
-        .get_id_by_path(&path)
-        .expect("expected file id after virtual update");
-    let initial_update = initial
-        .into_iter()
-        .find(|update| update.file_id == file_id)
-        .expect("expected update for virtual file");
+    let initial_update = test.update_virtual_file_for_path(&path, "export const value = 1;");
     assert!(
         initial_update.diagnostics.is_empty(),
         "expected no diagnostics for valid content"
     );
 
     // invalid content emits diagnostics
-    let updated = test
-        .daemon
-        .update_virtual_file(&path, "export const value = ;".to_string())
-        .expect("virtual update failed");
-    let updated_update = updated
-        .into_iter()
-        .find(|update| update.file_id == file_id)
-        .expect("expected update for virtual file");
+    let updated_update = test.update_virtual_file_for_path(&path, "export const value = ;");
     assert!(
         !updated_update.diagnostics.is_empty(),
         "expected diagnostics for invalid content"
@@ -108,6 +139,49 @@ fn test_daemon_virtual_update_emits_diagnostics_physical_fs() {
         !updated_update.diagnostics.is_empty(),
         "expected diagnostics for invalid content"
     );
+}
+
+/// Ensure virtual updates build strict navigation query context.
+#[test]
+fn test_daemon_virtual_update_builds_navigation_query_context() {
+    let test = TestDaemon::new();
+    let path = test.root.join("main.ds");
+    let source = NAVIGATION_SOURCE;
+
+    let update = test.update_virtual_file_for_path(&path, source);
+    assert!(
+        update.diagnostics.is_empty(),
+        "expected no diagnostics for valid content"
+    );
+
+    assert_virtual_navigation_ready(test.session.as_ref(), &path, source);
+}
+
+/// Ensure virtual updates navigate for exported function calls.
+#[test]
+fn test_daemon_virtual_update_navigates_exported_function_call() {
+    let test = TestDaemon::new();
+    let path = test.root.join("main.ds");
+    let source = EXPORTED_NAVIGATION_SOURCE;
+
+    let _ = test.update_virtual_file(&path, source);
+
+    assert_virtual_navigation_ready(test.session.as_ref(), &path, source);
+}
+
+/// Ensure navigation still works after an initial workspace rescan.
+#[test]
+fn test_daemon_virtual_update_navigates_after_rescan() {
+    let test = TestDaemon::new();
+    let path = test.root.join("main.ds");
+    let source = EXPORTED_NAVIGATION_SOURCE;
+
+    let _ = test
+        .daemon
+        .rescan_roots_with_analysis(std::slice::from_ref(&test.root));
+    let _ = test.update_virtual_file(&path, source);
+
+    assert_virtual_navigation_ready(test.session.as_ref(), &path, source);
 }
 
 /// Ensures diagnostics clear after fixing invalid source.
@@ -191,11 +265,7 @@ fn test_daemon_rescan_with_analysis_emits_diagnostics() {
         .files
         .get_id_by_path(&path)
         .expect("file id should be tracked");
-    let update = result
-        .updates
-        .into_iter()
-        .find(|update| update.file_id == file_id)
-        .expect("expected update for rescan file");
+    let update = test.update_for_file_id(&result.updates, file_id);
     assert!(
         !update.diagnostics.is_empty(),
         "expected diagnostics for invalid rescan content"
@@ -208,24 +278,10 @@ fn test_daemon_update_rebuilds_module_graph() {
     let test = TestDaemon::new();
 
     let path_a = test.write_text("a.ds", "export const value = 1;");
-    let path_b = test.write_text(
-        "b.ds",
-        r#"
-import { value } from "./a.ds";
-
-value;
-"#,
-    );
+    let path_b = test.write_text("b.ds", IMPORT_A_VALUE_SOURCE);
 
     let _ = test.update_file(&path_a, "export const value = 1;");
-    let _ = test.update_file(
-        &path_b,
-        r#"
-import { value } from "./a.ds";
-
-value;
-"#,
-    );
+    let _ = test.update_file(&path_b, IMPORT_A_VALUE_SOURCE);
 
     let program = test.session.find_program_for_path(&path_a);
     let profile_id = program.default_profile_id_for_module(

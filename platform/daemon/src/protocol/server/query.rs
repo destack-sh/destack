@@ -1,6 +1,4 @@
-use std::collections::HashSet;
-
-use destack_compiler::{AnalyzeTask, ResolveTask, TaskOutcome};
+use destack_compiler::AnalyzeTask;
 use destack_source::{FileId, Span, Uri};
 use destack_workspace::{ModuleContent, Program, query};
 
@@ -770,14 +768,9 @@ impl ProtocolServer {
             return Ok(file_id);
         }
 
-        let mut builtins_outcome = None;
-        let mut libs_outcome = None;
-        let mut prepare_outcome = None;
-        let mut direct_outcome = None;
-        let mut canonical_outcome = None;
         let mut analyze_outcome = None;
 
-        // attempt to force analysis for the resolved module id
+        // drive the full dependency chain through compiler scheduling
         let session = self.daemon.session.as_ref();
         if let Some(module_id) = session.modules.get_id_by_file_id(file_id) {
             let profile_id = session.default_profile_for_module(module_id);
@@ -786,84 +779,16 @@ impl ProtocolServer {
 
             let module = handle.compiler.module_stamp(module_id);
             let profile = handle.compiler.profile_stamp(profile_id);
-            let graph = handle.compiler.module_graph_stamp(profile_id);
-
-            let builtins_task = ResolveTask::ResolveBuiltins { profile };
-            let libs_task = ResolveTask::ResolveLibs { profile };
-            let prepare_task = ResolveTask::ResolveModulePrepare { module, profile };
-            let direct_task = ResolveTask::ResolveModuleDirect { module, profile };
-            let canonical_task = ResolveTask::ResolveModuleCanonical {
-                module,
-                profile,
-                graph,
-            };
             let analyze_task = AnalyzeTask::AnalyzeModuleValidate { module, profile };
-
-            handle.compiler.enqueue(builtins_task.clone());
-            handle.compiler.enqueue(libs_task.clone());
-            handle.compiler.enqueue(prepare_task.clone());
-            handle.compiler.enqueue(direct_task.clone());
-            handle.compiler.enqueue(canonical_task.clone());
-            handle.compiler.enqueue(analyze_task.clone());
-            if let Some(builtins) = program.builtins.as_ref() {
-                let mut builtin_module_ids = HashSet::new();
-                builtin_module_ids.insert(builtins.prelude_module_id);
-                for module_id in builtins.core_module_by_path.values() {
-                    builtin_module_ids.insert(*module_id);
-                }
-                for module_id in builtin_module_ids {
-                    let module = handle.compiler.module_stamp(module_id);
-                    let profile = handle.compiler.profile_stamp(profile_id);
-                    let graph = handle.compiler.module_graph_stamp(profile_id);
-                    handle.compiler.enqueue(ResolveTask::ResolveModule {
-                        module,
-                        profile,
-                        graph,
-                    });
-                    handle
-                        .compiler
-                        .enqueue(ResolveTask::ResolveModulePrepare { module, profile });
-                    handle
-                        .compiler
-                        .enqueue(ResolveTask::ResolveModuleDirect { module, profile });
-                    handle
-                        .compiler
-                        .enqueue(ResolveTask::ResolveModuleCanonical {
-                            module,
-                            profile,
-                            graph,
-                        });
-                }
-            }
-
-            let mut passes = 0;
-            loop {
-                passes += 1;
-                handle.compiler.compile();
-
-                builtins_outcome = handle.compiler.get_outcome(builtins_task.clone());
-                libs_outcome = handle.compiler.get_outcome(libs_task.clone());
-                prepare_outcome = handle.compiler.get_outcome(prepare_task.clone());
-                direct_outcome = handle.compiler.get_outcome(direct_task.clone());
-                canonical_outcome = handle.compiler.get_outcome(canonical_task.clone());
-                analyze_outcome = handle.compiler.get_outcome(analyze_task.clone());
-
-                let needs_retry = [
-                    builtins_outcome.as_ref(),
-                    libs_outcome.as_ref(),
-                    prepare_outcome.as_ref(),
-                    direct_outcome.as_ref(),
-                    canonical_outcome.as_ref(),
-                    analyze_outcome.as_ref(),
-                ]
-                .into_iter()
-                .any(|outcome| matches!(outcome, Some(TaskOutcome::Yield { .. })));
-                if !needs_retry || passes >= 3 {
-                    break;
-                }
-            }
+            analyze_outcome = Some(handle.compiler.run_task(analyze_task));
             if self.query_context_ready(file_id) {
                 return Ok(file_id);
+            }
+
+            if let Some(resolved_file_id) = self.resolve_file_id(program, uri)
+                && self.query_context_ready(resolved_file_id)
+            {
+                return Ok(resolved_file_id);
             }
         }
 
@@ -924,7 +849,7 @@ impl ProtocolServer {
                     .map(|path| path.display().to_string())
                     .unwrap_or_else(|| "<none>".to_string());
                 format!(
-                    "file_id={file_id:?} module_id={:?} profile_id={:?} ast_ready={ast_ready} base_dir_ready={base_dir_ready} dir_ready={dir_ready} dir_profiles={dir_profiles:?} builtins_outcome={builtins_outcome:?} libs_outcome={libs_outcome:?} prepare_outcome={prepare_outcome:?} direct_outcome={direct_outcome:?} canonical_outcome={canonical_outcome:?} analyze_outcome={analyze_outcome:?} path={path}",
+                    "file_id={file_id:?} module_id={:?} profile_id={:?} ast_ready={ast_ready} base_dir_ready={base_dir_ready} dir_ready={dir_ready} dir_profiles={dir_profiles:?} analyze_outcome={analyze_outcome:?} path={path}",
                     module.id,
                     profile_id
                 )

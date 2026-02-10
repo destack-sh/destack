@@ -5,6 +5,8 @@ use destack_lsp_types as lsp;
 use destack_source::{File, Span};
 use destack_workspace::{Session, query};
 
+use crate::uri::lsp_uri_for_file;
+
 /// Convert byte span to LSP range.
 pub fn byte_span_to_range(source: &File, span: Span) -> lsp::Range {
     let (start_line, start_column) = byte_to_utf16_position(source, span.start).unwrap_or_default();
@@ -114,9 +116,9 @@ pub fn token_length_utf16(source: &File, token: &TokenSpan) -> u32 {
 
 /// Convert a span to an LSP location.
 pub fn span_to_location(session: &Session, span: Span) -> Option<lsp::Location> {
-    let file = session.files.get(span.file);
+    let file = session.files.get_maybe(span.file)?;
     let range = byte_span_to_range(&file, span);
-    let uri = file.uri.as_ref().parse::<lsp::Uri>().ok()?;
+    let uri = lsp_uri_for_file(&file)?;
     Some(lsp::Location { uri, range })
 }
 
