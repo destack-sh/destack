@@ -392,8 +392,8 @@ fn comment_style_for_extension(extension: &str) -> CommentStyle {
         // hash-style comments
         ".py" | ".rb" | ".sh" | ".bash" | ".zsh" | ".fish" | ".pl" | ".pm" | ".r" | ".yml"
         | ".yaml" | ".toml" | ".ini" | ".conf" | ".cfg" | ".makefile" | ".mk" | ".cmake"
-        | ".dockerfile" | ".gitignore" | ".env" | ".editorconfig" | ".tf" | ".hcl" | ".nix"
-        | ".just" | ".justfile" => CommentStyle::Hash,
+        | ".dockerfile" | ".gitignore" | ".gitattributes" | ".env" | ".editorconfig" | ".tf"
+        | ".hcl" | ".nix" | ".just" | ".justfile" => CommentStyle::Hash,
 
         // dash-style comments
         ".lua" | ".sql" | ".hs" | ".lhs" | ".elm" | ".purs" | ".ada" | ".adb" | ".ads" => {
