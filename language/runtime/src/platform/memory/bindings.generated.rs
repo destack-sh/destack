@@ -914,9 +914,9 @@ fn destack_memory_advise_advise_replay(
         || unsafe { platform_native::destack_memory_advise(context, address, length, advice) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = MemoryAdviseAdviseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -954,9 +954,9 @@ fn destack_memory_advise_discard_replay(
         || unsafe { platform_native::destack_memory_discard(context, address, length) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = MemoryAdviseDiscardReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -995,9 +995,9 @@ fn destack_memory_advise_huge_page_replay(
         || unsafe { platform_native::destack_memory_huge_page(context, address, length, enabled) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = MemoryAdviseHugePageReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1035,9 +1035,9 @@ fn destack_memory_lock_lock_replay(
         || unsafe { platform_native::destack_memory_lock(context, address, length) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = MemoryLockLockReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1075,9 +1075,9 @@ fn destack_memory_lock_unlock_replay(
         || unsafe { platform_native::destack_memory_unlock(context, address, length) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = MemoryLockUnlockReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1116,9 +1116,9 @@ fn destack_memory_map_commit_replay(
         || unsafe { platform_native::destack_memory_commit(context, address, length, flags) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = MemoryMapCommitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1156,9 +1156,9 @@ fn destack_memory_map_decommit_replay(
         || unsafe { platform_native::destack_memory_decommit(context, address, length) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = MemoryMapDecommitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1200,9 +1200,9 @@ fn destack_memory_map_numa_bind_replay(
         },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = MemoryMapNumaBindReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1240,9 +1240,9 @@ fn destack_memory_map_release_replay(
         || unsafe { platform_native::destack_memory_release(context, address, length) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = MemoryMapReleaseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1287,14 +1287,14 @@ fn destack_memory_map_reserve_replay(
                     }
                     *out
                 };
-                let result_replay_address = result_value.address;
-                let result_replay_length = result_value.length;
-                let result_replay = MemoryRange {
-                    address: result_replay_address,
-                    length: result_replay_length,
+                let result_recorded_address = result_value.address;
+                let result_recorded_length = result_value.length;
+                let result_recorded = MemoryRange {
+                    address: result_recorded_address,
+                    length: result_recorded_length,
                 };
                 let payload = MemoryMapReserveReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1346,9 +1346,9 @@ fn destack_memory_protect_execute_replay(
         },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = MemoryProtectExecuteReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1388,9 +1388,9 @@ fn destack_memory_protect_flush_instruction_cache_replay(
         },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = MemoryProtectFlushInstructionCacheReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1429,9 +1429,9 @@ fn destack_memory_protect_protect_replay(
         || unsafe { platform_native::destack_memory_protect(context, address, length, protection) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = MemoryProtectProtectReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1482,14 +1482,14 @@ fn destack_memory_protect_remap_replay(
                     }
                     *out
                 };
-                let result_replay_address = result_value.address;
-                let result_replay_length = result_value.length;
-                let result_replay = ProtectedMemoryRange {
-                    address: result_replay_address,
-                    length: result_replay_length,
+                let result_recorded_address = result_value.address;
+                let result_recorded_length = result_value.length;
+                let result_recorded = ProtectedMemoryRange {
+                    address: result_recorded_address,
+                    length: result_recorded_length,
                 };
                 let payload = MemoryProtectRemapReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1738,9 +1738,9 @@ fn destack_memory_advise_advise_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = MemoryAdviseAdviseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1782,9 +1782,9 @@ fn destack_memory_advise_discard_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = MemoryAdviseDiscardReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1827,9 +1827,9 @@ fn destack_memory_advise_huge_page_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = MemoryAdviseHugePageReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1871,9 +1871,9 @@ fn destack_memory_lock_lock_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = MemoryLockLockReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1915,9 +1915,9 @@ fn destack_memory_lock_unlock_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = MemoryLockUnlockReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1960,9 +1960,9 @@ fn destack_memory_map_commit_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = MemoryMapCommitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2004,9 +2004,9 @@ fn destack_memory_map_decommit_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = MemoryMapDecommitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2054,9 +2054,9 @@ fn destack_memory_map_numa_bind_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = MemoryMapNumaBindReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2098,9 +2098,9 @@ fn destack_memory_map_release_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = MemoryMapReleaseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2143,14 +2143,14 @@ fn destack_memory_map_reserve_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_address = result_value.address;
-                let result_replay_length = result_value.length;
-                let result_replay = MemoryRange {
-                    address: result_replay_address,
-                    length: result_replay_length,
+                let result_recorded_address = result_value.address;
+                let result_recorded_length = result_value.length;
+                let result_recorded = MemoryRange {
+                    address: result_recorded_address,
+                    length: result_recorded_length,
                 };
                 let payload = MemoryMapReserveReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2203,9 +2203,9 @@ fn destack_memory_protect_execute_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = MemoryProtectExecuteReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2249,9 +2249,9 @@ fn destack_memory_protect_flush_instruction_cache_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = MemoryProtectFlushInstructionCacheReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2296,9 +2296,9 @@ fn destack_memory_protect_protect_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = MemoryProtectProtectReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2347,14 +2347,14 @@ fn destack_memory_protect_remap_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_address = result_value.address;
-                let result_replay_length = result_value.length;
-                let result_replay = ProtectedMemoryRange {
-                    address: result_replay_address,
-                    length: result_replay_length,
+                let result_recorded_address = result_value.address;
+                let result_recorded_length = result_value.length;
+                let result_recorded = ProtectedMemoryRange {
+                    address: result_recorded_address,
+                    length: result_recorded_length,
                 };
                 let payload = MemoryProtectRemapReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }

@@ -666,13 +666,247 @@ impl Default for GcOptions {
     }
 }
 
+/// Runtime world selection for external bindings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub enum RuntimeWorld {
+    /// Use host-backed platform bindings.
+    #[default]
+    Host,
+    /// Use simulated platform bindings.
+    Simulated,
+}
+
+/// Runtime access policy for binding execution.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub enum RuntimeAccess {
+    /// Allow the binding call.
+    #[default]
+    Allow,
+    /// Deny the binding call.
+    Deny,
+}
+
+/// Engine selector for runtime rules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum RuntimeRuleEngine {
+    /// Match VM engine execution.
+    Vm,
+    /// Match native engine execution.
+    Native,
+}
+
+/// Binding scope selector for runtime rules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum RuntimeRuleScope {
+    /// Match OS scope bindings.
+    Os,
+    /// Match runtime scope bindings.
+    Runtime,
+    /// Match hybrid scope bindings.
+    Hybrid,
+}
+
+/// Blocking behavior selector for runtime rules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum RuntimeRuleBlocking {
+    /// Match always-blocking bindings.
+    Always,
+    /// Match never-blocking bindings.
+    Never,
+    /// Match conditionally blocking bindings.
+    Sometimes,
+}
+
+/// Effect class selector for runtime rules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum RuntimeRuleEffect {
+    /// Match pure bindings.
+    Pure,
+    /// Match deterministic bindings.
+    Deterministic,
+    /// Match recordable external bindings.
+    ExternalRecordable,
+    /// Match non-recordable external bindings.
+    ExternalNonRecordable,
+}
+
+/// Rule filters for runtime binding policies.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct RuntimeRuleFilter {
+    /// Glob selector for full binding names.
+    pub binding: Option<String>,
+    /// Glob selector for capability names.
+    pub capability: Option<String>,
+    /// Glob selector for module names.
+    pub module: Option<String>,
+    /// Engine selector.
+    pub engine: Option<RuntimeRuleEngine>,
+    /// Execution modes selector.
+    pub execution_modes: Option<Vec<ExecutionMode>>,
+    /// Platform selector.
+    pub platforms: Option<Vec<String>>,
+    /// Binding scope selector.
+    pub scope: Option<RuntimeRuleScope>,
+    /// Binding blocking selector.
+    pub blocking: Option<RuntimeRuleBlocking>,
+    /// Binding effect selector.
+    pub effect: Option<RuntimeRuleEffect>,
+}
+
+impl RuntimeRuleFilter {
+    /// Whether this selector has no filtering clauses.
+    pub fn is_empty(&self) -> bool {
+        self.binding.is_none()
+            && self.capability.is_none()
+            && self.module.is_none()
+            && self.engine.is_none()
+            && self.execution_modes.is_none()
+            && self.platforms.is_none()
+            && self.scope.is_none()
+            && self.blocking.is_none()
+            && self.effect.is_none()
+    }
+}
+
+/// Jitter distribution for delay faults.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum RuntimeFaultDistribution {
+    /// Use a uniform random distribution.
+    Uniform,
+    /// Use a normal random distribution.
+    Normal,
+    /// Use an exponential random distribution.
+    Exponential,
+}
+
+/// Fault injection payload for one runtime rule.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum RuntimeFault {
+    /// Inject a binding error.
+    Error {
+        /// Error code name for error injection.
+        code: String,
+        /// Probability in parts-per-million.
+        probability_ppm: Option<u32>,
+    },
+    /// Inject base delay and optional jitter before returning.
+    Delay {
+        /// Base delay in nanoseconds.
+        base_ns: u64,
+        /// Jitter range in nanoseconds.
+        jitter_ns: Option<u64>,
+        /// Jitter distribution selector.
+        distribution: Option<RuntimeFaultDistribution>,
+        /// Probability in parts-per-million.
+        probability_ppm: Option<u32>,
+    },
+    /// Drop the call result.
+    Drop {
+        /// Probability in parts-per-million.
+        probability_ppm: Option<u32>,
+    },
+    /// Duplicate delivery of a result.
+    Duplicate {
+        /// Number of result copies to emit.
+        copies: u32,
+        /// Probability in parts-per-million.
+        probability_ppm: Option<u32>,
+    },
+    /// Reorder result delivery within a bounded window.
+    Reorder {
+        /// Reorder window size.
+        window: u32,
+        /// Probability in parts-per-million.
+        probability_ppm: Option<u32>,
+    },
+    /// Force timeout behavior for the call.
+    Timeout {
+        /// Timeout duration in nanoseconds.
+        timeout_ns: u64,
+        /// Optional timeout error code override.
+        code: Option<String>,
+        /// Probability in parts-per-million.
+        probability_ppm: Option<u32>,
+    },
+    /// Simulate a connection or handle disconnect.
+    Disconnect {
+        /// Probability in parts-per-million.
+        probability_ppm: Option<u32>,
+    },
+}
+
+impl RuntimeFault {
+    /// Return probability for this fault payload.
+    pub fn probability_ppm(&self) -> Option<u32> {
+        match self {
+            RuntimeFault::Error {
+                probability_ppm, ..
+            }
+            | RuntimeFault::Delay {
+                probability_ppm, ..
+            }
+            | RuntimeFault::Drop {
+                probability_ppm, ..
+            }
+            | RuntimeFault::Duplicate {
+                probability_ppm, ..
+            }
+            | RuntimeFault::Reorder {
+                probability_ppm, ..
+            }
+            | RuntimeFault::Timeout {
+                probability_ppm, ..
+            }
+            | RuntimeFault::Disconnect {
+                probability_ppm, ..
+            } => *probability_ppm,
+        }
+    }
+}
+
+/// One runtime rule for world, access, or fault policy.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct RuntimeRule {
+    /// Optional stable rule identifier.
+    pub id: Option<String>,
+    /// Rule filter clause.
+    pub when: RuntimeRuleFilter,
+    /// World action for this rule.
+    pub world: Option<RuntimeWorld>,
+    /// Access action for this rule.
+    pub access: Option<RuntimeAccess>,
+    /// Fault action for this rule.
+    pub fault: Option<RuntimeFault>,
+}
+
+impl RuntimeRule {
+    /// Return the number of actions configured for this rule.
+    pub fn action_count(&self) -> u8 {
+        let mut action_count = 0u8;
+        if self.world.is_some() {
+            action_count += 1;
+        }
+        if self.access.is_some() {
+            action_count += 1;
+        }
+        if self.fault.is_some() {
+            action_count += 1;
+        }
+        action_count
+    }
+}
+
 /// Runtime execution options for scheduler, time, randomness, and GC.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct RuntimeOptions {
     /// Execution mode for runtime scheduling and replay.
-    pub execution_mode: ExecutionMode,
-    /// Exact capabilities granted to platform bindings.
-    pub capabilities: Vec<String>,
+    pub execution: ExecutionMode,
+    /// Default world for bindings without a matching route.
+    pub world: RuntimeWorld,
+    /// Default access policy for bindings without a matching access rule.
+    pub access: RuntimeAccess,
+    /// Ordered runtime rules for world, access, and fault policy.
+    pub rules: Vec<RuntimeRule>,
     /// Replay log configuration.
     pub replay_log: ReplayLogOptions,
     /// Runtime clock configuration.
@@ -2413,8 +2647,8 @@ impl DsConfigTargetOptions {
             runtime_options_with_base(base_runtime, json.runtime_options.as_ref());
 
         // align execution mode field with runtime options
-        if let Some(execution_mode) = json.execution_mode.map(ExecutionMode::from) {
-            runtime_options.execution_mode = execution_mode;
+        if let Some(execution_mode) = json.execution.map(ExecutionMode::from) {
+            runtime_options.execution = execution_mode;
         }
 
         let safety_preset = json.safety_preset.map(SafetyPreset::from);
@@ -2671,7 +2905,7 @@ pub struct DsConfigTargetJson {
     /// Execution mode for runtime scheduling and replay.
     #[serde(alias = "executionMode")]
     #[serde(alias = "execution_mode")]
-    pub execution_mode: Option<ExecutionModeJson>,
+    pub execution: Option<ExecutionModeJson>,
     /// Runtime options overrides for this target.
     #[serde(alias = "runtimeOptions")]
     pub runtime_options: Option<DsConfigRuntimeOptionsJson>,

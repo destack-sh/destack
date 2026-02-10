@@ -6,7 +6,7 @@ use crate::replay::{RandomEvent, RandomEventKind, ReplayController, ReplayEvent}
 impl ReplayController {
     /// Read the next random event for replay.
     pub fn next_random_event(&self, expected: RandomEventKind) -> RuntimeResult<RandomEvent> {
-        // reject reads outside replay mode
+        // reject reads outside replay execution
         if self.mode() != ExecutionMode::Replay {
             return Err(RuntimeError::ReplayMismatch {
                 name: "random".to_string(),

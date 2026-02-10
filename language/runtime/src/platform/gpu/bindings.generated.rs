@@ -2034,9 +2034,9 @@ fn destack_gpu_adapter_close_replay(
         || unsafe { platform_native::destack_gpu_adapter_close(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuAdapterCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2077,30 +2077,30 @@ fn destack_gpu_adapter_list_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay_id =
-                        unsafe { result_replay_item.id.as_str()? }.to_string();
-                    let result_replay_item_replay_name =
-                        unsafe { result_replay_item.name.as_str()? }.to_string();
-                    let result_replay_item_replay_backend = result_replay_item.backend;
-                    let result_replay_item_replay_vendor_id = result_replay_item.vendor_id;
-                    let result_replay_item_replay_device_id = result_replay_item.device_id;
-                    let result_replay_item_replay_integrated = result_replay_item.integrated;
-                    let result_replay_item_replay = GpuAdapterInfoReplay {
-                        id: result_replay_item_replay_id,
-                        name: result_replay_item_replay_name,
-                        backend: result_replay_item_replay_backend,
-                        vendor_id: result_replay_item_replay_vendor_id,
-                        device_id: result_replay_item_replay_device_id,
-                        integrated: result_replay_item_replay_integrated,
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded_id =
+                        unsafe { result_recorded_item.id.as_str()? }.to_string();
+                    let result_recorded_item_recorded_name =
+                        unsafe { result_recorded_item.name.as_str()? }.to_string();
+                    let result_recorded_item_recorded_backend = result_recorded_item.backend;
+                    let result_recorded_item_recorded_vendor_id = result_recorded_item.vendor_id;
+                    let result_recorded_item_recorded_device_id = result_recorded_item.device_id;
+                    let result_recorded_item_recorded_integrated = result_recorded_item.integrated;
+                    let result_recorded_item_recorded = GpuAdapterInfoReplay {
+                        id: result_recorded_item_recorded_id,
+                        name: result_recorded_item_recorded_name,
+                        backend: result_recorded_item_recorded_backend,
+                        vendor_id: result_recorded_item_recorded_vendor_id,
+                        device_id: result_recorded_item_recorded_device_id,
+                        integrated: result_recorded_item_recorded_integrated,
                     };
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = GpuAdapterListReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2170,9 +2170,9 @@ fn destack_gpu_adapter_open_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = GpuAdapterOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2216,9 +2216,9 @@ fn destack_gpu_command_bind_pipeline_replay(
         || unsafe { platform_native::destack_gpu_command_bind_pipeline(context, handle, pipeline) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuCommandBindPipelineReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2264,9 +2264,9 @@ fn destack_gpu_command_copy_buffer_replay(
         },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuCommandCopyBufferReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2308,9 +2308,9 @@ fn destack_gpu_command_dispatch_replay(
         },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuCommandDispatchReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2347,9 +2347,9 @@ fn destack_gpu_command_list_begin_replay(
         || unsafe { platform_native::destack_gpu_command_list_begin(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuCommandListBeginReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2386,9 +2386,9 @@ fn destack_gpu_command_list_close_replay(
         || unsafe { platform_native::destack_gpu_command_list_close(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuCommandListCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2425,9 +2425,9 @@ fn destack_gpu_command_list_end_replay(
         || unsafe { platform_native::destack_gpu_command_list_end(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuCommandListEndReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2472,9 +2472,9 @@ fn destack_gpu_command_list_open_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = GpuCommandListOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2521,9 +2521,9 @@ fn destack_gpu_command_queue_submit_replay(
         },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuCommandQueueSubmitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2561,9 +2561,9 @@ fn destack_gpu_command_queue_wait_idle_replay(
         || unsafe { platform_native::destack_gpu_queue_wait_idle(context, queue, timeoutns) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuCommandQueueWaitIdleReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2600,9 +2600,9 @@ fn destack_gpu_device_close_replay(
         || unsafe { platform_native::destack_gpu_device_close(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuDeviceCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2647,9 +2647,9 @@ fn destack_gpu_device_open_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = GpuDeviceOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2703,9 +2703,9 @@ fn destack_gpu_device_queue_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = GpuDeviceQueueReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2759,9 +2759,9 @@ fn destack_gpu_pipeline_create_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = GpuPipelineCreateReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2804,9 +2804,9 @@ fn destack_gpu_pipeline_destroy_replay(
         || unsafe { platform_native::destack_gpu_pipeline_destroy(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuPipelineDestroyReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2854,9 +2854,9 @@ fn destack_gpu_pipeline_shader_create_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = GpuPipelineShaderCreateReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2899,9 +2899,9 @@ fn destack_gpu_pipeline_shader_destroy_replay(
         || unsafe { platform_native::destack_gpu_shader_destroy(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuPipelineShaderDestroyReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2946,9 +2946,9 @@ fn destack_gpu_resource_buffer_create_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = GpuResourceBufferCreateReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2991,9 +2991,9 @@ fn destack_gpu_resource_buffer_destroy_replay(
         || unsafe { platform_native::destack_gpu_buffer_destroy(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuResourceBufferDestroyReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3041,15 +3041,15 @@ fn destack_gpu_resource_buffer_read_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay = result_replay_item;
-                    result_replay.push(result_replay_item_replay);
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = GpuResourceBufferReadReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3099,9 +3099,9 @@ fn destack_gpu_resource_buffer_write_replay(
         || unsafe { platform_native::destack_gpu_buffer_write(context, handle, offset, bytes) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuResourceBufferWriteReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3147,14 +3147,14 @@ fn destack_gpu_resource_memory_map_replay(
                     }
                     *out
                 };
-                let result_replay_address = result_value.address;
-                let result_replay_length = result_value.length;
-                let result_replay = GpuMappedMemory {
-                    address: result_replay_address,
-                    length: result_replay_length,
+                let result_recorded_address = result_value.address;
+                let result_recorded_length = result_value.length;
+                let result_recorded = GpuMappedMemory {
+                    address: result_recorded_address,
+                    length: result_recorded_length,
                 };
                 let payload = GpuResourceMemoryMapReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3202,9 +3202,9 @@ fn destack_gpu_resource_memory_unmap_replay(
         || unsafe { platform_native::destack_gpu_memory_unmap(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuResourceMemoryUnmapReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3249,9 +3249,9 @@ fn destack_gpu_resource_sampler_create_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = GpuResourceSamplerCreateReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3294,9 +3294,9 @@ fn destack_gpu_resource_sampler_destroy_replay(
         || unsafe { platform_native::destack_gpu_sampler_destroy(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuResourceSamplerDestroyReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3341,9 +3341,9 @@ fn destack_gpu_resource_texture_create_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = GpuResourceTextureCreateReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3386,9 +3386,9 @@ fn destack_gpu_resource_texture_destroy_replay(
         || unsafe { platform_native::destack_gpu_texture_destroy(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuResourceTextureDestroyReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3868,9 +3868,9 @@ fn destack_gpu_adapter_close_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuAdapterCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3911,34 +3911,34 @@ fn destack_gpu_adapter_list_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_raw = result_value.raw_values(context)?;
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = {
-                        if result_replay_item_value.tag() != vm::ValueTag::Aggregate {
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_replay_item",
+                                "result_recorded_item",
                                 "item",
                             ))
                             .boxed());
                         }
                         let slots = context
-                            .aggregate_slots(result_replay_item_value)
+                            .aggregate_slots(result_recorded_item_value)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
                         if slots.len() != 6 {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_replay_item",
+                                "result_recorded_item",
                                 "expected 6 fields",
                             ))
                             .boxed());
                         }
-                        let result_replay_item_id =
-                            decode_string(slots[0], "result_replay_item_id", "id")?;
-                        let result_replay_item_name =
-                            decode_string(slots[1], "result_replay_item_name", "name")?;
-                        let result_replay_item_backend_raw =
-                            decode_uint8(slots[2], "result_replay_item_backend_raw", "backend")?;
-                        let result_replay_item_backend = match result_replay_item_backend_raw {
+                        let result_recorded_item_id =
+                            decode_string(slots[0], "result_recorded_item_id", "id")?;
+                        let result_recorded_item_name =
+                            decode_string(slots[1], "result_recorded_item_name", "name")?;
+                        let result_recorded_item_backend_raw =
+                            decode_uint8(slots[2], "result_recorded_item_backend_raw", "backend")?;
+                        let result_recorded_item_backend = match result_recorded_item_backend_raw {
                             1u8 => GpuBackend::Vulkan,
                             2u8 => GpuBackend::Metal,
                             3u8 => GpuBackend::D3D12,
@@ -3947,56 +3947,56 @@ fn destack_gpu_adapter_list_vm_replay(
                             _ => {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
-                                        "result_replay_item_backend",
+                                        "result_recorded_item_backend",
                                         "unknown GpuBackend value",
                                     ),
                                 )
                                 .boxed());
                             }
                         };
-                        let result_replay_item_vendor_id =
-                            decode_uint32(slots[3], "result_replay_item_vendor_id", "vendorId")?;
-                        let result_replay_item_device_id =
-                            decode_uint32(slots[4], "result_replay_item_device_id", "deviceId")?;
-                        let result_replay_item_integrated =
-                            decode_bool(slots[5], "result_replay_item_integrated", "integrated")?;
+                        let result_recorded_item_vendor_id =
+                            decode_uint32(slots[3], "result_recorded_item_vendor_id", "vendorId")?;
+                        let result_recorded_item_device_id =
+                            decode_uint32(slots[4], "result_recorded_item_device_id", "deviceId")?;
+                        let result_recorded_item_integrated =
+                            decode_bool(slots[5], "result_recorded_item_integrated", "integrated")?;
                         GpuAdapterInfoVm {
-                            id: result_replay_item_id,
-                            name: result_replay_item_name,
-                            backend: result_replay_item_backend,
-                            vendor_id: result_replay_item_vendor_id,
-                            device_id: result_replay_item_device_id,
-                            integrated: result_replay_item_integrated,
+                            id: result_recorded_item_id,
+                            name: result_recorded_item_name,
+                            backend: result_recorded_item_backend,
+                            vendor_id: result_recorded_item_vendor_id,
+                            device_id: result_recorded_item_device_id,
+                            integrated: result_recorded_item_integrated,
                         }
                     };
-                    let result_replay_item_replay_id = {
-                        let result_replay_item_replay_id_ref = context
-                            .string_ref(result_replay_item.id)
+                    let result_recorded_item_recorded_id = {
+                        let result_recorded_item_recorded_id_ref = context
+                            .string_ref(result_recorded_item.id)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_replay_item_replay_id_ref.as_str().to_string()
+                        result_recorded_item_recorded_id_ref.as_str().to_string()
                     };
-                    let result_replay_item_replay_name = {
-                        let result_replay_item_replay_name_ref = context
-                            .string_ref(result_replay_item.name)
+                    let result_recorded_item_recorded_name = {
+                        let result_recorded_item_recorded_name_ref = context
+                            .string_ref(result_recorded_item.name)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_replay_item_replay_name_ref.as_str().to_string()
+                        result_recorded_item_recorded_name_ref.as_str().to_string()
                     };
-                    let result_replay_item_replay_backend = result_replay_item.backend;
-                    let result_replay_item_replay_vendor_id = result_replay_item.vendor_id;
-                    let result_replay_item_replay_device_id = result_replay_item.device_id;
-                    let result_replay_item_replay_integrated = result_replay_item.integrated;
-                    let result_replay_item_replay = GpuAdapterInfoReplay {
-                        id: result_replay_item_replay_id,
-                        name: result_replay_item_replay_name,
-                        backend: result_replay_item_replay_backend,
-                        vendor_id: result_replay_item_replay_vendor_id,
-                        device_id: result_replay_item_replay_device_id,
-                        integrated: result_replay_item_replay_integrated,
+                    let result_recorded_item_recorded_backend = result_recorded_item.backend;
+                    let result_recorded_item_recorded_vendor_id = result_recorded_item.vendor_id;
+                    let result_recorded_item_recorded_device_id = result_recorded_item.device_id;
+                    let result_recorded_item_recorded_integrated = result_recorded_item.integrated;
+                    let result_recorded_item_recorded = GpuAdapterInfoReplay {
+                        id: result_recorded_item_recorded_id,
+                        name: result_recorded_item_recorded_name,
+                        backend: result_recorded_item_recorded_backend,
+                        vendor_id: result_recorded_item_recorded_vendor_id,
+                        device_id: result_recorded_item_recorded_device_id,
+                        integrated: result_recorded_item_recorded_integrated,
                     };
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = GpuAdapterListReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4085,9 +4085,9 @@ fn destack_gpu_adapter_open_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = GpuAdapterOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4134,9 +4134,9 @@ fn destack_gpu_command_bind_pipeline_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuCommandBindPipelineReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4186,9 +4186,9 @@ fn destack_gpu_command_copy_buffer_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuCommandCopyBufferReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4236,9 +4236,9 @@ fn destack_gpu_command_dispatch_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuCommandDispatchReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4279,9 +4279,9 @@ fn destack_gpu_command_list_begin_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuCommandListBeginReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4322,9 +4322,9 @@ fn destack_gpu_command_list_close_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuCommandListCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4365,9 +4365,9 @@ fn destack_gpu_command_list_end_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuCommandListEndReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4410,9 +4410,9 @@ fn destack_gpu_command_list_open_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = GpuCommandListOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4460,9 +4460,9 @@ fn destack_gpu_command_queue_submit_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuCommandQueueSubmitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4504,9 +4504,9 @@ fn destack_gpu_command_queue_wait_idle_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuCommandQueueWaitIdleReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4547,9 +4547,9 @@ fn destack_gpu_device_close_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuDeviceCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4592,9 +4592,9 @@ fn destack_gpu_device_open_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = GpuDeviceOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4641,9 +4641,9 @@ fn destack_gpu_device_queue_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = GpuDeviceQueueReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4692,9 +4692,9 @@ fn destack_gpu_pipeline_create_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = GpuPipelineCreateReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4738,9 +4738,9 @@ fn destack_gpu_pipeline_destroy_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuPipelineDestroyReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4784,9 +4784,9 @@ fn destack_gpu_pipeline_shader_create_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = GpuPipelineShaderCreateReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4830,9 +4830,9 @@ fn destack_gpu_pipeline_shader_destroy_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuPipelineShaderDestroyReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4875,9 +4875,9 @@ fn destack_gpu_resource_buffer_create_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = GpuResourceBufferCreateReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4921,9 +4921,9 @@ fn destack_gpu_resource_buffer_destroy_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuResourceBufferDestroyReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4967,9 +4967,9 @@ fn destack_gpu_resource_buffer_read_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value.read_bytes(context)?;
+                let result_recorded = result_value.read_bytes(context)?;
                 let payload = GpuResourceBufferReadReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5015,9 +5015,9 @@ fn destack_gpu_resource_buffer_write_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuResourceBufferWriteReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5061,14 +5061,14 @@ fn destack_gpu_resource_memory_map_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_address = result_value.address;
-                let result_replay_length = result_value.length;
-                let result_replay = GpuMappedMemory {
-                    address: result_replay_address,
-                    length: result_replay_length,
+                let result_recorded_address = result_value.address;
+                let result_recorded_length = result_value.length;
+                let result_recorded = GpuMappedMemory {
+                    address: result_recorded_address,
+                    length: result_recorded_length,
                 };
                 let payload = GpuResourceMemoryMapReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5117,9 +5117,9 @@ fn destack_gpu_resource_memory_unmap_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuResourceMemoryUnmapReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5162,9 +5162,9 @@ fn destack_gpu_resource_sampler_create_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = GpuResourceSamplerCreateReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5208,9 +5208,9 @@ fn destack_gpu_resource_sampler_destroy_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuResourceSamplerDestroyReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5253,9 +5253,9 @@ fn destack_gpu_resource_texture_create_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = GpuResourceTextureCreateReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5299,9 +5299,9 @@ fn destack_gpu_resource_texture_destroy_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = GpuResourceTextureDestroyReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }

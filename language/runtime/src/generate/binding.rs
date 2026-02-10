@@ -3068,7 +3068,7 @@ fn render_replay_encode_collection_lines(
     let mut lines = Vec::new();
     let raw_var = format!("{name}_raw");
     let item_var = format!("{name}_item");
-    let item_replay_var = format!("{name}_item_replay");
+    let item_recorded_var = format!("{name}_item_recorded");
     lines.push(format!(
         "let {raw_var} = {value_expr}.raw_values(context)?;"
     ));
@@ -3088,11 +3088,11 @@ fn render_replay_encode_collection_lines(
         .map(|line| format!("    {line}")),
     );
     lines.extend(
-        render_replay_encode_lines(domain, inner, &item_replay_var, &item_var)
+        render_replay_encode_lines(domain, inner, &item_recorded_var, &item_var)
             .into_iter()
             .map(|line| format!("    {line}")),
     );
-    lines.push(format!("    {name}.push({item_replay_var});"));
+    lines.push(format!("    {name}.push({item_recorded_var});"));
     lines.push("}".to_string());
     lines
 }
@@ -3416,7 +3416,7 @@ fn render_native_replay_encode_string_slice_lines(name: &str, value_expr: &str) 
     let mut lines = Vec::new();
     let raw_var = format!("{name}_raw");
     let item_var = format!("{name}_item");
-    let item_replay_var = format!("{name}_item_replay");
+    let item_recorded_var = format!("{name}_item_recorded");
     lines.push(format!(
         "let {raw_var} = unsafe {{ {value_expr}.as_slice()? }};"
     ));
@@ -3425,9 +3425,9 @@ fn render_native_replay_encode_string_slice_lines(name: &str, value_expr: &str) 
     ));
     lines.push(format!("for {item_var} in {raw_var} {{"));
     lines.push(format!(
-        "    let {item_replay_var} = unsafe {{ {item_var}.as_str()? }}.to_string();"
+        "    let {item_recorded_var} = unsafe {{ {item_var}.as_str()? }}.to_string();"
     ));
-    lines.push(format!("    {name}.push({item_replay_var});"));
+    lines.push(format!("    {name}.push({item_recorded_var});"));
     lines.push("}".to_string());
     lines
 }
@@ -3442,7 +3442,7 @@ fn render_native_replay_encode_collection_lines(
     let mut lines = Vec::new();
     let raw_var = format!("{name}_raw");
     let item_var = format!("{name}_item");
-    let item_replay_var = format!("{name}_item_replay");
+    let item_recorded_var = format!("{name}_item_recorded");
     lines.push(format!(
         "let {raw_var} = unsafe {{ {value_expr}.as_slice()? }};"
     ));
@@ -3456,11 +3456,11 @@ fn render_native_replay_encode_collection_lines(
         lines.push(format!("    let {item_var} = {item_var}_value.clone();"));
     }
     lines.extend(
-        render_native_replay_encode_lines(domain, inner, &item_replay_var, &item_var)
+        render_native_replay_encode_lines(domain, inner, &item_recorded_var, &item_var)
             .into_iter()
             .map(|line| format!("    {line}")),
     );
-    lines.push(format!("    {name}.push({item_replay_var});"));
+    lines.push(format!("    {name}.push({item_recorded_var});"));
     lines.push("}".to_string());
     lines
 }

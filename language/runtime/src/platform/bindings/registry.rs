@@ -5,12 +5,14 @@ use destack_vm::Isolate;
 
 use crate::platform;
 use crate::platform::bindings::{
-    BindingDescriptor, BindingId, BindingPolicy, NativeBinding, NativeBindingSet, VmBindingSet,
+    BindingDescriptor, BindingId, BindingPolicy, NativeBinding, NativeBindingSet, PolicyEngine,
+    VmBindingSet,
 };
 use crate::runtime::{
     RuntimeCallContext, RuntimeContext, RuntimeState, enter_runtime_call_context,
 };
 use crate::scheduler::Scheduler;
+use destack_workspace::RuntimeOptions;
 
 /// Raw pointers captured for binding calls.
 #[derive(Debug, Clone, Copy)]
@@ -72,9 +74,9 @@ impl BindingRegistry {
         self.policy.clone()
     }
 
-    /// Set allowed capabilities for this registry policy.
-    pub fn set_capabilities(&mut self, capabilities: impl IntoIterator<Item = String>) {
-        self.policy.set_capabilities(capabilities);
+    /// Apply runtime options to binding policy.
+    pub fn apply_runtime_options(&mut self, options: &RuntimeOptions) {
+        self.policy.apply_runtime_options(options);
     }
 
     /// Set runtime handles for binding calls.
@@ -171,6 +173,7 @@ impl BindingRegistry {
                 handles.runtime_ptr(),
                 handles.scheduler_ptr(),
                 policy.clone(),
+                PolicyEngine::Vm,
             );
             let _guard = enter_runtime_call_context(&call_context);
             handler(context, args)

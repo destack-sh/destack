@@ -532,19 +532,20 @@ fn destack_os_host_identity_replay(
                     }
                     *out
                 };
-                let result_replay_hostname = unsafe { result_value.hostname.as_str()? }.to_string();
-                let result_replay_kernel = unsafe { result_value.kernel.as_str()? }.to_string();
-                let result_replay_release = unsafe { result_value.release.as_str()? }.to_string();
-                let result_replay_architecture =
+                let result_recorded_hostname =
+                    unsafe { result_value.hostname.as_str()? }.to_string();
+                let result_recorded_kernel = unsafe { result_value.kernel.as_str()? }.to_string();
+                let result_recorded_release = unsafe { result_value.release.as_str()? }.to_string();
+                let result_recorded_architecture =
                     unsafe { result_value.architecture.as_str()? }.to_string();
-                let result_replay = HostIdentityReplay {
-                    hostname: result_replay_hostname,
-                    kernel: result_replay_kernel,
-                    release: result_replay_release,
-                    architecture: result_replay_architecture,
+                let result_recorded = HostIdentityReplay {
+                    hostname: result_recorded_hostname,
+                    kernel: result_recorded_kernel,
+                    release: result_recorded_release,
+                    architecture: result_recorded_architecture,
                 };
                 let payload = OsHostIdentityReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -600,18 +601,18 @@ fn destack_os_info_system_info_replay(
                     }
                     *out
                 };
-                let result_replay_cpu_count = result_value.cpu_count;
-                let result_replay_memory_total = result_value.memory_total;
-                let result_replay_memory_available = result_value.memory_available;
-                let result_replay_page_size = result_value.page_size;
-                let result_replay = SystemInfo {
-                    cpu_count: result_replay_cpu_count,
-                    memory_total: result_replay_memory_total,
-                    memory_available: result_replay_memory_available,
-                    page_size: result_replay_page_size,
+                let result_recorded_cpu_count = result_value.cpu_count;
+                let result_recorded_memory_total = result_value.memory_total;
+                let result_recorded_memory_available = result_value.memory_available;
+                let result_recorded_page_size = result_value.page_size;
+                let result_recorded = SystemInfo {
+                    cpu_count: result_recorded_cpu_count,
+                    memory_total: result_recorded_memory_total,
+                    memory_available: result_recorded_memory_available,
+                    page_size: result_recorded_page_size,
                 };
                 let payload = OsInfoSystemInfoReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -669,9 +670,9 @@ fn destack_os_mount_add_replay(
         },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = OsMountAddReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -712,45 +713,45 @@ fn destack_os_mount_list_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay_source =
-                        unsafe { result_replay_item.source.as_str()? }.to_string();
-                    let result_replay_item_replay_target_encoding =
-                        result_replay_item.target.encoding;
-                    let result_replay_item_replay_target_data_raw =
-                        unsafe { result_replay_item.target.data.0.as_slice()? };
-                    let mut result_replay_item_replay_target_data =
-                        Vec::with_capacity(result_replay_item_replay_target_data_raw.len());
-                    for result_replay_item_replay_target_data_item_value in
-                        result_replay_item_replay_target_data_raw
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded_source =
+                        unsafe { result_recorded_item.source.as_str()? }.to_string();
+                    let result_recorded_item_recorded_target_encoding =
+                        result_recorded_item.target.encoding;
+                    let result_recorded_item_recorded_target_data_raw =
+                        unsafe { result_recorded_item.target.data.0.as_slice()? };
+                    let mut result_recorded_item_recorded_target_data =
+                        Vec::with_capacity(result_recorded_item_recorded_target_data_raw.len());
+                    for result_recorded_item_recorded_target_data_item_value in
+                        result_recorded_item_recorded_target_data_raw
                     {
-                        let result_replay_item_replay_target_data_item =
-                            *result_replay_item_replay_target_data_item_value;
-                        let result_replay_item_replay_target_data_item_replay =
-                            result_replay_item_replay_target_data_item;
-                        result_replay_item_replay_target_data
-                            .push(result_replay_item_replay_target_data_item_replay);
+                        let result_recorded_item_recorded_target_data_item =
+                            *result_recorded_item_recorded_target_data_item_value;
+                        let result_recorded_item_recorded_target_data_item_recorded =
+                            result_recorded_item_recorded_target_data_item;
+                        result_recorded_item_recorded_target_data
+                            .push(result_recorded_item_recorded_target_data_item_recorded);
                     }
-                    let result_replay_item_replay_target = fs::OsPathReplay {
-                        encoding: result_replay_item_replay_target_encoding,
-                        data: result_replay_item_replay_target_data,
+                    let result_recorded_item_recorded_target = fs::OsPathReplay {
+                        encoding: result_recorded_item_recorded_target_encoding,
+                        data: result_recorded_item_recorded_target_data,
                     };
-                    let result_replay_item_replay_file_system =
-                        unsafe { result_replay_item.file_system.as_str()? }.to_string();
-                    let result_replay_item_replay_flags = result_replay_item.flags;
-                    let result_replay_item_replay = MountEntryReplay {
-                        source: result_replay_item_replay_source,
-                        target: result_replay_item_replay_target,
-                        file_system: result_replay_item_replay_file_system,
-                        flags: result_replay_item_replay_flags,
+                    let result_recorded_item_recorded_file_system =
+                        unsafe { result_recorded_item.file_system.as_str()? }.to_string();
+                    let result_recorded_item_recorded_flags = result_recorded_item.flags;
+                    let result_recorded_item_recorded = MountEntryReplay {
+                        source: result_recorded_item_recorded_source,
+                        target: result_recorded_item_recorded_target,
+                        file_system: result_recorded_item_recorded_file_system,
+                        flags: result_recorded_item_recorded_flags,
                     };
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = OsMountListReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -831,9 +832,9 @@ fn destack_os_mount_remove_replay(
         || unsafe { platform_native::destack_os_remove(context, target, flags) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = OsMountRemoveReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -874,9 +875,9 @@ fn destack_os_power_state_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = OsPowerStateReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1009,38 +1010,38 @@ fn destack_os_host_identity_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_hostname = {
-                    let result_replay_hostname_ref = context
+                let result_recorded_hostname = {
+                    let result_recorded_hostname_ref = context
                         .string_ref(result_value.hostname)
                         .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_replay_hostname_ref.as_str().to_string()
+                    result_recorded_hostname_ref.as_str().to_string()
                 };
-                let result_replay_kernel = {
-                    let result_replay_kernel_ref = context
+                let result_recorded_kernel = {
+                    let result_recorded_kernel_ref = context
                         .string_ref(result_value.kernel)
                         .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_replay_kernel_ref.as_str().to_string()
+                    result_recorded_kernel_ref.as_str().to_string()
                 };
-                let result_replay_release = {
-                    let result_replay_release_ref = context
+                let result_recorded_release = {
+                    let result_recorded_release_ref = context
                         .string_ref(result_value.release)
                         .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_replay_release_ref.as_str().to_string()
+                    result_recorded_release_ref.as_str().to_string()
                 };
-                let result_replay_architecture = {
-                    let result_replay_architecture_ref = context
+                let result_recorded_architecture = {
+                    let result_recorded_architecture_ref = context
                         .string_ref(result_value.architecture)
                         .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_replay_architecture_ref.as_str().to_string()
+                    result_recorded_architecture_ref.as_str().to_string()
                 };
-                let result_replay = HostIdentityReplay {
-                    hostname: result_replay_hostname,
-                    kernel: result_replay_kernel,
-                    release: result_replay_release,
-                    architecture: result_replay_architecture,
+                let result_recorded = HostIdentityReplay {
+                    hostname: result_recorded_hostname,
+                    kernel: result_recorded_kernel,
+                    release: result_recorded_release,
+                    architecture: result_recorded_architecture,
                 };
                 let payload = OsHostIdentityReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1099,18 +1100,18 @@ fn destack_os_info_system_info_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_cpu_count = result_value.cpu_count;
-                let result_replay_memory_total = result_value.memory_total;
-                let result_replay_memory_available = result_value.memory_available;
-                let result_replay_page_size = result_value.page_size;
-                let result_replay = SystemInfo {
-                    cpu_count: result_replay_cpu_count,
-                    memory_total: result_replay_memory_total,
-                    memory_available: result_replay_memory_available,
-                    page_size: result_replay_page_size,
+                let result_recorded_cpu_count = result_value.cpu_count;
+                let result_recorded_memory_total = result_value.memory_total;
+                let result_recorded_memory_available = result_value.memory_available;
+                let result_recorded_page_size = result_value.page_size;
+                let result_recorded = SystemInfo {
+                    cpu_count: result_recorded_cpu_count,
+                    memory_total: result_recorded_memory_total,
+                    memory_available: result_recorded_memory_available,
+                    page_size: result_recorded_page_size,
                 };
                 let payload = OsInfoSystemInfoReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1169,9 +1170,9 @@ fn destack_os_mount_add_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = OsMountAddReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1212,34 +1213,34 @@ fn destack_os_mount_list_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_raw = result_value.raw_values(context)?;
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = {
-                        if result_replay_item_value.tag() != vm::ValueTag::Aggregate {
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_replay_item",
+                                "result_recorded_item",
                                 "item",
                             ))
                             .boxed());
                         }
                         let slots = context
-                            .aggregate_slots(result_replay_item_value)
+                            .aggregate_slots(result_recorded_item_value)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
                         if slots.len() != 4 {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_replay_item",
+                                "result_recorded_item",
                                 "expected 4 fields",
                             ))
                             .boxed());
                         }
-                        let result_replay_item_source =
-                            decode_string(slots[0], "result_replay_item_source", "source")?;
-                        let result_replay_item_target = {
+                        let result_recorded_item_source =
+                            decode_string(slots[0], "result_recorded_item_source", "source")?;
+                        let result_recorded_item_target = {
                             if slots[1].tag() != vm::ValueTag::Aggregate {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_type(
-                                        "result_replay_item_target",
+                                        "result_recorded_item_target",
                                         "target",
                                     ),
                                 )
@@ -1251,95 +1252,97 @@ fn destack_os_mount_list_vm_replay(
                             if slots.len() != 2 {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
-                                        "result_replay_item_target",
+                                        "result_recorded_item_target",
                                         "expected 2 fields",
                                     ),
                                 )
                                 .boxed());
                             }
-                            let result_replay_item_target_encoding_raw = decode_uint8(
+                            let result_recorded_item_target_encoding_raw = decode_uint8(
                                 slots[0],
-                                "result_replay_item_target_encoding_raw",
+                                "result_recorded_item_target_encoding_raw",
                                 "encoding",
                             )?;
-                            let result_replay_item_target_encoding =
-                                match result_replay_item_target_encoding_raw {
+                            let result_recorded_item_target_encoding =
+                                match result_recorded_item_target_encoding_raw {
                                     1u8 => fs::PathEncoding::Bytes,
                                     2u8 => fs::PathEncoding::Utf16,
                                     _ => {
                                         return Err(RuntimeError::from(
                                             PlatformError::invalid_argument_value(
-                                                "result_replay_item_target_encoding",
+                                                "result_recorded_item_target_encoding",
                                                 "unknown fs::PathEncoding value",
                                             ),
                                         )
                                         .boxed());
                                     }
                                 };
-                            let result_replay_item_target_data_inner = decode_array::<u8>(
+                            let result_recorded_item_target_data_inner = decode_array::<u8>(
                                 context,
                                 slots[1],
-                                "result_replay_item_target_data_inner",
+                                "result_recorded_item_target_data_inner",
                                 "data",
                             )?;
-                            let result_replay_item_target_data =
+                            let result_recorded_item_target_data =
                                 crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(
-                                    result_replay_item_target_data_inner,
+                                    result_recorded_item_target_data_inner,
                                 );
                             fs::OsPathVm {
-                                encoding: result_replay_item_target_encoding,
-                                data: result_replay_item_target_data,
+                                encoding: result_recorded_item_target_encoding,
+                                data: result_recorded_item_target_data,
                             }
                         };
-                        let result_replay_item_file_system = decode_string(
+                        let result_recorded_item_file_system = decode_string(
                             slots[2],
-                            "result_replay_item_file_system",
+                            "result_recorded_item_file_system",
                             "fileSystem",
                         )?;
-                        let result_replay_item_flags =
-                            decode_uint64(slots[3], "result_replay_item_flags", "flags")?;
+                        let result_recorded_item_flags =
+                            decode_uint64(slots[3], "result_recorded_item_flags", "flags")?;
                         MountEntryVm {
-                            source: result_replay_item_source,
-                            target: result_replay_item_target,
-                            file_system: result_replay_item_file_system,
-                            flags: result_replay_item_flags,
+                            source: result_recorded_item_source,
+                            target: result_recorded_item_target,
+                            file_system: result_recorded_item_file_system,
+                            flags: result_recorded_item_flags,
                         }
                     };
-                    let result_replay_item_replay_source = {
-                        let result_replay_item_replay_source_ref = context
-                            .string_ref(result_replay_item.source)
+                    let result_recorded_item_recorded_source = {
+                        let result_recorded_item_recorded_source_ref = context
+                            .string_ref(result_recorded_item.source)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_replay_item_replay_source_ref.as_str().to_string()
-                    };
-                    let result_replay_item_replay_target_encoding =
-                        result_replay_item.target.encoding;
-                    let result_replay_item_replay_target_data_inner =
-                        result_replay_item.target.data.0.read_bytes(context)?;
-                    let result_replay_item_replay_target_data =
-                        result_replay_item_replay_target_data_inner;
-                    let result_replay_item_replay_target = fs::OsPathReplay {
-                        encoding: result_replay_item_replay_target_encoding,
-                        data: result_replay_item_replay_target_data,
-                    };
-                    let result_replay_item_replay_file_system = {
-                        let result_replay_item_replay_file_system_ref = context
-                            .string_ref(result_replay_item.file_system)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_replay_item_replay_file_system_ref
+                        result_recorded_item_recorded_source_ref
                             .as_str()
                             .to_string()
                     };
-                    let result_replay_item_replay_flags = result_replay_item.flags;
-                    let result_replay_item_replay = MountEntryReplay {
-                        source: result_replay_item_replay_source,
-                        target: result_replay_item_replay_target,
-                        file_system: result_replay_item_replay_file_system,
-                        flags: result_replay_item_replay_flags,
+                    let result_recorded_item_recorded_target_encoding =
+                        result_recorded_item.target.encoding;
+                    let result_recorded_item_recorded_target_data_inner =
+                        result_recorded_item.target.data.0.read_bytes(context)?;
+                    let result_recorded_item_recorded_target_data =
+                        result_recorded_item_recorded_target_data_inner;
+                    let result_recorded_item_recorded_target = fs::OsPathReplay {
+                        encoding: result_recorded_item_recorded_target_encoding,
+                        data: result_recorded_item_recorded_target_data,
                     };
-                    result_replay.push(result_replay_item_replay);
+                    let result_recorded_item_recorded_file_system = {
+                        let result_recorded_item_recorded_file_system_ref = context
+                            .string_ref(result_recorded_item.file_system)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_file_system_ref
+                            .as_str()
+                            .to_string()
+                    };
+                    let result_recorded_item_recorded_flags = result_recorded_item.flags;
+                    let result_recorded_item_recorded = MountEntryReplay {
+                        source: result_recorded_item_recorded_source,
+                        target: result_recorded_item_recorded_target,
+                        file_system: result_recorded_item_recorded_file_system,
+                        flags: result_recorded_item_recorded_flags,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = OsMountListReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1435,9 +1438,9 @@ fn destack_os_mount_remove_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = OsMountRemoveReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1478,9 +1481,9 @@ fn destack_os_power_state_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = OsPowerStateReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }

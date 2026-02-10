@@ -898,9 +898,9 @@ fn destack_timer_control_cancel_replay(
         || unsafe { platform_native::destack_timer_cancel(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = TimerControlCancelReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -944,9 +944,9 @@ fn destack_timer_control_is_active_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = TimerControlIsActiveReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -989,9 +989,9 @@ fn destack_timer_control_pause_replay(
         || unsafe { platform_native::destack_timer_pause(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = TimerControlPauseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1035,9 +1035,9 @@ fn destack_timer_control_remaining_ns_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = TimerControlRemainingNsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1081,9 +1081,9 @@ fn destack_timer_control_reset_replay(
         || unsafe { platform_native::destack_timer_reset(context, handle, delayns) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = TimerControlResetReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1120,9 +1120,9 @@ fn destack_timer_control_resume_replay(
         || unsafe { platform_native::destack_timer_resume(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = TimerControlResumeReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1160,9 +1160,9 @@ fn destack_timer_control_update_interval_replay(
         || unsafe { platform_native::destack_timer_update_interval(context, handle, periodns) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = TimerControlUpdateIntervalReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1206,9 +1206,9 @@ fn destack_timer_schedule_at_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = TimerScheduleAtReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1261,9 +1261,9 @@ fn destack_timer_schedule_at_with_options_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = TimerScheduleAtWithOptionsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1313,9 +1313,9 @@ fn destack_timer_schedule_interval_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = TimerScheduleIntervalReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1368,9 +1368,9 @@ fn destack_timer_schedule_interval_with_options_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = TimerScheduleIntervalWithOptionsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1420,9 +1420,9 @@ fn destack_timer_schedule_once_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = TimerScheduleOnceReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1475,9 +1475,9 @@ fn destack_timer_schedule_once_with_options_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = TimerScheduleOnceWithOptionsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1716,9 +1716,9 @@ fn destack_timer_control_cancel_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = TimerControlCancelReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1760,9 +1760,9 @@ fn destack_timer_control_is_active_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = TimerControlIsActiveReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1806,9 +1806,9 @@ fn destack_timer_control_pause_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = TimerControlPauseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1850,9 +1850,9 @@ fn destack_timer_control_remaining_ns_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = TimerControlRemainingNsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1897,9 +1897,9 @@ fn destack_timer_control_reset_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = TimerControlResetReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1940,9 +1940,9 @@ fn destack_timer_control_resume_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = TimerControlResumeReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1984,9 +1984,9 @@ fn destack_timer_control_update_interval_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = TimerControlUpdateIntervalReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2028,9 +2028,9 @@ fn destack_timer_schedule_at_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = TimerScheduleAtReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2076,9 +2076,9 @@ fn destack_timer_schedule_at_with_options_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = TimerScheduleAtWithOptionsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2123,9 +2123,9 @@ fn destack_timer_schedule_interval_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = TimerScheduleIntervalReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2173,9 +2173,9 @@ fn destack_timer_schedule_interval_with_options_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = TimerScheduleIntervalWithOptionsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2220,9 +2220,9 @@ fn destack_timer_schedule_once_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = TimerScheduleOnceReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2268,9 +2268,9 @@ fn destack_timer_schedule_once_with_options_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = TimerScheduleOnceWithOptionsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }

@@ -27,7 +27,7 @@ impl TestRuntime {
     pub(crate) fn deterministic_random() -> Self {
         // deterministic random options
         let options = RuntimeOptions {
-            execution_mode: ExecutionMode::Fast,
+            execution: ExecutionMode::Fast,
             random: RandomOptions {
                 mode: RandomMode::Deterministic,
                 seed: Some(0),

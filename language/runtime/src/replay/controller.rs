@@ -78,7 +78,7 @@ impl ReplayValidator {
 #[derive(Debug)]
 pub struct ReplayController {
     // NOTE #Incomplete: validate replay sequences and enforce log compatibility
-    /// Active replay mode.
+    /// Active execution mode.
     mode: ExecutionMode,
     /// Replay payload policy for record mode.
     payload_policy: ReplayPayload,
@@ -93,7 +93,7 @@ pub struct ReplayController {
 }
 
 impl ReplayController {
-    /// Create a replay controller with an explicit mode.
+    /// Create a replay controller with an explicit execution mode.
     pub fn new(mode: ExecutionMode, payload_policy: ReplayPayload, header: ReplayHeader) -> Self {
         let log = ReplayLog::new(header);
         let reader = match mode {
@@ -111,7 +111,7 @@ impl ReplayController {
         }
     }
 
-    /// Create a replay controller with an existing log.
+    /// Create a replay controller with an existing log and execution mode.
     pub fn from_log(mode: ExecutionMode, payload_policy: ReplayPayload, log: ReplayLog) -> Self {
         let reader = match mode {
             ExecutionMode::Replay => Some(log.reader()),
@@ -128,7 +128,7 @@ impl ReplayController {
         }
     }
 
-    /// Return the active replay mode.
+    /// Return the active execution mode.
     pub fn mode(&self) -> ExecutionMode {
         if !cfg!(feature = "replay") {
             return ExecutionMode::Fast;
@@ -242,7 +242,7 @@ impl ReplayController {
 
     /// Read the next binding call payload for replay.
     pub fn next_binding_call(&self, spec: BindingDescriptor) -> RuntimeResult<BindingCallEvent> {
-        // reject reads outside replay mode
+        // reject reads outside replay execution
         if self.mode() != ExecutionMode::Replay {
             return Err(RuntimeError::ReplayMismatch {
                 name: spec.name.to_string(),

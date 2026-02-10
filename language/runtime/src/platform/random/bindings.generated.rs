@@ -784,9 +784,9 @@ fn destack_random_secure_bytes_try_replay(
         || unsafe { platform_native::destack_random_secure_bytes_try(context, buffer) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = RandomSecureBytesTryReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -827,25 +827,25 @@ fn destack_random_secure_info_replay(
                     }
                     *out
                 };
-                let result_replay_source = result_value.source;
-                let result_replay_backend_name =
+                let result_recorded_source = result_value.source;
+                let result_recorded_backend_name =
                     unsafe { result_value.backend_name.as_str()? }.to_string();
-                let result_replay_may_block = result_value.may_block;
-                let result_replay_is_cryptographic = result_value.is_cryptographic;
-                let result_replay_is_seeded = result_value.is_seeded;
-                let result_replay_is_fips_approved = result_value.is_fips_approved;
-                let result_replay_entropy_bits_per_byte = result_value.entropy_bits_per_byte;
-                let result_replay = SecureRandomInfoReplay {
-                    source: result_replay_source,
-                    backend_name: result_replay_backend_name,
-                    may_block: result_replay_may_block,
-                    is_cryptographic: result_replay_is_cryptographic,
-                    is_seeded: result_replay_is_seeded,
-                    is_fips_approved: result_replay_is_fips_approved,
-                    entropy_bits_per_byte: result_replay_entropy_bits_per_byte,
+                let result_recorded_may_block = result_value.may_block;
+                let result_recorded_is_cryptographic = result_value.is_cryptographic;
+                let result_recorded_is_seeded = result_value.is_seeded;
+                let result_recorded_is_fips_approved = result_value.is_fips_approved;
+                let result_recorded_entropy_bits_per_byte = result_value.entropy_bits_per_byte;
+                let result_recorded = SecureRandomInfoReplay {
+                    source: result_recorded_source,
+                    backend_name: result_recorded_backend_name,
+                    may_block: result_recorded_may_block,
+                    is_cryptographic: result_recorded_is_cryptographic,
+                    is_seeded: result_recorded_is_seeded,
+                    is_fips_approved: result_recorded_is_fips_approved,
+                    entropy_bits_per_byte: result_recorded_entropy_bits_per_byte,
                 };
                 let payload = RandomSecureInfoReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -910,20 +910,20 @@ fn destack_random_stream_export_replay(
                     }
                     *out
                 };
-                let result_replay_version = result_value.version;
-                let result_replay_bytes_raw = unsafe { result_value.bytes.as_slice()? };
-                let mut result_replay_bytes = Vec::with_capacity(result_replay_bytes_raw.len());
-                for result_replay_bytes_item_value in result_replay_bytes_raw {
-                    let result_replay_bytes_item = *result_replay_bytes_item_value;
-                    let result_replay_bytes_item_replay = result_replay_bytes_item;
-                    result_replay_bytes.push(result_replay_bytes_item_replay);
+                let result_recorded_version = result_value.version;
+                let result_recorded_bytes_raw = unsafe { result_value.bytes.as_slice()? };
+                let mut result_recorded_bytes = Vec::with_capacity(result_recorded_bytes_raw.len());
+                for result_recorded_bytes_item_value in result_recorded_bytes_raw {
+                    let result_recorded_bytes_item = *result_recorded_bytes_item_value;
+                    let result_recorded_bytes_item_recorded = result_recorded_bytes_item;
+                    result_recorded_bytes.push(result_recorded_bytes_item_recorded);
                 }
-                let result_replay = RandomStreamStateReplay {
-                    version: result_replay_version,
-                    bytes: result_replay_bytes,
+                let result_recorded = RandomStreamStateReplay {
+                    version: result_recorded_version,
+                    bytes: result_recorded_bytes,
                 };
                 let payload = RandomStreamExportReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -977,9 +977,9 @@ fn destack_random_stream_import_replay(
         || unsafe { platform_native::destack_random_stream_import(context, stream, state) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = RandomStreamImportReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1023,9 +1023,9 @@ fn destack_random_stream_in_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = RandomStreamInReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1069,9 +1069,9 @@ fn destack_random_stream_jump_replay(
         || unsafe { platform_native::destack_random_stream_jump(context, stream, jump) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = RandomStreamJumpReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1115,9 +1115,9 @@ fn destack_random_stream_split_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = RandomStreamSplitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1419,9 +1419,9 @@ fn destack_random_secure_bytes_try_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = RandomSecureBytesTryReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1462,29 +1462,29 @@ fn destack_random_secure_info_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_source = result_value.source;
-                let result_replay_backend_name = {
-                    let result_replay_backend_name_ref = context
+                let result_recorded_source = result_value.source;
+                let result_recorded_backend_name = {
+                    let result_recorded_backend_name_ref = context
                         .string_ref(result_value.backend_name)
                         .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_replay_backend_name_ref.as_str().to_string()
+                    result_recorded_backend_name_ref.as_str().to_string()
                 };
-                let result_replay_may_block = result_value.may_block;
-                let result_replay_is_cryptographic = result_value.is_cryptographic;
-                let result_replay_is_seeded = result_value.is_seeded;
-                let result_replay_is_fips_approved = result_value.is_fips_approved;
-                let result_replay_entropy_bits_per_byte = result_value.entropy_bits_per_byte;
-                let result_replay = SecureRandomInfoReplay {
-                    source: result_replay_source,
-                    backend_name: result_replay_backend_name,
-                    may_block: result_replay_may_block,
-                    is_cryptographic: result_replay_is_cryptographic,
-                    is_seeded: result_replay_is_seeded,
-                    is_fips_approved: result_replay_is_fips_approved,
-                    entropy_bits_per_byte: result_replay_entropy_bits_per_byte,
+                let result_recorded_may_block = result_value.may_block;
+                let result_recorded_is_cryptographic = result_value.is_cryptographic;
+                let result_recorded_is_seeded = result_value.is_seeded;
+                let result_recorded_is_fips_approved = result_value.is_fips_approved;
+                let result_recorded_entropy_bits_per_byte = result_value.entropy_bits_per_byte;
+                let result_recorded = SecureRandomInfoReplay {
+                    source: result_recorded_source,
+                    backend_name: result_recorded_backend_name,
+                    may_block: result_recorded_may_block,
+                    is_cryptographic: result_recorded_is_cryptographic,
+                    is_seeded: result_recorded_is_seeded,
+                    is_fips_approved: result_recorded_is_fips_approved,
+                    entropy_bits_per_byte: result_recorded_entropy_bits_per_byte,
                 };
                 let payload = RandomSecureInfoReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1547,14 +1547,14 @@ fn destack_random_stream_export_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_version = result_value.version;
-                let result_replay_bytes = result_value.bytes.read_bytes(context)?;
-                let result_replay = RandomStreamStateReplay {
-                    version: result_replay_version,
-                    bytes: result_replay_bytes,
+                let result_recorded_version = result_value.version;
+                let result_recorded_bytes = result_value.bytes.read_bytes(context)?;
+                let result_recorded = RandomStreamStateReplay {
+                    version: result_recorded_version,
+                    bytes: result_recorded_bytes,
                 };
                 let payload = RandomStreamExportReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1604,9 +1604,9 @@ fn destack_random_stream_import_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = RandomStreamImportReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1648,9 +1648,9 @@ fn destack_random_stream_in_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = RandomStreamInReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1695,9 +1695,9 @@ fn destack_random_stream_jump_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = RandomStreamJumpReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1739,9 +1739,9 @@ fn destack_random_stream_split_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = RandomStreamSplitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }

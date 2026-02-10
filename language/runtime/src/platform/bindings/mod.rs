@@ -6,7 +6,7 @@ mod spec;
 mod vm;
 
 pub use native::{NativeBinding, NativeBindingSet, native_call};
-pub use policy::{BindingPolicy, ExecutionMode};
+pub use policy::{BindingPolicy, ExecutionMode, PolicyEngine};
 pub use registry::BindingRegistry;
 pub use spec::{
     BindingBlocking, BindingDescriptor, BindingEffectMask, BindingId, BindingReplayKind,

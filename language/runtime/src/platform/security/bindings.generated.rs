@@ -662,9 +662,9 @@ fn destack_security_sandbox_enter_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = SecuritySandboxEnterReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -707,9 +707,9 @@ fn destack_security_sandbox_exit_replay(
         || unsafe { platform_native::destack_security_sandbox_exit(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = SecuritySandboxExitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -911,9 +911,9 @@ fn destack_security_sandbox_enter_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = SecuritySandboxEnterReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -957,9 +957,9 @@ fn destack_security_sandbox_exit_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = SecuritySandboxExitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }

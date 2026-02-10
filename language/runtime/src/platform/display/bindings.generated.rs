@@ -786,9 +786,9 @@ fn destack_display_monitor_close_replay(
         || unsafe { platform_native::destack_display_close(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = DisplayMonitorCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -829,28 +829,28 @@ fn destack_display_monitor_list_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay_id =
-                        unsafe { result_replay_item.id.as_str()? }.to_string();
-                    let result_replay_item_replay_name =
-                        unsafe { result_replay_item.name.as_str()? }.to_string();
-                    let result_replay_item_replay_width_mm = result_replay_item.width_mm;
-                    let result_replay_item_replay_height_mm = result_replay_item.height_mm;
-                    let result_replay_item_replay_primary = result_replay_item.primary;
-                    let result_replay_item_replay = DisplayInfoReplay {
-                        id: result_replay_item_replay_id,
-                        name: result_replay_item_replay_name,
-                        width_mm: result_replay_item_replay_width_mm,
-                        height_mm: result_replay_item_replay_height_mm,
-                        primary: result_replay_item_replay_primary,
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded_id =
+                        unsafe { result_recorded_item.id.as_str()? }.to_string();
+                    let result_recorded_item_recorded_name =
+                        unsafe { result_recorded_item.name.as_str()? }.to_string();
+                    let result_recorded_item_recorded_width_mm = result_recorded_item.width_mm;
+                    let result_recorded_item_recorded_height_mm = result_recorded_item.height_mm;
+                    let result_recorded_item_recorded_primary = result_recorded_item.primary;
+                    let result_recorded_item_recorded = DisplayInfoReplay {
+                        id: result_recorded_item_recorded_id,
+                        name: result_recorded_item_recorded_name,
+                        width_mm: result_recorded_item_recorded_width_mm,
+                        height_mm: result_recorded_item_recorded_height_mm,
+                        primary: result_recorded_item_recorded_primary,
                     };
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = DisplayMonitorListReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -918,25 +918,25 @@ fn destack_display_monitor_modes_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay_width = result_replay_item.width;
-                    let result_replay_item_replay_height = result_replay_item.height;
-                    let result_replay_item_replay_refresh_milli_hz =
-                        result_replay_item.refresh_milli_hz;
-                    let result_replay_item_replay_format = result_replay_item.format;
-                    let result_replay_item_replay = DisplayMode {
-                        width: result_replay_item_replay_width,
-                        height: result_replay_item_replay_height,
-                        refresh_milli_hz: result_replay_item_replay_refresh_milli_hz,
-                        format: result_replay_item_replay_format,
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded_width = result_recorded_item.width;
+                    let result_recorded_item_recorded_height = result_recorded_item.height;
+                    let result_recorded_item_recorded_refresh_milli_hz =
+                        result_recorded_item.refresh_milli_hz;
+                    let result_recorded_item_recorded_format = result_recorded_item.format;
+                    let result_recorded_item_recorded = DisplayMode {
+                        width: result_recorded_item_recorded_width,
+                        height: result_recorded_item_recorded_height,
+                        refresh_milli_hz: result_recorded_item_recorded_refresh_milli_hz,
+                        format: result_recorded_item_recorded_format,
                     };
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = DisplayMonitorModesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1001,9 +1001,9 @@ fn destack_display_monitor_open_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = DisplayMonitorOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1046,9 +1046,9 @@ fn destack_display_window_close_replay(
         || unsafe { platform_native::destack_display_window_close(context, window) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = DisplayWindowCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1092,18 +1092,18 @@ fn destack_display_window_event_replay(
                     }
                     *out
                 };
-                let result_replay_kind = result_value.kind;
-                let result_replay_a = result_value.a;
-                let result_replay_b = result_value.b;
-                let result_replay_timestamp_ns = result_value.timestamp_ns;
-                let result_replay = WindowEvent {
-                    kind: result_replay_kind,
-                    a: result_replay_a,
-                    b: result_replay_b,
-                    timestamp_ns: result_replay_timestamp_ns,
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_a = result_value.a;
+                let result_recorded_b = result_value.b;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded = WindowEvent {
+                    kind: result_recorded_kind,
+                    a: result_recorded_a,
+                    b: result_recorded_b,
+                    timestamp_ns: result_recorded_timestamp_ns,
                 };
                 let payload = DisplayWindowEventReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1163,9 +1163,9 @@ fn destack_display_window_open_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = DisplayWindowOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1209,9 +1209,9 @@ fn destack_display_window_set_title_replay(
         || unsafe { platform_native::destack_display_window_set_title(context, window, title) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = DisplayWindowSetTitleReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1255,18 +1255,18 @@ fn destack_display_window_try_event_replay(
                     }
                     *out
                 };
-                let result_replay_kind = result_value.kind;
-                let result_replay_a = result_value.a;
-                let result_replay_b = result_value.b;
-                let result_replay_timestamp_ns = result_value.timestamp_ns;
-                let result_replay = WindowEvent {
-                    kind: result_replay_kind,
-                    a: result_replay_a,
-                    b: result_replay_b,
-                    timestamp_ns: result_replay_timestamp_ns,
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_a = result_value.a;
+                let result_recorded_b = result_value.b;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded = WindowEvent {
+                    kind: result_recorded_kind,
+                    a: result_recorded_a,
+                    b: result_recorded_b,
+                    timestamp_ns: result_recorded_timestamp_ns,
                 };
                 let payload = DisplayWindowTryEventReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1321,9 +1321,9 @@ fn destack_display_window_vsync_wait_replay(
         },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = DisplayWindowVsyncWaitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1522,9 +1522,9 @@ fn destack_display_monitor_close_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = DisplayMonitorCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1565,71 +1565,71 @@ fn destack_display_monitor_list_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_raw = result_value.raw_values(context)?;
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = {
-                        if result_replay_item_value.tag() != vm::ValueTag::Aggregate {
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_replay_item",
+                                "result_recorded_item",
                                 "item",
                             ))
                             .boxed());
                         }
                         let slots = context
-                            .aggregate_slots(result_replay_item_value)
+                            .aggregate_slots(result_recorded_item_value)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
                         if slots.len() != 5 {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_replay_item",
+                                "result_recorded_item",
                                 "expected 5 fields",
                             ))
                             .boxed());
                         }
-                        let result_replay_item_id =
-                            decode_string(slots[0], "result_replay_item_id", "id")?;
-                        let result_replay_item_name =
-                            decode_string(slots[1], "result_replay_item_name", "name")?;
-                        let result_replay_item_width_mm =
-                            decode_uint32(slots[2], "result_replay_item_width_mm", "widthMm")?;
-                        let result_replay_item_height_mm =
-                            decode_uint32(slots[3], "result_replay_item_height_mm", "heightMm")?;
-                        let result_replay_item_primary =
-                            decode_bool(slots[4], "result_replay_item_primary", "primary")?;
+                        let result_recorded_item_id =
+                            decode_string(slots[0], "result_recorded_item_id", "id")?;
+                        let result_recorded_item_name =
+                            decode_string(slots[1], "result_recorded_item_name", "name")?;
+                        let result_recorded_item_width_mm =
+                            decode_uint32(slots[2], "result_recorded_item_width_mm", "widthMm")?;
+                        let result_recorded_item_height_mm =
+                            decode_uint32(slots[3], "result_recorded_item_height_mm", "heightMm")?;
+                        let result_recorded_item_primary =
+                            decode_bool(slots[4], "result_recorded_item_primary", "primary")?;
                         DisplayInfoVm {
-                            id: result_replay_item_id,
-                            name: result_replay_item_name,
-                            width_mm: result_replay_item_width_mm,
-                            height_mm: result_replay_item_height_mm,
-                            primary: result_replay_item_primary,
+                            id: result_recorded_item_id,
+                            name: result_recorded_item_name,
+                            width_mm: result_recorded_item_width_mm,
+                            height_mm: result_recorded_item_height_mm,
+                            primary: result_recorded_item_primary,
                         }
                     };
-                    let result_replay_item_replay_id = {
-                        let result_replay_item_replay_id_ref = context
-                            .string_ref(result_replay_item.id)
+                    let result_recorded_item_recorded_id = {
+                        let result_recorded_item_recorded_id_ref = context
+                            .string_ref(result_recorded_item.id)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_replay_item_replay_id_ref.as_str().to_string()
+                        result_recorded_item_recorded_id_ref.as_str().to_string()
                     };
-                    let result_replay_item_replay_name = {
-                        let result_replay_item_replay_name_ref = context
-                            .string_ref(result_replay_item.name)
+                    let result_recorded_item_recorded_name = {
+                        let result_recorded_item_recorded_name_ref = context
+                            .string_ref(result_recorded_item.name)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_replay_item_replay_name_ref.as_str().to_string()
+                        result_recorded_item_recorded_name_ref.as_str().to_string()
                     };
-                    let result_replay_item_replay_width_mm = result_replay_item.width_mm;
-                    let result_replay_item_replay_height_mm = result_replay_item.height_mm;
-                    let result_replay_item_replay_primary = result_replay_item.primary;
-                    let result_replay_item_replay = DisplayInfoReplay {
-                        id: result_replay_item_replay_id,
-                        name: result_replay_item_replay_name,
-                        width_mm: result_replay_item_replay_width_mm,
-                        height_mm: result_replay_item_replay_height_mm,
-                        primary: result_replay_item_replay_primary,
+                    let result_recorded_item_recorded_width_mm = result_recorded_item.width_mm;
+                    let result_recorded_item_recorded_height_mm = result_recorded_item.height_mm;
+                    let result_recorded_item_recorded_primary = result_recorded_item.primary;
+                    let result_recorded_item_recorded = DisplayInfoReplay {
+                        id: result_recorded_item_recorded_id,
+                        name: result_recorded_item_recorded_name,
+                        width_mm: result_recorded_item_recorded_width_mm,
+                        height_mm: result_recorded_item_recorded_height_mm,
+                        primary: result_recorded_item_recorded_primary,
                     };
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = DisplayMonitorListReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1713,60 +1713,60 @@ fn destack_display_monitor_modes_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_raw = result_value.raw_values(context)?;
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = {
-                        if result_replay_item_value.tag() != vm::ValueTag::Aggregate {
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_replay_item",
+                                "result_recorded_item",
                                 "item",
                             ))
                             .boxed());
                         }
                         let slots = context
-                            .aggregate_slots(result_replay_item_value)
+                            .aggregate_slots(result_recorded_item_value)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
                         if slots.len() != 4 {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_replay_item",
+                                "result_recorded_item",
                                 "expected 4 fields",
                             ))
                             .boxed());
                         }
-                        let result_replay_item_width =
-                            decode_uint32(slots[0], "result_replay_item_width", "width")?;
-                        let result_replay_item_height =
-                            decode_uint32(slots[1], "result_replay_item_height", "height")?;
-                        let result_replay_item_refresh_milli_hz = decode_uint32(
+                        let result_recorded_item_width =
+                            decode_uint32(slots[0], "result_recorded_item_width", "width")?;
+                        let result_recorded_item_height =
+                            decode_uint32(slots[1], "result_recorded_item_height", "height")?;
+                        let result_recorded_item_refresh_milli_hz = decode_uint32(
                             slots[2],
-                            "result_replay_item_refresh_milli_hz",
+                            "result_recorded_item_refresh_milli_hz",
                             "refreshMilliHz",
                         )?;
-                        let result_replay_item_format =
-                            decode_uint32(slots[3], "result_replay_item_format", "format")?;
+                        let result_recorded_item_format =
+                            decode_uint32(slots[3], "result_recorded_item_format", "format")?;
                         DisplayModeVm {
-                            width: result_replay_item_width,
-                            height: result_replay_item_height,
-                            refresh_milli_hz: result_replay_item_refresh_milli_hz,
-                            format: result_replay_item_format,
+                            width: result_recorded_item_width,
+                            height: result_recorded_item_height,
+                            refresh_milli_hz: result_recorded_item_refresh_milli_hz,
+                            format: result_recorded_item_format,
                         }
                     };
-                    let result_replay_item_replay_width = result_replay_item.width;
-                    let result_replay_item_replay_height = result_replay_item.height;
-                    let result_replay_item_replay_refresh_milli_hz =
-                        result_replay_item.refresh_milli_hz;
-                    let result_replay_item_replay_format = result_replay_item.format;
-                    let result_replay_item_replay = DisplayMode {
-                        width: result_replay_item_replay_width,
-                        height: result_replay_item_replay_height,
-                        refresh_milli_hz: result_replay_item_replay_refresh_milli_hz,
-                        format: result_replay_item_replay_format,
+                    let result_recorded_item_recorded_width = result_recorded_item.width;
+                    let result_recorded_item_recorded_height = result_recorded_item.height;
+                    let result_recorded_item_recorded_refresh_milli_hz =
+                        result_recorded_item.refresh_milli_hz;
+                    let result_recorded_item_recorded_format = result_recorded_item.format;
+                    let result_recorded_item_recorded = DisplayMode {
+                        width: result_recorded_item_recorded_width,
+                        height: result_recorded_item_recorded_height,
+                        refresh_milli_hz: result_recorded_item_recorded_refresh_milli_hz,
+                        format: result_recorded_item_recorded_format,
                     };
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = DisplayMonitorModesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1839,9 +1839,9 @@ fn destack_display_monitor_open_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = DisplayMonitorOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1885,9 +1885,9 @@ fn destack_display_window_close_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = DisplayWindowCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1929,18 +1929,18 @@ fn destack_display_window_event_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_kind = result_value.kind;
-                let result_replay_a = result_value.a;
-                let result_replay_b = result_value.b;
-                let result_replay_timestamp_ns = result_value.timestamp_ns;
-                let result_replay = WindowEvent {
-                    kind: result_replay_kind,
-                    a: result_replay_a,
-                    b: result_replay_b,
-                    timestamp_ns: result_replay_timestamp_ns,
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_a = result_value.a;
+                let result_recorded_b = result_value.b;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded = WindowEvent {
+                    kind: result_recorded_kind,
+                    a: result_recorded_a,
+                    b: result_recorded_b,
+                    timestamp_ns: result_recorded_timestamp_ns,
                 };
                 let payload = DisplayWindowEventReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1995,9 +1995,9 @@ fn destack_display_window_open_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = DisplayWindowOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2042,9 +2042,9 @@ fn destack_display_window_set_title_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = DisplayWindowSetTitleReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2086,18 +2086,18 @@ fn destack_display_window_try_event_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_kind = result_value.kind;
-                let result_replay_a = result_value.a;
-                let result_replay_b = result_value.b;
-                let result_replay_timestamp_ns = result_value.timestamp_ns;
-                let result_replay = WindowEvent {
-                    kind: result_replay_kind,
-                    a: result_replay_a,
-                    b: result_replay_b,
-                    timestamp_ns: result_replay_timestamp_ns,
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_a = result_value.a;
+                let result_recorded_b = result_value.b;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded = WindowEvent {
+                    kind: result_recorded_kind,
+                    a: result_recorded_a,
+                    b: result_recorded_b,
+                    timestamp_ns: result_recorded_timestamp_ns,
                 };
                 let payload = DisplayWindowTryEventReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2153,9 +2153,9 @@ fn destack_display_window_vsync_wait_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = DisplayWindowVsyncWaitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }

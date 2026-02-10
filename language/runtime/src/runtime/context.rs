@@ -3,7 +3,9 @@ use std::ptr;
 use std::sync::Arc;
 
 use crate::diagnostic::{RuntimeError, RuntimeErrorStore, RuntimeResult};
-use crate::platform::bindings::{BindingDescriptor, BindingPolicy, ExecutionMode, ReplayPayload};
+use crate::platform::bindings::{
+    BindingDescriptor, BindingPolicy, ExecutionMode, PolicyEngine, ReplayPayload,
+};
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformContext, ResourceTable,
 };
@@ -129,7 +131,7 @@ impl RuntimeContext {
     pub fn from_execution_mode(platform: PlatformContext, mode: ExecutionMode) -> Self {
         // seed runtime options from the execution mode
         let options = RuntimeOptions {
-            execution_mode: mode.into(),
+            execution: mode.into(),
             ..RuntimeOptions::default()
         };
 
@@ -144,7 +146,7 @@ impl RuntimeContext {
     ) -> Self {
         // seed runtime options from the execution mode
         let options = RuntimeOptions {
-            execution_mode: mode.into(),
+            execution: mode.into(),
             ..RuntimeOptions::default()
         };
 
@@ -172,8 +174,8 @@ impl RuntimeContext {
         // build runtime subsystems from options
         let time = Clock::from_options(&time_options);
         let random = Random::from_options(&random_options);
-        let replay_mode = ExecutionMode::from(options.execution_mode);
-        let replay_payload = if options.execution_mode == WorkspaceExecutionMode::Replay {
+        let execution_mode = ExecutionMode::from(options.execution);
+        let replay_payload = if options.execution == WorkspaceExecutionMode::Replay {
             header.replay_payload
         } else {
             Self::resolve_replay_payload(options)
@@ -186,7 +188,7 @@ impl RuntimeContext {
                 time,
                 random,
                 resources: ResourceTable::default(),
-                replay: ReplayController::new(replay_mode, replay_payload, header),
+                replay: ReplayController::new(execution_mode, replay_payload, header),
                 errors: RuntimeErrorStore::default(),
             }),
         }
@@ -242,7 +244,7 @@ impl RuntimeContext {
         let mut time_options = options.time.clone();
 
         // force virtual time during replay
-        if options.execution_mode == WorkspaceExecutionMode::Replay {
+        if options.execution == WorkspaceExecutionMode::Replay {
             time_options.mode = TimeMode::Virtual;
         }
 
@@ -254,7 +256,7 @@ impl RuntimeContext {
         let mut random_options = options.random.clone();
 
         // force deterministic randomness during replay
-        if options.execution_mode == WorkspaceExecutionMode::Replay {
+        if options.execution == WorkspaceExecutionMode::Replay {
             random_options.mode = RandomMode::Deterministic;
         }
 
@@ -272,7 +274,7 @@ impl RuntimeContext {
         // start from the default header
         let replay_payload = Self::resolve_replay_payload(options);
         let mut header = ReplayHeader {
-            execution_mode: ExecutionMode::from(options.execution_mode),
+            execution_mode: ExecutionMode::from(options.execution),
             replay_payload,
             ..ReplayHeader::default()
         };
@@ -309,6 +311,8 @@ pub struct RuntimeCallContext {
     scheduler: *const Scheduler,
     /// Binding policy for external calls.
     policy: BindingPolicy,
+    /// Engine kind for this binding call.
+    engine: PolicyEngine,
     /// Execution metadata for the current call.
     execution: ExecutionContext,
 }
@@ -320,6 +324,7 @@ impl RuntimeCallContext {
             runtime: Arc::as_ptr(&runtime.state),
             scheduler,
             policy,
+            engine: PolicyEngine::Native,
             execution: current_execution_context(),
         }
     }
@@ -329,11 +334,13 @@ impl RuntimeCallContext {
         runtime: *const RuntimeState,
         scheduler: *const Scheduler,
         policy: BindingPolicy,
+        engine: PolicyEngine,
     ) -> Self {
         Self {
             runtime,
             scheduler,
             policy,
+            engine,
             execution: current_execution_context(),
         }
     }
@@ -384,6 +391,11 @@ impl RuntimeCallContext {
         self.execution.random_stream_id()
     }
 
+    /// Return the engine kind for this call context.
+    pub const fn engine(&self) -> PolicyEngine {
+        self.engine
+    }
+
     /// Clear call-local storage for native bindings.
     pub fn clear_strings(&self) {
         RUNTIME_CALL_STRINGS.with(|store| store.clear());
@@ -418,7 +430,7 @@ impl RuntimeCallContext {
     /// Validate the policy against a binding descriptor.
     #[inline]
     pub fn check_policy(&self, spec: BindingDescriptor) -> RuntimeResult<()> {
-        self.policy.check(spec)
+        self.policy.check_for_engine(spec, Some(self.engine))
     }
 }
 
@@ -447,28 +459,6 @@ impl Drop for RuntimeCallGuard {
     /// Restore the previous runtime call context.
     fn drop(&mut self) {
         RUNTIME_CALL_CONTEXT.with(|slot| slot.set(self.previous));
-    }
-}
-
-impl From<WorkspaceExecutionMode> for ExecutionMode {
-    fn from(mode: WorkspaceExecutionMode) -> Self {
-        match mode {
-            WorkspaceExecutionMode::Fast => ExecutionMode::Fast,
-            WorkspaceExecutionMode::Deterministic => ExecutionMode::Deterministic,
-            WorkspaceExecutionMode::Record => ExecutionMode::Record,
-            WorkspaceExecutionMode::Replay => ExecutionMode::Replay,
-        }
-    }
-}
-
-impl From<ExecutionMode> for WorkspaceExecutionMode {
-    fn from(mode: ExecutionMode) -> Self {
-        match mode {
-            ExecutionMode::Fast => WorkspaceExecutionMode::Fast,
-            ExecutionMode::Deterministic => WorkspaceExecutionMode::Deterministic,
-            ExecutionMode::Record => WorkspaceExecutionMode::Record,
-            ExecutionMode::Replay => WorkspaceExecutionMode::Replay,
-        }
     }
 }
 

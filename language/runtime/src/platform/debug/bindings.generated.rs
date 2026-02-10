@@ -712,9 +712,9 @@ fn destack_debug_core_break_now_replay(context: &RuntimeCallContext) -> RuntimeR
         || unsafe { platform_native::destack_debug_break_now(context) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = DebugCoreBreakNowReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -751,9 +751,9 @@ fn destack_debug_core_mark_replay(
         || unsafe { platform_native::destack_debug_mark(context, label) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = DebugCoreMarkReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -797,14 +797,14 @@ fn destack_debug_inspector_endpoint_replay(
                     }
                     *out
                 };
-                let result_replay_url = unsafe { result_value.url.as_str()? }.to_string();
-                let result_replay_pid = result_value.pid;
-                let result_replay = InspectorEndpointReplay {
-                    url: result_replay_url,
-                    pid: result_replay_pid,
+                let result_recorded_url = unsafe { result_value.url.as_str()? }.to_string();
+                let result_recorded_pid = result_value.pid;
+                let result_recorded = InspectorEndpointReplay {
+                    url: result_recorded_url,
+                    pid: result_recorded_pid,
                 };
                 let payload = DebugInspectorEndpointReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -860,9 +860,9 @@ fn destack_debug_inspector_start_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = DebugInspectorStartReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -905,9 +905,9 @@ fn destack_debug_inspector_stop_replay(
         || unsafe { platform_native::destack_debug_inspector_stop(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = DebugInspectorStopReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -951,15 +951,15 @@ fn destack_debug_profile_snapshot_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay = result_replay_item;
-                    result_replay.push(result_replay_item_replay);
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = DebugProfileSnapshotReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1014,9 +1014,9 @@ fn destack_debug_profile_start_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = DebugProfileStartReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1059,9 +1059,9 @@ fn destack_debug_profile_stop_replay(
         || unsafe { platform_native::destack_debug_profile_stop(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = DebugProfileStopReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1102,9 +1102,9 @@ fn destack_debug_trace_emit_replay(
         },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = DebugTraceEmitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1149,9 +1149,9 @@ fn destack_debug_trace_start_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = DebugTraceStartReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1194,9 +1194,9 @@ fn destack_debug_trace_stop_replay(
         || unsafe { platform_native::destack_debug_trace_stop(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = DebugTraceStopReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1384,9 +1384,9 @@ fn destack_debug_core_break_now_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = DebugCoreBreakNowReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1427,9 +1427,9 @@ fn destack_debug_core_mark_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = DebugCoreMarkReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1471,19 +1471,19 @@ fn destack_debug_inspector_endpoint_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_url = {
-                    let result_replay_url_ref = context
+                let result_recorded_url = {
+                    let result_recorded_url_ref = context
                         .string_ref(result_value.url)
                         .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_replay_url_ref.as_str().to_string()
+                    result_recorded_url_ref.as_str().to_string()
                 };
-                let result_replay_pid = result_value.pid;
-                let result_replay = InspectorEndpointReplay {
-                    url: result_replay_url,
-                    pid: result_replay_pid,
+                let result_recorded_pid = result_value.pid;
+                let result_recorded = InspectorEndpointReplay {
+                    url: result_recorded_url,
+                    pid: result_recorded_pid,
                 };
                 let payload = DebugInspectorEndpointReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1535,9 +1535,9 @@ fn destack_debug_inspector_start_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = DebugInspectorStartReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1581,9 +1581,9 @@ fn destack_debug_inspector_stop_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = DebugInspectorStopReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1625,9 +1625,9 @@ fn destack_debug_profile_snapshot_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value.read_bytes(context)?;
+                let result_recorded = result_value.read_bytes(context)?;
                 let payload = DebugProfileSnapshotReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1672,9 +1672,9 @@ fn destack_debug_profile_start_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = DebugProfileStartReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1718,9 +1718,9 @@ fn destack_debug_profile_stop_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = DebugProfileStopReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1765,9 +1765,9 @@ fn destack_debug_trace_emit_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = DebugTraceEmitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1810,9 +1810,9 @@ fn destack_debug_trace_start_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = DebugTraceStartReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1856,9 +1856,9 @@ fn destack_debug_trace_stop_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = DebugTraceStopReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }

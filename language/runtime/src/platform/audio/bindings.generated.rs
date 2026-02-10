@@ -726,9 +726,9 @@ fn destack_audio_device_close_replay(
         || unsafe { platform_native::destack_audio_device_close(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = AudioDeviceCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -769,33 +769,36 @@ fn destack_audio_device_list_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay_id =
-                        unsafe { result_replay_item.id.as_str()? }.to_string();
-                    let result_replay_item_replay_name =
-                        unsafe { result_replay_item.name.as_str()? }.to_string();
-                    let result_replay_item_replay_direction = result_replay_item.direction;
-                    let result_replay_item_replay_sample_rate = result_replay_item.sample_rate;
-                    let result_replay_item_replay_min_channels = result_replay_item.min_channels;
-                    let result_replay_item_replay_max_channels = result_replay_item.max_channels;
-                    let result_replay_item_replay_default_period_frames =
-                        result_replay_item.default_period_frames;
-                    let result_replay_item_replay = AudioDeviceInfoReplay {
-                        id: result_replay_item_replay_id,
-                        name: result_replay_item_replay_name,
-                        direction: result_replay_item_replay_direction,
-                        sample_rate: result_replay_item_replay_sample_rate,
-                        min_channels: result_replay_item_replay_min_channels,
-                        max_channels: result_replay_item_replay_max_channels,
-                        default_period_frames: result_replay_item_replay_default_period_frames,
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded_id =
+                        unsafe { result_recorded_item.id.as_str()? }.to_string();
+                    let result_recorded_item_recorded_name =
+                        unsafe { result_recorded_item.name.as_str()? }.to_string();
+                    let result_recorded_item_recorded_direction = result_recorded_item.direction;
+                    let result_recorded_item_recorded_sample_rate =
+                        result_recorded_item.sample_rate;
+                    let result_recorded_item_recorded_min_channels =
+                        result_recorded_item.min_channels;
+                    let result_recorded_item_recorded_max_channels =
+                        result_recorded_item.max_channels;
+                    let result_recorded_item_recorded_default_period_frames =
+                        result_recorded_item.default_period_frames;
+                    let result_recorded_item_recorded = AudioDeviceInfoReplay {
+                        id: result_recorded_item_recorded_id,
+                        name: result_recorded_item_recorded_name,
+                        direction: result_recorded_item_recorded_direction,
+                        sample_rate: result_recorded_item_recorded_sample_rate,
+                        min_channels: result_recorded_item_recorded_min_channels,
+                        max_channels: result_recorded_item_recorded_max_channels,
+                        default_period_frames: result_recorded_item_recorded_default_period_frames,
                     };
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = AudioDeviceListReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -869,9 +872,9 @@ fn destack_audio_device_open_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = AudioDeviceOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -914,9 +917,9 @@ fn destack_audio_stream_close_replay(
         || unsafe { platform_native::destack_audio_stream_close(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = AudioStreamCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -961,9 +964,9 @@ fn destack_audio_stream_open_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = AudioStreamOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1014,15 +1017,15 @@ fn destack_audio_stream_read_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay = result_replay_item;
-                    result_replay.push(result_replay_item_replay);
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = AudioStreamReadReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1070,9 +1073,9 @@ fn destack_audio_stream_start_replay(
         || unsafe { platform_native::destack_audio_stream_start(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = AudioStreamStartReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1116,16 +1119,16 @@ fn destack_audio_stream_state_replay(
                     }
                     *out
                 };
-                let result_replay_running = result_value.running;
-                let result_replay_buffered_frames = result_value.buffered_frames;
-                let result_replay_latency_ns = result_value.latency_ns;
-                let result_replay = AudioStreamState {
-                    running: result_replay_running,
-                    buffered_frames: result_replay_buffered_frames,
-                    latency_ns: result_replay_latency_ns,
+                let result_recorded_running = result_value.running;
+                let result_recorded_buffered_frames = result_value.buffered_frames;
+                let result_recorded_latency_ns = result_value.latency_ns;
+                let result_recorded = AudioStreamState {
+                    running: result_recorded_running,
+                    buffered_frames: result_recorded_buffered_frames,
+                    latency_ns: result_recorded_latency_ns,
                 };
                 let payload = AudioStreamStateReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1175,9 +1178,9 @@ fn destack_audio_stream_stop_replay(
         || unsafe { platform_native::destack_audio_stream_stop(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = AudioStreamStopReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1222,9 +1225,9 @@ fn destack_audio_stream_write_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = AudioStreamWriteReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1417,9 +1420,9 @@ fn destack_audio_device_close_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = AudioDeviceCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1460,111 +1463,115 @@ fn destack_audio_device_list_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_raw = result_value.raw_values(context)?;
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = {
-                        if result_replay_item_value.tag() != vm::ValueTag::Aggregate {
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_replay_item",
+                                "result_recorded_item",
                                 "item",
                             ))
                             .boxed());
                         }
                         let slots = context
-                            .aggregate_slots(result_replay_item_value)
+                            .aggregate_slots(result_recorded_item_value)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
                         if slots.len() != 7 {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_replay_item",
+                                "result_recorded_item",
                                 "expected 7 fields",
                             ))
                             .boxed());
                         }
-                        let result_replay_item_id =
-                            decode_string(slots[0], "result_replay_item_id", "id")?;
-                        let result_replay_item_name =
-                            decode_string(slots[1], "result_replay_item_name", "name")?;
-                        let result_replay_item_direction_raw = decode_uint8(
+                        let result_recorded_item_id =
+                            decode_string(slots[0], "result_recorded_item_id", "id")?;
+                        let result_recorded_item_name =
+                            decode_string(slots[1], "result_recorded_item_name", "name")?;
+                        let result_recorded_item_direction_raw = decode_uint8(
                             slots[2],
-                            "result_replay_item_direction_raw",
+                            "result_recorded_item_direction_raw",
                             "direction",
                         )?;
-                        let result_replay_item_direction = match result_replay_item_direction_raw {
-                            1u8 => AudioDeviceDirection::Playback,
-                            2u8 => AudioDeviceDirection::Capture,
-                            3u8 => AudioDeviceDirection::Duplex,
-                            _ => {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_value(
-                                        "result_replay_item_direction",
-                                        "unknown AudioDeviceDirection value",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                        };
-                        let result_replay_item_sample_rate = decode_uint32(
+                        let result_recorded_item_direction =
+                            match result_recorded_item_direction_raw {
+                                1u8 => AudioDeviceDirection::Playback,
+                                2u8 => AudioDeviceDirection::Capture,
+                                3u8 => AudioDeviceDirection::Duplex,
+                                _ => {
+                                    return Err(RuntimeError::from(
+                                        PlatformError::invalid_argument_value(
+                                            "result_recorded_item_direction",
+                                            "unknown AudioDeviceDirection value",
+                                        ),
+                                    )
+                                    .boxed());
+                                }
+                            };
+                        let result_recorded_item_sample_rate = decode_uint32(
                             slots[3],
-                            "result_replay_item_sample_rate",
+                            "result_recorded_item_sample_rate",
                             "sampleRate",
                         )?;
-                        let result_replay_item_min_channels = decode_uint16(
+                        let result_recorded_item_min_channels = decode_uint16(
                             slots[4],
-                            "result_replay_item_min_channels",
+                            "result_recorded_item_min_channels",
                             "minChannels",
                         )?;
-                        let result_replay_item_max_channels = decode_uint16(
+                        let result_recorded_item_max_channels = decode_uint16(
                             slots[5],
-                            "result_replay_item_max_channels",
+                            "result_recorded_item_max_channels",
                             "maxChannels",
                         )?;
-                        let result_replay_item_default_period_frames = decode_uint32(
+                        let result_recorded_item_default_period_frames = decode_uint32(
                             slots[6],
-                            "result_replay_item_default_period_frames",
+                            "result_recorded_item_default_period_frames",
                             "defaultPeriodFrames",
                         )?;
                         AudioDeviceInfoVm {
-                            id: result_replay_item_id,
-                            name: result_replay_item_name,
-                            direction: result_replay_item_direction,
-                            sample_rate: result_replay_item_sample_rate,
-                            min_channels: result_replay_item_min_channels,
-                            max_channels: result_replay_item_max_channels,
-                            default_period_frames: result_replay_item_default_period_frames,
+                            id: result_recorded_item_id,
+                            name: result_recorded_item_name,
+                            direction: result_recorded_item_direction,
+                            sample_rate: result_recorded_item_sample_rate,
+                            min_channels: result_recorded_item_min_channels,
+                            max_channels: result_recorded_item_max_channels,
+                            default_period_frames: result_recorded_item_default_period_frames,
                         }
                     };
-                    let result_replay_item_replay_id = {
-                        let result_replay_item_replay_id_ref = context
-                            .string_ref(result_replay_item.id)
+                    let result_recorded_item_recorded_id = {
+                        let result_recorded_item_recorded_id_ref = context
+                            .string_ref(result_recorded_item.id)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_replay_item_replay_id_ref.as_str().to_string()
+                        result_recorded_item_recorded_id_ref.as_str().to_string()
                     };
-                    let result_replay_item_replay_name = {
-                        let result_replay_item_replay_name_ref = context
-                            .string_ref(result_replay_item.name)
+                    let result_recorded_item_recorded_name = {
+                        let result_recorded_item_recorded_name_ref = context
+                            .string_ref(result_recorded_item.name)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_replay_item_replay_name_ref.as_str().to_string()
+                        result_recorded_item_recorded_name_ref.as_str().to_string()
                     };
-                    let result_replay_item_replay_direction = result_replay_item.direction;
-                    let result_replay_item_replay_sample_rate = result_replay_item.sample_rate;
-                    let result_replay_item_replay_min_channels = result_replay_item.min_channels;
-                    let result_replay_item_replay_max_channels = result_replay_item.max_channels;
-                    let result_replay_item_replay_default_period_frames =
-                        result_replay_item.default_period_frames;
-                    let result_replay_item_replay = AudioDeviceInfoReplay {
-                        id: result_replay_item_replay_id,
-                        name: result_replay_item_replay_name,
-                        direction: result_replay_item_replay_direction,
-                        sample_rate: result_replay_item_replay_sample_rate,
-                        min_channels: result_replay_item_replay_min_channels,
-                        max_channels: result_replay_item_replay_max_channels,
-                        default_period_frames: result_replay_item_replay_default_period_frames,
+                    let result_recorded_item_recorded_direction = result_recorded_item.direction;
+                    let result_recorded_item_recorded_sample_rate =
+                        result_recorded_item.sample_rate;
+                    let result_recorded_item_recorded_min_channels =
+                        result_recorded_item.min_channels;
+                    let result_recorded_item_recorded_max_channels =
+                        result_recorded_item.max_channels;
+                    let result_recorded_item_recorded_default_period_frames =
+                        result_recorded_item.default_period_frames;
+                    let result_recorded_item_recorded = AudioDeviceInfoReplay {
+                        id: result_recorded_item_recorded_id,
+                        name: result_recorded_item_recorded_name,
+                        direction: result_recorded_item_recorded_direction,
+                        sample_rate: result_recorded_item_recorded_sample_rate,
+                        min_channels: result_recorded_item_recorded_min_channels,
+                        max_channels: result_recorded_item_recorded_max_channels,
+                        default_period_frames: result_recorded_item_recorded_default_period_frames,
                     };
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = AudioDeviceListReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1662,9 +1669,9 @@ fn destack_audio_device_open_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = AudioDeviceOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1708,9 +1715,9 @@ fn destack_audio_stream_close_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = AudioStreamCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1753,9 +1760,9 @@ fn destack_audio_stream_open_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = AudioStreamOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1801,9 +1808,9 @@ fn destack_audio_stream_read_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value.read_bytes(context)?;
+                let result_recorded = result_value.read_bytes(context)?;
                 let payload = AudioStreamReadReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1847,9 +1854,9 @@ fn destack_audio_stream_start_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = AudioStreamStartReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1891,16 +1898,16 @@ fn destack_audio_stream_state_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_running = result_value.running;
-                let result_replay_buffered_frames = result_value.buffered_frames;
-                let result_replay_latency_ns = result_value.latency_ns;
-                let result_replay = AudioStreamState {
-                    running: result_replay_running,
-                    buffered_frames: result_replay_buffered_frames,
-                    latency_ns: result_replay_latency_ns,
+                let result_recorded_running = result_value.running;
+                let result_recorded_buffered_frames = result_value.buffered_frames;
+                let result_recorded_latency_ns = result_value.latency_ns;
+                let result_recorded = AudioStreamState {
+                    running: result_recorded_running,
+                    buffered_frames: result_recorded_buffered_frames,
+                    latency_ns: result_recorded_latency_ns,
                 };
                 let payload = AudioStreamStateReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1951,9 +1958,9 @@ fn destack_audio_stream_stop_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = AudioStreamStopReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1996,9 +2003,9 @@ fn destack_audio_stream_write_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = AudioStreamWriteReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }

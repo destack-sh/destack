@@ -8721,9 +8721,9 @@ fn destack_fs_attrs_access_replay(
         || unsafe { platform_native::destack_fs_access(context, path, mode) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsAttrsAccessReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8763,9 +8763,9 @@ fn destack_fs_attrs_accessat_replay(
         || unsafe { platform_native::destack_fs_accessat(context, dir, path, mode, flags) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsAttrsAccessatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8803,9 +8803,9 @@ fn destack_fs_attrs_chmod_replay(
         || unsafe { platform_native::destack_fs_chmod(context, path, mode) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsAttrsChmodReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8844,9 +8844,9 @@ fn destack_fs_attrs_chown_replay(
         || unsafe { platform_native::destack_fs_chown(context, path, uid, gid) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsAttrsChownReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8884,9 +8884,9 @@ fn destack_fs_attrs_fchmod_replay(
         || unsafe { platform_native::destack_fs_fchmod(context, handle, mode) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsAttrsFchmodReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8926,9 +8926,9 @@ fn destack_fs_attrs_fchmodat_replay(
         || unsafe { platform_native::destack_fs_fchmodat(context, dir, path, mode, flags) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsAttrsFchmodatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8967,9 +8967,9 @@ fn destack_fs_attrs_fchown_replay(
         || unsafe { platform_native::destack_fs_fchown(context, handle, uid, gid) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsAttrsFchownReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9010,9 +9010,9 @@ fn destack_fs_attrs_fchownat_replay(
         || unsafe { platform_native::destack_fs_fchownat(context, dir, path, uid, gid, flags) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsAttrsFchownatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9051,9 +9051,9 @@ fn destack_fs_attrs_futimes_replay(
         || unsafe { platform_native::destack_fs_futimes(context, handle, atimens, mtimens) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsAttrsFutimesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9092,9 +9092,9 @@ fn destack_fs_attrs_lutimes_replay(
         || unsafe { platform_native::destack_fs_lutimes(context, path, atimens, mtimens) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsAttrsLutimesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9137,9 +9137,9 @@ fn destack_fs_attrs_utimensat_replay(
         },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsAttrsUtimensatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9178,9 +9178,9 @@ fn destack_fs_attrs_utimes_replay(
         || unsafe { platform_native::destack_fs_utimes(context, path, atimens, mtimens) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsAttrsUtimesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9217,9 +9217,9 @@ fn destack_fs_dir_closedir_replay(
         || unsafe { platform_native::destack_fs_closedir(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsDirClosedirReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9263,9 +9263,9 @@ fn destack_fs_dir_dirfd_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsDirDirfdReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9309,9 +9309,9 @@ fn destack_fs_dir_mkdir_replay(
         || unsafe { platform_native::destack_fs_mkdir(context, path, mode) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsDirMkdirReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9350,9 +9350,9 @@ fn destack_fs_dir_mkdirat_replay(
         || unsafe { platform_native::destack_fs_mkdirat(context, dir, path, mode) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsDirMkdiratReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9396,20 +9396,20 @@ fn destack_fs_dir_mkdtemp_replay(
                     }
                     *out
                 };
-                let result_replay_encoding = result_value.encoding;
-                let result_replay_data_raw = unsafe { result_value.data.0.as_slice()? };
-                let mut result_replay_data = Vec::with_capacity(result_replay_data_raw.len());
-                for result_replay_data_item_value in result_replay_data_raw {
-                    let result_replay_data_item = *result_replay_data_item_value;
-                    let result_replay_data_item_replay = result_replay_data_item;
-                    result_replay_data.push(result_replay_data_item_replay);
+                let result_recorded_encoding = result_value.encoding;
+                let result_recorded_data_raw = unsafe { result_value.data.0.as_slice()? };
+                let mut result_recorded_data = Vec::with_capacity(result_recorded_data_raw.len());
+                for result_recorded_data_item_value in result_recorded_data_raw {
+                    let result_recorded_data_item = *result_recorded_data_item_value;
+                    let result_recorded_data_item_recorded = result_recorded_data_item;
+                    result_recorded_data.push(result_recorded_data_item_recorded);
                 }
-                let result_replay = OsPathReplay {
-                    encoding: result_replay_encoding,
-                    data: result_replay_data,
+                let result_recorded = OsPathReplay {
+                    encoding: result_recorded_encoding,
+                    data: result_recorded_data,
                 };
                 let payload = FsDirMkdtempReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9473,9 +9473,9 @@ fn destack_fs_dir_opendir_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsDirOpendirReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9525,38 +9525,39 @@ fn destack_fs_dir_readdir_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay_name_encoding = result_replay_item.name.encoding;
-                    let result_replay_item_replay_name_data_raw =
-                        unsafe { result_replay_item.name.data.0.as_slice()? };
-                    let mut result_replay_item_replay_name_data =
-                        Vec::with_capacity(result_replay_item_replay_name_data_raw.len());
-                    for result_replay_item_replay_name_data_item_value in
-                        result_replay_item_replay_name_data_raw
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded_name_encoding =
+                        result_recorded_item.name.encoding;
+                    let result_recorded_item_recorded_name_data_raw =
+                        unsafe { result_recorded_item.name.data.0.as_slice()? };
+                    let mut result_recorded_item_recorded_name_data =
+                        Vec::with_capacity(result_recorded_item_recorded_name_data_raw.len());
+                    for result_recorded_item_recorded_name_data_item_value in
+                        result_recorded_item_recorded_name_data_raw
                     {
-                        let result_replay_item_replay_name_data_item =
-                            *result_replay_item_replay_name_data_item_value;
-                        let result_replay_item_replay_name_data_item_replay =
-                            result_replay_item_replay_name_data_item;
-                        result_replay_item_replay_name_data
-                            .push(result_replay_item_replay_name_data_item_replay);
+                        let result_recorded_item_recorded_name_data_item =
+                            *result_recorded_item_recorded_name_data_item_value;
+                        let result_recorded_item_recorded_name_data_item_recorded =
+                            result_recorded_item_recorded_name_data_item;
+                        result_recorded_item_recorded_name_data
+                            .push(result_recorded_item_recorded_name_data_item_recorded);
                     }
-                    let result_replay_item_replay_name = OsPathReplay {
-                        encoding: result_replay_item_replay_name_encoding,
-                        data: result_replay_item_replay_name_data,
+                    let result_recorded_item_recorded_name = OsPathReplay {
+                        encoding: result_recorded_item_recorded_name_encoding,
+                        data: result_recorded_item_recorded_name_data,
                     };
-                    let result_replay_item_replay_kind = result_replay_item.kind;
-                    let result_replay_item_replay = DirentReplay {
-                        name: result_replay_item_replay_name,
-                        kind: result_replay_item_replay_kind,
+                    let result_recorded_item_recorded_kind = result_recorded_item.kind;
+                    let result_recorded_item_recorded = DirentReplay {
+                        name: result_recorded_item_recorded_name,
+                        kind: result_recorded_item_recorded_kind,
                     };
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = FsDirReaddirReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9637,34 +9638,37 @@ fn destack_fs_dir_readdir_next_replay(
                     }
                     *out
                 };
-                let result_replay_has_entry = result_value.has_entry;
-                let result_replay_entry_name_encoding = result_value.entry.name.encoding;
-                let result_replay_entry_name_data_raw =
+                let result_recorded_has_entry = result_value.has_entry;
+                let result_recorded_entry_name_encoding = result_value.entry.name.encoding;
+                let result_recorded_entry_name_data_raw =
                     unsafe { result_value.entry.name.data.0.as_slice()? };
-                let mut result_replay_entry_name_data =
-                    Vec::with_capacity(result_replay_entry_name_data_raw.len());
-                for result_replay_entry_name_data_item_value in result_replay_entry_name_data_raw {
-                    let result_replay_entry_name_data_item =
-                        *result_replay_entry_name_data_item_value;
-                    let result_replay_entry_name_data_item_replay =
-                        result_replay_entry_name_data_item;
-                    result_replay_entry_name_data.push(result_replay_entry_name_data_item_replay);
+                let mut result_recorded_entry_name_data =
+                    Vec::with_capacity(result_recorded_entry_name_data_raw.len());
+                for result_recorded_entry_name_data_item_value in
+                    result_recorded_entry_name_data_raw
+                {
+                    let result_recorded_entry_name_data_item =
+                        *result_recorded_entry_name_data_item_value;
+                    let result_recorded_entry_name_data_item_recorded =
+                        result_recorded_entry_name_data_item;
+                    result_recorded_entry_name_data
+                        .push(result_recorded_entry_name_data_item_recorded);
                 }
-                let result_replay_entry_name = OsPathReplay {
-                    encoding: result_replay_entry_name_encoding,
-                    data: result_replay_entry_name_data,
+                let result_recorded_entry_name = OsPathReplay {
+                    encoding: result_recorded_entry_name_encoding,
+                    data: result_recorded_entry_name_data,
                 };
-                let result_replay_entry_kind = result_value.entry.kind;
-                let result_replay_entry = DirentReplay {
-                    name: result_replay_entry_name,
-                    kind: result_replay_entry_kind,
+                let result_recorded_entry_kind = result_value.entry.kind;
+                let result_recorded_entry = DirentReplay {
+                    name: result_recorded_entry_name,
+                    kind: result_recorded_entry_kind,
                 };
-                let result_replay = DirentNextReplay {
-                    has_entry: result_replay_has_entry,
-                    entry: result_replay_entry,
+                let result_recorded = DirentNextReplay {
+                    has_entry: result_recorded_has_entry,
+                    entry: result_recorded_entry,
                 };
                 let payload = FsDirReaddirNextReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9735,9 +9739,9 @@ fn destack_fs_dir_rewinddir_replay(
         || unsafe { platform_native::destack_fs_rewinddir(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsDirRewinddirReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9771,9 +9775,9 @@ fn destack_fs_dir_rmdir_replay(context: &RuntimeCallContext, path: OsPath) -> Ru
         || unsafe { platform_native::destack_fs_rmdir(context, path) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsDirRmdirReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9810,9 +9814,9 @@ fn destack_fs_file_close_replay(
         || unsafe { platform_native::destack_fs_close(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsFileCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9864,9 +9868,9 @@ fn destack_fs_file_copy_file_range_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFileCopyFileRangeReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9916,9 +9920,9 @@ fn destack_fs_file_dup_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFileDupReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9969,9 +9973,9 @@ fn destack_fs_file_dup2_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFileDup2Replay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10023,9 +10027,9 @@ fn destack_fs_file_dup3_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFileDup3Replay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10071,9 +10075,9 @@ fn destack_fs_file_fadvise_replay(
         || unsafe { platform_native::destack_fs_fadvise(context, handle, offset, length, advice) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsFileFadviseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10113,9 +10117,9 @@ fn destack_fs_file_fallocate_replay(
         || unsafe { platform_native::destack_fs_fallocate(context, handle, offset, length, flags) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsFileFallocateReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10152,9 +10156,9 @@ fn destack_fs_file_fdatasync_replay(
         || unsafe { platform_native::destack_fs_fdatasync(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsFileFdatasyncReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10191,9 +10195,9 @@ fn destack_fs_file_fsync_replay(
         || unsafe { platform_native::destack_fs_fsync(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsFileFsyncReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10231,9 +10235,9 @@ fn destack_fs_file_ftruncate_replay(
         || unsafe { platform_native::destack_fs_ftruncate(context, handle, size) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsFileFtruncateReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10277,9 +10281,9 @@ fn destack_fs_file_get_fd_flags_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFileGetFdFlagsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10329,9 +10333,9 @@ fn destack_fs_file_get_status_flags_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFileGetStatusFlagsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10375,9 +10379,9 @@ fn destack_fs_file_lock_replay(
         || unsafe { platform_native::destack_fs_lock(context, handle, flags) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsFileLockReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10423,9 +10427,9 @@ fn destack_fs_file_open_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFileOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10478,9 +10482,9 @@ fn destack_fs_file_openat_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFileOpenatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10532,9 +10536,9 @@ fn destack_fs_file_openat2_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFileOpenat2Replay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10586,9 +10590,9 @@ fn destack_fs_file_pread_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFilePreadReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10640,9 +10644,9 @@ fn destack_fs_file_preadv_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFilePreadvReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10694,9 +10698,9 @@ fn destack_fs_file_pwrite_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFilePwriteReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10748,9 +10752,9 @@ fn destack_fs_file_pwritev_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFilePwritevReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10801,9 +10805,9 @@ fn destack_fs_file_read_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFileReadReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10854,9 +10858,9 @@ fn destack_fs_file_readv_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFileReadvReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10908,9 +10912,9 @@ fn destack_fs_file_seek_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFileSeekReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10965,9 +10969,9 @@ fn destack_fs_file_sendfile_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFileSendfileReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -11011,9 +11015,9 @@ fn destack_fs_file_set_fd_flags_replay(
         || unsafe { platform_native::destack_fs_set_fd_flags(context, handle, flags) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsFileSetFdFlagsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -11051,9 +11055,9 @@ fn destack_fs_file_set_status_flags_replay(
         || unsafe { platform_native::destack_fs_set_status_flags(context, handle, flags) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsFileSetStatusFlagsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -11095,9 +11099,9 @@ fn destack_fs_file_sync_file_range_replay(
         },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsFileSyncFileRangeReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -11134,9 +11138,9 @@ fn destack_fs_file_syncfs_replay(
         || unsafe { platform_native::destack_fs_syncfs(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsFileSyncfsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -11174,9 +11178,9 @@ fn destack_fs_file_truncate_replay(
         || unsafe { platform_native::destack_fs_truncate(context, path, size) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsFileTruncateReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -11221,9 +11225,9 @@ fn destack_fs_file_write_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFileWriteReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -11274,9 +11278,9 @@ fn destack_fs_file_writev_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFileWritevReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -11320,9 +11324,9 @@ fn destack_fs_mmap_madvise_replay(
         || unsafe { platform_native::destack_fs_madvise(context, mapping, advice) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsMmapMadviseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -11360,9 +11364,9 @@ fn destack_fs_mmap_mprotect_replay(
         || unsafe { platform_native::destack_fs_mprotect(context, mapping, prot) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsMmapMprotectReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -11400,9 +11404,9 @@ fn destack_fs_mmap_msync_replay(
         || unsafe { platform_native::destack_fs_msync(context, mapping, flags) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsMmapMsyncReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -11439,9 +11443,9 @@ fn destack_fs_mmap_munmap_replay(
         || unsafe { platform_native::destack_fs_munmap(context, mapping) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsMmapMunmapReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -11487,15 +11491,15 @@ fn destack_fs_mmap_anonymous_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay = result_replay_item;
-                    result_replay.push(result_replay_item_replay);
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = FsMmapAnonymousReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -11556,15 +11560,15 @@ fn destack_fs_mmap_file_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay = result_replay_item;
-                    result_replay.push(result_replay_item_replay);
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = FsMmapFileReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -11614,9 +11618,9 @@ fn destack_fs_path_copyfile_replay(
         || unsafe { platform_native::destack_fs_copyfile(context, from, to, flags) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsPathCopyfileReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -11654,9 +11658,9 @@ fn destack_fs_path_link_replay(
         || unsafe { platform_native::destack_fs_link(context, existingpath, newpath) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsPathLinkReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -11706,9 +11710,9 @@ fn destack_fs_path_linkat_replay(
         },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsPathLinkatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -11746,9 +11750,9 @@ fn destack_fs_path_mkfifo_replay(
         || unsafe { platform_native::destack_fs_mkfifo(context, path, mode) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsPathMkfifoReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -11787,9 +11791,9 @@ fn destack_fs_path_mkfifoat_replay(
         || unsafe { platform_native::destack_fs_mkfifoat(context, dir, path, mode) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsPathMkfifoatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -11828,9 +11832,9 @@ fn destack_fs_path_mknod_replay(
         || unsafe { platform_native::destack_fs_mknod(context, path, mode, device) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsPathMknodReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -11870,9 +11874,9 @@ fn destack_fs_path_mknodat_replay(
         || unsafe { platform_native::destack_fs_mknodat(context, dir, path, mode, device) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsPathMknodatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -11916,20 +11920,20 @@ fn destack_fs_path_readlink_replay(
                     }
                     *out
                 };
-                let result_replay_encoding = result_value.encoding;
-                let result_replay_data_raw = unsafe { result_value.data.0.as_slice()? };
-                let mut result_replay_data = Vec::with_capacity(result_replay_data_raw.len());
-                for result_replay_data_item_value in result_replay_data_raw {
-                    let result_replay_data_item = *result_replay_data_item_value;
-                    let result_replay_data_item_replay = result_replay_data_item;
-                    result_replay_data.push(result_replay_data_item_replay);
+                let result_recorded_encoding = result_value.encoding;
+                let result_recorded_data_raw = unsafe { result_value.data.0.as_slice()? };
+                let mut result_recorded_data = Vec::with_capacity(result_recorded_data_raw.len());
+                for result_recorded_data_item_value in result_recorded_data_raw {
+                    let result_recorded_data_item = *result_recorded_data_item_value;
+                    let result_recorded_data_item_recorded = result_recorded_data_item;
+                    result_recorded_data.push(result_recorded_data_item_recorded);
                 }
-                let result_replay = OsPathReplay {
-                    encoding: result_replay_encoding,
-                    data: result_replay_data,
+                let result_recorded = OsPathReplay {
+                    encoding: result_recorded_encoding,
+                    data: result_recorded_data,
                 };
                 let payload = FsPathReadlinkReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -11994,20 +11998,20 @@ fn destack_fs_path_readlinkat_replay(
                     }
                     *out
                 };
-                let result_replay_encoding = result_value.encoding;
-                let result_replay_data_raw = unsafe { result_value.data.0.as_slice()? };
-                let mut result_replay_data = Vec::with_capacity(result_replay_data_raw.len());
-                for result_replay_data_item_value in result_replay_data_raw {
-                    let result_replay_data_item = *result_replay_data_item_value;
-                    let result_replay_data_item_replay = result_replay_data_item;
-                    result_replay_data.push(result_replay_data_item_replay);
+                let result_recorded_encoding = result_value.encoding;
+                let result_recorded_data_raw = unsafe { result_value.data.0.as_slice()? };
+                let mut result_recorded_data = Vec::with_capacity(result_recorded_data_raw.len());
+                for result_recorded_data_item_value in result_recorded_data_raw {
+                    let result_recorded_data_item = *result_recorded_data_item_value;
+                    let result_recorded_data_item_recorded = result_recorded_data_item;
+                    result_recorded_data.push(result_recorded_data_item_recorded);
                 }
-                let result_replay = OsPathReplay {
-                    encoding: result_replay_encoding,
-                    data: result_replay_data,
+                let result_recorded = OsPathReplay {
+                    encoding: result_recorded_encoding,
+                    data: result_recorded_data,
                 };
                 let payload = FsPathReadlinkatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -12071,20 +12075,20 @@ fn destack_fs_path_realpath_replay(
                     }
                     *out
                 };
-                let result_replay_encoding = result_value.encoding;
-                let result_replay_data_raw = unsafe { result_value.data.0.as_slice()? };
-                let mut result_replay_data = Vec::with_capacity(result_replay_data_raw.len());
-                for result_replay_data_item_value in result_replay_data_raw {
-                    let result_replay_data_item = *result_replay_data_item_value;
-                    let result_replay_data_item_replay = result_replay_data_item;
-                    result_replay_data.push(result_replay_data_item_replay);
+                let result_recorded_encoding = result_value.encoding;
+                let result_recorded_data_raw = unsafe { result_value.data.0.as_slice()? };
+                let mut result_recorded_data = Vec::with_capacity(result_recorded_data_raw.len());
+                for result_recorded_data_item_value in result_recorded_data_raw {
+                    let result_recorded_data_item = *result_recorded_data_item_value;
+                    let result_recorded_data_item_recorded = result_recorded_data_item;
+                    result_recorded_data.push(result_recorded_data_item_recorded);
                 }
-                let result_replay = OsPathReplay {
-                    encoding: result_replay_encoding,
-                    data: result_replay_data,
+                let result_recorded = OsPathReplay {
+                    encoding: result_recorded_encoding,
+                    data: result_recorded_data,
                 };
                 let payload = FsPathRealpathReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -12142,9 +12146,9 @@ fn destack_fs_path_rename_replay(
         || unsafe { platform_native::destack_fs_rename(context, from, to) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsPathRenameReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -12184,9 +12188,9 @@ fn destack_fs_path_renameat_replay(
         || unsafe { platform_native::destack_fs_renameat(context, fromdir, from, todir, to) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsPathRenameatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -12229,9 +12233,9 @@ fn destack_fs_path_renameat2_replay(
         },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsPathRenameat2Replay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -12270,9 +12274,9 @@ fn destack_fs_path_symlink_replay(
         || unsafe { platform_native::destack_fs_symlink(context, target, path, kind) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsPathSymlinkReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -12312,9 +12316,9 @@ fn destack_fs_path_symlinkat_replay(
         || unsafe { platform_native::destack_fs_symlinkat(context, target, dir, path, kind) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsPathSymlinkatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -12348,9 +12352,9 @@ fn destack_fs_path_unlink_replay(context: &RuntimeCallContext, path: OsPath) -> 
         || unsafe { platform_native::destack_fs_unlink(context, path) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsPathUnlinkReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -12389,9 +12393,9 @@ fn destack_fs_path_unlinkat_replay(
         || unsafe { platform_native::destack_fs_unlinkat(context, dir, path, flags) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsPathUnlinkatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -12435,38 +12439,38 @@ fn destack_fs_stat_fstat_replay(
                     }
                     *out
                 };
-                let result_replay_dev = result_value.dev;
-                let result_replay_ino = result_value.ino;
-                let result_replay_mode = result_value.mode;
-                let result_replay_nlink = result_value.nlink;
-                let result_replay_uid = result_value.uid;
-                let result_replay_gid = result_value.gid;
-                let result_replay_rdev = result_value.rdev;
-                let result_replay_size = result_value.size;
-                let result_replay_blksize = result_value.blksize;
-                let result_replay_blocks = result_value.blocks;
-                let result_replay_atime_ns = result_value.atime_ns;
-                let result_replay_mtime_ns = result_value.mtime_ns;
-                let result_replay_ctime_ns = result_value.ctime_ns;
-                let result_replay_birthtime_ns = result_value.birthtime_ns;
-                let result_replay = Stat {
-                    dev: result_replay_dev,
-                    ino: result_replay_ino,
-                    mode: result_replay_mode,
-                    nlink: result_replay_nlink,
-                    uid: result_replay_uid,
-                    gid: result_replay_gid,
-                    rdev: result_replay_rdev,
-                    size: result_replay_size,
-                    blksize: result_replay_blksize,
-                    blocks: result_replay_blocks,
-                    atime_ns: result_replay_atime_ns,
-                    mtime_ns: result_replay_mtime_ns,
-                    ctime_ns: result_replay_ctime_ns,
-                    birthtime_ns: result_replay_birthtime_ns,
+                let result_recorded_dev = result_value.dev;
+                let result_recorded_ino = result_value.ino;
+                let result_recorded_mode = result_value.mode;
+                let result_recorded_nlink = result_value.nlink;
+                let result_recorded_uid = result_value.uid;
+                let result_recorded_gid = result_value.gid;
+                let result_recorded_rdev = result_value.rdev;
+                let result_recorded_size = result_value.size;
+                let result_recorded_blksize = result_value.blksize;
+                let result_recorded_blocks = result_value.blocks;
+                let result_recorded_atime_ns = result_value.atime_ns;
+                let result_recorded_mtime_ns = result_value.mtime_ns;
+                let result_recorded_ctime_ns = result_value.ctime_ns;
+                let result_recorded_birthtime_ns = result_value.birthtime_ns;
+                let result_recorded = Stat {
+                    dev: result_recorded_dev,
+                    ino: result_recorded_ino,
+                    mode: result_recorded_mode,
+                    nlink: result_recorded_nlink,
+                    uid: result_recorded_uid,
+                    gid: result_recorded_gid,
+                    rdev: result_recorded_rdev,
+                    size: result_recorded_size,
+                    blksize: result_recorded_blksize,
+                    blocks: result_recorded_blocks,
+                    atime_ns: result_recorded_atime_ns,
+                    mtime_ns: result_recorded_mtime_ns,
+                    ctime_ns: result_recorded_ctime_ns,
+                    birthtime_ns: result_recorded_birthtime_ns,
                 };
                 let payload = FsStatFstatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -12545,30 +12549,30 @@ fn destack_fs_stat_fstatfs_replay(
                     }
                     *out
                 };
-                let result_replay_bsize = result_value.bsize;
-                let result_replay_frsize = result_value.frsize;
-                let result_replay_blocks = result_value.blocks;
-                let result_replay_bfree = result_value.bfree;
-                let result_replay_bavail = result_value.bavail;
-                let result_replay_files = result_value.files;
-                let result_replay_ffree = result_value.ffree;
-                let result_replay_fsid = result_value.fsid;
-                let result_replay_flags = result_value.flags;
-                let result_replay_namelen = result_value.namelen;
-                let result_replay = StatFs {
-                    bsize: result_replay_bsize,
-                    frsize: result_replay_frsize,
-                    blocks: result_replay_blocks,
-                    bfree: result_replay_bfree,
-                    bavail: result_replay_bavail,
-                    files: result_replay_files,
-                    ffree: result_replay_ffree,
-                    fsid: result_replay_fsid,
-                    flags: result_replay_flags,
-                    namelen: result_replay_namelen,
+                let result_recorded_bsize = result_value.bsize;
+                let result_recorded_frsize = result_value.frsize;
+                let result_recorded_blocks = result_value.blocks;
+                let result_recorded_bfree = result_value.bfree;
+                let result_recorded_bavail = result_value.bavail;
+                let result_recorded_files = result_value.files;
+                let result_recorded_ffree = result_value.ffree;
+                let result_recorded_fsid = result_value.fsid;
+                let result_recorded_flags = result_value.flags;
+                let result_recorded_namelen = result_value.namelen;
+                let result_recorded = StatFs {
+                    bsize: result_recorded_bsize,
+                    frsize: result_recorded_frsize,
+                    blocks: result_recorded_blocks,
+                    bfree: result_recorded_bfree,
+                    bavail: result_recorded_bavail,
+                    files: result_recorded_files,
+                    ffree: result_recorded_ffree,
+                    fsid: result_recorded_fsid,
+                    flags: result_recorded_flags,
+                    namelen: result_recorded_namelen,
                 };
                 let payload = FsStatFstatfsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -12639,38 +12643,38 @@ fn destack_fs_stat_lstat_replay(
                     }
                     *out
                 };
-                let result_replay_dev = result_value.dev;
-                let result_replay_ino = result_value.ino;
-                let result_replay_mode = result_value.mode;
-                let result_replay_nlink = result_value.nlink;
-                let result_replay_uid = result_value.uid;
-                let result_replay_gid = result_value.gid;
-                let result_replay_rdev = result_value.rdev;
-                let result_replay_size = result_value.size;
-                let result_replay_blksize = result_value.blksize;
-                let result_replay_blocks = result_value.blocks;
-                let result_replay_atime_ns = result_value.atime_ns;
-                let result_replay_mtime_ns = result_value.mtime_ns;
-                let result_replay_ctime_ns = result_value.ctime_ns;
-                let result_replay_birthtime_ns = result_value.birthtime_ns;
-                let result_replay = Stat {
-                    dev: result_replay_dev,
-                    ino: result_replay_ino,
-                    mode: result_replay_mode,
-                    nlink: result_replay_nlink,
-                    uid: result_replay_uid,
-                    gid: result_replay_gid,
-                    rdev: result_replay_rdev,
-                    size: result_replay_size,
-                    blksize: result_replay_blksize,
-                    blocks: result_replay_blocks,
-                    atime_ns: result_replay_atime_ns,
-                    mtime_ns: result_replay_mtime_ns,
-                    ctime_ns: result_replay_ctime_ns,
-                    birthtime_ns: result_replay_birthtime_ns,
+                let result_recorded_dev = result_value.dev;
+                let result_recorded_ino = result_value.ino;
+                let result_recorded_mode = result_value.mode;
+                let result_recorded_nlink = result_value.nlink;
+                let result_recorded_uid = result_value.uid;
+                let result_recorded_gid = result_value.gid;
+                let result_recorded_rdev = result_value.rdev;
+                let result_recorded_size = result_value.size;
+                let result_recorded_blksize = result_value.blksize;
+                let result_recorded_blocks = result_value.blocks;
+                let result_recorded_atime_ns = result_value.atime_ns;
+                let result_recorded_mtime_ns = result_value.mtime_ns;
+                let result_recorded_ctime_ns = result_value.ctime_ns;
+                let result_recorded_birthtime_ns = result_value.birthtime_ns;
+                let result_recorded = Stat {
+                    dev: result_recorded_dev,
+                    ino: result_recorded_ino,
+                    mode: result_recorded_mode,
+                    nlink: result_recorded_nlink,
+                    uid: result_recorded_uid,
+                    gid: result_recorded_gid,
+                    rdev: result_recorded_rdev,
+                    size: result_recorded_size,
+                    blksize: result_recorded_blksize,
+                    blocks: result_recorded_blocks,
+                    atime_ns: result_recorded_atime_ns,
+                    mtime_ns: result_recorded_mtime_ns,
+                    ctime_ns: result_recorded_ctime_ns,
+                    birthtime_ns: result_recorded_birthtime_ns,
                 };
                 let payload = FsStatLstatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -12749,38 +12753,38 @@ fn destack_fs_stat_stat_replay(
                     }
                     *out
                 };
-                let result_replay_dev = result_value.dev;
-                let result_replay_ino = result_value.ino;
-                let result_replay_mode = result_value.mode;
-                let result_replay_nlink = result_value.nlink;
-                let result_replay_uid = result_value.uid;
-                let result_replay_gid = result_value.gid;
-                let result_replay_rdev = result_value.rdev;
-                let result_replay_size = result_value.size;
-                let result_replay_blksize = result_value.blksize;
-                let result_replay_blocks = result_value.blocks;
-                let result_replay_atime_ns = result_value.atime_ns;
-                let result_replay_mtime_ns = result_value.mtime_ns;
-                let result_replay_ctime_ns = result_value.ctime_ns;
-                let result_replay_birthtime_ns = result_value.birthtime_ns;
-                let result_replay = Stat {
-                    dev: result_replay_dev,
-                    ino: result_replay_ino,
-                    mode: result_replay_mode,
-                    nlink: result_replay_nlink,
-                    uid: result_replay_uid,
-                    gid: result_replay_gid,
-                    rdev: result_replay_rdev,
-                    size: result_replay_size,
-                    blksize: result_replay_blksize,
-                    blocks: result_replay_blocks,
-                    atime_ns: result_replay_atime_ns,
-                    mtime_ns: result_replay_mtime_ns,
-                    ctime_ns: result_replay_ctime_ns,
-                    birthtime_ns: result_replay_birthtime_ns,
+                let result_recorded_dev = result_value.dev;
+                let result_recorded_ino = result_value.ino;
+                let result_recorded_mode = result_value.mode;
+                let result_recorded_nlink = result_value.nlink;
+                let result_recorded_uid = result_value.uid;
+                let result_recorded_gid = result_value.gid;
+                let result_recorded_rdev = result_value.rdev;
+                let result_recorded_size = result_value.size;
+                let result_recorded_blksize = result_value.blksize;
+                let result_recorded_blocks = result_value.blocks;
+                let result_recorded_atime_ns = result_value.atime_ns;
+                let result_recorded_mtime_ns = result_value.mtime_ns;
+                let result_recorded_ctime_ns = result_value.ctime_ns;
+                let result_recorded_birthtime_ns = result_value.birthtime_ns;
+                let result_recorded = Stat {
+                    dev: result_recorded_dev,
+                    ino: result_recorded_ino,
+                    mode: result_recorded_mode,
+                    nlink: result_recorded_nlink,
+                    uid: result_recorded_uid,
+                    gid: result_recorded_gid,
+                    rdev: result_recorded_rdev,
+                    size: result_recorded_size,
+                    blksize: result_recorded_blksize,
+                    blocks: result_recorded_blocks,
+                    atime_ns: result_recorded_atime_ns,
+                    mtime_ns: result_recorded_mtime_ns,
+                    ctime_ns: result_recorded_ctime_ns,
+                    birthtime_ns: result_recorded_birthtime_ns,
                 };
                 let payload = FsStatStatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -12861,38 +12865,38 @@ fn destack_fs_stat_statat_replay(
                     }
                     *out
                 };
-                let result_replay_dev = result_value.dev;
-                let result_replay_ino = result_value.ino;
-                let result_replay_mode = result_value.mode;
-                let result_replay_nlink = result_value.nlink;
-                let result_replay_uid = result_value.uid;
-                let result_replay_gid = result_value.gid;
-                let result_replay_rdev = result_value.rdev;
-                let result_replay_size = result_value.size;
-                let result_replay_blksize = result_value.blksize;
-                let result_replay_blocks = result_value.blocks;
-                let result_replay_atime_ns = result_value.atime_ns;
-                let result_replay_mtime_ns = result_value.mtime_ns;
-                let result_replay_ctime_ns = result_value.ctime_ns;
-                let result_replay_birthtime_ns = result_value.birthtime_ns;
-                let result_replay = Stat {
-                    dev: result_replay_dev,
-                    ino: result_replay_ino,
-                    mode: result_replay_mode,
-                    nlink: result_replay_nlink,
-                    uid: result_replay_uid,
-                    gid: result_replay_gid,
-                    rdev: result_replay_rdev,
-                    size: result_replay_size,
-                    blksize: result_replay_blksize,
-                    blocks: result_replay_blocks,
-                    atime_ns: result_replay_atime_ns,
-                    mtime_ns: result_replay_mtime_ns,
-                    ctime_ns: result_replay_ctime_ns,
-                    birthtime_ns: result_replay_birthtime_ns,
+                let result_recorded_dev = result_value.dev;
+                let result_recorded_ino = result_value.ino;
+                let result_recorded_mode = result_value.mode;
+                let result_recorded_nlink = result_value.nlink;
+                let result_recorded_uid = result_value.uid;
+                let result_recorded_gid = result_value.gid;
+                let result_recorded_rdev = result_value.rdev;
+                let result_recorded_size = result_value.size;
+                let result_recorded_blksize = result_value.blksize;
+                let result_recorded_blocks = result_value.blocks;
+                let result_recorded_atime_ns = result_value.atime_ns;
+                let result_recorded_mtime_ns = result_value.mtime_ns;
+                let result_recorded_ctime_ns = result_value.ctime_ns;
+                let result_recorded_birthtime_ns = result_value.birthtime_ns;
+                let result_recorded = Stat {
+                    dev: result_recorded_dev,
+                    ino: result_recorded_ino,
+                    mode: result_recorded_mode,
+                    nlink: result_recorded_nlink,
+                    uid: result_recorded_uid,
+                    gid: result_recorded_gid,
+                    rdev: result_recorded_rdev,
+                    size: result_recorded_size,
+                    blksize: result_recorded_blksize,
+                    blocks: result_recorded_blocks,
+                    atime_ns: result_recorded_atime_ns,
+                    mtime_ns: result_recorded_mtime_ns,
+                    ctime_ns: result_recorded_ctime_ns,
+                    birthtime_ns: result_recorded_birthtime_ns,
                 };
                 let payload = FsStatStatatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -12971,30 +12975,30 @@ fn destack_fs_stat_statfs_replay(
                     }
                     *out
                 };
-                let result_replay_bsize = result_value.bsize;
-                let result_replay_frsize = result_value.frsize;
-                let result_replay_blocks = result_value.blocks;
-                let result_replay_bfree = result_value.bfree;
-                let result_replay_bavail = result_value.bavail;
-                let result_replay_files = result_value.files;
-                let result_replay_ffree = result_value.ffree;
-                let result_replay_fsid = result_value.fsid;
-                let result_replay_flags = result_value.flags;
-                let result_replay_namelen = result_value.namelen;
-                let result_replay = StatFs {
-                    bsize: result_replay_bsize,
-                    frsize: result_replay_frsize,
-                    blocks: result_replay_blocks,
-                    bfree: result_replay_bfree,
-                    bavail: result_replay_bavail,
-                    files: result_replay_files,
-                    ffree: result_replay_ffree,
-                    fsid: result_replay_fsid,
-                    flags: result_replay_flags,
-                    namelen: result_replay_namelen,
+                let result_recorded_bsize = result_value.bsize;
+                let result_recorded_frsize = result_value.frsize;
+                let result_recorded_blocks = result_value.blocks;
+                let result_recorded_bfree = result_value.bfree;
+                let result_recorded_bavail = result_value.bavail;
+                let result_recorded_files = result_value.files;
+                let result_recorded_ffree = result_value.ffree;
+                let result_recorded_fsid = result_value.fsid;
+                let result_recorded_flags = result_value.flags;
+                let result_recorded_namelen = result_value.namelen;
+                let result_recorded = StatFs {
+                    bsize: result_recorded_bsize,
+                    frsize: result_recorded_frsize,
+                    blocks: result_recorded_blocks,
+                    bfree: result_recorded_bfree,
+                    bavail: result_recorded_bavail,
+                    files: result_recorded_files,
+                    ffree: result_recorded_ffree,
+                    fsid: result_recorded_fsid,
+                    flags: result_recorded_flags,
+                    namelen: result_recorded_namelen,
                 };
                 let payload = FsStatStatfsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13068,46 +13072,46 @@ fn destack_fs_stat_statx_replay(
                     }
                     *out
                 };
-                let result_replay_mask = result_value.mask;
-                let result_replay_blksize = result_value.blksize;
-                let result_replay_mount_id = result_value.mount_id;
-                let result_replay_dev_major = result_value.dev_major;
-                let result_replay_dev_minor = result_value.dev_minor;
-                let result_replay_ino = result_value.ino;
-                let result_replay_mode = result_value.mode;
-                let result_replay_nlink = result_value.nlink;
-                let result_replay_uid = result_value.uid;
-                let result_replay_gid = result_value.gid;
-                let result_replay_rdev_major = result_value.rdev_major;
-                let result_replay_rdev_minor = result_value.rdev_minor;
-                let result_replay_size = result_value.size;
-                let result_replay_blocks = result_value.blocks;
-                let result_replay_atime_ns = result_value.atime_ns;
-                let result_replay_btime_ns = result_value.btime_ns;
-                let result_replay_ctime_ns = result_value.ctime_ns;
-                let result_replay_mtime_ns = result_value.mtime_ns;
-                let result_replay = Statx {
-                    mask: result_replay_mask,
-                    blksize: result_replay_blksize,
-                    mount_id: result_replay_mount_id,
-                    dev_major: result_replay_dev_major,
-                    dev_minor: result_replay_dev_minor,
-                    ino: result_replay_ino,
-                    mode: result_replay_mode,
-                    nlink: result_replay_nlink,
-                    uid: result_replay_uid,
-                    gid: result_replay_gid,
-                    rdev_major: result_replay_rdev_major,
-                    rdev_minor: result_replay_rdev_minor,
-                    size: result_replay_size,
-                    blocks: result_replay_blocks,
-                    atime_ns: result_replay_atime_ns,
-                    btime_ns: result_replay_btime_ns,
-                    ctime_ns: result_replay_ctime_ns,
-                    mtime_ns: result_replay_mtime_ns,
+                let result_recorded_mask = result_value.mask;
+                let result_recorded_blksize = result_value.blksize;
+                let result_recorded_mount_id = result_value.mount_id;
+                let result_recorded_dev_major = result_value.dev_major;
+                let result_recorded_dev_minor = result_value.dev_minor;
+                let result_recorded_ino = result_value.ino;
+                let result_recorded_mode = result_value.mode;
+                let result_recorded_nlink = result_value.nlink;
+                let result_recorded_uid = result_value.uid;
+                let result_recorded_gid = result_value.gid;
+                let result_recorded_rdev_major = result_value.rdev_major;
+                let result_recorded_rdev_minor = result_value.rdev_minor;
+                let result_recorded_size = result_value.size;
+                let result_recorded_blocks = result_value.blocks;
+                let result_recorded_atime_ns = result_value.atime_ns;
+                let result_recorded_btime_ns = result_value.btime_ns;
+                let result_recorded_ctime_ns = result_value.ctime_ns;
+                let result_recorded_mtime_ns = result_value.mtime_ns;
+                let result_recorded = Statx {
+                    mask: result_recorded_mask,
+                    blksize: result_recorded_blksize,
+                    mount_id: result_recorded_mount_id,
+                    dev_major: result_recorded_dev_major,
+                    dev_minor: result_recorded_dev_minor,
+                    ino: result_recorded_ino,
+                    mode: result_recorded_mode,
+                    nlink: result_recorded_nlink,
+                    uid: result_recorded_uid,
+                    gid: result_recorded_gid,
+                    rdev_major: result_recorded_rdev_major,
+                    rdev_minor: result_recorded_rdev_minor,
+                    size: result_recorded_size,
+                    blocks: result_recorded_blocks,
+                    atime_ns: result_recorded_atime_ns,
+                    btime_ns: result_recorded_btime_ns,
+                    ctime_ns: result_recorded_ctime_ns,
+                    mtime_ns: result_recorded_mtime_ns,
                 };
                 let payload = FsStatStatxReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13195,9 +13199,9 @@ fn destack_fs_watch_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsWatchReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13240,9 +13244,9 @@ fn destack_fs_watch_close_replay(
         || unsafe { platform_native::destack_fs_watch_close(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsWatchCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13284,51 +13288,51 @@ fn destack_fs_watch_read_replay(
                     if out.is_null() { return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed()); }
                     *out
                 };
-                let result_replay_events_raw = unsafe { result_value.events.as_slice()? };
-                let mut result_replay_events = Vec::with_capacity(result_replay_events_raw.len());
-                for result_replay_events_item_value in result_replay_events_raw {
-                    let result_replay_events_item = *result_replay_events_item_value;
-                    let result_replay_events_item_replay_kind = result_replay_events_item.kind;
-                    let result_replay_events_item_replay_path_encoding = result_replay_events_item.path.encoding;
-                    let result_replay_events_item_replay_path_data_raw = unsafe { result_replay_events_item.path.data.0.as_slice()? };
-                    let mut result_replay_events_item_replay_path_data = Vec::with_capacity(result_replay_events_item_replay_path_data_raw.len());
-                    for result_replay_events_item_replay_path_data_item_value in result_replay_events_item_replay_path_data_raw {
-                        let result_replay_events_item_replay_path_data_item = *result_replay_events_item_replay_path_data_item_value;
-                        let result_replay_events_item_replay_path_data_item_replay = result_replay_events_item_replay_path_data_item;
-                        result_replay_events_item_replay_path_data.push(result_replay_events_item_replay_path_data_item_replay);
+                let result_recorded_events_raw = unsafe { result_value.events.as_slice()? };
+                let mut result_recorded_events = Vec::with_capacity(result_recorded_events_raw.len());
+                for result_recorded_events_item_value in result_recorded_events_raw {
+                    let result_recorded_events_item = *result_recorded_events_item_value;
+                    let result_recorded_events_item_recorded_kind = result_recorded_events_item.kind;
+                    let result_recorded_events_item_recorded_path_encoding = result_recorded_events_item.path.encoding;
+                    let result_recorded_events_item_recorded_path_data_raw = unsafe { result_recorded_events_item.path.data.0.as_slice()? };
+                    let mut result_recorded_events_item_recorded_path_data = Vec::with_capacity(result_recorded_events_item_recorded_path_data_raw.len());
+                    for result_recorded_events_item_recorded_path_data_item_value in result_recorded_events_item_recorded_path_data_raw {
+                        let result_recorded_events_item_recorded_path_data_item = *result_recorded_events_item_recorded_path_data_item_value;
+                        let result_recorded_events_item_recorded_path_data_item_recorded = result_recorded_events_item_recorded_path_data_item;
+                        result_recorded_events_item_recorded_path_data.push(result_recorded_events_item_recorded_path_data_item_recorded);
                     }
-                    let result_replay_events_item_replay_path = OsPathReplay {
-                        encoding: result_replay_events_item_replay_path_encoding,
-                        data: result_replay_events_item_replay_path_data,
+                    let result_recorded_events_item_recorded_path = OsPathReplay {
+                        encoding: result_recorded_events_item_recorded_path_encoding,
+                        data: result_recorded_events_item_recorded_path_data,
                     };
-                    let result_replay_events_item_replay_related_path_encoding = result_replay_events_item.related_path.encoding;
-                    let result_replay_events_item_replay_related_path_data_raw = unsafe { result_replay_events_item.related_path.data.0.as_slice()? };
-                    let mut result_replay_events_item_replay_related_path_data = Vec::with_capacity(result_replay_events_item_replay_related_path_data_raw.len());
-                    for result_replay_events_item_replay_related_path_data_item_value in result_replay_events_item_replay_related_path_data_raw {
-                        let result_replay_events_item_replay_related_path_data_item = *result_replay_events_item_replay_related_path_data_item_value;
-                        let result_replay_events_item_replay_related_path_data_item_replay = result_replay_events_item_replay_related_path_data_item;
-                        result_replay_events_item_replay_related_path_data.push(result_replay_events_item_replay_related_path_data_item_replay);
+                    let result_recorded_events_item_recorded_related_path_encoding = result_recorded_events_item.related_path.encoding;
+                    let result_recorded_events_item_recorded_related_path_data_raw = unsafe { result_recorded_events_item.related_path.data.0.as_slice()? };
+                    let mut result_recorded_events_item_recorded_related_path_data = Vec::with_capacity(result_recorded_events_item_recorded_related_path_data_raw.len());
+                    for result_recorded_events_item_recorded_related_path_data_item_value in result_recorded_events_item_recorded_related_path_data_raw {
+                        let result_recorded_events_item_recorded_related_path_data_item = *result_recorded_events_item_recorded_related_path_data_item_value;
+                        let result_recorded_events_item_recorded_related_path_data_item_recorded = result_recorded_events_item_recorded_related_path_data_item;
+                        result_recorded_events_item_recorded_related_path_data.push(result_recorded_events_item_recorded_related_path_data_item_recorded);
                     }
-                    let result_replay_events_item_replay_related_path = OsPathReplay {
-                        encoding: result_replay_events_item_replay_related_path_encoding,
-                        data: result_replay_events_item_replay_related_path_data,
+                    let result_recorded_events_item_recorded_related_path = OsPathReplay {
+                        encoding: result_recorded_events_item_recorded_related_path_encoding,
+                        data: result_recorded_events_item_recorded_related_path_data,
                     };
-                    let result_replay_events_item_replay_cookie = result_replay_events_item.cookie;
-                    let result_replay_events_item_replay = WatchEventReplay {
-                        kind: result_replay_events_item_replay_kind,
-                        path: result_replay_events_item_replay_path,
-                        related_path: result_replay_events_item_replay_related_path,
-                        cookie: result_replay_events_item_replay_cookie,
+                    let result_recorded_events_item_recorded_cookie = result_recorded_events_item.cookie;
+                    let result_recorded_events_item_recorded = WatchEventReplay {
+                        kind: result_recorded_events_item_recorded_kind,
+                        path: result_recorded_events_item_recorded_path,
+                        related_path: result_recorded_events_item_recorded_related_path,
+                        cookie: result_recorded_events_item_recorded_cookie,
                     };
-                    result_replay_events.push(result_replay_events_item_replay);
+                    result_recorded_events.push(result_recorded_events_item_recorded);
                 }
-                let result_replay_overflowed = result_value.overflowed;
-                let result_replay = WatchBatchReplay {
-                    events: result_replay_events,
-                    overflowed: result_replay_overflowed,
+                let result_recorded_overflowed = result_value.overflowed;
+                let result_recorded = WatchBatchReplay {
+                    events: result_recorded_events,
+                    overflowed: result_recorded_overflowed,
                 };
                 let payload = FsWatchReadReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13421,9 +13425,9 @@ fn destack_fs_watchat_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsWatchatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13474,15 +13478,15 @@ fn destack_fs_xattr_fgetxattr_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay = result_replay_item;
-                    result_replay.push(result_replay_item_replay);
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = FsXattrFgetxattrReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13538,15 +13542,15 @@ fn destack_fs_xattr_fgetxattr_bytes_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay = result_replay_item;
-                    result_replay.push(result_replay_item_replay);
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = FsXattrFgetxattrBytesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13601,16 +13605,16 @@ fn destack_fs_xattr_flistxattr_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay =
-                        unsafe { result_replay_item.as_str()? }.to_string();
-                    result_replay.push(result_replay_item_replay);
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded =
+                        unsafe { result_recorded_item.as_str()? }.to_string();
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = FsXattrFlistxattrReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13665,22 +13669,28 @@ fn destack_fs_xattr_flistxattr_bytes_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay_raw = unsafe { result_replay_item.as_slice()? };
-                    let mut result_replay_item_replay =
-                        Vec::with_capacity(result_replay_item_replay_raw.len());
-                    for result_replay_item_replay_item_value in result_replay_item_replay_raw {
-                        let result_replay_item_replay_item = *result_replay_item_replay_item_value;
-                        let result_replay_item_replay_item_replay = result_replay_item_replay_item;
-                        result_replay_item_replay.push(result_replay_item_replay_item_replay);
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded_raw =
+                        unsafe { result_recorded_item.as_slice()? };
+                    let mut result_recorded_item_recorded =
+                        Vec::with_capacity(result_recorded_item_recorded_raw.len());
+                    for result_recorded_item_recorded_item_value in
+                        result_recorded_item_recorded_raw
+                    {
+                        let result_recorded_item_recorded_item =
+                            *result_recorded_item_recorded_item_value;
+                        let result_recorded_item_recorded_item_recorded =
+                            result_recorded_item_recorded_item;
+                        result_recorded_item_recorded
+                            .push(result_recorded_item_recorded_item_recorded);
                     }
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = FsXattrFlistxattrBytesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13738,9 +13748,9 @@ fn destack_fs_xattr_fremovexattr_replay(
         || unsafe { platform_native::destack_fs_fremovexattr(context, handle, name) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsXattrFremovexattrReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13778,9 +13788,9 @@ fn destack_fs_xattr_fremovexattr_bytes_replay(
         || unsafe { platform_native::destack_fs_fremovexattr_bytes(context, handle, name) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsXattrFremovexattrBytesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13820,9 +13830,9 @@ fn destack_fs_xattr_fsetxattr_replay(
         || unsafe { platform_native::destack_fs_fsetxattr(context, handle, name, value, flags) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsXattrFsetxattrReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13864,9 +13874,9 @@ fn destack_fs_xattr_fsetxattr_bytes_replay(
         },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsXattrFsetxattrBytesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13911,15 +13921,15 @@ fn destack_fs_xattr_getxattr_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay = result_replay_item;
-                    result_replay.push(result_replay_item_replay);
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = FsXattrGetxattrReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -13975,15 +13985,15 @@ fn destack_fs_xattr_getxattr_bytes_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay = result_replay_item;
-                    result_replay.push(result_replay_item_replay);
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = FsXattrGetxattrBytesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -14039,15 +14049,15 @@ fn destack_fs_xattr_lgetxattr_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay = result_replay_item;
-                    result_replay.push(result_replay_item_replay);
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = FsXattrLgetxattrReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -14103,15 +14113,15 @@ fn destack_fs_xattr_lgetxattr_bytes_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay = result_replay_item;
-                    result_replay.push(result_replay_item_replay);
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = FsXattrLgetxattrBytesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -14166,16 +14176,16 @@ fn destack_fs_xattr_listxattr_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay =
-                        unsafe { result_replay_item.as_str()? }.to_string();
-                    result_replay.push(result_replay_item_replay);
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded =
+                        unsafe { result_recorded_item.as_str()? }.to_string();
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = FsXattrListxattrReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -14230,22 +14240,28 @@ fn destack_fs_xattr_listxattr_bytes_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay_raw = unsafe { result_replay_item.as_slice()? };
-                    let mut result_replay_item_replay =
-                        Vec::with_capacity(result_replay_item_replay_raw.len());
-                    for result_replay_item_replay_item_value in result_replay_item_replay_raw {
-                        let result_replay_item_replay_item = *result_replay_item_replay_item_value;
-                        let result_replay_item_replay_item_replay = result_replay_item_replay_item;
-                        result_replay_item_replay.push(result_replay_item_replay_item_replay);
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded_raw =
+                        unsafe { result_recorded_item.as_slice()? };
+                    let mut result_recorded_item_recorded =
+                        Vec::with_capacity(result_recorded_item_recorded_raw.len());
+                    for result_recorded_item_recorded_item_value in
+                        result_recorded_item_recorded_raw
+                    {
+                        let result_recorded_item_recorded_item =
+                            *result_recorded_item_recorded_item_value;
+                        let result_recorded_item_recorded_item_recorded =
+                            result_recorded_item_recorded_item;
+                        result_recorded_item_recorded
+                            .push(result_recorded_item_recorded_item_recorded);
                     }
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = FsXattrListxattrBytesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -14309,16 +14325,16 @@ fn destack_fs_xattr_llistxattr_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay =
-                        unsafe { result_replay_item.as_str()? }.to_string();
-                    result_replay.push(result_replay_item_replay);
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded =
+                        unsafe { result_recorded_item.as_str()? }.to_string();
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = FsXattrLlistxattrReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -14373,22 +14389,28 @@ fn destack_fs_xattr_llistxattr_bytes_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay_raw = unsafe { result_replay_item.as_slice()? };
-                    let mut result_replay_item_replay =
-                        Vec::with_capacity(result_replay_item_replay_raw.len());
-                    for result_replay_item_replay_item_value in result_replay_item_replay_raw {
-                        let result_replay_item_replay_item = *result_replay_item_replay_item_value;
-                        let result_replay_item_replay_item_replay = result_replay_item_replay_item;
-                        result_replay_item_replay.push(result_replay_item_replay_item_replay);
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded_raw =
+                        unsafe { result_recorded_item.as_slice()? };
+                    let mut result_recorded_item_recorded =
+                        Vec::with_capacity(result_recorded_item_recorded_raw.len());
+                    for result_recorded_item_recorded_item_value in
+                        result_recorded_item_recorded_raw
+                    {
+                        let result_recorded_item_recorded_item =
+                            *result_recorded_item_recorded_item_value;
+                        let result_recorded_item_recorded_item_recorded =
+                            result_recorded_item_recorded_item;
+                        result_recorded_item_recorded
+                            .push(result_recorded_item_recorded_item_recorded);
                     }
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = FsXattrLlistxattrBytesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -14446,9 +14468,9 @@ fn destack_fs_xattr_lremovexattr_replay(
         || unsafe { platform_native::destack_fs_lremovexattr(context, path, name) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsXattrLremovexattrReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -14486,9 +14508,9 @@ fn destack_fs_xattr_lremovexattr_bytes_replay(
         || unsafe { platform_native::destack_fs_lremovexattr_bytes(context, path, name) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsXattrLremovexattrBytesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -14528,9 +14550,9 @@ fn destack_fs_xattr_lsetxattr_replay(
         || unsafe { platform_native::destack_fs_lsetxattr(context, path, name, value, flags) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsXattrLsetxattrReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -14572,9 +14594,9 @@ fn destack_fs_xattr_lsetxattr_bytes_replay(
         },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsXattrLsetxattrBytesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -14612,9 +14634,9 @@ fn destack_fs_xattr_removexattr_replay(
         || unsafe { platform_native::destack_fs_removexattr(context, path, name) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsXattrRemovexattrReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -14652,9 +14674,9 @@ fn destack_fs_xattr_removexattr_bytes_replay(
         || unsafe { platform_native::destack_fs_removexattr_bytes(context, path, name) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsXattrRemovexattrBytesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -14694,9 +14716,9 @@ fn destack_fs_xattr_setxattr_replay(
         || unsafe { platform_native::destack_fs_setxattr(context, path, name, value, flags) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsXattrSetxattrReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -14736,9 +14758,9 @@ fn destack_fs_xattr_setxattr_bytes_replay(
         || unsafe { platform_native::destack_fs_setxattr_bytes(context, path, name, value, flags) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsXattrSetxattrBytesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16415,9 +16437,9 @@ fn destack_fs_attrs_access_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsAttrsAccessReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16461,9 +16483,9 @@ fn destack_fs_attrs_accessat_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsAttrsAccessatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16505,9 +16527,9 @@ fn destack_fs_attrs_chmod_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsAttrsChmodReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16550,9 +16572,9 @@ fn destack_fs_attrs_chown_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsAttrsChownReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16594,9 +16616,9 @@ fn destack_fs_attrs_fchmod_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsAttrsFchmodReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16640,9 +16662,9 @@ fn destack_fs_attrs_fchmodat_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsAttrsFchmodatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16685,9 +16707,9 @@ fn destack_fs_attrs_fchown_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsAttrsFchownReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16732,9 +16754,9 @@ fn destack_fs_attrs_fchownat_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsAttrsFchownatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16777,9 +16799,9 @@ fn destack_fs_attrs_futimes_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsAttrsFutimesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16822,9 +16844,9 @@ fn destack_fs_attrs_lutimes_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsAttrsLutimesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16871,9 +16893,9 @@ fn destack_fs_attrs_utimensat_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsAttrsUtimensatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16916,9 +16938,9 @@ fn destack_fs_attrs_utimes_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsAttrsUtimesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -16959,9 +16981,9 @@ fn destack_fs_dir_closedir_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsDirClosedirReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -17003,9 +17025,9 @@ fn destack_fs_dir_dirfd_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsDirDirfdReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -17050,9 +17072,9 @@ fn destack_fs_dir_mkdir_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsDirMkdirReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -17095,9 +17117,9 @@ fn destack_fs_dir_mkdirat_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsDirMkdiratReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -17139,15 +17161,15 @@ fn destack_fs_dir_mkdtemp_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_encoding = result_value.encoding;
-                let result_replay_data_inner = result_value.data.0.read_bytes(context)?;
-                let result_replay_data = result_replay_data_inner;
-                let result_replay = OsPathReplay {
-                    encoding: result_replay_encoding,
-                    data: result_replay_data,
+                let result_recorded_encoding = result_value.encoding;
+                let result_recorded_data_inner = result_value.data.0.read_bytes(context)?;
+                let result_recorded_data = result_recorded_data_inner;
+                let result_recorded = OsPathReplay {
+                    encoding: result_recorded_encoding,
+                    data: result_recorded_data,
                 };
                 let payload = FsDirMkdtempReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -17200,9 +17222,9 @@ fn destack_fs_dir_opendir_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsDirOpendirReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -17247,32 +17269,32 @@ fn destack_fs_dir_readdir_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_raw = result_value.raw_values(context)?;
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = {
-                        if result_replay_item_value.tag() != vm::ValueTag::Aggregate {
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_replay_item",
+                                "result_recorded_item",
                                 "item",
                             ))
                             .boxed());
                         }
                         let slots = context
-                            .aggregate_slots(result_replay_item_value)
+                            .aggregate_slots(result_recorded_item_value)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
                         if slots.len() != 2 {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_replay_item",
+                                "result_recorded_item",
                                 "expected 2 fields",
                             ))
                             .boxed());
                         }
-                        let result_replay_item_name = {
+                        let result_recorded_item_name = {
                             if slots[0].tag() != vm::ValueTag::Aggregate {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_type(
-                                        "result_replay_item_name",
+                                        "result_recorded_item_name",
                                         "name",
                                     ),
                                 )
@@ -17284,49 +17306,49 @@ fn destack_fs_dir_readdir_vm_replay(
                             if slots.len() != 2 {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
-                                        "result_replay_item_name",
+                                        "result_recorded_item_name",
                                         "expected 2 fields",
                                     ),
                                 )
                                 .boxed());
                             }
-                            let result_replay_item_name_encoding_raw = decode_uint8(
+                            let result_recorded_item_name_encoding_raw = decode_uint8(
                                 slots[0],
-                                "result_replay_item_name_encoding_raw",
+                                "result_recorded_item_name_encoding_raw",
                                 "encoding",
                             )?;
-                            let result_replay_item_name_encoding =
-                                match result_replay_item_name_encoding_raw {
+                            let result_recorded_item_name_encoding =
+                                match result_recorded_item_name_encoding_raw {
                                     1u8 => PathEncoding::Bytes,
                                     2u8 => PathEncoding::Utf16,
                                     _ => {
                                         return Err(RuntimeError::from(
                                             PlatformError::invalid_argument_value(
-                                                "result_replay_item_name_encoding",
+                                                "result_recorded_item_name_encoding",
                                                 "unknown PathEncoding value",
                                             ),
                                         )
                                         .boxed());
                                     }
                                 };
-                            let result_replay_item_name_data_inner = decode_array::<u8>(
+                            let result_recorded_item_name_data_inner = decode_array::<u8>(
                                 context,
                                 slots[1],
-                                "result_replay_item_name_data_inner",
+                                "result_recorded_item_name_data_inner",
                                 "data",
                             )?;
-                            let result_replay_item_name_data =
+                            let result_recorded_item_name_data =
                                 crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(
-                                    result_replay_item_name_data_inner,
+                                    result_recorded_item_name_data_inner,
                                 );
                             OsPathVm {
-                                encoding: result_replay_item_name_encoding,
-                                data: result_replay_item_name_data,
+                                encoding: result_recorded_item_name_encoding,
+                                data: result_recorded_item_name_data,
                             }
                         };
-                        let result_replay_item_kind_raw =
-                            decode_uint8(slots[1], "result_replay_item_kind_raw", "kind")?;
-                        let result_replay_item_kind = match result_replay_item_kind_raw {
+                        let result_recorded_item_kind_raw =
+                            decode_uint8(slots[1], "result_recorded_item_kind_raw", "kind")?;
+                        let result_recorded_item_kind = match result_recorded_item_kind_raw {
                             1u8 => DirentKind::File,
                             2u8 => DirentKind::Directory,
                             3u8 => DirentKind::Symlink,
@@ -17338,7 +17360,7 @@ fn destack_fs_dir_readdir_vm_replay(
                             _ => {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
-                                        "result_replay_item_kind",
+                                        "result_recorded_item_kind",
                                         "unknown DirentKind value",
                                     ),
                                 )
@@ -17346,28 +17368,29 @@ fn destack_fs_dir_readdir_vm_replay(
                             }
                         };
                         DirentVm {
-                            name: result_replay_item_name,
-                            kind: result_replay_item_kind,
+                            name: result_recorded_item_name,
+                            kind: result_recorded_item_kind,
                         }
                     };
-                    let result_replay_item_replay_name_encoding = result_replay_item.name.encoding;
-                    let result_replay_item_replay_name_data_inner =
-                        result_replay_item.name.data.0.read_bytes(context)?;
-                    let result_replay_item_replay_name_data =
-                        result_replay_item_replay_name_data_inner;
-                    let result_replay_item_replay_name = OsPathReplay {
-                        encoding: result_replay_item_replay_name_encoding,
-                        data: result_replay_item_replay_name_data,
+                    let result_recorded_item_recorded_name_encoding =
+                        result_recorded_item.name.encoding;
+                    let result_recorded_item_recorded_name_data_inner =
+                        result_recorded_item.name.data.0.read_bytes(context)?;
+                    let result_recorded_item_recorded_name_data =
+                        result_recorded_item_recorded_name_data_inner;
+                    let result_recorded_item_recorded_name = OsPathReplay {
+                        encoding: result_recorded_item_recorded_name_encoding,
+                        data: result_recorded_item_recorded_name_data,
                     };
-                    let result_replay_item_replay_kind = result_replay_item.kind;
-                    let result_replay_item_replay = DirentReplay {
-                        name: result_replay_item_replay_name,
-                        kind: result_replay_item_replay_kind,
+                    let result_recorded_item_recorded_kind = result_recorded_item.kind;
+                    let result_recorded_item_recorded = DirentReplay {
+                        name: result_recorded_item_recorded_name,
+                        kind: result_recorded_item_recorded_kind,
                     };
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = FsDirReaddirReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -17452,26 +17475,26 @@ fn destack_fs_dir_readdir_next_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_has_entry = result_value.has_entry;
-                let result_replay_entry_name_encoding = result_value.entry.name.encoding;
-                let result_replay_entry_name_data_inner =
+                let result_recorded_has_entry = result_value.has_entry;
+                let result_recorded_entry_name_encoding = result_value.entry.name.encoding;
+                let result_recorded_entry_name_data_inner =
                     result_value.entry.name.data.0.read_bytes(context)?;
-                let result_replay_entry_name_data = result_replay_entry_name_data_inner;
-                let result_replay_entry_name = OsPathReplay {
-                    encoding: result_replay_entry_name_encoding,
-                    data: result_replay_entry_name_data,
+                let result_recorded_entry_name_data = result_recorded_entry_name_data_inner;
+                let result_recorded_entry_name = OsPathReplay {
+                    encoding: result_recorded_entry_name_encoding,
+                    data: result_recorded_entry_name_data,
                 };
-                let result_replay_entry_kind = result_value.entry.kind;
-                let result_replay_entry = DirentReplay {
-                    name: result_replay_entry_name,
-                    kind: result_replay_entry_kind,
+                let result_recorded_entry_kind = result_value.entry.kind;
+                let result_recorded_entry = DirentReplay {
+                    name: result_recorded_entry_name,
+                    kind: result_recorded_entry_kind,
                 };
-                let result_replay = DirentNextReplay {
-                    has_entry: result_replay_has_entry,
-                    entry: result_replay_entry,
+                let result_recorded = DirentNextReplay {
+                    has_entry: result_recorded_has_entry,
+                    entry: result_recorded_entry,
                 };
                 let payload = FsDirReaddirNextReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -17535,9 +17558,9 @@ fn destack_fs_dir_rewinddir_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsDirRewinddirReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -17578,9 +17601,9 @@ fn destack_fs_dir_rmdir_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsDirRmdirReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -17621,9 +17644,9 @@ fn destack_fs_file_close_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsFileCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -17673,9 +17696,9 @@ fn destack_fs_file_copy_file_range_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFileCopyFileRangeReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -17720,9 +17743,9 @@ fn destack_fs_file_dup_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFileDupReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -17768,9 +17791,9 @@ fn destack_fs_file_dup2_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFileDup2Replay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -17817,9 +17840,9 @@ fn destack_fs_file_dup3_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFileDup3Replay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -17866,9 +17889,9 @@ fn destack_fs_file_fadvise_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsFileFadviseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -17914,9 +17937,9 @@ fn destack_fs_file_fallocate_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsFileFallocateReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -17957,9 +17980,9 @@ fn destack_fs_file_fdatasync_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsFileFdatasyncReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -18000,9 +18023,9 @@ fn destack_fs_file_fsync_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsFileFsyncReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -18044,9 +18067,9 @@ fn destack_fs_file_ftruncate_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsFileFtruncateReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -18088,9 +18111,9 @@ fn destack_fs_file_get_fd_flags_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFileGetFdFlagsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -18135,9 +18158,9 @@ fn destack_fs_file_get_status_flags_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFileGetStatusFlagsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -18182,9 +18205,9 @@ fn destack_fs_file_lock_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsFileLockReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -18228,9 +18251,9 @@ fn destack_fs_file_open_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFileOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -18278,9 +18301,9 @@ fn destack_fs_file_openat_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFileOpenatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -18327,9 +18350,9 @@ fn destack_fs_file_openat2_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFileOpenat2Replay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -18376,9 +18399,9 @@ fn destack_fs_file_pread_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFilePreadReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -18425,9 +18448,9 @@ fn destack_fs_file_preadv_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFilePreadvReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -18474,9 +18497,9 @@ fn destack_fs_file_pwrite_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFilePwriteReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -18523,9 +18546,9 @@ fn destack_fs_file_pwritev_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFilePwritevReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -18571,9 +18594,9 @@ fn destack_fs_file_read_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFileReadReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -18619,9 +18642,9 @@ fn destack_fs_file_readv_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFileReadvReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -18668,9 +18691,9 @@ fn destack_fs_file_seek_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFileSeekReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -18718,9 +18741,9 @@ fn destack_fs_file_sendfile_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFileSendfileReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -18765,9 +18788,9 @@ fn destack_fs_file_set_fd_flags_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsFileSetFdFlagsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -18809,9 +18832,9 @@ fn destack_fs_file_set_status_flags_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsFileSetStatusFlagsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -18857,9 +18880,9 @@ fn destack_fs_file_sync_file_range_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsFileSyncFileRangeReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -18900,9 +18923,9 @@ fn destack_fs_file_syncfs_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsFileSyncfsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -18944,9 +18967,9 @@ fn destack_fs_file_truncate_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsFileTruncateReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -18989,9 +19012,9 @@ fn destack_fs_file_write_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFileWriteReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -19037,9 +19060,9 @@ fn destack_fs_file_writev_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsFileWritevReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -19084,9 +19107,9 @@ fn destack_fs_mmap_madvise_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsMmapMadviseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -19128,9 +19151,9 @@ fn destack_fs_mmap_mprotect_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsMmapMprotectReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -19172,9 +19195,9 @@ fn destack_fs_mmap_msync_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsMmapMsyncReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -19215,9 +19238,9 @@ fn destack_fs_mmap_munmap_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsMmapMunmapReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -19261,9 +19284,9 @@ fn destack_fs_mmap_anonymous_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value.read_bytes(context)?;
+                let result_recorded = result_value.read_bytes(context)?;
                 let payload = FsMmapAnonymousReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -19314,9 +19337,9 @@ fn destack_fs_mmap_file_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value.read_bytes(context)?;
+                let result_recorded = result_value.read_bytes(context)?;
                 let payload = FsMmapFileReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -19362,9 +19385,9 @@ fn destack_fs_path_copyfile_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsPathCopyfileReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -19406,9 +19429,9 @@ fn destack_fs_path_link_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsPathLinkReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -19463,9 +19486,9 @@ fn destack_fs_path_linkat_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsPathLinkatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -19507,9 +19530,9 @@ fn destack_fs_path_mkfifo_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsPathMkfifoReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -19552,9 +19575,9 @@ fn destack_fs_path_mkfifoat_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsPathMkfifoatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -19597,9 +19620,9 @@ fn destack_fs_path_mknod_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsPathMknodReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -19643,9 +19666,9 @@ fn destack_fs_path_mknodat_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsPathMknodatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -19687,15 +19710,15 @@ fn destack_fs_path_readlink_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_encoding = result_value.encoding;
-                let result_replay_data_inner = result_value.data.0.read_bytes(context)?;
-                let result_replay_data = result_replay_data_inner;
-                let result_replay = OsPathReplay {
-                    encoding: result_replay_encoding,
-                    data: result_replay_data,
+                let result_recorded_encoding = result_value.encoding;
+                let result_recorded_data_inner = result_value.data.0.read_bytes(context)?;
+                let result_recorded_data = result_recorded_data_inner;
+                let result_recorded = OsPathReplay {
+                    encoding: result_recorded_encoding,
+                    data: result_recorded_data,
                 };
                 let payload = FsPathReadlinkReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -19749,15 +19772,15 @@ fn destack_fs_path_readlinkat_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_encoding = result_value.encoding;
-                let result_replay_data_inner = result_value.data.0.read_bytes(context)?;
-                let result_replay_data = result_replay_data_inner;
-                let result_replay = OsPathReplay {
-                    encoding: result_replay_encoding,
-                    data: result_replay_data,
+                let result_recorded_encoding = result_value.encoding;
+                let result_recorded_data_inner = result_value.data.0.read_bytes(context)?;
+                let result_recorded_data = result_recorded_data_inner;
+                let result_recorded = OsPathReplay {
+                    encoding: result_recorded_encoding,
+                    data: result_recorded_data,
                 };
                 let payload = FsPathReadlinkatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -19810,15 +19833,15 @@ fn destack_fs_path_realpath_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_encoding = result_value.encoding;
-                let result_replay_data_inner = result_value.data.0.read_bytes(context)?;
-                let result_replay_data = result_replay_data_inner;
-                let result_replay = OsPathReplay {
-                    encoding: result_replay_encoding,
-                    data: result_replay_data,
+                let result_recorded_encoding = result_value.encoding;
+                let result_recorded_data_inner = result_value.data.0.read_bytes(context)?;
+                let result_recorded_data = result_recorded_data_inner;
+                let result_recorded = OsPathReplay {
+                    encoding: result_recorded_encoding,
+                    data: result_recorded_data,
                 };
                 let payload = FsPathRealpathReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -19871,9 +19894,9 @@ fn destack_fs_path_rename_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsPathRenameReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -19917,9 +19940,9 @@ fn destack_fs_path_renameat_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsPathRenameatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -19966,9 +19989,9 @@ fn destack_fs_path_renameat2_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsPathRenameat2Replay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -20011,9 +20034,9 @@ fn destack_fs_path_symlink_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsPathSymlinkReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -20057,9 +20080,9 @@ fn destack_fs_path_symlinkat_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsPathSymlinkatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -20100,9 +20123,9 @@ fn destack_fs_path_unlink_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsPathUnlinkReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -20145,9 +20168,9 @@ fn destack_fs_path_unlinkat_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsPathUnlinkatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -20189,38 +20212,38 @@ fn destack_fs_stat_fstat_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_dev = result_value.dev;
-                let result_replay_ino = result_value.ino;
-                let result_replay_mode = result_value.mode;
-                let result_replay_nlink = result_value.nlink;
-                let result_replay_uid = result_value.uid;
-                let result_replay_gid = result_value.gid;
-                let result_replay_rdev = result_value.rdev;
-                let result_replay_size = result_value.size;
-                let result_replay_blksize = result_value.blksize;
-                let result_replay_blocks = result_value.blocks;
-                let result_replay_atime_ns = result_value.atime_ns;
-                let result_replay_mtime_ns = result_value.mtime_ns;
-                let result_replay_ctime_ns = result_value.ctime_ns;
-                let result_replay_birthtime_ns = result_value.birthtime_ns;
-                let result_replay = Stat {
-                    dev: result_replay_dev,
-                    ino: result_replay_ino,
-                    mode: result_replay_mode,
-                    nlink: result_replay_nlink,
-                    uid: result_replay_uid,
-                    gid: result_replay_gid,
-                    rdev: result_replay_rdev,
-                    size: result_replay_size,
-                    blksize: result_replay_blksize,
-                    blocks: result_replay_blocks,
-                    atime_ns: result_replay_atime_ns,
-                    mtime_ns: result_replay_mtime_ns,
-                    ctime_ns: result_replay_ctime_ns,
-                    birthtime_ns: result_replay_birthtime_ns,
+                let result_recorded_dev = result_value.dev;
+                let result_recorded_ino = result_value.ino;
+                let result_recorded_mode = result_value.mode;
+                let result_recorded_nlink = result_value.nlink;
+                let result_recorded_uid = result_value.uid;
+                let result_recorded_gid = result_value.gid;
+                let result_recorded_rdev = result_value.rdev;
+                let result_recorded_size = result_value.size;
+                let result_recorded_blksize = result_value.blksize;
+                let result_recorded_blocks = result_value.blocks;
+                let result_recorded_atime_ns = result_value.atime_ns;
+                let result_recorded_mtime_ns = result_value.mtime_ns;
+                let result_recorded_ctime_ns = result_value.ctime_ns;
+                let result_recorded_birthtime_ns = result_value.birthtime_ns;
+                let result_recorded = Stat {
+                    dev: result_recorded_dev,
+                    ino: result_recorded_ino,
+                    mode: result_recorded_mode,
+                    nlink: result_recorded_nlink,
+                    uid: result_recorded_uid,
+                    gid: result_recorded_gid,
+                    rdev: result_recorded_rdev,
+                    size: result_recorded_size,
+                    blksize: result_recorded_blksize,
+                    blocks: result_recorded_blocks,
+                    atime_ns: result_recorded_atime_ns,
+                    mtime_ns: result_recorded_mtime_ns,
+                    ctime_ns: result_recorded_ctime_ns,
+                    birthtime_ns: result_recorded_birthtime_ns,
                 };
                 let payload = FsStatFstatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -20294,30 +20317,30 @@ fn destack_fs_stat_fstatfs_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_bsize = result_value.bsize;
-                let result_replay_frsize = result_value.frsize;
-                let result_replay_blocks = result_value.blocks;
-                let result_replay_bfree = result_value.bfree;
-                let result_replay_bavail = result_value.bavail;
-                let result_replay_files = result_value.files;
-                let result_replay_ffree = result_value.ffree;
-                let result_replay_fsid = result_value.fsid;
-                let result_replay_flags = result_value.flags;
-                let result_replay_namelen = result_value.namelen;
-                let result_replay = StatFs {
-                    bsize: result_replay_bsize,
-                    frsize: result_replay_frsize,
-                    blocks: result_replay_blocks,
-                    bfree: result_replay_bfree,
-                    bavail: result_replay_bavail,
-                    files: result_replay_files,
-                    ffree: result_replay_ffree,
-                    fsid: result_replay_fsid,
-                    flags: result_replay_flags,
-                    namelen: result_replay_namelen,
+                let result_recorded_bsize = result_value.bsize;
+                let result_recorded_frsize = result_value.frsize;
+                let result_recorded_blocks = result_value.blocks;
+                let result_recorded_bfree = result_value.bfree;
+                let result_recorded_bavail = result_value.bavail;
+                let result_recorded_files = result_value.files;
+                let result_recorded_ffree = result_value.ffree;
+                let result_recorded_fsid = result_value.fsid;
+                let result_recorded_flags = result_value.flags;
+                let result_recorded_namelen = result_value.namelen;
+                let result_recorded = StatFs {
+                    bsize: result_recorded_bsize,
+                    frsize: result_recorded_frsize,
+                    blocks: result_recorded_blocks,
+                    bfree: result_recorded_bfree,
+                    bavail: result_recorded_bavail,
+                    files: result_recorded_files,
+                    ffree: result_recorded_ffree,
+                    fsid: result_recorded_fsid,
+                    flags: result_recorded_flags,
+                    namelen: result_recorded_namelen,
                 };
                 let payload = FsStatFstatfsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -20383,38 +20406,38 @@ fn destack_fs_stat_lstat_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_dev = result_value.dev;
-                let result_replay_ino = result_value.ino;
-                let result_replay_mode = result_value.mode;
-                let result_replay_nlink = result_value.nlink;
-                let result_replay_uid = result_value.uid;
-                let result_replay_gid = result_value.gid;
-                let result_replay_rdev = result_value.rdev;
-                let result_replay_size = result_value.size;
-                let result_replay_blksize = result_value.blksize;
-                let result_replay_blocks = result_value.blocks;
-                let result_replay_atime_ns = result_value.atime_ns;
-                let result_replay_mtime_ns = result_value.mtime_ns;
-                let result_replay_ctime_ns = result_value.ctime_ns;
-                let result_replay_birthtime_ns = result_value.birthtime_ns;
-                let result_replay = Stat {
-                    dev: result_replay_dev,
-                    ino: result_replay_ino,
-                    mode: result_replay_mode,
-                    nlink: result_replay_nlink,
-                    uid: result_replay_uid,
-                    gid: result_replay_gid,
-                    rdev: result_replay_rdev,
-                    size: result_replay_size,
-                    blksize: result_replay_blksize,
-                    blocks: result_replay_blocks,
-                    atime_ns: result_replay_atime_ns,
-                    mtime_ns: result_replay_mtime_ns,
-                    ctime_ns: result_replay_ctime_ns,
-                    birthtime_ns: result_replay_birthtime_ns,
+                let result_recorded_dev = result_value.dev;
+                let result_recorded_ino = result_value.ino;
+                let result_recorded_mode = result_value.mode;
+                let result_recorded_nlink = result_value.nlink;
+                let result_recorded_uid = result_value.uid;
+                let result_recorded_gid = result_value.gid;
+                let result_recorded_rdev = result_value.rdev;
+                let result_recorded_size = result_value.size;
+                let result_recorded_blksize = result_value.blksize;
+                let result_recorded_blocks = result_value.blocks;
+                let result_recorded_atime_ns = result_value.atime_ns;
+                let result_recorded_mtime_ns = result_value.mtime_ns;
+                let result_recorded_ctime_ns = result_value.ctime_ns;
+                let result_recorded_birthtime_ns = result_value.birthtime_ns;
+                let result_recorded = Stat {
+                    dev: result_recorded_dev,
+                    ino: result_recorded_ino,
+                    mode: result_recorded_mode,
+                    nlink: result_recorded_nlink,
+                    uid: result_recorded_uid,
+                    gid: result_recorded_gid,
+                    rdev: result_recorded_rdev,
+                    size: result_recorded_size,
+                    blksize: result_recorded_blksize,
+                    blocks: result_recorded_blocks,
+                    atime_ns: result_recorded_atime_ns,
+                    mtime_ns: result_recorded_mtime_ns,
+                    ctime_ns: result_recorded_ctime_ns,
+                    birthtime_ns: result_recorded_birthtime_ns,
                 };
                 let payload = FsStatLstatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -20488,38 +20511,38 @@ fn destack_fs_stat_stat_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_dev = result_value.dev;
-                let result_replay_ino = result_value.ino;
-                let result_replay_mode = result_value.mode;
-                let result_replay_nlink = result_value.nlink;
-                let result_replay_uid = result_value.uid;
-                let result_replay_gid = result_value.gid;
-                let result_replay_rdev = result_value.rdev;
-                let result_replay_size = result_value.size;
-                let result_replay_blksize = result_value.blksize;
-                let result_replay_blocks = result_value.blocks;
-                let result_replay_atime_ns = result_value.atime_ns;
-                let result_replay_mtime_ns = result_value.mtime_ns;
-                let result_replay_ctime_ns = result_value.ctime_ns;
-                let result_replay_birthtime_ns = result_value.birthtime_ns;
-                let result_replay = Stat {
-                    dev: result_replay_dev,
-                    ino: result_replay_ino,
-                    mode: result_replay_mode,
-                    nlink: result_replay_nlink,
-                    uid: result_replay_uid,
-                    gid: result_replay_gid,
-                    rdev: result_replay_rdev,
-                    size: result_replay_size,
-                    blksize: result_replay_blksize,
-                    blocks: result_replay_blocks,
-                    atime_ns: result_replay_atime_ns,
-                    mtime_ns: result_replay_mtime_ns,
-                    ctime_ns: result_replay_ctime_ns,
-                    birthtime_ns: result_replay_birthtime_ns,
+                let result_recorded_dev = result_value.dev;
+                let result_recorded_ino = result_value.ino;
+                let result_recorded_mode = result_value.mode;
+                let result_recorded_nlink = result_value.nlink;
+                let result_recorded_uid = result_value.uid;
+                let result_recorded_gid = result_value.gid;
+                let result_recorded_rdev = result_value.rdev;
+                let result_recorded_size = result_value.size;
+                let result_recorded_blksize = result_value.blksize;
+                let result_recorded_blocks = result_value.blocks;
+                let result_recorded_atime_ns = result_value.atime_ns;
+                let result_recorded_mtime_ns = result_value.mtime_ns;
+                let result_recorded_ctime_ns = result_value.ctime_ns;
+                let result_recorded_birthtime_ns = result_value.birthtime_ns;
+                let result_recorded = Stat {
+                    dev: result_recorded_dev,
+                    ino: result_recorded_ino,
+                    mode: result_recorded_mode,
+                    nlink: result_recorded_nlink,
+                    uid: result_recorded_uid,
+                    gid: result_recorded_gid,
+                    rdev: result_recorded_rdev,
+                    size: result_recorded_size,
+                    blksize: result_recorded_blksize,
+                    blocks: result_recorded_blocks,
+                    atime_ns: result_recorded_atime_ns,
+                    mtime_ns: result_recorded_mtime_ns,
+                    ctime_ns: result_recorded_ctime_ns,
+                    birthtime_ns: result_recorded_birthtime_ns,
                 };
                 let payload = FsStatStatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -20595,38 +20618,38 @@ fn destack_fs_stat_statat_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_dev = result_value.dev;
-                let result_replay_ino = result_value.ino;
-                let result_replay_mode = result_value.mode;
-                let result_replay_nlink = result_value.nlink;
-                let result_replay_uid = result_value.uid;
-                let result_replay_gid = result_value.gid;
-                let result_replay_rdev = result_value.rdev;
-                let result_replay_size = result_value.size;
-                let result_replay_blksize = result_value.blksize;
-                let result_replay_blocks = result_value.blocks;
-                let result_replay_atime_ns = result_value.atime_ns;
-                let result_replay_mtime_ns = result_value.mtime_ns;
-                let result_replay_ctime_ns = result_value.ctime_ns;
-                let result_replay_birthtime_ns = result_value.birthtime_ns;
-                let result_replay = Stat {
-                    dev: result_replay_dev,
-                    ino: result_replay_ino,
-                    mode: result_replay_mode,
-                    nlink: result_replay_nlink,
-                    uid: result_replay_uid,
-                    gid: result_replay_gid,
-                    rdev: result_replay_rdev,
-                    size: result_replay_size,
-                    blksize: result_replay_blksize,
-                    blocks: result_replay_blocks,
-                    atime_ns: result_replay_atime_ns,
-                    mtime_ns: result_replay_mtime_ns,
-                    ctime_ns: result_replay_ctime_ns,
-                    birthtime_ns: result_replay_birthtime_ns,
+                let result_recorded_dev = result_value.dev;
+                let result_recorded_ino = result_value.ino;
+                let result_recorded_mode = result_value.mode;
+                let result_recorded_nlink = result_value.nlink;
+                let result_recorded_uid = result_value.uid;
+                let result_recorded_gid = result_value.gid;
+                let result_recorded_rdev = result_value.rdev;
+                let result_recorded_size = result_value.size;
+                let result_recorded_blksize = result_value.blksize;
+                let result_recorded_blocks = result_value.blocks;
+                let result_recorded_atime_ns = result_value.atime_ns;
+                let result_recorded_mtime_ns = result_value.mtime_ns;
+                let result_recorded_ctime_ns = result_value.ctime_ns;
+                let result_recorded_birthtime_ns = result_value.birthtime_ns;
+                let result_recorded = Stat {
+                    dev: result_recorded_dev,
+                    ino: result_recorded_ino,
+                    mode: result_recorded_mode,
+                    nlink: result_recorded_nlink,
+                    uid: result_recorded_uid,
+                    gid: result_recorded_gid,
+                    rdev: result_recorded_rdev,
+                    size: result_recorded_size,
+                    blksize: result_recorded_blksize,
+                    blocks: result_recorded_blocks,
+                    atime_ns: result_recorded_atime_ns,
+                    mtime_ns: result_recorded_mtime_ns,
+                    ctime_ns: result_recorded_ctime_ns,
+                    birthtime_ns: result_recorded_birthtime_ns,
                 };
                 let payload = FsStatStatatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -20700,30 +20723,30 @@ fn destack_fs_stat_statfs_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_bsize = result_value.bsize;
-                let result_replay_frsize = result_value.frsize;
-                let result_replay_blocks = result_value.blocks;
-                let result_replay_bfree = result_value.bfree;
-                let result_replay_bavail = result_value.bavail;
-                let result_replay_files = result_value.files;
-                let result_replay_ffree = result_value.ffree;
-                let result_replay_fsid = result_value.fsid;
-                let result_replay_flags = result_value.flags;
-                let result_replay_namelen = result_value.namelen;
-                let result_replay = StatFs {
-                    bsize: result_replay_bsize,
-                    frsize: result_replay_frsize,
-                    blocks: result_replay_blocks,
-                    bfree: result_replay_bfree,
-                    bavail: result_replay_bavail,
-                    files: result_replay_files,
-                    ffree: result_replay_ffree,
-                    fsid: result_replay_fsid,
-                    flags: result_replay_flags,
-                    namelen: result_replay_namelen,
+                let result_recorded_bsize = result_value.bsize;
+                let result_recorded_frsize = result_value.frsize;
+                let result_recorded_blocks = result_value.blocks;
+                let result_recorded_bfree = result_value.bfree;
+                let result_recorded_bavail = result_value.bavail;
+                let result_recorded_files = result_value.files;
+                let result_recorded_ffree = result_value.ffree;
+                let result_recorded_fsid = result_value.fsid;
+                let result_recorded_flags = result_value.flags;
+                let result_recorded_namelen = result_value.namelen;
+                let result_recorded = StatFs {
+                    bsize: result_recorded_bsize,
+                    frsize: result_recorded_frsize,
+                    blocks: result_recorded_blocks,
+                    bfree: result_recorded_bfree,
+                    bavail: result_recorded_bavail,
+                    files: result_recorded_files,
+                    ffree: result_recorded_ffree,
+                    fsid: result_recorded_fsid,
+                    flags: result_recorded_flags,
+                    namelen: result_recorded_namelen,
                 };
                 let payload = FsStatStatfsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -20792,46 +20815,46 @@ fn destack_fs_stat_statx_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_mask = result_value.mask;
-                let result_replay_blksize = result_value.blksize;
-                let result_replay_mount_id = result_value.mount_id;
-                let result_replay_dev_major = result_value.dev_major;
-                let result_replay_dev_minor = result_value.dev_minor;
-                let result_replay_ino = result_value.ino;
-                let result_replay_mode = result_value.mode;
-                let result_replay_nlink = result_value.nlink;
-                let result_replay_uid = result_value.uid;
-                let result_replay_gid = result_value.gid;
-                let result_replay_rdev_major = result_value.rdev_major;
-                let result_replay_rdev_minor = result_value.rdev_minor;
-                let result_replay_size = result_value.size;
-                let result_replay_blocks = result_value.blocks;
-                let result_replay_atime_ns = result_value.atime_ns;
-                let result_replay_btime_ns = result_value.btime_ns;
-                let result_replay_ctime_ns = result_value.ctime_ns;
-                let result_replay_mtime_ns = result_value.mtime_ns;
-                let result_replay = Statx {
-                    mask: result_replay_mask,
-                    blksize: result_replay_blksize,
-                    mount_id: result_replay_mount_id,
-                    dev_major: result_replay_dev_major,
-                    dev_minor: result_replay_dev_minor,
-                    ino: result_replay_ino,
-                    mode: result_replay_mode,
-                    nlink: result_replay_nlink,
-                    uid: result_replay_uid,
-                    gid: result_replay_gid,
-                    rdev_major: result_replay_rdev_major,
-                    rdev_minor: result_replay_rdev_minor,
-                    size: result_replay_size,
-                    blocks: result_replay_blocks,
-                    atime_ns: result_replay_atime_ns,
-                    btime_ns: result_replay_btime_ns,
-                    ctime_ns: result_replay_ctime_ns,
-                    mtime_ns: result_replay_mtime_ns,
+                let result_recorded_mask = result_value.mask;
+                let result_recorded_blksize = result_value.blksize;
+                let result_recorded_mount_id = result_value.mount_id;
+                let result_recorded_dev_major = result_value.dev_major;
+                let result_recorded_dev_minor = result_value.dev_minor;
+                let result_recorded_ino = result_value.ino;
+                let result_recorded_mode = result_value.mode;
+                let result_recorded_nlink = result_value.nlink;
+                let result_recorded_uid = result_value.uid;
+                let result_recorded_gid = result_value.gid;
+                let result_recorded_rdev_major = result_value.rdev_major;
+                let result_recorded_rdev_minor = result_value.rdev_minor;
+                let result_recorded_size = result_value.size;
+                let result_recorded_blocks = result_value.blocks;
+                let result_recorded_atime_ns = result_value.atime_ns;
+                let result_recorded_btime_ns = result_value.btime_ns;
+                let result_recorded_ctime_ns = result_value.ctime_ns;
+                let result_recorded_mtime_ns = result_value.mtime_ns;
+                let result_recorded = Statx {
+                    mask: result_recorded_mask,
+                    blksize: result_recorded_blksize,
+                    mount_id: result_recorded_mount_id,
+                    dev_major: result_recorded_dev_major,
+                    dev_minor: result_recorded_dev_minor,
+                    ino: result_recorded_ino,
+                    mode: result_recorded_mode,
+                    nlink: result_recorded_nlink,
+                    uid: result_recorded_uid,
+                    gid: result_recorded_gid,
+                    rdev_major: result_recorded_rdev_major,
+                    rdev_minor: result_recorded_rdev_minor,
+                    size: result_recorded_size,
+                    blocks: result_recorded_blocks,
+                    atime_ns: result_recorded_atime_ns,
+                    btime_ns: result_recorded_btime_ns,
+                    ctime_ns: result_recorded_ctime_ns,
+                    mtime_ns: result_recorded_mtime_ns,
                 };
                 let payload = FsStatStatxReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -20914,9 +20937,9 @@ fn destack_fs_watch_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsWatchReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -20960,9 +20983,9 @@ fn destack_fs_watch_close_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsWatchCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -21004,31 +21027,32 @@ fn destack_fs_watch_read_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_events_raw = result_value.events.raw_values(context)?;
-                let mut result_replay_events = Vec::with_capacity(result_replay_events_raw.len());
-                for result_replay_events_item_value in result_replay_events_raw {
-                    let result_replay_events_item = {
-                        if result_replay_events_item_value.tag() != vm::ValueTag::Aggregate {
+                let result_recorded_events_raw = result_value.events.raw_values(context)?;
+                let mut result_recorded_events =
+                    Vec::with_capacity(result_recorded_events_raw.len());
+                for result_recorded_events_item_value in result_recorded_events_raw {
+                    let result_recorded_events_item = {
+                        if result_recorded_events_item_value.tag() != vm::ValueTag::Aggregate {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_replay_events_item",
+                                "result_recorded_events_item",
                                 "item",
                             ))
                             .boxed());
                         }
                         let slots = context
-                            .aggregate_slots(result_replay_events_item_value)
+                            .aggregate_slots(result_recorded_events_item_value)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
                         if slots.len() != 4 {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_replay_events_item",
+                                "result_recorded_events_item",
                                 "expected 4 fields",
                             ))
                             .boxed());
                         }
-                        let result_replay_events_item_kind_raw =
-                            decode_uint8(slots[0], "result_replay_events_item_kind_raw", "kind")?;
-                        let result_replay_events_item_kind =
-                            match result_replay_events_item_kind_raw {
+                        let result_recorded_events_item_kind_raw =
+                            decode_uint8(slots[0], "result_recorded_events_item_kind_raw", "kind")?;
+                        let result_recorded_events_item_kind =
+                            match result_recorded_events_item_kind_raw {
                                 1u8 => WatchEventKind::Create,
                                 2u8 => WatchEventKind::Remove,
                                 3u8 => WatchEventKind::Modify,
@@ -21038,18 +21062,18 @@ fn destack_fs_watch_read_vm_replay(
                                 _ => {
                                     return Err(RuntimeError::from(
                                         PlatformError::invalid_argument_value(
-                                            "result_replay_events_item_kind",
+                                            "result_recorded_events_item_kind",
                                             "unknown WatchEventKind value",
                                         ),
                                     )
                                     .boxed());
                                 }
                             };
-                        let result_replay_events_item_path = {
+                        let result_recorded_events_item_path = {
                             if slots[1].tag() != vm::ValueTag::Aggregate {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_type(
-                                        "result_replay_events_item_path",
+                                        "result_recorded_events_item_path",
                                         "path",
                                     ),
                                 )
@@ -21061,51 +21085,51 @@ fn destack_fs_watch_read_vm_replay(
                             if slots.len() != 2 {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
-                                        "result_replay_events_item_path",
+                                        "result_recorded_events_item_path",
                                         "expected 2 fields",
                                     ),
                                 )
                                 .boxed());
                             }
-                            let result_replay_events_item_path_encoding_raw = decode_uint8(
+                            let result_recorded_events_item_path_encoding_raw = decode_uint8(
                                 slots[0],
-                                "result_replay_events_item_path_encoding_raw",
+                                "result_recorded_events_item_path_encoding_raw",
                                 "encoding",
                             )?;
-                            let result_replay_events_item_path_encoding =
-                                match result_replay_events_item_path_encoding_raw {
+                            let result_recorded_events_item_path_encoding =
+                                match result_recorded_events_item_path_encoding_raw {
                                     1u8 => PathEncoding::Bytes,
                                     2u8 => PathEncoding::Utf16,
                                     _ => {
                                         return Err(RuntimeError::from(
                                             PlatformError::invalid_argument_value(
-                                                "result_replay_events_item_path_encoding",
+                                                "result_recorded_events_item_path_encoding",
                                                 "unknown PathEncoding value",
                                             ),
                                         )
                                         .boxed());
                                     }
                                 };
-                            let result_replay_events_item_path_data_inner = decode_array::<u8>(
+                            let result_recorded_events_item_path_data_inner = decode_array::<u8>(
                                 context,
                                 slots[1],
-                                "result_replay_events_item_path_data_inner",
+                                "result_recorded_events_item_path_data_inner",
                                 "data",
                             )?;
-                            let result_replay_events_item_path_data =
+                            let result_recorded_events_item_path_data =
                                 crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(
-                                    result_replay_events_item_path_data_inner,
+                                    result_recorded_events_item_path_data_inner,
                                 );
                             OsPathVm {
-                                encoding: result_replay_events_item_path_encoding,
-                                data: result_replay_events_item_path_data,
+                                encoding: result_recorded_events_item_path_encoding,
+                                data: result_recorded_events_item_path_data,
                             }
                         };
-                        let result_replay_events_item_related_path = {
+                        let result_recorded_events_item_related_path = {
                             if slots[2].tag() != vm::ValueTag::Aggregate {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_type(
-                                        "result_replay_events_item_related_path",
+                                        "result_recorded_events_item_related_path",
                                         "relatedPath",
                                     ),
                                 )
@@ -21117,97 +21141,107 @@ fn destack_fs_watch_read_vm_replay(
                             if slots.len() != 2 {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
-                                        "result_replay_events_item_related_path",
+                                        "result_recorded_events_item_related_path",
                                         "expected 2 fields",
                                     ),
                                 )
                                 .boxed());
                             }
-                            let result_replay_events_item_related_path_encoding_raw = decode_uint8(
-                                slots[0],
-                                "result_replay_events_item_related_path_encoding_raw",
-                                "encoding",
-                            )?;
-                            let result_replay_events_item_related_path_encoding =
-                                match result_replay_events_item_related_path_encoding_raw {
+                            let result_recorded_events_item_related_path_encoding_raw =
+                                decode_uint8(
+                                    slots[0],
+                                    "result_recorded_events_item_related_path_encoding_raw",
+                                    "encoding",
+                                )?;
+                            let result_recorded_events_item_related_path_encoding =
+                                match result_recorded_events_item_related_path_encoding_raw {
                                     1u8 => PathEncoding::Bytes,
                                     2u8 => PathEncoding::Utf16,
                                     _ => {
                                         return Err(RuntimeError::from(
                                             PlatformError::invalid_argument_value(
-                                                "result_replay_events_item_related_path_encoding",
+                                                "result_recorded_events_item_related_path_encoding",
                                                 "unknown PathEncoding value",
                                             ),
                                         )
                                         .boxed());
                                     }
                                 };
-                            let result_replay_events_item_related_path_data_inner =
+                            let result_recorded_events_item_related_path_data_inner =
                                 decode_array::<u8>(
                                     context,
                                     slots[1],
-                                    "result_replay_events_item_related_path_data_inner",
+                                    "result_recorded_events_item_related_path_data_inner",
                                     "data",
                                 )?;
-                            let result_replay_events_item_related_path_data =
+                            let result_recorded_events_item_related_path_data =
                                 crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(
-                                    result_replay_events_item_related_path_data_inner,
+                                    result_recorded_events_item_related_path_data_inner,
                                 );
                             OsPathVm {
-                                encoding: result_replay_events_item_related_path_encoding,
-                                data: result_replay_events_item_related_path_data,
+                                encoding: result_recorded_events_item_related_path_encoding,
+                                data: result_recorded_events_item_related_path_data,
                             }
                         };
-                        let result_replay_events_item_cookie =
-                            decode_uint64(slots[3], "result_replay_events_item_cookie", "cookie")?;
+                        let result_recorded_events_item_cookie = decode_uint64(
+                            slots[3],
+                            "result_recorded_events_item_cookie",
+                            "cookie",
+                        )?;
                         WatchEventVm {
-                            kind: result_replay_events_item_kind,
-                            path: result_replay_events_item_path,
-                            related_path: result_replay_events_item_related_path,
-                            cookie: result_replay_events_item_cookie,
+                            kind: result_recorded_events_item_kind,
+                            path: result_recorded_events_item_path,
+                            related_path: result_recorded_events_item_related_path,
+                            cookie: result_recorded_events_item_cookie,
                         }
                     };
-                    let result_replay_events_item_replay_kind = result_replay_events_item.kind;
-                    let result_replay_events_item_replay_path_encoding =
-                        result_replay_events_item.path.encoding;
-                    let result_replay_events_item_replay_path_data_inner =
-                        result_replay_events_item.path.data.0.read_bytes(context)?;
-                    let result_replay_events_item_replay_path_data =
-                        result_replay_events_item_replay_path_data_inner;
-                    let result_replay_events_item_replay_path = OsPathReplay {
-                        encoding: result_replay_events_item_replay_path_encoding,
-                        data: result_replay_events_item_replay_path_data,
+                    let result_recorded_events_item_recorded_kind =
+                        result_recorded_events_item.kind;
+                    let result_recorded_events_item_recorded_path_encoding =
+                        result_recorded_events_item.path.encoding;
+                    let result_recorded_events_item_recorded_path_data_inner =
+                        result_recorded_events_item
+                            .path
+                            .data
+                            .0
+                            .read_bytes(context)?;
+                    let result_recorded_events_item_recorded_path_data =
+                        result_recorded_events_item_recorded_path_data_inner;
+                    let result_recorded_events_item_recorded_path = OsPathReplay {
+                        encoding: result_recorded_events_item_recorded_path_encoding,
+                        data: result_recorded_events_item_recorded_path_data,
                     };
-                    let result_replay_events_item_replay_related_path_encoding =
-                        result_replay_events_item.related_path.encoding;
-                    let result_replay_events_item_replay_related_path_data_inner =
-                        result_replay_events_item
+                    let result_recorded_events_item_recorded_related_path_encoding =
+                        result_recorded_events_item.related_path.encoding;
+                    let result_recorded_events_item_recorded_related_path_data_inner =
+                        result_recorded_events_item
                             .related_path
                             .data
                             .0
                             .read_bytes(context)?;
-                    let result_replay_events_item_replay_related_path_data =
-                        result_replay_events_item_replay_related_path_data_inner;
-                    let result_replay_events_item_replay_related_path = OsPathReplay {
-                        encoding: result_replay_events_item_replay_related_path_encoding,
-                        data: result_replay_events_item_replay_related_path_data,
+                    let result_recorded_events_item_recorded_related_path_data =
+                        result_recorded_events_item_recorded_related_path_data_inner;
+                    let result_recorded_events_item_recorded_related_path = OsPathReplay {
+                        encoding: result_recorded_events_item_recorded_related_path_encoding,
+                        data: result_recorded_events_item_recorded_related_path_data,
                     };
-                    let result_replay_events_item_replay_cookie = result_replay_events_item.cookie;
-                    let result_replay_events_item_replay = WatchEventReplay {
-                        kind: result_replay_events_item_replay_kind,
-                        path: result_replay_events_item_replay_path,
-                        related_path: result_replay_events_item_replay_related_path,
-                        cookie: result_replay_events_item_replay_cookie,
+                    let result_recorded_events_item_recorded_cookie =
+                        result_recorded_events_item.cookie;
+                    let result_recorded_events_item_recorded = WatchEventReplay {
+                        kind: result_recorded_events_item_recorded_kind,
+                        path: result_recorded_events_item_recorded_path,
+                        related_path: result_recorded_events_item_recorded_related_path,
+                        cookie: result_recorded_events_item_recorded_cookie,
                     };
-                    result_replay_events.push(result_replay_events_item_replay);
+                    result_recorded_events.push(result_recorded_events_item_recorded);
                 }
-                let result_replay_overflowed = result_value.overflowed;
-                let result_replay = WatchBatchReplay {
-                    events: result_replay_events,
-                    overflowed: result_replay_overflowed,
+                let result_recorded_overflowed = result_value.overflowed;
+                let result_recorded = WatchBatchReplay {
+                    events: result_recorded_events,
+                    overflowed: result_recorded_overflowed,
                 };
                 let payload = FsWatchReadReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -21335,9 +21369,9 @@ fn destack_fs_watchat_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = FsWatchatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -21383,9 +21417,9 @@ fn destack_fs_xattr_fgetxattr_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value.read_bytes(context)?;
+                let result_recorded = result_value.read_bytes(context)?;
                 let payload = FsXattrFgetxattrReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -21431,9 +21465,9 @@ fn destack_fs_xattr_fgetxattr_bytes_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value.read_bytes(context)?;
+                let result_recorded = result_value.read_bytes(context)?;
                 let payload = FsXattrFgetxattrBytesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -21478,21 +21512,21 @@ fn destack_fs_xattr_flistxattr_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_raw = result_value.raw_values(context)?;
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item =
-                        decode_string(result_replay_item_value, "result_replay_item", "item")?;
-                    let result_replay_item_replay = {
-                        let result_replay_item_replay_ref = context
-                            .string_ref(result_replay_item)
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item =
+                        decode_string(result_recorded_item_value, "result_recorded_item", "item")?;
+                    let result_recorded_item_recorded = {
+                        let result_recorded_item_recorded_ref = context
+                            .string_ref(result_recorded_item)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_replay_item_replay_ref.as_str().to_string()
+                        result_recorded_item_recorded_ref.as_str().to_string()
                     };
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = FsXattrFlistxattrReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -21545,20 +21579,20 @@ fn destack_fs_xattr_flistxattr_bytes_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_raw = result_value.raw_values(context)?;
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = decode_array::<u8>(
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = decode_array::<u8>(
                         context,
-                        result_replay_item_value,
-                        "result_replay_item",
+                        result_recorded_item_value,
+                        "result_recorded_item",
                         "item",
                     )?;
-                    let result_replay_item_replay = result_replay_item.read_bytes(context)?;
-                    result_replay.push(result_replay_item_replay);
+                    let result_recorded_item_recorded = result_recorded_item.read_bytes(context)?;
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = FsXattrFlistxattrBytesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -21617,9 +21651,9 @@ fn destack_fs_xattr_fremovexattr_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsXattrFremovexattrReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -21661,9 +21695,9 @@ fn destack_fs_xattr_fremovexattr_bytes_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsXattrFremovexattrBytesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -21707,9 +21741,9 @@ fn destack_fs_xattr_fsetxattr_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsXattrFsetxattrReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -21755,9 +21789,9 @@ fn destack_fs_xattr_fsetxattr_bytes_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsXattrFsetxattrBytesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -21800,9 +21834,9 @@ fn destack_fs_xattr_getxattr_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value.read_bytes(context)?;
+                let result_recorded = result_value.read_bytes(context)?;
                 let payload = FsXattrGetxattrReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -21848,9 +21882,9 @@ fn destack_fs_xattr_getxattr_bytes_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value.read_bytes(context)?;
+                let result_recorded = result_value.read_bytes(context)?;
                 let payload = FsXattrGetxattrBytesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -21896,9 +21930,9 @@ fn destack_fs_xattr_lgetxattr_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value.read_bytes(context)?;
+                let result_recorded = result_value.read_bytes(context)?;
                 let payload = FsXattrLgetxattrReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -21944,9 +21978,9 @@ fn destack_fs_xattr_lgetxattr_bytes_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value.read_bytes(context)?;
+                let result_recorded = result_value.read_bytes(context)?;
                 let payload = FsXattrLgetxattrBytesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -21991,21 +22025,21 @@ fn destack_fs_xattr_listxattr_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_raw = result_value.raw_values(context)?;
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item =
-                        decode_string(result_replay_item_value, "result_replay_item", "item")?;
-                    let result_replay_item_replay = {
-                        let result_replay_item_replay_ref = context
-                            .string_ref(result_replay_item)
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item =
+                        decode_string(result_recorded_item_value, "result_recorded_item", "item")?;
+                    let result_recorded_item_recorded = {
+                        let result_recorded_item_recorded_ref = context
+                            .string_ref(result_recorded_item)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_replay_item_replay_ref.as_str().to_string()
+                        result_recorded_item_recorded_ref.as_str().to_string()
                     };
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = FsXattrListxattrReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -22058,20 +22092,20 @@ fn destack_fs_xattr_listxattr_bytes_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_raw = result_value.raw_values(context)?;
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = decode_array::<u8>(
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = decode_array::<u8>(
                         context,
-                        result_replay_item_value,
-                        "result_replay_item",
+                        result_recorded_item_value,
+                        "result_recorded_item",
                         "item",
                     )?;
-                    let result_replay_item_replay = result_replay_item.read_bytes(context)?;
-                    result_replay.push(result_replay_item_replay);
+                    let result_recorded_item_recorded = result_recorded_item.read_bytes(context)?;
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = FsXattrListxattrBytesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -22130,21 +22164,21 @@ fn destack_fs_xattr_llistxattr_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_raw = result_value.raw_values(context)?;
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item =
-                        decode_string(result_replay_item_value, "result_replay_item", "item")?;
-                    let result_replay_item_replay = {
-                        let result_replay_item_replay_ref = context
-                            .string_ref(result_replay_item)
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item =
+                        decode_string(result_recorded_item_value, "result_recorded_item", "item")?;
+                    let result_recorded_item_recorded = {
+                        let result_recorded_item_recorded_ref = context
+                            .string_ref(result_recorded_item)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_replay_item_replay_ref.as_str().to_string()
+                        result_recorded_item_recorded_ref.as_str().to_string()
                     };
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = FsXattrLlistxattrReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -22197,20 +22231,20 @@ fn destack_fs_xattr_llistxattr_bytes_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_raw = result_value.raw_values(context)?;
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = decode_array::<u8>(
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = decode_array::<u8>(
                         context,
-                        result_replay_item_value,
-                        "result_replay_item",
+                        result_recorded_item_value,
+                        "result_recorded_item",
                         "item",
                     )?;
-                    let result_replay_item_replay = result_replay_item.read_bytes(context)?;
-                    result_replay.push(result_replay_item_replay);
+                    let result_recorded_item_recorded = result_recorded_item.read_bytes(context)?;
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = FsXattrLlistxattrBytesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -22269,9 +22303,9 @@ fn destack_fs_xattr_lremovexattr_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsXattrLremovexattrReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -22313,9 +22347,9 @@ fn destack_fs_xattr_lremovexattr_bytes_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsXattrLremovexattrBytesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -22359,9 +22393,9 @@ fn destack_fs_xattr_lsetxattr_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsXattrLsetxattrReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -22407,9 +22441,9 @@ fn destack_fs_xattr_lsetxattr_bytes_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsXattrLsetxattrBytesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -22451,9 +22485,9 @@ fn destack_fs_xattr_removexattr_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsXattrRemovexattrReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -22495,9 +22529,9 @@ fn destack_fs_xattr_removexattr_bytes_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsXattrRemovexattrBytesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -22541,9 +22575,9 @@ fn destack_fs_xattr_setxattr_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsXattrSetxattrReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -22589,9 +22623,9 @@ fn destack_fs_xattr_setxattr_bytes_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = FsXattrSetxattrBytesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }

@@ -72,11 +72,11 @@ impl Runtime {
         platform: PlatformContext,
         options: &RuntimeOptions,
     ) -> RuntimeResult<Self> {
+        Self::validate_runtime_options(options)?;
+
         let context = RuntimeContext::from_runtime_options(platform, options);
         let mut runtime = Self::new(context);
-        runtime
-            .bindings
-            .set_capabilities(options.capabilities.clone());
+        runtime.bindings.apply_runtime_options(options);
         if let Some(poller) = Self::poller_from_options(options)? {
             runtime.set_poller(poller);
         }
@@ -88,10 +88,10 @@ impl Runtime {
         context: RuntimeContext,
         options: &RuntimeOptions,
     ) -> RuntimeResult<Self> {
+        Self::validate_runtime_options(options)?;
+
         let mut runtime = Self::new(context);
-        runtime
-            .bindings
-            .set_capabilities(options.capabilities.clone());
+        runtime.bindings.apply_runtime_options(options);
         if let Some(poller) = Self::poller_from_options(options)? {
             runtime.set_poller(poller);
         }

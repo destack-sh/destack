@@ -1579,9 +1579,9 @@ fn destack_io_completion_cancel_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = IoCompletionCancelReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1624,9 +1624,9 @@ fn destack_io_completion_close_replay(
         || unsafe { platform_native::destack_io_completion_close(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IoCompletionCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1682,9 +1682,9 @@ fn destack_io_completion_enter_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = IoCompletionEnterReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1734,9 +1734,9 @@ fn destack_io_completion_open_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = IoCompletionOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1780,9 +1780,9 @@ fn destack_io_completion_submit_replay(
         || unsafe { platform_native::destack_io_completion_submit(context, handle, operation) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IoCompletionSubmitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1843,9 +1843,9 @@ fn destack_io_completion_submit_batch_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = IoCompletionSubmitBatchReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1899,22 +1899,22 @@ fn destack_io_completion_wait_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay_key = result_replay_item.key;
-                    let result_replay_item_replay_result = result_replay_item.result;
-                    let result_replay_item_replay_flags = result_replay_item.flags;
-                    let result_replay_item_replay = CompletionEvent {
-                        key: result_replay_item_replay_key,
-                        result: result_replay_item_replay_result,
-                        flags: result_replay_item_replay_flags,
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded_key = result_recorded_item.key;
+                    let result_recorded_item_recorded_result = result_recorded_item.result;
+                    let result_recorded_item_recorded_flags = result_recorded_item.flags;
+                    let result_recorded_item_recorded = CompletionEvent {
+                        key: result_recorded_item_recorded_key,
+                        result: result_recorded_item_recorded_result,
+                        flags: result_recorded_item_recorded_flags,
                     };
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = IoCompletionWaitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -1971,9 +1971,9 @@ fn destack_io_event_attach_replay(
         || unsafe { platform_native::destack_io_event_attach(context, token, target, key) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IoEventAttachReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2010,9 +2010,9 @@ fn destack_io_event_close_replay(
         || unsafe { platform_native::destack_io_event_close(context, token) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IoEventCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2056,9 +2056,9 @@ fn destack_io_event_open_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = IoEventOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2102,9 +2102,9 @@ fn destack_io_event_signal_replay(
         || unsafe { platform_native::destack_io_event_signal(context, token, value) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IoEventSignalReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2141,9 +2141,9 @@ fn destack_io_poll_close_replay(
         || unsafe { platform_native::destack_io_poll_close(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IoPollCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2181,9 +2181,9 @@ fn destack_io_poll_deregister_replay(
         || unsafe { platform_native::destack_io_poll_deregister(context, handle, target) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IoPollDeregisterReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2227,9 +2227,9 @@ fn destack_io_poll_open_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = IoPollOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2277,9 +2277,9 @@ fn destack_io_poll_register_replay(
         },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IoPollRegisterReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2321,9 +2321,9 @@ fn destack_io_poll_update_replay(
         },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IoPollUpdateReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2371,22 +2371,22 @@ fn destack_io_poll_wait_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay_key = result_replay_item.key;
-                    let result_replay_item_replay_ready = result_replay_item.ready;
-                    let result_replay_item_replay_error = result_replay_item.error;
-                    let result_replay_item_replay = PollEvent {
-                        key: result_replay_item_replay_key,
-                        ready: result_replay_item_replay_ready,
-                        error: result_replay_item_replay_error,
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded_key = result_recorded_item.key;
+                    let result_recorded_item_recorded_ready = result_recorded_item.ready;
+                    let result_recorded_item_recorded_error = result_recorded_item.error;
+                    let result_recorded_item_recorded = PollEvent {
+                        key: result_recorded_item_recorded_key,
+                        ready: result_recorded_item_recorded_ready,
+                        error: result_recorded_item_recorded_error,
                     };
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = IoPollWaitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2441,9 +2441,9 @@ fn destack_io_uring_close_replay(
         || unsafe { platform_native::destack_io_uring_close(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IoUringCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2487,20 +2487,20 @@ fn destack_io_uring_features_replay(
                     }
                     *out
                 };
-                let result_replay_has_submission_polling = result_value.has_submission_polling;
-                let result_replay_has_kernel_polling = result_value.has_kernel_polling;
-                let result_replay_has_fixed_files = result_value.has_fixed_files;
-                let result_replay_has_fixed_buffers = result_value.has_fixed_buffers;
-                let result_replay_max_entries = result_value.max_entries;
-                let result_replay = UringFeatures {
-                    has_submission_polling: result_replay_has_submission_polling,
-                    has_kernel_polling: result_replay_has_kernel_polling,
-                    has_fixed_files: result_replay_has_fixed_files,
-                    has_fixed_buffers: result_replay_has_fixed_buffers,
-                    max_entries: result_replay_max_entries,
+                let result_recorded_has_submission_polling = result_value.has_submission_polling;
+                let result_recorded_has_kernel_polling = result_value.has_kernel_polling;
+                let result_recorded_has_fixed_files = result_value.has_fixed_files;
+                let result_recorded_has_fixed_buffers = result_value.has_fixed_buffers;
+                let result_recorded_max_entries = result_value.max_entries;
+                let result_recorded = UringFeatures {
+                    has_submission_polling: result_recorded_has_submission_polling,
+                    has_kernel_polling: result_recorded_has_kernel_polling,
+                    has_fixed_files: result_recorded_has_fixed_files,
+                    has_fixed_buffers: result_recorded_has_fixed_buffers,
+                    max_entries: result_recorded_max_entries,
                 };
                 let payload = IoUringFeaturesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2561,9 +2561,9 @@ fn destack_io_uring_open_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = IoUringOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2610,9 +2610,9 @@ fn destack_io_uring_register_buffers_replay(
         },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IoUringRegisterBuffersReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2650,9 +2650,9 @@ fn destack_io_uring_register_files_replay(
         || unsafe { platform_native::destack_io_uring_register_files(context, handle, files) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IoUringRegisterFilesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2689,9 +2689,9 @@ fn destack_io_uring_unregister_buffers_replay(
         || unsafe { platform_native::destack_io_uring_unregister_buffers(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IoUringUnregisterBuffersReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -2728,9 +2728,9 @@ fn destack_io_uring_unregister_files_replay(
         || unsafe { platform_native::destack_io_uring_unregister_files(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IoUringUnregisterFilesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3129,9 +3129,9 @@ fn destack_io_completion_cancel_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = IoCompletionCancelReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3175,9 +3175,9 @@ fn destack_io_completion_close_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IoCompletionCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3231,9 +3231,9 @@ fn destack_io_completion_enter_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = IoCompletionEnterReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3278,9 +3278,9 @@ fn destack_io_completion_open_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = IoCompletionOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3325,9 +3325,9 @@ fn destack_io_completion_submit_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IoCompletionSubmitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3381,9 +3381,9 @@ fn destack_io_completion_submit_batch_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = IoCompletionSubmitBatchReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3432,51 +3432,51 @@ fn destack_io_completion_wait_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_raw = result_value.raw_values(context)?;
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = {
-                        if result_replay_item_value.tag() != vm::ValueTag::Aggregate {
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_replay_item",
+                                "result_recorded_item",
                                 "item",
                             ))
                             .boxed());
                         }
                         let slots = context
-                            .aggregate_slots(result_replay_item_value)
+                            .aggregate_slots(result_recorded_item_value)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
                         if slots.len() != 3 {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_replay_item",
+                                "result_recorded_item",
                                 "expected 3 fields",
                             ))
                             .boxed());
                         }
-                        let result_replay_item_key =
-                            decode_uint64(slots[0], "result_replay_item_key", "key")?;
-                        let result_replay_item_result =
-                            decode_int64(slots[1], "result_replay_item_result", "result")?;
-                        let result_replay_item_flags =
-                            decode_uint32(slots[2], "result_replay_item_flags", "flags")?;
+                        let result_recorded_item_key =
+                            decode_uint64(slots[0], "result_recorded_item_key", "key")?;
+                        let result_recorded_item_result =
+                            decode_int64(slots[1], "result_recorded_item_result", "result")?;
+                        let result_recorded_item_flags =
+                            decode_uint32(slots[2], "result_recorded_item_flags", "flags")?;
                         CompletionEventVm {
-                            key: result_replay_item_key,
-                            result: result_replay_item_result,
-                            flags: result_replay_item_flags,
+                            key: result_recorded_item_key,
+                            result: result_recorded_item_result,
+                            flags: result_recorded_item_flags,
                         }
                     };
-                    let result_replay_item_replay_key = result_replay_item.key;
-                    let result_replay_item_replay_result = result_replay_item.result;
-                    let result_replay_item_replay_flags = result_replay_item.flags;
-                    let result_replay_item_replay = CompletionEvent {
-                        key: result_replay_item_replay_key,
-                        result: result_replay_item_replay_result,
-                        flags: result_replay_item_replay_flags,
+                    let result_recorded_item_recorded_key = result_recorded_item.key;
+                    let result_recorded_item_recorded_result = result_recorded_item.result;
+                    let result_recorded_item_recorded_flags = result_recorded_item.flags;
+                    let result_recorded_item_recorded = CompletionEvent {
+                        key: result_recorded_item_recorded_key,
+                        result: result_recorded_item_recorded_result,
+                        flags: result_recorded_item_recorded_flags,
                     };
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = IoCompletionWaitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3547,9 +3547,9 @@ fn destack_io_event_attach_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IoEventAttachReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3590,9 +3590,9 @@ fn destack_io_event_close_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IoEventCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3634,9 +3634,9 @@ fn destack_io_event_open_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = IoEventOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3681,9 +3681,9 @@ fn destack_io_event_signal_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IoEventSignalReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3724,9 +3724,9 @@ fn destack_io_poll_close_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IoPollCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3768,9 +3768,9 @@ fn destack_io_poll_deregister_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IoPollDeregisterReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3812,9 +3812,9 @@ fn destack_io_poll_open_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = IoPollOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3863,9 +3863,9 @@ fn destack_io_poll_register_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IoPollRegisterReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3911,9 +3911,9 @@ fn destack_io_poll_update_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IoPollUpdateReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -3957,52 +3957,53 @@ fn destack_io_poll_wait_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_raw = result_value.raw_values(context)?;
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = {
-                        if result_replay_item_value.tag() != vm::ValueTag::Aggregate {
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_replay_item",
+                                "result_recorded_item",
                                 "item",
                             ))
                             .boxed());
                         }
                         let slots = context
-                            .aggregate_slots(result_replay_item_value)
+                            .aggregate_slots(result_recorded_item_value)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
                         if slots.len() != 3 {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_replay_item",
+                                "result_recorded_item",
                                 "expected 3 fields",
                             ))
                             .boxed());
                         }
-                        let result_replay_item_key =
-                            decode_uint64(slots[0], "result_replay_item_key", "key")?;
-                        let result_replay_item_ready_inner =
-                            decode_uint32(slots[1], "result_replay_item_ready_inner", "ready")?;
-                        let result_replay_item_ready = PollInterest(result_replay_item_ready_inner);
-                        let result_replay_item_error =
-                            decode_int32(slots[2], "result_replay_item_error", "error")?;
+                        let result_recorded_item_key =
+                            decode_uint64(slots[0], "result_recorded_item_key", "key")?;
+                        let result_recorded_item_ready_inner =
+                            decode_uint32(slots[1], "result_recorded_item_ready_inner", "ready")?;
+                        let result_recorded_item_ready =
+                            PollInterest(result_recorded_item_ready_inner);
+                        let result_recorded_item_error =
+                            decode_int32(slots[2], "result_recorded_item_error", "error")?;
                         PollEventVm {
-                            key: result_replay_item_key,
-                            ready: result_replay_item_ready,
-                            error: result_replay_item_error,
+                            key: result_recorded_item_key,
+                            ready: result_recorded_item_ready,
+                            error: result_recorded_item_error,
                         }
                     };
-                    let result_replay_item_replay_key = result_replay_item.key;
-                    let result_replay_item_replay_ready = result_replay_item.ready;
-                    let result_replay_item_replay_error = result_replay_item.error;
-                    let result_replay_item_replay = PollEvent {
-                        key: result_replay_item_replay_key,
-                        ready: result_replay_item_replay_ready,
-                        error: result_replay_item_replay_error,
+                    let result_recorded_item_recorded_key = result_recorded_item.key;
+                    let result_recorded_item_recorded_ready = result_recorded_item.ready;
+                    let result_recorded_item_recorded_error = result_recorded_item.error;
+                    let result_recorded_item_recorded = PollEvent {
+                        key: result_recorded_item_recorded_key,
+                        ready: result_recorded_item_recorded_ready,
+                        error: result_recorded_item_recorded_error,
                     };
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = IoPollWaitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4071,9 +4072,9 @@ fn destack_io_uring_close_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IoUringCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4115,20 +4116,20 @@ fn destack_io_uring_features_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_has_submission_polling = result_value.has_submission_polling;
-                let result_replay_has_kernel_polling = result_value.has_kernel_polling;
-                let result_replay_has_fixed_files = result_value.has_fixed_files;
-                let result_replay_has_fixed_buffers = result_value.has_fixed_buffers;
-                let result_replay_max_entries = result_value.max_entries;
-                let result_replay = UringFeatures {
-                    has_submission_polling: result_replay_has_submission_polling,
-                    has_kernel_polling: result_replay_has_kernel_polling,
-                    has_fixed_files: result_replay_has_fixed_files,
-                    has_fixed_buffers: result_replay_has_fixed_buffers,
-                    max_entries: result_replay_max_entries,
+                let result_recorded_has_submission_polling = result_value.has_submission_polling;
+                let result_recorded_has_kernel_polling = result_value.has_kernel_polling;
+                let result_recorded_has_fixed_files = result_value.has_fixed_files;
+                let result_recorded_has_fixed_buffers = result_value.has_fixed_buffers;
+                let result_recorded_max_entries = result_value.max_entries;
+                let result_recorded = UringFeatures {
+                    has_submission_polling: result_recorded_has_submission_polling,
+                    has_kernel_polling: result_recorded_has_kernel_polling,
+                    has_fixed_files: result_recorded_has_fixed_files,
+                    has_fixed_buffers: result_recorded_has_fixed_buffers,
+                    max_entries: result_recorded_max_entries,
                 };
                 let payload = IoUringFeaturesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4184,9 +4185,9 @@ fn destack_io_uring_open_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = IoUringOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4236,9 +4237,9 @@ fn destack_io_uring_register_buffers_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IoUringRegisterBuffersReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4280,9 +4281,9 @@ fn destack_io_uring_register_files_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IoUringRegisterFilesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4323,9 +4324,9 @@ fn destack_io_uring_unregister_buffers_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IoUringUnregisterBuffersReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4366,9 +4367,9 @@ fn destack_io_uring_unregister_files_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = IoUringUnregisterFilesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }

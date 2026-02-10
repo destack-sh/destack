@@ -3982,15 +3982,15 @@ fn destack_process_args_args_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item in result_replay_raw {
-                    let result_replay_item_replay =
-                        unsafe { result_replay_item.as_str()? }.to_string();
-                    result_replay.push(result_replay_item_replay);
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item in result_recorded_raw {
+                    let result_recorded_item_recorded =
+                        unsafe { result_recorded_item.as_str()? }.to_string();
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = ProcessArgsArgsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4038,9 +4038,9 @@ fn destack_process_cwd_chdir_replay(
         || unsafe { platform_native::destack_process_chdir(context, path) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessCwdChdirReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4081,20 +4081,20 @@ fn destack_process_cwd_cwd_replay(
                     }
                     *out
                 };
-                let result_replay_encoding = result_value.encoding;
-                let result_replay_data_raw = unsafe { result_value.data.0.as_slice()? };
-                let mut result_replay_data = Vec::with_capacity(result_replay_data_raw.len());
-                for result_replay_data_item_value in result_replay_data_raw {
-                    let result_replay_data_item = *result_replay_data_item_value;
-                    let result_replay_data_item_replay = result_replay_data_item;
-                    result_replay_data.push(result_replay_data_item_replay);
+                let result_recorded_encoding = result_value.encoding;
+                let result_recorded_data_raw = unsafe { result_value.data.0.as_slice()? };
+                let mut result_recorded_data = Vec::with_capacity(result_recorded_data_raw.len());
+                for result_recorded_data_item_value in result_recorded_data_raw {
+                    let result_recorded_data_item = *result_recorded_data_item_value;
+                    let result_recorded_data_item_recorded = result_recorded_data_item;
+                    result_recorded_data.push(result_recorded_data_item_recorded);
                 }
-                let result_replay = fs::OsPathReplay {
-                    encoding: result_replay_encoding,
-                    data: result_replay_data,
+                let result_recorded = fs::OsPathReplay {
+                    encoding: result_recorded_encoding,
+                    data: result_recorded_data,
                 };
                 let payload = ProcessCwdCwdReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4151,9 +4151,9 @@ fn destack_process_env_delete_replay(
         || unsafe { platform_native::destack_process_env_delete(context, name) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessEnvDeleteReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4190,9 +4190,9 @@ fn destack_process_env_delete_bytes_replay(
         || unsafe { platform_native::destack_process_env_delete_bytes(context, name) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessEnvDeleteBytesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4236,9 +4236,9 @@ fn destack_process_env_get_replay(
                     }
                     *out
                 };
-                let result_replay = unsafe { result_value.as_str()? }.to_string();
+                let result_recorded = unsafe { result_value.as_str()? }.to_string();
                 let payload = ProcessEnvGetReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4288,15 +4288,15 @@ fn destack_process_env_get_bytes_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay = result_replay_item;
-                    result_replay.push(result_replay_item_replay);
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = ProcessEnvGetBytesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4345,9 +4345,9 @@ fn destack_process_env_set_replay(
         || unsafe { platform_native::destack_process_env_set(context, name, value) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessEnvSetReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4385,9 +4385,9 @@ fn destack_process_env_set_bytes_replay(
         || unsafe { platform_native::destack_process_env_set_bytes(context, name, value) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessEnvSetBytesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4428,9 +4428,9 @@ fn destack_process_exec_exec_replay(
         },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessExecExecReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4480,9 +4480,9 @@ fn destack_process_exec_execat_replay(
         },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessExecExecatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4523,9 +4523,9 @@ fn destack_process_exec_fexec_replay(
         },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessExecFexecReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4559,9 +4559,9 @@ fn destack_process_exit_exit_replay(context: &RuntimeCallContext, code: u32) -> 
         || unsafe { platform_native::destack_process_exit(context, code) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessExitExitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4598,9 +4598,9 @@ fn destack_process_fd_process_fd_close_replay(
         || unsafe { platform_native::destack_process_process_fd_close(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessFdProcessFdCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4645,9 +4645,9 @@ fn destack_process_fd_process_fd_open_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = ProcessFdProcessFdOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4694,9 +4694,9 @@ fn destack_process_fd_process_fd_send_signal_replay(
         },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessFdProcessFdSendSignalReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4740,20 +4740,20 @@ fn destack_process_fd_process_fd_try_wait_replay(
                     }
                     *out
                 };
-                let result_replay_pid = result_value.pid;
-                let result_replay_kind = result_value.kind;
-                let result_replay_exit_code = result_value.exit_code;
-                let result_replay_signal = result_value.signal;
-                let result_replay_core_dumped = result_value.core_dumped;
-                let result_replay = ProcessWaitStatus {
-                    pid: result_replay_pid,
-                    kind: result_replay_kind,
-                    exit_code: result_replay_exit_code,
-                    signal: result_replay_signal,
-                    core_dumped: result_replay_core_dumped,
+                let result_recorded_pid = result_value.pid;
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_exit_code = result_value.exit_code;
+                let result_recorded_signal = result_value.signal;
+                let result_recorded_core_dumped = result_value.core_dumped;
+                let result_recorded = ProcessWaitStatus {
+                    pid: result_recorded_pid,
+                    kind: result_recorded_kind,
+                    exit_code: result_recorded_exit_code,
+                    signal: result_recorded_signal,
+                    core_dumped: result_recorded_core_dumped,
                 };
                 let payload = ProcessFdProcessFdTryWaitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4817,20 +4817,20 @@ fn destack_process_fd_process_fd_wait_replay(
                     }
                     *out
                 };
-                let result_replay_pid = result_value.pid;
-                let result_replay_kind = result_value.kind;
-                let result_replay_exit_code = result_value.exit_code;
-                let result_replay_signal = result_value.signal;
-                let result_replay_core_dumped = result_value.core_dumped;
-                let result_replay = ProcessWaitStatus {
-                    pid: result_replay_pid,
-                    kind: result_replay_kind,
-                    exit_code: result_replay_exit_code,
-                    signal: result_replay_signal,
-                    core_dumped: result_replay_core_dumped,
+                let result_recorded_pid = result_value.pid;
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_exit_code = result_value.exit_code;
+                let result_recorded_signal = result_value.signal;
+                let result_recorded_core_dumped = result_value.core_dumped;
+                let result_recorded = ProcessWaitStatus {
+                    pid: result_recorded_pid,
+                    kind: result_recorded_kind,
+                    exit_code: result_recorded_exit_code,
+                    signal: result_recorded_signal,
+                    core_dumped: result_recorded_core_dumped,
                 };
                 let payload = ProcessFdProcessFdWaitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4884,9 +4884,9 @@ fn destack_process_fd_signal_fd_close_replay(
         || unsafe { platform_native::destack_process_signal_fd_close(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessFdSignalFdCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4931,9 +4931,9 @@ fn destack_process_fd_signal_fd_open_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = ProcessFdSignalFdOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -4983,14 +4983,14 @@ fn destack_process_fd_signal_fd_read_replay(
                     }
                     *out
                 };
-                let result_replay_signal = result_value.signal;
-                let result_replay_pid = result_value.pid;
-                let result_replay = SignalEvent {
-                    signal: result_replay_signal,
-                    pid: result_replay_pid,
+                let result_recorded_signal = result_value.signal;
+                let result_recorded_pid = result_value.pid;
+                let result_recorded = SignalEvent {
+                    signal: result_recorded_signal,
+                    pid: result_recorded_pid,
                 };
                 let payload = ProcessFdSignalFdReadReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5039,9 +5039,9 @@ fn destack_process_fd_signal_fd_set_mask_replay(
         || unsafe { platform_native::destack_process_signal_fd_set_mask(context, handle, signals) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessFdSignalFdSetMaskReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5085,14 +5085,14 @@ fn destack_process_fd_signal_fd_try_read_replay(
                     }
                     *out
                 };
-                let result_replay_signal = result_value.signal;
-                let result_replay_pid = result_value.pid;
-                let result_replay = SignalEvent {
-                    signal: result_replay_signal,
-                    pid: result_replay_pid,
+                let result_recorded_signal = result_value.signal;
+                let result_recorded_pid = result_value.pid;
+                let result_recorded = SignalEvent {
+                    signal: result_recorded_signal,
+                    pid: result_recorded_pid,
                 };
                 let payload = ProcessFdSignalFdTryReadReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5144,9 +5144,9 @@ fn destack_process_ids_gid_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = ProcessIdsGidReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5193,9 +5193,9 @@ fn destack_process_ids_pid_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = ProcessIdsPidReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5242,9 +5242,9 @@ fn destack_process_ids_ppid_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = ProcessIdsPpidReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5287,9 +5287,9 @@ fn destack_process_ids_set_gid_replay(
         || unsafe { platform_native::destack_process_set_gid(context, groupid) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessIdsSetGidReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5326,9 +5326,9 @@ fn destack_process_ids_set_groups_replay(
         || unsafe { platform_native::destack_process_set_groups(context, groups) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessIdsSetGroupsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5365,9 +5365,9 @@ fn destack_process_ids_set_uid_replay(
         || unsafe { platform_native::destack_process_set_uid(context, userid) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessIdsSetUidReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5408,9 +5408,9 @@ fn destack_process_ids_uid_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = ProcessIdsUidReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5460,14 +5460,14 @@ fn destack_process_limits_get_limit_replay(
                     }
                     *out
                 };
-                let result_replay_soft = result_value.soft;
-                let result_replay_hard = result_value.hard;
-                let result_replay = ProcessLimit {
-                    soft: result_replay_soft,
-                    hard: result_replay_hard,
+                let result_recorded_soft = result_value.soft;
+                let result_recorded_hard = result_value.hard;
+                let result_recorded = ProcessLimit {
+                    soft: result_recorded_soft,
+                    hard: result_recorded_hard,
                 };
                 let payload = ProcessLimitsGetLimitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5516,9 +5516,9 @@ fn destack_process_limits_set_limit_replay(
         || unsafe { platform_native::destack_process_set_limit(context, resource, limit) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessLimitsSetLimitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5562,18 +5562,18 @@ fn destack_process_sched_get_affinity_replay(
                     }
                     *out
                 };
-                let result_replay_cpus_raw = unsafe { result_value.cpus.as_slice()? };
-                let mut result_replay_cpus = Vec::with_capacity(result_replay_cpus_raw.len());
-                for result_replay_cpus_item_value in result_replay_cpus_raw {
-                    let result_replay_cpus_item = *result_replay_cpus_item_value;
-                    let result_replay_cpus_item_replay = result_replay_cpus_item;
-                    result_replay_cpus.push(result_replay_cpus_item_replay);
+                let result_recorded_cpus_raw = unsafe { result_value.cpus.as_slice()? };
+                let mut result_recorded_cpus = Vec::with_capacity(result_recorded_cpus_raw.len());
+                for result_recorded_cpus_item_value in result_recorded_cpus_raw {
+                    let result_recorded_cpus_item = *result_recorded_cpus_item_value;
+                    let result_recorded_cpus_item_recorded = result_recorded_cpus_item;
+                    result_recorded_cpus.push(result_recorded_cpus_item_recorded);
                 }
-                let result_replay = ProcessCpuSetReplay {
-                    cpus: result_replay_cpus,
+                let result_recorded = ProcessCpuSetReplay {
+                    cpus: result_recorded_cpus,
                 };
                 let payload = ProcessSchedGetAffinityReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5631,9 +5631,9 @@ fn destack_process_sched_get_priority_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = ProcessSchedGetPriorityReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5677,9 +5677,9 @@ fn destack_process_sched_set_affinity_replay(
         || unsafe { platform_native::destack_process_set_affinity(context, pid, cpus) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessSchedSetAffinityReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5717,9 +5717,9 @@ fn destack_process_sched_set_priority_replay(
         || unsafe { platform_native::destack_process_set_priority(context, pid, priority) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessSchedSetPriorityReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5763,9 +5763,9 @@ fn destack_process_session_getpgid_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = ProcessSessionGetpgidReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5809,9 +5809,9 @@ fn destack_process_session_setpgid_replay(
         || unsafe { platform_native::destack_process_setpgid(context, pid, pgid) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessSessionSetpgidReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5852,9 +5852,9 @@ fn destack_process_session_setsid_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = ProcessSessionSetsidReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5898,9 +5898,9 @@ fn destack_process_signals_kill_replay(
         || unsafe { platform_native::destack_process_kill(context, pid, signal) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessSignalsKillReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5941,15 +5941,15 @@ fn destack_process_signals_signal_mask_read_replay(
                     }
                     *out
                 };
-                let result_replay_raw = unsafe { result_value.as_slice()? };
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = *result_replay_item_value;
-                    let result_replay_item_replay = result_replay_item;
-                    result_replay.push(result_replay_item_replay);
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = ProcessSignalsSignalMaskReadReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -5998,9 +5998,9 @@ fn destack_process_signals_signal_mask_update_replay(
         || unsafe { platform_native::destack_process_signal_mask_update(context, how, signals) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessSignalsSignalMaskUpdateReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -6044,14 +6044,14 @@ fn destack_process_signals_signal_receive_replay(
                     }
                     *out
                 };
-                let result_replay_signal = result_value.signal;
-                let result_replay_pid = result_value.pid;
-                let result_replay = SignalEvent {
-                    signal: result_replay_signal,
-                    pid: result_replay_pid,
+                let result_recorded_signal = result_value.signal;
+                let result_recorded_pid = result_value.pid;
+                let result_recorded = SignalEvent {
+                    signal: result_recorded_signal,
+                    pid: result_recorded_pid,
                 };
                 let payload = ProcessSignalsSignalReceiveReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -6106,9 +6106,9 @@ fn destack_process_signals_signal_subscribe_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = ProcessSignalsSignalSubscribeReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -6158,14 +6158,14 @@ fn destack_process_signals_signal_try_receive_replay(
                     }
                     *out
                 };
-                let result_replay_signal = result_value.signal;
-                let result_replay_pid = result_value.pid;
-                let result_replay = SignalEvent {
-                    signal: result_replay_signal,
-                    pid: result_replay_pid,
+                let result_recorded_signal = result_value.signal;
+                let result_recorded_pid = result_value.pid;
+                let result_recorded = SignalEvent {
+                    signal: result_recorded_signal,
+                    pid: result_recorded_pid,
                 };
                 let payload = ProcessSignalsSignalTryReceiveReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -6220,14 +6220,14 @@ fn destack_process_signals_signal_try_wait_replay(
                     }
                     *out
                 };
-                let result_replay_signal = result_value.signal;
-                let result_replay_pid = result_value.pid;
-                let result_replay = SignalEvent {
-                    signal: result_replay_signal,
-                    pid: result_replay_pid,
+                let result_recorded_signal = result_value.signal;
+                let result_recorded_pid = result_value.pid;
+                let result_recorded = SignalEvent {
+                    signal: result_recorded_signal,
+                    pid: result_recorded_pid,
                 };
                 let payload = ProcessSignalsSignalTryWaitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -6275,9 +6275,9 @@ fn destack_process_signals_signal_unsubscribe_replay(
         || unsafe { platform_native::destack_process_signal_unsubscribe(context, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessSignalsSignalUnsubscribeReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -6321,14 +6321,14 @@ fn destack_process_signals_signal_wait_replay(
                     }
                     *out
                 };
-                let result_replay_signal = result_value.signal;
-                let result_replay_pid = result_value.pid;
-                let result_replay = SignalEvent {
-                    signal: result_replay_signal,
-                    pid: result_replay_pid,
+                let result_recorded_signal = result_value.signal;
+                let result_recorded_pid = result_value.pid;
+                let result_recorded = SignalEvent {
+                    signal: result_recorded_signal,
+                    pid: result_recorded_pid,
                 };
                 let payload = ProcessSignalsSignalWaitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -6395,9 +6395,9 @@ fn destack_process_spawn_spawn_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = ProcessSpawnSpawnReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -6470,9 +6470,9 @@ fn destack_process_spawn_with_actions_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = ProcessSpawnWithActionsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -6522,9 +6522,9 @@ fn destack_process_umask_umask_replay(
                     }
                     *out
                 };
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = ProcessUmaskUmaskReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -6575,20 +6575,20 @@ fn destack_process_wait_pid_replay(
                     }
                     *out
                 };
-                let result_replay_pid = result_value.pid;
-                let result_replay_kind = result_value.kind;
-                let result_replay_exit_code = result_value.exit_code;
-                let result_replay_signal = result_value.signal;
-                let result_replay_core_dumped = result_value.core_dumped;
-                let result_replay = ProcessWaitStatus {
-                    pid: result_replay_pid,
-                    kind: result_replay_kind,
-                    exit_code: result_replay_exit_code,
-                    signal: result_replay_signal,
-                    core_dumped: result_replay_core_dumped,
+                let result_recorded_pid = result_value.pid;
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_exit_code = result_value.exit_code;
+                let result_recorded_signal = result_value.signal;
+                let result_recorded_core_dumped = result_value.core_dumped;
+                let result_recorded = ProcessWaitStatus {
+                    pid: result_recorded_pid,
+                    kind: result_recorded_kind,
+                    exit_code: result_recorded_exit_code,
+                    signal: result_recorded_signal,
+                    core_dumped: result_recorded_core_dumped,
                 };
                 let payload = ProcessWaitPidReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -6649,20 +6649,20 @@ fn destack_process_wait_try_wait_replay(
                     }
                     *out
                 };
-                let result_replay_pid = result_value.pid;
-                let result_replay_kind = result_value.kind;
-                let result_replay_exit_code = result_value.exit_code;
-                let result_replay_signal = result_value.signal;
-                let result_replay_core_dumped = result_value.core_dumped;
-                let result_replay = ProcessWaitStatus {
-                    pid: result_replay_pid,
-                    kind: result_replay_kind,
-                    exit_code: result_replay_exit_code,
-                    signal: result_replay_signal,
-                    core_dumped: result_replay_core_dumped,
+                let result_recorded_pid = result_value.pid;
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_exit_code = result_value.exit_code;
+                let result_recorded_signal = result_value.signal;
+                let result_recorded_core_dumped = result_value.core_dumped;
+                let result_recorded = ProcessWaitStatus {
+                    pid: result_recorded_pid,
+                    kind: result_recorded_kind,
+                    exit_code: result_recorded_exit_code,
+                    signal: result_recorded_signal,
+                    core_dumped: result_recorded_core_dumped,
                 };
                 let payload = ProcessWaitTryWaitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -6724,20 +6724,20 @@ fn destack_process_wait_wait_replay(
                     }
                     *out
                 };
-                let result_replay_pid = result_value.pid;
-                let result_replay_kind = result_value.kind;
-                let result_replay_exit_code = result_value.exit_code;
-                let result_replay_signal = result_value.signal;
-                let result_replay_core_dumped = result_value.core_dumped;
-                let result_replay = ProcessWaitStatus {
-                    pid: result_replay_pid,
-                    kind: result_replay_kind,
-                    exit_code: result_replay_exit_code,
-                    signal: result_replay_signal,
-                    core_dumped: result_replay_core_dumped,
+                let result_recorded_pid = result_value.pid;
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_exit_code = result_value.exit_code;
+                let result_recorded_signal = result_value.signal;
+                let result_recorded_core_dumped = result_value.core_dumped;
+                let result_recorded = ProcessWaitStatus {
+                    pid: result_recorded_pid,
+                    kind: result_recorded_kind,
+                    exit_code: result_recorded_exit_code,
+                    signal: result_recorded_signal,
+                    core_dumped: result_recorded_core_dumped,
                 };
                 let payload = ProcessWaitWaitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -7718,21 +7718,21 @@ fn destack_process_args_args_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_raw = result_value.raw_values(context)?;
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item =
-                        decode_string(result_replay_item_value, "result_replay_item", "item")?;
-                    let result_replay_item_replay = {
-                        let result_replay_item_replay_ref = context
-                            .string_ref(result_replay_item)
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item =
+                        decode_string(result_recorded_item_value, "result_recorded_item", "item")?;
+                    let result_recorded_item_recorded = {
+                        let result_recorded_item_recorded_ref = context
+                            .string_ref(result_recorded_item)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_replay_item_replay_ref.as_str().to_string()
+                        result_recorded_item_recorded_ref.as_str().to_string()
                     };
-                    result_replay.push(result_replay_item_replay);
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = ProcessArgsArgsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -7784,9 +7784,9 @@ fn destack_process_cwd_chdir_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessCwdChdirReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -7827,15 +7827,15 @@ fn destack_process_cwd_cwd_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_encoding = result_value.encoding;
-                let result_replay_data_inner = result_value.data.0.read_bytes(context)?;
-                let result_replay_data = result_replay_data_inner;
-                let result_replay = fs::OsPathReplay {
-                    encoding: result_replay_encoding,
-                    data: result_replay_data,
+                let result_recorded_encoding = result_value.encoding;
+                let result_recorded_data_inner = result_value.data.0.read_bytes(context)?;
+                let result_recorded_data = result_recorded_data_inner;
+                let result_recorded = fs::OsPathReplay {
+                    encoding: result_recorded_encoding,
+                    data: result_recorded_data,
                 };
                 let payload = ProcessCwdCwdReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -7887,9 +7887,9 @@ fn destack_process_env_delete_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessEnvDeleteReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -7930,9 +7930,9 @@ fn destack_process_env_delete_bytes_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessEnvDeleteBytesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -7974,14 +7974,14 @@ fn destack_process_env_get_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = {
-                    let result_replay_ref = context
+                let result_recorded = {
+                    let result_recorded_ref = context
                         .string_ref(result_value)
                         .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_replay_ref.as_str().to_string()
+                    result_recorded_ref.as_str().to_string()
                 };
                 let payload = ProcessEnvGetReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8027,9 +8027,9 @@ fn destack_process_env_get_bytes_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value.read_bytes(context)?;
+                let result_recorded = result_value.read_bytes(context)?;
                 let payload = ProcessEnvGetBytesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8074,9 +8074,9 @@ fn destack_process_env_set_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessEnvSetReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8118,9 +8118,9 @@ fn destack_process_env_set_bytes_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessEnvSetBytesReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8165,9 +8165,9 @@ fn destack_process_exec_exec_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessExecExecReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8222,9 +8222,9 @@ fn destack_process_exec_execat_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessExecExecatReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8269,9 +8269,9 @@ fn destack_process_exec_fexec_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessExecFexecReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8312,9 +8312,9 @@ fn destack_process_exit_exit_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessExitExitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8355,9 +8355,9 @@ fn destack_process_fd_process_fd_close_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessFdProcessFdCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8400,9 +8400,9 @@ fn destack_process_fd_process_fd_open_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = ProcessFdProcessFdOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8452,9 +8452,9 @@ fn destack_process_fd_process_fd_send_signal_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessFdProcessFdSendSignalReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8496,20 +8496,20 @@ fn destack_process_fd_process_fd_try_wait_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_pid = result_value.pid;
-                let result_replay_kind = result_value.kind;
-                let result_replay_exit_code = result_value.exit_code;
-                let result_replay_signal = result_value.signal;
-                let result_replay_core_dumped = result_value.core_dumped;
-                let result_replay = ProcessWaitStatus {
-                    pid: result_replay_pid,
-                    kind: result_replay_kind,
-                    exit_code: result_replay_exit_code,
-                    signal: result_replay_signal,
-                    core_dumped: result_replay_core_dumped,
+                let result_recorded_pid = result_value.pid;
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_exit_code = result_value.exit_code;
+                let result_recorded_signal = result_value.signal;
+                let result_recorded_core_dumped = result_value.core_dumped;
+                let result_recorded = ProcessWaitStatus {
+                    pid: result_recorded_pid,
+                    kind: result_recorded_kind,
+                    exit_code: result_recorded_exit_code,
+                    signal: result_recorded_signal,
+                    core_dumped: result_recorded_core_dumped,
                 };
                 let payload = ProcessFdProcessFdTryWaitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8566,20 +8566,20 @@ fn destack_process_fd_process_fd_wait_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_pid = result_value.pid;
-                let result_replay_kind = result_value.kind;
-                let result_replay_exit_code = result_value.exit_code;
-                let result_replay_signal = result_value.signal;
-                let result_replay_core_dumped = result_value.core_dumped;
-                let result_replay = ProcessWaitStatus {
-                    pid: result_replay_pid,
-                    kind: result_replay_kind,
-                    exit_code: result_replay_exit_code,
-                    signal: result_replay_signal,
-                    core_dumped: result_replay_core_dumped,
+                let result_recorded_pid = result_value.pid;
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_exit_code = result_value.exit_code;
+                let result_recorded_signal = result_value.signal;
+                let result_recorded_core_dumped = result_value.core_dumped;
+                let result_recorded = ProcessWaitStatus {
+                    pid: result_recorded_pid,
+                    kind: result_recorded_kind,
+                    exit_code: result_recorded_exit_code,
+                    signal: result_recorded_signal,
+                    core_dumped: result_recorded_core_dumped,
                 };
                 let payload = ProcessFdProcessFdWaitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8634,9 +8634,9 @@ fn destack_process_fd_signal_fd_close_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessFdSignalFdCloseReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8679,9 +8679,9 @@ fn destack_process_fd_signal_fd_open_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = ProcessFdSignalFdOpenReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8726,14 +8726,14 @@ fn destack_process_fd_signal_fd_read_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_signal = result_value.signal;
-                let result_replay_pid = result_value.pid;
-                let result_replay = SignalEvent {
-                    signal: result_replay_signal,
-                    pid: result_replay_pid,
+                let result_recorded_signal = result_value.signal;
+                let result_recorded_pid = result_value.pid;
+                let result_recorded = SignalEvent {
+                    signal: result_recorded_signal,
+                    pid: result_recorded_pid,
                 };
                 let payload = ProcessFdSignalFdReadReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8785,9 +8785,9 @@ fn destack_process_fd_signal_fd_set_mask_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessFdSignalFdSetMaskReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8829,14 +8829,14 @@ fn destack_process_fd_signal_fd_try_read_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_signal = result_value.signal;
-                let result_replay_pid = result_value.pid;
-                let result_replay = SignalEvent {
-                    signal: result_replay_signal,
-                    pid: result_replay_pid,
+                let result_recorded_signal = result_value.signal;
+                let result_recorded_pid = result_value.pid;
+                let result_recorded = SignalEvent {
+                    signal: result_recorded_signal,
+                    pid: result_recorded_pid,
                 };
                 let payload = ProcessFdSignalFdTryReadReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8885,9 +8885,9 @@ fn destack_process_ids_gid_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = ProcessIdsGidReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8931,9 +8931,9 @@ fn destack_process_ids_pid_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = ProcessIdsPidReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -8977,9 +8977,9 @@ fn destack_process_ids_ppid_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = ProcessIdsPpidReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9023,9 +9023,9 @@ fn destack_process_ids_set_gid_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessIdsSetGidReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9066,9 +9066,9 @@ fn destack_process_ids_set_groups_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessIdsSetGroupsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9109,9 +9109,9 @@ fn destack_process_ids_set_uid_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessIdsSetUidReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9152,9 +9152,9 @@ fn destack_process_ids_uid_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = ProcessIdsUidReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9199,14 +9199,14 @@ fn destack_process_limits_get_limit_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_soft = result_value.soft;
-                let result_replay_hard = result_value.hard;
-                let result_replay = ProcessLimit {
-                    soft: result_replay_soft,
-                    hard: result_replay_hard,
+                let result_recorded_soft = result_value.soft;
+                let result_recorded_hard = result_value.hard;
+                let result_recorded = ProcessLimit {
+                    soft: result_recorded_soft,
+                    hard: result_recorded_hard,
                 };
                 let payload = ProcessLimitsGetLimitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9256,9 +9256,9 @@ fn destack_process_limits_set_limit_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessLimitsSetLimitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9300,22 +9300,22 @@ fn destack_process_sched_get_affinity_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_cpus_raw = result_value.cpus.raw_values(context)?;
-                let mut result_replay_cpus = Vec::with_capacity(result_replay_cpus_raw.len());
-                for result_replay_cpus_item_value in result_replay_cpus_raw {
-                    let result_replay_cpus_item = decode_uint32(
-                        result_replay_cpus_item_value,
-                        "result_replay_cpus_item",
+                let result_recorded_cpus_raw = result_value.cpus.raw_values(context)?;
+                let mut result_recorded_cpus = Vec::with_capacity(result_recorded_cpus_raw.len());
+                for result_recorded_cpus_item_value in result_recorded_cpus_raw {
+                    let result_recorded_cpus_item = decode_uint32(
+                        result_recorded_cpus_item_value,
+                        "result_recorded_cpus_item",
                         "item",
                     )?;
-                    let result_replay_cpus_item_replay = result_replay_cpus_item;
-                    result_replay_cpus.push(result_replay_cpus_item_replay);
+                    let result_recorded_cpus_item_recorded = result_recorded_cpus_item;
+                    result_recorded_cpus.push(result_recorded_cpus_item_recorded);
                 }
-                let result_replay = ProcessCpuSetReplay {
-                    cpus: result_replay_cpus,
+                let result_recorded = ProcessCpuSetReplay {
+                    cpus: result_recorded_cpus,
                 };
                 let payload = ProcessSchedGetAffinityReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9369,9 +9369,9 @@ fn destack_process_sched_get_priority_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = ProcessSchedGetPriorityReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9416,9 +9416,9 @@ fn destack_process_sched_set_affinity_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessSchedSetAffinityReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9460,9 +9460,9 @@ fn destack_process_sched_set_priority_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessSchedSetPriorityReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9504,9 +9504,9 @@ fn destack_process_session_getpgid_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = ProcessSessionGetpgidReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9551,9 +9551,9 @@ fn destack_process_session_setpgid_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessSessionSetpgidReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9594,9 +9594,9 @@ fn destack_process_session_setsid_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = ProcessSessionSetsidReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9641,9 +9641,9 @@ fn destack_process_signals_kill_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessSignalsKillReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9684,20 +9684,20 @@ fn destack_process_signals_signal_mask_read_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_raw = result_value.raw_values(context)?;
-                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
-                for result_replay_item_value in result_replay_raw {
-                    let result_replay_item_inner = decode_uint32(
-                        result_replay_item_value,
-                        "result_replay_item_inner",
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item_inner = decode_uint32(
+                        result_recorded_item_value,
+                        "result_recorded_item_inner",
                         "item",
                     )?;
-                    let result_replay_item = Signal(result_replay_item_inner);
-                    let result_replay_item_replay = result_replay_item;
-                    result_replay.push(result_replay_item_replay);
+                    let result_recorded_item = Signal(result_recorded_item_inner);
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = ProcessSignalsSignalMaskReadReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9748,9 +9748,9 @@ fn destack_process_signals_signal_mask_update_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessSignalsSignalMaskUpdateReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9792,14 +9792,14 @@ fn destack_process_signals_signal_receive_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_signal = result_value.signal;
-                let result_replay_pid = result_value.pid;
-                let result_replay = SignalEvent {
-                    signal: result_replay_signal,
-                    pid: result_replay_pid,
+                let result_recorded_signal = result_value.signal;
+                let result_recorded_pid = result_value.pid;
+                let result_recorded = SignalEvent {
+                    signal: result_recorded_signal,
+                    pid: result_recorded_pid,
                 };
                 let payload = ProcessSignalsSignalReceiveReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9849,9 +9849,9 @@ fn destack_process_signals_signal_subscribe_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = ProcessSignalsSignalSubscribeReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9896,14 +9896,14 @@ fn destack_process_signals_signal_try_receive_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_signal = result_value.signal;
-                let result_replay_pid = result_value.pid;
-                let result_replay = SignalEvent {
-                    signal: result_replay_signal,
-                    pid: result_replay_pid,
+                let result_recorded_signal = result_value.signal;
+                let result_recorded_pid = result_value.pid;
+                let result_recorded = SignalEvent {
+                    signal: result_recorded_signal,
+                    pid: result_recorded_pid,
                 };
                 let payload = ProcessSignalsSignalTryReceiveReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -9953,14 +9953,14 @@ fn destack_process_signals_signal_try_wait_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_signal = result_value.signal;
-                let result_replay_pid = result_value.pid;
-                let result_replay = SignalEvent {
-                    signal: result_replay_signal,
-                    pid: result_replay_pid,
+                let result_recorded_signal = result_value.signal;
+                let result_recorded_pid = result_value.pid;
+                let result_recorded = SignalEvent {
+                    signal: result_recorded_signal,
+                    pid: result_recorded_pid,
                 };
                 let payload = ProcessSignalsSignalTryWaitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10009,9 +10009,9 @@ fn destack_process_signals_signal_unsubscribe_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
-                let result_replay = ();
+                let result_recorded = ();
                 let payload = ProcessSignalsSignalUnsubscribeReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10053,14 +10053,14 @@ fn destack_process_signals_signal_wait_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_signal = result_value.signal;
-                let result_replay_pid = result_value.pid;
-                let result_replay = SignalEvent {
-                    signal: result_replay_signal,
-                    pid: result_replay_pid,
+                let result_recorded_signal = result_value.signal;
+                let result_recorded_pid = result_value.pid;
+                let result_recorded = SignalEvent {
+                    signal: result_recorded_signal,
+                    pid: result_recorded_pid,
                 };
                 let payload = ProcessSignalsSignalWaitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10122,9 +10122,9 @@ fn destack_process_spawn_spawn_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = ProcessSpawnSpawnReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10185,9 +10185,9 @@ fn destack_process_spawn_with_actions_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = ProcessSpawnWithActionsReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10232,9 +10232,9 @@ fn destack_process_umask_umask_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = result_value;
+                let result_recorded = result_value;
                 let payload = ProcessUmaskUmaskReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10280,20 +10280,20 @@ fn destack_process_wait_pid_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_pid = result_value.pid;
-                let result_replay_kind = result_value.kind;
-                let result_replay_exit_code = result_value.exit_code;
-                let result_replay_signal = result_value.signal;
-                let result_replay_core_dumped = result_value.core_dumped;
-                let result_replay = ProcessWaitStatus {
-                    pid: result_replay_pid,
-                    kind: result_replay_kind,
-                    exit_code: result_replay_exit_code,
-                    signal: result_replay_signal,
-                    core_dumped: result_replay_core_dumped,
+                let result_recorded_pid = result_value.pid;
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_exit_code = result_value.exit_code;
+                let result_recorded_signal = result_value.signal;
+                let result_recorded_core_dumped = result_value.core_dumped;
+                let result_recorded = ProcessWaitStatus {
+                    pid: result_recorded_pid,
+                    kind: result_recorded_kind,
+                    exit_code: result_recorded_exit_code,
+                    signal: result_recorded_signal,
+                    core_dumped: result_recorded_core_dumped,
                 };
                 let payload = ProcessWaitPidReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10349,20 +10349,20 @@ fn destack_process_wait_try_wait_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_pid = result_value.pid;
-                let result_replay_kind = result_value.kind;
-                let result_replay_exit_code = result_value.exit_code;
-                let result_replay_signal = result_value.signal;
-                let result_replay_core_dumped = result_value.core_dumped;
-                let result_replay = ProcessWaitStatus {
-                    pid: result_replay_pid,
-                    kind: result_replay_kind,
-                    exit_code: result_replay_exit_code,
-                    signal: result_replay_signal,
-                    core_dumped: result_replay_core_dumped,
+                let result_recorded_pid = result_value.pid;
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_exit_code = result_value.exit_code;
+                let result_recorded_signal = result_value.signal;
+                let result_recorded_core_dumped = result_value.core_dumped;
+                let result_recorded = ProcessWaitStatus {
+                    pid: result_recorded_pid,
+                    kind: result_recorded_kind,
+                    exit_code: result_recorded_exit_code,
+                    signal: result_recorded_signal,
+                    core_dumped: result_recorded_core_dumped,
                 };
                 let payload = ProcessWaitTryWaitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
@@ -10419,20 +10419,20 @@ fn destack_process_wait_wait_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay_pid = result_value.pid;
-                let result_replay_kind = result_value.kind;
-                let result_replay_exit_code = result_value.exit_code;
-                let result_replay_signal = result_value.signal;
-                let result_replay_core_dumped = result_value.core_dumped;
-                let result_replay = ProcessWaitStatus {
-                    pid: result_replay_pid,
-                    kind: result_replay_kind,
-                    exit_code: result_replay_exit_code,
-                    signal: result_replay_signal,
-                    core_dumped: result_replay_core_dumped,
+                let result_recorded_pid = result_value.pid;
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_exit_code = result_value.exit_code;
+                let result_recorded_signal = result_value.signal;
+                let result_recorded_core_dumped = result_value.core_dumped;
+                let result_recorded = ProcessWaitStatus {
+                    pid: result_recorded_pid,
+                    kind: result_recorded_kind,
+                    exit_code: result_recorded_exit_code,
+                    signal: result_recorded_signal,
+                    core_dumped: result_recorded_core_dumped,
                 };
                 let payload = ProcessWaitWaitReplay {
-                    result: Ok(result_replay),
+                    result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
             }
