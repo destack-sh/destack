@@ -1,0 +1,11 @@
+[package]
+name = "tanstack-devtools"
+description = "TanStack Devtools inspection and debugging packages"
+repo = "https://github.com/TanStack/devtools"
+ref = "47298b6869e8ded19b4b48c4454b5abdea493804"
+language = "ts"
+tags = ["library", "frontend", "debugging", "tanstack"]
+
+[discovery]
+include = ["packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/fixtures/**", "**/dist/**", "**/node_modules/**"]

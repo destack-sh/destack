@@ -1,0 +1,11 @@
+[package]
+name = "node-postgres"
+description = "node-postgres PostgreSQL client"
+repo = "https://github.com/brianc/node-postgres"
+ref = "d8c5bf65760cc4ebead4614d821cb26c581cff84"
+language = "js"
+tags = ["backend", "database", "server", "monorepo"]
+
+[discovery]
+include = ["packages/**/*.js", "packages/**/*.ts", "packages/**/*.d.ts"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/bench/**", "**/dist/**", "**/node_modules/**"]

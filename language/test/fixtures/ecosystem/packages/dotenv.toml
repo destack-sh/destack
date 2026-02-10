@@ -1,0 +1,11 @@
+[package]
+name = "dotenv"
+description = "dotenv environment variable loader"
+repo = "https://github.com/motdotla/dotenv"
+ref = "fabbdf24c59d0cac3b5acd45daf9fcb2b40dd98d"
+language = "js"
+tags = ["library", "utility", "server"]
+
+[discovery]
+include = ["lib/**/*.js", "config.js"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/bench/**", "**/dist/**", "**/node_modules/**"]

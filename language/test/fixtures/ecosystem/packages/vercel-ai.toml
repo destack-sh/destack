@@ -1,0 +1,11 @@
+[package]
+name = "vercel-ai"
+description = "Vercel AI SDK monorepo"
+repo = "https://github.com/vercel/ai"
+ref = "574d73fc4b88c5dfd4ba141e7ab7e39b63a2d871"
+language = "ts"
+tags = ["library", "ai", "vercel", "monorepo"]
+
+[discovery]
+include = ["packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/fixtures/**", "**/dist/**", "**/node_modules/**"]

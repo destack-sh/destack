@@ -1,0 +1,11 @@
+[package]
+name = "ws"
+description = "ws WebSocket implementation"
+repo = "https://github.com/websockets/ws"
+ref = "ca533a53f338c4a40a3881dd6dff7e5867d06893"
+language = "js"
+tags = ["backend", "server", "networking"]
+
+[discovery]
+include = ["lib/**/*.js", "index.js", "wrapper.mjs"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/bench/**", "**/dist/**", "**/node_modules/**"]
