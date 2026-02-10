@@ -93,7 +93,7 @@ fn decode_string(
 
 /// Decode a slice argument.
 fn decode_slice<T>(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -103,7 +103,7 @@ fn decode_slice<T>(
 
 /// Decode an array argument.
 fn decode_array<T>(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -114,7 +114,7 @@ fn decode_array<T>(
 /// Decode arguments for destack.ffi.call.call.
 #[inline]
 fn decode_destack_ffi_call_call_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SymbolHandle, u32, u32, VmSlice<u8>, u32)> {
     let symbol_value = arg_value(args, 0, "symbol", "SymbolHandle")?;
@@ -135,7 +135,7 @@ fn decode_destack_ffi_call_call_args(
 /// Encode the result for destack.ffi.call.call.
 #[inline]
 fn encode_destack_ffi_call_call_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| value.to_value(context))
@@ -144,7 +144,7 @@ fn encode_destack_ffi_call_call_result(
 /// Decode arguments for destack.ffi.library.close.
 #[inline]
 fn decode_destack_ffi_library_close_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::LibraryHandle,)> {
     // ignore unused context
@@ -160,7 +160,7 @@ fn decode_destack_ffi_library_close_args(
 /// Encode the result for destack.ffi.library.close.
 #[inline]
 fn encode_destack_ffi_library_close_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -172,7 +172,7 @@ fn encode_destack_ffi_library_close_result(
 /// Decode arguments for destack.ffi.library.open.
 #[inline]
 fn decode_destack_ffi_library_open_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(fs::OsPathVm, u32)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
@@ -220,7 +220,7 @@ fn decode_destack_ffi_library_open_args(
 /// Encode the result for destack.ffi.library.open.
 #[inline]
 fn encode_destack_ffi_library_open_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::LibraryHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -232,7 +232,7 @@ fn encode_destack_ffi_library_open_result(
 /// Decode arguments for destack.ffi.pointer.address.
 #[inline]
 fn decode_destack_ffi_pointer_address_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(FfiPointer,)> {
     // ignore unused context
@@ -247,7 +247,7 @@ fn decode_destack_ffi_pointer_address_args(
 /// Encode the result for destack.ffi.pointer.address.
 #[inline]
 fn encode_destack_ffi_pointer_address_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -259,7 +259,7 @@ fn encode_destack_ffi_pointer_address_result(
 /// Decode arguments for destack.ffi.pointer.fromAddress.
 #[inline]
 fn decode_destack_ffi_pointer_from_address_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64,)> {
     // ignore unused context
@@ -273,7 +273,7 @@ fn decode_destack_ffi_pointer_from_address_args(
 /// Encode the result for destack.ffi.pointer.fromAddress.
 #[inline]
 fn encode_destack_ffi_pointer_from_address_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<FfiPointer>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -285,7 +285,7 @@ fn encode_destack_ffi_pointer_from_address_result(
 /// Decode arguments for destack.ffi.symbol.address.
 #[inline]
 fn decode_destack_ffi_symbol_address_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SymbolHandle,)> {
     // ignore unused context
@@ -301,7 +301,7 @@ fn decode_destack_ffi_symbol_address_args(
 /// Encode the result for destack.ffi.symbol.address.
 #[inline]
 fn encode_destack_ffi_symbol_address_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -313,7 +313,7 @@ fn encode_destack_ffi_symbol_address_result(
 /// Decode arguments for destack.ffi.symbol.lookup.
 #[inline]
 fn decode_destack_ffi_symbol_lookup_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::LibraryHandle, vm::StringHandle)> {
     // ignore unused context
@@ -331,7 +331,7 @@ fn decode_destack_ffi_symbol_lookup_args(
 /// Encode the result for destack.ffi.symbol.lookup.
 #[inline]
 fn encode_destack_ffi_symbol_lookup_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SymbolHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context

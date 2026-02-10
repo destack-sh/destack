@@ -7,7 +7,7 @@ use destack_vm as vm;
 /// Stub for destack.timer.control.cancel.
 pub(super) fn destack_timer_cancel(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -20,7 +20,7 @@ pub(super) fn destack_timer_cancel(
 /// Stub for destack.timer.control.isActive.
 pub(super) fn destack_timer_is_active(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<bool> {
     let _ = handle;
@@ -33,7 +33,7 @@ pub(super) fn destack_timer_is_active(
 /// Stub for destack.timer.control.pause.
 pub(super) fn destack_timer_pause(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -46,7 +46,7 @@ pub(super) fn destack_timer_pause(
 /// Stub for destack.timer.control.remainingNs.
 pub(super) fn destack_timer_remaining_ns(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<u64> {
     let _ = handle;
@@ -59,7 +59,7 @@ pub(super) fn destack_timer_remaining_ns(
 /// Stub for destack.timer.control.reset.
 pub(super) fn destack_timer_reset(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TimerHandle,
     delayns: u64,
 ) -> RuntimeResult<()> {
@@ -73,7 +73,7 @@ pub(super) fn destack_timer_reset(
 /// Stub for destack.timer.control.resume.
 pub(super) fn destack_timer_resume(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -86,7 +86,7 @@ pub(super) fn destack_timer_resume(
 /// Stub for destack.timer.control.updateInterval.
 pub(super) fn destack_timer_update_interval(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TimerHandle,
     periodns: u64,
 ) -> RuntimeResult<()> {
@@ -100,7 +100,7 @@ pub(super) fn destack_timer_update_interval(
 /// Stub for destack.timer.schedule.at.
 pub(super) fn destack_timer_at(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     deadlinens: u64,
 ) -> RuntimeResult<resource::TimerHandle> {
     let _ = deadlinens;
@@ -113,7 +113,7 @@ pub(super) fn destack_timer_at(
 /// Stub for destack.timer.schedule.atWithOptions.
 pub(super) fn destack_timer_at_with_options(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     deadlinens: u64,
     options: TimerOptionsVm,
 ) -> RuntimeResult<resource::TimerHandle> {
@@ -127,7 +127,7 @@ pub(super) fn destack_timer_at_with_options(
 /// Stub for destack.timer.schedule.interval.
 pub(super) fn destack_timer_interval(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     periodns: u64,
 ) -> RuntimeResult<resource::TimerHandle> {
     let _ = periodns;
@@ -140,7 +140,7 @@ pub(super) fn destack_timer_interval(
 /// Stub for destack.timer.schedule.intervalWithOptions.
 pub(super) fn destack_timer_interval_with_options(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     periodns: u64,
     options: TimerOptionsVm,
 ) -> RuntimeResult<resource::TimerHandle> {
@@ -154,7 +154,7 @@ pub(super) fn destack_timer_interval_with_options(
 /// Stub for destack.timer.schedule.once.
 pub(super) fn destack_timer_once(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     delayns: u64,
 ) -> RuntimeResult<resource::TimerHandle> {
     let _ = delayns;
@@ -167,7 +167,7 @@ pub(super) fn destack_timer_once(
 /// Stub for destack.timer.schedule.onceWithOptions.
 pub(super) fn destack_timer_once_with_options(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     delayns: u64,
     options: TimerOptionsVm,
 ) -> RuntimeResult<resource::TimerHandle> {

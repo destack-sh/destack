@@ -9,7 +9,7 @@ use destack_vm as vm;
 /// Stub for destack.audio.device.close.
 pub(super) fn destack_audio_device_close(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -22,7 +22,7 @@ pub(super) fn destack_audio_device_close(
 /// Stub for destack.audio.device.list.
 pub(super) fn destack_audio_device_list(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<AudioDeviceInfoVm>> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.audio.device.list is not available in the VM yet",
@@ -33,7 +33,7 @@ pub(super) fn destack_audio_device_list(
 /// Stub for destack.audio.device.open.
 pub(super) fn destack_audio_device_open(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
     direction: AudioDeviceDirection,
 ) -> RuntimeResult<resource::AudioDeviceHandle> {
@@ -47,7 +47,7 @@ pub(super) fn destack_audio_device_open(
 /// Stub for destack.audio.stream.close.
 pub(super) fn destack_audio_stream_close(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -60,7 +60,7 @@ pub(super) fn destack_audio_stream_close(
 /// Stub for destack.audio.stream.open.
 pub(super) fn destack_audio_stream_open(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     device: resource::AudioDeviceHandle,
     config: AudioStreamConfigVm,
 ) -> RuntimeResult<resource::AudioStreamHandle> {
@@ -74,7 +74,7 @@ pub(super) fn destack_audio_stream_open(
 /// Stub for destack.audio.stream.read.
 pub(super) fn destack_audio_stream_read(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
     maxbytes: u32,
 ) -> RuntimeResult<VmSlice<u8>> {
@@ -88,7 +88,7 @@ pub(super) fn destack_audio_stream_read(
 /// Stub for destack.audio.stream.start.
 pub(super) fn destack_audio_stream_start(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -101,7 +101,7 @@ pub(super) fn destack_audio_stream_start(
 /// Stub for destack.audio.stream.state.
 pub(super) fn destack_audio_stream_state(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<AudioStreamStateVm> {
     let _ = handle;
@@ -114,7 +114,7 @@ pub(super) fn destack_audio_stream_state(
 /// Stub for destack.audio.stream.stop.
 pub(super) fn destack_audio_stream_stop(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -127,7 +127,7 @@ pub(super) fn destack_audio_stream_stop(
 /// Stub for destack.audio.stream.write.
 pub(super) fn destack_audio_stream_write(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
     data: VmSlice<u8>,
 ) -> RuntimeResult<u64> {

@@ -71,7 +71,7 @@ impl TestRuntime {
     /// Execute a VM binding within a runtime call context.
     pub(crate) fn with_vm_call_context<T>(
         &self,
-        run: impl for<'ctx> FnOnce(&RuntimeCallContext, &mut vm::RuntimeContext<'ctx>) -> T,
+        run: impl for<'ctx> FnOnce(&RuntimeCallContext, &mut vm::ExternalCallContext<'ctx>) -> T,
     ) -> T {
         // run the VM call with a fresh runtime call context
         let mut isolate = self.vm_isolate.borrow_mut();

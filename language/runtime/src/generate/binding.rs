@@ -820,7 +820,7 @@ pub(crate) fn render_vm_stub(domain: &str, bindings: &BindingCatalogEntry) -> St
         output.push_str(&format!("/// Stub for {}.\n", binding.extern_name));
         output.push_str(&format!("pub(super) fn {method_name}(\n"));
         output.push_str("    _runtime: &RuntimeCallContext,\n");
-        output.push_str("    _context: &mut vm::RuntimeContext<'_>,\n");
+        output.push_str("    _context: &mut vm::ExternalCallContext<'_>,\n");
         for param in &params {
             output.push_str(&format!("    {param},\n"));
         }
@@ -1439,7 +1439,7 @@ impl<'a> DomainWriter<'a> {
         if usage.uses_slice {
             output.push_str("/// Decode a slice argument.\n");
             output.push_str("fn decode_slice<T>(\n");
-            output.push_str("    context: &mut vm::RuntimeContext<'_>,\n");
+            output.push_str("    context: &mut vm::ExternalCallContext<'_>,\n");
             output.push_str("    value: vm::Value,\n");
             output.push_str("    name: &'static str,\n");
             output.push_str("    expected: &'static str,\n");
@@ -1451,7 +1451,7 @@ impl<'a> DomainWriter<'a> {
         if usage.uses_array {
             output.push_str("/// Decode an array argument.\n");
             output.push_str("fn decode_array<T>(\n");
-            output.push_str("    context: &mut vm::RuntimeContext<'_>,\n");
+            output.push_str("    context: &mut vm::ExternalCallContext<'_>,\n");
             output.push_str("    value: vm::Value,\n");
             output.push_str("    name: &'static str,\n");
             output.push_str("    expected: &'static str,\n");
@@ -1478,7 +1478,7 @@ impl<'a> DomainWriter<'a> {
                 output.push_str(&format!("/// Decode arguments for {}.\n", extern_name));
                 output.push_str("#[inline]\n");
                 output.push_str(&format!(
-                "fn {decode_helper}(\n    context: &mut vm::RuntimeContext<'_>,\n    args: &[vm::Value],\n) -> RuntimeResult<{}> {{\n",
+                "fn {decode_helper}(\n    context: &mut vm::ExternalCallContext<'_>,\n    args: &[vm::Value],\n) -> RuntimeResult<{}> {{\n",
                 vm_args_tuple_type(domain, &entry.parameters)
             ));
                 if !decode_uses_context {
@@ -1524,7 +1524,7 @@ impl<'a> DomainWriter<'a> {
             output.push_str(&format!("/// Encode the result for {}.\n", extern_name));
             output.push_str("#[inline]\n");
             output.push_str(&format!(
-            "fn {encode_helper}(\n    context: &mut vm::RuntimeContext<'_>,\n    result: RuntimeResult<{}>,\n) -> RuntimeResult<vm::Value> {{\n",
+            "fn {encode_helper}(\n    context: &mut vm::ExternalCallContext<'_>,\n    result: RuntimeResult<{}>,\n) -> RuntimeResult<vm::Value> {{\n",
             vm_return_type(domain, &entry.return_binding)
         ));
             if !encode_uses_context {
@@ -1992,7 +1992,7 @@ impl<'a> DomainWriter<'a> {
                         );
                         let buffer_name = binding_random_bytes_buffer_arg(&binding.entry);
                         output.push_str(
-                            "                let context_ptr = context as *mut vm::RuntimeContext<'_>;\n",
+                            "                let context_ptr = context as *mut vm::ExternalCallContext<'_>;\n",
                         );
                         output.push_str(
                             "                let result = runtime.replay().run_random_bytes(\n",

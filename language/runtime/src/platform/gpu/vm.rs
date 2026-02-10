@@ -11,7 +11,7 @@ use destack_vm as vm;
 /// Stub for destack.gpu.adapter.close.
 pub(super) fn destack_gpu_adapter_close(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -24,7 +24,7 @@ pub(super) fn destack_gpu_adapter_close(
 /// Stub for destack.gpu.adapter.list.
 pub(super) fn destack_gpu_adapter_list(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<GpuAdapterInfoVm>> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.gpu.adapter.list is not available in the VM yet",
@@ -35,7 +35,7 @@ pub(super) fn destack_gpu_adapter_list(
 /// Stub for destack.gpu.adapter.open.
 pub(super) fn destack_gpu_adapter_open(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<resource::GpuAdapterHandle> {
     let _ = id;
@@ -48,7 +48,7 @@ pub(super) fn destack_gpu_adapter_open(
 /// Stub for destack.gpu.command.bindPipeline.
 pub(super) fn destack_gpu_command_bind_pipeline(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuCommandListHandle,
     pipeline: resource::GpuPipelineHandle,
 ) -> RuntimeResult<()> {
@@ -62,7 +62,7 @@ pub(super) fn destack_gpu_command_bind_pipeline(
 /// Stub for destack.gpu.command.copyBuffer.
 pub(super) fn destack_gpu_command_copy_buffer(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuCommandListHandle,
     src: resource::GpuBufferHandle,
     srcoffset: u64,
@@ -80,7 +80,7 @@ pub(super) fn destack_gpu_command_copy_buffer(
 /// Stub for destack.gpu.command.dispatch.
 pub(super) fn destack_gpu_command_dispatch(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuCommandListHandle,
     groupx: u32,
     groupy: u32,
@@ -96,7 +96,7 @@ pub(super) fn destack_gpu_command_dispatch(
 /// Stub for destack.gpu.command.listBegin.
 pub(super) fn destack_gpu_command_list_begin(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuCommandListHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -109,7 +109,7 @@ pub(super) fn destack_gpu_command_list_begin(
 /// Stub for destack.gpu.command.listClose.
 pub(super) fn destack_gpu_command_list_close(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuCommandListHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -122,7 +122,7 @@ pub(super) fn destack_gpu_command_list_close(
 /// Stub for destack.gpu.command.listEnd.
 pub(super) fn destack_gpu_command_list_end(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuCommandListHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -135,7 +135,7 @@ pub(super) fn destack_gpu_command_list_end(
 /// Stub for destack.gpu.command.listOpen.
 pub(super) fn destack_gpu_command_list_open(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuCommandListOptionsVm,
 ) -> RuntimeResult<resource::GpuCommandListHandle> {
@@ -149,7 +149,7 @@ pub(super) fn destack_gpu_command_list_open(
 /// Stub for destack.gpu.command.queueSubmit.
 pub(super) fn destack_gpu_queue_submit(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     queue: resource::GpuQueueHandle,
     commandlists: VmSlice<resource::GpuCommandListHandle>,
     options: GpuSubmitOptionsVm,
@@ -164,7 +164,7 @@ pub(super) fn destack_gpu_queue_submit(
 /// Stub for destack.gpu.command.queueWaitIdle.
 pub(super) fn destack_gpu_queue_wait_idle(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     queue: resource::GpuQueueHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
@@ -178,7 +178,7 @@ pub(super) fn destack_gpu_queue_wait_idle(
 /// Stub for destack.gpu.device.close.
 pub(super) fn destack_gpu_device_close(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -191,7 +191,7 @@ pub(super) fn destack_gpu_device_close(
 /// Stub for destack.gpu.device.open.
 pub(super) fn destack_gpu_device_open(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     adapter: resource::GpuAdapterHandle,
     options: GpuDeviceOptionsVm,
 ) -> RuntimeResult<resource::GpuDeviceHandle> {
@@ -205,7 +205,7 @@ pub(super) fn destack_gpu_device_open(
 /// Stub for destack.gpu.device.queue.
 pub(super) fn destack_gpu_device_queue(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     family: u32,
     index: u32,
@@ -220,7 +220,7 @@ pub(super) fn destack_gpu_device_queue(
 /// Stub for destack.gpu.pipeline.create.
 pub(super) fn destack_gpu_pipeline_create(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     shaders: VmSlice<resource::GpuShaderHandle>,
     options: GpuPipelineOptionsVm,
@@ -235,7 +235,7 @@ pub(super) fn destack_gpu_pipeline_create(
 /// Stub for destack.gpu.pipeline.destroy.
 pub(super) fn destack_gpu_pipeline_destroy(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuPipelineHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -248,7 +248,7 @@ pub(super) fn destack_gpu_pipeline_destroy(
 /// Stub for destack.gpu.pipeline.shaderCreate.
 pub(super) fn destack_gpu_shader_create(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuShaderOptionsVm,
     bytes: VmSlice<u8>,
@@ -263,7 +263,7 @@ pub(super) fn destack_gpu_shader_create(
 /// Stub for destack.gpu.pipeline.shaderDestroy.
 pub(super) fn destack_gpu_shader_destroy(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuShaderHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -276,7 +276,7 @@ pub(super) fn destack_gpu_shader_destroy(
 /// Stub for destack.gpu.present.queuePresent.
 pub(super) fn destack_gpu_queue_present(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     queue: resource::GpuQueueHandle,
     window: resource::WindowHandle,
     options: GpuPresentOptionsVm,
@@ -291,7 +291,7 @@ pub(super) fn destack_gpu_queue_present(
 /// Stub for destack.gpu.resource.bufferCreate.
 pub(super) fn destack_gpu_buffer_create(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuBufferOptionsVm,
 ) -> RuntimeResult<resource::GpuBufferHandle> {
@@ -305,7 +305,7 @@ pub(super) fn destack_gpu_buffer_create(
 /// Stub for destack.gpu.resource.bufferDestroy.
 pub(super) fn destack_gpu_buffer_destroy(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuBufferHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -318,7 +318,7 @@ pub(super) fn destack_gpu_buffer_destroy(
 /// Stub for destack.gpu.resource.bufferRead.
 pub(super) fn destack_gpu_buffer_read(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuBufferHandle,
     offset: u64,
     length: u64,
@@ -333,7 +333,7 @@ pub(super) fn destack_gpu_buffer_read(
 /// Stub for destack.gpu.resource.bufferWrite.
 pub(super) fn destack_gpu_buffer_write(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuBufferHandle,
     offset: u64,
     bytes: VmSlice<u8>,
@@ -348,7 +348,7 @@ pub(super) fn destack_gpu_buffer_write(
 /// Stub for destack.gpu.resource.memoryMap.
 pub(super) fn destack_gpu_memory_map(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuMemoryHandle,
     offset: u64,
     length: u64,
@@ -363,7 +363,7 @@ pub(super) fn destack_gpu_memory_map(
 /// Stub for destack.gpu.resource.memoryUnmap.
 pub(super) fn destack_gpu_memory_unmap(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuMemoryHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -376,7 +376,7 @@ pub(super) fn destack_gpu_memory_unmap(
 /// Stub for destack.gpu.resource.samplerCreate.
 pub(super) fn destack_gpu_sampler_create(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuSamplerOptionsVm,
 ) -> RuntimeResult<resource::GpuSamplerHandle> {
@@ -390,7 +390,7 @@ pub(super) fn destack_gpu_sampler_create(
 /// Stub for destack.gpu.resource.samplerDestroy.
 pub(super) fn destack_gpu_sampler_destroy(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuSamplerHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -403,7 +403,7 @@ pub(super) fn destack_gpu_sampler_destroy(
 /// Stub for destack.gpu.resource.textureCreate.
 pub(super) fn destack_gpu_texture_create(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuTextureOptionsVm,
 ) -> RuntimeResult<resource::GpuTextureHandle> {
@@ -417,7 +417,7 @@ pub(super) fn destack_gpu_texture_create(
 /// Stub for destack.gpu.resource.textureDestroy.
 pub(super) fn destack_gpu_texture_destroy(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuTextureHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;

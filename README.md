@@ -11,10 +11,7 @@ Own your software, build it anywhere and run it everywhere in one integrated ope
  - **Destack Platform**: Integrated platform to support your software development - the CLI, IDE integrations, build plugins, debugging, analytics, deployment tools. Everything to plug your software into the real world.
 
 **Destack is designed as an integrated system**, **but you *can* pick and choose any pieces you like.**
-You are free to use plain TypeScript, pick any of the libraries, or plug into the platform from a different system entirely.
-
-<sub>*Compatibility expectations are defined in `language/INTEROPERABILITY.md`.</sub>
-<sub>*A few obscure syntax patterns (comma operator, generic arrows in TSX context) work differently in `.ds` files. See [Compatibility](language/DESIGN.md#compatibility).</sub>
+You are free to use plain TypeScript, pick any of the libraries, or plug into the runtime or platform from a different system entirely.
 
 ## Examples
 
@@ -24,13 +21,6 @@ You are free to use plain TypeScript, pick any of the libraries, or plug into th
 
  - NOTE #Incomplete: getting started (`bun i destack`, `curl destack.sh/install`, ..)
  - Join the [Discord](https://discord.gg/xUFQ45TWYd)
-
-## Targets And Capabilities
-
-Destack ships a native runtime and also targets existing JS hosts.
-Native runtime targets: macOS, Linux, Windows, iOS, Android, FreeBSD, OpenBSD, NetBSD, DragonFly, and WASI.
-JS host targets: Node, Bun, Deno, and browsers.
-Platform capabilities are explicit and guarded via `@require` in `.ds` so portability stays honest.
 
 ## Higher-Order Software, Higher-Order Development
 
@@ -42,7 +32,7 @@ Destack aims to make building correct, optimal, integrated software the obvious 
 
 TypeScript is a language for describing *the shape of data*.
 Destack is a system for describing *the shape of software*.
-TypeScript has `.ts`, `.d.ts`, and `.tsx`, Destack brings `.ds` and `.d.ds` into the same codebase.
+TypeScript has `.ts`, `.d.ts`, and `.tsx`, Destack brings `.ds` (and `.d.ds`).
 The fully integrated library and platform let us extend the TypeScript philosophy for entire software systems. 
 
 The best programing language is the one that fits the problem.

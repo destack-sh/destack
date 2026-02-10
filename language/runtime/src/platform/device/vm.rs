@@ -7,7 +7,7 @@ use destack_vm as vm;
 /// Stub for destack.device.control.control.
 pub(super) fn destack_device_control(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::DeviceHandle,
     operation: DeviceControlOperationVm,
     input: VmSlice<u8>,
@@ -23,7 +23,7 @@ pub(super) fn destack_device_control(
 /// Stub for destack.device.io.close.
 pub(super) fn destack_device_close(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::DeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -36,7 +36,7 @@ pub(super) fn destack_device_close(
 /// Stub for destack.device.io.open.
 pub(super) fn destack_device_open(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     path: fs::OsPathVm,
     flags: u32,
     mode: u32,
@@ -51,7 +51,7 @@ pub(super) fn destack_device_open(
 /// Stub for destack.device.io.read.
 pub(super) fn destack_device_read(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::DeviceHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
@@ -65,7 +65,7 @@ pub(super) fn destack_device_read(
 /// Stub for destack.device.io.write.
 pub(super) fn destack_device_write(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::DeviceHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {

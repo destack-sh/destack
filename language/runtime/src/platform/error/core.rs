@@ -53,12 +53,12 @@ impl<'a> NativeStringStore<'a> {
 #[derive(Debug)]
 pub struct VmStringStore<'a, 'ctx> {
     /// Runtime context for the current VM call.
-    context: &'a mut vm::RuntimeContext<'ctx>,
+    context: &'a mut vm::ExternalCallContext<'ctx>,
 }
 
 impl<'a, 'ctx> VmStringStore<'a, 'ctx> {
     /// Create a VM string store for the runtime context.
-    pub fn new(context: &'a mut vm::RuntimeContext<'ctx>) -> Self {
+    pub fn new(context: &'a mut vm::ExternalCallContext<'ctx>) -> Self {
         Self { context }
     }
 

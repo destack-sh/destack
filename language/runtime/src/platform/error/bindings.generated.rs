@@ -61,7 +61,7 @@ fn decode_uint64(
 /// Decode arguments for destack.error.error.takePlatformError.
 #[inline]
 fn decode_destack_error_error_take_platform_error_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64,)> {
     // ignore unused context
@@ -75,7 +75,7 @@ fn decode_destack_error_error_take_platform_error_args(
 /// Encode the result for destack.error.error.takePlatformError.
 #[inline]
 fn encode_destack_error_error_take_platform_error_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<PlatformErrorVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {

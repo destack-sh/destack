@@ -144,7 +144,7 @@ fn decode_string(
 
 /// Decode a slice argument.
 fn decode_slice<T>(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -154,7 +154,7 @@ fn decode_slice<T>(
 
 /// Decode an array argument.
 fn decode_array<T>(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -165,7 +165,7 @@ fn decode_array<T>(
 /// Encode the result for destack.process.args.args.
 #[inline]
 fn encode_destack_process_args_args_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<vm::StringHandle>>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| value.to_value(context))
@@ -174,7 +174,7 @@ fn encode_destack_process_args_args_result(
 /// Decode arguments for destack.process.cwd.chdir.
 #[inline]
 fn decode_destack_process_cwd_chdir_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(fs::OsPathVm,)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
@@ -220,7 +220,7 @@ fn decode_destack_process_cwd_chdir_args(
 /// Encode the result for destack.process.cwd.chdir.
 #[inline]
 fn encode_destack_process_cwd_chdir_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -232,7 +232,7 @@ fn encode_destack_process_cwd_chdir_result(
 /// Encode the result for destack.process.cwd.cwd.
 #[inline]
 fn encode_destack_process_cwd_cwd_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<fs::OsPathVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -245,7 +245,7 @@ fn encode_destack_process_cwd_cwd_result(
 /// Decode arguments for destack.process.env.delete.
 #[inline]
 fn decode_destack_process_env_delete_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     // ignore unused context
@@ -259,7 +259,7 @@ fn decode_destack_process_env_delete_args(
 /// Encode the result for destack.process.env.delete.
 #[inline]
 fn encode_destack_process_env_delete_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -271,7 +271,7 @@ fn encode_destack_process_env_delete_result(
 /// Decode arguments for destack.process.env.deleteBytes.
 #[inline]
 fn decode_destack_process_env_delete_bytes_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmSlice<u8>,)> {
     let name_value = arg_value(args, 0, "name", "Slice<uint8>")?;
@@ -282,7 +282,7 @@ fn decode_destack_process_env_delete_bytes_args(
 /// Encode the result for destack.process.env.deleteBytes.
 #[inline]
 fn encode_destack_process_env_delete_bytes_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -294,7 +294,7 @@ fn encode_destack_process_env_delete_bytes_result(
 /// Decode arguments for destack.process.env.get.
 #[inline]
 fn decode_destack_process_env_get_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     // ignore unused context
@@ -308,7 +308,7 @@ fn decode_destack_process_env_get_args(
 /// Encode the result for destack.process.env.get.
 #[inline]
 fn encode_destack_process_env_get_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<vm::StringHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -320,7 +320,7 @@ fn encode_destack_process_env_get_result(
 /// Decode arguments for destack.process.env.getBytes.
 #[inline]
 fn decode_destack_process_env_get_bytes_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmSlice<u8>,)> {
     let name_value = arg_value(args, 0, "name", "Slice<uint8>")?;
@@ -331,7 +331,7 @@ fn decode_destack_process_env_get_bytes_args(
 /// Encode the result for destack.process.env.getBytes.
 #[inline]
 fn encode_destack_process_env_get_bytes_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<u8>>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| value.to_value(context))
@@ -340,7 +340,7 @@ fn encode_destack_process_env_get_bytes_result(
 /// Decode arguments for destack.process.env.set.
 #[inline]
 fn decode_destack_process_env_set_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, vm::StringHandle)> {
     // ignore unused context
@@ -356,7 +356,7 @@ fn decode_destack_process_env_set_args(
 /// Encode the result for destack.process.env.set.
 #[inline]
 fn encode_destack_process_env_set_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -368,7 +368,7 @@ fn encode_destack_process_env_set_result(
 /// Decode arguments for destack.process.env.setBytes.
 #[inline]
 fn decode_destack_process_env_set_bytes_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmSlice<u8>, VmSlice<u8>)> {
     let name_value = arg_value(args, 0, "name", "Slice<uint8>")?;
@@ -381,7 +381,7 @@ fn decode_destack_process_env_set_bytes_args(
 /// Encode the result for destack.process.env.setBytes.
 #[inline]
 fn encode_destack_process_env_set_bytes_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -393,7 +393,7 @@ fn encode_destack_process_env_set_bytes_result(
 /// Decode arguments for destack.process.exec.exec.
 #[inline]
 fn decode_destack_process_exec_exec_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
     fs::OsPathVm,
@@ -455,7 +455,7 @@ fn decode_destack_process_exec_exec_args(
 /// Encode the result for destack.process.exec.exec.
 #[inline]
 fn encode_destack_process_exec_exec_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -468,7 +468,7 @@ fn encode_destack_process_exec_exec_result(
 #[inline]
 #[allow(clippy::type_complexity)]
 fn decode_destack_process_exec_execat_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
     resource::DirectoryHandle,
@@ -538,7 +538,7 @@ fn decode_destack_process_exec_execat_args(
 /// Encode the result for destack.process.exec.execat.
 #[inline]
 fn encode_destack_process_exec_execat_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -550,7 +550,7 @@ fn encode_destack_process_exec_execat_result(
 /// Decode arguments for destack.process.exec.fexec.
 #[inline]
 fn decode_destack_process_exec_fexec_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
     resource::FileHandle,
@@ -578,7 +578,7 @@ fn decode_destack_process_exec_fexec_args(
 /// Encode the result for destack.process.exec.fexec.
 #[inline]
 fn encode_destack_process_exec_fexec_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -590,7 +590,7 @@ fn encode_destack_process_exec_fexec_result(
 /// Decode arguments for destack.process.exit.exit.
 #[inline]
 fn decode_destack_process_exit_exit_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u32,)> {
     // ignore unused context
@@ -604,7 +604,7 @@ fn decode_destack_process_exit_exit_args(
 /// Encode the result for destack.process.exit.exit.
 #[inline]
 fn encode_destack_process_exit_exit_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -616,7 +616,7 @@ fn encode_destack_process_exit_exit_result(
 /// Decode arguments for destack.process.fd.processFdClose.
 #[inline]
 fn decode_destack_process_fd_process_fd_close_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ProcessFdHandle,)> {
     // ignore unused context
@@ -632,7 +632,7 @@ fn decode_destack_process_fd_process_fd_close_args(
 /// Encode the result for destack.process.fd.processFdClose.
 #[inline]
 fn encode_destack_process_fd_process_fd_close_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -644,7 +644,7 @@ fn encode_destack_process_fd_process_fd_close_result(
 /// Decode arguments for destack.process.fd.processFdOpen.
 #[inline]
 fn decode_destack_process_fd_process_fd_open_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProcessId, ProcessFdFlags)> {
     // ignore unused context
@@ -662,7 +662,7 @@ fn decode_destack_process_fd_process_fd_open_args(
 /// Encode the result for destack.process.fd.processFdOpen.
 #[inline]
 fn encode_destack_process_fd_process_fd_open_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::ProcessFdHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -674,7 +674,7 @@ fn encode_destack_process_fd_process_fd_open_result(
 /// Decode arguments for destack.process.fd.processFdSendSignal.
 #[inline]
 fn decode_destack_process_fd_process_fd_send_signal_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ProcessFdHandle, Signal, ProcessFdSignalFlags)> {
     // ignore unused context
@@ -696,7 +696,7 @@ fn decode_destack_process_fd_process_fd_send_signal_args(
 /// Encode the result for destack.process.fd.processFdSendSignal.
 #[inline]
 fn encode_destack_process_fd_process_fd_send_signal_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -708,7 +708,7 @@ fn encode_destack_process_fd_process_fd_send_signal_result(
 /// Decode arguments for destack.process.fd.processFdTryWait.
 #[inline]
 fn decode_destack_process_fd_process_fd_try_wait_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ProcessFdHandle,)> {
     // ignore unused context
@@ -724,7 +724,7 @@ fn decode_destack_process_fd_process_fd_try_wait_args(
 /// Encode the result for destack.process.fd.processFdTryWait.
 #[inline]
 fn encode_destack_process_fd_process_fd_try_wait_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessWaitStatusVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -740,7 +740,7 @@ fn encode_destack_process_fd_process_fd_try_wait_result(
 /// Decode arguments for destack.process.fd.processFdWait.
 #[inline]
 fn decode_destack_process_fd_process_fd_wait_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ProcessFdHandle, u64)> {
     // ignore unused context
@@ -758,7 +758,7 @@ fn decode_destack_process_fd_process_fd_wait_args(
 /// Encode the result for destack.process.fd.processFdWait.
 #[inline]
 fn encode_destack_process_fd_process_fd_wait_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessWaitStatusVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -774,7 +774,7 @@ fn encode_destack_process_fd_process_fd_wait_result(
 /// Decode arguments for destack.process.fd.signalFdClose.
 #[inline]
 fn decode_destack_process_fd_signal_fd_close_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SignalFdHandle,)> {
     // ignore unused context
@@ -790,7 +790,7 @@ fn decode_destack_process_fd_signal_fd_close_args(
 /// Encode the result for destack.process.fd.signalFdClose.
 #[inline]
 fn encode_destack_process_fd_signal_fd_close_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -802,7 +802,7 @@ fn encode_destack_process_fd_signal_fd_close_result(
 /// Decode arguments for destack.process.fd.signalFdOpen.
 #[inline]
 fn decode_destack_process_fd_signal_fd_open_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmSlice<Signal>, SignalFdFlags)> {
     let signals_value = arg_value(args, 0, "signals", "Slice<Signal>")?;
@@ -816,7 +816,7 @@ fn decode_destack_process_fd_signal_fd_open_args(
 /// Encode the result for destack.process.fd.signalFdOpen.
 #[inline]
 fn encode_destack_process_fd_signal_fd_open_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SignalFdHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -828,7 +828,7 @@ fn encode_destack_process_fd_signal_fd_open_result(
 /// Decode arguments for destack.process.fd.signalFdRead.
 #[inline]
 fn decode_destack_process_fd_signal_fd_read_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SignalFdHandle,)> {
     // ignore unused context
@@ -844,7 +844,7 @@ fn decode_destack_process_fd_signal_fd_read_args(
 /// Encode the result for destack.process.fd.signalFdRead.
 #[inline]
 fn encode_destack_process_fd_signal_fd_read_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SignalEventVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -857,7 +857,7 @@ fn encode_destack_process_fd_signal_fd_read_result(
 /// Decode arguments for destack.process.fd.signalFdSetMask.
 #[inline]
 fn decode_destack_process_fd_signal_fd_set_mask_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SignalFdHandle, VmSlice<Signal>)> {
     let handle_value = arg_value(args, 0, "handle", "SignalFdHandle")?;
@@ -872,7 +872,7 @@ fn decode_destack_process_fd_signal_fd_set_mask_args(
 /// Encode the result for destack.process.fd.signalFdSetMask.
 #[inline]
 fn encode_destack_process_fd_signal_fd_set_mask_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -884,7 +884,7 @@ fn encode_destack_process_fd_signal_fd_set_mask_result(
 /// Decode arguments for destack.process.fd.signalFdTryRead.
 #[inline]
 fn decode_destack_process_fd_signal_fd_try_read_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SignalFdHandle,)> {
     // ignore unused context
@@ -900,7 +900,7 @@ fn decode_destack_process_fd_signal_fd_try_read_args(
 /// Encode the result for destack.process.fd.signalFdTryRead.
 #[inline]
 fn encode_destack_process_fd_signal_fd_try_read_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SignalEventVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -913,7 +913,7 @@ fn encode_destack_process_fd_signal_fd_try_read_result(
 /// Decode arguments for destack.process.group.cgroupGetLimit.
 #[inline]
 fn decode_destack_process_group_cgroup_get_limit_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, ProcessLimitResource)> {
     // ignore unused context
@@ -930,7 +930,7 @@ fn decode_destack_process_group_cgroup_get_limit_args(
 /// Encode the result for destack.process.group.cgroupGetLimit.
 #[inline]
 fn encode_destack_process_group_cgroup_get_limit_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessLimitVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -943,7 +943,7 @@ fn encode_destack_process_group_cgroup_get_limit_result(
 /// Decode arguments for destack.process.group.cgroupJoin.
 #[inline]
 fn decode_destack_process_group_cgroup_join_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     // ignore unused context
@@ -957,7 +957,7 @@ fn decode_destack_process_group_cgroup_join_args(
 /// Encode the result for destack.process.group.cgroupJoin.
 #[inline]
 fn encode_destack_process_group_cgroup_join_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -969,7 +969,7 @@ fn encode_destack_process_group_cgroup_join_result(
 /// Decode arguments for destack.process.group.cgroupSetLimit.
 #[inline]
 fn decode_destack_process_group_cgroup_set_limit_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, ProcessLimitResource, ProcessLimitVm)> {
     let path_value = arg_value(args, 0, "path", "string")?;
@@ -1009,7 +1009,7 @@ fn decode_destack_process_group_cgroup_set_limit_args(
 /// Encode the result for destack.process.group.cgroupSetLimit.
 #[inline]
 fn encode_destack_process_group_cgroup_set_limit_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1021,7 +1021,7 @@ fn encode_destack_process_group_cgroup_set_limit_result(
 /// Decode arguments for destack.process.group.jobAssign.
 #[inline]
 fn decode_destack_process_group_job_assign_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, VmSlice<ProcessId>)> {
     let name_value = arg_value(args, 0, "name", "string")?;
@@ -1034,7 +1034,7 @@ fn decode_destack_process_group_job_assign_args(
 /// Encode the result for destack.process.group.jobAssign.
 #[inline]
 fn encode_destack_process_group_job_assign_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1046,7 +1046,7 @@ fn encode_destack_process_group_job_assign_result(
 /// Decode arguments for destack.process.group.jobSetLimit.
 #[inline]
 fn decode_destack_process_group_job_set_limit_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, ProcessLimitResource, ProcessLimitVm)> {
     let name_value = arg_value(args, 0, "name", "string")?;
@@ -1086,7 +1086,7 @@ fn decode_destack_process_group_job_set_limit_args(
 /// Encode the result for destack.process.group.jobSetLimit.
 #[inline]
 fn encode_destack_process_group_job_set_limit_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1098,7 +1098,7 @@ fn encode_destack_process_group_job_set_limit_result(
 /// Encode the result for destack.process.ids.gid.
 #[inline]
 fn encode_destack_process_ids_gid_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GroupId>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1110,7 +1110,7 @@ fn encode_destack_process_ids_gid_result(
 /// Encode the result for destack.process.ids.pid.
 #[inline]
 fn encode_destack_process_ids_pid_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessId>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1122,7 +1122,7 @@ fn encode_destack_process_ids_pid_result(
 /// Encode the result for destack.process.ids.ppid.
 #[inline]
 fn encode_destack_process_ids_ppid_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessId>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1134,7 +1134,7 @@ fn encode_destack_process_ids_ppid_result(
 /// Decode arguments for destack.process.ids.setGid.
 #[inline]
 fn decode_destack_process_ids_set_gid_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(GroupId,)> {
     // ignore unused context
@@ -1149,7 +1149,7 @@ fn decode_destack_process_ids_set_gid_args(
 /// Encode the result for destack.process.ids.setGid.
 #[inline]
 fn encode_destack_process_ids_set_gid_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1161,7 +1161,7 @@ fn encode_destack_process_ids_set_gid_result(
 /// Decode arguments for destack.process.ids.setGroups.
 #[inline]
 fn decode_destack_process_ids_set_groups_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmSlice<GroupId>,)> {
     let groups_value = arg_value(args, 0, "groups", "Slice<GroupId>")?;
@@ -1172,7 +1172,7 @@ fn decode_destack_process_ids_set_groups_args(
 /// Encode the result for destack.process.ids.setGroups.
 #[inline]
 fn encode_destack_process_ids_set_groups_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1184,7 +1184,7 @@ fn encode_destack_process_ids_set_groups_result(
 /// Decode arguments for destack.process.ids.setUid.
 #[inline]
 fn decode_destack_process_ids_set_uid_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(UserId,)> {
     // ignore unused context
@@ -1199,7 +1199,7 @@ fn decode_destack_process_ids_set_uid_args(
 /// Encode the result for destack.process.ids.setUid.
 #[inline]
 fn encode_destack_process_ids_set_uid_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1211,7 +1211,7 @@ fn encode_destack_process_ids_set_uid_result(
 /// Encode the result for destack.process.ids.uid.
 #[inline]
 fn encode_destack_process_ids_uid_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UserId>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1223,7 +1223,7 @@ fn encode_destack_process_ids_uid_result(
 /// Decode arguments for destack.process.isolation.chroot.
 #[inline]
 fn decode_destack_process_isolation_chroot_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(fs::OsPathVm,)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
@@ -1269,7 +1269,7 @@ fn decode_destack_process_isolation_chroot_args(
 /// Encode the result for destack.process.isolation.chroot.
 #[inline]
 fn encode_destack_process_isolation_chroot_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1281,7 +1281,7 @@ fn encode_destack_process_isolation_chroot_result(
 /// Decode arguments for destack.process.isolation.installSyscallFilter.
 #[inline]
 fn decode_destack_process_isolation_install_syscall_filter_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmArray<u8>, SyscallFilterFlags)> {
     let program_value = arg_value(args, 0, "program", "uint8[]")?;
@@ -1295,7 +1295,7 @@ fn decode_destack_process_isolation_install_syscall_filter_args(
 /// Encode the result for destack.process.isolation.installSyscallFilter.
 #[inline]
 fn encode_destack_process_isolation_install_syscall_filter_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1307,7 +1307,7 @@ fn encode_destack_process_isolation_install_syscall_filter_result(
 /// Decode arguments for destack.process.isolation.setHostName.
 #[inline]
 fn decode_destack_process_isolation_set_host_name_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     // ignore unused context
@@ -1321,7 +1321,7 @@ fn decode_destack_process_isolation_set_host_name_args(
 /// Encode the result for destack.process.isolation.setHostName.
 #[inline]
 fn encode_destack_process_isolation_set_host_name_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1333,7 +1333,7 @@ fn encode_destack_process_isolation_set_host_name_result(
 /// Decode arguments for destack.process.isolation.setNetworkNamespace.
 #[inline]
 fn decode_destack_process_isolation_set_network_namespace_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(fs::OsPathVm,)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
@@ -1379,7 +1379,7 @@ fn decode_destack_process_isolation_set_network_namespace_args(
 /// Encode the result for destack.process.isolation.setNetworkNamespace.
 #[inline]
 fn encode_destack_process_isolation_set_network_namespace_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1391,7 +1391,7 @@ fn encode_destack_process_isolation_set_network_namespace_result(
 /// Decode arguments for destack.process.isolation.setns.
 #[inline]
 fn decode_destack_process_isolation_setns_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProcessId, ProcessNamespaceKind)> {
     // ignore unused context
@@ -1425,7 +1425,7 @@ fn decode_destack_process_isolation_setns_args(
 /// Encode the result for destack.process.isolation.setns.
 #[inline]
 fn encode_destack_process_isolation_setns_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1437,7 +1437,7 @@ fn encode_destack_process_isolation_setns_result(
 /// Decode arguments for destack.process.isolation.unshare.
 #[inline]
 fn decode_destack_process_isolation_unshare_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProcessUnshareFlags,)> {
     // ignore unused context
@@ -1452,7 +1452,7 @@ fn decode_destack_process_isolation_unshare_args(
 /// Encode the result for destack.process.isolation.unshare.
 #[inline]
 fn encode_destack_process_isolation_unshare_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1464,7 +1464,7 @@ fn encode_destack_process_isolation_unshare_result(
 /// Decode arguments for destack.process.limits.getLimit.
 #[inline]
 fn decode_destack_process_limits_get_limit_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProcessLimitResource,)> {
     // ignore unused context
@@ -1479,7 +1479,7 @@ fn decode_destack_process_limits_get_limit_args(
 /// Encode the result for destack.process.limits.getLimit.
 #[inline]
 fn encode_destack_process_limits_get_limit_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessLimitVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -1492,7 +1492,7 @@ fn encode_destack_process_limits_get_limit_result(
 /// Decode arguments for destack.process.limits.setLimit.
 #[inline]
 fn decode_destack_process_limits_set_limit_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProcessLimitResource, ProcessLimitVm)> {
     let resource_value = arg_value(args, 0, "resource", "ProcessLimitResource")?;
@@ -1530,7 +1530,7 @@ fn decode_destack_process_limits_set_limit_args(
 /// Encode the result for destack.process.limits.setLimit.
 #[inline]
 fn encode_destack_process_limits_set_limit_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1542,7 +1542,7 @@ fn encode_destack_process_limits_set_limit_result(
 /// Decode arguments for destack.process.sched.getAffinity.
 #[inline]
 fn decode_destack_process_sched_get_affinity_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProcessId,)> {
     // ignore unused context
@@ -1557,7 +1557,7 @@ fn decode_destack_process_sched_get_affinity_args(
 /// Encode the result for destack.process.sched.getAffinity.
 #[inline]
 fn encode_destack_process_sched_get_affinity_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessCpuSetVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -1569,7 +1569,7 @@ fn encode_destack_process_sched_get_affinity_result(
 /// Decode arguments for destack.process.sched.getPriority.
 #[inline]
 fn decode_destack_process_sched_get_priority_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProcessId,)> {
     // ignore unused context
@@ -1584,7 +1584,7 @@ fn decode_destack_process_sched_get_priority_args(
 /// Encode the result for destack.process.sched.getPriority.
 #[inline]
 fn encode_destack_process_sched_get_priority_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<i32>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1596,7 +1596,7 @@ fn encode_destack_process_sched_get_priority_result(
 /// Decode arguments for destack.process.sched.setAffinity.
 #[inline]
 fn decode_destack_process_sched_set_affinity_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProcessId, ProcessCpuSetVm)> {
     let pid_value = arg_value(args, 0, "pid", "ProcessId")?;
@@ -1630,7 +1630,7 @@ fn decode_destack_process_sched_set_affinity_args(
 /// Encode the result for destack.process.sched.setAffinity.
 #[inline]
 fn encode_destack_process_sched_set_affinity_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1642,7 +1642,7 @@ fn encode_destack_process_sched_set_affinity_result(
 /// Decode arguments for destack.process.sched.setPriority.
 #[inline]
 fn decode_destack_process_sched_set_priority_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProcessId, i32)> {
     // ignore unused context
@@ -1659,7 +1659,7 @@ fn decode_destack_process_sched_set_priority_args(
 /// Encode the result for destack.process.sched.setPriority.
 #[inline]
 fn encode_destack_process_sched_set_priority_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1671,7 +1671,7 @@ fn encode_destack_process_sched_set_priority_result(
 /// Decode arguments for destack.process.session.getpgid.
 #[inline]
 fn decode_destack_process_session_getpgid_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProcessId,)> {
     // ignore unused context
@@ -1686,7 +1686,7 @@ fn decode_destack_process_session_getpgid_args(
 /// Encode the result for destack.process.session.getpgid.
 #[inline]
 fn encode_destack_process_session_getpgid_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessId>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1698,7 +1698,7 @@ fn encode_destack_process_session_getpgid_result(
 /// Decode arguments for destack.process.session.setpgid.
 #[inline]
 fn decode_destack_process_session_setpgid_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProcessId, ProcessId)> {
     // ignore unused context
@@ -1716,7 +1716,7 @@ fn decode_destack_process_session_setpgid_args(
 /// Encode the result for destack.process.session.setpgid.
 #[inline]
 fn encode_destack_process_session_setpgid_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1728,7 +1728,7 @@ fn encode_destack_process_session_setpgid_result(
 /// Encode the result for destack.process.session.setsid.
 #[inline]
 fn encode_destack_process_session_setsid_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessId>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1740,7 +1740,7 @@ fn encode_destack_process_session_setsid_result(
 /// Decode arguments for destack.process.signals.kill.
 #[inline]
 fn decode_destack_process_signals_kill_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProcessId, Signal)> {
     // ignore unused context
@@ -1758,7 +1758,7 @@ fn decode_destack_process_signals_kill_args(
 /// Encode the result for destack.process.signals.kill.
 #[inline]
 fn encode_destack_process_signals_kill_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1770,7 +1770,7 @@ fn encode_destack_process_signals_kill_result(
 /// Encode the result for destack.process.signals.signalMaskRead.
 #[inline]
 fn encode_destack_process_signals_signal_mask_read_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<Signal>>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| value.to_value(context))
@@ -1779,7 +1779,7 @@ fn encode_destack_process_signals_signal_mask_read_result(
 /// Decode arguments for destack.process.signals.signalMaskUpdate.
 #[inline]
 fn decode_destack_process_signals_signal_mask_update_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(SignalMaskHow, VmSlice<Signal>)> {
     let how_value = arg_value(args, 0, "how", "SignalMaskHow")?;
@@ -1804,7 +1804,7 @@ fn decode_destack_process_signals_signal_mask_update_args(
 /// Encode the result for destack.process.signals.signalMaskUpdate.
 #[inline]
 fn encode_destack_process_signals_signal_mask_update_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1816,7 +1816,7 @@ fn encode_destack_process_signals_signal_mask_update_result(
 /// Decode arguments for destack.process.signals.signalReceive.
 #[inline]
 fn decode_destack_process_signals_signal_receive_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SignalHandle,)> {
     // ignore unused context
@@ -1832,7 +1832,7 @@ fn decode_destack_process_signals_signal_receive_args(
 /// Encode the result for destack.process.signals.signalReceive.
 #[inline]
 fn encode_destack_process_signals_signal_receive_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SignalEventVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -1845,7 +1845,7 @@ fn encode_destack_process_signals_signal_receive_result(
 /// Decode arguments for destack.process.signals.signalSubscribe.
 #[inline]
 fn decode_destack_process_signals_signal_subscribe_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(Signal,)> {
     // ignore unused context
@@ -1860,7 +1860,7 @@ fn decode_destack_process_signals_signal_subscribe_args(
 /// Encode the result for destack.process.signals.signalSubscribe.
 #[inline]
 fn encode_destack_process_signals_signal_subscribe_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SignalHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1872,7 +1872,7 @@ fn encode_destack_process_signals_signal_subscribe_result(
 /// Decode arguments for destack.process.signals.signalTryReceive.
 #[inline]
 fn decode_destack_process_signals_signal_try_receive_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SignalHandle,)> {
     // ignore unused context
@@ -1888,7 +1888,7 @@ fn decode_destack_process_signals_signal_try_receive_args(
 /// Encode the result for destack.process.signals.signalTryReceive.
 #[inline]
 fn encode_destack_process_signals_signal_try_receive_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SignalEventVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -1901,7 +1901,7 @@ fn encode_destack_process_signals_signal_try_receive_result(
 /// Decode arguments for destack.process.signals.signalTryWait.
 #[inline]
 fn decode_destack_process_signals_signal_try_wait_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmSlice<Signal>,)> {
     let signals_value = arg_value(args, 0, "signals", "Slice<Signal>")?;
@@ -1912,7 +1912,7 @@ fn decode_destack_process_signals_signal_try_wait_args(
 /// Encode the result for destack.process.signals.signalTryWait.
 #[inline]
 fn encode_destack_process_signals_signal_try_wait_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SignalEventVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -1925,7 +1925,7 @@ fn encode_destack_process_signals_signal_try_wait_result(
 /// Decode arguments for destack.process.signals.signalUnsubscribe.
 #[inline]
 fn decode_destack_process_signals_signal_unsubscribe_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SignalHandle,)> {
     // ignore unused context
@@ -1941,7 +1941,7 @@ fn decode_destack_process_signals_signal_unsubscribe_args(
 /// Encode the result for destack.process.signals.signalUnsubscribe.
 #[inline]
 fn encode_destack_process_signals_signal_unsubscribe_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1953,7 +1953,7 @@ fn encode_destack_process_signals_signal_unsubscribe_result(
 /// Decode arguments for destack.process.signals.signalWait.
 #[inline]
 fn decode_destack_process_signals_signal_wait_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmSlice<Signal>,)> {
     let signals_value = arg_value(args, 0, "signals", "Slice<Signal>")?;
@@ -1964,7 +1964,7 @@ fn decode_destack_process_signals_signal_wait_args(
 /// Encode the result for destack.process.signals.signalWait.
 #[inline]
 fn encode_destack_process_signals_signal_wait_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SignalEventVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -1977,7 +1977,7 @@ fn encode_destack_process_signals_signal_wait_result(
 /// Decode arguments for destack.process.spawn.spawn.
 #[inline]
 fn decode_destack_process_spawn_spawn_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
     fs::OsPathVm,
@@ -2111,7 +2111,7 @@ fn decode_destack_process_spawn_spawn_args(
 /// Encode the result for destack.process.spawn.spawn.
 #[inline]
 fn encode_destack_process_spawn_spawn_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::ProcessHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -2124,7 +2124,7 @@ fn encode_destack_process_spawn_spawn_result(
 #[inline]
 #[allow(clippy::type_complexity)]
 fn decode_destack_process_spawn_with_actions_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
     fs::OsPathVm,
@@ -2270,7 +2270,7 @@ fn decode_destack_process_spawn_with_actions_args(
 /// Encode the result for destack.process.spawn.withActions.
 #[inline]
 fn encode_destack_process_spawn_with_actions_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::ProcessHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -2282,7 +2282,7 @@ fn encode_destack_process_spawn_with_actions_result(
 /// Decode arguments for destack.process.umask.umask.
 #[inline]
 fn decode_destack_process_umask_umask_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u32,)> {
     // ignore unused context
@@ -2296,7 +2296,7 @@ fn decode_destack_process_umask_umask_args(
 /// Encode the result for destack.process.umask.umask.
 #[inline]
 fn encode_destack_process_umask_umask_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -2308,7 +2308,7 @@ fn encode_destack_process_umask_umask_result(
 /// Decode arguments for destack.process.wait.pid.
 #[inline]
 fn decode_destack_process_wait_pid_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProcessId, ProcessWaitFlags)> {
     // ignore unused context
@@ -2326,7 +2326,7 @@ fn decode_destack_process_wait_pid_args(
 /// Encode the result for destack.process.wait.pid.
 #[inline]
 fn encode_destack_process_wait_pid_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessWaitStatusVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -2342,7 +2342,7 @@ fn encode_destack_process_wait_pid_result(
 /// Decode arguments for destack.process.wait.tryWait.
 #[inline]
 fn decode_destack_process_wait_try_wait_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ProcessHandle,)> {
     // ignore unused context
@@ -2358,7 +2358,7 @@ fn decode_destack_process_wait_try_wait_args(
 /// Encode the result for destack.process.wait.tryWait.
 #[inline]
 fn encode_destack_process_wait_try_wait_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessWaitStatusVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -2374,7 +2374,7 @@ fn encode_destack_process_wait_try_wait_result(
 /// Decode arguments for destack.process.wait.wait.
 #[inline]
 fn decode_destack_process_wait_wait_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ProcessHandle, ProcessWaitFlags)> {
     // ignore unused context
@@ -2393,7 +2393,7 @@ fn decode_destack_process_wait_wait_args(
 /// Encode the result for destack.process.wait.wait.
 #[inline]
 fn encode_destack_process_wait_wait_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessWaitStatusVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -7708,7 +7708,7 @@ pub unsafe extern "C" fn destack_process_wait_wait(
 #[inline]
 fn destack_process_args_args_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
         PROCESS_ARGS_ARGS,
@@ -7774,7 +7774,7 @@ fn destack_process_args_args_vm_replay(
 #[inline]
 fn destack_process_cwd_chdir_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     path: fs::OsPathVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -7817,7 +7817,7 @@ fn destack_process_cwd_chdir_vm_replay(
 #[inline]
 fn destack_process_cwd_cwd_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
         PROCESS_CWD_CWD,
@@ -7877,7 +7877,7 @@ fn destack_process_cwd_cwd_vm_replay(
 #[inline]
 fn destack_process_env_delete_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -7920,7 +7920,7 @@ fn destack_process_env_delete_vm_replay(
 #[inline]
 fn destack_process_env_delete_bytes_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     name: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -7963,7 +7963,7 @@ fn destack_process_env_delete_bytes_vm_replay(
 #[inline]
 fn destack_process_env_get_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -8016,7 +8016,7 @@ fn destack_process_env_get_vm_replay(
 #[inline]
 fn destack_process_env_get_bytes_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     name: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -8063,7 +8063,7 @@ fn destack_process_env_get_bytes_vm_replay(
 #[inline]
 fn destack_process_env_set_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     name: vm::StringHandle,
     value: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
@@ -8107,7 +8107,7 @@ fn destack_process_env_set_vm_replay(
 #[inline]
 fn destack_process_env_set_bytes_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     name: VmSlice<u8>,
     value: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
@@ -8151,7 +8151,7 @@ fn destack_process_env_set_bytes_vm_replay(
 #[inline]
 fn destack_process_exec_exec_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     command: fs::OsPathVm,
     arguments: VmSlice<vm::StringHandle>,
     environment: VmSlice<vm::StringHandle>,
@@ -8198,7 +8198,7 @@ fn destack_process_exec_exec_vm_replay(
 #[inline]
 fn destack_process_exec_execat_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     directory: resource::DirectoryHandle,
     path: fs::OsPathVm,
     arguments: VmSlice<vm::StringHandle>,
@@ -8255,7 +8255,7 @@ fn destack_process_exec_execat_vm_replay(
 #[inline]
 fn destack_process_exec_fexec_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     executable: resource::FileHandle,
     arguments: VmSlice<vm::StringHandle>,
     environment: VmSlice<vm::StringHandle>,
@@ -8302,7 +8302,7 @@ fn destack_process_exec_fexec_vm_replay(
 #[inline]
 fn destack_process_exit_exit_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     code: u32,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -8345,7 +8345,7 @@ fn destack_process_exit_exit_vm_replay(
 #[inline]
 fn destack_process_fd_process_fd_close_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -8388,7 +8388,7 @@ fn destack_process_fd_process_fd_close_vm_replay(
 #[inline]
 fn destack_process_fd_process_fd_open_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     pid: ProcessId,
     flags: ProcessFdFlags,
 ) -> RuntimeResult<vm::Value> {
@@ -8436,7 +8436,7 @@ fn destack_process_fd_process_fd_open_vm_replay(
 #[inline]
 fn destack_process_fd_process_fd_send_signal_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProcessFdHandle,
     signal: Signal,
     flags: ProcessFdSignalFlags,
@@ -8485,7 +8485,7 @@ fn destack_process_fd_process_fd_send_signal_vm_replay(
 #[inline]
 fn destack_process_fd_process_fd_try_wait_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -8554,7 +8554,7 @@ fn destack_process_fd_process_fd_try_wait_vm_replay(
 #[inline]
 fn destack_process_fd_process_fd_wait_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProcessFdHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
@@ -8624,7 +8624,7 @@ fn destack_process_fd_process_fd_wait_vm_replay(
 #[inline]
 fn destack_process_fd_signal_fd_close_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -8667,7 +8667,7 @@ fn destack_process_fd_signal_fd_close_vm_replay(
 #[inline]
 fn destack_process_fd_signal_fd_open_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     signals: VmSlice<Signal>,
     flags: SignalFdFlags,
 ) -> RuntimeResult<vm::Value> {
@@ -8715,7 +8715,7 @@ fn destack_process_fd_signal_fd_open_vm_replay(
 #[inline]
 fn destack_process_fd_signal_fd_read_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -8772,7 +8772,7 @@ fn destack_process_fd_signal_fd_read_vm_replay(
 #[inline]
 fn destack_process_fd_signal_fd_set_mask_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SignalFdHandle,
     signals: VmSlice<Signal>,
 ) -> RuntimeResult<vm::Value> {
@@ -8818,7 +8818,7 @@ fn destack_process_fd_signal_fd_set_mask_vm_replay(
 #[inline]
 fn destack_process_fd_signal_fd_try_read_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -8875,7 +8875,7 @@ fn destack_process_fd_signal_fd_try_read_vm_replay(
 #[inline]
 fn destack_process_ids_gid_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
         PROCESS_IDS_GID,
@@ -8921,7 +8921,7 @@ fn destack_process_ids_gid_vm_replay(
 #[inline]
 fn destack_process_ids_pid_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
         PROCESS_IDS_PID,
@@ -8967,7 +8967,7 @@ fn destack_process_ids_pid_vm_replay(
 #[inline]
 fn destack_process_ids_ppid_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
         PROCESS_IDS_PPID,
@@ -9013,7 +9013,7 @@ fn destack_process_ids_ppid_vm_replay(
 #[inline]
 fn destack_process_ids_set_gid_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     groupid: GroupId,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -9056,7 +9056,7 @@ fn destack_process_ids_set_gid_vm_replay(
 #[inline]
 fn destack_process_ids_set_groups_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     groups: VmSlice<GroupId>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -9099,7 +9099,7 @@ fn destack_process_ids_set_groups_vm_replay(
 #[inline]
 fn destack_process_ids_set_uid_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     userid: UserId,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -9142,7 +9142,7 @@ fn destack_process_ids_set_uid_vm_replay(
 #[inline]
 fn destack_process_ids_uid_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
         PROCESS_IDS_UID,
@@ -9188,7 +9188,7 @@ fn destack_process_ids_uid_vm_replay(
 #[inline]
 fn destack_process_limits_get_limit_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     resource: ProcessLimitResource,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -9245,7 +9245,7 @@ fn destack_process_limits_get_limit_vm_replay(
 #[inline]
 fn destack_process_limits_set_limit_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     resource: ProcessLimitResource,
     limit: ProcessLimitVm,
 ) -> RuntimeResult<vm::Value> {
@@ -9289,7 +9289,7 @@ fn destack_process_limits_set_limit_vm_replay(
 #[inline]
 fn destack_process_sched_get_affinity_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     pid: ProcessId,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -9358,7 +9358,7 @@ fn destack_process_sched_get_affinity_vm_replay(
 #[inline]
 fn destack_process_sched_get_priority_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     pid: ProcessId,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -9405,7 +9405,7 @@ fn destack_process_sched_get_priority_vm_replay(
 #[inline]
 fn destack_process_sched_set_affinity_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     pid: ProcessId,
     cpus: ProcessCpuSetVm,
 ) -> RuntimeResult<vm::Value> {
@@ -9449,7 +9449,7 @@ fn destack_process_sched_set_affinity_vm_replay(
 #[inline]
 fn destack_process_sched_set_priority_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     pid: ProcessId,
     priority: i32,
 ) -> RuntimeResult<vm::Value> {
@@ -9493,7 +9493,7 @@ fn destack_process_sched_set_priority_vm_replay(
 #[inline]
 fn destack_process_session_getpgid_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     pid: ProcessId,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -9540,7 +9540,7 @@ fn destack_process_session_getpgid_vm_replay(
 #[inline]
 fn destack_process_session_setpgid_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     pid: ProcessId,
     pgid: ProcessId,
 ) -> RuntimeResult<vm::Value> {
@@ -9584,7 +9584,7 @@ fn destack_process_session_setpgid_vm_replay(
 #[inline]
 fn destack_process_session_setsid_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
         PROCESS_SESSION_SETSID,
@@ -9630,7 +9630,7 @@ fn destack_process_session_setsid_vm_replay(
 #[inline]
 fn destack_process_signals_kill_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     pid: ProcessId,
     signal: Signal,
 ) -> RuntimeResult<vm::Value> {
@@ -9674,7 +9674,7 @@ fn destack_process_signals_kill_vm_replay(
 #[inline]
 fn destack_process_signals_signal_mask_read_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
         PROCESS_SIGNALS_SIGNAL_MASK_READ,
@@ -9737,7 +9737,7 @@ fn destack_process_signals_signal_mask_read_vm_replay(
 #[inline]
 fn destack_process_signals_signal_mask_update_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     how: SignalMaskHow,
     signals: VmSlice<Signal>,
 ) -> RuntimeResult<vm::Value> {
@@ -9781,7 +9781,7 @@ fn destack_process_signals_signal_mask_update_vm_replay(
 #[inline]
 fn destack_process_signals_signal_receive_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -9838,7 +9838,7 @@ fn destack_process_signals_signal_receive_vm_replay(
 #[inline]
 fn destack_process_signals_signal_subscribe_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     signal: Signal,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -9885,7 +9885,7 @@ fn destack_process_signals_signal_subscribe_vm_replay(
 #[inline]
 fn destack_process_signals_signal_try_receive_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -9942,7 +9942,7 @@ fn destack_process_signals_signal_try_receive_vm_replay(
 #[inline]
 fn destack_process_signals_signal_try_wait_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     signals: VmSlice<Signal>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -9999,7 +9999,7 @@ fn destack_process_signals_signal_try_wait_vm_replay(
 #[inline]
 fn destack_process_signals_signal_unsubscribe_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -10042,7 +10042,7 @@ fn destack_process_signals_signal_unsubscribe_vm_replay(
 #[inline]
 fn destack_process_signals_signal_wait_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     signals: VmSlice<Signal>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -10099,7 +10099,7 @@ fn destack_process_signals_signal_wait_vm_replay(
 #[inline]
 fn destack_process_spawn_spawn_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     command: fs::OsPathVm,
     arguments: VmSlice<vm::StringHandle>,
     environment: VmSlice<vm::StringHandle>,
@@ -10158,7 +10158,7 @@ fn destack_process_spawn_spawn_vm_replay(
 #[inline]
 fn destack_process_spawn_with_actions_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     command: fs::OsPathVm,
     arguments: VmSlice<vm::StringHandle>,
     environment: VmSlice<vm::StringHandle>,
@@ -10221,7 +10221,7 @@ fn destack_process_spawn_with_actions_vm_replay(
 #[inline]
 fn destack_process_umask_umask_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     mask: u32,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -10268,7 +10268,7 @@ fn destack_process_umask_umask_vm_replay(
 #[inline]
 fn destack_process_wait_pid_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     pid: ProcessId,
     flags: ProcessWaitFlags,
 ) -> RuntimeResult<vm::Value> {
@@ -10338,7 +10338,7 @@ fn destack_process_wait_pid_vm_replay(
 #[inline]
 fn destack_process_wait_try_wait_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProcessHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -10407,7 +10407,7 @@ fn destack_process_wait_try_wait_vm_replay(
 #[inline]
 fn destack_process_wait_wait_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProcessHandle,
     flags: ProcessWaitFlags,
 ) -> RuntimeResult<vm::Value> {

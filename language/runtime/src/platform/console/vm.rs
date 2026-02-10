@@ -7,7 +7,7 @@ use crate::runtime::RuntimeCallContext;
 /// Write a line to stdout.
 pub fn destack_console_log(
     _runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     value: vm::StringHandle,
 ) -> RuntimeResult<()> {
     let value = context
@@ -19,7 +19,7 @@ pub fn destack_console_log(
 /// Write an info line to stdout.
 pub fn destack_console_info(
     _runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     value: vm::StringHandle,
 ) -> RuntimeResult<()> {
     let value = context
@@ -31,7 +31,7 @@ pub fn destack_console_info(
 /// Write a warning line to stderr.
 pub fn destack_console_warn(
     _runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     value: vm::StringHandle,
 ) -> RuntimeResult<()> {
     let value = context
@@ -43,7 +43,7 @@ pub fn destack_console_warn(
 /// Write an error line to stderr.
 pub fn destack_console_error(
     _runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     value: vm::StringHandle,
 ) -> RuntimeResult<()> {
     let value = context

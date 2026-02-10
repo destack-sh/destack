@@ -97,7 +97,7 @@ fn decode_string(
 
 /// Decode a slice argument.
 fn decode_slice<T>(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -108,7 +108,7 @@ fn decode_slice<T>(
 /// Decode arguments for destack.security.capability.has.
 #[inline]
 fn decode_destack_security_capability_has_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(PlatformCapabilityVm,)> {
     // ignore unused context
@@ -126,7 +126,7 @@ fn decode_destack_security_capability_has_args(
 /// Encode the result for destack.security.capability.has.
 #[inline]
 fn encode_destack_security_capability_has_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -138,7 +138,7 @@ fn encode_destack_security_capability_has_result(
 /// Encode the result for destack.security.capability.list.
 #[inline]
 fn encode_destack_security_capability_list_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<PlatformCapabilityVm>>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| value.to_value(context))
@@ -147,7 +147,7 @@ fn encode_destack_security_capability_list_result(
 /// Decode arguments for destack.security.enforce.sandboxInstallFilter.
 #[inline]
 fn decode_destack_security_enforce_sandbox_install_filter_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SandboxHandle, SecurityFilterVm)> {
     let handle_value = arg_value(args, 0, "handle", "SandboxHandle")?;
@@ -206,7 +206,7 @@ fn decode_destack_security_enforce_sandbox_install_filter_args(
 /// Encode the result for destack.security.enforce.sandboxInstallFilter.
 #[inline]
 fn encode_destack_security_enforce_sandbox_install_filter_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -218,7 +218,7 @@ fn encode_destack_security_enforce_sandbox_install_filter_result(
 /// Decode arguments for destack.security.enforce.sandboxSeal.
 #[inline]
 fn decode_destack_security_enforce_sandbox_seal_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SandboxHandle,)> {
     // ignore unused context
@@ -234,7 +234,7 @@ fn decode_destack_security_enforce_sandbox_seal_args(
 /// Encode the result for destack.security.enforce.sandboxSeal.
 #[inline]
 fn encode_destack_security_enforce_sandbox_seal_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -246,7 +246,7 @@ fn encode_destack_security_enforce_sandbox_seal_result(
 /// Decode arguments for destack.security.enforce.sandboxSetCapabilities.
 #[inline]
 fn decode_destack_security_enforce_sandbox_set_capabilities_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SandboxHandle, VmSlice<PlatformCapabilityVm>)> {
     let handle_value = arg_value(args, 0, "handle", "SandboxHandle")?;
@@ -266,7 +266,7 @@ fn decode_destack_security_enforce_sandbox_set_capabilities_args(
 /// Encode the result for destack.security.enforce.sandboxSetCapabilities.
 #[inline]
 fn encode_destack_security_enforce_sandbox_set_capabilities_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -278,7 +278,7 @@ fn encode_destack_security_enforce_sandbox_set_capabilities_result(
 /// Decode arguments for destack.security.policy.get.
 #[inline]
 fn decode_destack_security_policy_get_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     // ignore unused context
@@ -292,7 +292,7 @@ fn decode_destack_security_policy_get_args(
 /// Encode the result for destack.security.policy.get.
 #[inline]
 fn encode_destack_security_policy_get_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<PlatformCapabilityVm>>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| value.to_value(context))
@@ -301,7 +301,7 @@ fn encode_destack_security_policy_get_result(
 /// Decode arguments for destack.security.policy.getRules.
 #[inline]
 fn decode_destack_security_policy_get_rules_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     // ignore unused context
@@ -315,7 +315,7 @@ fn decode_destack_security_policy_get_rules_args(
 /// Encode the result for destack.security.policy.getRules.
 #[inline]
 fn encode_destack_security_policy_get_rules_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<SecurityPolicyRuleVm>>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| value.to_value(context))
@@ -324,7 +324,7 @@ fn encode_destack_security_policy_get_rules_result(
 /// Decode arguments for destack.security.policy.set.
 #[inline]
 fn decode_destack_security_policy_set_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, VmSlice<PlatformCapabilityVm>)> {
     let scope_value = arg_value(args, 0, "scope", "string")?;
@@ -342,7 +342,7 @@ fn decode_destack_security_policy_set_args(
 /// Encode the result for destack.security.policy.set.
 #[inline]
 fn encode_destack_security_policy_set_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -354,7 +354,7 @@ fn encode_destack_security_policy_set_result(
 /// Decode arguments for destack.security.policy.setRules.
 #[inline]
 fn decode_destack_security_policy_set_rules_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, VmSlice<SecurityPolicyRuleVm>)> {
     let scope_value = arg_value(args, 0, "scope", "string")?;
@@ -372,7 +372,7 @@ fn decode_destack_security_policy_set_rules_args(
 /// Encode the result for destack.security.policy.setRules.
 #[inline]
 fn encode_destack_security_policy_set_rules_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -384,7 +384,7 @@ fn encode_destack_security_policy_set_rules_result(
 /// Decode arguments for destack.security.sandbox.enter.
 #[inline]
 fn decode_destack_security_sandbox_enter_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     // ignore unused context
@@ -398,7 +398,7 @@ fn decode_destack_security_sandbox_enter_args(
 /// Encode the result for destack.security.sandbox.enter.
 #[inline]
 fn encode_destack_security_sandbox_enter_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SandboxHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -410,7 +410,7 @@ fn encode_destack_security_sandbox_enter_result(
 /// Decode arguments for destack.security.sandbox.exit.
 #[inline]
 fn decode_destack_security_sandbox_exit_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SandboxHandle,)> {
     // ignore unused context
@@ -426,7 +426,7 @@ fn decode_destack_security_sandbox_exit_args(
 /// Encode the result for destack.security.sandbox.exit.
 #[inline]
 fn encode_destack_security_sandbox_exit_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -900,7 +900,7 @@ pub unsafe extern "C" fn destack_security_sandbox_exit(
 #[inline]
 fn destack_security_sandbox_enter_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -947,7 +947,7 @@ fn destack_security_sandbox_enter_vm_replay(
 #[inline]
 fn destack_security_sandbox_exit_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SandboxHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(

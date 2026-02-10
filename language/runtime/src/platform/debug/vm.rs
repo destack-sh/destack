@@ -7,7 +7,7 @@ use destack_vm as vm;
 /// Stub for destack.debug.core.breakNow.
 pub(super) fn destack_debug_break_now(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.debug.core.breakNow is not available in the VM yet",
@@ -18,7 +18,7 @@ pub(super) fn destack_debug_break_now(
 /// Stub for destack.debug.core.mark.
 pub(super) fn destack_debug_mark(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     label: vm::StringHandle,
 ) -> RuntimeResult<()> {
     let _ = label;
@@ -31,7 +31,7 @@ pub(super) fn destack_debug_mark(
 /// Stub for destack.debug.inspector.endpoint.
 pub(super) fn destack_debug_inspector_endpoint(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::InspectorHandle,
 ) -> RuntimeResult<InspectorEndpointVm> {
     let _ = handle;
@@ -44,7 +44,7 @@ pub(super) fn destack_debug_inspector_endpoint(
 /// Stub for destack.debug.inspector.start.
 pub(super) fn destack_debug_inspector_start(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     host: vm::StringHandle,
     port: u16,
 ) -> RuntimeResult<resource::InspectorHandle> {
@@ -58,7 +58,7 @@ pub(super) fn destack_debug_inspector_start(
 /// Stub for destack.debug.inspector.stop.
 pub(super) fn destack_debug_inspector_stop(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::InspectorHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -71,7 +71,7 @@ pub(super) fn destack_debug_inspector_stop(
 /// Stub for destack.debug.profile.snapshot.
 pub(super) fn destack_debug_profile_snapshot(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProfileHandle,
 ) -> RuntimeResult<VmArray<u8>> {
     let _ = handle;
@@ -84,7 +84,7 @@ pub(super) fn destack_debug_profile_snapshot(
 /// Stub for destack.debug.profile.start.
 pub(super) fn destack_debug_profile_start(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     kind: ProfileKind,
 ) -> RuntimeResult<resource::ProfileHandle> {
     let _ = kind;
@@ -97,7 +97,7 @@ pub(super) fn destack_debug_profile_start(
 /// Stub for destack.debug.profile.stop.
 pub(super) fn destack_debug_profile_stop(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProfileHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -110,7 +110,7 @@ pub(super) fn destack_debug_profile_stop(
 /// Stub for destack.debug.trace.emit.
 pub(super) fn destack_debug_trace_emit(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     category: vm::StringHandle,
     name: vm::StringHandle,
     payloadjson: vm::StringHandle,
@@ -125,7 +125,7 @@ pub(super) fn destack_debug_trace_emit(
 /// Stub for destack.debug.trace.start.
 pub(super) fn destack_debug_trace_start(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     level: TraceLevel,
     destination: vm::StringHandle,
 ) -> RuntimeResult<resource::TraceHandle> {
@@ -139,7 +139,7 @@ pub(super) fn destack_debug_trace_start(
 /// Stub for destack.debug.trace.stop.
 pub(super) fn destack_debug_trace_stop(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TraceHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;

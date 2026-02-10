@@ -7,7 +7,7 @@ use destack_vm as vm;
 /// Stub for destack.tty.io.read.
 pub(super) fn destack_tty_read(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
@@ -21,7 +21,7 @@ pub(super) fn destack_tty_read(
 /// Stub for destack.tty.io.write.
 pub(super) fn destack_tty_write(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
@@ -35,7 +35,7 @@ pub(super) fn destack_tty_write(
 /// Stub for destack.tty.mode.getMode.
 pub(super) fn destack_tty_get_mode(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<TtyModeVm> {
     let _ = handle;
@@ -48,7 +48,7 @@ pub(super) fn destack_tty_get_mode(
 /// Stub for destack.tty.mode.setMode.
 pub(super) fn destack_tty_set_mode(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
     mode: TtyModeVm,
 ) -> RuntimeResult<()> {
@@ -62,7 +62,7 @@ pub(super) fn destack_tty_set_mode(
 /// Stub for destack.tty.pty.close.
 pub(super) fn destack_tty_pty_close(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::PtyHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -75,7 +75,7 @@ pub(super) fn destack_tty_pty_close(
 /// Stub for destack.tty.pty.open.
 pub(super) fn destack_tty_pty_open(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     rows: u32,
     columns: u32,
     flags: u32,
@@ -90,7 +90,7 @@ pub(super) fn destack_tty_pty_open(
 /// Stub for destack.tty.size.getSize.
 pub(super) fn destack_tty_get_size(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<TtySizeVm> {
     let _ = handle;
@@ -103,7 +103,7 @@ pub(super) fn destack_tty_get_size(
 /// Stub for destack.tty.size.setSize.
 pub(super) fn destack_tty_set_size(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
     size: TtySizeVm,
 ) -> RuntimeResult<()> {

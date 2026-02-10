@@ -97,7 +97,7 @@ fn decode_string(
 
 /// Decode an array argument.
 fn decode_array<T>(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -108,7 +108,7 @@ fn decode_array<T>(
 /// Encode the result for destack.os.host.identity.
 #[inline]
 fn encode_destack_os_host_identity_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<HostIdentityVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -123,7 +123,7 @@ fn encode_destack_os_host_identity_result(
 /// Encode the result for destack.os.info.systemInfo.
 #[inline]
 fn encode_destack_os_info_system_info_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SystemInfoVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -138,7 +138,7 @@ fn encode_destack_os_info_system_info_result(
 /// Decode arguments for destack.os.mount.add.
 #[inline]
 fn decode_destack_os_mount_add_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
     fs::OsPathVm,
@@ -235,7 +235,7 @@ fn decode_destack_os_mount_add_args(
 /// Encode the result for destack.os.mount.add.
 #[inline]
 fn encode_destack_os_mount_add_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -247,7 +247,7 @@ fn encode_destack_os_mount_add_result(
 /// Encode the result for destack.os.mount.list.
 #[inline]
 fn encode_destack_os_mount_list_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<MountEntryVm>>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| value.to_value(context))
@@ -256,7 +256,7 @@ fn encode_destack_os_mount_list_result(
 /// Decode arguments for destack.os.mount.remove.
 #[inline]
 fn decode_destack_os_mount_remove_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(fs::OsPathVm, u32)> {
     let target_value = arg_value(args, 0, "target", "OsPath")?;
@@ -305,7 +305,7 @@ fn decode_destack_os_mount_remove_args(
 /// Encode the result for destack.os.mount.remove.
 #[inline]
 fn encode_destack_os_mount_remove_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -317,7 +317,7 @@ fn encode_destack_os_mount_remove_result(
 /// Encode the result for destack.os.power.state.
 #[inline]
 fn encode_destack_os_power_state_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<PowerState>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -329,7 +329,7 @@ fn encode_destack_os_power_state_result(
 /// Encode the result for destack.os.power.suspend.
 #[inline]
 fn encode_destack_os_power_suspend_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -999,7 +999,7 @@ pub unsafe extern "C" fn destack_os_power_suspend() -> RuntimeStatus {
 #[inline]
 fn destack_os_host_identity_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
         OS_HOST_IDENTITY,
@@ -1089,7 +1089,7 @@ fn destack_os_host_identity_vm_replay(
 #[inline]
 fn destack_os_info_system_info_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
         OS_INFO_SYSTEM_INFO,
@@ -1153,7 +1153,7 @@ fn destack_os_info_system_info_vm_replay(
 #[inline]
 fn destack_os_mount_add_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     source: fs::OsPathVm,
     target: fs::OsPathVm,
     filesystem: vm::StringHandle,
@@ -1202,7 +1202,7 @@ fn destack_os_mount_add_vm_replay(
 #[inline]
 fn destack_os_mount_list_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
         OS_MOUNT_LIST,
@@ -1424,7 +1424,7 @@ fn destack_os_mount_list_vm_replay(
 #[inline]
 fn destack_os_mount_remove_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     target: fs::OsPathVm,
     flags: u32,
 ) -> RuntimeResult<vm::Value> {
@@ -1468,7 +1468,7 @@ fn destack_os_mount_remove_vm_replay(
 #[inline]
 fn destack_os_power_state_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
         OS_POWER_STATE,

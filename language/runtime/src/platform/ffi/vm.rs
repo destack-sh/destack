@@ -7,7 +7,7 @@ use destack_vm as vm;
 /// Stub for destack.ffi.call.call.
 pub(super) fn destack_ffi_call(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     symbol: resource::SymbolHandle,
     abi: u32,
     flags: u32,
@@ -24,7 +24,7 @@ pub(super) fn destack_ffi_call(
 /// Stub for destack.ffi.library.close.
 pub(super) fn destack_ffi_close(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::LibraryHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -37,7 +37,7 @@ pub(super) fn destack_ffi_close(
 /// Stub for destack.ffi.library.open.
 pub(super) fn destack_ffi_open(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     path: fs::OsPathVm,
     flags: u32,
 ) -> RuntimeResult<resource::LibraryHandle> {
@@ -51,7 +51,7 @@ pub(super) fn destack_ffi_open(
 /// Stub for destack.ffi.pointer.address.
 pub(super) fn destack_ffi_address(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     pointer: FfiPointer,
 ) -> RuntimeResult<u64> {
     let _ = pointer;
@@ -64,7 +64,7 @@ pub(super) fn destack_ffi_address(
 /// Stub for destack.ffi.pointer.fromAddress.
 pub(super) fn destack_ffi_from_address(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
 ) -> RuntimeResult<FfiPointer> {
     let _ = address;
@@ -77,7 +77,7 @@ pub(super) fn destack_ffi_from_address(
 /// Stub for destack.ffi.symbol.address.
 pub(super) fn destack_ffi_symbol_address(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     symbol: resource::SymbolHandle,
 ) -> RuntimeResult<u64> {
     let _ = symbol;
@@ -90,7 +90,7 @@ pub(super) fn destack_ffi_symbol_address(
 /// Stub for destack.ffi.symbol.lookup.
 pub(super) fn destack_ffi_symbol_lookup(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     library: resource::LibraryHandle,
     name: vm::StringHandle,
 ) -> RuntimeResult<resource::SymbolHandle> {

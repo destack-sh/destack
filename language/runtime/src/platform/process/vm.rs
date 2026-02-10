@@ -12,7 +12,7 @@ use destack_vm as vm;
 /// Stub for destack.process.args.args.
 pub(super) fn destack_process_args(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<vm::StringHandle>> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.args.args is not available in the VM yet",
@@ -23,7 +23,7 @@ pub(super) fn destack_process_args(
 /// Stub for destack.process.cwd.chdir.
 pub(super) fn destack_process_chdir(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     path: fs::OsPathVm,
 ) -> RuntimeResult<()> {
     let _ = path;
@@ -36,7 +36,7 @@ pub(super) fn destack_process_chdir(
 /// Stub for destack.process.cwd.cwd.
 pub(super) fn destack_process_cwd(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<fs::OsPathVm> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.cwd.cwd is not available in the VM yet",
@@ -47,7 +47,7 @@ pub(super) fn destack_process_cwd(
 /// Stub for destack.process.env.delete.
 pub(super) fn destack_process_env_delete(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     name: vm::StringHandle,
 ) -> RuntimeResult<()> {
     let _ = name;
@@ -60,7 +60,7 @@ pub(super) fn destack_process_env_delete(
 /// Stub for destack.process.env.deleteBytes.
 pub(super) fn destack_process_env_delete_bytes(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     name: VmSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = name;
@@ -73,7 +73,7 @@ pub(super) fn destack_process_env_delete_bytes(
 /// Stub for destack.process.env.get.
 pub(super) fn destack_process_env_get(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::StringHandle> {
     let _ = name;
@@ -86,7 +86,7 @@ pub(super) fn destack_process_env_get(
 /// Stub for destack.process.env.getBytes.
 pub(super) fn destack_process_env_get_bytes(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     name: VmSlice<u8>,
 ) -> RuntimeResult<VmArray<u8>> {
     let _ = name;
@@ -99,7 +99,7 @@ pub(super) fn destack_process_env_get_bytes(
 /// Stub for destack.process.env.set.
 pub(super) fn destack_process_env_set(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     name: vm::StringHandle,
     value: vm::StringHandle,
 ) -> RuntimeResult<()> {
@@ -113,7 +113,7 @@ pub(super) fn destack_process_env_set(
 /// Stub for destack.process.env.setBytes.
 pub(super) fn destack_process_env_set_bytes(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     name: VmSlice<u8>,
     value: VmSlice<u8>,
 ) -> RuntimeResult<()> {
@@ -127,7 +127,7 @@ pub(super) fn destack_process_env_set_bytes(
 /// Stub for destack.process.exec.exec.
 pub(super) fn destack_process_exec(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     command: fs::OsPathVm,
     arguments: VmSlice<vm::StringHandle>,
     environment: VmSlice<vm::StringHandle>,
@@ -142,7 +142,7 @@ pub(super) fn destack_process_exec(
 /// Stub for destack.process.exec.execat.
 pub(super) fn destack_process_execat(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     directory: resource::DirectoryHandle,
     path: fs::OsPathVm,
     arguments: VmSlice<vm::StringHandle>,
@@ -159,7 +159,7 @@ pub(super) fn destack_process_execat(
 /// Stub for destack.process.exec.fexec.
 pub(super) fn destack_process_fexec(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     executable: resource::FileHandle,
     arguments: VmSlice<vm::StringHandle>,
     environment: VmSlice<vm::StringHandle>,
@@ -174,7 +174,7 @@ pub(super) fn destack_process_fexec(
 /// Stub for destack.process.exit.exit.
 pub(super) fn destack_process_exit(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     code: u32,
 ) -> RuntimeResult<()> {
     let _ = code;
@@ -187,7 +187,7 @@ pub(super) fn destack_process_exit(
 /// Stub for destack.process.fd.processFdClose.
 pub(super) fn destack_process_process_fd_close(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -200,7 +200,7 @@ pub(super) fn destack_process_process_fd_close(
 /// Stub for destack.process.fd.processFdOpen.
 pub(super) fn destack_process_process_fd_open(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     pid: ProcessId,
     flags: ProcessFdFlags,
 ) -> RuntimeResult<resource::ProcessFdHandle> {
@@ -214,7 +214,7 @@ pub(super) fn destack_process_process_fd_open(
 /// Stub for destack.process.fd.processFdSendSignal.
 pub(super) fn destack_process_process_fd_send_signal(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProcessFdHandle,
     signal: Signal,
     flags: ProcessFdSignalFlags,
@@ -229,7 +229,7 @@ pub(super) fn destack_process_process_fd_send_signal(
 /// Stub for destack.process.fd.processFdTryWait.
 pub(super) fn destack_process_process_fd_try_wait(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<ProcessWaitStatusVm> {
     let _ = handle;
@@ -242,7 +242,7 @@ pub(super) fn destack_process_process_fd_try_wait(
 /// Stub for destack.process.fd.processFdWait.
 pub(super) fn destack_process_process_fd_wait(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProcessFdHandle,
     timeoutns: u64,
 ) -> RuntimeResult<ProcessWaitStatusVm> {
@@ -256,7 +256,7 @@ pub(super) fn destack_process_process_fd_wait(
 /// Stub for destack.process.fd.signalFdClose.
 pub(super) fn destack_process_signal_fd_close(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -269,7 +269,7 @@ pub(super) fn destack_process_signal_fd_close(
 /// Stub for destack.process.fd.signalFdOpen.
 pub(super) fn destack_process_signal_fd_open(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     signals: VmSlice<Signal>,
     flags: SignalFdFlags,
 ) -> RuntimeResult<resource::SignalFdHandle> {
@@ -283,7 +283,7 @@ pub(super) fn destack_process_signal_fd_open(
 /// Stub for destack.process.fd.signalFdRead.
 pub(super) fn destack_process_signal_fd_read(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<SignalEventVm> {
     let _ = handle;
@@ -296,7 +296,7 @@ pub(super) fn destack_process_signal_fd_read(
 /// Stub for destack.process.fd.signalFdSetMask.
 pub(super) fn destack_process_signal_fd_set_mask(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SignalFdHandle,
     signals: VmSlice<Signal>,
 ) -> RuntimeResult<()> {
@@ -310,7 +310,7 @@ pub(super) fn destack_process_signal_fd_set_mask(
 /// Stub for destack.process.fd.signalFdTryRead.
 pub(super) fn destack_process_signal_fd_try_read(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<SignalEventVm> {
     let _ = handle;
@@ -323,7 +323,7 @@ pub(super) fn destack_process_signal_fd_try_read(
 /// Stub for destack.process.group.cgroupGetLimit.
 pub(super) fn destack_process_cgroup_get_limit(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     path: vm::StringHandle,
     resource: ProcessLimitResource,
 ) -> RuntimeResult<ProcessLimitVm> {
@@ -337,7 +337,7 @@ pub(super) fn destack_process_cgroup_get_limit(
 /// Stub for destack.process.group.cgroupJoin.
 pub(super) fn destack_process_cgroup_join(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     path: vm::StringHandle,
 ) -> RuntimeResult<()> {
     let _ = path;
@@ -350,7 +350,7 @@ pub(super) fn destack_process_cgroup_join(
 /// Stub for destack.process.group.cgroupSetLimit.
 pub(super) fn destack_process_cgroup_set_limit(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     path: vm::StringHandle,
     resource: ProcessLimitResource,
     limit: ProcessLimitVm,
@@ -365,7 +365,7 @@ pub(super) fn destack_process_cgroup_set_limit(
 /// Stub for destack.process.group.jobAssign.
 pub(super) fn destack_process_job_assign(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     name: vm::StringHandle,
     pids: VmSlice<ProcessId>,
 ) -> RuntimeResult<()> {
@@ -379,7 +379,7 @@ pub(super) fn destack_process_job_assign(
 /// Stub for destack.process.group.jobSetLimit.
 pub(super) fn destack_process_job_set_limit(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     name: vm::StringHandle,
     resource: ProcessLimitResource,
     limit: ProcessLimitVm,
@@ -394,7 +394,7 @@ pub(super) fn destack_process_job_set_limit(
 /// Stub for destack.process.ids.gid.
 pub(super) fn destack_process_gid(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<GroupId> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.ids.gid is not available in the VM yet",
@@ -405,7 +405,7 @@ pub(super) fn destack_process_gid(
 /// Stub for destack.process.ids.pid.
 pub(super) fn destack_process_pid(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<ProcessId> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.ids.pid is not available in the VM yet",
@@ -416,7 +416,7 @@ pub(super) fn destack_process_pid(
 /// Stub for destack.process.ids.ppid.
 pub(super) fn destack_process_ppid(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<ProcessId> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.ids.ppid is not available in the VM yet",
@@ -427,7 +427,7 @@ pub(super) fn destack_process_ppid(
 /// Stub for destack.process.ids.setGid.
 pub(super) fn destack_process_set_gid(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     groupid: GroupId,
 ) -> RuntimeResult<()> {
     let _ = groupid;
@@ -440,7 +440,7 @@ pub(super) fn destack_process_set_gid(
 /// Stub for destack.process.ids.setGroups.
 pub(super) fn destack_process_set_groups(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     groups: VmSlice<GroupId>,
 ) -> RuntimeResult<()> {
     let _ = groups;
@@ -453,7 +453,7 @@ pub(super) fn destack_process_set_groups(
 /// Stub for destack.process.ids.setUid.
 pub(super) fn destack_process_set_uid(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     userid: UserId,
 ) -> RuntimeResult<()> {
     let _ = userid;
@@ -466,7 +466,7 @@ pub(super) fn destack_process_set_uid(
 /// Stub for destack.process.ids.uid.
 pub(super) fn destack_process_uid(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<UserId> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.ids.uid is not available in the VM yet",
@@ -477,7 +477,7 @@ pub(super) fn destack_process_uid(
 /// Stub for destack.process.isolation.chroot.
 pub(super) fn destack_process_chroot(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     path: fs::OsPathVm,
 ) -> RuntimeResult<()> {
     let _ = path;
@@ -490,7 +490,7 @@ pub(super) fn destack_process_chroot(
 /// Stub for destack.process.isolation.installSyscallFilter.
 pub(super) fn destack_process_install_syscall_filter(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     program: VmArray<u8>,
     flags: SyscallFilterFlags,
 ) -> RuntimeResult<()> {
@@ -504,7 +504,7 @@ pub(super) fn destack_process_install_syscall_filter(
 /// Stub for destack.process.isolation.setHostName.
 pub(super) fn destack_process_set_host_name(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     name: vm::StringHandle,
 ) -> RuntimeResult<()> {
     let _ = name;
@@ -517,7 +517,7 @@ pub(super) fn destack_process_set_host_name(
 /// Stub for destack.process.isolation.setNetworkNamespace.
 pub(super) fn destack_process_set_network_namespace(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     path: fs::OsPathVm,
 ) -> RuntimeResult<()> {
     let _ = path;
@@ -530,7 +530,7 @@ pub(super) fn destack_process_set_network_namespace(
 /// Stub for destack.process.isolation.setns.
 pub(super) fn destack_process_setns(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     pid: ProcessId,
     namespace: ProcessNamespaceKind,
 ) -> RuntimeResult<()> {
@@ -544,7 +544,7 @@ pub(super) fn destack_process_setns(
 /// Stub for destack.process.isolation.unshare.
 pub(super) fn destack_process_unshare(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     flags: ProcessUnshareFlags,
 ) -> RuntimeResult<()> {
     let _ = flags;
@@ -557,7 +557,7 @@ pub(super) fn destack_process_unshare(
 /// Stub for destack.process.limits.getLimit.
 pub(super) fn destack_process_get_limit(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     resource: ProcessLimitResource,
 ) -> RuntimeResult<ProcessLimitVm> {
     let _ = resource;
@@ -570,7 +570,7 @@ pub(super) fn destack_process_get_limit(
 /// Stub for destack.process.limits.setLimit.
 pub(super) fn destack_process_set_limit(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     resource: ProcessLimitResource,
     limit: ProcessLimitVm,
 ) -> RuntimeResult<()> {
@@ -584,7 +584,7 @@ pub(super) fn destack_process_set_limit(
 /// Stub for destack.process.sched.getAffinity.
 pub(super) fn destack_process_get_affinity(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     pid: ProcessId,
 ) -> RuntimeResult<ProcessCpuSetVm> {
     let _ = pid;
@@ -597,7 +597,7 @@ pub(super) fn destack_process_get_affinity(
 /// Stub for destack.process.sched.getPriority.
 pub(super) fn destack_process_get_priority(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     pid: ProcessId,
 ) -> RuntimeResult<i32> {
     let _ = pid;
@@ -610,7 +610,7 @@ pub(super) fn destack_process_get_priority(
 /// Stub for destack.process.sched.setAffinity.
 pub(super) fn destack_process_set_affinity(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     pid: ProcessId,
     cpus: ProcessCpuSetVm,
 ) -> RuntimeResult<()> {
@@ -624,7 +624,7 @@ pub(super) fn destack_process_set_affinity(
 /// Stub for destack.process.sched.setPriority.
 pub(super) fn destack_process_set_priority(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     pid: ProcessId,
     priority: i32,
 ) -> RuntimeResult<()> {
@@ -638,7 +638,7 @@ pub(super) fn destack_process_set_priority(
 /// Stub for destack.process.session.getpgid.
 pub(super) fn destack_process_getpgid(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     pid: ProcessId,
 ) -> RuntimeResult<ProcessId> {
     let _ = pid;
@@ -651,7 +651,7 @@ pub(super) fn destack_process_getpgid(
 /// Stub for destack.process.session.setpgid.
 pub(super) fn destack_process_setpgid(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     pid: ProcessId,
     pgid: ProcessId,
 ) -> RuntimeResult<()> {
@@ -665,7 +665,7 @@ pub(super) fn destack_process_setpgid(
 /// Stub for destack.process.session.setsid.
 pub(super) fn destack_process_setsid(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<ProcessId> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.session.setsid is not available in the VM yet",
@@ -676,7 +676,7 @@ pub(super) fn destack_process_setsid(
 /// Stub for destack.process.signals.kill.
 pub(super) fn destack_process_kill(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     pid: ProcessId,
     signal: Signal,
 ) -> RuntimeResult<()> {
@@ -690,7 +690,7 @@ pub(super) fn destack_process_kill(
 /// Stub for destack.process.signals.signalMaskRead.
 pub(super) fn destack_process_signal_mask_read(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmArray<Signal>> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.signals.signalMaskRead is not available in the VM yet",
@@ -701,7 +701,7 @@ pub(super) fn destack_process_signal_mask_read(
 /// Stub for destack.process.signals.signalMaskUpdate.
 pub(super) fn destack_process_signal_mask_update(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     how: SignalMaskHow,
     signals: VmSlice<Signal>,
 ) -> RuntimeResult<()> {
@@ -715,7 +715,7 @@ pub(super) fn destack_process_signal_mask_update(
 /// Stub for destack.process.signals.signalReceive.
 pub(super) fn destack_process_signal_receive(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<SignalEventVm> {
     let _ = handle;
@@ -728,7 +728,7 @@ pub(super) fn destack_process_signal_receive(
 /// Stub for destack.process.signals.signalSubscribe.
 pub(super) fn destack_process_signal_subscribe(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     signal: Signal,
 ) -> RuntimeResult<resource::SignalHandle> {
     let _ = signal;
@@ -741,7 +741,7 @@ pub(super) fn destack_process_signal_subscribe(
 /// Stub for destack.process.signals.signalTryReceive.
 pub(super) fn destack_process_signal_try_receive(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<SignalEventVm> {
     let _ = handle;
@@ -754,7 +754,7 @@ pub(super) fn destack_process_signal_try_receive(
 /// Stub for destack.process.signals.signalTryWait.
 pub(super) fn destack_process_signal_try_wait(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     signals: VmSlice<Signal>,
 ) -> RuntimeResult<SignalEventVm> {
     let _ = signals;
@@ -767,7 +767,7 @@ pub(super) fn destack_process_signal_try_wait(
 /// Stub for destack.process.signals.signalUnsubscribe.
 pub(super) fn destack_process_signal_unsubscribe(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -780,7 +780,7 @@ pub(super) fn destack_process_signal_unsubscribe(
 /// Stub for destack.process.signals.signalWait.
 pub(super) fn destack_process_signal_wait(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     signals: VmSlice<Signal>,
 ) -> RuntimeResult<SignalEventVm> {
     let _ = signals;
@@ -793,7 +793,7 @@ pub(super) fn destack_process_signal_wait(
 /// Stub for destack.process.spawn.spawn.
 pub(super) fn destack_process_spawn(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     command: fs::OsPathVm,
     arguments: VmSlice<vm::StringHandle>,
     environment: VmSlice<vm::StringHandle>,
@@ -809,7 +809,7 @@ pub(super) fn destack_process_spawn(
 /// Stub for destack.process.spawn.withActions.
 pub(super) fn destack_process_spawn_with_actions(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     command: fs::OsPathVm,
     arguments: VmSlice<vm::StringHandle>,
     environment: VmSlice<vm::StringHandle>,
@@ -827,7 +827,7 @@ pub(super) fn destack_process_spawn_with_actions(
 /// Stub for destack.process.umask.umask.
 pub(super) fn destack_process_umask(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     mask: u32,
 ) -> RuntimeResult<u32> {
     let _ = mask;
@@ -840,7 +840,7 @@ pub(super) fn destack_process_umask(
 /// Stub for destack.process.wait.pid.
 pub(super) fn destack_process_wait_pid(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     pid: ProcessId,
     flags: ProcessWaitFlags,
 ) -> RuntimeResult<ProcessWaitStatusVm> {
@@ -854,7 +854,7 @@ pub(super) fn destack_process_wait_pid(
 /// Stub for destack.process.wait.tryWait.
 pub(super) fn destack_process_try_wait(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProcessHandle,
 ) -> RuntimeResult<ProcessWaitStatusVm> {
     let _ = handle;
@@ -867,7 +867,7 @@ pub(super) fn destack_process_try_wait(
 /// Stub for destack.process.wait.wait.
 pub(super) fn destack_process_wait(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProcessHandle,
     flags: ProcessWaitFlags,
 ) -> RuntimeResult<ProcessWaitStatusVm> {

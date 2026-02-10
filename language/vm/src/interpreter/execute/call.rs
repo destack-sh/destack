@@ -12,7 +12,7 @@ use super::super::decode::{
 };
 use super::super::state::{Frame, InterpreterContext, resize_and_clear_stack};
 use crate::execute::{Continuation, ExecutionOutcome, ExecutionOutput, ExecutionYield, YieldState};
-use crate::isolate::RuntimeContext;
+use crate::isolate::ExternalCallContext;
 
 // tuning: small contiguous ranges copy faster with a loop
 const CONTIGUOUS_COPY_THRESHOLD: usize = 8;
@@ -481,7 +481,7 @@ impl<'a> InterpreterContext<'a> {
             // safety: handler pointer is stable for interpreter lifetime
             let handler = unsafe { handler.as_ref() };
             let value = {
-                let mut context = RuntimeContext::new(self.isolate);
+                let mut context = ExternalCallContext::new(self.isolate);
                 handler(&mut context, arguments)
             }
             .map_err(|e| self.make_error(e))?;
@@ -844,7 +844,7 @@ impl<'a> InterpreterContext<'a> {
                         // safety: handler pointer is stable for interpreter lifetime
                         let handler = unsafe { handler.as_ref() };
                         let result = {
-                            let mut context = RuntimeContext::new(self.isolate);
+                            let mut context = ExternalCallContext::new(self.isolate);
                             handler(&mut context, &args)
                         }
                         .map_err(|e| self.make_error(e))?;
@@ -1011,7 +1011,7 @@ impl<'a> InterpreterContext<'a> {
                         // safety: handler pointer is stable for interpreter lifetime
                         let handler = unsafe { handler.as_ref() };
                         let result = {
-                            let mut context = RuntimeContext::new(self.isolate);
+                            let mut context = ExternalCallContext::new(self.isolate);
                             handler(&mut context, &argument_values)
                         }
                         .map_err(|e| self.make_error(e))?;

@@ -7,7 +7,7 @@ use destack_vm as vm;
 /// Stub for destack.os.host.identity.
 pub(super) fn destack_os_host_identity(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<HostIdentityVm> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.os.host.identity is not available in the VM yet",
@@ -18,7 +18,7 @@ pub(super) fn destack_os_host_identity(
 /// Stub for destack.os.info.systemInfo.
 pub(super) fn destack_os_system_info(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<SystemInfoVm> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.os.info.systemInfo is not available in the VM yet",
@@ -29,7 +29,7 @@ pub(super) fn destack_os_system_info(
 /// Stub for destack.os.mount.add.
 pub(super) fn destack_os_add(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     source: fs::OsPathVm,
     target: fs::OsPathVm,
     filesystem: vm::StringHandle,
@@ -46,7 +46,7 @@ pub(super) fn destack_os_add(
 /// Stub for destack.os.mount.list.
 pub(super) fn destack_os_list(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmArray<MountEntryVm>> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.os.mount.list is not available in the VM yet",
@@ -57,7 +57,7 @@ pub(super) fn destack_os_list(
 /// Stub for destack.os.mount.remove.
 pub(super) fn destack_os_remove(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     target: fs::OsPathVm,
     flags: u32,
 ) -> RuntimeResult<()> {
@@ -71,7 +71,7 @@ pub(super) fn destack_os_remove(
 /// Stub for destack.os.power.state.
 pub(super) fn destack_os_power_state(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<PowerState> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.os.power.state is not available in the VM yet",
@@ -82,7 +82,7 @@ pub(super) fn destack_os_power_state(
 /// Stub for destack.os.power.suspend.
 pub(super) fn destack_os_suspend(
     _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.os.power.suspend is not available in the VM yet",

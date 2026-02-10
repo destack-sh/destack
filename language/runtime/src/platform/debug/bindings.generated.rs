@@ -108,7 +108,7 @@ fn decode_string(
 /// Encode the result for destack.debug.core.breakNow.
 #[inline]
 fn encode_destack_debug_core_break_now_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -120,7 +120,7 @@ fn encode_destack_debug_core_break_now_result(
 /// Decode arguments for destack.debug.core.mark.
 #[inline]
 fn decode_destack_debug_core_mark_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     // ignore unused context
@@ -134,7 +134,7 @@ fn decode_destack_debug_core_mark_args(
 /// Encode the result for destack.debug.core.mark.
 #[inline]
 fn encode_destack_debug_core_mark_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -146,7 +146,7 @@ fn encode_destack_debug_core_mark_result(
 /// Decode arguments for destack.debug.inspector.endpoint.
 #[inline]
 fn decode_destack_debug_inspector_endpoint_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::InspectorHandle,)> {
     // ignore unused context
@@ -162,7 +162,7 @@ fn decode_destack_debug_inspector_endpoint_args(
 /// Encode the result for destack.debug.inspector.endpoint.
 #[inline]
 fn encode_destack_debug_inspector_endpoint_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<InspectorEndpointVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -175,7 +175,7 @@ fn encode_destack_debug_inspector_endpoint_result(
 /// Decode arguments for destack.debug.inspector.start.
 #[inline]
 fn decode_destack_debug_inspector_start_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, u16)> {
     // ignore unused context
@@ -191,7 +191,7 @@ fn decode_destack_debug_inspector_start_args(
 /// Encode the result for destack.debug.inspector.start.
 #[inline]
 fn encode_destack_debug_inspector_start_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::InspectorHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -203,7 +203,7 @@ fn encode_destack_debug_inspector_start_result(
 /// Decode arguments for destack.debug.inspector.stop.
 #[inline]
 fn decode_destack_debug_inspector_stop_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::InspectorHandle,)> {
     // ignore unused context
@@ -219,7 +219,7 @@ fn decode_destack_debug_inspector_stop_args(
 /// Encode the result for destack.debug.inspector.stop.
 #[inline]
 fn encode_destack_debug_inspector_stop_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -231,7 +231,7 @@ fn encode_destack_debug_inspector_stop_result(
 /// Decode arguments for destack.debug.profile.snapshot.
 #[inline]
 fn decode_destack_debug_profile_snapshot_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ProfileHandle,)> {
     // ignore unused context
@@ -247,7 +247,7 @@ fn decode_destack_debug_profile_snapshot_args(
 /// Encode the result for destack.debug.profile.snapshot.
 #[inline]
 fn encode_destack_debug_profile_snapshot_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<u8>>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| value.to_value(context))
@@ -256,7 +256,7 @@ fn encode_destack_debug_profile_snapshot_result(
 /// Decode arguments for destack.debug.profile.start.
 #[inline]
 fn decode_destack_debug_profile_start_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProfileKind,)> {
     // ignore unused context
@@ -282,7 +282,7 @@ fn decode_destack_debug_profile_start_args(
 /// Encode the result for destack.debug.profile.start.
 #[inline]
 fn encode_destack_debug_profile_start_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::ProfileHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -294,7 +294,7 @@ fn encode_destack_debug_profile_start_result(
 /// Decode arguments for destack.debug.profile.stop.
 #[inline]
 fn decode_destack_debug_profile_stop_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ProfileHandle,)> {
     // ignore unused context
@@ -310,7 +310,7 @@ fn decode_destack_debug_profile_stop_args(
 /// Encode the result for destack.debug.profile.stop.
 #[inline]
 fn encode_destack_debug_profile_stop_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -322,7 +322,7 @@ fn encode_destack_debug_profile_stop_result(
 /// Decode arguments for destack.debug.trace.emit.
 #[inline]
 fn decode_destack_debug_trace_emit_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, vm::StringHandle, vm::StringHandle)> {
     // ignore unused context
@@ -340,7 +340,7 @@ fn decode_destack_debug_trace_emit_args(
 /// Encode the result for destack.debug.trace.emit.
 #[inline]
 fn encode_destack_debug_trace_emit_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -352,7 +352,7 @@ fn encode_destack_debug_trace_emit_result(
 /// Decode arguments for destack.debug.trace.start.
 #[inline]
 fn decode_destack_debug_trace_start_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(TraceLevel, vm::StringHandle)> {
     // ignore unused context
@@ -381,7 +381,7 @@ fn decode_destack_debug_trace_start_args(
 /// Encode the result for destack.debug.trace.start.
 #[inline]
 fn encode_destack_debug_trace_start_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::TraceHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -393,7 +393,7 @@ fn encode_destack_debug_trace_start_result(
 /// Decode arguments for destack.debug.trace.stop.
 #[inline]
 fn decode_destack_debug_trace_stop_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TraceHandle,)> {
     // ignore unused context
@@ -409,7 +409,7 @@ fn decode_destack_debug_trace_stop_args(
 /// Encode the result for destack.debug.trace.stop.
 #[inline]
 fn encode_destack_debug_trace_stop_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1375,7 +1375,7 @@ pub unsafe extern "C" fn destack_debug_trace_stop(handle: resource::TraceHandle)
 #[inline]
 fn destack_debug_core_break_now_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
         DEBUG_CORE_BREAK_NOW,
@@ -1417,7 +1417,7 @@ fn destack_debug_core_break_now_vm_replay(
 #[inline]
 fn destack_debug_core_mark_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     label: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -1460,7 +1460,7 @@ fn destack_debug_core_mark_vm_replay(
 #[inline]
 fn destack_debug_inspector_endpoint_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::InspectorHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -1523,7 +1523,7 @@ fn destack_debug_inspector_endpoint_vm_replay(
 #[inline]
 fn destack_debug_inspector_start_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     host: vm::StringHandle,
     port: u16,
 ) -> RuntimeResult<vm::Value> {
@@ -1571,7 +1571,7 @@ fn destack_debug_inspector_start_vm_replay(
 #[inline]
 fn destack_debug_inspector_stop_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::InspectorHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -1614,7 +1614,7 @@ fn destack_debug_inspector_stop_vm_replay(
 #[inline]
 fn destack_debug_profile_snapshot_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProfileHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -1661,7 +1661,7 @@ fn destack_debug_profile_snapshot_vm_replay(
 #[inline]
 fn destack_debug_profile_start_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     kind: ProfileKind,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -1708,7 +1708,7 @@ fn destack_debug_profile_start_vm_replay(
 #[inline]
 fn destack_debug_profile_stop_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProfileHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -1751,7 +1751,7 @@ fn destack_debug_profile_stop_vm_replay(
 #[inline]
 fn destack_debug_trace_emit_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     category: vm::StringHandle,
     name: vm::StringHandle,
     payloadjson: vm::StringHandle,
@@ -1798,7 +1798,7 @@ fn destack_debug_trace_emit_vm_replay(
 #[inline]
 fn destack_debug_trace_start_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     level: TraceLevel,
     destination: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
@@ -1846,7 +1846,7 @@ fn destack_debug_trace_start_vm_replay(
 #[inline]
 fn destack_debug_trace_stop_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TraceHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(

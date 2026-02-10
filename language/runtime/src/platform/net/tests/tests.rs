@@ -46,10 +46,10 @@ pub(crate) struct NetHarnessContext<'call> {
 impl<'call> NetHarnessContext<'call> {
     /// Return the VM context if available.
     #[allow(clippy::mut_from_ref)]
-    fn vm_context_mut(&self) -> Option<&mut vm::RuntimeContext<'_>> {
+    fn vm_context_mut(&self) -> Option<&mut vm::ExternalCallContext<'_>> {
         // safety: the harness guarantees the VM context pointer is valid for the callback
         self.vm_context
-            .map(|context| unsafe { &mut *(context as *mut vm::RuntimeContext<'_>) })
+            .map(|context| unsafe { &mut *(context as *mut vm::ExternalCallContext<'_>) })
     }
 
     /// Return the harness kind for this context.
@@ -1638,7 +1638,7 @@ impl NetHarnessHandle {
                 harness
                     .runtime
                     .with_vm_call_context(|call_context, vm_context| {
-                        let vm_context = vm_context as *mut vm::RuntimeContext<'_> as *mut ();
+                        let vm_context = vm_context as *mut vm::ExternalCallContext<'_> as *mut ();
                         callback(NetHarnessContext {
                             runtime: &harness.runtime,
                             call_context,
@@ -1733,7 +1733,7 @@ pub(crate) fn native_slice_slices_mut(
 
 /// Build a VM slice that contains VM byte-slices.
 fn vm_slice_of_slices(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     slices: &[VmSlice<u8>],
 ) -> VmSlice<VmSlice<u8>> {
     let values = slices
@@ -1748,7 +1748,7 @@ fn vm_slice_of_slices(
     }
 }
 
-fn host_from_vm(context: &mut vm::RuntimeContext<'_>, host: &str) -> vm::StringHandle {
+fn host_from_vm(context: &mut vm::ExternalCallContext<'_>, host: &str) -> vm::StringHandle {
     let value = context.intern_string(host);
     vm::StringHandle::new(value)
 }
@@ -1761,7 +1761,7 @@ fn socket_address_raw_native(address: SocketAddress) -> RuntimeResult<(u16, Vec<
 
 /// Decode a VM raw socket address for assertions.
 fn socket_address_raw_vm(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     address: SocketAddressVm,
 ) -> RuntimeResult<(u16, Vec<u8>)> {
     let bytes = address.bytes.read_values(context)?;
@@ -1781,7 +1781,7 @@ fn socket_addresses_native(
 }
 
 fn socket_addresses_vm(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     addresses: VmArray<SocketAddressVm>,
 ) -> RuntimeResult<Vec<(String, u16, SocketFamily)>> {
     let values = addresses.raw_values(context)?;
@@ -1810,7 +1810,7 @@ fn reverse_lookup_names_native(
 
 /// Decode reverse lookup names from VM values.
 fn reverse_lookup_names_vm(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     values: VmArray<platform_net::ReverseLookupNameVm>,
 ) -> RuntimeResult<Vec<String>> {
     let values = values.raw_values(context)?;
@@ -1843,7 +1843,7 @@ fn udp_receive_native(receive: UdpReceive) -> RuntimeResult<(String, u16, Socket
 }
 
 fn udp_receive_vm(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     receive: UdpReceiveVm,
 ) -> RuntimeResult<(String, u16, SocketFamily, u64)> {
     let bytes = receive.address.bytes.read_values(context)?;
@@ -2222,7 +2222,7 @@ fn socket_address_native_from_host_port(
 
 fn socket_address_vm_from_host_port(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     host: &str,
     port: u16,
     family: SocketFamily,
@@ -2265,7 +2265,7 @@ impl NativeSocketAddressArg {
 
 /// Decode a VM socket address aggregate value.
 fn socket_address_vm_from_value(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     value: vm::Value,
 ) -> RuntimeResult<SocketAddressVm> {
     // decode aggregate fields
@@ -2360,7 +2360,7 @@ fn path_ref_native(path: &std::path::Path) -> (Vec<u8>, OsPath) {
     (utf16, path_ref)
 }
 
-fn path_ref_vm(context: &mut vm::RuntimeContext<'_>, path: &std::path::Path) -> OsPathVm {
+fn path_ref_vm(context: &mut vm::ExternalCallContext<'_>, path: &std::path::Path) -> OsPathVm {
     #[cfg(unix)]
     {
         use std::os::unix::ffi::OsStrExt;
@@ -2386,7 +2386,10 @@ fn path_ref_vm(context: &mut vm::RuntimeContext<'_>, path: &std::path::Path) -> 
 }
 
 #[cfg(unix)]
-fn path_ref_vm_utf16(context: &mut vm::RuntimeContext<'_>, path: &std::path::Path) -> OsPathVm {
+fn path_ref_vm_utf16(
+    context: &mut vm::ExternalCallContext<'_>,
+    path: &std::path::Path,
+) -> OsPathVm {
     use std::os::unix::ffi::OsStrExt;
 
     // decode bytes as utf8 for deterministic utf16 test paths
@@ -2426,7 +2429,7 @@ fn uds_path_address_native(path: OsPath) -> UdsAddress {
 
 /// Build a unix domain socket path address for VM calls.
 fn uds_path_address_vm(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
 ) -> platform_net::UdsAddressVm {
     platform_net::UdsAddressVm {

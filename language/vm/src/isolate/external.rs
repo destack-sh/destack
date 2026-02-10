@@ -8,12 +8,12 @@ use super::IsolateState;
 
 /// Handler invoked by the VM when calling an external function.
 pub trait ExternalHandler:
-    for<'ctx> Fn(&mut RuntimeContext<'ctx>, &[Value]) -> Result<Value, Error> + Send + Sync
+    for<'ctx> Fn(&mut ExternalCallContext<'ctx>, &[Value]) -> Result<Value, Error> + Send + Sync
 {
 }
 
 impl<T> ExternalHandler for T where
-    T: for<'ctx> Fn(&mut RuntimeContext<'ctx>, &[Value]) -> Result<Value, Error> + Send + Sync
+    T: for<'ctx> Fn(&mut ExternalCallContext<'ctx>, &[Value]) -> Result<Value, Error> + Send + Sync
 {
 }
 
@@ -24,12 +24,12 @@ pub type ExternalFn = Box<dyn ExternalHandler>;
 pub(crate) type ExternalFnPtr = NonNull<dyn ExternalHandler>;
 
 /// Runtime call context with restricted access to isolate state.
-pub struct RuntimeContext<'ctx> {
+pub struct ExternalCallContext<'ctx> {
     /// The isolate state backing this external call.
     state: &'ctx mut IsolateState,
 }
 
-impl<'ctx> RuntimeContext<'ctx> {
+impl<'ctx> ExternalCallContext<'ctx> {
     /// Wrap an isolate state for external calls.
     pub(crate) fn new(state: &'ctx mut IsolateState) -> Self {
         Self { state }
@@ -157,9 +157,9 @@ impl<'ctx> RuntimeContext<'ctx> {
     }
 }
 
-impl fmt::Debug for RuntimeContext<'_> {
+impl fmt::Debug for ExternalCallContext<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("RuntimeContext")
+        f.debug_struct("ExternalCallContext")
             .field("state", &"<isolate>")
             .finish()
     }

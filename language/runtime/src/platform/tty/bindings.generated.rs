@@ -73,7 +73,7 @@ fn decode_uint64(
 
 /// Decode a slice argument.
 fn decode_slice<T>(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -84,7 +84,7 @@ fn decode_slice<T>(
 /// Decode arguments for destack.tty.io.read.
 #[inline]
 fn decode_destack_tty_io_read_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TtyHandle, VmSlice<u8>)> {
     let handle_value = arg_value(args, 0, "handle", "TtyHandle")?;
@@ -99,7 +99,7 @@ fn decode_destack_tty_io_read_args(
 /// Encode the result for destack.tty.io.read.
 #[inline]
 fn encode_destack_tty_io_read_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -111,7 +111,7 @@ fn encode_destack_tty_io_read_result(
 /// Decode arguments for destack.tty.io.write.
 #[inline]
 fn decode_destack_tty_io_write_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TtyHandle, VmSlice<u8>)> {
     let handle_value = arg_value(args, 0, "handle", "TtyHandle")?;
@@ -126,7 +126,7 @@ fn decode_destack_tty_io_write_args(
 /// Encode the result for destack.tty.io.write.
 #[inline]
 fn encode_destack_tty_io_write_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -138,7 +138,7 @@ fn encode_destack_tty_io_write_result(
 /// Decode arguments for destack.tty.mode.getMode.
 #[inline]
 fn decode_destack_tty_mode_get_mode_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TtyHandle,)> {
     // ignore unused context
@@ -154,7 +154,7 @@ fn decode_destack_tty_mode_get_mode_args(
 /// Encode the result for destack.tty.mode.getMode.
 #[inline]
 fn encode_destack_tty_mode_get_mode_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<TtyModeVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -169,7 +169,7 @@ fn encode_destack_tty_mode_get_mode_result(
 /// Decode arguments for destack.tty.mode.setMode.
 #[inline]
 fn decode_destack_tty_mode_set_mode_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TtyHandle, TtyModeVm)> {
     let handle_value = arg_value(args, 0, "handle", "TtyHandle")?;
@@ -211,7 +211,7 @@ fn decode_destack_tty_mode_set_mode_args(
 /// Encode the result for destack.tty.mode.setMode.
 #[inline]
 fn encode_destack_tty_mode_set_mode_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -223,7 +223,7 @@ fn encode_destack_tty_mode_set_mode_result(
 /// Decode arguments for destack.tty.pty.close.
 #[inline]
 fn decode_destack_tty_pty_close_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::PtyHandle,)> {
     // ignore unused context
@@ -239,7 +239,7 @@ fn decode_destack_tty_pty_close_args(
 /// Encode the result for destack.tty.pty.close.
 #[inline]
 fn encode_destack_tty_pty_close_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -251,7 +251,7 @@ fn encode_destack_tty_pty_close_result(
 /// Decode arguments for destack.tty.pty.open.
 #[inline]
 fn decode_destack_tty_pty_open_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u32, u32, u32)> {
     // ignore unused context
@@ -269,7 +269,7 @@ fn decode_destack_tty_pty_open_args(
 /// Encode the result for destack.tty.pty.open.
 #[inline]
 fn encode_destack_tty_pty_open_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<PtyPairVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -282,7 +282,7 @@ fn encode_destack_tty_pty_open_result(
 /// Decode arguments for destack.tty.size.getSize.
 #[inline]
 fn decode_destack_tty_size_get_size_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TtyHandle,)> {
     // ignore unused context
@@ -298,7 +298,7 @@ fn decode_destack_tty_size_get_size_args(
 /// Encode the result for destack.tty.size.getSize.
 #[inline]
 fn encode_destack_tty_size_get_size_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<TtySizeVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -313,7 +313,7 @@ fn encode_destack_tty_size_get_size_result(
 /// Decode arguments for destack.tty.size.setSize.
 #[inline]
 fn decode_destack_tty_size_set_size_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TtyHandle, TtySizeVm)> {
     let handle_value = arg_value(args, 0, "handle", "TtyHandle")?;
@@ -355,7 +355,7 @@ fn decode_destack_tty_size_set_size_args(
 /// Encode the result for destack.tty.size.setSize.
 #[inline]
 fn encode_destack_tty_size_set_size_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1126,7 +1126,7 @@ pub unsafe extern "C" fn destack_tty_size_set_size(
 #[inline]
 fn destack_tty_io_read_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
@@ -1174,7 +1174,7 @@ fn destack_tty_io_read_vm_replay(
 #[inline]
 fn destack_tty_io_write_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
@@ -1222,7 +1222,7 @@ fn destack_tty_io_write_vm_replay(
 #[inline]
 fn destack_tty_mode_get_mode_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -1287,7 +1287,7 @@ fn destack_tty_mode_get_mode_vm_replay(
 #[inline]
 fn destack_tty_mode_set_mode_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
     mode: TtyModeVm,
 ) -> RuntimeResult<vm::Value> {
@@ -1331,7 +1331,7 @@ fn destack_tty_mode_set_mode_vm_replay(
 #[inline]
 fn destack_tty_pty_close_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::PtyHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -1374,7 +1374,7 @@ fn destack_tty_pty_close_vm_replay(
 #[inline]
 fn destack_tty_pty_open_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     rows: u32,
     columns: u32,
     flags: u32,
@@ -1433,7 +1433,7 @@ fn destack_tty_pty_open_vm_replay(
 #[inline]
 fn destack_tty_size_get_size_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -1498,7 +1498,7 @@ fn destack_tty_size_get_size_vm_replay(
 #[inline]
 fn destack_tty_size_set_size_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
     size: TtySizeVm,
 ) -> RuntimeResult<vm::Value> {

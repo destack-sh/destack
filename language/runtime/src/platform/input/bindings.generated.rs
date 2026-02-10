@@ -161,7 +161,7 @@ fn decode_string(
 /// Decode arguments for destack.input.device.close.
 #[inline]
 fn decode_destack_input_device_close_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::InputDeviceHandle,)> {
     // ignore unused context
@@ -178,7 +178,7 @@ fn decode_destack_input_device_close_args(
 /// Encode the result for destack.input.device.close.
 #[inline]
 fn encode_destack_input_device_close_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -190,7 +190,7 @@ fn encode_destack_input_device_close_result(
 /// Encode the result for destack.input.device.list.
 #[inline]
 fn encode_destack_input_device_list_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<InputDeviceInfoVm>>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| value.to_value(context))
@@ -199,7 +199,7 @@ fn encode_destack_input_device_list_result(
 /// Decode arguments for destack.input.device.open.
 #[inline]
 fn decode_destack_input_device_open_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     // ignore unused context
@@ -213,7 +213,7 @@ fn decode_destack_input_device_open_args(
 /// Encode the result for destack.input.device.open.
 #[inline]
 fn encode_destack_input_device_open_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::InputDeviceHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -225,7 +225,7 @@ fn encode_destack_input_device_open_result(
 /// Decode arguments for destack.input.event.read.
 #[inline]
 fn decode_destack_input_event_read_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::InputDeviceHandle,)> {
     // ignore unused context
@@ -242,7 +242,7 @@ fn decode_destack_input_event_read_args(
 /// Encode the result for destack.input.event.read.
 #[inline]
 fn encode_destack_input_event_read_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<InputEventVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -263,7 +263,7 @@ fn encode_destack_input_event_read_result(
 /// Decode arguments for destack.input.event.setGrab.
 #[inline]
 fn decode_destack_input_event_set_grab_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::InputDeviceHandle, bool)> {
     // ignore unused context
@@ -282,7 +282,7 @@ fn decode_destack_input_event_set_grab_args(
 /// Encode the result for destack.input.event.setGrab.
 #[inline]
 fn encode_destack_input_event_set_grab_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -294,7 +294,7 @@ fn encode_destack_input_event_set_grab_result(
 /// Decode arguments for destack.input.event.tryRead.
 #[inline]
 fn decode_destack_input_event_try_read_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::InputDeviceHandle,)> {
     // ignore unused context
@@ -311,7 +311,7 @@ fn decode_destack_input_event_try_read_args(
 /// Encode the result for destack.input.event.tryRead.
 #[inline]
 fn encode_destack_input_event_try_read_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<InputEventVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -977,7 +977,7 @@ pub unsafe extern "C" fn destack_input_event_try_read(
 #[inline]
 fn destack_input_device_close_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -1020,7 +1020,7 @@ fn destack_input_device_close_vm_replay(
 #[inline]
 fn destack_input_device_list_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
         INPUT_DEVICE_LIST,
@@ -1194,7 +1194,7 @@ fn destack_input_device_list_vm_replay(
 #[inline]
 fn destack_input_device_open_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -1241,7 +1241,7 @@ fn destack_input_device_open_vm_replay(
 #[inline]
 fn destack_input_event_read_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
@@ -1322,7 +1322,7 @@ fn destack_input_event_read_vm_replay(
 #[inline]
 fn destack_input_event_set_grab_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
     enable: bool,
 ) -> RuntimeResult<vm::Value> {
@@ -1366,7 +1366,7 @@ fn destack_input_event_set_grab_vm_replay(
 #[inline]
 fn destack_input_event_try_read_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(

@@ -87,7 +87,7 @@ fn decode_uint64(
 /// Decode arguments for destack.memory.advise.advise.
 #[inline]
 fn decode_destack_memory_advise_advise_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u64, u32)> {
     // ignore unused context
@@ -105,7 +105,7 @@ fn decode_destack_memory_advise_advise_args(
 /// Encode the result for destack.memory.advise.advise.
 #[inline]
 fn encode_destack_memory_advise_advise_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -117,7 +117,7 @@ fn encode_destack_memory_advise_advise_result(
 /// Decode arguments for destack.memory.advise.discard.
 #[inline]
 fn decode_destack_memory_advise_discard_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u64)> {
     // ignore unused context
@@ -133,7 +133,7 @@ fn decode_destack_memory_advise_discard_args(
 /// Encode the result for destack.memory.advise.discard.
 #[inline]
 fn encode_destack_memory_advise_discard_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -145,7 +145,7 @@ fn encode_destack_memory_advise_discard_result(
 /// Decode arguments for destack.memory.advise.hugePage.
 #[inline]
 fn decode_destack_memory_advise_huge_page_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u64, bool)> {
     // ignore unused context
@@ -163,7 +163,7 @@ fn decode_destack_memory_advise_huge_page_args(
 /// Encode the result for destack.memory.advise.hugePage.
 #[inline]
 fn encode_destack_memory_advise_huge_page_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -175,7 +175,7 @@ fn encode_destack_memory_advise_huge_page_result(
 /// Decode arguments for destack.memory.lock.lock.
 #[inline]
 fn decode_destack_memory_lock_lock_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u64)> {
     // ignore unused context
@@ -191,7 +191,7 @@ fn decode_destack_memory_lock_lock_args(
 /// Encode the result for destack.memory.lock.lock.
 #[inline]
 fn encode_destack_memory_lock_lock_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -203,7 +203,7 @@ fn encode_destack_memory_lock_lock_result(
 /// Decode arguments for destack.memory.lock.unlock.
 #[inline]
 fn decode_destack_memory_lock_unlock_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u64)> {
     // ignore unused context
@@ -219,7 +219,7 @@ fn decode_destack_memory_lock_unlock_args(
 /// Encode the result for destack.memory.lock.unlock.
 #[inline]
 fn encode_destack_memory_lock_unlock_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -231,7 +231,7 @@ fn encode_destack_memory_lock_unlock_result(
 /// Decode arguments for destack.memory.map.commit.
 #[inline]
 fn decode_destack_memory_map_commit_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u64, u32)> {
     // ignore unused context
@@ -249,7 +249,7 @@ fn decode_destack_memory_map_commit_args(
 /// Encode the result for destack.memory.map.commit.
 #[inline]
 fn encode_destack_memory_map_commit_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -261,7 +261,7 @@ fn encode_destack_memory_map_commit_result(
 /// Decode arguments for destack.memory.map.decommit.
 #[inline]
 fn decode_destack_memory_map_decommit_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u64)> {
     // ignore unused context
@@ -277,7 +277,7 @@ fn decode_destack_memory_map_decommit_args(
 /// Encode the result for destack.memory.map.decommit.
 #[inline]
 fn encode_destack_memory_map_decommit_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -289,7 +289,7 @@ fn encode_destack_memory_map_decommit_result(
 /// Decode arguments for destack.memory.map.numaBind.
 #[inline]
 fn decode_destack_memory_map_numa_bind_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u64, u32, u64)> {
     // ignore unused context
@@ -309,7 +309,7 @@ fn decode_destack_memory_map_numa_bind_args(
 /// Encode the result for destack.memory.map.numaBind.
 #[inline]
 fn encode_destack_memory_map_numa_bind_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -321,7 +321,7 @@ fn encode_destack_memory_map_numa_bind_result(
 /// Decode arguments for destack.memory.map.release.
 #[inline]
 fn decode_destack_memory_map_release_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u64)> {
     // ignore unused context
@@ -337,7 +337,7 @@ fn decode_destack_memory_map_release_args(
 /// Encode the result for destack.memory.map.release.
 #[inline]
 fn encode_destack_memory_map_release_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -349,7 +349,7 @@ fn encode_destack_memory_map_release_result(
 /// Decode arguments for destack.memory.map.reserve.
 #[inline]
 fn decode_destack_memory_map_reserve_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u32)> {
     // ignore unused context
@@ -365,7 +365,7 @@ fn decode_destack_memory_map_reserve_args(
 /// Encode the result for destack.memory.map.reserve.
 #[inline]
 fn encode_destack_memory_map_reserve_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<MemoryRangeVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -378,7 +378,7 @@ fn encode_destack_memory_map_reserve_result(
 /// Decode arguments for destack.memory.protect.execute.
 #[inline]
 fn decode_destack_memory_protect_execute_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u64, bool)> {
     // ignore unused context
@@ -396,7 +396,7 @@ fn decode_destack_memory_protect_execute_args(
 /// Encode the result for destack.memory.protect.execute.
 #[inline]
 fn encode_destack_memory_protect_execute_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -408,7 +408,7 @@ fn encode_destack_memory_protect_execute_result(
 /// Decode arguments for destack.memory.protect.flushInstructionCache.
 #[inline]
 fn decode_destack_memory_protect_flush_instruction_cache_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u64)> {
     // ignore unused context
@@ -424,7 +424,7 @@ fn decode_destack_memory_protect_flush_instruction_cache_args(
 /// Encode the result for destack.memory.protect.flushInstructionCache.
 #[inline]
 fn encode_destack_memory_protect_flush_instruction_cache_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -436,7 +436,7 @@ fn encode_destack_memory_protect_flush_instruction_cache_result(
 /// Decode arguments for destack.memory.protect.protect.
 #[inline]
 fn decode_destack_memory_protect_protect_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u64, u32)> {
     // ignore unused context
@@ -454,7 +454,7 @@ fn decode_destack_memory_protect_protect_args(
 /// Encode the result for destack.memory.protect.protect.
 #[inline]
 fn encode_destack_memory_protect_protect_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -466,7 +466,7 @@ fn encode_destack_memory_protect_protect_result(
 /// Decode arguments for destack.memory.protect.remap.
 #[inline]
 fn decode_destack_memory_protect_remap_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u64, u64, u32)> {
     // ignore unused context
@@ -486,7 +486,7 @@ fn decode_destack_memory_protect_remap_args(
 /// Encode the result for destack.memory.protect.remap.
 #[inline]
 fn encode_destack_memory_protect_remap_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProtectedMemoryRangeVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
@@ -499,7 +499,7 @@ fn encode_destack_memory_protect_remap_result(
 /// Decode arguments for destack.memory.protect.setWriteXorExecute.
 #[inline]
 fn decode_destack_memory_protect_set_write_xor_execute_args(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(bool,)> {
     // ignore unused context
@@ -513,7 +513,7 @@ fn decode_destack_memory_protect_set_write_xor_execute_args(
 /// Encode the result for destack.memory.protect.setWriteXorExecute.
 #[inline]
 fn encode_destack_memory_protect_set_write_xor_execute_result(
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
@@ -1726,7 +1726,7 @@ pub unsafe extern "C" fn destack_memory_protect_set_write_xor_execute(
 #[inline]
 fn destack_memory_advise_advise_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
     advice: u32,
@@ -1771,7 +1771,7 @@ fn destack_memory_advise_advise_vm_replay(
 #[inline]
 fn destack_memory_advise_discard_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
 ) -> RuntimeResult<vm::Value> {
@@ -1815,7 +1815,7 @@ fn destack_memory_advise_discard_vm_replay(
 #[inline]
 fn destack_memory_advise_huge_page_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
     enabled: bool,
@@ -1860,7 +1860,7 @@ fn destack_memory_advise_huge_page_vm_replay(
 #[inline]
 fn destack_memory_lock_lock_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
 ) -> RuntimeResult<vm::Value> {
@@ -1904,7 +1904,7 @@ fn destack_memory_lock_lock_vm_replay(
 #[inline]
 fn destack_memory_lock_unlock_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
 ) -> RuntimeResult<vm::Value> {
@@ -1948,7 +1948,7 @@ fn destack_memory_lock_unlock_vm_replay(
 #[inline]
 fn destack_memory_map_commit_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
     flags: u32,
@@ -1993,7 +1993,7 @@ fn destack_memory_map_commit_vm_replay(
 #[inline]
 fn destack_memory_map_decommit_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
 ) -> RuntimeResult<vm::Value> {
@@ -2037,7 +2037,7 @@ fn destack_memory_map_decommit_vm_replay(
 #[inline]
 fn destack_memory_map_numa_bind_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
     policy: u32,
@@ -2087,7 +2087,7 @@ fn destack_memory_map_numa_bind_vm_replay(
 #[inline]
 fn destack_memory_map_release_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
 ) -> RuntimeResult<vm::Value> {
@@ -2131,7 +2131,7 @@ fn destack_memory_map_release_vm_replay(
 #[inline]
 fn destack_memory_map_reserve_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     length: u64,
     flags: u32,
 ) -> RuntimeResult<vm::Value> {
@@ -2189,7 +2189,7 @@ fn destack_memory_map_reserve_vm_replay(
 #[inline]
 fn destack_memory_protect_execute_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
     enabled: bool,
@@ -2236,7 +2236,7 @@ fn destack_memory_protect_execute_vm_replay(
 #[inline]
 fn destack_memory_protect_flush_instruction_cache_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
 ) -> RuntimeResult<vm::Value> {
@@ -2282,7 +2282,7 @@ fn destack_memory_protect_flush_instruction_cache_vm_replay(
 #[inline]
 fn destack_memory_protect_protect_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
     protection: u32,
@@ -2329,7 +2329,7 @@ fn destack_memory_protect_protect_vm_replay(
 #[inline]
 fn destack_memory_protect_remap_vm_replay(
     runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     oldlength: u64,
     newlength: u64,
