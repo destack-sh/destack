@@ -2,7 +2,7 @@ use std::fmt;
 
 use destack_vm as vm;
 
-use crate::platform::diagnostic::{PlatformError, PlatformErrorCode};
+use crate::platform::diagnostic::PlatformError;
 
 /// Error type for runtime execution and platform binding failures.
 #[derive(Debug, Clone)]
@@ -22,6 +22,13 @@ pub enum RuntimeError {
         /// Fully qualified binding name.
         name: String,
     } = 101,
+    /// Binding call rejected due to a missing required capability.
+    CapabilityViolation {
+        /// Fully qualified binding name.
+        name: String,
+        /// Required capability that was not granted.
+        capability: String,
+    } = 102,
     /// Resource identifier was not found.
     ResourceNotFound {
         /// Resource id or handle.
@@ -72,6 +79,9 @@ impl RuntimeError {
             RuntimeError::PolicyViolation { name } => {
                 format!("binding forbidden by policy: {name}")
             }
+            RuntimeError::CapabilityViolation { name, capability } => {
+                format!("binding capability denied: {name} requires {capability}")
+            }
             RuntimeError::ResourceNotFound {
                 resource_id,
                 resource_kind,
@@ -121,9 +131,7 @@ impl RuntimeError {
     pub fn sub_code(&self) -> u32 {
         match self {
             RuntimeError::Vm(error) => error.sub_code() as u32,
-            RuntimeError::Platform(error) => {
-                error.code.unwrap_or(PlatformErrorCode::Generic).number()
-            }
+            RuntimeError::Platform(error) => error.code.number(),
             _ => self.code() as u32,
         }
     }
@@ -198,6 +206,11 @@ impl From<Box<RuntimeError>> for vm::Error {
             RuntimeError::Platform(error) => (*error).into(),
             RuntimeError::BindingNotFound { name } => vm::Error::ExternalFunctionNotFound { name },
             RuntimeError::PolicyViolation { name } => vm::Error::ExternalCallForbidden { name },
+            RuntimeError::CapabilityViolation { name, capability } => {
+                vm::Error::ExternalCallForbidden {
+                    name: format!("{name} ({capability})"),
+                }
+            }
             other => vm::Error::Panic {
                 message: other.message(),
             },

@@ -1,6 +1,28 @@
 use std::collections::BTreeMap;
 
 use destack_dir::EnumBackingType;
+
+/// Platform scope classification for bindings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum BindingScope {
+    /// Binding executes through direct host platform operations.
+    Os,
+    /// Binding executes entirely inside runtime policy and state.
+    Runtime,
+    /// Binding may cross both runtime and host boundaries.
+    Hybrid,
+}
+
+/// Blocking behavior classification for bindings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum BindingBlocking {
+    /// Binding always blocks under normal operation.
+    Always,
+    /// Binding never blocks and returns immediately.
+    Never,
+    /// Binding may block depending on flags, readiness, or host state.
+    Sometimes,
+}
 /// Replay routing for generated bindings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum BindingReplayKind {
@@ -83,6 +105,8 @@ pub(crate) enum EffectClass {
 /// Binding metadata extracted from builtin sources.
 #[derive(Debug, Clone)]
 pub(crate) struct BindingEntry {
+    /// Declaration name used by runtime implementation functions.
+    pub implementation_name: String,
     /// Canonical signature string for stability checks.
     pub signature: String,
     /// Parameter metadata for the binding.
@@ -97,6 +121,12 @@ pub(crate) struct BindingEntry {
     pub replay_kind: BindingReplayKind,
     /// Replay payload capability for recorded bindings.
     pub replay_payload: ReplayPayload,
+    /// Required platform capabilities for this binding.
+    pub requires: Vec<String>,
+    /// Platform scope for this binding.
+    pub scope: BindingScope,
+    /// Blocking behavior for this binding.
+    pub blocking: BindingBlocking,
 }
 
 /// Return metadata extracted from a binding signature.

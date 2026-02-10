@@ -43,6 +43,28 @@ pub enum BindingReplayKind {
     Random(RandomEventKind),
 }
 
+/// Platform scope classification for runtime bindings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum BindingScope {
+    /// Binding executes via direct host platform operations.
+    Os,
+    /// Binding executes entirely inside runtime-managed state.
+    Runtime,
+    /// Binding may cross both runtime and host platform boundaries.
+    Hybrid,
+}
+
+/// Blocking behavior classification for runtime bindings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum BindingBlocking {
+    /// Binding always blocks under normal execution.
+    Always,
+    /// Binding never blocks and returns immediately.
+    Never,
+    /// Binding may block depending on runtime or host readiness.
+    Sometimes,
+}
+
 /// Bitmask describing binding effect classes.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -135,8 +157,15 @@ pub struct BindingDescriptor {
     pub replay_kind: BindingReplayKind,
     /// Replay payload capability for recorded bindings.
     pub replay_payload: ReplayPayload,
+    /// Required platform capabilities for this binding.
+    pub requires: &'static [&'static str],
+    /// Platform scope for this binding.
+    pub scope: BindingScope,
+    /// Blocking behavior for this binding.
+    pub blocking: BindingBlocking,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl BindingDescriptor {
     /// Create a binding descriptor with an explicit codec id.
     pub const fn with_codec_and_replay_kind(
@@ -146,6 +175,52 @@ impl BindingDescriptor {
         effect_class: EffectClass,
         replay_kind: BindingReplayKind,
         replay_payload: ReplayPayload,
+    ) -> Self {
+        Self::with_codec_and_replay_kind_with_requires(
+            name,
+            signature,
+            codec,
+            effect_class,
+            replay_kind,
+            replay_payload,
+            &[],
+        )
+    }
+
+    /// Create a binding descriptor with an explicit codec id and required capabilities.
+    pub const fn with_codec_and_replay_kind_with_requires(
+        name: &'static str,
+        signature: &'static str,
+        codec: CodecId,
+        effect_class: EffectClass,
+        replay_kind: BindingReplayKind,
+        replay_payload: ReplayPayload,
+        requires: &'static [&'static str],
+    ) -> Self {
+        Self::with_codec_and_replay_kind_with_requires_and_behavior(
+            name,
+            signature,
+            codec,
+            effect_class,
+            replay_kind,
+            replay_payload,
+            requires,
+            BindingScope::Hybrid,
+            BindingBlocking::Sometimes,
+        )
+    }
+
+    /// Create a binding descriptor with explicit capability and behavior metadata.
+    pub const fn with_codec_and_replay_kind_with_requires_and_behavior(
+        name: &'static str,
+        signature: &'static str,
+        codec: CodecId,
+        effect_class: EffectClass,
+        replay_kind: BindingReplayKind,
+        replay_payload: ReplayPayload,
+        requires: &'static [&'static str],
+        scope: BindingScope,
+        blocking: BindingBlocking,
     ) -> Self {
         let effect_mask = effect_mask_for_class(effect_class);
         Self {
@@ -157,6 +232,9 @@ impl BindingDescriptor {
             effect_mask,
             replay_kind,
             replay_payload,
+            requires,
+            scope,
+            blocking,
         }
     }
 
@@ -167,13 +245,25 @@ impl BindingDescriptor {
         codec: CodecId,
         effect_class: EffectClass,
     ) -> Self {
-        Self::with_codec_and_replay_kind(
+        Self::with_codec_with_requires(name, signature, codec, effect_class, &[])
+    }
+
+    /// Create a binding descriptor with an explicit codec id and required capabilities.
+    pub const fn with_codec_with_requires(
+        name: &'static str,
+        signature: &'static str,
+        codec: CodecId,
+        effect_class: EffectClass,
+        requires: &'static [&'static str],
+    ) -> Self {
+        Self::with_codec_and_replay_kind_with_requires(
             name,
             signature,
             codec,
             effect_class,
             BindingReplayKind::Regular,
             ReplayPayload::Results,
+            requires,
         )
     }
 
@@ -183,17 +273,99 @@ impl BindingDescriptor {
         signature: &'static str,
         effect_class: EffectClass,
     ) -> Self {
-        Self::with_codec(name, signature, CODEC_POSTCARD_V1, effect_class)
+        Self::new_with_requires(name, signature, effect_class, &[])
+    }
+
+    /// Create a binding descriptor with the default codec and required capabilities.
+    pub const fn new_with_requires(
+        name: &'static str,
+        signature: &'static str,
+        effect_class: EffectClass,
+        requires: &'static [&'static str],
+    ) -> Self {
+        Self::with_codec_with_requires(name, signature, CODEC_POSTCARD_V1, effect_class, requires)
     }
 
     /// Create a pure binding descriptor.
     pub const fn pure(name: &'static str, signature: &'static str) -> Self {
-        Self::new(name, signature, EffectClass::Pure)
+        Self::pure_with_requires(name, signature, &[])
+    }
+
+    /// Create a pure binding descriptor with required capabilities.
+    pub const fn pure_with_requires(
+        name: &'static str,
+        signature: &'static str,
+        requires: &'static [&'static str],
+    ) -> Self {
+        Self::pure_with_requires_and_behavior(
+            name,
+            signature,
+            requires,
+            BindingScope::Hybrid,
+            BindingBlocking::Sometimes,
+        )
+    }
+
+    /// Create a pure binding descriptor with required capabilities and behavior metadata.
+    pub const fn pure_with_requires_and_behavior(
+        name: &'static str,
+        signature: &'static str,
+        requires: &'static [&'static str],
+        scope: BindingScope,
+        blocking: BindingBlocking,
+    ) -> Self {
+        Self::with_codec_and_replay_kind_with_requires_and_behavior(
+            name,
+            signature,
+            CODEC_POSTCARD_V1,
+            EffectClass::Pure,
+            BindingReplayKind::Regular,
+            ReplayPayload::Results,
+            requires,
+            scope,
+            blocking,
+        )
     }
 
     /// Create a deterministic binding descriptor.
     pub const fn deterministic(name: &'static str, signature: &'static str) -> Self {
-        Self::new(name, signature, EffectClass::Deterministic)
+        Self::deterministic_with_requires(name, signature, &[])
+    }
+
+    /// Create a deterministic binding descriptor with required capabilities.
+    pub const fn deterministic_with_requires(
+        name: &'static str,
+        signature: &'static str,
+        requires: &'static [&'static str],
+    ) -> Self {
+        Self::deterministic_with_requires_and_behavior(
+            name,
+            signature,
+            requires,
+            BindingScope::Hybrid,
+            BindingBlocking::Sometimes,
+        )
+    }
+
+    /// Create a deterministic binding descriptor with required capabilities and behavior metadata.
+    pub const fn deterministic_with_requires_and_behavior(
+        name: &'static str,
+        signature: &'static str,
+        requires: &'static [&'static str],
+        scope: BindingScope,
+        blocking: BindingBlocking,
+    ) -> Self {
+        Self::with_codec_and_replay_kind_with_requires_and_behavior(
+            name,
+            signature,
+            CODEC_POSTCARD_V1,
+            EffectClass::Deterministic,
+            BindingReplayKind::Regular,
+            ReplayPayload::Results,
+            requires,
+            scope,
+            blocking,
+        )
     }
 
     /// Create an external binding descriptor with explicit replay routing.
@@ -203,7 +375,48 @@ impl BindingDescriptor {
         replay: ReplayPolicy,
         replay_kind: BindingReplayKind,
     ) -> Self {
-        Self::external_with_payload(name, signature, replay, replay_kind, ReplayPayload::Results)
+        Self::external_with_requires(name, signature, replay, replay_kind, &[])
+    }
+
+    /// Create an external binding descriptor with explicit replay routing and required capabilities.
+    pub const fn external_with_requires(
+        name: &'static str,
+        signature: &'static str,
+        replay: ReplayPolicy,
+        replay_kind: BindingReplayKind,
+        requires: &'static [&'static str],
+    ) -> Self {
+        Self::external_with_requires_and_behavior(
+            name,
+            signature,
+            replay,
+            replay_kind,
+            requires,
+            BindingScope::Hybrid,
+            BindingBlocking::Sometimes,
+        )
+    }
+
+    /// Create an external binding descriptor with explicit replay routing, capabilities, and behavior metadata.
+    pub const fn external_with_requires_and_behavior(
+        name: &'static str,
+        signature: &'static str,
+        replay: ReplayPolicy,
+        replay_kind: BindingReplayKind,
+        requires: &'static [&'static str],
+        scope: BindingScope,
+        blocking: BindingBlocking,
+    ) -> Self {
+        Self::external_with_payload_with_requires(
+            name,
+            signature,
+            replay,
+            replay_kind,
+            ReplayPayload::Results,
+            requires,
+            scope,
+            blocking,
+        )
     }
 
     /// Create an external binding descriptor with a replay payload override.
@@ -214,18 +427,59 @@ impl BindingDescriptor {
         replay_kind: BindingReplayKind,
         replay_payload: ReplayPayload,
     ) -> Self {
-        Self::with_codec_and_replay_kind(
+        Self::external_with_payload_with_requires(
+            name,
+            signature,
+            replay,
+            replay_kind,
+            replay_payload,
+            &[],
+            BindingScope::Hybrid,
+            BindingBlocking::Sometimes,
+        )
+    }
+
+    /// Create an external binding descriptor with payload and required capabilities.
+    pub const fn external_with_payload_with_requires(
+        name: &'static str,
+        signature: &'static str,
+        replay: ReplayPolicy,
+        replay_kind: BindingReplayKind,
+        replay_payload: ReplayPayload,
+        requires: &'static [&'static str],
+        scope: BindingScope,
+        blocking: BindingBlocking,
+    ) -> Self {
+        Self::with_codec_and_replay_kind_with_requires_and_behavior(
             name,
             signature,
             CODEC_POSTCARD_V1,
             EffectClass::External { replay },
             replay_kind,
             replay_payload,
+            requires,
+            scope,
+            blocking,
         )
     }
 
     /// Return the replay payload capability for this binding.
     pub const fn replay_payload(self) -> ReplayPayload {
         self.replay_payload
+    }
+
+    /// Return the required platform capabilities for this binding.
+    pub const fn requires(self) -> &'static [&'static str] {
+        self.requires
+    }
+
+    /// Return the platform scope classification for this binding.
+    pub const fn scope(self) -> BindingScope {
+        self.scope
+    }
+
+    /// Return the blocking behavior classification for this binding.
+    pub const fn blocking(self) -> BindingBlocking {
+        self.blocking
     }
 }

@@ -52,6 +52,7 @@ fn decode_destack_console_error_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
+    // ignore unused context
     let _ = context;
 
     let value_value = arg_value(args, 0, "value", "string")?;
@@ -65,6 +66,7 @@ fn encode_destack_console_error_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
+    // ignore unused context
     let _ = context;
 
     result.map(|_| vm::Value::VOID)
@@ -76,6 +78,7 @@ fn decode_destack_console_info_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
+    // ignore unused context
     let _ = context;
 
     let value_value = arg_value(args, 0, "value", "string")?;
@@ -89,6 +92,7 @@ fn encode_destack_console_info_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
+    // ignore unused context
     let _ = context;
 
     result.map(|_| vm::Value::VOID)
@@ -100,6 +104,7 @@ fn decode_destack_console_log_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
+    // ignore unused context
     let _ = context;
 
     let value_value = arg_value(args, 0, "value", "string")?;
@@ -113,6 +118,7 @@ fn encode_destack_console_log_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
+    // ignore unused context
     let _ = context;
 
     result.map(|_| vm::Value::VOID)
@@ -124,6 +130,7 @@ fn decode_destack_console_warn_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
+    // ignore unused context
     let _ = context;
 
     let value_value = arg_value(args, 0, "value", "string")?;
@@ -137,6 +144,7 @@ fn encode_destack_console_warn_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
+    // ignore unused context
     let _ = context;
 
     result.map(|_| vm::Value::VOID)
@@ -171,35 +179,39 @@ struct WarnReplay {
 }
 
 /// Binding descriptor for destack.console.error.
-pub const ERROR: BindingDescriptor = BindingDescriptor::external(
+pub const ERROR: BindingDescriptor = BindingDescriptor::external_with_requires(
     "destack.console.error",
     "export function error(value: string): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
+    &["console.write"],
 );
 
 /// Binding descriptor for destack.console.info.
-pub const INFO: BindingDescriptor = BindingDescriptor::external(
+pub const INFO: BindingDescriptor = BindingDescriptor::external_with_requires(
     "destack.console.info",
     "export function info(value: string): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
+    &["console.write"],
 );
 
 /// Binding descriptor for destack.console.log.
-pub const LOG: BindingDescriptor = BindingDescriptor::external(
+pub const LOG: BindingDescriptor = BindingDescriptor::external_with_requires(
     "destack.console.log",
     "export function log(value: string): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
+    &["console.write"],
 );
 
 /// Binding descriptor for destack.console.warn.
-pub const WARN: BindingDescriptor = BindingDescriptor::external(
+pub const WARN: BindingDescriptor = BindingDescriptor::external_with_requires(
     "destack.console.warn",
     "export function warn(value: string): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
+    &["console.write"],
 );
 
 /// Binding descriptors for console.

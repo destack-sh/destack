@@ -1,6 +1,6 @@
 import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
-import { SignalFdHandle, SignalHandle } from "../resource/index.ds";
+import { SignalHandle } from "../resource/index.ds";
 import { ProcessId } from "./ids.ds";
 
 /// Signal number for process control.
@@ -23,9 +23,6 @@ export struct SignalEvent {
     /// Process id associated with the signal when provided by the platform.
     pid: ProcessId;
 }
-
-/// Flags for signalfd style descriptors.
-export newtype SignalFdFlags = uint32;
 
 /// Process signal bindings for the native runtime.
 declare namespace process {
@@ -292,155 +289,4 @@ declare namespace process {
         },
     )
     export function signalTryWait(signals: Slice<Signal>): Result<SignalEvent, PlatformError>;
-
-    /// Open a signalfd style descriptor for one signal mask.
-    ///
-    /// Create one descriptor-backed signal queue bound to the provided mask.
-    /// Signal routing and queue coalescing follow host signalfd semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-    /// Uses signalfd(2) on Linux and runtime fallback on targets without signalfd support.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `process.signal.fd`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    @binding(
-        "destack.process.signals.fdOpen",
-        {
-            effect: "external",
-            replay: "recordable",
-            requires: ["process.signal.fd"],
-            scope: "os",
-            blocking: "sometimes",
-        },
-    )
-    export function signalFdOpen(
-        signals: Slice<Signal>,
-        flags: SignalFdFlags,
-    ): Result<SignalFdHandle, PlatformError>;
-
-    /// Replace the active mask for one signalfd descriptor.
-    ///
-    /// Update one descriptor mask so future queued signals match the new requested set.
-    /// Mask updates are atomic with respect to host signal queue routing rules.
-    ///
-    /// # Platform
-    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-    /// Uses signalfd(2) mask updates on Linux and runtime fallback on targets without signalfd support.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `process.signal.fd`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    @binding(
-        "destack.process.signals.fdUpdate",
-        {
-            effect: "external",
-            replay: "recordable",
-            requires: ["process.signal.fd"],
-            scope: "os",
-            blocking: "sometimes",
-        },
-    )
-    export function signalFdUpdate(
-        handle: SignalFdHandle,
-        signals: Slice<Signal>,
-    ): Result<void, PlatformError>;
-
-    /// Read one queued signal event from a signalfd descriptor.
-    ///
-    /// Consume one queued signal record and return normalized event data.
-    /// Record fields follow host signal information and runtime normalization rules.
-    ///
-    /// # Platform
-    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-    /// Uses read(2) on signalfd descriptors on Linux and runtime fallback on other targets.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `process.signal.fd`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    @binding(
-        "destack.process.signals.fdRead",
-        {
-            effect: "external",
-            replay: "recordable",
-            requires: ["process.signal.fd"],
-            scope: "os",
-            blocking: "sometimes",
-        },
-    )
-    export function signalFdRead(handle: SignalFdHandle): Result<SignalEvent, PlatformError>;
-
-    /// Try to read one queued signal event from a signalfd descriptor.
-    ///
-    /// Attempt one nonblocking descriptor read and return immediately if no signals are queued.
-    /// Empty queue state is reported as ioWouldBlock.
-    ///
-    /// # Platform
-    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-    /// Uses nonblocking read on signalfd descriptors on Linux and runtime fallback on other targets.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `process.signal.fd`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    @binding(
-        "destack.process.signals.fdTryRead",
-        {
-            effect: "external",
-            replay: "recordable",
-            requires: ["process.signal.fd"],
-            scope: "os",
-            blocking: "never",
-        },
-    )
-    export function signalFdTryRead(handle: SignalFdHandle): Result<SignalEvent, PlatformError>;
-
-    /// Close one signalfd descriptor.
-    ///
-    /// Close one descriptor and release host signal queue resources.
-    /// Pending queued records are discarded according to host close semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-    /// Uses close(2) on Linux and runtime fallback on other targets.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `process.signal.fd`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    @binding(
-        "destack.process.signals.fdClose",
-        {
-            effect: "external",
-            replay: "recordable",
-            requires: ["process.signal.fd"],
-            scope: "os",
-            blocking: "sometimes",
-        },
-    )
-    export function signalFdClose(handle: SignalFdHandle): Result<void, PlatformError>;
 }

@@ -2,6 +2,26 @@ use super::PlatformEvent;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::ResourceId;
 
+/// Opaque token used by the poller for event routing.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct PollerToken(
+    /// Raw token value.
+    pub u64,
+);
+
+impl PollerToken {
+    /// Reserved token for poller wake events.
+    pub const WAKE: Self = Self(u64::MAX);
+    /// Reserved token for poller timeout events.
+    pub const TIMEOUT: Self = Self(u64::MAX - 1);
+
+    /// Return whether this token is reserved.
+    pub const fn is_reserved(self) -> bool {
+        matches!(self, Self::WAKE | Self::TIMEOUT)
+    }
+}
+
 /// Opaque platform handle for poller registration.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -27,7 +47,7 @@ impl PlatformHandle {
 impl PlatformHandle {
     /// Create a platform handle from a raw socket.
     pub fn from_raw_socket(socket: std::os::windows::io::RawSocket) -> Self {
-        Self(socket as u64)
+        Self(socket)
     }
 
     /// Return the raw socket for this handle.
@@ -130,7 +150,7 @@ pub trait PlatformPoller: Send {
         &mut self,
         resource_id: ResourceId,
         handle: PlatformHandle,
-        token: u64,
+        token: PollerToken,
         interests: PlatformInterest,
         flags: PlatformPollerFlags,
     ) -> RuntimeResult<()>;
@@ -139,7 +159,7 @@ pub trait PlatformPoller: Send {
     fn update(
         &mut self,
         resource_id: ResourceId,
-        token: u64,
+        token: PollerToken,
         interests: PlatformInterest,
         flags: PlatformPollerFlags,
     ) -> RuntimeResult<()>;

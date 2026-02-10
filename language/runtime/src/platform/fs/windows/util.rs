@@ -1,35 +1,44 @@
 use std::ffi::OsString;
 use std::os::windows::ffi::{OsStrExt, OsStringExt};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use windows_sys::Wdk::Foundation::OBJECT_ATTRIBUTES;
 use windows_sys::Wdk::Storage::FileSystem::{
     FILE_CREATE, FILE_OPEN, FILE_OPEN_IF, FILE_OVERWRITE, FILE_OVERWRITE_IF, NtCreateFile,
 };
 use windows_sys::Win32::Foundation::{
-    CloseHandle, FILETIME, HANDLE, INVALID_HANDLE_VALUE, NTSTATUS, RtlNtStatusToDosError,
-    UNICODE_STRING,
+    CloseHandle, ERROR_ALREADY_EXISTS, FILETIME, HANDLE, HLOCAL, INVALID_HANDLE_VALUE, LocalFree,
+    NTSTATUS, PSID, RtlNtStatusToDosError, UNICODE_STRING,
 };
+use windows_sys::Win32::Networking::WinSock::SOCKET;
+use windows_sys::Win32::Security::Authorization::ConvertStringSidToSidW;
 use windows_sys::Win32::Storage::FileSystem::{
-    CREATE_ALWAYS, CREATE_NEW, CreateFileW, FILE_APPEND_DATA, FILE_ATTRIBUTE_DIRECTORY,
-    FILE_ATTRIBUTE_NORMAL, FILE_ATTRIBUTE_READONLY, FILE_DISPOSITION_INFO,
-    FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT, FILE_GENERIC_READ,
-    FILE_GENERIC_WRITE, FILE_READ_ATTRIBUTES, FILE_RENAME_INFO, FILE_SHARE_DELETE, FILE_SHARE_READ,
-    FILE_SHARE_WRITE, FILE_WRITE_ATTRIBUTES, FileDispositionInfo, FileRenameInfo,
-    GetDiskFreeSpaceExW, GetDiskFreeSpaceW, GetFileInformationByHandle, GetFinalPathNameByHandleW,
-    GetVolumeInformationW, GetVolumePathNameW, MAXIMUM_REPARSE_DATA_BUFFER_SIZE, OPEN_ALWAYS,
-    OPEN_EXISTING, SetFileInformationByHandle, SetFileTime, TRUNCATE_EXISTING,
+    CREATE_ALWAYS, CREATE_NEW, CreateDirectoryW, CreateFileW, FILE_APPEND_DATA,
+    FILE_ATTRIBUTE_DIRECTORY, FILE_ATTRIBUTE_NORMAL, FILE_ATTRIBUTE_READONLY,
+    FILE_DISPOSITION_INFO, FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT,
+    FILE_GENERIC_READ, FILE_GENERIC_WRITE, FILE_READ_ATTRIBUTES, FILE_RENAME_INFO,
+    FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE, FILE_WRITE_ATTRIBUTES,
+    FileDispositionInfo, FileRenameInfo, GetDiskFreeSpaceExW, GetDiskFreeSpaceW,
+    GetFileInformationByHandle, GetFinalPathNameByHandleW, GetVolumeInformationW,
+    GetVolumePathNameW, MAXIMUM_REPARSE_DATA_BUFFER_SIZE, OPEN_ALWAYS, OPEN_EXISTING,
+    SetFileInformationByHandle, SetFileTime, TRUNCATE_EXISTING,
 };
 use windows_sys::Win32::System::IO::{DeviceIoControl, IO_STATUS_BLOCK};
 use windows_sys::Win32::System::Ioctl::FSCTL_GET_REPARSE_POINT;
 use windows_sys::Win32::System::Kernel::OBJ_CASE_INSENSITIVE;
 
+use parking_lot::Mutex;
+
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::fs::{
-    FileMode, FileSize, OpenFlags, PathBytes, PathUtf16, Stat, StatFs, core as core_fs,
+    FileMode, FileSize, OpenFlags, PathBytes, PathUtf16, Stat, StatFs, StatFsFlags, core as core_fs,
 };
-use crate::platform::resource::{DirectoryHandle, FileHandle, ResourceFinalizer, ResourceKind};
-use crate::platform::{PlatformError, ResourceId};
+use crate::platform::net::{SocketHandle, core as core_net};
+use crate::platform::resource::{
+    DirectoryHandle, FileHandle, ResourceEntry, ResourceFinalizer, ResourceKind,
+};
+use crate::platform::{PlatformError, ResourceId, core as core_platform};
 use crate::runtime::RuntimeCallContext;
 
 /// Random characters used for mkdtemp suffixes.
@@ -71,6 +80,7 @@ impl ResourceFinalizer for HandleFinalizer {
 
 /// Resolve a UTF-8 byte path into a wide string.
 pub(super) fn wide_from_bytes(path: PathBytes, name: &str) -> RuntimeResult<Vec<u16>> {
+    // validate the byte path
     let bytes = unsafe { path.0.as_slice()? };
     if bytes.contains(&0) {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -80,109 +90,52 @@ pub(super) fn wide_from_bytes(path: PathBytes, name: &str) -> RuntimeResult<Vec<
         .boxed());
     }
 
-    let value = std::str::from_utf8(bytes).map_err(|_| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            name,
-            "path contains invalid utf8",
-        ))
-        .boxed()
-    })?;
-    let mut wide: Vec<u16> = OsString::from(value).as_os_str().encode_wide().collect();
-    if wide.contains(&0) {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            name,
-            "path contains nul code unit",
-        ))
-        .boxed());
-    }
-    wide.push(0);
-    Ok(wide)
+    // decode utf-8 into a wide string
+    core_platform::wide_from_utf8(name, bytes)
 }
 
 /// Resolve a UTF-16 path into a wide string.
 pub(super) fn wide_from_utf16(path: PathUtf16, name: &str) -> RuntimeResult<Vec<u16>> {
     let slice = unsafe { path.0.as_slice()? };
-    if slice.contains(&0) {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            name,
-            "path contains nul code unit",
-        ))
-        .boxed());
-    }
-    let mut wide = slice.to_vec();
-    wide.push(0);
-    Ok(wide)
+    core_platform::wide_from_utf16(name, slice)
 }
 
 /// Resolve a UTF-16 path into a PathBuf.
 pub(super) fn pathbuf_from_utf16(path: PathUtf16, name: &str) -> RuntimeResult<PathBuf> {
     let slice = unsafe { path.0.as_slice()? };
-    if slice.contains(&0) {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            name,
-            "path contains nul code unit",
-        ))
-        .boxed());
-    }
-
-    Ok(PathBuf::from(OsString::from_wide(slice)))
+    core_platform::pathbuf_from_utf16(name, slice)
 }
 
 /// Resolve a UTF-8 byte path into a PathBuf.
 pub(super) fn pathbuf_from_bytes(path: PathBytes, name: &str) -> RuntimeResult<PathBuf> {
     let bytes = unsafe { path.0.as_slice()? };
-    if bytes.contains(&0) {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            name,
-            "path contains nul byte",
-        ))
-        .boxed());
-    }
-
-    let value = std::str::from_utf8(bytes).map_err(|_| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            name,
-            "path contains invalid utf8",
-        ))
-        .boxed()
-    })?;
-    Ok(PathBuf::from(value))
+    core_platform::pathbuf_from_utf8(name, bytes)
 }
 
 /// Resolve a UTF-8 byte path into a String.
 pub(super) fn string_from_bytes(path: PathBytes, name: &str) -> RuntimeResult<String> {
     let bytes = unsafe { path.0.as_slice()? };
-    if bytes.contains(&0) {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            name,
-            "path contains nul byte",
-        ))
-        .boxed());
-    }
-
-    let value = std::str::from_utf8(bytes).map_err(|_| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            name,
-            "path contains invalid utf8",
-        ))
-        .boxed()
-    })?;
-    Ok(value.to_string())
+    core_platform::string_from_utf8(name, bytes)
 }
 
 /// Generate a random mkdtemp suffix.
 pub(super) fn mkdtemp_suffix() -> RuntimeResult<[u8; 6]> {
+    // generate random bytes
     let mut bytes = [0u8; 6];
     getrandom::fill(&mut bytes)
         .map_err(|error| RuntimeError::from(PlatformError::io(error.to_string())).boxed())?;
+
+    // map bytes into the allowed alphabet
     for byte in &mut bytes {
         *byte = MKDTEMP_CHARS[(*byte as usize) % MKDTEMP_CHARS.len()];
     }
+
     Ok(bytes)
 }
 
 /// Create a temporary directory from a template string.
 pub(super) fn mkdtemp_from_template(template: &str) -> RuntimeResult<PathBuf> {
+    // locate the suffix marker
     let index = template.rfind("XXXXXX").ok_or_else(|| {
         RuntimeError::from(PlatformError::invalid_argument_value(
             "template",
@@ -191,26 +144,38 @@ pub(super) fn mkdtemp_from_template(template: &str) -> RuntimeResult<PathBuf> {
         .boxed()
     })?;
 
+    // split the template into prefix and suffix
     let prefix = &template[..index];
     let suffix = &template[index + 6..];
+
+    // try to create a unique directory
     for _ in 0..128 {
         let suffix_bytes = mkdtemp_suffix()?;
         let random: String = suffix_bytes.iter().map(|value| *value as char).collect();
         let candidate = format!("{prefix}{random}{suffix}");
-        match std::fs::create_dir(&candidate) {
-            Ok(()) => return Ok(PathBuf::from(candidate)),
-            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
-            Err(error) => {
-                return Err(RuntimeError::from(PlatformError::io(error.to_string())).boxed());
-            }
+        let mut wide: Vec<u16> = OsString::from(&candidate).encode_wide().collect();
+        wide.push(0);
+        let rc = unsafe { CreateDirectoryW(wide.as_ptr(), std::ptr::null()) };
+        if rc != 0 {
+            return Ok(PathBuf::from(candidate));
         }
+
+        let error = core_platform::last_error_code() as u32;
+        if error == ERROR_ALREADY_EXISTS {
+            continue;
+        }
+
+        return Err(
+            RuntimeError::from(PlatformError::io(format!("mkdtemp failed: {error}"))).boxed(),
+        );
     }
 
     Err(RuntimeError::from(PlatformError::io("mkdtemp could not find a unique name")).boxed())
 }
 
 /// Convert a PathBuf into UTF-8 bytes.
-pub(super) fn bytes_from_pathbuf(path: &PathBuf, name: &str) -> RuntimeResult<Vec<u8>> {
+pub(super) fn bytes_from_pathbuf(path: &Path, name: &str) -> RuntimeResult<Vec<u8>> {
+    // decode the path as utf-8
     let value = path.to_str().ok_or_else(|| {
         RuntimeError::from(PlatformError::invalid_argument_value(
             name,
@@ -218,27 +183,33 @@ pub(super) fn bytes_from_pathbuf(path: &PathBuf, name: &str) -> RuntimeResult<Ve
         ))
         .boxed()
     })?;
+
+    // return the bytes
     Ok(value.as_bytes().to_vec())
 }
 
 /// Convert a PathBuf into a wide string.
-pub(super) fn wide_from_pathbuf(path: &PathBuf) -> Vec<u16> {
+pub(super) fn wide_from_pathbuf(path: &Path) -> Vec<u16> {
+    // encode the path as a nul-terminated wide string
     let mut wide: Vec<u16> = path.as_os_str().encode_wide().collect();
     wide.push(0);
     wide
 }
 
 /// Convert a PathBuf into a wide string without a trailing nul.
-pub(super) fn wide_from_pathbuf_no_nul(path: &PathBuf) -> Vec<u16> {
+pub(super) fn wide_from_pathbuf_no_nul(path: &Path) -> Vec<u16> {
+    // strip the trailing nul after encoding
     let mut wide = wide_from_pathbuf(path);
     if wide.last() == Some(&0) {
         wide.pop();
     }
+
     wide
 }
 
 /// Build a UNICODE_STRING for NtCreateFile.
 pub(super) fn unicode_string_from_slice(path: &[u16]) -> RuntimeResult<UNICODE_STRING> {
+    // compute the byte length
     let length_bytes = path
         .len()
         .checked_mul(2)
@@ -246,6 +217,7 @@ pub(super) fn unicode_string_from_slice(path: &[u16]) -> RuntimeResult<UNICODE_S
     let length_bytes = u16::try_from(length_bytes)
         .map_err(|_| RuntimeError::from(PlatformError::io("path too long")).boxed())?;
 
+    // build the unicode string
     Ok(UNICODE_STRING {
         Length: length_bytes,
         MaximumLength: length_bytes,
@@ -255,10 +227,13 @@ pub(super) fn unicode_string_from_slice(path: &[u16]) -> RuntimeResult<UNICODE_S
 
 /// Map open flags to NtCreateFile dispositions.
 pub(super) fn nt_disposition_from_flags(flags: OpenFlags) -> u32 {
+    // decode the flags
     let flags = flags.0;
     let create = flags & libc::O_CREAT as u32 != 0;
     let excl = flags & libc::O_EXCL as u32 != 0;
     let trunc = flags & libc::O_TRUNC as u32 != 0;
+
+    // pick the right disposition
     if create && excl {
         return FILE_CREATE;
     }
@@ -284,8 +259,9 @@ pub(super) fn nt_create_file_at(
     options: u32,
     file_attributes: u32,
 ) -> RuntimeResult<HANDLE> {
+    // build the object attributes
     let unicode = unicode_string_from_slice(path)?;
-    let mut object_attributes = OBJECT_ATTRIBUTES {
+    let object_attributes = OBJECT_ATTRIBUTES {
         Length: std::mem::size_of::<OBJECT_ATTRIBUTES>() as u32,
         RootDirectory: root,
         ObjectName: &unicode as *const _,
@@ -294,6 +270,7 @@ pub(super) fn nt_create_file_at(
         SecurityQualityOfService: std::ptr::null(),
     };
 
+    // issue the NtCreateFile call
     let mut iosb = IO_STATUS_BLOCK {
         Anonymous: windows_sys::Win32::System::IO::IO_STATUS_BLOCK_0 { Status: 0 },
         Information: 0,
@@ -303,7 +280,7 @@ pub(super) fn nt_create_file_at(
         NtCreateFile(
             &mut handle,
             desired_access,
-            &mut object_attributes,
+            &object_attributes,
             &mut iosb,
             std::ptr::null(),
             file_attributes,
@@ -327,11 +304,23 @@ pub(super) fn nt_create_file_at(
         ))
         .boxed());
     }
+
     Ok(handle)
 }
 
 /// Update rename information for an open handle.
 pub(super) fn set_rename_info(handle: HANDLE, root: HANDLE, name: &[u16]) -> RuntimeResult<()> {
+    set_rename_info_with_replace(handle, root, name, true)
+}
+
+/// Update rename information for an open handle with replace control.
+pub(super) fn set_rename_info_with_replace(
+    handle: HANDLE,
+    root: HANDLE,
+    name: &[u16],
+    replace: bool,
+) -> RuntimeResult<()> {
+    // compute the buffer length
     let name_len_bytes = name
         .len()
         .checked_mul(2)
@@ -341,27 +330,34 @@ pub(super) fn set_rename_info(handle: HANDLE, root: HANDLE, name: &[u16]) -> Run
     let buffer_len =
         std::mem::size_of::<FILE_RENAME_INFO>() + (name_len_bytes as usize).saturating_sub(2);
     let mut buffer = vec![0u8; buffer_len];
+
+    // fill the rename info buffer
     let info = buffer.as_mut_ptr() as *mut FILE_RENAME_INFO;
     unsafe {
-        (*info).Anonymous.ReplaceIfExists = 1;
+        (*info).Anonymous.ReplaceIfExists = if replace { 1 } else { 0 };
         (*info).RootDirectory = root;
         (*info).FileNameLength = name_len_bytes;
         let target = (*info).FileName.as_mut_ptr();
         std::ptr::copy_nonoverlapping(name.as_ptr(), target, name.len());
     }
 
+    // issue the rename
     let rc = unsafe {
         SetFileInformationByHandle(handle, FileRenameInfo, info as *const _, buffer_len as u32)
     };
     if rc == 0 {
         return Err(last_os_error("SetFileInformationByHandle", None));
     }
+
     Ok(())
 }
 
 /// Mark a handle for deletion.
 pub(super) fn set_disposition_info(handle: HANDLE) -> RuntimeResult<()> {
+    // build the disposition info
     let info = FILE_DISPOSITION_INFO { DeleteFile: 1 };
+
+    // issue the disposition update
     let rc = unsafe {
         SetFileInformationByHandle(
             handle,
@@ -373,11 +369,13 @@ pub(super) fn set_disposition_info(handle: HANDLE) -> RuntimeResult<()> {
     if rc == 0 {
         return Err(last_os_error("SetFileInformationByHandle", None));
     }
+
     Ok(())
 }
 
 /// Open a path for delete operations.
 pub(super) fn open_for_delete_path(path: &[u16]) -> RuntimeResult<HANDLE> {
+    // open the handle with delete access
     let handle = unsafe {
         CreateFileW(
             path.as_ptr(),
@@ -392,11 +390,13 @@ pub(super) fn open_for_delete_path(path: &[u16]) -> RuntimeResult<HANDLE> {
     if handle == INVALID_HANDLE_VALUE {
         return Err(last_os_error("CreateFileW", None));
     }
+
     Ok(handle)
 }
 
 /// Open a path for reparse inspection.
 pub(super) fn open_for_reparse(path: &[u16]) -> RuntimeResult<HANDLE> {
+    // open the handle with reparse access
     let handle = unsafe {
         CreateFileW(
             path.as_ptr(),
@@ -416,6 +416,7 @@ pub(super) fn open_for_reparse(path: &[u16]) -> RuntimeResult<HANDLE> {
 
 /// Read a symlink target from a handle.
 pub(super) fn readlink_from_handle(handle: HANDLE) -> RuntimeResult<String> {
+    // issue the reparse point query
     let mut buffer = vec![0u8; MAXIMUM_REPARSE_DATA_BUFFER_SIZE as usize];
     let mut returned = 0u32;
     let rc = unsafe {
@@ -435,6 +436,7 @@ pub(super) fn readlink_from_handle(handle: HANDLE) -> RuntimeResult<String> {
     }
     buffer.truncate(returned as usize);
 
+    // parse the reparse buffer
     let target = parse_reparse_target(&buffer)?;
     let value = String::from_utf16(&target).map_err(|_| {
         RuntimeError::from(PlatformError::invalid_argument_value(
@@ -443,11 +445,14 @@ pub(super) fn readlink_from_handle(handle: HANDLE) -> RuntimeResult<String> {
         ))
         .boxed()
     })?;
+
+    // normalize the target and return it
     Ok(normalize_reparse_target(value))
 }
 
 /// Parse a reparse buffer into a UTF-16 path.
 pub(super) fn parse_reparse_target(buffer: &[u8]) -> RuntimeResult<Vec<u16>> {
+    // validate the header length
     if buffer.len() < 8 {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "path",
@@ -455,6 +460,8 @@ pub(super) fn parse_reparse_target(buffer: &[u8]) -> RuntimeResult<Vec<u16>> {
         ))
         .boxed());
     }
+
+    // extract the tag and data length
     let tag = u32::from_le_bytes([buffer[0], buffer[1], buffer[2], buffer[3]]);
     let data_len = u16::from_le_bytes([buffer[4], buffer[5]]) as usize;
     let data_start = 8;
@@ -468,6 +475,7 @@ pub(super) fn parse_reparse_target(buffer: &[u8]) -> RuntimeResult<Vec<u16>> {
     }
     let data = &buffer[data_start..data_end];
 
+    // dispatch by tag
     match tag {
         REPARSE_TAG_SYMLINK => parse_symlink_reparse(data),
         REPARSE_TAG_MOUNT_POINT => parse_mount_point_reparse(data),
@@ -477,6 +485,7 @@ pub(super) fn parse_reparse_target(buffer: &[u8]) -> RuntimeResult<Vec<u16>> {
 
 /// Parse a symlink reparse buffer.
 pub(super) fn parse_symlink_reparse(data: &[u8]) -> RuntimeResult<Vec<u16>> {
+    // validate the buffer length
     if data.len() < 12 {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "path",
@@ -484,21 +493,27 @@ pub(super) fn parse_symlink_reparse(data: &[u8]) -> RuntimeResult<Vec<u16>> {
         ))
         .boxed());
     }
+
+    // decode offsets and lengths
     let substitute_offset = u16::from_le_bytes([data[0], data[1]]) as usize;
     let substitute_length = u16::from_le_bytes([data[2], data[3]]) as usize;
     let print_offset = u16::from_le_bytes([data[4], data[5]]) as usize;
     let print_length = u16::from_le_bytes([data[6], data[7]]) as usize;
     let path_data = &data[12..];
+
+    // choose the best path representation
     let (offset, length) = if print_length > 0 {
         (print_offset, print_length)
     } else {
         (substitute_offset, substitute_length)
     };
+
     extract_utf16_path(path_data, offset, length)
 }
 
 /// Parse a mount point reparse buffer.
 pub(super) fn parse_mount_point_reparse(data: &[u8]) -> RuntimeResult<Vec<u16>> {
+    // validate the buffer length
     if data.len() < 8 {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "path",
@@ -506,16 +521,21 @@ pub(super) fn parse_mount_point_reparse(data: &[u8]) -> RuntimeResult<Vec<u16>> 
         ))
         .boxed());
     }
+
+    // decode offsets and lengths
     let substitute_offset = u16::from_le_bytes([data[0], data[1]]) as usize;
     let substitute_length = u16::from_le_bytes([data[2], data[3]]) as usize;
     let print_offset = u16::from_le_bytes([data[4], data[5]]) as usize;
     let print_length = u16::from_le_bytes([data[6], data[7]]) as usize;
     let path_data = &data[8..];
+
+    // choose the best path representation
     let (offset, length) = if print_length > 0 {
         (print_offset, print_length)
     } else {
         (substitute_offset, substitute_length)
     };
+
     extract_utf16_path(path_data, offset, length)
 }
 
@@ -525,6 +545,7 @@ pub(super) fn extract_utf16_path(
     offset: usize,
     length: usize,
 ) -> RuntimeResult<Vec<u16>> {
+    // validate bounds and alignment
     let end = offset + length;
     if end > data.len() {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -533,41 +554,48 @@ pub(super) fn extract_utf16_path(
         ))
         .boxed());
     }
-    if offset % 2 != 0 || length % 2 != 0 {
+    if !offset.is_multiple_of(2) || !length.is_multiple_of(2) {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "path",
             "reparse path misaligned",
         ))
         .boxed());
     }
+
+    // decode the utf-16 data
     let slice = &data[offset..end];
     let mut out = Vec::with_capacity(slice.len() / 2);
     for chunk in slice.chunks_exact(2) {
         out.push(u16::from_le_bytes([chunk[0], chunk[1]]));
     }
+
     Ok(out)
 }
 
 /// Normalize the reparse target prefix.
 pub(super) fn normalize_reparse_target(value: String) -> String {
+    // strip common reparse prefixes
     if let Some(stripped) = value.strip_prefix(r"\\?\\") {
         return stripped.to_string();
     }
     if let Some(stripped) = value.strip_prefix(r"\\??\\") {
         return stripped.to_string();
     }
+
     value
 }
 
 /// Build a runtime error from the last OS error.
 pub(super) fn last_os_error(syscall: &str, path: Option<&str>) -> Box<RuntimeError> {
-    let error = std::io::Error::last_os_error();
-    let errno = error.raw_os_error();
-    let message = format!("{syscall} failed: {error}");
+    // extract the os error
+    let errno = core_platform::last_error_code();
+    let message = core_platform::error_message(syscall, errno);
+
+    // build the platform error
     RuntimeError::from(PlatformError::io_with(
         None,
         None,
-        errno,
+        Some(errno),
         Some(syscall.to_string()),
         path.map(|path| path.to_string()),
         message,
@@ -577,13 +605,70 @@ pub(super) fn last_os_error(syscall: &str, path: Option<&str>) -> Box<RuntimeErr
 
 /// Convert a Windows wide buffer into a String.
 pub(super) fn string_from_wide(buffer: &[u16], name: &str) -> RuntimeResult<String> {
-    String::from_utf16(buffer).map_err(|_| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            name,
-            "path contains invalid utf16",
-        ))
-        .boxed()
-    })
+    core_platform::string_from_wide(name, buffer)
+}
+
+/// Stored payload for file handles that need cursor tracking.
+#[derive(Debug, Clone)]
+pub(super) struct FileResource {
+    /// Raw handle for the file.
+    pub handle: isize,
+    /// Cursor tracking for sequential reads and writes.
+    pub cursor: Arc<Mutex<u64>>,
+}
+
+/// Heap-allocated SID wrapper that frees on drop.
+#[derive(Debug)]
+pub(super) struct SidHandle {
+    /// Pointer to the SID data.
+    sid: PSID,
+}
+
+impl SidHandle {
+    /// Build a SID from a domain SID and numeric identifier.
+    pub(super) fn from_domain(domain_sid: &str, id: u32, name: &str) -> RuntimeResult<Self> {
+        // validate the domain SID
+        if domain_sid.is_empty() {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "windows.posixDomainSid",
+                "domain sid is empty",
+            ))
+            .boxed());
+        }
+
+        // format the SID string
+        let sid_string = format!("{domain_sid}-{id}");
+        let mut wide: Vec<u16> = OsString::from(&sid_string).encode_wide().collect();
+        wide.push(0);
+
+        // convert to a SID
+        let mut sid: PSID = std::ptr::null_mut();
+        let rc = unsafe { ConvertStringSidToSidW(wide.as_ptr(), &mut sid) };
+        if rc == 0 || sid.is_null() {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                name,
+                "failed to convert SID",
+            ))
+            .boxed());
+        }
+
+        Ok(Self { sid })
+    }
+
+    /// Return the underlying SID pointer.
+    pub(super) const fn as_ptr(&self) -> PSID {
+        self.sid
+    }
+}
+
+impl Drop for SidHandle {
+    fn drop(&mut self) {
+        if !self.sid.is_null() {
+            unsafe {
+                LocalFree(self.sid as HLOCAL);
+            }
+        }
+    }
 }
 
 /// Resolve a resource entry for a file handle.
@@ -591,12 +676,91 @@ pub(super) fn file_handle(
     context: &RuntimeCallContext,
     handle: FileHandle,
 ) -> RuntimeResult<HANDLE> {
+    // resolve the resource entry
     let handle =
         core_fs::require_resource(context, handle.0, ResourceKind::File, "file", |entry| {
-            entry.handle()
+            if let Some(resource) = entry
+                .payload
+                .as_ref()
+                .and_then(|payload| payload.downcast_ref::<FileResource>())
+            {
+                return Ok(resource.handle as HANDLE);
+            }
+            entry
+                .handle()
+                .map(|handle| handle as HANDLE)
+                .ok_or_else(|| {
+                    RuntimeError::from(PlatformError::generic(None, "file handle missing payload"))
+                        .boxed()
+                })
         })?;
 
+    // cast to a raw handle
     Ok(handle as HANDLE)
+}
+
+/// Resolve Windows SIDs for POSIX-style uid and gid values.
+pub(super) fn posix_sids(
+    context: &RuntimeCallContext,
+    uid: u32,
+    gid: u32,
+) -> RuntimeResult<(SidHandle, SidHandle)> {
+    // read the domain SID from configuration
+    let domain_sid = context
+        .runtime()
+        .platform_options
+        .windows
+        .posix_domain_sid
+        .as_deref()
+        .ok_or_else(|| {
+            RuntimeError::from(PlatformError::invalid_argument_value(
+                "windows.posixDomainSid",
+                "missing domain sid configuration",
+            ))
+            .boxed()
+        })?;
+
+    // build owner and group SIDs
+    let owner = SidHandle::from_domain(domain_sid, uid, "uid")?;
+    let group = SidHandle::from_domain(domain_sid, gid, "gid")?;
+
+    Ok((owner, group))
+}
+
+/// Build a Win32 error from an explicit error code.
+pub(super) fn win32_error(syscall: &str, code: u32) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::io_with(
+        None,
+        None,
+        Some(code as i32),
+        Some(syscall.to_string()),
+        None,
+        format!("{syscall} failed: {code}"),
+    ))
+    .boxed()
+}
+
+/// Resolve a resource entry for a file handle with cursor tracking.
+pub(super) fn file_resource(
+    context: &RuntimeCallContext,
+    handle: FileHandle,
+) -> RuntimeResult<Arc<Mutex<u64>>> {
+    // resolve the resource entry
+    let cursor =
+        core_fs::require_resource(context, handle.0, ResourceKind::File, "file", |entry| {
+            entry
+                .payload
+                .as_ref()
+                .and_then(|payload| payload.downcast_ref::<FileResource>())
+                .map(|resource| resource.cursor.clone())
+                .ok_or_else(|| {
+                    RuntimeError::from(PlatformError::generic(None, "file cursor missing payload"))
+                        .boxed()
+                })
+        })?;
+
+    // return the cursor
+    Ok(cursor)
 }
 
 /// Resolve a resource entry for a directory handle.
@@ -604,15 +768,48 @@ pub(super) fn directory_handle(
     context: &RuntimeCallContext,
     handle: DirectoryHandle,
 ) -> RuntimeResult<HANDLE> {
+    // resolve the resource entry
     let handle = core_fs::require_resource(
         context,
         handle.0,
         ResourceKind::Directory,
         "directory",
-        |entry| entry.handle(),
+        |entry| {
+            entry.handle().ok_or_else(|| {
+                RuntimeError::from(PlatformError::generic(
+                    None,
+                    "directory handle missing payload",
+                ))
+                .boxed()
+            })
+        },
     )?;
 
+    // cast to a raw handle
     Ok(handle as HANDLE)
+}
+
+/// Resolve a resource entry for a socket handle.
+pub(super) fn socket_handle(
+    context: &RuntimeCallContext,
+    handle: SocketHandle,
+) -> RuntimeResult<SOCKET> {
+    let socket = core_net::require_resource(
+        context,
+        handle.0,
+        ResourceKind::Socket,
+        "socket",
+        |entry: &ResourceEntry| {
+            entry.socket().ok_or_else(|| {
+                RuntimeError::from(PlatformError::generic(
+                    None,
+                    "socket handle missing payload",
+                ))
+                .boxed()
+            })
+        },
+    )?;
+    Ok(socket as SOCKET)
 }
 
 /// Resolve a directory handle into a PathBuf.
@@ -620,6 +817,7 @@ pub(super) fn directory_path(
     context: &RuntimeCallContext,
     handle: DirectoryHandle,
 ) -> RuntimeResult<PathBuf> {
+    // resolve the directory path from the handle
     let handle = directory_handle(context, handle)?;
     let wide = final_path_from_handle(handle)?;
     Ok(PathBuf::from(OsString::from_wide(&wide)))
@@ -627,10 +825,13 @@ pub(super) fn directory_path(
 
 /// Map open flags to desired access.
 pub(super) fn desired_access_from_flags(flags: OpenFlags) -> u32 {
+    // decode the flags
     let flags = flags.0;
     let is_write = flags & libc::O_WRONLY as u32 != 0;
     let is_readwrite = flags & libc::O_RDWR as u32 != 0;
     let is_append = flags & libc::O_APPEND as u32 != 0;
+
+    // select the access mask
     if is_append {
         return FILE_APPEND_DATA | FILE_GENERIC_READ;
     }
@@ -645,10 +846,13 @@ pub(super) fn desired_access_from_flags(flags: OpenFlags) -> u32 {
 
 /// Map open flags to creation disposition.
 pub(super) fn creation_from_flags(flags: OpenFlags) -> u32 {
+    // decode the flags
     let flags = flags.0;
     let create = flags & libc::O_CREAT as u32 != 0;
     let excl = flags & libc::O_EXCL as u32 != 0;
     let trunc = flags & libc::O_TRUNC as u32 != 0;
+
+    // choose the creation disposition
     if create && excl {
         return CREATE_NEW;
     }
@@ -666,10 +870,12 @@ pub(super) fn creation_from_flags(flags: OpenFlags) -> u32 {
 
 /// Build the attribute flags for CreateFile.
 pub(super) fn attributes_from_mode(mode: FileMode) -> u32 {
+    // map write bits into attributes
     let write_bits = mode.0 & 0o222;
     if write_bits == 0 {
         return FILE_ATTRIBUTE_READONLY;
     }
+
     FILE_ATTRIBUTE_NORMAL
 }
 
@@ -677,8 +883,9 @@ pub(super) fn attributes_from_mode(mode: FileMode) -> u32 {
 pub(super) fn stat_from_info(
     info: windows_sys::Win32::Storage::FileSystem::BY_HANDLE_FILE_INFORMATION,
 ) -> Stat {
+    // decode the raw metadata
     let ino = ((info.nFileIndexHigh as u64) << 32) | info.nFileIndexLow as u64;
-    let nlink = info.nNumberOfLinks as u32;
+    let nlink = info.nNumberOfLinks;
     let mode = if info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY != 0 {
         libc::S_IFDIR as u32
     } else {
@@ -689,10 +896,11 @@ pub(super) fn stat_from_info(
     let mtime_ns = filetime_to_nanos(info.ftLastWriteTime);
     let birthtime_ns = filetime_to_nanos(info.ftCreationTime);
 
+    // build the stat struct
     Stat {
         dev: 0,
         ino,
-        mode,
+        mode: FileMode(mode),
         nlink,
         uid: 0,
         gid: 0,
@@ -709,15 +917,18 @@ pub(super) fn stat_from_info(
 
 /// Convert FILETIME to nanoseconds since the unix epoch.
 pub(super) fn filetime_to_nanos(filetime: FILETIME) -> u64 {
+    // convert ticks to unix nanos
     let ticks = ((filetime.dwHighDateTime as u64) << 32) | filetime.dwLowDateTime as u64;
     if ticks < 116444736000000000 {
         return 0;
     }
+
     (ticks - 116444736000000000) * 100
 }
 
 /// Convert nanoseconds since the unix epoch to FILETIME.
 pub(super) fn filetime_from_nanos(nanos: u64) -> FILETIME {
+    // convert unix nanos to filetime ticks
     let ticks = (nanos / 100) + 116444736000000000u64;
     FILETIME {
         dwLowDateTime: ticks as u32,
@@ -727,38 +938,48 @@ pub(super) fn filetime_from_nanos(nanos: u64) -> FILETIME {
 
 /// Set access and modification timestamps for a handle.
 pub(super) fn set_handle_times(handle: HANDLE, atime_ns: u64, mtime_ns: u64) -> RuntimeResult<()> {
+    // build filetime structures
     let atime = filetime_from_nanos(atime_ns);
     let mtime = filetime_from_nanos(mtime_ns);
+
+    // update the handle timestamps
     let rc = unsafe { SetFileTime(handle, std::ptr::null(), &atime, &mtime) };
     if rc == 0 {
         return Err(last_os_error("SetFileTime", None));
     }
+
     Ok(())
 }
 
 /// Resolve a file handle from a handle and build Stat.
 pub(super) fn stat_from_handle(handle: HANDLE) -> RuntimeResult<Stat> {
+    // query the file information
     let mut info = std::mem::MaybeUninit::uninit();
     let rc = unsafe { GetFileInformationByHandle(handle, info.as_mut_ptr()) };
     if rc == 0 {
         return Err(last_os_error("GetFileInformationByHandle", None));
     }
+
+    // decode the information
     let info = unsafe { info.assume_init() };
     Ok(stat_from_info(info))
 }
 
 /// Resolve a stat structure for a path.
 pub(super) fn stat_from_path(path: &[u16], follow_symlink: bool) -> RuntimeResult<Stat> {
+    // open the path and stat it
     let handle = open_for_metadata(path, follow_symlink)?;
     let stat = stat_from_handle(handle)?;
     unsafe {
         CloseHandle(handle);
     }
+
     Ok(stat)
 }
 
 /// Ensure a path is nul-terminated.
 pub(super) fn ensure_wide_nul(path: &[u16]) -> Vec<u16> {
+    // append a nul terminator when needed
     if path.last() == Some(&0) {
         path.to_vec()
     } else {
@@ -770,24 +991,33 @@ pub(super) fn ensure_wide_nul(path: &[u16]) -> Vec<u16> {
 
 /// Resolve the volume root for a path.
 pub(super) fn volume_path_from_path(path: &[u16]) -> RuntimeResult<Vec<u16>> {
+    // ensure the input is nul-terminated
     let path = ensure_wide_nul(path);
+
+    // query the volume path
     let mut buffer = vec![0u16; 260];
     let rc = unsafe { GetVolumePathNameW(path.as_ptr(), buffer.as_mut_ptr(), buffer.len() as u32) };
     if rc == 0 {
         return Err(last_os_error("GetVolumePathNameW", None));
     }
+
+    // trim to the reported length
     let len = buffer
         .iter()
         .position(|value| *value == 0)
         .unwrap_or(buffer.len());
     buffer.truncate(len);
     buffer.push(0);
+
     Ok(buffer)
 }
 
 /// Resolve filesystem statistics for a path.
 pub(super) fn statfs_from_path(path: &[u16]) -> RuntimeResult<StatFs> {
+    // resolve the volume path
     let volume = volume_path_from_path(path)?;
+
+    // query disk space
     let mut sectors_per_cluster = 0u32;
     let mut bytes_per_sector = 0u32;
     let mut free_clusters = 0u32;
@@ -805,6 +1035,7 @@ pub(super) fn statfs_from_path(path: &[u16]) -> RuntimeResult<StatFs> {
         return Err(last_os_error("GetDiskFreeSpaceW", None));
     }
 
+    // query exact size info
     let bsize = (sectors_per_cluster as u64) * (bytes_per_sector as u64);
     let mut free_bytes = 0u64;
     let mut total_bytes = 0u64;
@@ -822,6 +1053,7 @@ pub(super) fn statfs_from_path(path: &[u16]) -> RuntimeResult<StatFs> {
         return Err(last_os_error("GetDiskFreeSpaceExW", None));
     }
 
+    // query volume metadata
     let mut serial = 0u32;
     let mut max_component = 0u32;
     let mut flags = 0u32;
@@ -843,10 +1075,12 @@ pub(super) fn statfs_from_path(path: &[u16]) -> RuntimeResult<StatFs> {
         return Err(last_os_error("GetVolumeInformationW", None));
     }
 
+    // compute statfs values
     let blocks = if bsize == 0 { 0 } else { total_bytes / bsize };
     let bfree = if bsize == 0 { 0 } else { total_free / bsize };
     let bavail = if bsize == 0 { 0 } else { free_bytes / bsize };
 
+    // return the statfs struct
     Ok(StatFs {
         bsize,
         frsize: bsize,
@@ -856,13 +1090,14 @@ pub(super) fn statfs_from_path(path: &[u16]) -> RuntimeResult<StatFs> {
         files: 0,
         ffree: 0,
         fsid: serial as u64,
-        flags: flags as u64,
+        flags: StatFsFlags(flags as u64),
         namelen: max_component as u64,
     })
 }
 
 /// Convert a handle to a wide path using GetFinalPathNameByHandleW.
 pub(super) fn final_path_from_handle(handle: HANDLE) -> RuntimeResult<Vec<u16>> {
+    // grow the buffer until the path fits
     let mut buffer = vec![0u16; 512];
     loop {
         let len = unsafe {
@@ -877,15 +1112,19 @@ pub(super) fn final_path_from_handle(handle: HANDLE) -> RuntimeResult<Vec<u16>> 
         }
         buffer.resize(len as usize + 1, 0);
     }
+
     Ok(buffer)
 }
 
 /// Open a handle for metadata operations.
 pub(super) fn open_for_metadata(path: &[u16], follow_symlink: bool) -> RuntimeResult<HANDLE> {
+    // map flags into open options
     let mut flags = FILE_FLAG_BACKUP_SEMANTICS;
     if !follow_symlink {
         flags |= FILE_FLAG_OPEN_REPARSE_POINT;
     }
+
+    // open the handle
     let handle = unsafe {
         CreateFileW(
             path.as_ptr(),
@@ -900,6 +1139,7 @@ pub(super) fn open_for_metadata(path: &[u16], follow_symlink: bool) -> RuntimeRe
     if handle == INVALID_HANDLE_VALUE {
         return Err(last_os_error("CreateFileW", None));
     }
+
     Ok(handle)
 }
 
@@ -908,10 +1148,13 @@ pub(super) fn open_for_write_attributes(
     path: &[u16],
     follow_symlink: bool,
 ) -> RuntimeResult<HANDLE> {
+    // map flags into open options
     let mut flags = FILE_FLAG_BACKUP_SEMANTICS;
     if !follow_symlink {
         flags |= FILE_FLAG_OPEN_REPARSE_POINT;
     }
+
+    // open the handle
     let handle = unsafe {
         CreateFileW(
             path.as_ptr(),
@@ -926,5 +1169,6 @@ pub(super) fn open_for_write_attributes(
     if handle == INVALID_HANDLE_VALUE {
         return Err(last_os_error("CreateFileW", None));
     }
+
     Ok(handle)
 }

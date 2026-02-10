@@ -5,9 +5,9 @@ use std::path::{Path, PathBuf};
 use destack_dir::{EnumBackingType, IntType};
 
 use crate::model::{
-    BindingCatalog, BindingEntry, BindingEnumValue, BindingEnumVariant, BindingField,
-    BindingParameter, BindingReplayKind, BindingType, EffectClass, RandomEventKind, ReplayPayload,
-    ReplayPolicy, TimeEventKind,
+    BindingBlocking, BindingCatalog, BindingEntry, BindingEnumValue, BindingEnumVariant,
+    BindingField, BindingParameter, BindingReplayKind, BindingScope, BindingType, EffectClass,
+    RandomEventKind, ReplayPayload, ReplayPolicy, TimeEventKind,
 };
 
 use super::replay::*;
@@ -33,7 +33,7 @@ pub(super) struct DomainSpec<'a> {
 impl<'a> DomainSpec<'a> {
     /// Build a domain specification from binding metadata.
     fn new(domain: &'a str, bindings: &'a BindingCatalogEntry) -> Self {
-        let consts = build_binding_consts(bindings);
+        let consts = build_binding_consts(domain, bindings);
         let vm_usage = collect_vm_decode_usage(bindings);
         let vm_types = collect_vm_stub_usage(bindings);
         let native_usage = collect_native_signature_usage(bindings);
@@ -235,6 +235,8 @@ pub(super) struct BindingConst<'a> {
     pub(super) const_name: String,
     /// Fully qualified extern binding name.
     pub(super) extern_name: &'a str,
+    /// Runtime implementation function name.
+    pub(super) implementation_fn_name: String,
     /// Binding metadata payload.
     pub(super) entry: &'a BindingEntry,
 }
@@ -309,6 +311,8 @@ pub(crate) fn render_domain_bindings(domain: &str, bindings: &BindingCatalogEntr
     writer.write_vm_register_fn();
     writer.write_vm_set();
 
+    trim_unused_domain_imports(domain, &mut output);
+
     output
 }
 
@@ -372,6 +376,68 @@ fn collect_domain_types_for_binding(
             collect_domain_types_for_binding(inner, domains);
         }
         _ => {}
+    }
+}
+
+/// Remove unused local domain imports from a generated binding file.
+fn trim_unused_domain_imports(domain: &str, output: &mut String) {
+    let prefix = format!("use crate::platform::{domain}::{{");
+    let Some(start) = output.find(&prefix) else {
+        return;
+    };
+    let Some(end) = output[start..].find("};") else {
+        return;
+    };
+    let end = start + end + 2;
+    let import_line = &output[start..end];
+    if import_line.contains("native as platform_native") {
+        return;
+    }
+    let Some(open_brace) = import_line.find('{') else {
+        return;
+    };
+    let Some(close_brace) = import_line.rfind('}') else {
+        return;
+    };
+    let names = &import_line[open_brace + 1..close_brace];
+    let mut kept = Vec::new();
+    for name in names
+        .split(',')
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+    {
+        if name_used_in_output(output, name, end) {
+            kept.push(name);
+        }
+    }
+    let new_line = if kept.is_empty() {
+        String::new()
+    } else {
+        format!("use crate::platform::{domain}::{{{}}};\n", kept.join(", "))
+    };
+    output.replace_range(start..end, &new_line);
+}
+
+/// Return true if a name appears outside the import line.
+fn name_used_in_output(output: &str, name: &str, search_start: usize) -> bool {
+    let mut index = search_start;
+    while let Some(position) = output[index..].find(name) {
+        let position = index + position;
+        let before = output[..position].chars().rev().next();
+        let after = output[position + name.len()..].chars().next();
+        if is_word_boundary(before) && is_word_boundary(after) {
+            return true;
+        }
+        index = position + name.len();
+    }
+    false
+}
+
+/// Return true if the character is a word boundary for type identifiers.
+fn is_word_boundary(ch: Option<char>) -> bool {
+    match ch {
+        None => true,
+        Some(value) => !(value.is_ascii_alphanumeric() || value == '_'),
     }
 }
 
@@ -587,7 +653,7 @@ pub(crate) fn write_domain_bindings(path: &Path, contents: &str) {
 /// Render stub native bindings for a runtime domain.
 pub(crate) fn render_native_stub(domain: &str, bindings: &BindingCatalogEntry) -> String {
     // build a deterministic list of binding descriptors
-    let consts = build_binding_consts(bindings);
+    let consts = build_binding_consts(domain, bindings);
 
     // collect required imports for the native stub
     let usage = collect_native_usage(bindings);
@@ -599,8 +665,7 @@ pub(crate) fn render_native_stub(domain: &str, bindings: &BindingCatalogEntry) -
     // render the stub file content
     let mut output = String::new();
     output.push_str("#![allow(clippy::missing_safety_doc)]\n");
-    output.push_str("use crate::diagnostic::RuntimeError;\n");
-    output.push_str("use crate::platform::bindings::native_call;\n");
+    output.push_str("use crate::diagnostic::{RuntimeError, RuntimeResult};\n");
     output.push_str(&format!(
         "use crate::platform::{domain}::bindings_generated as bindings;\n"
     ));
@@ -612,7 +677,6 @@ pub(crate) fn render_native_stub(domain: &str, bindings: &BindingCatalogEntry) -
     if usage.uses_platform_array {
         output.push_str("    NativeArray,\n");
     }
-    output.push_str("    RuntimeStatus,\n");
     if usage.uses_platform_string_ref {
         output.push_str("    NativeStringRef,\n");
     }
@@ -620,6 +684,8 @@ pub(crate) fn render_native_stub(domain: &str, bindings: &BindingCatalogEntry) -
         output.push_str("    NativeStringSlice,\n");
     }
     output.push_str("};\n\n");
+    output.push_str("use crate::runtime::RuntimeCallContext;\n");
+    output.push_str("use bindings::*;\n\n");
     if !type_domains.is_empty() {
         let imports = type_domains
             .iter()
@@ -631,9 +697,8 @@ pub(crate) fn render_native_stub(domain: &str, bindings: &BindingCatalogEntry) -
     if !named_types.is_empty() {
         let names = named_types.iter().cloned().collect::<Vec<_>>().join(", ");
         output.push_str(&format!("use crate::platform::{domain}::{{{names}}};\n\n"));
-    } else {
-        output.push_str("\n");
     }
+    output.push('\n');
 
     for binding in &consts {
         let entry = binding.entry;
@@ -644,7 +709,7 @@ pub(crate) fn render_native_stub(domain: &str, bindings: &BindingCatalogEntry) -
             );
         }
 
-        let function_name = native_fn_name(domain, binding.extern_name);
+        let function_name = binding.implementation_fn_name.clone();
         let mut params = Vec::new();
         let mut unused = Vec::new();
 
@@ -663,40 +728,38 @@ pub(crate) fn render_native_stub(domain: &str, bindings: &BindingCatalogEntry) -
 
         output.push_str(&format!("/// Stub for {}.\n", binding.extern_name));
         output.push_str(&format!(
-            "#[unsafe(export_name = \"{}\")]\n",
-            binding.extern_name
+            "pub unsafe fn {function_name}(context: &RuntimeCallContext{}) -> RuntimeResult<()> {{\n",
+            if params.is_empty() {
+                String::new()
+            } else {
+                format!(", {}", params.join(", "))
+            }
         ));
         output.push_str(&format!(
-            "pub unsafe extern \"C\" fn {function_name}({}) -> RuntimeStatus {{\n",
-            params.join(", ")
-        ));
-        output.push_str("    native_call(|context| {\n");
-        output.push_str(&format!(
-            "        context.check_policy({})?;\n",
+            "    context.check_policy({})?;\n",
             binding.const_name
         ));
         if entry.return_binding != BindingType::Void {
-            output.push_str("        if out.is_null() {\n");
+            output.push_str("    if out.is_null() {\n");
             output.push_str(
-                "            return Err(RuntimeError::from(PlatformError::null_pointer(\"out\")).boxed());\n",
+                "        return Err(RuntimeError::from(PlatformError::null_pointer(\"out\")).boxed());\n",
             );
-            output.push_str("        }\n");
+            output.push_str("    }\n");
         }
         if let Some((first, rest)) = unused.split_first() {
             if rest.is_empty() {
-                output.push_str(&format!("        let _ = {first};\n"));
+                output.push_str(&format!("    let _ = {first};\n"));
             } else {
-                output.push_str("        let _ = (");
+                output.push_str("    let _ = (");
                 output.push_str(&unused.join(", "));
                 output.push_str(");\n");
             }
         }
-        output.push_str("\n");
-        output.push_str("        Err(RuntimeError::from(PlatformError::not_supported(\n");
-        output.push_str(&format!("            \"{}\",\n", binding.extern_name));
-        output.push_str("        ))\n");
-        output.push_str("        .boxed())\n");
-        output.push_str("    })\n");
+        output.push('\n');
+        output.push_str("    Err(RuntimeError::from(PlatformError::not_supported(\n");
+        output.push_str(&format!("        \"{}\",\n", binding.extern_name));
+        output.push_str("    ))\n");
+        output.push_str("    .boxed())\n");
         output.push_str("}\n\n");
     }
 
@@ -706,7 +769,7 @@ pub(crate) fn render_native_stub(domain: &str, bindings: &BindingCatalogEntry) -
 /// Render stub VM bindings for a runtime domain.
 pub(crate) fn render_vm_stub(domain: &str, bindings: &BindingCatalogEntry) -> String {
     // build a deterministic list of binding descriptors
-    let consts = build_binding_consts(bindings);
+    let consts = build_binding_consts(domain, bindings);
     let vm_types = collect_vm_named_types(domain, bindings);
     let type_domains = collect_type_domains(domain, bindings);
     let vm_usage = collect_vm_stub_usage(bindings);
@@ -745,7 +808,7 @@ pub(crate) fn render_vm_stub(domain: &str, bindings: &BindingCatalogEntry) -> St
 
     for binding in &consts {
         let entry = binding.entry;
-        let method_name = vm_fn_name(domain, binding.extern_name);
+        let method_name = binding.implementation_fn_name.clone();
         let return_type = render_return_type(domain, entry);
         let params = render_params(domain, entry);
         let mut unused = Vec::new();
@@ -790,12 +853,28 @@ pub(crate) fn render_abi_types(domain: &str, types: &DomainAbiTypes) -> String {
     let newtypes = &types.newtypes;
     let enums = &types.enums;
     let mut output = String::new();
-    let needs_abi = structs
+    let needs_abi = newtypes.values().any(|binding_type| {
+        let BindingType::Newtype { inner, .. } = binding_type else {
+            return false;
+        };
+        binding_type_requires_abi(inner)
+    }) || structs
         .values()
         .any(|binding_type| binding_type_requires_abi(binding_type));
+    let mut type_domains = BTreeSet::new();
+    for binding_type in newtypes.values() {
+        collect_binding_type_domains(domain, binding_type, &mut type_domains);
+    }
+    for binding_type in structs.values() {
+        collect_binding_type_domains(domain, binding_type, &mut type_domains);
+    }
+    for binding_type in enums.values() {
+        collect_binding_type_domains(domain, binding_type, &mut type_domains);
+    }
 
     output.push_str("// generated by generate-bindings: do not edit\n\n");
-    output.push_str("#![allow(dead_code)]\n\n");
+    output.push_str("#![allow(dead_code)]\n");
+    output.push_str("#![allow(unreachable_pub)]\n\n");
     if needs_abi {
         output.push_str("use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};\n");
     }
@@ -812,6 +891,14 @@ pub(crate) fn render_abi_types(domain: &str, types: &DomainAbiTypes) -> String {
     }
     if !newtypes.is_empty() || !enums.is_empty() || !structs.is_empty() {
         output.push_str("use serde::{Deserialize, Serialize};\n");
+    }
+    if !type_domains.is_empty() {
+        let imports = type_domains
+            .iter()
+            .map(|domain| domain.as_str())
+            .collect::<Vec<_>>()
+            .join(", ");
+        output.push_str(&format!("use crate::platform::{{{imports}}};\n"));
     }
     if needs_abi || !newtypes.is_empty() || !enums.is_empty() || !structs.is_empty() {
         output.push_str("\n");
@@ -910,7 +997,6 @@ pub(crate) fn render_abi_types(domain: &str, types: &DomainAbiTypes) -> String {
         output.push_str(&format!("/// ABI struct for {struct_name}.\n"));
         output.push_str("#[repr(C)]\n");
         if requires_abi {
-            output.push_str("#[derive(Debug, Clone, Copy)]\n");
             output.push_str(&format!("pub struct {struct_name}Abi<A: BindingAbi> {{\n"));
         } else {
             output.push_str("#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]\n");
@@ -929,6 +1015,23 @@ pub(crate) fn render_abi_types(domain: &str, types: &DomainAbiTypes) -> String {
             ));
             output.push_str(&format!(
                 "pub type {struct_name}Vm = {struct_name}Abi<VmAbi>;\n\n"
+            ));
+            output.push_str(&format!(
+                "impl<A: BindingAbi> std::fmt::Debug for {struct_name}Abi<A> {{\n"
+            ));
+            output.push_str("    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {\n");
+            output.push_str(&format!(
+                "        formatter.debug_struct(\"{struct_name}Abi\").finish_non_exhaustive()\n"
+            ));
+            output.push_str("    }\n");
+            output.push_str("}\n\n");
+            output.push_str(&format!("impl Copy for {struct_name}Abi<NativeAbi> {{}}\n"));
+            output.push_str(&format!(
+                "impl Clone for {struct_name}Abi<NativeAbi> {{\n    fn clone(&self) -> Self {{ *self }}\n}}\n"
+            ));
+            output.push_str(&format!("impl Copy for {struct_name}Abi<VmAbi> {{}}\n"));
+            output.push_str(&format!(
+                "impl Clone for {struct_name}Abi<VmAbi> {{\n    fn clone(&self) -> Self {{ *self }}\n}}\n\n"
             ));
         } else {
             output.push_str(&format!("pub type {struct_name}Vm = {struct_name};\n\n"));
@@ -960,7 +1063,10 @@ pub(crate) fn render_abi_types(domain: &str, types: &DomainAbiTypes) -> String {
 
 /// Render stub VM bindings for a runtime domain.
 /// Build a deterministic list of binding constants for a domain.
-fn build_binding_consts<'a>(bindings: &'a BindingCatalogEntry) -> Vec<BindingConst<'a>> {
+fn build_binding_consts<'a>(
+    domain: &str,
+    bindings: &'a BindingCatalogEntry,
+) -> Vec<BindingConst<'a>> {
     // track constant names to avoid collisions
     let mut used_const_names = BTreeSet::new();
     let mut consts = Vec::new();
@@ -981,6 +1087,7 @@ fn build_binding_consts<'a>(bindings: &'a BindingCatalogEntry) -> Vec<BindingCon
         consts.push(BindingConst {
             const_name,
             extern_name,
+            implementation_fn_name: implementation_fn_name(domain, &entry.implementation_name),
             entry,
         });
     }
@@ -1003,9 +1110,11 @@ impl<'a> DomainWriter<'a> {
         self.output.push_str("use destack_vm::Isolate;\n");
         let mut binding_imports = vec![
             "BindingDescriptor",
+            "BindingBlocking",
             "BindingRegistry",
             "NativeBinding",
             "NativeBindingSet",
+            "BindingScope",
             "native_call",
         ];
         if usage.uses_replay_policy {
@@ -1153,6 +1262,7 @@ impl<'a> DomainWriter<'a> {
 
         if usage.uses_bool {
             output.push_str("/// Decode a boolean argument.\n");
+            output.push_str("#[allow(dead_code)]\n");
             output.push_str("fn decode_bool(\n");
             output.push_str("    value: vm::Value,\n");
             output.push_str("    name: &'static str,\n");
@@ -1298,6 +1408,7 @@ impl<'a> DomainWriter<'a> {
         }
         if usage.uses_float64 {
             output.push_str("/// Decode an f64 argument.\n");
+            output.push_str("#[allow(dead_code)]\n");
             output.push_str("fn decode_float64(\n");
             output.push_str("    value: vm::Value,\n");
             output.push_str("    name: &'static str,\n");
@@ -1311,6 +1422,7 @@ impl<'a> DomainWriter<'a> {
 
         if usage.uses_string {
             output.push_str("/// Decode a string argument.\n");
+            output.push_str("#[allow(dead_code)]\n");
             output.push_str("fn decode_string(\n");
             output.push_str("    value: vm::Value,\n");
             output.push_str("    name: &'static str,\n");
@@ -1370,6 +1482,7 @@ impl<'a> DomainWriter<'a> {
                 vm_args_tuple_type(domain, &entry.parameters)
             ));
                 if !decode_uses_context {
+                    output.push_str("    // ignore unused context\n");
                     output.push_str("    let _ = context;\n\n");
                 }
                 for (index, param) in entry.parameters.iter().enumerate() {
@@ -1415,6 +1528,7 @@ impl<'a> DomainWriter<'a> {
             vm_return_type(domain, &entry.return_binding)
         ));
             if !encode_uses_context {
+                output.push_str("    // ignore unused context\n");
                 output.push_str("    let _ = context;\n\n");
             }
             for line in render_return_encode_lines(domain, &entry.return_binding) {
@@ -1436,6 +1550,9 @@ impl<'a> DomainWriter<'a> {
                 binding.entry.effect_class,
                 binding.entry.replay_payload,
                 binding.entry.replay_kind,
+                &binding.entry.requires,
+                binding.entry.scope,
+                binding.entry.blocking,
             );
             output.push_str(&format!(
                 "/// Binding descriptor for {}.\n",
@@ -1459,10 +1576,22 @@ impl<'a> DomainWriter<'a> {
         effect_class: EffectClass,
         replay_payload: ReplayPayload,
         replay_kind: BindingReplayKind,
+        requires: &[String],
+        scope: BindingScope,
+        blocking: BindingBlocking,
     ) -> (&'static str, Vec<String>) {
+        let requires_arg = render_binding_requires(requires);
+        let scope_arg = render_binding_scope(scope);
+        let blocking_arg = render_binding_blocking(blocking);
         match effect_class {
-            EffectClass::Pure => ("pure", Vec::new()),
-            EffectClass::Deterministic => ("deterministic", Vec::new()),
+            EffectClass::Pure => (
+                "pure_with_requires_and_behavior",
+                vec![requires_arg, scope_arg, blocking_arg],
+            ),
+            EffectClass::Deterministic => (
+                "deterministic_with_requires_and_behavior",
+                vec![requires_arg, scope_arg, blocking_arg],
+            ),
             EffectClass::External { replay } => {
                 let replay = match replay {
                     ReplayPolicy::Recordable => "ReplayPolicy::Recordable",
@@ -1477,11 +1606,27 @@ impl<'a> DomainWriter<'a> {
                 };
                 if let Some(payload_arg) = payload_arg {
                     (
-                        "external_with_payload",
-                        vec![replay.to_string(), replay_kind, payload_arg],
+                        "external_with_payload_with_requires",
+                        vec![
+                            replay.to_string(),
+                            replay_kind,
+                            payload_arg,
+                            requires_arg,
+                            scope_arg,
+                            blocking_arg,
+                        ],
                     )
                 } else {
-                    ("external", vec![replay.to_string(), replay_kind])
+                    (
+                        "external_with_requires_and_behavior",
+                        vec![
+                            replay.to_string(),
+                            replay_kind,
+                            requires_arg,
+                            scope_arg,
+                            blocking_arg,
+                        ],
+                    )
                 }
             }
         }
@@ -1535,7 +1680,8 @@ impl<'a> DomainWriter<'a> {
         ));
         for binding in consts {
             let entry = binding.entry;
-            let fn_name = native_fn_name(domain, binding.extern_name);
+            let export_fn_name = native_fn_name(domain, binding.extern_name);
+            let implementation_fn_name = &binding.implementation_fn_name;
             let replay_fn_name = native_replay_fn_name(domain, binding.extern_name);
             let is_recordable = matches!(
                 entry.effect_class,
@@ -1563,7 +1709,7 @@ impl<'a> DomainWriter<'a> {
                 "#[unsafe(export_name = \"{}\")]\n",
                 binding.extern_name
             ));
-            output.push_str(&format!("pub unsafe extern \"C\" fn {fn_name}(\n"));
+            output.push_str(&format!("pub unsafe extern \"C\" fn {export_fn_name}(\n"));
             for param in &params {
                 output.push_str(&format!("    {param},\n"));
             }
@@ -1605,11 +1751,11 @@ impl<'a> DomainWriter<'a> {
                         }
                     } else if args.is_empty() {
                         output.push_str(&format!(
-                            "        unsafe {{ platform_native::{fn_name}(context) }}\n"
+                            "        unsafe {{ platform_native::{implementation_fn_name}(context) }}\n"
                         ));
                     } else {
                         output.push_str(&format!(
-                            "        unsafe {{ platform_native::{fn_name}(context, {}) }}\n",
+                            "        unsafe {{ platform_native::{implementation_fn_name}(context, {}) }}\n",
                             args.join(", ")
                         ));
                     }
@@ -1621,11 +1767,11 @@ impl<'a> DomainWriter<'a> {
                     ));
                     if args.is_empty() {
                         output.push_str(&format!(
-                            "            unsafe {{ platform_native::{fn_name}(context) }}?;\n"
+                            "            unsafe {{ platform_native::{implementation_fn_name}(context) }}?;\n"
                         ));
                     } else {
                         output.push_str(&format!(
-                            "            unsafe {{ platform_native::{fn_name}(context, {}) }}?;\n",
+                            "            unsafe {{ platform_native::{implementation_fn_name}(context, {}) }}?;\n",
                             args.join(", ")
                         ));
                     }
@@ -1641,11 +1787,11 @@ impl<'a> DomainWriter<'a> {
                         );
                         if args.is_empty() {
                             output.push_str(&format!(
-                                "            unsafe {{ platform_native::{fn_name}(context) }}?;\n"
+                                "            unsafe {{ platform_native::{implementation_fn_name}(context) }}?;\n"
                             ));
                         } else {
                             output.push_str(&format!(
-                                "            unsafe {{ platform_native::{fn_name}(context, {}) }}?;\n",
+                                "            unsafe {{ platform_native::{implementation_fn_name}(context, {}) }}?;\n",
                                 args.join(", ")
                             ));
                         }
@@ -1662,11 +1808,11 @@ impl<'a> DomainWriter<'a> {
                         ));
                         if args.is_empty() {
                             output.push_str(&format!(
-                                "            unsafe {{ platform_native::{fn_name}(context) }}?;\n"
+                                "            unsafe {{ platform_native::{implementation_fn_name}(context) }}?;\n"
                             ));
                         } else {
                             output.push_str(&format!(
-                                "            unsafe {{ platform_native::{fn_name}(context, {}) }}?;\n",
+                                "            unsafe {{ platform_native::{implementation_fn_name}(context, {}) }}?;\n",
                                 args.join(", ")
                             ));
                         }
@@ -1684,11 +1830,11 @@ impl<'a> DomainWriter<'a> {
                         output.push_str("            || {\n");
                         if args.is_empty() {
                             output.push_str(&format!(
-                                "                unsafe {{ platform_native::{fn_name}(context) }}\n"
+                                "                unsafe {{ platform_native::{implementation_fn_name}(context) }}\n"
                             ));
                         } else {
                             output.push_str(&format!(
-                                "                unsafe {{ platform_native::{fn_name}(context, {}) }}\n",
+                                "                unsafe {{ platform_native::{implementation_fn_name}(context, {}) }}\n",
                                 args.join(", ")
                             ));
                         }
@@ -1725,7 +1871,8 @@ impl<'a> DomainWriter<'a> {
         output.push_str("    isolate: &mut Isolate,\n");
         output.push_str(") {\n");
         for binding in consts {
-            let method_name = vm_fn_name(domain, binding.extern_name);
+            let decode_base_name = vm_fn_name(domain, binding.extern_name);
+            let implementation_fn_name = &binding.implementation_fn_name;
             let args_ident = if binding.entry.parameters.is_empty() {
                 "_args"
             } else {
@@ -1740,8 +1887,8 @@ impl<'a> DomainWriter<'a> {
             let replay_kind = binding.entry.replay_kind;
             let uses_binding_replay = is_recordable && replay_kind == BindingReplayKind::Regular;
             let invoke_args = render_invoke_args_with_prefix(binding.entry);
-            let decode_helper = decode_helper_name(&method_name);
-            let encode_helper = encode_helper_name(&method_name);
+            let decode_helper = decode_helper_name(&decode_base_name);
+            let encode_helper = encode_helper_name(&decode_base_name);
 
             // emit the binding wrapper closure
             output.push_str("    {\n");
@@ -1788,7 +1935,7 @@ impl<'a> DomainWriter<'a> {
                         ));
                     } else {
                         output.push_str(&format!(
-                            "                let result = platform_vm::{method_name}(runtime, context{invoke_args});\n"
+                            "                let result = platform_vm::{implementation_fn_name}(runtime, context{invoke_args});\n"
                         ));
                         output.push_str(&format!(
                             "                {encode_helper}(context, result)\n"
@@ -1801,7 +1948,7 @@ impl<'a> DomainWriter<'a> {
                         "                let result = runtime.replay().run_time_read({kind_value}, || {{\n"
                     ));
                     output.push_str(&format!(
-                        "                    platform_vm::{method_name}(runtime, context{invoke_args})\n"
+                        "                    platform_vm::{implementation_fn_name}(runtime, context{invoke_args})\n"
                     ));
                     output.push_str("                });\n");
                     output.push_str(&format!(
@@ -1814,7 +1961,7 @@ impl<'a> DomainWriter<'a> {
                             "                let result = runtime.replay().run_random_stream(|| {\n",
                         );
                         output.push_str(&format!(
-                            "                    platform_vm::{method_name}(runtime, context{invoke_args}).map(|stream| stream.0)\n"
+                            "                    platform_vm::{implementation_fn_name}(runtime, context{invoke_args}).map(|stream| stream.0)\n"
                         ));
                         output.push_str("                });\n");
                         output.push_str("                let result = result.map(RandomStream);\n");
@@ -1831,7 +1978,7 @@ impl<'a> DomainWriter<'a> {
                             "                let result = runtime.replay().run_random_u64({stream_expr}, || {{\n"
                         ));
                         output.push_str(&format!(
-                            "                    platform_vm::{method_name}(runtime, context{invoke_args})\n"
+                            "                    platform_vm::{implementation_fn_name}(runtime, context{invoke_args})\n"
                         ));
                         output.push_str("                });\n");
                         output.push_str(&format!(
@@ -1853,7 +2000,7 @@ impl<'a> DomainWriter<'a> {
                         output.push_str(&format!("                    {stream_expr},\n"));
                         output.push_str("                    || {\n");
                         output.push_str(&format!(
-                            "                        unsafe {{ platform_vm::{method_name}(runtime, &mut *context_ptr{invoke_args}) }}\n"
+                            "                        unsafe {{ platform_vm::{implementation_fn_name}(runtime, &mut *context_ptr{invoke_args}) }}\n"
                         ));
                         output.push_str("                    },\n");
                         output.push_str(&format!(
@@ -1938,6 +2085,44 @@ fn render_binding_replay_kind(kind: BindingReplayKind) -> String {
     }
 }
 
+/// Render a binding scope constant.
+fn render_binding_scope(scope: BindingScope) -> String {
+    match scope {
+        BindingScope::Os => "BindingScope::Os".to_string(),
+        BindingScope::Runtime => "BindingScope::Runtime".to_string(),
+        BindingScope::Hybrid => "BindingScope::Hybrid".to_string(),
+    }
+}
+
+/// Render a binding blocking constant.
+fn render_binding_blocking(blocking: BindingBlocking) -> String {
+    match blocking {
+        BindingBlocking::Always => "BindingBlocking::Always".to_string(),
+        BindingBlocking::Never => "BindingBlocking::Never".to_string(),
+        BindingBlocking::Sometimes => "BindingBlocking::Sometimes".to_string(),
+    }
+}
+
+/// Render required capability literals for a descriptor constant.
+fn render_binding_requires(requires: &[String]) -> String {
+    if requires.is_empty() {
+        return "&[]".to_string();
+    }
+
+    let mut values = String::new();
+    values.push_str("&[");
+    for (index, capability) in requires.iter().enumerate() {
+        if index > 0 {
+            values.push_str(", ");
+        }
+        values.push('"');
+        values.push_str(&escape_rust_string(capability));
+        values.push('"');
+    }
+    values.push(']');
+    values
+}
+
 /// Convert a domain into a module safe identifier.
 fn sanitize_module_name(name: &str) -> String {
     let mut out = String::new();
@@ -1959,9 +2144,9 @@ fn sanitize_module_name(name: &str) -> String {
 
 /// Convert a binding name into a constant identifier.
 fn const_name_for_extern(extern_name: &str) -> String {
-    let tail = extern_name.rsplit('.').next().unwrap_or(extern_name);
+    let tail = binding_suffix_for_extern(extern_name, None);
     let mut out = String::new();
-    for ch in snake_case(tail).chars() {
+    for ch in snake_case(tail.as_str()).chars() {
         out.push(ch.to_ascii_uppercase());
     }
     if out.is_empty() {
@@ -1971,6 +2156,49 @@ fn const_name_for_extern(extern_name: &str) -> String {
         out.insert(0, '_');
     }
     out
+}
+
+/// Convert an implementation name into a constant identifier.
+fn const_name_for_implementation(implementation_name: &str) -> String {
+    let mut out = String::new();
+    for ch in snake_case(implementation_name).chars() {
+        out.push(ch.to_ascii_uppercase());
+    }
+    if out.is_empty() {
+        out.push_str("BINDING");
+    }
+    if out.chars().next().is_some_and(|ch| ch.is_ascii_digit()) {
+        out.insert(0, '_');
+    }
+    out
+}
+
+/// Build a stable identifier suffix for one extern binding name.
+fn binding_suffix_for_extern(extern_name: &str, domain: Option<&str>) -> String {
+    let mut parts = extern_name.split('.').collect::<Vec<_>>();
+    if parts.first().is_some_and(|part| *part == "destack") {
+        let _ = parts.remove(0);
+    }
+
+    if let Some(domain) = domain
+        && parts.first().is_some_and(|part| *part == domain)
+    {
+        let _ = parts.remove(0);
+    }
+
+    let mut suffix_parts = Vec::new();
+    for part in parts {
+        let value = snake_case(part);
+        if !value.is_empty() {
+            suffix_parts.push(value);
+        }
+    }
+
+    if suffix_parts.is_empty() {
+        return "binding".to_string();
+    }
+
+    suffix_parts.join("_")
 }
 
 /// Escape a string for embedding in Rust source.
@@ -2007,9 +2235,13 @@ fn native_set_name_for_domain(domain: &str) -> String {
 /// Build the handler method name for an extern binding.
 /// Build the native symbol name for a binding.
 pub(super) fn native_fn_name(domain: &str, extern_name: &str) -> String {
-    let tail = extern_name.rsplit('.').next().unwrap_or(extern_name);
-    let tail = snake_case(tail);
-    format!("destack_{domain}_{tail}")
+    let suffix = binding_suffix_for_extern(extern_name, Some(domain));
+    format!("destack_{domain}_{suffix}")
+}
+
+/// Build the runtime implementation function name for a binding declaration.
+pub(super) fn implementation_fn_name(domain: &str, implementation_name: &str) -> String {
+    format!("destack_{domain}_{}", snake_case(implementation_name))
 }
 
 /// Build the native replay helper name for a binding.
@@ -2188,9 +2420,9 @@ fn collect_native_named_types(domain: &str, bindings: &BindingCatalogEntry) -> B
 
     // walk each binding signature
     for entry in bindings.values() {
-        collect_signature_type_names(domain, &entry.return_binding, &mut names, "");
+        collect_signature_type_names(domain, &entry.return_binding, &mut names, "", false);
         for param in &entry.parameters {
-            collect_signature_type_names(domain, &param.binding_type, &mut names, "");
+            collect_signature_type_names(domain, &param.binding_type, &mut names, "", false);
         }
     }
 
@@ -2206,7 +2438,52 @@ pub(super) fn collect_collection_vm_names(
     match binding_type {
         BindingType::StringSlice => {}
         BindingType::Slice(inner) | BindingType::Array(inner) => {
-            collect_binding_type_names(domain, inner, names, "Vm");
+            collect_collection_vm_type_names(domain, inner, names);
+        }
+        _ => {}
+    }
+}
+
+fn collect_collection_vm_type_names(
+    domain: &str,
+    binding_type: &BindingType,
+    names: &mut BTreeSet<String>,
+) {
+    match binding_type {
+        BindingType::Slice(inner) | BindingType::Array(inner) => {
+            collect_collection_vm_type_names(domain, inner, names);
+        }
+        BindingType::Newtype {
+            name,
+            domain: type_domain,
+            inner,
+        } => {
+            if binding_type_requires_abi(inner) {
+                collect_collection_vm_type_names(domain, inner, names);
+            } else if type_domain == domain {
+                names.insert(format!("{name}Vm"));
+            }
+        }
+        BindingType::Struct {
+            name,
+            domain: type_domain,
+            fields,
+        } => {
+            if type_domain == domain {
+                names.insert(format!("{name}Vm"));
+            }
+            for field in fields {
+                collect_collection_vm_type_names(domain, &field.binding_type, names);
+            }
+        }
+        BindingType::Enum {
+            name,
+            domain: type_domain,
+            ..
+        } => {
+            if type_domain == domain {
+                names.insert(name.clone());
+            }
         }
         _ => {}
     }
@@ -2269,56 +2546,6 @@ fn collect_binding_type_domains(
     }
 }
 
-/// Walk a binding type and record any named types.
-fn collect_binding_type_names(
-    domain: &str,
-    binding_type: &BindingType,
-    names: &mut BTreeSet<String>,
-    struct_suffix: &str,
-) {
-    match binding_type {
-        BindingType::Slice(inner) | BindingType::Array(inner) => {
-            collect_binding_type_names(domain, inner, names, struct_suffix);
-        }
-        BindingType::Newtype {
-            name,
-            domain: type_domain,
-            inner,
-        } => {
-            if type_domain == domain {
-                if !struct_suffix.is_empty() && binding_type_requires_abi(inner) {
-                    names.insert(format!("{name}{struct_suffix}"));
-                } else {
-                    names.insert(name.clone());
-                }
-            }
-            collect_binding_type_names(domain, inner, names, struct_suffix);
-        }
-        BindingType::Struct {
-            name,
-            domain: type_domain,
-            fields,
-        } => {
-            if type_domain == domain {
-                names.insert(format!("{name}{struct_suffix}"));
-            }
-            for field in fields {
-                collect_binding_type_names(domain, &field.binding_type, names, struct_suffix);
-            }
-        }
-        BindingType::Enum {
-            name,
-            domain: type_domain,
-            ..
-        } => {
-            if type_domain == domain {
-                names.insert(name.clone());
-            }
-        }
-        _ => {}
-    }
-}
-
 /// Usage flags for VM stub imports.
 #[derive(Debug, Default, Clone, Copy)]
 pub(super) struct VmStubUsage {
@@ -2368,9 +2595,9 @@ fn collect_vm_stub_usage_for_binding(binding_type: &BindingType, usage: &mut VmS
 fn collect_vm_named_types(domain: &str, bindings: &BindingCatalogEntry) -> BTreeSet<String> {
     let mut names = BTreeSet::new();
     for entry in bindings.values() {
-        collect_signature_type_names(domain, &entry.return_binding, &mut names, "Vm");
+        collect_signature_type_names(domain, &entry.return_binding, &mut names, "Vm", false);
         for param in &entry.parameters {
-            collect_signature_type_names(domain, &param.binding_type, &mut names, "Vm");
+            collect_signature_type_names(domain, &param.binding_type, &mut names, "Vm", false);
         }
     }
     names
@@ -2382,10 +2609,11 @@ fn collect_signature_type_names(
     binding_type: &BindingType,
     names: &mut BTreeSet<String>,
     struct_suffix: &str,
+    is_nested: bool,
 ) {
     match binding_type {
         BindingType::Slice(inner) | BindingType::Array(inner) => {
-            collect_signature_type_names(domain, inner, names, struct_suffix);
+            collect_signature_type_names(domain, inner, names, struct_suffix, true);
         }
         BindingType::Newtype {
             name,
@@ -2393,21 +2621,35 @@ fn collect_signature_type_names(
             inner,
             ..
         } => {
+            let requires_abi = binding_type_requires_abi(inner);
             if type_domain == domain {
-                if !struct_suffix.is_empty() && binding_type_requires_abi(inner) {
-                    names.insert(format!("{name}{struct_suffix}"));
-                } else {
-                    names.insert(name.clone());
+                if !is_nested || !requires_abi {
+                    if !struct_suffix.is_empty() && requires_abi {
+                        names.insert(format!("{name}{struct_suffix}"));
+                    } else {
+                        names.insert(name.clone());
+                    }
                 }
             }
+            collect_signature_type_names(domain, inner, names, struct_suffix, true);
         }
         BindingType::Struct {
             name,
             domain: type_domain,
+            fields,
             ..
         } => {
             if type_domain == domain {
                 names.insert(format!("{name}{struct_suffix}"));
+            }
+            for field in fields {
+                collect_signature_type_names(
+                    domain,
+                    &field.binding_type,
+                    names,
+                    struct_suffix,
+                    true,
+                );
             }
         }
         BindingType::Enum {
@@ -2636,6 +2878,10 @@ fn render_return_encode_lines(domain: &str, binding_type: &BindingType) -> Vec<S
         return vec!["result.map(|_| vm::Value::VOID)".to_string()];
     }
 
+    if matches!(binding_type, BindingType::Bool) {
+        return vec!["result.map(vm::Value::bool)".to_string()];
+    }
+
     let expr = render_encode_expr(domain, binding_type, "value");
     vec![format!("result.map(|value| {expr})")]
 }
@@ -2707,16 +2953,21 @@ fn render_encode_expr(domain: &str, binding_type: &BindingType, value_expr: &str
             }
         },
         BindingType::Struct { fields, .. } => {
+            let mut lines = Vec::new();
             let mut encoded_fields = Vec::new();
-            for field in fields {
+            for (index, field) in fields.iter().enumerate() {
                 let field_name = to_snake_case(&field.name);
                 let field_expr = format!("{value_expr}.{field_name}");
-                encoded_fields.push(render_encode_expr(domain, &field.binding_type, &field_expr));
+                let encoded_expr = render_encode_expr(domain, &field.binding_type, &field_expr);
+                let local_name = format!("field_{index}");
+                lines.push(format!("let {local_name} = {encoded_expr};"));
+                encoded_fields.push(local_name);
             }
-            format!(
+            lines.push(format!(
                 "context.allocate_aggregate(vec![{}])",
                 encoded_fields.join(", ")
-            )
+            ));
+            format!("{{ {} }}", lines.join(" "))
         }
     }
 }
@@ -2863,6 +3114,26 @@ fn binding_type_is_copy(binding_type: &BindingType) -> bool {
             .iter()
             .all(|field| binding_type_is_copy(&field.binding_type)),
         BindingType::String => false,
+    }
+}
+
+/// Report whether a replay payload binding type can be copied without cloning.
+fn binding_type_is_copy_for_replay(binding_type: &BindingType) -> bool {
+    match binding_type {
+        BindingType::Void
+        | BindingType::Bool
+        | BindingType::Int(_)
+        | BindingType::UInt(_)
+        | BindingType::Float(_)
+        | BindingType::Enum { .. } => true,
+        BindingType::Newtype { inner, .. } => binding_type_is_copy_for_replay(inner),
+        BindingType::Struct { fields, .. } => fields
+            .iter()
+            .all(|field| binding_type_is_copy_for_replay(&field.binding_type)),
+        BindingType::String
+        | BindingType::StringSlice
+        | BindingType::Slice(_)
+        | BindingType::Array(_) => false,
     }
 }
 
@@ -3482,7 +3753,7 @@ fn render_replay_to_vm_binding_collection_lines(
         "let mut {values_var} = Vec::with_capacity({value_expr}.len());"
     ));
     lines.push(format!("for {item_var} in {value_expr}.iter() {{"));
-    if binding_type_is_copy(inner) {
+    if binding_type_is_copy_for_replay(inner) {
         lines.push(format!("    let {item_var} = *{item_var};"));
     } else if matches!(inner, BindingType::String) {
         // use string references directly

@@ -34,12 +34,6 @@ export newtype OpenResolveFlags = uint64;
 /// Flags for renameat2.
 export newtype RenameFlags = uint32;
 
-/// Read and write operation flags for preadv2 and pwritev2.
-export newtype ReadWriteFlags = uint32;
-
-/// Flags for splice, tee, and vmsplice operations.
-export newtype SpliceFlags = uint32;
-
 /// File descriptor flags for fcntl(F_GETFD/F_SETFD).
 export newtype FdFlags = uint32;
 

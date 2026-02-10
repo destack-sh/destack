@@ -5,8 +5,8 @@ import { SocketHandle } from "../resource/index.ds";
 declare namespace net {
     /// Enable or disable SO_REUSEADDR.
     ///
-    /// Toggle address-level listener reuse on a socket.
-    /// Rebind behavior after close follows host kernel time-wait policy.
+    /// Enable or disable SO_REUSEADDR via host kernel APIs.
+    /// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
@@ -28,8 +28,8 @@ declare namespace net {
 
     /// Enable or disable SO_REUSEPORT.
     ///
-    /// Toggle port-level listener fanout reuse on a socket.
-    /// Load distribution behavior across listeners follows host kernel policy.
+    /// Enable or disable SO_REUSEPORT via host kernel APIs.
+    /// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
     ///
     /// # Platform
     /// Unix only. This operation returns `notSupported` on Windows.
@@ -52,7 +52,7 @@ declare namespace net {
     /// Read SO_REUSEADDR.
     ///
     /// Read the current SO_REUSEADDR value from the host socket option layer.
-    /// Returned state reflects kernel listener-reuse policy for future binds.
+    /// The returned boolean reflects host option state at the instant of the call.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
@@ -72,7 +72,7 @@ declare namespace net {
     /// Read SO_REUSEPORT.
     ///
     /// Read the current SO_REUSEPORT value from the host socket option layer.
-    /// Returned state reflects kernel port-fanout policy for future binds.
+    /// The returned boolean reflects host option state at the instant of the call.
     ///
     /// # Platform
     /// Unix only. This operation returns `notSupported` on Windows.

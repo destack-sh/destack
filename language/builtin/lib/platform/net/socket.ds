@@ -138,7 +138,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.socket.open", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.socket", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "sometimes" })
     export function socket(
         family: SocketFamily,
         socketType: SocketType,
@@ -162,7 +162,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.socket.pair", { effect: "external", replay: "recordable", requires: ["net.connect"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.socketPair", { effect: "external", replay: "recordable", requires: ["net.connect"], scope: "os", blocking: "sometimes" })
     export function socketPair(
         family: SocketFamily,
         socketType: SocketType,
@@ -186,7 +186,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.socket.connect", { effect: "external", replay: "recordable", requires: ["net.connect"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.connect", { effect: "external", replay: "recordable", requires: ["net.connect"], scope: "os", blocking: "sometimes" })
     export function connect(
         handle: SocketHandle,
         address: SocketAddress,
@@ -209,13 +209,13 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.socket.close", { effect: "external", replay: "recordable", requires: ["net.close"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.close", { effect: "external", replay: "recordable", requires: ["net.close"], scope: "os", blocking: "sometimes" })
     export function close(handle: SocketHandle): Result<void, PlatformError>;
 
     /// Read from a socket into the provided slice.
     ///
-    /// Receive bytes into one contiguous caller-provided buffer.
-    /// The call returns immediately with the exact byte count reported by the host socket layer.
+    /// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
+    /// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
@@ -229,7 +229,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.socket.read", { effect: "external", replay: "recordable", requires: ["net.connect"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.read", { effect: "external", replay: "recordable", requires: ["net.connect"], scope: "os", blocking: "sometimes" })
     export function read(
         handle: SocketHandle,
         buffer: Slice<uint8>,
@@ -237,8 +237,8 @@ declare namespace net {
 
     /// Read into multiple buffers.
     ///
-    /// Receive bytes into a scatter buffer list in one vectored receive operation.
-    /// Buffer fill order follows the host iovec semantics for the active platform backend.
+    /// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
+    /// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
@@ -252,7 +252,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.socket.readv", { effect: "external", replay: "recordable", requires: ["net.connect"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.readv", { effect: "external", replay: "recordable", requires: ["net.connect"], scope: "os", blocking: "sometimes" })
     export function readv(
         handle: SocketHandle,
         buffers: Slice<Slice<uint8>>,
@@ -260,8 +260,8 @@ declare namespace net {
 
     /// Write to a socket from the provided slice.
     ///
-    /// Send bytes from one contiguous caller-provided buffer.
-    /// The call returns the exact byte count accepted by the host socket send path.
+    /// Write data directly from caller provided buffers to the target descriptor using native transfer semantics.
+    /// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
@@ -275,7 +275,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.socket.write", { effect: "external", replay: "recordable", requires: ["net.connect"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.write", { effect: "external", replay: "recordable", requires: ["net.connect"], scope: "os", blocking: "sometimes" })
     export function write(
         handle: SocketHandle,
         buffer: Slice<uint8>,
@@ -283,8 +283,8 @@ declare namespace net {
 
     /// Write from multiple buffers.
     ///
-    /// Send bytes from a gather buffer list in one vectored send operation.
-    /// Buffer consumption order follows the host iovec semantics for the active platform backend.
+    /// Write data directly from caller provided buffers to the target descriptor using native transfer semantics.
+    /// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
@@ -298,7 +298,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.socket.writev", { effect: "external", replay: "recordable", requires: ["net.connect"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.writev", { effect: "external", replay: "recordable", requires: ["net.connect"], scope: "os", blocking: "sometimes" })
     export function writev(
         handle: SocketHandle,
         buffers: Slice<Slice<uint8>>,
@@ -306,7 +306,7 @@ declare namespace net {
 
     /// Receive a message with ancillary data.
     ///
-    /// Receive one payload plus ancillary metadata in one recvmsg-style operation.
+    /// Receive a message with ancillary data via host kernel APIs.
     /// Caller controls descriptor and control payload extraction limits through `maxFds` and `maxControlBytes`.
     ///
     /// # Platform
@@ -321,7 +321,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.socket.recvMsg", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.recvMsg", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "sometimes" })
     export function recvMsg(
         handle: SocketHandle,
         buffer: Slice<uint8>,
@@ -333,8 +333,8 @@ declare namespace net {
 
     /// Send a message with ancillary data.
     ///
-    /// Send one payload plus ancillary metadata in one sendmsg-style operation.
-    /// Descriptor passing, credentials, and control payload handling follow host kernel semantics.
+    /// Send a message with ancillary data via host kernel APIs.
+    /// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
@@ -348,7 +348,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.socket.sendMsg", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.sendMsg", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "sometimes" })
     export function sendMsg(
         handle: SocketHandle,
         buffer: Slice<uint8>,
@@ -372,7 +372,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.socket.recvFrom", { effect: "external", replay: "recordable", requires: ["net.udp"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.recvFrom", { effect: "external", replay: "recordable", requires: ["net.udp"], scope: "os", blocking: "sometimes" })
     export function recvFrom(
         handle: SocketHandle,
         buffer: Slice<uint8>,
@@ -381,8 +381,8 @@ declare namespace net {
 
     /// Send a packet to a remote socket address.
     ///
-    /// Send one datagram to one explicit destination endpoint.
-    /// Per-send flags and source-interface behavior follow host kernel sendto semantics.
+    /// Send a packet to a remote socket address via host kernel APIs.
+    /// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
@@ -396,7 +396,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.socket.sendTo", { effect: "external", replay: "recordable", requires: ["net.udp"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.sendTo", { effect: "external", replay: "recordable", requires: ["net.udp"], scope: "os", blocking: "sometimes" })
     export function sendTo(
         handle: SocketHandle,
         buffer: Slice<uint8>,
@@ -405,8 +405,8 @@ declare namespace net {
 
     /// Send multiple datagrams.
     ///
-    /// Send multiple datagrams with per-message metadata and address control.
-    /// Batch order is preserved as submitted, with per-message completion handled by the host.
+    /// Send multiple datagrams via host kernel APIs with per-message metadata and address control.
+    /// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
@@ -420,7 +420,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.socket.sendMmsg", { effect: "external", replay: "recordable", requires: ["net.udp"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.sendMmsg", { effect: "external", replay: "recordable", requires: ["net.udp"], scope: "os", blocking: "sometimes" })
     export function sendMmsg(
         handle: SocketHandle,
         messages: Slice<SocketSendBatchEntry>,
@@ -428,7 +428,7 @@ declare namespace net {
 
     /// Receive multiple datagrams.
     ///
-    /// Receive multiple datagrams with per-message metadata and ancillary extraction.
+    /// Receive multiple datagrams via host kernel APIs with per-message metadata and ancillary extraction.
     /// Caller controls descriptor and control payload extraction limits through `maxFds` and `maxControlBytes`.
     ///
     /// # Platform
@@ -443,7 +443,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.socket.recvMmsg", { effect: "external", replay: "recordable", requires: ["net.udp"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.recvMmsg", { effect: "external", replay: "recordable", requires: ["net.udp"], scope: "os", blocking: "sometimes" })
     export function recvMmsg(
         handle: SocketHandle,
         requests: Slice<SocketRecvBatchRequest>,
@@ -469,7 +469,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.socket.shutdown", { effect: "external", replay: "recordable", requires: ["net.close"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.shutdown", { effect: "external", replay: "recordable", requires: ["net.close"], scope: "os", blocking: "sometimes" })
     export function shutdown(
         handle: SocketHandle,
         how: SocketShutdown,
@@ -492,7 +492,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.socket.setNonblocking", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
+    @binding("destack.net.setNonblocking", { effect: "external", replay: "recordable", requires: ["net.control"], scope: "os", blocking: "never" })
     export function setNonblocking(
         handle: SocketHandle,
         enabled: boolean,

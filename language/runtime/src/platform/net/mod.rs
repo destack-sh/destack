@@ -2,12 +2,14 @@
 mod abi_generated;
 #[path = "bindings.generated.rs"]
 mod bindings_generated;
-mod core;
+pub(crate) mod core;
 pub mod native;
+mod native_missing;
 mod os;
 #[cfg(test)]
 mod tests;
 pub mod vm;
+mod vm_missing;
 
 pub use crate::platform::resource::{ListenerHandle, SocketHandle};
 #[allow(unused_imports, unreachable_pub)]

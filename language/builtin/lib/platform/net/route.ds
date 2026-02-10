@@ -1,6 +1,5 @@
 import { Array } from "native";
 import type { PlatformError } from "../error/index.ds";
-import type { OsPath } from "../fs/index.ds";
 import { SocketAddress, SocketFamily } from "./address.ds";
 
 /// Route entry kind.
@@ -54,7 +53,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.route.list", { effect: "external", replay: "recordable", requires: ["net.route.read"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.routeList", { effect: "external", replay: "recordable", requires: ["net.route.read"], scope: "os", blocking: "sometimes" })
     export function routeList(family: SocketFamily): Result<Array<RouteEntry>, PlatformError>;
 
     /// Add a route table entry.
@@ -74,7 +73,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.route.add", { effect: "external", replay: "recordable", requires: ["net.route.write"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.routeAdd", { effect: "external", replay: "recordable", requires: ["net.route.write"], scope: "os", blocking: "sometimes" })
     export function routeAdd(route: RouteEntry): Result<void, PlatformError>;
 
     /// Remove a route table entry.
@@ -94,36 +93,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.route.delete", { effect: "external", replay: "recordable", requires: ["net.route.write"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.routeDelete", { effect: "external", replay: "recordable", requires: ["net.route.write"], scope: "os", blocking: "sometimes" })
     export function routeDelete(route: RouteEntry): Result<void, PlatformError>;
-
-    /// Set the active route namespace for route operations.
-    ///
-    /// Sets route-table operation scope to one host namespace path.
-    /// Namespace switching behavior is host defined and may require elevated privileges.
-    ///
-    /// # Platform
-    /// Linux only.
-    /// Uses setns over a namespace file descriptor for the target route namespace.
-    ///
-    /// # Errors
-    /// Returns ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `net.route.write`, `process.namespace`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
-    @binding(
-        "destack.net.route.setNamespace",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            requires: ["net.route.write", "process.namespace"],
-            scope: "os",
-            blocking: "sometimes",
-        },
-    )
-    export function routeSetNamespace(path: OsPath): Result<void, PlatformError>;
 
 }

@@ -94,7 +94,15 @@ define_handle!(
     "The handle for one completion queue instance.",
     CompletionHandle
 );
+define_handle!(
+    "The handle for one eventfd style descriptor.",
+    EventFdHandle
+);
 define_handle!("The handle for one io_uring instance.", UringHandle);
+define_handle!(
+    "The handle for one timerfd style descriptor.",
+    TimerFdHandle
+);
 define_handle!("The handle for one dynamic library.", LibraryHandle);
 define_handle!(
     "The handle for one symbol in a dynamic library.",

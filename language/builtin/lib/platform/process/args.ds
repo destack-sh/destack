@@ -9,22 +9,23 @@ declare namespace process {
     /// Argument decoding and quoting semantics follow the host process loader.
     ///
     /// # Platform
+    /// Runtime-level operation available on all native runtime targets.
     /// Uses startup argument capture, not a dedicated syscall.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `process.self`.
+    /// Requires `process.run`.
     ///
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.process.args.list",
+        "destack.process.args.args",
         {
             effect: "external",
             replay: "recordable",
-            requires: ["process.self"],
+            requires: ["process.run"],
             scope: "runtime",
             blocking: "never",
         },

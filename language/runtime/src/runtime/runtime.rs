@@ -1,12 +1,25 @@
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::memory::Heap;
 #[cfg(unix)]
 use crate::platform::UnixPoller;
+#[cfg(windows)]
+use crate::platform::WindowsPoller;
 use crate::platform::bindings::{BindingPolicy, BindingRegistry};
-use crate::platform::{PlatformContext, PlatformPoller};
+#[cfg(any(
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd",
+    target_os = "dragonfly"
+))]
+use crate::platform::poller::KqueuePoller;
+#[cfg(target_os = "linux")]
+use crate::platform::poller::{EpollPoller, IoUringPoller};
+use crate::platform::{PlatformContext, PlatformError, PlatformPoller};
 use crate::scheduler::Scheduler;
 use crate::snapshot::SnapshotStore;
-use destack_workspace::RuntimeOptions;
+use destack_workspace::{PollerBackend, RuntimeOptions};
 
 use super::RuntimeContext;
 
@@ -55,17 +68,33 @@ impl Runtime {
     }
 
     /// Create a runtime with explicit runtime options.
-    pub fn from_runtime_options(platform: PlatformContext, options: &RuntimeOptions) -> Self {
+    pub fn from_runtime_options(
+        platform: PlatformContext,
+        options: &RuntimeOptions,
+    ) -> RuntimeResult<Self> {
         let context = RuntimeContext::from_runtime_options(platform, options);
-        Self::new(context)
+        let mut runtime = Self::new(context);
+        runtime
+            .bindings
+            .set_capabilities(options.capabilities.clone());
+        if let Some(poller) = Self::poller_from_options(options)? {
+            runtime.set_poller(poller);
+        }
+        Ok(runtime)
     }
 
-    /// Create a runtime with the default platform poller.
-    #[cfg(unix)]
-    pub fn with_default_poller(context: RuntimeContext) -> RuntimeResult<Self> {
+    /// Create a runtime with the configured platform poller.
+    pub fn with_configured_poller(
+        context: RuntimeContext,
+        options: &RuntimeOptions,
+    ) -> RuntimeResult<Self> {
         let mut runtime = Self::new(context);
-        let poller = UnixPoller::new()?;
-        runtime.set_poller(Box::new(poller));
+        runtime
+            .bindings
+            .set_capabilities(options.capabilities.clone());
+        if let Some(poller) = Self::poller_from_options(options)? {
+            runtime.set_poller(poller);
+        }
         Ok(runtime)
     }
 
@@ -111,6 +140,20 @@ impl Runtime {
         Ok(progressed)
     }
 
+    fn poller_from_options(
+        options: &RuntimeOptions,
+    ) -> RuntimeResult<Option<Box<dyn PlatformPoller>>> {
+        let backend = options.scheduler.poller_backend;
+        match backend {
+            PollerBackend::Auto => auto_poller().map(Some),
+            PollerBackend::IoUring => poller_iouring().map(Some),
+            PollerBackend::Epoll => poller_epoll().map(Some),
+            PollerBackend::Kqueue => poller_kqueue().map(Some),
+            PollerBackend::Poll => poller_poll().map(Some),
+            PollerBackend::Windows => poller_windows().map(Some),
+        }
+    }
+
     // VM execution entrypoints live in execute.rs
 
     /// Capture a runtime snapshot and record a checkpoint in the replay log.
@@ -133,6 +176,127 @@ impl Runtime {
             .record_checkpoint(metadata.into_checkpoint_index())?;
 
         Ok(())
+    }
+}
+
+fn poller_not_supported(name: &str) -> RuntimeResult<Box<dyn PlatformPoller>> {
+    Err(RuntimeError::from(PlatformError::not_supported(format!(
+        "poller backend {name} is not supported on this platform"
+    )))
+    .boxed())
+}
+
+#[cfg(target_os = "linux")]
+fn poller_iouring() -> RuntimeResult<Box<dyn PlatformPoller>> {
+    Ok(Box::new(IoUringPoller::new()?))
+}
+
+#[cfg(not(target_os = "linux"))]
+fn poller_iouring() -> RuntimeResult<Box<dyn PlatformPoller>> {
+    poller_not_supported("io_uring")
+}
+
+#[cfg(target_os = "linux")]
+fn poller_epoll() -> RuntimeResult<Box<dyn PlatformPoller>> {
+    Ok(Box::new(EpollPoller::new()?))
+}
+
+#[cfg(not(target_os = "linux"))]
+fn poller_epoll() -> RuntimeResult<Box<dyn PlatformPoller>> {
+    poller_not_supported("epoll")
+}
+
+#[cfg(any(
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd",
+    target_os = "dragonfly"
+))]
+fn poller_kqueue() -> RuntimeResult<Box<dyn PlatformPoller>> {
+    Ok(Box::new(KqueuePoller::new()?))
+}
+
+#[cfg(not(any(
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd",
+    target_os = "dragonfly"
+)))]
+fn poller_kqueue() -> RuntimeResult<Box<dyn PlatformPoller>> {
+    poller_not_supported("kqueue")
+}
+
+#[cfg(unix)]
+fn poller_poll() -> RuntimeResult<Box<dyn PlatformPoller>> {
+    Ok(Box::new(UnixPoller::new()?))
+}
+
+#[cfg(not(unix))]
+fn poller_poll() -> RuntimeResult<Box<dyn PlatformPoller>> {
+    poller_not_supported("poll")
+}
+
+#[cfg(windows)]
+fn poller_windows() -> RuntimeResult<Box<dyn PlatformPoller>> {
+    Ok(Box::new(WindowsPoller::new()?))
+}
+
+#[cfg(not(windows))]
+fn poller_windows() -> RuntimeResult<Box<dyn PlatformPoller>> {
+    poller_not_supported("windows")
+}
+
+fn auto_poller() -> RuntimeResult<Box<dyn PlatformPoller>> {
+    #[cfg(target_os = "linux")]
+    {
+        if let Ok(poller) = IoUringPoller::new() {
+            return Ok(Box::new(poller));
+        }
+
+        if let Ok(poller) = EpollPoller::new() {
+            return Ok(Box::new(poller));
+        }
+
+        poller_poll()
+    }
+
+    #[cfg(any(
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd",
+        target_os = "dragonfly"
+    ))]
+    {
+        if let Ok(poller) = KqueuePoller::new() {
+            return Ok(Box::new(poller));
+        }
+
+        poller_poll()
+    }
+
+    #[cfg(windows)]
+    {
+        poller_windows()
+    }
+
+    #[cfg(not(any(
+        target_os = "linux",
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd",
+        target_os = "dragonfly",
+        windows
+    )))]
+    {
+        poller_not_supported("auto")
     }
 }
 

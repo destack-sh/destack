@@ -1,5 +1,8 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::process::core::process_args;
+use crate::platform::process::core::{
+    process_args, process_chdir, process_cwd, process_env_delete, process_env_get, process_env_set,
+    process_exit, process_gid, process_kill, process_pid, process_ppid, process_uid, process_umask,
+};
 use crate::platform::process::{GroupId, ProcessId, Signal, UserId};
 use crate::platform::{PlatformError, VmSlice};
 use crate::runtime::RuntimeCallContext;
@@ -20,10 +23,7 @@ pub fn destack_process_cwd(
     context: &mut vm::RuntimeContext<'_>,
 ) -> RuntimeResult<vm::StringHandle> {
     // read the current working directory
-    let cwd = std::env::current_dir().map_err(|error| {
-        RuntimeError::from(PlatformError::io(format!("failed to read cwd: {error}"))).boxed()
-    })?;
-    let cwd = cwd.to_string_lossy().to_string();
+    let cwd = process_cwd()?;
 
     // intern the path in the VM
     Ok(string_handle_from_string(context, cwd))
@@ -41,9 +41,7 @@ pub fn destack_process_chdir(
         .map_err(Box::<RuntimeError>::from)?;
 
     // update the working directory
-    std::env::set_current_dir(path_ref.as_str()).map_err(|error| {
-        RuntimeError::from(PlatformError::io(format!("failed to change cwd: {error}"))).boxed()
-    })?;
+    process_chdir(path_ref.as_str())?;
 
     Ok(())
 }
@@ -63,23 +61,13 @@ pub fn destack_process_env_get(
     };
 
     // read the variable and return it
-    let value = match std::env::var(&name) {
-        Ok(value) => value,
-        Err(std::env::VarError::NotPresent) => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "name",
-                "environment variable not found",
-            ))
-            .boxed());
-        }
-        Err(std::env::VarError::NotUnicode(_)) => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "name",
-                "environment variable is not valid unicode",
-            ))
-            .boxed());
-        }
-    };
+    let value = process_env_get(&name)?.ok_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "name",
+            "environment variable not found",
+        ))
+        .boxed()
+    })?;
 
     Ok(string_handle_from_string(context, value))
 }
@@ -101,21 +89,8 @@ pub fn destack_process_env_set(
     let name = name_ref.as_str();
     let value = value_ref.as_str();
 
-    // reject nul bytes per platform API
-    if name.contains('\0') || value.contains('\0') {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "name",
-            "environment variable contains nul byte",
-        ))
-        .boxed());
-    }
-
     // update the environment
-    unsafe {
-        std::env::set_var(name, value);
-    }
-
-    Ok(())
+    process_env_set(name, value)
 }
 
 /// Delete an environment variable.
@@ -130,21 +105,8 @@ pub fn destack_process_env_delete(
         .map_err(Box::<RuntimeError>::from)?;
     let name = name_ref.as_str();
 
-    // reject nul bytes per platform API
-    if name.contains('\0') {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "name",
-            "environment variable contains nul byte",
-        ))
-        .boxed());
-    }
-
     // remove the environment entry
-    unsafe {
-        std::env::remove_var(name);
-    }
-
-    Ok(())
+    process_env_delete(name)
 }
 
 /// Return the process identifier.
@@ -152,7 +114,7 @@ pub fn destack_process_pid(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
 ) -> RuntimeResult<ProcessId> {
-    Ok(ProcessId(std::process::id()))
+    Ok(ProcessId(process_pid()?))
 }
 
 /// Return the parent process identifier.
@@ -204,11 +166,7 @@ pub fn destack_process_exit(
     _context: &mut vm::RuntimeContext<'_>,
     code: u32,
 ) -> RuntimeResult<()> {
-    // exit the process immediately
-    std::process::exit(code as i32);
-
-    #[allow(unreachable_code)]
-    Ok(())
+    process_exit(code)
 }
 
 /// Build a process args slice value for the VM.
@@ -245,78 +203,4 @@ fn string_handle_from_string(
 ) -> vm::StringHandle {
     let value = context.intern_string(&value);
     vm::StringHandle::new(value)
-}
-
-/// Resolve the parent process id.
-fn process_ppid() -> RuntimeResult<u32> {
-    // resolve the parent process id on unix platforms
-    #[cfg(unix)]
-    {
-        Ok(unsafe { libc::getppid() as u32 })
-    }
-    #[cfg(not(unix))]
-    {
-        Err(RuntimeError::from(PlatformError::not_supported("destack.process.ppid")).boxed())
-    }
-}
-
-/// Resolve the user id.
-fn process_uid() -> RuntimeResult<u32> {
-    // resolve the user id on unix platforms
-    #[cfg(unix)]
-    {
-        Ok(unsafe { libc::getuid() as u32 })
-    }
-    #[cfg(not(unix))]
-    {
-        Err(RuntimeError::from(PlatformError::not_supported("destack.process.uid")).boxed())
-    }
-}
-
-/// Resolve the group id.
-fn process_gid() -> RuntimeResult<u32> {
-    // resolve the group id on unix platforms
-    #[cfg(unix)]
-    {
-        Ok(unsafe { libc::getgid() as u32 })
-    }
-    #[cfg(not(unix))]
-    {
-        Err(RuntimeError::from(PlatformError::not_supported("destack.process.gid")).boxed())
-    }
-}
-
-/// Update the process umask and return the previous value.
-fn process_umask(mask: u32) -> RuntimeResult<u32> {
-    // update the umask on unix platforms
-    #[cfg(unix)]
-    {
-        Ok(unsafe { libc::umask(mask as libc::mode_t) as u32 })
-    }
-    #[cfg(not(unix))]
-    {
-        let _ = mask;
-        Err(RuntimeError::from(PlatformError::not_supported("destack.process.umask")).boxed())
-    }
-}
-
-/// Send a signal to the process.
-fn process_kill(pid: u32, signal: u32) -> RuntimeResult<()> {
-    // signal the target process on unix platforms
-    #[cfg(unix)]
-    {
-        let result = unsafe { libc::kill(pid as libc::pid_t, signal as libc::c_int) };
-        if result < 0 {
-            return Err(RuntimeError::from(PlatformError::io(format!(
-                "failed to signal process {pid}"
-            )))
-            .boxed());
-        }
-        Ok(())
-    }
-    #[cfg(not(unix))]
-    {
-        let _ = (pid, signal);
-        Err(RuntimeError::from(PlatformError::not_supported("destack.process.kill")).boxed())
-    }
 }

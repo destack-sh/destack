@@ -112,8 +112,8 @@ export struct Statx {
 declare namespace fs {
     /// Stat a file.
     ///
-    /// Read metadata for one filesystem entry resolved from a path.
-    /// Returned fields follow host stat layout and normalization rules.
+    /// Stat a file via host kernel APIs.
+    /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -127,13 +127,13 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.stat.path", { effect: "external", replay: "recordable", requires: ["fs.metadata"], scope: "os", blocking: "sometimes" })
+    @binding("destack.fs.stat.stat", { effect: "external", replay: "recordable", requires: ["fs.metadata"], scope: "os", blocking: "sometimes" })
     export function stat(path: OsPath): Result<Stat, PlatformError>;
 
     /// Stat a file relative to a directory handle.
     ///
-    /// Read metadata for one path resolved relative to `dir`.
-    /// Directory-relative lookup avoids ambient current-working-directory traversal.
+    /// Stat a file relative to a directory handle via host kernel APIs.
+    /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -152,8 +152,8 @@ declare namespace fs {
 
     /// Stat a file by handle.
     ///
-    /// Read metadata for one already-open file handle.
-    /// Handle-based metadata lookup bypasses path traversal and symlink resolution.
+    /// Stat a file by handle via host kernel APIs.
+    /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -172,8 +172,8 @@ declare namespace fs {
 
     /// Stat a file without following symlinks.
     ///
-    /// Read metadata for one link entry without dereferencing its target.
-    /// No-follow behavior is enforced by host lstat-style calls.
+    /// Stat a file without following symlinks via host kernel APIs.
+    /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -192,8 +192,8 @@ declare namespace fs {
 
     /// Stat a filesystem.
     ///
-    /// Read filesystem-capacity and mount metadata for the filesystem containing `path`.
-    /// Values reflect host block, inode, and mount flag accounting at call time.
+    /// Stat a filesystem via host kernel APIs.
+    /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -212,8 +212,8 @@ declare namespace fs {
 
     /// Stat a filesystem by handle.
     ///
-    /// Read filesystem-capacity and mount metadata using an already-open file handle.
-    /// Handle-based queries avoid path races during mount selection.
+    /// Stat a filesystem by handle via host kernel APIs.
+    /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -230,14 +230,14 @@ declare namespace fs {
     @binding("destack.fs.stat.fstatfs", { effect: "external", replay: "recordable", requires: ["fs.metadata"], scope: "os", blocking: "sometimes" })
     export function fstatfs(handle: FileHandle): Result<StatFs, PlatformError>;
 
-    /// Read extended file metadata.
+    /// Stat a path with statx semantics.
     ///
-    /// Read an extended metadata payload using the closest host API surface.
-    /// Field population follows host capability and mask support for the requested `statx` bits.
+    /// Stat a path with statx semantics via host kernel APIs.
+    /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
     ///
     /// # Platform
-    /// Unix only in the current runtime implementation.
-    /// Uses fstatat-backed metadata mapping today, with statx field layout compatibility for shared callers.
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses statx(2) on linux and runtime fallback on other targets.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.

@@ -28,7 +28,7 @@ declare namespace memory {
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.memory.protect.range",
+        "destack.memory.protect.protect",
         {
             effect: "external",
             replay: "recordable",
@@ -147,7 +147,6 @@ declare namespace memory {
         "destack.memory.protect.setWriteXorExecute",
         {
             effect: "deterministic",
-            replay: "nonrecordable",
             requires: ["memory.execute"],
             scope: "runtime",
             blocking: "never",

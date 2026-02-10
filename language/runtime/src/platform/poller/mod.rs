@@ -1,15 +1,4 @@
-#[cfg(target_os = "linux")]
-mod epoll;
 mod event;
-#[cfg(any(
-    target_os = "macos",
-    target_os = "ios",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd",
-    target_os = "dragonfly"
-))]
-mod kqueue;
 mod poller;
 #[cfg(unix)]
 #[path = "unix.rs"]
@@ -17,9 +6,12 @@ mod unix;
 #[cfg(windows)]
 mod windows;
 
-#[cfg(target_os = "linux")]
-pub use epoll::EpollPoller;
 pub use event::*;
+pub use poller::*;
+#[cfg(target_os = "linux")]
+pub use unix::EpollPoller;
+#[cfg(target_os = "linux")]
+pub use unix::IoUringPoller;
 #[cfg(any(
     target_os = "macos",
     target_os = "ios",
@@ -28,8 +20,7 @@ pub use event::*;
     target_os = "openbsd",
     target_os = "dragonfly"
 ))]
-pub use kqueue::KqueuePoller;
-pub use poller::*;
+pub use unix::KqueuePoller;
 #[cfg(unix)]
 pub use unix::UnixPoller;
 #[cfg(windows)]

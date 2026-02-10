@@ -67,13 +67,10 @@ test:
     just library/test
     just platform/test
 
-# run linter tests (language) with capped test threads
-test-linter:
-    just language/test-linter
-
 # run language runtime windows target tests through wine
 test-windows-runtime:
     just language/test-windows-runtime
+
 # --- bench ---
 
 # run benchmarks

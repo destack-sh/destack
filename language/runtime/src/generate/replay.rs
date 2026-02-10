@@ -92,6 +92,7 @@ impl<'a> DomainWriter<'a> {
 
             let entry = binding.entry;
             let fn_name = native_replay_fn_name(domain, binding.extern_name);
+            let implementation_fn_name = &binding.implementation_fn_name;
             let supports_args = matches!(entry.replay_payload, ReplayPayload::ArgumentsAndResults);
             let replay_struct = replay_struct_name(&binding.const_name);
             let replay_args_struct = format!("{replay_struct}Args");
@@ -145,12 +146,12 @@ impl<'a> DomainWriter<'a> {
             if args.is_empty() {
                 output.push_str(&format!(
                     "        || unsafe {{ platform_native::{}(context) }},\n",
-                    native_fn_name(domain, binding.extern_name)
+                    implementation_fn_name
                 ));
             } else {
                 output.push_str(&format!(
                     "        || unsafe {{ platform_native::{}(context, {}) }},\n",
-                    native_fn_name(domain, binding.extern_name),
+                    implementation_fn_name,
                     args.join(", ")
                 ));
             }
@@ -396,6 +397,7 @@ impl<'a> DomainWriter<'a> {
             let entry = binding.entry;
             let fn_name = vm_replay_fn_name(domain, binding.extern_name);
             let helper_base = vm_fn_name(domain, binding.extern_name);
+            let implementation_fn_name = &binding.implementation_fn_name;
             let encode_helper = encode_helper_name(&helper_base);
             let supports_args = matches!(entry.replay_payload, ReplayPayload::ArgumentsAndResults);
             let replay_struct = replay_struct_name(&binding.const_name);
@@ -423,7 +425,7 @@ impl<'a> DomainWriter<'a> {
             output.push_str("        context,\n");
             output.push_str(&format!(
                 "        |context| platform_vm::{}(runtime, context{invoke_args}),\n",
-                helper_base
+                implementation_fn_name
             ));
             output.push_str("        |context, result| {\n");
             output.push_str("            let _ = &context;\n");
@@ -683,7 +685,7 @@ fn collect_replay_type_names(
         BindingType::Struct {
             name,
             domain: type_domain,
-            ..
+            fields,
         } => {
             if binding_type_requires_abi(binding_type) {
                 let replay_name = format!("{name}Replay");
@@ -694,6 +696,10 @@ fn collect_replay_type_names(
                 ));
             } else {
                 names.insert(named_type_path(domain, type_domain.as_str(), name.as_str()));
+            }
+
+            for field in fields {
+                collect_replay_type_names(domain, &field.binding_type, names);
             }
         }
         BindingType::Enum {

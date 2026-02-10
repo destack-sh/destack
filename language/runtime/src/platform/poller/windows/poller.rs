@@ -1,37 +1,27 @@
 use std::collections::HashMap;
-use std::net::UdpSocket;
-use std::sync::Once;
 
 use windows_sys::Win32::Networking::WinSock::{
-    AF_INET, INVALID_SOCKET, IPPROTO_UDP, POLLERR, POLLHUP, POLLIN, POLLOUT, POLLPRI, SOCK_DGRAM,
-    SOCKADDR, SOCKADDR_IN, SOCKADDR_STORAGE, SOCKET, WSAPOLLFD, WSAPoll, bind, closesocket,
-    connect, getsockname, recv, send, socket,
+    AF_INET, INVALID_SOCKET, IPPROTO_UDP, POLLERR, POLLHUP, POLLIN, POLLNVAL, POLLOUT, POLLPRI,
+    SOCK_DGRAM, SOCKADDR, SOCKADDR_IN, SOCKADDR_STORAGE, SOCKET, WSAPOLLFD, WSAPoll, bind,
+    closesocket, connect, getsockname, recv, send, socket,
 };
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::poller::{
     PlatformEvent, PlatformEventFlags, PlatformEventMask, PlatformEventPayload,
     PlatformEventSource, PlatformHandle, PlatformInterest, PlatformPoller, PlatformPollerFlags,
+    PollerToken,
 };
-use crate::platform::{PlatformError, ResourceId};
-
-/// Initialise Winsock using the standard library.
-fn ensure_winsock() {
-    static INIT: Once = Once::new();
-    INIT.call_once(|| {
-        let _ = UdpSocket::bind("127.0.0.1:0");
-    });
-}
+use crate::platform::{PlatformError, ResourceId, core as core_platform};
 
 /// Build a runtime error from the last socket error.
 fn last_net_error(syscall: &str) -> Box<RuntimeError> {
-    let error = std::io::Error::last_os_error();
-    let errno = error.raw_os_error();
-    let message = format!("{syscall} failed: {error}");
+    let errno = core_platform::last_wsa_error_code();
+    let message = core_platform::error_message(syscall, errno);
     RuntimeError::from(PlatformError::io_with(
         None,
         None,
-        errno,
+        Some(errno),
         Some(syscall.to_string()),
         None,
         message,
@@ -45,7 +35,7 @@ struct PollRegistration {
     /// Raw socket to poll.
     socket: SOCKET,
     /// Opaque token associated with the registration.
-    token: u64,
+    token: PollerToken,
     /// Interest mask for readiness.
     interests: PlatformInterest,
     /// Poller configuration flags.
@@ -64,7 +54,8 @@ struct WakeSockets {
 impl WakeSockets {
     /// Create a new wake socket pair.
     fn new() -> RuntimeResult<Self> {
-        ensure_winsock();
+        // ensure Winsock is initialized before creating sockets
+        core_platform::ensure_winsock()?;
 
         let receiver = unsafe { socket(AF_INET.into(), SOCK_DGRAM, IPPROTO_UDP) };
         if receiver == INVALID_SOCKET {
@@ -72,7 +63,7 @@ impl WakeSockets {
         }
 
         let mut addr = SOCKADDR_IN {
-            sin_family: AF_INET as u16,
+            sin_family: AF_INET,
             sin_port: 0,
             sin_addr: windows_sys::Win32::Networking::WinSock::IN_ADDR {
                 S_un: windows_sys::Win32::Networking::WinSock::IN_ADDR_0 { S_addr: 0 },
@@ -166,12 +157,25 @@ impl Drop for WakeSockets {
 }
 
 /// WSAPoll-backed poller for Windows.
-#[derive(Debug)]
 pub struct WindowsPoller {
     /// Registered resource entries.
     registrations: HashMap<ResourceId, PollRegistration>,
     /// Wake sockets used to interrupt polling.
     wake: WakeSockets,
+    /// Pollfd buffer reused across polls.
+    pollfds: Vec<WSAPOLLFD>,
+    /// Entry buffer reused across polls.
+    entries: Vec<Option<(ResourceId, PollRegistration)>>,
+}
+
+impl std::fmt::Debug for WindowsPoller {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WindowsPoller")
+            .field("registrations", &self.registrations.len())
+            .field("pollfds", &self.pollfds.len())
+            .field("entries", &self.entries.len())
+            .finish()
+    }
 }
 
 impl WindowsPoller {
@@ -180,6 +184,8 @@ impl WindowsPoller {
         Ok(Self {
             registrations: HashMap::new(),
             wake: WakeSockets::new()?,
+            pollfds: Vec::new(),
+            entries: Vec::new(),
         })
     }
 }
@@ -189,10 +195,27 @@ impl PlatformPoller for WindowsPoller {
         &mut self,
         resource_id: ResourceId,
         handle: PlatformHandle,
-        token: u64,
+        token: PollerToken,
         interests: PlatformInterest,
         flags: PlatformPollerFlags,
     ) -> RuntimeResult<()> {
+        // reject reserved tokens
+        if token.is_reserved() {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "token",
+                "token reserved for poller internals",
+            ))
+            .boxed());
+        }
+
+        // reject unsupported edge-triggered registrations
+        if flags.contains(PlatformPollerFlags::EDGE) {
+            return Err(RuntimeError::from(PlatformError::not_supported(
+                "WSAPoll does not support edge-triggered registrations",
+            ))
+            .boxed());
+        }
+
         // update existing registrations in place
         if self.registrations.contains_key(&resource_id) {
             return self.update(resource_id, token, interests, flags);
@@ -215,10 +238,27 @@ impl PlatformPoller for WindowsPoller {
     fn update(
         &mut self,
         resource_id: ResourceId,
-        token: u64,
+        token: PollerToken,
         interests: PlatformInterest,
         flags: PlatformPollerFlags,
     ) -> RuntimeResult<()> {
+        // reject reserved tokens
+        if token.is_reserved() {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "token",
+                "token reserved for poller internals",
+            ))
+            .boxed());
+        }
+
+        // reject unsupported edge-triggered registrations
+        if flags.contains(PlatformPollerFlags::EDGE) {
+            return Err(RuntimeError::from(PlatformError::not_supported(
+                "WSAPoll does not support edge-triggered registrations",
+            ))
+            .boxed());
+        }
+
         let Some(entry) = self.registrations.get_mut(&resource_id) else {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "resource_id",
@@ -244,20 +284,20 @@ impl PlatformPoller for WindowsPoller {
     }
 
     fn poll(&mut self, timeout_nanos: Option<u64>) -> RuntimeResult<Vec<PlatformEvent>> {
-        let timeout = timeout_nanos
-            .map(|value| (value / 1_000_000) as i32)
-            .unwrap_or(-1);
+        let timeout = timeout_nanos.map(nanos_to_timeout_ms).unwrap_or(-1);
 
-        let mut pollfds = Vec::with_capacity(self.registrations.len() + 1);
-        let mut entries = Vec::with_capacity(self.registrations.len() + 1);
+        self.pollfds.clear();
+        self.entries.clear();
+        self.pollfds.reserve(self.registrations.len() + 1);
+        self.entries.reserve(self.registrations.len() + 1);
 
         // wake socket
-        pollfds.push(WSAPOLLFD {
+        self.pollfds.push(WSAPOLLFD {
             fd: self.wake.receiver,
             events: POLLIN,
             revents: 0,
         });
-        entries.push(None);
+        self.entries.push(None);
 
         for (resource_id, entry) in &self.registrations {
             let mut events = 0;
@@ -270,25 +310,33 @@ impl PlatformPoller for WindowsPoller {
             if entry.flags.contains(PlatformPollerFlags::PRIORITY) {
                 events |= POLLPRI;
             }
-            pollfds.push(WSAPOLLFD {
+            self.pollfds.push(WSAPOLLFD {
                 fd: entry.socket,
-                events: events as i16,
+                events,
                 revents: 0,
             });
-            entries.push(Some((*resource_id, *entry)));
+            self.entries.push(Some((*resource_id, *entry)));
         }
 
-        let result = unsafe { WSAPoll(pollfds.as_mut_ptr(), pollfds.len() as u32, timeout) };
+        let result = unsafe {
+            WSAPoll(
+                self.pollfds.as_mut_ptr(),
+                self.pollfds.len() as u32,
+                timeout,
+            )
+        };
+
         if result < 0 {
             return Err(last_net_error("WSAPoll"));
         }
 
-        let mut output = Vec::new();
-        for (index, pollfd) in pollfds.iter().enumerate() {
+        let mut output = Vec::with_capacity(result as usize);
+        let mut oneshot = Vec::new();
+        for (index, pollfd) in self.pollfds.iter().enumerate() {
             if pollfd.revents == 0 {
                 continue;
             }
-            let entry = entries[index];
+            let entry = self.entries[index];
             if entry.is_none() {
                 self.wake.drain();
                 continue;
@@ -306,6 +354,17 @@ impl PlatformPoller for WindowsPoller {
                     data: pollfd.revents as u64,
                 },
             });
+
+            if registration.flags.contains(PlatformPollerFlags::ONESHOT) {
+                oneshot.push(resource_id);
+            }
+        }
+
+        // drop any oneshot registrations
+        if !oneshot.is_empty() {
+            for resource_id in oneshot {
+                self.registrations.remove(&resource_id);
+            }
         }
 
         Ok(output)
@@ -321,7 +380,7 @@ fn event_mask_from_revents(revents: i16) -> PlatformEventMask {
     if revents & POLLOUT != 0 {
         out |= PlatformEventMask::WRITABLE;
     }
-    if revents & POLLERR != 0 {
+    if revents & POLLERR != 0 || revents & POLLNVAL != 0 {
         out |= PlatformEventMask::ERROR;
     }
     if revents & POLLHUP != 0 {
@@ -331,6 +390,20 @@ fn event_mask_from_revents(revents: i16) -> PlatformEventMask {
         out |= PlatformEventMask::PRIORITY;
     }
     out
+}
+
+/// Convert a nanosecond timeout to milliseconds for WSAPoll.
+fn nanos_to_timeout_ms(nanos: u64) -> i32 {
+    if nanos == 0 {
+        return 0;
+    }
+
+    let ms = nanos.div_ceil(1_000_000);
+    if ms > i32::MAX as u64 {
+        i32::MAX
+    } else {
+        ms as i32
+    }
 }
 
 /// Build event flags from registration flags.

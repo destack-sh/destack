@@ -2,7 +2,7 @@
 mod abi_generated;
 #[path = "bindings.generated.rs"]
 mod bindings_generated;
-mod core;
+pub(crate) mod core;
 pub mod native;
 mod os;
 #[cfg(test)]

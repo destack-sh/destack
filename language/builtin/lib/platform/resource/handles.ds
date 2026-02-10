@@ -96,12 +96,6 @@ export newtype SignalHandle = ResourceId;
 /// Handle for a signalfd style signal queue descriptor.
 export newtype SignalFdHandle = ResourceId;
 
-/// Handle for an eventfd style counter descriptor.
-export newtype EventFdHandle = ResourceId;
-
-/// Handle for a timerfd style timer descriptor.
-export newtype TimerFdHandle = ResourceId;
-
 /// Handle transferred through ancillary transport.
 export newtype TransferredHandle = ResourceId;
 
@@ -152,18 +146,3 @@ export newtype GpuShaderHandle = ResourceId;
 
 /// Handle for one GPU pipeline endpoint.
 export newtype GpuPipelineHandle = ResourceId;
-
-/// Handle for one crypto store object.
-export newtype CryptoStoreHandle = ResourceId;
-
-/// Handle for one crypto key object.
-export newtype CryptoKeyHandle = ResourceId;
-
-/// Handle for one crypto certificate object.
-export newtype CryptoCertificateHandle = ResourceId;
-
-/// Handle for one tls context object.
-export newtype TlsContextHandle = ResourceId;
-
-/// Handle for one tls session object.
-export newtype TlsSessionHandle = ResourceId;

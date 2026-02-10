@@ -1,7 +1,7 @@
 import { Array, Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
 import { FileHandle } from "../resource/index.ds";
-import { OsPath, PathBytes } from "./path.ds";
+import { OsPath } from "./path.ds";
 
 /// Extended attribute flags.
 export newtype XattrFlags = uint32;
@@ -15,8 +15,9 @@ export const XATTR_REPLACE: XattrFlags = XattrFlags(0x2);
 declare namespace fs {
     /// Read an extended attribute by path.
     ///
-    /// Read one named extended attribute value from a path-resolved filesystem entry.
-    /// The returned bytes are the host attribute payload without higher-level decoding.
+    /// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
+    /// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
+    ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
     /// Uses getxattr(2) on Unix and extended-attribute APIs where available on Windows.
@@ -37,8 +38,8 @@ declare namespace fs {
 
     /// Read an extended attribute by path with a raw name payload.
     ///
+    /// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
     /// Raw name bytes preserve host namespace data without UTF transcoding.
-    /// This path-based variant resolves the entry name before xattr namespace lookup.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -54,14 +55,15 @@ declare namespace fs {
     /// External, recordable.
     @binding("destack.fs.xattr.getxattrBytes", { effect: "external", replay: "recordable", requires: ["fs.xattr"], scope: "os", blocking: "sometimes" })
     export function getxattrBytes(
-        path: PathBytes,
-        name: string,
+        path: OsPath,
+        name: Slice<uint8>,
     ): Result<Array<uint8>, PlatformError>;
 
     /// Read an extended attribute without following symlinks.
     ///
-    /// Read one named extended attribute value from a link entry without dereferencing.
-    /// No-follow behavior applies to path resolution before attribute namespace lookup.
+    /// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
+    /// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
+    ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
     /// Uses lgetxattr(2) on Unix and reparse-aware xattr query where available on Windows.
@@ -82,8 +84,8 @@ declare namespace fs {
 
     /// Read an extended attribute without following symlinks, using a raw name payload.
     ///
+    /// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
     /// Raw name bytes preserve host namespace data without UTF transcoding.
-    /// No-follow resolution is applied before xattr namespace lookup on the link entry.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -99,14 +101,15 @@ declare namespace fs {
     /// External, recordable.
     @binding("destack.fs.xattr.lgetxattrBytes", { effect: "external", replay: "recordable", requires: ["fs.xattr"], scope: "os", blocking: "sometimes" })
     export function lgetxattrBytes(
-        path: PathBytes,
-        name: string,
+        path: OsPath,
+        name: Slice<uint8>,
     ): Result<Array<uint8>, PlatformError>;
 
     /// Read an extended attribute by handle.
     ///
-    /// Read one named extended attribute value from an already-open file handle.
-    /// Handle-based lookup avoids path traversal and link-following ambiguity.
+    /// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
+    /// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
+    ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
     /// Uses fgetxattr(2) on Unix and handle-based xattr query where available on Windows.
@@ -127,8 +130,8 @@ declare namespace fs {
 
     /// Read an extended attribute by handle with a raw name payload.
     ///
+    /// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
     /// Raw name bytes preserve host namespace data without UTF transcoding.
-    /// Handle-based lookup avoids path traversal and link-following differences.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -142,10 +145,17 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
+    @binding("destack.fs.xattr.fgetxattrBytes", { effect: "external", replay: "recordable", requires: ["fs.xattr"], scope: "os", blocking: "sometimes" })
+    export function fgetxattrBytes(
+        handle: FileHandle,
+        name: Slice<uint8>,
+    ): Result<Array<uint8>, PlatformError>;
+
     /// Set an extended attribute by path.
     ///
-    /// Write one named extended attribute value to a path-resolved filesystem entry.
-    /// Create and replace behavior is controlled by `flags` and follows host xattr rules.
+    /// Set the requested control value on the descriptor through the native option interface.
+    /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
+    ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
     /// Uses setxattr(2) on Unix and extended-attribute APIs where available on Windows.
@@ -168,8 +178,8 @@ declare namespace fs {
 
     /// Set an extended attribute by path with a raw name payload.
     ///
+    /// Set the requested control value on the descriptor through the native option interface.
     /// Raw name bytes preserve host namespace data without UTF transcoding.
-    /// Path-based updates resolve the filesystem entry before attribute write semantics apply.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -185,16 +195,17 @@ declare namespace fs {
     /// External, recordable.
     @binding("destack.fs.xattr.setxattrBytes", { effect: "external", replay: "recordable", requires: ["fs.xattr"], scope: "os", blocking: "sometimes" })
     export function setxattrBytes(
-        path: PathBytes,
-        name: string,
+        path: OsPath,
+        name: Slice<uint8>,
         value: Slice<uint8>,
         flags: XattrFlags,
     ): Result<void, PlatformError>;
 
     /// Set an extended attribute without following symlinks.
     ///
-    /// Write one named extended attribute value on a link entry without dereferencing.
-    /// No-follow behavior applies during path resolution before attribute update.
+    /// Set the requested control value on the descriptor through the native option interface.
+    /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
+    ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
     /// Uses lsetxattr(2) on Unix and reparse-aware xattr write where available on Windows.
@@ -217,8 +228,8 @@ declare namespace fs {
 
     /// Set an extended attribute without following symlinks, using a raw name payload.
     ///
+    /// Set the requested control value on the descriptor through the native option interface.
     /// Raw name bytes preserve host namespace data without UTF transcoding.
-    /// No-follow resolution is applied before xattr update on the link entry.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -234,16 +245,17 @@ declare namespace fs {
     /// External, recordable.
     @binding("destack.fs.xattr.lsetxattrBytes", { effect: "external", replay: "recordable", requires: ["fs.xattr"], scope: "os", blocking: "sometimes" })
     export function lsetxattrBytes(
-        path: PathBytes,
-        name: string,
+        path: OsPath,
+        name: Slice<uint8>,
         value: Slice<uint8>,
         flags: XattrFlags,
     ): Result<void, PlatformError>;
 
     /// Set an extended attribute by handle.
     ///
-    /// Write one named extended attribute value on an already-open file handle.
-    /// Handle-based writes avoid path races and preserve descriptor identity semantics.
+    /// Set the requested control value on the descriptor through the native option interface.
+    /// The binding performs one control transaction and returns the exact host outcome without policy retries.
+    ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
     /// Uses fsetxattr(2) on Unix and handle-based xattr write where available on Windows.
@@ -266,8 +278,8 @@ declare namespace fs {
 
     /// Set an extended attribute by handle with a raw name payload.
     ///
+    /// Set the requested control value on the descriptor through the native option interface.
     /// Raw name bytes preserve host namespace data without UTF transcoding.
-    /// Handle-based updates avoid path races and preserve descriptor identity semantics.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -281,10 +293,18 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
+    @binding("destack.fs.xattr.fsetxattrBytes", { effect: "external", replay: "recordable", requires: ["fs.xattr"], scope: "os", blocking: "sometimes" })
+    export function fsetxattrBytes(
+        handle: FileHandle,
+        name: Slice<uint8>,
+        value: Slice<uint8>,
+        flags: XattrFlags,
+    ): Result<void, PlatformError>;
+
     /// List extended attribute names by path.
     ///
-    /// Enumerate attribute names stored on one path-resolved filesystem entry.
-    /// Name ordering and namespace visibility follow host filesystem behavior.
+    /// List extended attribute names by path via host kernel APIs.
+    /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -303,7 +323,7 @@ declare namespace fs {
 
     /// List extended attribute names by path as raw byte payloads.
     ///
-    /// Enumerate attribute names stored on one path-resolved filesystem entry as raw bytes.
+    /// List extended attribute names by path via host kernel APIs.
     /// Raw name bytes preserve host namespace data without UTF transcoding.
     ///
     /// # Platform
@@ -319,12 +339,12 @@ declare namespace fs {
     /// # Replay
     /// External, recordable.
     @binding("destack.fs.xattr.listxattrBytes", { effect: "external", replay: "recordable", requires: ["fs.xattr"], scope: "os", blocking: "sometimes" })
-    export function listxattrBytes(path: PathBytes): Result<Array<string>, PlatformError>;
+    export function listxattrBytes(path: OsPath): Result<Array<uint8[]>, PlatformError>;
 
     /// List extended attribute names without following symlinks.
     ///
-    /// Enumerate attribute names on one link entry without dereferencing its target.
-    /// No-follow behavior applies before host attribute namespace enumeration.
+    /// List extended attribute names without following symlinks via host kernel APIs.
+    /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -343,7 +363,7 @@ declare namespace fs {
 
     /// List extended attribute names without following symlinks as raw byte payloads.
     ///
-    /// Enumerate attribute names on one link entry without dereferencing as raw bytes.
+    /// List extended attribute names without following symlinks via host kernel APIs.
     /// Raw name bytes preserve host namespace data without UTF transcoding.
     ///
     /// # Platform
@@ -359,12 +379,12 @@ declare namespace fs {
     /// # Replay
     /// External, recordable.
     @binding("destack.fs.xattr.llistxattrBytes", { effect: "external", replay: "recordable", requires: ["fs.xattr"], scope: "os", blocking: "sometimes" })
-    export function llistxattrBytes(path: PathBytes): Result<Array<string>, PlatformError>;
+    export function llistxattrBytes(path: OsPath): Result<Array<uint8[]>, PlatformError>;
 
     /// List extended attribute names by handle.
     ///
-    /// Enumerate attribute names associated with one already-open file handle.
-    /// Handle-based enumeration bypasses path lookup and link traversal differences.
+    /// List extended attribute names by handle via host kernel APIs.
+    /// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -383,7 +403,7 @@ declare namespace fs {
 
     /// List extended attribute names by handle as raw byte payloads.
     ///
-    /// Enumerate attribute names for one already-open file handle as raw bytes.
+    /// List extended attribute names by handle via host kernel APIs.
     /// Raw name bytes preserve host namespace data without UTF transcoding.
     ///
     /// # Platform
@@ -398,10 +418,14 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
+    @binding("destack.fs.xattr.flistxattrBytes", { effect: "external", replay: "recordable", requires: ["fs.xattr"], scope: "os", blocking: "sometimes" })
+    export function flistxattrBytes(handle: FileHandle): Result<Array<uint8[]>, PlatformError>;
+
     /// Remove an extended attribute by path.
     ///
-    /// Remove one named extended attribute from a path-resolved filesystem entry.
-    /// Deletion semantics follow host xattr namespace and permission rules.
+    /// Remove the target resource through a single host namespace operation with no runtime fallback path.
+    /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
+    ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
     /// Uses removexattr(2) on Unix and xattr delete APIs where available on Windows.
@@ -419,8 +443,8 @@ declare namespace fs {
 
     /// Remove an extended attribute by path with a raw name payload.
     ///
+    /// Remove the target resource through a single host namespace operation with no runtime fallback path.
     /// Raw name bytes preserve host namespace data without UTF transcoding.
-    /// Path-based deletion resolves the target entry before namespace removal rules apply.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -435,12 +459,13 @@ declare namespace fs {
     /// # Replay
     /// External, recordable.
     @binding("destack.fs.xattr.removexattrBytes", { effect: "external", replay: "recordable", requires: ["fs.xattr"], scope: "os", blocking: "sometimes" })
-    export function removexattrBytes(path: PathBytes, name: string): Result<void, PlatformError>;
+    export function removexattrBytes(path: OsPath, name: Slice<uint8>): Result<void, PlatformError>;
 
     /// Remove an extended attribute without following symlinks.
     ///
-    /// Remove one named extended attribute from a link entry without dereferencing.
-    /// No-follow behavior applies during lookup before host attribute removal.
+    /// Remove the target resource through a single host namespace operation with no runtime fallback path.
+    /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
+    ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
     /// Uses lremovexattr(2) on Unix and reparse-aware xattr delete on Windows.
@@ -458,8 +483,8 @@ declare namespace fs {
 
     /// Remove an extended attribute without following symlinks, using a raw name payload.
     ///
+    /// Remove the target resource through a single host namespace operation with no runtime fallback path.
     /// Raw name bytes preserve host namespace data without UTF transcoding.
-    /// No-follow resolution is applied before xattr deletion on the link entry.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -474,12 +499,13 @@ declare namespace fs {
     /// # Replay
     /// External, recordable.
     @binding("destack.fs.xattr.lremovexattrBytes", { effect: "external", replay: "recordable", requires: ["fs.xattr"], scope: "os", blocking: "sometimes" })
-    export function lremovexattrBytes(path: PathBytes, name: string): Result<void, PlatformError>;
+    export function lremovexattrBytes(path: OsPath, name: Slice<uint8>): Result<void, PlatformError>;
 
     /// Remove an extended attribute by handle.
     ///
-    /// Remove one named extended attribute from an already-open file handle.
-    /// Handle-based deletion avoids path races and follows descriptor-scoped permissions.
+    /// Remove the target resource through a single host namespace operation with no runtime fallback path.
+    /// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
+    ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
     /// Uses fremovexattr(2) on Unix and handle-based xattr delete on Windows.
@@ -497,8 +523,8 @@ declare namespace fs {
 
     /// Remove an extended attribute by handle with a raw name payload.
     ///
+    /// Remove the target resource through a single host namespace operation with no runtime fallback path.
     /// Raw name bytes preserve host namespace data without UTF transcoding.
-    /// Handle-based deletion avoids path traversal and link resolution differences.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -512,4 +538,6 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
+    @binding("destack.fs.xattr.fremovexattrBytes", { effect: "external", replay: "recordable", requires: ["fs.xattr"], scope: "os", blocking: "sometimes" })
+    export function fremovexattrBytes(handle: FileHandle, name: Slice<uint8>): Result<void, PlatformError>;
 }

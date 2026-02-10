@@ -2,10 +2,11 @@ use std::ffi::CStr;
 use std::os::unix::io::RawFd;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::platform::fs::StatFs;
 
 use super::statfs::statfs_from_libc;
-use super::{last_os_error, nanos_from_secs_and_nanos, statfs_u64};
+use super::{nanos_from_secs_and_nanos, statfs_u64};
 
 /// Return nanosecond timestamps for stat fields on dragonfly.
 pub(super) fn stat_times(stat: libc::stat) -> (u64, u64, u64, u64) {
@@ -22,11 +23,12 @@ pub(super) fn statfs_for_fd(fd: RawFd) -> RuntimeResult<StatFs> {
     let mut statfs: libc::statfs = unsafe { std::mem::zeroed() };
     let rc = unsafe { libc::fstatfs(fd, &mut statfs) };
     if rc != 0 {
-        return Err(last_os_error("fstatfs", None));
+        return Err(core_platform::io_error("fstatfs", None));
     }
 
     let frsize = statfs_u64(statfs.f_bsize);
-    Ok(statfs_from_libc(statfs, frsize, 0))
+    let flags = statfs_u64(statfs.f_flags);
+    Ok(statfs_from_libc(statfs, frsize, 0, flags))
 }
 
 /// Fetch statfs data for a path.
@@ -34,16 +36,12 @@ pub(super) fn statfs_for_path(path: &CStr) -> RuntimeResult<StatFs> {
     let mut statfs: libc::statfs = unsafe { std::mem::zeroed() };
     let rc = unsafe { libc::statfs(path.as_ptr(), &mut statfs) };
     if rc != 0 {
-        return Err(last_os_error("statfs", None));
+        return Err(core_platform::io_error("statfs", None));
     }
 
     let frsize = statfs_u64(statfs.f_bsize);
-    Ok(statfs_from_libc(statfs, frsize, 0))
-}
-
-/// Return the current errno pointer on dragonfly.
-pub(super) fn errno_location() -> *mut libc::c_int {
-    unsafe { libc::__errno_location() }
+    let flags = statfs_u64(statfs.f_flags);
+    Ok(statfs_from_libc(statfs, frsize, 0, flags))
 }
 
 /// Call fdatasync on dragonfly.

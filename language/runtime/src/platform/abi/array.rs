@@ -25,7 +25,13 @@ unsafe impl<T> Sync for NativeArray<T> {}
 impl<T> NativeArray<T> {
     /// View the array as an immutable slice.
     pub unsafe fn as_slice<'a>(self) -> RuntimeResult<&'a [T]> {
-        if self.data.is_null() && self.len != 0 {
+        if self.len == 0 {
+            // safety: dangling pointer is valid for zero-length slices
+            return Ok(unsafe {
+                std::slice::from_raw_parts(std::ptr::NonNull::dangling().as_ptr(), 0)
+            });
+        }
+        if self.data.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("array.data")).boxed());
         }
         // safety: caller guarantees the slice is valid for the lifetime
@@ -34,7 +40,13 @@ impl<T> NativeArray<T> {
 
     /// View the array as a mutable slice.
     pub unsafe fn as_mut_slice<'a>(self) -> RuntimeResult<&'a mut [T]> {
-        if self.data.is_null() && self.len != 0 {
+        if self.len == 0 {
+            // safety: dangling pointer is valid for zero-length slices
+            return Ok(unsafe {
+                std::slice::from_raw_parts_mut(std::ptr::NonNull::dangling().as_ptr(), 0)
+            });
+        }
+        if self.data.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("array.data")).boxed());
         }
         // safety: caller guarantees the slice is valid for the lifetime

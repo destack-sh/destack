@@ -1,7 +1,6 @@
-use std::io::{self, Write};
-
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{NativeStringRef, PlatformError};
+use crate::diagnostic::RuntimeResult;
+use crate::platform::NativeStringRef;
+use crate::platform::console::{ConsoleStream, write_console_line};
 use crate::runtime::RuntimeCallContext;
 
 /// Write a line to stdout for native code.
@@ -38,33 +37,4 @@ pub unsafe fn destack_console_error(
 ) -> RuntimeResult<()> {
     let line = unsafe { value.as_str()? };
     write_console_line(line, ConsoleStream::Stderr)
-}
-
-/// Output selector for console writes.
-enum ConsoleStream {
-    /// Write to stdout.
-    Stdout,
-    /// Write to stderr.
-    Stderr,
-}
-
-/// Write a console line to the platform stream.
-fn write_console_line(line: &str, stream: ConsoleStream) -> RuntimeResult<()> {
-    match stream {
-        ConsoleStream::Stdout => {
-            let mut stdout = io::stdout();
-            writeln!(stdout, "{line}").map_err(|error| {
-                RuntimeError::from(PlatformError::io(format!("stdout write failed: {error}")))
-                    .boxed()
-            })?;
-        }
-        ConsoleStream::Stderr => {
-            let mut stderr = io::stderr();
-            writeln!(stderr, "{line}").map_err(|error| {
-                RuntimeError::from(PlatformError::io(format!("stderr write failed: {error}")))
-                    .boxed()
-            })?;
-        }
-    }
-    Ok(())
 }
