@@ -1,6 +1,6 @@
 use super::super::timing::tags;
 use super::*;
-use crate::CachedCallArgumentFacts;
+use crate::{CachedCallArgumentExpansionProfile, CachedCallArgumentFacts};
 use destack_ast::TemplateLiteral;
 use destack_fir::write;
 
@@ -354,6 +354,7 @@ enum CallArgumentExpansionMode {
 }
 
 /// Store derived call argument expansion flags.
+#[derive(Clone, Copy)]
 struct CallArgumentExpansionProfile {
     /// The final force expand decision.
     force_expand: bool,
@@ -361,6 +362,26 @@ struct CallArgumentExpansionProfile {
     has_call_infix_annotations: bool,
     /// Whether the last argument is a collection literal.
     trailing_collection_argument: bool,
+}
+
+impl From<CachedCallArgumentExpansionProfile> for CallArgumentExpansionProfile {
+    fn from(cached: CachedCallArgumentExpansionProfile) -> Self {
+        Self {
+            force_expand: cached.force_expand,
+            has_call_infix_annotations: cached.has_call_infix_annotations,
+            trailing_collection_argument: cached.trailing_collection_argument,
+        }
+    }
+}
+
+impl From<CallArgumentExpansionProfile> for CachedCallArgumentExpansionProfile {
+    fn from(profile: CallArgumentExpansionProfile) -> Self {
+        Self {
+            force_expand: profile.force_expand,
+            has_call_infix_annotations: profile.has_call_infix_annotations,
+            trailing_collection_argument: profile.trailing_collection_argument,
+        }
+    }
 }
 
 /// Store one-pass facts for call argument expansion heuristics.
@@ -855,6 +876,59 @@ fn build_call_argument_expansion_profile(
     }
 }
 
+/// Resolve regular call argument expansion profile with per call caching.
+fn resolve_regular_call_argument_expansion_profile(
+    context: &DestackFormatContext<'_>,
+    call_node_id: LocalNodeId<Expression>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+    has_call_infix_annotations: bool,
+    has_line_comment_annotations: bool,
+    force_expand_single_long_with_static_arguments: bool,
+    force_expand_single_collection_for_type_binary_callee: bool,
+    has_leading_block_callback_with_simple_tail: bool,
+) -> CallArgumentExpansionProfile {
+    if let Some(cached) = context.cached_call_argument_expansion_profile(call_node_id) {
+        context.increment_counter("profile.call_arguments.regular.cache.hits", 1);
+        let profile = CallArgumentExpansionProfile::from(cached);
+        context.increment_counter(
+            if profile.force_expand {
+                "profile.call_arguments.regular.force_expand.true"
+            } else {
+                "profile.call_arguments.regular.force_expand.false"
+            },
+            1,
+        );
+        return profile;
+    }
+
+    context.increment_counter("profile.call_arguments.regular.cache.misses", 1);
+    let profile = build_call_argument_expansion_profile(
+        context,
+        call_node_id,
+        dynamic_arguments,
+        CallArgumentExpansionMode::Regular,
+        Some(has_call_infix_annotations),
+        Some(has_line_comment_annotations),
+        Some(force_expand_single_long_with_static_arguments),
+        Some(force_expand_single_collection_for_type_binary_callee),
+        Some(has_leading_block_callback_with_simple_tail),
+    );
+    context.increment_counter(
+        if profile.force_expand {
+            "profile.call_arguments.regular.force_expand.true"
+        } else {
+            "profile.call_arguments.regular.force_expand.false"
+        },
+        1,
+    );
+    context.cache_call_argument_expansion_profile(
+        call_node_id,
+        CachedCallArgumentExpansionProfile::from(profile),
+    );
+
+    profile
+}
+
 /// Return whether single argument hugged formatting should force expansion.
 fn call_should_force_hugged_expand(
     context: &DestackFormatContext<'_>,
@@ -928,6 +1002,39 @@ fn call_inline_len_without_static_arguments(
     let callee_len = expression_source_len(context, *left);
     let arguments_len = arguments_rendered_len(context, dynamic_arguments);
     Some(callee_len.saturating_add(arguments_len).saturating_add(2))
+}
+
+/// Estimate a compact lower bound for one-line `callee(arg1, arg2)` length.
+fn call_inline_min_len_without_static_arguments(
+    context: &DestackFormatContext<'_>,
+    call_node_id: LocalNodeId<Expression>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+) -> Option<usize> {
+    let Expression::Call { left, .. } = context.tree.get(call_node_id) else {
+        return None;
+    };
+    if call_has_static_arguments(context, call_node_id) {
+        return None;
+    }
+
+    let callee_span = context.get_span(*left);
+    let callee_len = source_min_inline_char_len(context.get_span_str(callee_span));
+    let arguments_len = dynamic_arguments
+        .iter()
+        .fold(0usize, |total_len, argument_id| {
+            let argument_span = context.get_span(*argument_id);
+            let argument_source = context.get_span_str(argument_span);
+            let argument_len = source_min_inline_char_len(argument_source);
+            total_len.saturating_add(argument_len)
+        });
+    let separators_len = dynamic_arguments.len().saturating_sub(1) * 2;
+
+    Some(
+        callee_len
+            .saturating_add(arguments_len)
+            .saturating_add(separators_len)
+            .saturating_add(2),
+    )
 }
 
 /// Format call arguments with list-group awareness.
@@ -1214,16 +1321,15 @@ pub(super) fn format_call_arguments<'ast>(
             let _timing = f
                 .context()
                 .timing_scope(tags::FORMAT_EXPRESSION_CALL_ARGUMENTS_EXPANSION_PROFILE);
-            build_call_argument_expansion_profile(
+            resolve_regular_call_argument_expansion_profile(
                 f.context(),
                 call_node_id,
                 dynamic_arguments,
-                CallArgumentExpansionMode::Regular,
-                Some(has_call_infix_annotations),
-                Some(has_line_comment_annotations),
-                Some(force_expand_single_long_with_static_arguments),
-                Some(force_expand_single_collection_for_type_binary_callee),
-                Some(has_leading_block_callback_with_simple_tail),
+                has_call_infix_annotations,
+                has_line_comment_annotations,
+                force_expand_single_long_with_static_arguments,
+                force_expand_single_collection_for_type_binary_callee,
+                has_leading_block_callback_with_simple_tail,
             )
         };
         let force_expand = expansion_profile.force_expand;
@@ -1349,6 +1455,15 @@ pub(super) fn format_call_arguments<'ast>(
                 } else {
                     None
                 };
+                let inline_call_min_len = if is_expression_chain(f.context().tree, call_node_id) {
+                    None
+                } else {
+                    call_inline_min_len_without_static_arguments(
+                        f.context(),
+                        call_node_id,
+                        dynamic_arguments,
+                    )
+                };
                 let last_argument_id = dynamic_arguments.last().copied();
                 let last_argument_is_collection_literal =
                     last_argument_id.is_some_and(|argument_id| {
@@ -1382,6 +1497,12 @@ pub(super) fn format_call_arguments<'ast>(
                     f.context()
                         .increment_counter("profile.call.arguments.path.hug_last_fast", 1);
                     hug_last_format.format(f)?;
+                } else if inline_call_min_len.is_some_and(|inline_len| inline_len > line_width) {
+                    f.context().increment_counter(
+                        "profile.call.arguments.hug_last.skip_probe_overflow_min",
+                        1,
+                    );
+                    list_format.format(f)?;
                 } else if last_argument_is_collection_literal
                     && leading_arguments_are_compact_simple
                 {
@@ -1867,6 +1988,14 @@ pub(super) fn call_arguments_force_expand_for_chain(
         context.call_chain_argument_expand_cache.borrow()[call_node_id.id as usize]
     {
         context.increment_counter("profile.call_arguments.chain.cache.hits", 1);
+        context.increment_counter(
+            if force_expand {
+                "profile.call_arguments.chain.force_expand.true"
+            } else {
+                "profile.call_arguments.chain.force_expand.false"
+            },
+            1,
+        );
         return force_expand;
     }
 
@@ -1885,6 +2014,14 @@ pub(super) fn call_arguments_force_expand_for_chain(
     .force_expand;
     context.call_chain_argument_expand_cache.borrow_mut()[call_node_id.id as usize] =
         Some(force_expand);
+    context.increment_counter(
+        if force_expand {
+            "profile.call_arguments.chain.force_expand.true"
+        } else {
+            "profile.call_arguments.chain.force_expand.false"
+        },
+        1,
+    );
 
     force_expand
 }

@@ -233,8 +233,6 @@ pub(super) struct HugOptions {
     pub(super) allow_arrow_functions: bool,
     /// Whether to handle annotations.
     pub(super) handle_annotations: bool,
-    /// Whether to prefer hugged layout directly when inline is clearly too wide.
-    pub(super) prefer_hugged_on_overflow: bool,
 }
 
 impl HugOptions {
@@ -245,7 +243,6 @@ impl HugOptions {
         trailing_if_breaks: false,
         allow_arrow_functions: true,
         handle_annotations: true,
-        prefer_hugged_on_overflow: true,
     };
 
     pub(super) const ARRAY: Self = Self {
@@ -255,7 +252,6 @@ impl HugOptions {
         trailing_if_breaks: false,
         allow_arrow_functions: false,
         handle_annotations: false,
-        prefer_hugged_on_overflow: false,
     };
 
     pub(super) const TUPLE: Self = Self {
@@ -265,7 +261,6 @@ impl HugOptions {
         trailing_if_breaks: false,
         allow_arrow_functions: false,
         handle_annotations: false,
-        prefer_hugged_on_overflow: false,
     };
 }
 
