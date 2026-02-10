@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{expression_is_global_qualified_member, expression_target_symbol};
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow console usage.
@@ -17,7 +17,7 @@ declare_lint! {
         level = Dir,
         requires_all = [RequireLibSymbol("console", &["dom", "node"])],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Off,
         stability = Stable
     )]
@@ -98,18 +98,25 @@ impl<'a, 'b> NoConsoleVisitor<'a, 'b> {
 
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
-        self.ctx.report(
-            LintDiagnostic::new(
-                NO_CONSOLE.id,
-                NO_CONSOLE.code,
-                NO_CONSOLE.category,
-                severity,
-                "console usage",
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label("remove console usage"),
-        );
+        let mut diagnostic = LintDiagnostic::new(
+            NO_CONSOLE.id,
+            NO_CONSOLE.code,
+            NO_CONSOLE.category,
+            severity,
+            "console usage",
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label("remove console usage");
+
+        // compute fixes only when requested by the runner
+        if self.ctx.include_fixes
+            && let Some(fix) = no_console_fix(self.ctx, expression_id)
+        {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
     }
 
     /// Return true when the expression is a console reference.
@@ -133,6 +140,55 @@ impl<'a, 'b> NoConsoleVisitor<'a, 'b> {
     fn is_member_left(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         self.member_left_stack.contains(&expression_id)
     }
+}
+
+/// Build an unsafe fix by removing one standalone console statement.
+fn no_console_fix(
+    ctx: &LintModuleDirContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<LintFix> {
+    let parent = ctx.tree.get_parent(expression_id.id)?;
+    if parent.ty != dir::NodeType::Expression {
+        return None;
+    }
+
+    let parent_id = parent.into_typed::<dir::Expression>();
+    let parent_expression = ctx.tree.get(parent_id);
+
+    // remove `console...;` when the reported expression is directly statement scoped
+    if let dir::Expression::Statement { statement } = parent_expression
+        && *statement == expression_id
+    {
+        let statement_span = ctx.get_span(parent_id);
+        let edits = ctx.edit_builder().delete(statement_span).into_edits();
+        return Some(LintFix::r#unsafe("Remove console statement").with_edits(edits));
+    }
+
+    // remove call statements when the reported expression is the call callee
+    let dir::Expression::Call { left, .. } = parent_expression else {
+        return None;
+    };
+    if *left != expression_id {
+        return None;
+    }
+
+    let grandparent = ctx.tree.get_parent(parent_id.id)?;
+    if grandparent.ty != dir::NodeType::Expression {
+        return None;
+    }
+
+    let grandparent_id = grandparent.into_typed::<dir::Expression>();
+    let grandparent_expression = ctx.tree.get(grandparent_id);
+    let dir::Expression::Statement { statement } = grandparent_expression else {
+        return None;
+    };
+    if *statement != parent_id {
+        return None;
+    }
+
+    let statement_span = ctx.get_span(grandparent_id);
+    let edits = ctx.edit_builder().delete(statement_span).into_edits();
+    Some(LintFix::r#unsafe("Remove console statement").with_edits(edits))
 }
 
 impl NodeVisitor for NoConsoleVisitor<'_, '_> {
@@ -184,7 +240,9 @@ mod tests {
 console.log("debug");
 "#,
         );
-        test.result(result).assert_lint("no-console");
+        test.result(result)
+            .assert_lint("no-console")
+            .assert_has_fix("no-console");
     }
 
     /// Report global console usage.
@@ -197,7 +255,9 @@ console.log("debug");
 globalThis.console.error("oops");
 "#,
         );
-        test.result(result).assert_lint("no-console");
+        test.result(result)
+            .assert_lint("no-console")
+            .assert_has_fix("no-console");
     }
 
     /// Allow other member access.
@@ -211,5 +271,65 @@ logger.info("ok");
 "#,
         );
         test.result(result).assert_no_lint("no-console");
+    }
+
+    /// Unsafely remove standalone console statements.
+    #[test]
+    fn test_fix_removes_console_statement() {
+        let test = TestProgram::for_rule_with_prelude(NoConsole);
+        let result = test.lint_dir(
+            "no_console/test_fix_removes_console_statement.ds",
+            r#"
+console.log("debug");
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-console")
+            .assert_unsafe_fixed(r#""#);
+    }
+
+    /// Unsafely remove standalone global console statements.
+    #[test]
+    fn test_fix_removes_global_console_statement() {
+        let test = TestProgram::for_rule_with_prelude(NoConsole);
+        let result = test.lint_dir(
+            "no_console/test_fix_removes_global_console_statement.ds",
+            r#"
+globalThis.console.error("oops");
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-console")
+            .assert_unsafe_fixed(r#""#);
+    }
+
+    /// Do not auto-fix console references when used as values.
+    #[test]
+    fn test_no_fix_when_console_value_is_used() {
+        let test = TestProgram::for_rule_with_prelude(NoConsole);
+        let result = test.lint_dir(
+            "no_console/test_no_fix_when_console_value_is_used.ds",
+            r#"
+const logRef = console.log;
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-console")
+            .assert_has_no_fix("no-console");
+    }
+
+    /// Mutation: detect method variants on console statements.
+    #[test]
+    fn test_mutation_detects_console_warn_statement() {
+        let test = TestProgram::for_rule_with_prelude(NoConsole);
+        let result = test.lint_dir(
+            "no_console/test_mutation_detects_console_warn_statement.ds",
+            r#"
+console.warn("warning");
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-console")
+            .assert_unsafe_fixed(r#""#);
     }
 }

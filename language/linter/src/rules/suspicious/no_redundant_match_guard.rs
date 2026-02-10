@@ -1,7 +1,8 @@
 use destack_ast as ast;
+use destack_source::Span;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow match guards that are always true or false.
@@ -16,7 +17,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Always,
         stability = Stable
     )]
@@ -42,7 +43,7 @@ impl LintRule for NoRedundantMatchGuard {
                 ast::MatchCase::Block { selector, .. } => selector,
             };
 
-            let ast::MatchSelector::Pattern { guard, .. } = selector else {
+            let ast::MatchSelector::Pattern { pattern, guard } = selector else {
                 continue;
             };
 
@@ -65,20 +66,49 @@ impl LintRule for NoRedundantMatchGuard {
                 ("match guard is always false", "this arm will never match")
             };
 
-            ctx.report(
-                LintDiagnostic::new(
-                    NO_REDUNDANT_MATCH_GUARD.id,
-                    NO_REDUNDANT_MATCH_GUARD.code,
-                    NO_REDUNDANT_MATCH_GUARD.category,
-                    severity,
-                    message,
-                    ctx.module.file_id,
-                    ctx.tree.get_span(*guard_id),
-                )
-                .with_label(label),
-            );
+            let mut diagnostic = LintDiagnostic::new(
+                NO_REDUNDANT_MATCH_GUARD.id,
+                NO_REDUNDANT_MATCH_GUARD.code,
+                NO_REDUNDANT_MATCH_GUARD.category,
+                severity,
+                message,
+                ctx.module.file_id,
+                ctx.tree.get_span(*guard_id),
+            )
+            .with_label(label);
+
+            // remove guards that are always true
+            if is_truthy
+                && ctx.compute_fixes
+                && let Some(fix) = redundant_true_guard_fix(ctx, *pattern, *guard_id)
+            {
+                diagnostic = diagnostic.with_fix(fix);
+            }
+
+            ctx.report(diagnostic);
         }
     }
+}
+
+/// Build a safe fix for one always true match guard.
+fn redundant_true_guard_fix(
+    ctx: &LintModuleAstContext<'_>,
+    pattern_id: ast::LocalNodeId<ast::Pattern>,
+    guard_id: ast::LocalNodeId<ast::Expression>,
+) -> Option<LintFix> {
+    let pattern_span = ctx.tree.get_span(pattern_id);
+    let guard_span = ctx.tree.get_span(guard_id);
+    if pattern_span.file != guard_span.file || pattern_span.end > guard_span.end {
+        return None;
+    }
+
+    let remove_span = Span::new(pattern_span.file, pattern_span.end, guard_span.end);
+    if remove_span.is_empty() {
+        return None;
+    }
+
+    let edits = ctx.edit_builder().delete(remove_span).into_edits();
+    Some(LintFix::safe("Remove always true match guard").with_edits(edits))
 }
 
 #[cfg(test)]
@@ -102,6 +132,31 @@ match (x) {
     }
 
     #[test]
+    fn test_fix_removes_always_true_guard() {
+        let test = TestProgram::for_rule_without_prelude(NoRedundantMatchGuard);
+        let result = test.lint_ast(
+            "no_redundant_match_guard/test_fix_removes_always_true_guard.ds",
+            r#"
+match (x) {
+    1 if true => "one"
+    _ => "other"
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-redundant-match-guard")
+            .assert_has_fix("no-redundant-match-guard")
+            .assert_safe_fixed(
+                r#"
+match (x) {
+    1 => "one"
+    _ => "other"
+}
+"#,
+            );
+    }
+
+    #[test]
     fn test_detects_guard_false() {
         let test = TestProgram::for_rule_without_prelude(NoRedundantMatchGuard);
         let result = test.lint_ast(
@@ -113,7 +168,9 @@ match (x) {
 }
 "#,
         );
-        test.result(result).assert_lint("no-redundant-match-guard");
+        test.result(result)
+            .assert_lint("no-redundant-match-guard")
+            .assert_has_no_fix("no-redundant-match-guard");
     }
 
     #[test]
@@ -128,7 +185,17 @@ match (x) {
 }
 "#,
         );
-        test.result(result).assert_lint("no-redundant-match-guard");
+        test.result(result)
+            .assert_lint("no-redundant-match-guard")
+            .assert_has_fix("no-redundant-match-guard")
+            .assert_safe_fixed(
+                r#"
+match (x) {
+    1 => "one"
+    _ => "other"
+}
+"#,
+            );
     }
 
     #[test]

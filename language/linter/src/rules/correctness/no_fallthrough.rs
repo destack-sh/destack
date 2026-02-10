@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow fallthrough from one switch case to another.
@@ -15,7 +15,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Always,
         recommended = Always,
         stability = Stable
     )]
@@ -59,20 +59,25 @@ impl LintRule for NoFallthrough {
                             // empty block falls through
                             let severity = ctx.get_effective_severity(meta, node_id);
                             if severity.is_enabled() {
-                                ctx.report(
-                                    LintDiagnostic::new(
-                                        NO_FALLTHROUGH.id,
-                                        NO_FALLTHROUGH.code,
-                                        NO_FALLTHROUGH.category,
-                                        severity,
-                                        "empty case falls through to next case",
-                                        ctx.module.file_id,
-                                        ctx.tree.get_span(*case_id),
-                                    )
-                                    .with_label(
-                                        "add a `break` statement or `// fallthrough` comment",
-                                    ),
-                                );
+                                let mut diagnostic = LintDiagnostic::new(
+                                    NO_FALLTHROUGH.id,
+                                    NO_FALLTHROUGH.code,
+                                    NO_FALLTHROUGH.category,
+                                    severity,
+                                    "empty case falls through to next case",
+                                    ctx.module.file_id,
+                                    ctx.tree.get_span(*case_id),
+                                )
+                                .with_label("add a `break` statement or `// fallthrough` comment");
+
+                                // compute fixes only when requested by the runner
+                                if ctx.compute_fixes
+                                    && let Some(fix) = no_fallthrough_fix(ctx, *case_id)
+                                {
+                                    diagnostic = diagnostic.with_fix(fix);
+                                }
+
+                                ctx.report(diagnostic);
                             }
                             continue;
                         }
@@ -91,22 +96,47 @@ impl LintRule for NoFallthrough {
                     if !severity.is_enabled() {
                         continue;
                     }
-                    ctx.report(
-                        LintDiagnostic::new(
-                            NO_FALLTHROUGH.id,
-                            NO_FALLTHROUGH.code,
-                            NO_FALLTHROUGH.category,
-                            severity,
-                            "case falls through to next case",
-                            ctx.module.file_id,
-                            ctx.tree.get_span(*case_id),
-                        )
-                        .with_label("add a `break` statement or `// fallthrough` comment"),
-                    );
+                    let mut diagnostic = LintDiagnostic::new(
+                        NO_FALLTHROUGH.id,
+                        NO_FALLTHROUGH.code,
+                        NO_FALLTHROUGH.category,
+                        severity,
+                        "case falls through to next case",
+                        ctx.module.file_id,
+                        ctx.tree.get_span(*case_id),
+                    )
+                    .with_label("add a `break` statement or `// fallthrough` comment");
+
+                    // compute fixes only when requested by the runner
+                    if ctx.compute_fixes
+                        && let Some(fix) = no_fallthrough_fix(ctx, *case_id)
+                    {
+                        diagnostic = diagnostic.with_fix(fix);
+                    }
+
+                    ctx.report(diagnostic);
                 }
             }
         }
     }
+}
+
+/// Build an unsafe fix by inserting `break;` at the end of a switch case.
+fn no_fallthrough_fix(
+    ctx: &LintModuleAstContext<'_>,
+    case_id: ast::LocalNodeId<ast::MatchCase>,
+) -> Option<LintFix> {
+    let case_span = ctx.tree.get_span(case_id);
+    let case_text = ctx.get_span_text(case_span);
+    if case_text.trim().is_empty() {
+        return None;
+    }
+
+    let edits = ctx
+        .edit_builder()
+        .insert(case_span.end, "\n        break;")
+        .into_edits();
+    Some(LintFix::r#unsafe("Insert break to prevent fallthrough").with_edits(edits))
 }
 
 /// Check if an expression ends with a terminating statement.
@@ -176,7 +206,9 @@ switch (x) {
 }
 "#,
         );
-        test.result(result).assert_lint("no-fallthrough");
+        test.result(result)
+            .assert_lint("no-fallthrough")
+            .assert_has_fix("no-fallthrough");
     }
 
     #[test]
@@ -270,5 +302,101 @@ match (x) {
 "#,
         );
         test.result(result).assert_no_lint("no-fallthrough");
+    }
+
+    #[test]
+    fn test_fix_inserts_break_for_fallthrough_case() {
+        let test = TestProgram::for_rule_without_prelude(NoFallthrough);
+        let result = test.lint_ast(
+            "no_fallthrough/test_fix_inserts_break_for_fallthrough_case.ds",
+            r#"
+let x = 1;
+switch (x) {
+    case 1:
+        console.log("one");
+    case 2:
+        console.log("two");
+        break;
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-fallthrough")
+            .assert_unsafe_fixed(
+                r#"
+let x = 1;
+switch (x) {
+    case 1: {
+        console.log("one")
+        break
+    }
+    case 2: {
+        console.log("two")
+        break
+    }
+}
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_inserts_break_for_empty_case() {
+        let test = TestProgram::for_rule_without_prelude(NoFallthrough);
+        let result = test.lint_ast(
+            "no_fallthrough/test_fix_inserts_break_for_empty_case.ds",
+            r#"
+let x = 1;
+switch (x) {
+    case 1:
+    case 2:
+        break;
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-fallthrough")
+            .assert_unsafe_fixed(
+                r#"
+let x = 1;
+switch (x) {
+    case 1: break
+    case 2: break
+}
+"#,
+            );
+    }
+
+    #[test]
+    fn test_mutation_fix_inserts_break_in_middle_case() {
+        let test = TestProgram::for_rule_without_prelude(NoFallthrough);
+        let result = test.lint_ast(
+            "no_fallthrough/test_mutation_fix_inserts_break_in_middle_case.ds",
+            r#"
+let x = 2;
+switch (x) {
+    case 1:
+        break;
+    case 2:
+        console.log("two");
+    case 3:
+        break;
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-fallthrough")
+            .assert_unsafe_fixed(
+                r#"
+let x = 2;
+switch (x) {
+    case 1: break
+    case 2: {
+        console.log("two")
+        break
+    }
+    case 3: break
+}
+"#,
+            );
     }
 }

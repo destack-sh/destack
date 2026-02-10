@@ -4,7 +4,7 @@ use destack_ast::{
 };
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow returning a value from a constructor.
@@ -18,7 +18,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Always,
         stability = Stable
     )]
@@ -71,18 +71,25 @@ impl LintRule for NoConstructorReturn {
                     continue;
                 }
 
-                ctx.report(
-                    LintDiagnostic::new(
-                        NO_CONSTRUCTOR_RETURN.id,
-                        NO_CONSTRUCTOR_RETURN.code,
-                        NO_CONSTRUCTOR_RETURN.category,
-                        severity,
-                        "return with value in constructor",
-                        ctx.module.file_id,
-                        ctx.tree.get_span(return_id),
-                    )
-                    .with_label("constructors should not return values"),
-                );
+                let mut diagnostic = LintDiagnostic::new(
+                    NO_CONSTRUCTOR_RETURN.id,
+                    NO_CONSTRUCTOR_RETURN.code,
+                    NO_CONSTRUCTOR_RETURN.category,
+                    severity,
+                    "return with value in constructor",
+                    ctx.module.file_id,
+                    ctx.tree.get_span(return_id),
+                )
+                .with_label("constructors should not return values");
+
+                // compute fixes only when requested by the runner
+                if ctx.compute_fixes
+                    && let Some(fix) = no_constructor_return_fix(ctx, return_id)
+                {
+                    diagnostic = diagnostic.with_fix(fix);
+                }
+
+                ctx.report(diagnostic);
             }
         }
     }
@@ -123,6 +130,35 @@ impl NodeVisitor for ConstructorReturnVisitor {
     }
 }
 
+/// Build an unsafe fix for one constructor return value.
+fn no_constructor_return_fix(
+    ctx: &LintModuleAstContext<'_>,
+    return_id: ast::LocalNodeId<ast::Expression>,
+) -> Option<LintFix> {
+    let return_expression = ctx.tree.get(return_id);
+    let Expression::Return {
+        value: Some(value_id),
+    } = return_expression
+    else {
+        return None;
+    };
+
+    let value_span = ctx.tree.get_span(*value_id);
+    let value_text = ctx.get_span_text(value_span);
+    if value_text.trim().is_empty() {
+        return None;
+    }
+
+    let replacement = format!("{{ ({value_text}); return; }}");
+    let return_span = ctx.tree.get_span(return_id);
+    let edits = ctx
+        .edit_builder()
+        .replace(return_span, replacement)
+        .into_edits();
+
+    Some(LintFix::r#unsafe("Drop constructor return value").with_edits(edits))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -141,7 +177,9 @@ class Foo {
 }
 "#,
         );
-        test.result(result).assert_lint("no-constructor-return");
+        test.result(result)
+            .assert_lint("no-constructor-return")
+            .assert_has_fix("no-constructor-return");
     }
 
     #[test]
@@ -214,5 +252,96 @@ class Foo {
 "#,
         );
         test.result(result).assert_no_lint("no-constructor-return");
+    }
+
+    #[test]
+    fn test_fix_rewrites_constructor_return_value() {
+        let test = TestProgram::for_rule_without_prelude(NoConstructorReturn);
+        let result = test.lint_ast(
+            "no_constructor_return/test_fix_rewrites_constructor_return_value.ds",
+            r#"
+class Foo {
+    constructor() {
+        return makeValue()
+    }
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-constructor-return")
+            .assert_unsafe_fixed(
+                r#"
+class Foo {
+    constructor() {
+        {
+            (makeValue());
+            return;
+        }
+    }
+}
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_preserves_object_literal_side_effect_expression() {
+        let test = TestProgram::for_rule_without_prelude(NoConstructorReturn);
+        let result = test.lint_ast(
+            "no_constructor_return/test_fix_preserves_object_literal_side_effect_expression.ds",
+            r#"
+class Foo {
+    constructor() {
+        return { value: buildValue() }
+    }
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-constructor-return")
+            .assert_unsafe_fixed(
+                r#"
+class Foo {
+    constructor() {
+        {
+            ({ value: buildValue() });
+            return;
+        }
+    }
+}
+"#,
+            );
+    }
+
+    #[test]
+    fn test_mutation_detects_constructor_return_in_conditional() {
+        let test = TestProgram::for_rule_without_prelude(NoConstructorReturn);
+        let result = test.lint_ast(
+            "no_constructor_return/test_mutation_detects_constructor_return_in_conditional.ds",
+            r#"
+class Foo {
+    constructor(shouldReturn: boolean) {
+        if (shouldReturn) {
+            return makeValue()
+        }
+    }
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-constructor-return")
+            .assert_unsafe_fixed(
+                r#"
+class Foo {
+    constructor(shouldReturn: boolean) {
+        if (shouldReturn) {
+            {
+                (makeValue());
+                return;
+            }
+        }
+    }
+}
+"#,
+            );
     }
 }

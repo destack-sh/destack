@@ -7,7 +7,7 @@ use crate::rules::common::{
     expression_is_global_qualified_member, expression_target_symbol,
     expression_unwrap_parenthesized,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow JSON parse stringify clones.
@@ -20,7 +20,7 @@ declare_lint! {
         level = Dir,
         requires_all = [RequireLibSymbol("JSON", &[])],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -127,18 +127,27 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
 
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
-        self.ctx.report(
-            LintDiagnostic::new(
-                NO_JSON_CLONE.id,
-                NO_JSON_CLONE.code,
-                NO_JSON_CLONE.category,
-                severity,
-                "JSON clone usage",
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label("use a structured clone or manual copy"),
-        );
+        let mut diagnostic = LintDiagnostic::new(
+            NO_JSON_CLONE.id,
+            NO_JSON_CLONE.code,
+            NO_JSON_CLONE.category,
+            severity,
+            "JSON clone usage",
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label("use a structured clone or manual copy");
+
+        // compute fixes only when requested by the runner
+        if self.ctx.include_fixes
+            && let Some(stringify_argument_id) = self.json_stringify_argument(argument_id)
+            && let Some(fix) =
+                self.no_json_clone_fix(expression_id, arguments, stringify_argument_id)
+        {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
     }
 
     /// Return true when the expression is a JSON member access.
@@ -183,6 +192,64 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
 
         self.is_json_member(*left, self.stringify_name)
     }
+
+    /// Resolve the argument passed to a JSON.stringify call.
+    fn json_stringify_argument(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<dir::LocalNodeId<dir::Expression>> {
+        // match call expressions
+        let expression = self.ctx.tree.get(expression_id);
+        let dir::Expression::Call {
+            left,
+            dynamic_arguments,
+            ..
+        } = expression
+        else {
+            return None;
+        };
+        if dynamic_arguments.len() != 1 {
+            return None;
+        }
+
+        if !self.is_json_member(*left, self.stringify_name) {
+            return None;
+        }
+
+        let argument = self.ctx.tree.get(dynamic_arguments[0]);
+        Some(expression_unwrap_parenthesized(
+            self.ctx.tree,
+            argument.value(),
+        ))
+    }
+
+    /// Build an unsafe fix that rewrites JSON parse stringify clones.
+    fn no_json_clone_fix(
+        &self,
+        parse_call_id: dir::LocalNodeId<dir::Expression>,
+        parse_arguments: &[dir::LocalNodeId<dir::Argument>],
+        stringify_argument_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<LintFix> {
+        // only rewrite canonical single argument parse calls
+        if parse_arguments.len() != 1 {
+            return None;
+        }
+
+        let argument_span = self.ctx.get_span(stringify_argument_id);
+        let argument_text = self.ctx.get_span_text(argument_span);
+        if argument_text.trim().is_empty() {
+            return None;
+        }
+
+        let replacement = format!("structuredClone({argument_text})");
+        let parse_call_span = self.ctx.get_span(parse_call_id);
+        let edits = self
+            .ctx
+            .edit_builder()
+            .replace(parse_call_span, replacement)
+            .into_edits();
+        Some(LintFix::r#unsafe("Replace JSON clone with structuredClone").with_edits(edits))
+    }
 }
 
 impl NodeVisitor for NoJsonCloneVisitor<'_, '_> {
@@ -226,7 +293,9 @@ mod tests {
 const next = JSON.parse(JSON.stringify(value));
 "#,
         );
-        test.result(result).assert_lint("no-json-clone");
+        test.result(result)
+            .assert_lint("no-json-clone")
+            .assert_has_fix("no-json-clone");
     }
 
     /// Report global JSON clone usage.
@@ -239,7 +308,9 @@ const next = JSON.parse(JSON.stringify(value));
 const next = globalThis.JSON.parse(globalThis.JSON.stringify(value));
 "#,
         );
-        test.result(result).assert_lint("no-json-clone");
+        test.result(result)
+            .assert_lint("no-json-clone")
+            .assert_has_fix("no-json-clone");
     }
 
     /// Allow JSON.parse without stringify.
@@ -253,5 +324,73 @@ const parsed = JSON.parse(text);
 "#,
         );
         test.result(result).assert_no_lint("no-json-clone");
+    }
+
+    /// Unsafely rewrite JSON clone calls to structuredClone.
+    #[test]
+    fn test_fix_rewrites_json_clone() {
+        let test = TestProgram::for_rule_with_prelude(NoJsonClone);
+        let result = test.lint_dir(
+            "no_json_clone/test_fix_rewrites_json_clone.ds",
+            r#"
+const next = JSON.parse(JSON.stringify(value));
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-json-clone")
+            .assert_unsafe_fixed(
+                r#"
+const next = structuredClone(value);
+"#,
+            );
+    }
+
+    /// Do not auto-fix parse calls that use a reviver.
+    #[test]
+    fn test_no_fix_when_parse_has_reviver() {
+        let test = TestProgram::for_rule_with_prelude(NoJsonClone);
+        let result = test.lint_dir(
+            "no_json_clone/test_no_fix_when_parse_has_reviver.ds",
+            r#"
+const next = JSON.parse(JSON.stringify(value), reviver);
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-json-clone")
+            .assert_has_no_fix("no-json-clone");
+    }
+
+    /// Do not auto-fix stringify calls that use replacers.
+    #[test]
+    fn test_no_fix_when_stringify_has_replacer() {
+        let test = TestProgram::for_rule_with_prelude(NoJsonClone);
+        let result = test.lint_dir(
+            "no_json_clone/test_no_fix_when_stringify_has_replacer.ds",
+            r#"
+const next = JSON.parse(JSON.stringify(value, replacer));
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-json-clone")
+            .assert_has_no_fix("no-json-clone");
+    }
+
+    /// Mutation: rewrite global JSON clone references.
+    #[test]
+    fn test_mutation_fix_rewrites_global_json_clone() {
+        let test = TestProgram::for_rule_with_prelude(NoJsonClone);
+        let result = test.lint_dir(
+            "no_json_clone/test_mutation_fix_rewrites_global_json_clone.ds",
+            r#"
+const next = globalThis.JSON.parse(globalThis.JSON.stringify(source));
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-json-clone")
+            .assert_unsafe_fixed(
+                r#"
+const next = structuredClone(source);
+"#,
+            );
     }
 }

@@ -3,7 +3,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::is_array_type;
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow deleting array elements.
@@ -16,7 +16,7 @@ declare_lint! {
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Always,
         stability = Stable
     )]
@@ -102,19 +102,69 @@ impl<'a, 'b> ArrayDeleteVisitor<'a, 'b> {
 
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
-        self.ctx.report(
-            LintDiagnostic::new(
-                NO_ARRAY_DELETE.id,
-                NO_ARRAY_DELETE.code,
-                NO_ARRAY_DELETE.category,
-                severity,
-                "avoid deleting array elements",
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label("use a method like `splice` instead"),
-        );
+        let mut diagnostic = LintDiagnostic::new(
+            NO_ARRAY_DELETE.id,
+            NO_ARRAY_DELETE.code,
+            NO_ARRAY_DELETE.category,
+            severity,
+            "avoid deleting array elements",
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label("use a method like `splice` instead");
+
+        // compute fixes only when requested by the runner
+        if self.ctx.include_fixes
+            && let Some(fix) = no_array_delete_fix(self.ctx, expression_id, target_id)
+        {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
     }
+}
+
+/// Build an unsafe fix for standalone `delete array[index]` statements.
+fn no_array_delete_fix(
+    ctx: &LintModuleDirContext<'_>,
+    delete_id: dir::LocalNodeId<dir::Expression>,
+    target_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<LintFix> {
+    let parent = ctx.tree.get_parent(delete_id.id)?;
+    if parent.ty != dir::NodeType::Expression {
+        return None;
+    }
+
+    let parent_id = parent.into_typed::<dir::Expression>();
+    let parent_expression = ctx.tree.get(parent_id);
+    let dir::Expression::Statement { statement } = parent_expression else {
+        return None;
+    };
+    if *statement != delete_id {
+        return None;
+    }
+
+    let target_expression = ctx.tree.get(target_id);
+    let dir::Expression::Index { left, right } = target_expression else {
+        return None;
+    };
+    let right_id = (*right)?;
+
+    let left_span = ctx.get_span(*left);
+    let right_span = ctx.get_span(right_id);
+    let left_text = ctx.get_span_text(left_span);
+    let right_text = ctx.get_span_text(right_span);
+    if left_text.trim().is_empty() || right_text.trim().is_empty() {
+        return None;
+    }
+
+    let replacement = format!("{left_text}.splice({right_text}, 1)");
+    let delete_span = ctx.get_span(delete_id);
+    let edits = ctx
+        .edit_builder()
+        .replace(delete_span, replacement)
+        .into_edits();
+    Some(LintFix::r#unsafe("Replace delete with splice").with_edits(edits))
 }
 
 impl NodeVisitor for ArrayDeleteVisitor<'_, '_> {
@@ -154,7 +204,9 @@ delete items[0];
 "#,
         );
         test.check_clean();
-        test.result(result).assert_lint("no-array-delete");
+        test.result(result)
+            .assert_lint("no-array-delete")
+            .assert_has_fix("no-array-delete");
     }
 
     #[test]
@@ -169,5 +221,65 @@ delete item.value;
         );
         test.check_clean();
         test.result(result).assert_no_lint("no-array-delete");
+    }
+
+    #[test]
+    fn test_fix_rewrites_delete_array_element() {
+        let test = TestProgram::for_rule_without_prelude(NoArrayDelete);
+        let result = test.lint_dir(
+            "no_array_delete/test_fix_rewrites_delete_array_element.ds",
+            r#"
+let items = [1, 2, 3];
+delete items[0];
+"#,
+        );
+        test.check_clean();
+        test.result(result)
+            .assert_lint("no-array-delete")
+            .assert_unsafe_fixed(
+                r#"
+let items = [1, 2, 3];
+items.splice(0, 1);
+"#,
+            );
+    }
+
+    #[test]
+    fn test_no_fix_when_delete_result_is_used() {
+        let test = TestProgram::for_rule_without_prelude(NoArrayDelete);
+        let result = test.lint_dir(
+            "no_array_delete/test_no_fix_when_delete_result_is_used.ds",
+            r#"
+let items = [1, 2, 3];
+let removed = delete items[0];
+"#,
+        );
+        test.check_clean();
+        test.result(result)
+            .assert_lint("no-array-delete")
+            .assert_has_no_fix("no-array-delete");
+    }
+
+    #[test]
+    fn test_mutation_fix_rewrites_delete_with_dynamic_index() {
+        let test = TestProgram::for_rule_without_prelude(NoArrayDelete);
+        let result = test.lint_dir(
+            "no_array_delete/test_mutation_fix_rewrites_delete_with_dynamic_index.ds",
+            r#"
+let items = [1, 2, 3];
+let index = 1;
+delete items[index];
+"#,
+        );
+        test.check_clean();
+        test.result(result)
+            .assert_lint("no-array-delete")
+            .assert_unsafe_fixed(
+                r#"
+let items = [1, 2, 3];
+let index = 1;
+items.splice(index, 1);
+"#,
+            );
     }
 }

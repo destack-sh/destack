@@ -8,7 +8,7 @@ use destack_source::ModuleId;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_target_symbol;
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Require `const` declarations for never-reassigned variables.
@@ -22,7 +22,7 @@ declare_lint! {
         level = Dir,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Always,
         recommended = Strict,
         stability = Stable
     )]
@@ -64,22 +64,53 @@ impl LintRule for PreferConst {
                 continue;
             }
 
-            // report the diagnostic
             let span = ctx.get_span(expression_id);
-            ctx.report(
-                LintDiagnostic::new(
-                    PREFER_CONST.id,
-                    PREFER_CONST.code,
-                    PREFER_CONST.category,
-                    severity,
-                    "use const instead of let",
-                    ctx.module.file_id,
-                    span,
-                )
-                .with_label("this variable is never reassigned"),
-            );
+            let mut diagnostic = LintDiagnostic::new(
+                PREFER_CONST.id,
+                PREFER_CONST.code,
+                PREFER_CONST.category,
+                severity,
+                "use const instead of let",
+                ctx.module.file_id,
+                span,
+            )
+            .with_label("this variable is never reassigned");
+
+            // rewrite mutable declarations to const when possible
+            if ctx.include_fixes
+                && let Some(fix) = build_prefer_const_fix(ctx, expression_id)
+            {
+                diagnostic = diagnostic.with_fix(fix);
+            }
+
+            ctx.report(diagnostic);
         }
     }
+}
+
+/// Build a safe rewrite from `let` or `var` to `const`.
+fn build_prefer_const_fix(
+    ctx: &LintModuleDirContext<'_>,
+    expression_id: LocalNodeId<dir::Expression>,
+) -> Option<LintFix> {
+    let span = ctx.get_span(expression_id);
+    let expression_text = ctx.get_span_text(span);
+    let replacement = replace_binding_keyword_with_const(expression_text)?;
+    let edits = ctx.edit_builder().replace(span, replacement).into_edits();
+    Some(LintFix::safe("Replace with const declaration").with_edits(edits))
+}
+
+/// Replace the leading mutable declaration keyword with `const`.
+fn replace_binding_keyword_with_const(expression_text: &str) -> Option<String> {
+    if let Some(rest) = expression_text.strip_prefix("let") {
+        return Some(format!("const{rest}"));
+    }
+
+    if let Some(rest) = expression_text.strip_prefix("var") {
+        return Some(format!("const{rest}"));
+    }
+
+    None
 }
 
 /// Collector for let declarations.
@@ -255,6 +286,46 @@ let y = x + 1;
 "#,
         );
         test.result(result).assert_lint_count("prefer-const", 2);
+    }
+
+    /// Safely rewrite `let` bindings that are never reassigned.
+    #[test]
+    fn test_fix_rewrites_let_to_const() {
+        let test = TestProgram::for_rule_with_prelude(PreferConst);
+        let result = test.lint_dir(
+            "prefer_const/test_fix_rewrites_let_to_const.ds",
+            r#"
+let value = 1;
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-const")
+            .assert_has_fix("prefer-const")
+            .assert_safe_fixed(
+                r#"
+const value = 1;
+"#,
+            );
+    }
+
+    /// Safely rewrite legacy mutable declarations that are never reassigned.
+    #[test]
+    fn test_mutation_fix_rewrites_var_to_const() {
+        let test = TestProgram::for_rule_with_prelude(PreferConst);
+        let result = test.lint_dir(
+            "prefer_const/test_mutation_fix_rewrites_var_to_const.ds",
+            r#"
+var value = 1;
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-const")
+            .assert_has_fix("prefer-const")
+            .assert_safe_fixed(
+                r#"
+const value = 1;
+"#,
+            );
     }
 
     /// Allow let that is reassigned.

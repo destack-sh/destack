@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, BinaryOperator};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest simplifying comparisons.
@@ -14,7 +14,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Always,
         recommended = Strict,
         stability = Stable
     )]
@@ -35,101 +35,146 @@ impl LintRule for PreferSimplifiedComparison {
 
             let ast::Expression::Binary {
                 operator,
-                left: _,
+                left,
                 right,
             } = expression
             else {
                 continue;
             };
 
-            // check for >= or <= comparisons
-            let (simplify_msg, can_simplify) = match operator {
-                BinaryOperator::GreaterThanOrEqual => {
-                    // x >= y + 1 can be x > y
-                    let right_expr = ctx.tree.get(*right);
-                    if is_add_one(ctx, right_expr) {
-                        (Some("can simplify `>= y + 1` to `> y`"), true)
-                    } else {
-                        (None, false)
-                    }
-                }
-                BinaryOperator::LessThanOrEqual => {
-                    // x <= y - 1 can be x < y
-                    let right_expr = ctx.tree.get(*right);
-                    if is_sub_one(ctx, right_expr) {
-                        (Some("can simplify `<= y - 1` to `< y`"), true)
-                    } else {
-                        (None, false)
-                    }
-                }
-                BinaryOperator::GreaterThan => {
-                    // x > y - 1 can be x >= y
-                    let right_expr = ctx.tree.get(*right);
-                    if is_sub_one(ctx, right_expr) {
-                        (Some("can simplify `> y - 1` to `>= y`"), true)
-                    } else {
-                        (None, false)
-                    }
-                }
-                BinaryOperator::LessThan => {
-                    // x < y + 1 can be x <= y
-                    let right_expr = ctx.tree.get(*right);
-                    if is_add_one(ctx, right_expr) {
-                        (Some("can simplify `< y + 1` to `<= y`"), true)
-                    } else {
-                        (None, false)
-                    }
-                }
-                _ => (None, false),
+            // check for known simplification forms
+            let Some(simplification) = simplification_for_operator(ctx, *operator, *right) else {
+                continue;
             };
 
-            if can_simplify {
-                let severity = ctx.get_effective_severity(meta, node_id);
-                if !severity.is_enabled() {
-                    continue;
-                }
-
-                ctx.report(
-                    LintDiagnostic::new(
-                        PREFER_SIMPLIFIED_COMPARISON.id,
-                        PREFER_SIMPLIFIED_COMPARISON.code,
-                        PREFER_SIMPLIFIED_COMPARISON.category,
-                        severity,
-                        simplify_msg.unwrap_or("comparison can be simplified"),
-                        ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
-                    )
-                    .with_label("simplify this comparison"),
-                );
+            let severity = ctx.get_effective_severity(meta, node_id);
+            if !severity.is_enabled() {
+                continue;
             }
+
+            // build simplified replacement expression
+            let expression_span = ctx.tree.get_span(node_id);
+            let left_span = ctx.tree.get_span(*left);
+            let right_span = ctx.tree.get_span(simplification.simplified_right);
+            let left_text = ctx.get_span_text(left_span);
+            let right_text = ctx.get_span_text(right_span);
+            let replacement = format!("{left_text} {} {right_text}", simplification.operator_text);
+            let edits = ctx
+                .edit_builder()
+                .replace(expression_span, replacement)
+                .into_edits();
+            let fix = LintFix::safe("Simplify comparison by removing +/- 1").with_edits(edits);
+
+            ctx.report(
+                LintDiagnostic::new(
+                    PREFER_SIMPLIFIED_COMPARISON.id,
+                    PREFER_SIMPLIFIED_COMPARISON.code,
+                    PREFER_SIMPLIFIED_COMPARISON.category,
+                    severity,
+                    simplification.message,
+                    ctx.module.file_id,
+                    expression_span,
+                )
+                .with_label("simplify this comparison")
+                .with_fix(fix),
+            );
         }
     }
 }
 
-fn is_add_one(ctx: &LintModuleAstContext<'_>, expr: &ast::Expression) -> bool {
-    if let ast::Expression::Binary {
-        operator: BinaryOperator::Add,
-        right,
-        ..
-    } = expr
-    {
-        let right_expr = ctx.tree.get(*right);
-        return is_literal_one(right_expr);
-    }
-    false
+/// One simplification target for a comparison expression.
+#[derive(Debug, Clone, Copy)]
+struct ComparisonSimplification {
+    /// The replacement operator text.
+    operator_text: &'static str,
+    /// The diagnostic message.
+    message: &'static str,
+    /// The expression to keep on the right side.
+    simplified_right: ast::LocalNodeId<ast::Expression>,
 }
 
-fn is_sub_one(ctx: &LintModuleAstContext<'_>, expr: &ast::Expression) -> bool {
-    if let ast::Expression::Binary {
-        operator: BinaryOperator::Subtract,
-        right,
-        ..
-    } = expr
-    {
-        let right_expr = ctx.tree.get(*right);
-        return is_literal_one(right_expr);
+/// Return one simplification for a comparison operator and right-hand side.
+fn simplification_for_operator(
+    ctx: &LintModuleAstContext<'_>,
+    operator: BinaryOperator,
+    right_id: ast::LocalNodeId<ast::Expression>,
+) -> Option<ComparisonSimplification> {
+    match operator {
+        BinaryOperator::GreaterThanOrEqual => {
+            let base = right_add_or_sub_one(ctx, right_id, BinaryOperator::Add)?;
+            Some(ComparisonSimplification {
+                operator_text: ">",
+                message: "can simplify `>= y + 1` to `> y`",
+                simplified_right: base,
+            })
+        }
+        BinaryOperator::LessThanOrEqual => {
+            let base = right_add_or_sub_one(ctx, right_id, BinaryOperator::Subtract)?;
+            Some(ComparisonSimplification {
+                operator_text: "<",
+                message: "can simplify `<= y - 1` to `< y`",
+                simplified_right: base,
+            })
+        }
+        BinaryOperator::GreaterThan => {
+            let base = right_add_or_sub_one(ctx, right_id, BinaryOperator::Subtract)?;
+            Some(ComparisonSimplification {
+                operator_text: ">=",
+                message: "can simplify `> y - 1` to `>= y`",
+                simplified_right: base,
+            })
+        }
+        BinaryOperator::LessThan => {
+            let base = right_add_or_sub_one(ctx, right_id, BinaryOperator::Add)?;
+            Some(ComparisonSimplification {
+                operator_text: "<=",
+                message: "can simplify `< y + 1` to `<= y`",
+                simplified_right: base,
+            })
+        }
+        _ => None,
     }
-    false
+}
+
+/// Return the base expression id when one side is `base +/- 1`.
+fn right_add_or_sub_one(
+    ctx: &LintModuleAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+    operator: BinaryOperator,
+) -> Option<ast::LocalNodeId<ast::Expression>> {
+    let expression = unwrap_parenthesized(ctx, expression_id);
+    let ast::Expression::Binary {
+        left,
+        operator: inner_operator,
+        right,
+    } = ctx.tree.get(expression)
+    else {
+        return None;
+    };
+    if *inner_operator != operator {
+        return None;
+    }
+
+    let right_expression = unwrap_parenthesized(ctx, *right);
+    if !is_literal_one(ctx.tree.get(right_expression)) {
+        return None;
+    }
+
+    Some(*left)
+}
+
+/// Unwrap parenthesized expressions recursively.
+fn unwrap_parenthesized(
+    ctx: &LintModuleAstContext<'_>,
+    mut expression_id: ast::LocalNodeId<ast::Expression>,
+) -> ast::LocalNodeId<ast::Expression> {
+    loop {
+        let expression = ctx.tree.get(expression_id);
+        let ast::Expression::Parenthesized { expression } = expression else {
+            return expression_id;
+        };
+        expression_id = *expression;
+    }
 }
 
 fn is_literal_one(expr: &ast::Expression) -> bool {
@@ -156,7 +201,8 @@ function foo(x: int32, y: int32): bool {
 "#,
         );
         test.result(result)
-            .assert_lint("prefer-simplified-comparison");
+            .assert_lint("prefer-simplified-comparison")
+            .assert_has_fix("prefer-simplified-comparison");
     }
 
     #[test]
@@ -202,5 +248,115 @@ function foo(x: int32, y: int32): bool {
         );
         test.result(result)
             .assert_no_lint("prefer-simplified-comparison");
+    }
+
+    #[test]
+    fn test_fix_gte_plus_one() {
+        let test = TestProgram::for_rule_without_prelude(PreferSimplifiedComparison);
+        let result = test.lint_ast(
+            "prefer_simplified_comparison/test_fix_gte_plus_one.ds",
+            r#"
+function foo(x: int32, y: int32): bool {
+    return x >= y + 1
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-simplified-comparison")
+            .assert_safe_fixed(
+                r#"
+function foo(x: int32, y: int32): bool {
+    return x > y;
+}
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_lte_minus_one() {
+        let test = TestProgram::for_rule_without_prelude(PreferSimplifiedComparison);
+        let result = test.lint_ast(
+            "prefer_simplified_comparison/test_fix_lte_minus_one.ds",
+            r#"
+function foo(x: int32, y: int32): bool {
+    return x <= y - 1
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-simplified-comparison")
+            .assert_safe_fixed(
+                r#"
+function foo(x: int32, y: int32): bool {
+    return x < y;
+}
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_gt_minus_one() {
+        let test = TestProgram::for_rule_without_prelude(PreferSimplifiedComparison);
+        let result = test.lint_ast(
+            "prefer_simplified_comparison/test_fix_gt_minus_one.ds",
+            r#"
+function foo(x: int32, y: int32): bool {
+    return x > y - 1
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-simplified-comparison")
+            .assert_safe_fixed(
+                r#"
+function foo(x: int32, y: int32): bool {
+    return x >= y;
+}
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_lt_plus_one() {
+        let test = TestProgram::for_rule_without_prelude(PreferSimplifiedComparison);
+        let result = test.lint_ast(
+            "prefer_simplified_comparison/test_fix_lt_plus_one.ds",
+            r#"
+function foo(x: int32, y: int32): bool {
+    return x < y + 1
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-simplified-comparison")
+            .assert_safe_fixed(
+                r#"
+function foo(x: int32, y: int32): bool {
+    return x <= y;
+}
+"#,
+            );
+    }
+
+    #[test]
+    fn test_mutation_fix_parenthesized_rhs_expression() {
+        let test = TestProgram::for_rule_without_prelude(PreferSimplifiedComparison);
+        let result = test.lint_ast(
+            "prefer_simplified_comparison/test_mutation_fix_parenthesized_rhs_expression.ds",
+            r#"
+function foo(x: int32, y: int32, z: int32): bool {
+    return x >= (y + z) + 1
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-simplified-comparison")
+            .assert_safe_fixed(
+                r#"
+function foo(x: int32, y: int32, z: int32): bool {
+    return x > (y + z);
+}
+"#,
+            );
     }
 }

@@ -2,7 +2,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{expression_has_decorator, expression_unwrap_parenthesized};
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow ignoring return values from `@mustUse` APIs.
@@ -16,7 +16,7 @@ declare_lint! {
         level = Dir,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Always,
         recommended = Strict,
         stability = Stable,
         declarations = Exclude
@@ -72,9 +72,9 @@ impl<'a, 'b> UnusedMustUseVisitor<'a, 'b> {
     fn check_statement(
         &mut self,
         statement_id: dir::LocalNodeId<dir::Expression>,
-        expression_id: dir::LocalNodeId<dir::Expression>,
+        statement_expression_id: dir::LocalNodeId<dir::Expression>,
     ) {
-        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
+        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, statement_expression_id);
         let expression = self.ctx.tree.get(expression_id);
         if !matches!(
             expression,
@@ -103,19 +103,48 @@ impl<'a, 'b> UnusedMustUseVisitor<'a, 'b> {
         }
 
         let span = self.ctx.get_span(statement_id);
-        self.ctx.report(
-            LintDiagnostic::new(
-                UNUSED_MUST_USE.id,
-                UNUSED_MUST_USE.code,
-                UNUSED_MUST_USE.category,
-                severity,
-                "ignored return value from @mustUse API",
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label("use, return, or explicitly handle this result"),
-        );
+        let mut diagnostic = LintDiagnostic::new(
+            UNUSED_MUST_USE.id,
+            UNUSED_MUST_USE.code,
+            UNUSED_MUST_USE.category,
+            severity,
+            "ignored return value from @mustUse API",
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label("use, return, or explicitly handle this result");
+
+        // compute fixes only when requested by the runner
+        if self.ctx.include_fixes
+            && let Some(fix) = unused_must_use_fix(self.ctx, statement_expression_id)
+        {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
     }
+}
+
+/// Build a safe fix that explicitly discards the ignored result.
+fn unused_must_use_fix(
+    ctx: &LintModuleDirContext<'_>,
+    statement_expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<LintFix> {
+    // preserve the full replacement span, but normalize away wrapper parentheses
+    let replacement_span = ctx.get_span(statement_expression_id);
+    let normalized_id = expression_unwrap_parenthesized(ctx.tree, statement_expression_id);
+    let normalized_span = ctx.get_span(normalized_id);
+    let expression_text = ctx.get_span_text(normalized_span);
+    if expression_text.trim().is_empty() {
+        return None;
+    }
+
+    let replacement = format!("void {expression_text}");
+    let edits = ctx
+        .edit_builder()
+        .replace(replacement_span, replacement)
+        .into_edits();
+    Some(LintFix::safe("Explicitly discard the @mustUse result").with_edits(edits))
 }
 
 impl NodeVisitor for UnusedMustUseVisitor<'_, '_> {
@@ -157,7 +186,9 @@ function parse(): Result<int32, string> {
 parse()
 "#,
         );
-        test.result(result).assert_lint("unused-must-use");
+        test.result(result)
+            .assert_lint("unused-must-use")
+            .assert_has_fix("unused-must-use");
     }
 
     /// Allow @mustUse return values when assigned.
@@ -197,7 +228,9 @@ class Token {
 new Token(1)
 "#,
         );
-        test.result(result).assert_lint("unused-must-use");
+        test.result(result)
+            .assert_lint("unused-must-use")
+            .assert_has_fix("unused-must-use");
     }
 
     /// Allow non must-use calls.
@@ -214,5 +247,100 @@ ping()
 "#,
         );
         test.result(result).assert_no_lint("unused-must-use");
+    }
+
+    /// Safely prefix ignored must-use calls with `void`.
+    #[test]
+    fn test_fix_prefixes_ignored_must_use_call_with_void() {
+        let test = TestProgram::for_rule_with_prelude(UnusedMustUse);
+        let result = test.lint_dir(
+            "unused_must_use/test_fix_prefixes_ignored_must_use_call_with_void.ds",
+            r#"
+@mustUse
+function parse(): Result<int32, string> {
+    return Result.ok(1)
+}
+
+parse()
+"#,
+        );
+        test.result(result)
+            .assert_lint("unused-must-use")
+            .assert_safe_fixed(
+                r#"
+@mustUse
+function parse(): Result<int32, string> {
+    return Result.ok(1);
+}
+
+void parse();
+"#,
+            );
+    }
+
+    /// Safely prefix ignored must-use constructor calls with `void`.
+    #[test]
+    fn test_fix_prefixes_ignored_must_use_constructor_with_void() {
+        let test = TestProgram::for_rule_with_prelude(UnusedMustUse);
+        let result = test.lint_dir(
+            "unused_must_use/test_fix_prefixes_ignored_must_use_constructor_with_void.ds",
+            r#"
+@mustUse
+class Token {
+    value: int32
+
+    constructor(value: int32) {
+        this.value = value
+    }
+}
+
+new Token(1)
+"#,
+        );
+        test.result(result)
+            .assert_lint("unused-must-use")
+            .assert_safe_fixed(
+                r#"
+@mustUse
+class Token {
+    value: int32;
+
+    constructor(value: int32) {
+        this.value = value
+    }
+}
+
+void new Token(1);
+"#,
+            );
+    }
+
+    /// Mutation: fix parenthesized ignored must-use calls.
+    #[test]
+    fn test_mutation_fix_parenthesized_ignored_must_use_call() {
+        let test = TestProgram::for_rule_with_prelude(UnusedMustUse);
+        let result = test.lint_dir(
+            "unused_must_use/test_mutation_fix_parenthesized_ignored_must_use_call.ds",
+            r#"
+@mustUse
+function parse(): Result<int32, string> {
+    return Result.ok(1)
+}
+
+(parse())
+"#,
+        );
+        test.result(result)
+            .assert_lint("unused-must-use")
+            .assert_safe_fixed(
+                r#"
+@mustUse
+function parse(): Result<int32, string> {
+    return Result.ok(1);
+}
+
+void parse();
+"#,
+            );
     }
 }

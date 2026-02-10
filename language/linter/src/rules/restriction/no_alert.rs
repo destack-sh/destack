@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{expression_is_global_qualified_member, expression_target_symbol};
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow alert dialog browser calls.
@@ -21,7 +21,7 @@ declare_lint! {
             RequireLibSymbol("confirm", &["dom"]),
             RequireLibSymbol("prompt", &["dom"]),
         ],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Off,
         stability = Stable
     )]
@@ -135,18 +135,25 @@ impl<'a, 'b> NoAlertVisitor<'a, 'b> {
 
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
-        self.ctx.report(
-            LintDiagnostic::new(
-                NO_ALERT.id,
-                NO_ALERT.code,
-                NO_ALERT.category,
-                severity,
-                "alert dialog usage",
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label("avoid alert, confirm, and prompt calls"),
-        );
+        let mut diagnostic = LintDiagnostic::new(
+            NO_ALERT.id,
+            NO_ALERT.code,
+            NO_ALERT.category,
+            severity,
+            "alert dialog usage",
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label("avoid alert, confirm, and prompt calls");
+
+        // compute fixes only when requested by the runner
+        if self.ctx.include_fixes
+            && let Some(fix) = no_alert_fix(self.ctx, expression_id)
+        {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
     }
 
     /// Return true when the symbol is an alert dialog global.
@@ -199,6 +206,30 @@ impl<'a, 'b> NoAlertVisitor<'a, 'b> {
     }
 }
 
+/// Build an unsafe fix by removing one standalone alert call statement.
+fn no_alert_fix(
+    ctx: &LintModuleDirContext<'_>,
+    call_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<LintFix> {
+    let parent = ctx.tree.get_parent(call_id.id)?;
+    if parent.ty != dir::NodeType::Expression {
+        return None;
+    }
+
+    let parent_id = parent.into_typed::<dir::Expression>();
+    let parent_expression = ctx.tree.get(parent_id);
+    let dir::Expression::Statement { statement } = parent_expression else {
+        return None;
+    };
+    if *statement != call_id {
+        return None;
+    }
+
+    let statement_span = ctx.get_span(parent_id);
+    let edits = ctx.edit_builder().delete(statement_span).into_edits();
+    Some(LintFix::r#unsafe("Remove alert dialog call").with_edits(edits))
+}
+
 impl NodeVisitor for NoAlertVisitor<'_, '_> {
     fn options(&self) -> &NodeVisitorOptions {
         &self.options
@@ -235,7 +266,9 @@ mod tests {
 alert("stop");
 "#,
         );
-        test.result(result).assert_lint("no-alert");
+        test.result(result)
+            .assert_lint("no-alert")
+            .assert_has_fix("no-alert");
     }
 
     /// Report window confirm calls.
@@ -275,5 +308,65 @@ notify("ok");
 "#,
         );
         test.result(result).assert_no_lint("no-alert");
+    }
+
+    /// Unsafely remove standalone alert statements.
+    #[test]
+    fn test_fix_removes_alert_statement() {
+        let test = TestProgram::for_rule_with_prelude(NoAlert);
+        let result = test.lint_dir(
+            "no_alert/test_fix_removes_alert_statement.ds",
+            r#"
+alert("stop");
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-alert")
+            .assert_unsafe_fixed(r#""#);
+    }
+
+    /// Unsafely remove standalone global-qualified confirm statements.
+    #[test]
+    fn test_fix_removes_global_confirm_statement() {
+        let test = TestProgram::for_rule_with_prelude(NoAlert);
+        let result = test.lint_dir(
+            "no_alert/test_fix_removes_global_confirm_statement.ds",
+            r#"
+window.confirm("ok");
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-alert")
+            .assert_unsafe_fixed(r#""#);
+    }
+
+    /// Do not auto-fix alert calls when the result is used.
+    #[test]
+    fn test_no_fix_when_result_is_used() {
+        let test = TestProgram::for_rule_with_prelude(NoAlert);
+        let result = test.lint_dir(
+            "no_alert/test_no_fix_when_result_is_used.ds",
+            r#"
+const accepted = confirm("ok");
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-alert")
+            .assert_has_no_fix("no-alert");
+    }
+
+    /// Mutation: detect prompt calls inside expression statements.
+    #[test]
+    fn test_mutation_detects_prompt_statement() {
+        let test = TestProgram::for_rule_with_prelude(NoAlert);
+        let result = test.lint_dir(
+            "no_alert/test_mutation_detects_prompt_statement.ds",
+            r#"
+prompt("name");
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-alert")
+            .assert_unsafe_fixed(r#""#);
     }
 }

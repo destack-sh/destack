@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, UnaryOperator};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `++` and `--` operators.
@@ -15,7 +15,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Off,
         stability = Stable
     )]
@@ -50,21 +50,85 @@ impl LintRule for NoPlusplus {
             if !severity.is_enabled() {
                 continue;
             }
-            let span = ctx.tree.get_span(node_id);
-            ctx.report(
-                LintDiagnostic::new(
-                    NO_PLUSPLUS.id,
-                    NO_PLUSPLUS.code,
-                    NO_PLUSPLUS.category,
-                    severity,
-                    "`++` and `--` operators are not allowed",
-                    ctx.module.file_id,
-                    span,
-                )
-                .with_label("use `+= 1` or `-= 1` instead"),
-            );
+
+            // add a safe fix when the increment value is not used
+            let mut diagnostic = LintDiagnostic::new(
+                NO_PLUSPLUS.id,
+                NO_PLUSPLUS.code,
+                NO_PLUSPLUS.category,
+                severity,
+                "`++` and `--` operators are not allowed",
+                ctx.module.file_id,
+                ctx.tree.get_span(node_id),
+            )
+            .with_label("use `+= 1` or `-= 1` instead");
+
+            if is_discarded_update_expression(ctx, node_id) {
+                let operand_id = unary_operand_id(expression);
+                let Some(operand_id) = operand_id else {
+                    ctx.report(diagnostic);
+                    continue;
+                };
+                let operand_span = ctx.tree.get_span(operand_id);
+                let operand_text = ctx.get_span_text(operand_span);
+                let assign_operator = match operator {
+                    UnaryOperator::PreIncrement | UnaryOperator::PostIncrement => "+=",
+                    UnaryOperator::PreDecrement | UnaryOperator::PostDecrement => "-=",
+                    _ => unreachable!(),
+                };
+                let replacement = format!("{operand_text} {assign_operator} 1");
+                let expression_span = ctx.tree.get_span(node_id);
+                let edits = ctx
+                    .edit_builder()
+                    .replace(expression_span, replacement)
+                    .into_edits();
+                let fix = LintFix::safe("Replace increment or decrement with assignment")
+                    .with_edits(edits);
+                diagnostic = diagnostic.with_fix(fix);
+            }
+
+            ctx.report(diagnostic);
         }
     }
+}
+
+/// Return true when an update expression result is discarded.
+fn is_discarded_update_expression(
+    ctx: &LintModuleAstContext<'_>,
+    node_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    let Some(parent_id) = ctx.parents.get(node_id) else {
+        return false;
+    };
+    if ctx.tree.get_node_type(parent_id) != ast::NodeType::Expression {
+        return false;
+    }
+
+    let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
+    let parent_expression = ctx.tree.get(parent_expression_id);
+
+    // standalone statement position
+    if matches!(parent_expression, ast::Expression::Statement(_)) {
+        return true;
+    }
+
+    // for loop increment position
+    matches!(
+        parent_expression,
+        ast::Expression::For {
+            increment: Some(increment_id),
+            ..
+        } if *increment_id == node_id
+    )
+}
+
+/// Return the operand id from a unary update expression.
+fn unary_operand_id(expression: &ast::Expression) -> Option<ast::LocalNodeId<ast::Expression>> {
+    let ast::Expression::Unary { right, .. } = expression else {
+        return None;
+    };
+
+    Some(*right)
 }
 
 #[cfg(test)]
@@ -105,5 +169,160 @@ mod tests {
         let test = TestProgram::for_rule_without_prelude(NoPlusplus);
         let result = test.lint_ast("no_plusplus/test_allows_plus_equals.ts", "x += 1;");
         test.result(result).assert_no_lint("no-plusplus");
+    }
+
+    #[test]
+    fn test_fix_post_increment_statement() {
+        let test = TestProgram::for_rule_without_prelude(NoPlusplus);
+        let result = test.lint_ast(
+            "no_plusplus/test_fix_post_increment_statement.ts",
+            r#"
+x++;
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-plusplus")
+            .assert_has_fix("no-plusplus")
+            .assert_safe_fixed(
+                r#"
+x += 1;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_pre_increment_statement() {
+        let test = TestProgram::for_rule_without_prelude(NoPlusplus);
+        let result = test.lint_ast(
+            "no_plusplus/test_fix_pre_increment_statement.ts",
+            r#"
+++count;
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-plusplus")
+            .assert_has_fix("no-plusplus")
+            .assert_safe_fixed(
+                r#"
+count += 1;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_post_decrement_statement() {
+        let test = TestProgram::for_rule_without_prelude(NoPlusplus);
+        let result = test.lint_ast(
+            "no_plusplus/test_fix_post_decrement_statement.ts",
+            r#"
+count--;
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-plusplus")
+            .assert_has_fix("no-plusplus")
+            .assert_safe_fixed(
+                r#"
+count -= 1;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_member_post_increment_statement() {
+        let test = TestProgram::for_rule_without_prelude(NoPlusplus);
+        let result = test.lint_ast(
+            "no_plusplus/test_fix_member_post_increment_statement.ts",
+            r#"
+item.count++;
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-plusplus")
+            .assert_has_fix("no-plusplus")
+            .assert_safe_fixed(
+                r#"
+item.count += 1;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_pre_decrement_in_for_increment() {
+        let test = TestProgram::for_rule_without_prelude(NoPlusplus);
+        let result = test.lint_ast(
+            "no_plusplus/test_fix_pre_decrement_in_for_increment.ts",
+            r#"
+for (; keepGoing(); --index) {}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-plusplus")
+            .assert_has_fix("no-plusplus")
+            .assert_safe_fixed(
+                r#"
+for (; keepGoing(); index -= 1) {}
+"#,
+            );
+    }
+
+    #[test]
+    fn test_no_fix_when_update_value_is_used() {
+        let test = TestProgram::for_rule_without_prelude(NoPlusplus);
+        let result = test.lint_ast(
+            "no_plusplus/test_no_fix_when_update_value_is_used.ts",
+            r#"
+let value = count++;
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-plusplus")
+            .assert_has_no_fix("no-plusplus");
+    }
+
+    #[test]
+    fn test_no_fix_when_update_value_is_returned() {
+        let test = TestProgram::for_rule_without_prelude(NoPlusplus);
+        let result = test.lint_ast(
+            "no_plusplus/test_no_fix_when_update_value_is_returned.ts",
+            r#"
+function next() {
+    return count++;
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-plusplus")
+            .assert_has_no_fix("no-plusplus");
+    }
+
+    #[test]
+    fn test_no_fix_when_update_value_is_condition() {
+        let test = TestProgram::for_rule_without_prelude(NoPlusplus);
+        let result = test.lint_ast(
+            "no_plusplus/test_no_fix_when_update_value_is_condition.ts",
+            r#"
+while (count++) {
+    process();
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-plusplus")
+            .assert_has_no_fix("no-plusplus");
+    }
+
+    #[test]
+    fn test_no_fix_when_update_value_is_call_argument() {
+        let test = TestProgram::for_rule_without_prelude(NoPlusplus);
+        let result = test.lint_ast(
+            "no_plusplus/test_no_fix_when_update_value_is_call_argument.ts",
+            r#"
+consume(count++);
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-plusplus")
+            .assert_has_no_fix("no-plusplus");
     }
 }

@@ -1,7 +1,8 @@
 use destack_ast as ast;
+use destack_source::Span;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow unnecessary escape characters in strings.
@@ -15,7 +16,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Always,
         stability = Stable
     )]
@@ -56,19 +57,26 @@ impl LintRule for NoUselessEscape {
                     continue;
                 }
 
-                let escape_char = raw.chars().nth(char_pos + 1).unwrap_or('?');
-                ctx.report(
-                    LintDiagnostic::new(
-                        NO_USELESS_ESCAPE.id,
-                        NO_USELESS_ESCAPE.code,
-                        NO_USELESS_ESCAPE.category,
-                        severity,
-                        format!("unnecessary escape character: \\{escape_char}"),
-                        ctx.module.file_id,
-                        span,
-                    )
-                    .with_label("this escape is unnecessary"),
-                );
+                let escape_char = raw[char_pos + 1..].chars().next().unwrap_or('?');
+                let mut diagnostic = LintDiagnostic::new(
+                    NO_USELESS_ESCAPE.id,
+                    NO_USELESS_ESCAPE.code,
+                    NO_USELESS_ESCAPE.category,
+                    severity,
+                    format!("unnecessary escape character: \\{escape_char}"),
+                    ctx.module.file_id,
+                    span,
+                )
+                .with_label("this escape is unnecessary");
+
+                // remove only the useless backslash
+                let absolute_start = span.start + char_pos as u32;
+                let backslash_span = Span::new(span.file, absolute_start, absolute_start + 1);
+                let edits = ctx.edit_builder().delete(backslash_span).into_edits();
+                let fix = LintFix::safe("Remove unnecessary escape backslash").with_edits(edits);
+                diagnostic = diagnostic.with_fix(fix);
+
+                ctx.report(diagnostic);
             }
         }
     }
@@ -118,7 +126,9 @@ mod tests {
 const x = "hel\lo"
 "#,
         );
-        test.result(result).assert_lint("no-useless-escape");
+        test.result(result)
+            .assert_lint("no-useless-escape")
+            .assert_has_fix("no-useless-escape");
     }
 
     #[test]
@@ -155,5 +165,65 @@ const x = "path\\to\\file"
 "#,
         );
         test.result(result).assert_no_lint("no-useless-escape");
+    }
+
+    #[test]
+    fn test_fix_removes_useless_escape() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
+        let result = test.lint_ast(
+            "no_useless_escape/test_fix_removes_useless_escape.ds",
+            r#"
+const x = "hel\lo"
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-useless-escape")
+            .assert_safe_fixed(
+                r#"
+const x = "hello";
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_preserves_valid_escapes_and_removes_only_useless_escape() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
+        let result = test.lint_ast(
+            "no_useless_escape/test_fix_preserves_valid_escapes_and_removes_only_useless_escape.ds",
+            r#"
+const x = "hel\lo\n"
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-useless-escape")
+            .assert_safe_fixed(
+                r#"
+const x = "hello\n";
+"#,
+            );
+    }
+
+    #[test]
+    fn test_mutation_detects_useless_escape_in_single_quote() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
+        let result = test.lint_ast(
+            "no_useless_escape/test_mutation_detects_useless_escape_in_single_quote.ds",
+            r#"
+const x = 'ab\cd'
+"#,
+        );
+        test.result(result).assert_lint("no-useless-escape");
+    }
+
+    #[test]
+    fn test_mutation_detects_useless_escape_in_double_quote() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
+        let result = test.lint_ast(
+            "no_useless_escape/test_mutation_detects_useless_escape_in_double_quote.ds",
+            r#"
+const x = "ab\cd"
+"#,
+        );
+        test.result(result).assert_lint("no-useless-escape");
     }
 }

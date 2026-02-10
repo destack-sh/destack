@@ -4,7 +4,7 @@ use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{collect_module_symbol_usage, collect_parameter_value_binding_symbols};
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow parameters that are never used.
@@ -17,7 +17,7 @@ declare_lint! {
         level = Dir,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable,
         declarations = Exclude
@@ -76,18 +76,25 @@ impl LintRule for NoUnusedParameters {
 
                     // report one unused named parameter
                     let span = ctx.get_span(parameter_id);
-                    ctx.report(
-                        LintDiagnostic::new(
-                            NO_UNUSED_PARAMETERS.id,
-                            NO_UNUSED_PARAMETERS.code,
-                            NO_UNUSED_PARAMETERS.category,
-                            severity,
-                            "unused parameter",
-                            ctx.module.file_id,
-                            span,
-                        )
-                        .with_label("this parameter is never used"),
-                    );
+                    let mut diagnostic = LintDiagnostic::new(
+                        NO_UNUSED_PARAMETERS.id,
+                        NO_UNUSED_PARAMETERS.code,
+                        NO_UNUSED_PARAMETERS.category,
+                        severity,
+                        "unused parameter",
+                        ctx.module.file_id,
+                        span,
+                    )
+                    .with_label("this parameter is never used");
+
+                    // compute fixes only when requested by the runner
+                    if ctx.include_fixes
+                        && let Some(fix) = unused_named_parameter_fix(ctx, parameter_id)
+                    {
+                        diagnostic = diagnostic.with_fix(fix);
+                    }
+
+                    ctx.report(diagnostic);
                 }
                 dir::Parameter::Pattern { .. } | dir::Parameter::VariadicPattern { .. } => {
                     let mut bindings = HashSet::new();
@@ -160,6 +167,47 @@ impl LintRule for NoUnusedParameters {
             }
         }
     }
+}
+
+/// Build a safe fix by prefixing an unused named parameter with `_`.
+fn unused_named_parameter_fix(
+    ctx: &LintModuleDirContext<'_>,
+    parameter_id: dir::LocalNodeId<dir::Parameter>,
+) -> Option<LintFix> {
+    let parameter_span = ctx.get_span(parameter_id);
+    let parameter_text = ctx.get_span_text(parameter_span);
+    let mut insert_offset = 0usize;
+
+    // skip variadic markers when present
+    if parameter_text.starts_with("...") {
+        insert_offset += 3;
+    }
+
+    // skip leading trivia before the binding name
+    let bytes = parameter_text.as_bytes();
+    while insert_offset < bytes.len() && bytes[insert_offset].is_ascii_whitespace() {
+        insert_offset += 1;
+    }
+
+    if insert_offset >= bytes.len() {
+        return None;
+    }
+
+    let first_char = bytes[insert_offset] as char;
+
+    // skip already ignored bindings
+    if first_char == '_' {
+        return None;
+    }
+
+    // keep plain identifier starts only
+    if !first_char.is_ascii_alphabetic() && first_char != '$' {
+        return None;
+    }
+
+    let insert_position = parameter_span.start + insert_offset as u32;
+    let edits = ctx.edit_builder().insert(insert_position, "_").into_edits();
+    Some(LintFix::safe("Prefix unused parameter with `_`").with_edits(edits))
 }
 
 /// Resolve a precise report span for one unused binding inside a parameter pattern.
@@ -398,5 +446,45 @@ function run({ _first, second }: { _first: int32; second: int32 }): int32 {
         test.result(result)
             .assert_lint("no-unused-parameters")
             .assert_lint_count("no-unused-parameters", 1);
+    }
+
+    /// Safely fix one unused named parameter by prefixing `_`.
+    #[test]
+    fn test_fix_prefixes_unused_named_parameter() {
+        let test = TestProgram::for_rule_without_prelude(NoUnusedParameters);
+        let result = test.lint_dir(
+            "no_unused_parameters/test_fix_prefixes_unused_named_parameter.ds",
+            r#"
+function run(value: int32): int32 {
+    return 1;
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-unused-parameters")
+            .assert_safe_fixed(
+                r#"
+function run(_value: int32): int32 {
+    return 1;
+}
+"#,
+            );
+    }
+
+    /// Keep destructured parameter diagnostics without auto-fix.
+    #[test]
+    fn test_no_fix_for_destructured_parameter_binding() {
+        let test = TestProgram::for_rule_without_prelude(NoUnusedParameters);
+        let result = test.lint_dir(
+            "no_unused_parameters/test_no_fix_for_destructured_parameter_binding.ds",
+            r#"
+function run({ value }: { value: int32 }): int32 {
+    return 1;
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-unused-parameters")
+            .assert_has_no_fix("no-unused-parameters");
     }
 }

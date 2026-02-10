@@ -1,10 +1,8 @@
 # Destack Language Specification
 
-<!-- TODO #Cleanup: dedupe DESIGN / SPECIFICATION -->
-
-The Destack language is "TypeScript++" for building optimal, correct, integrated full-stack software systems.
+The Destack language is a spiritual "TypeScript++" for building optimal, correct, integrated software systems across the _full_ stack.
 This document describes the syntax and semantics of **`.ds` files**.
-`.ts` and `.tsx` files are fully supported as modern strict modules.
+`.ts` and `.tsx` files are fully supported as modern strict ESM modules.
 `.js` and `.jsx` files parse as strict modules and reject TS-only syntax by default.
 See `INTEROPERABILITY.md` for the full file type matrix and exclusions.
 

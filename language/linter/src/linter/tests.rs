@@ -1,7 +1,7 @@
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::env::current_dir;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, LazyLock};
+use std::sync::{Arc, LazyLock, Once};
 
 use destack_ast::NodeParentIndex;
 use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, ImportTask, ResolveTask};
@@ -28,9 +28,9 @@ use crate::{
 static TEST_CACHE_STORE: LazyLock<Arc<MemoryCacheStore>> =
     LazyLock::new(|| Arc::new(MemoryCacheStore::new()));
 
-/// Process wide cache of warmed prelude profile lib-sets.
-static PRELUDE_WARMED_LIBS: LazyLock<Mutex<HashSet<Vec<String>>>> =
-    LazyLock::new(|| Mutex::new(HashSet::new()));
+/// Process wide per lib-set warmers for prelude profile setup.
+static PRELUDE_WARMERS: LazyLock<Mutex<HashMap<Vec<String>, Arc<Once>>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 
 /// Test wrapper for linting.
 #[allow(unused)]
@@ -202,16 +202,22 @@ impl TestProgram {
 
     /// Warm a prelude profile for a specific lib-set once per process.
     fn warm_prelude_profile(libs: &[String]) {
-        let mut warmed_libs = PRELUDE_WARMED_LIBS.lock();
-        if warmed_libs.contains(libs) {
-            return;
-        }
+        // get or create a once gate for this lib set
+        let libs = libs.to_vec();
+        let warmer = {
+            let mut warmers = PRELUDE_WARMERS.lock();
+            warmers
+                .entry(libs.clone())
+                .or_insert_with(|| Arc::new(Once::new()))
+                .clone()
+        };
 
-        let warm_program = Self::new_with_prelude_libs(libs.to_vec());
-        warm_program.enqueue_profile_resolution_once();
-        warm_program.compile();
-
-        warmed_libs.insert(libs.to_vec());
+        // warm this lib set exactly once per process
+        warmer.call_once(|| {
+            let warm_program = Self::new_with_prelude_libs(libs);
+            warm_program.enqueue_profile_resolution_once();
+            warm_program.compile();
+        });
     }
 
     /// Modify linter options.

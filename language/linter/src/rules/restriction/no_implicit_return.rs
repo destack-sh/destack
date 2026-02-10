@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Require explicit return statements.
@@ -15,7 +15,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Always,
         recommended = Off,
         stability = Stable
     )]
@@ -49,6 +49,18 @@ impl LintRule for NoImplicitReturn {
                 if !severity.is_enabled() {
                     continue;
                 }
+
+                // build explicit return replacement from the current body expression
+                let body_span = ctx.tree.get_span(*body_id);
+                let body_text = ctx.get_span_text(body_span);
+                let replacement = format!("{{ return {body_text}; }}");
+                let edits = ctx
+                    .edit_builder()
+                    .replace(body_span, replacement)
+                    .into_edits();
+                let fix =
+                    LintFix::safe("Wrap implicit return in an explicit block").with_edits(edits);
+
                 ctx.report(
                     LintDiagnostic::new(
                         NO_IMPLICIT_RETURN.id,
@@ -59,7 +71,8 @@ impl LintRule for NoImplicitReturn {
                         ctx.module.file_id,
                         ctx.tree.get_span(*body_id),
                     )
-                    .with_label("use explicit `return` statement"),
+                    .with_label("use explicit `return` statement")
+                    .with_fix(fix),
                 );
             }
         }
@@ -78,7 +91,83 @@ mod tests {
             "no_implicit_return/test_detects_arrow_expression_body.ts",
             "const foo = () => 1;",
         );
-        test.result(result).assert_lint("no-implicit-return");
+        test.result(result)
+            .assert_lint("no-implicit-return")
+            .assert_has_fix("no-implicit-return");
+    }
+
+    #[test]
+    fn test_fix_arrow_expression_body() {
+        let test = TestProgram::for_rule_without_prelude(NoImplicitReturn);
+        let result = test.lint_ast(
+            "no_implicit_return/test_fix_arrow_expression_body.ts",
+            "const foo = () => 1;",
+        );
+        test.result(result)
+            .assert_lint("no-implicit-return")
+            .assert_safe_fixed(
+                r#"
+const foo = () => {
+    return 1;
+};
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_arrow_expression_body_object_literal() {
+        let test = TestProgram::for_rule_without_prelude(NoImplicitReturn);
+        let result = test.lint_ast(
+            "no_implicit_return/test_fix_arrow_expression_body_object_literal.ts",
+            "const foo = () => ({ value: 1 });",
+        );
+        test.result(result)
+            .assert_lint("no-implicit-return")
+            .assert_safe_fixed(
+                r#"
+const foo = () => {
+    return ({ value: 1 });
+};
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_arrow_expression_body_parenthesized_expression() {
+        let test = TestProgram::for_rule_without_prelude(NoImplicitReturn);
+        let result = test.lint_ast(
+            "no_implicit_return/test_fix_arrow_expression_body_parenthesized_expression.ts",
+            "const foo = () => (value + 1);",
+        );
+        test.result(result)
+            .assert_lint("no-implicit-return")
+            .assert_has_fix("no-implicit-return")
+            .assert_safe_fixed(
+                r#"
+const foo = () => {
+    return (value + 1);
+};
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_async_arrow_expression_body() {
+        let test = TestProgram::for_rule_without_prelude(NoImplicitReturn);
+        let result = test.lint_ast(
+            "no_implicit_return/test_fix_async_arrow_expression_body.ts",
+            "const foo = async () => await fetchValue();",
+        );
+        test.result(result)
+            .assert_lint("no-implicit-return")
+            .assert_has_fix("no-implicit-return")
+            .assert_safe_fixed(
+                r#"
+const foo = async () => {
+    return await fetchValue();
+};
+"#,
+            );
     }
 
     #[test]
@@ -88,7 +177,9 @@ mod tests {
             "no_implicit_return/test_detects_arrow_expression_body_complex.ts",
             "const add = (a: number, b: number) => a + b;",
         );
-        test.result(result).assert_lint("no-implicit-return");
+        test.result(result)
+            .assert_lint("no-implicit-return")
+            .assert_has_fix("no-implicit-return");
     }
 
     #[test]

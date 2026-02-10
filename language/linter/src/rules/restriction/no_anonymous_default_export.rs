@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, Declaration, DependencyMode, Expression};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow anonymous default exports.
@@ -16,7 +16,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Off,
         stability = Stable
     )]
@@ -50,18 +50,26 @@ impl LintRule for NoAnonymousDefaultExport {
                 continue;
             }
             let span = ctx.tree.get_span(declaration_id);
-            ctx.report(
-                LintDiagnostic::new(
-                    NO_ANONYMOUS_DEFAULT_EXPORT.id,
-                    NO_ANONYMOUS_DEFAULT_EXPORT.code,
-                    NO_ANONYMOUS_DEFAULT_EXPORT.category,
-                    severity,
-                    "anonymous default export",
-                    ctx.module.file_id,
-                    span,
-                )
-                .with_label("assign a name to this export"),
-            );
+            let mut diagnostic = LintDiagnostic::new(
+                NO_ANONYMOUS_DEFAULT_EXPORT.id,
+                NO_ANONYMOUS_DEFAULT_EXPORT.code,
+                NO_ANONYMOUS_DEFAULT_EXPORT.category,
+                severity,
+                "anonymous default export",
+                ctx.module.file_id,
+                span,
+            )
+            .with_label("assign a name to this export");
+
+            // compute fixes only when requested by the runner
+            if ctx.compute_fixes
+                && let Some(fix) =
+                    anonymous_default_declaration_fix(ctx, declaration_id, declaration)
+            {
+                diagnostic = diagnostic.with_fix(fix);
+            }
+
+            ctx.report(diagnostic);
         }
 
         // check anonymous default export expressions (e.g., `export default { foo: 1 }`)
@@ -105,6 +113,89 @@ impl LintRule for NoAnonymousDefaultExport {
     }
 }
 
+/// Build an unsafe fix for anonymous default declaration exports.
+fn anonymous_default_declaration_fix(
+    ctx: &LintModuleAstContext<'_>,
+    declaration_id: ast::LocalNodeId<ast::Declaration>,
+    declaration: &Declaration,
+) -> Option<LintFix> {
+    let kind = match declaration {
+        Declaration::Function { .. } => DefaultDeclarationKind::Function,
+        Declaration::Class { .. } => DefaultDeclarationKind::Class,
+        _ => return None,
+    };
+
+    let declaration_span = ctx.tree.get_span(declaration_id);
+    let declaration_text = ctx.get_span_text(declaration_span);
+    let declaration_text = declaration_text.as_ref();
+    let insert_offset = kind.default_name_insert_offset(declaration_text)?;
+    let replacement = insert_text(declaration_text, insert_offset, " defaultExport ");
+    let edits = ctx
+        .edit_builder()
+        .replace(declaration_span, replacement)
+        .into_edits();
+    Some(LintFix::r#unsafe("Add explicit name to anonymous default export").with_edits(edits))
+}
+
+/// The declaration kind for anonymous default export rewrites.
+enum DefaultDeclarationKind {
+    Function,
+    Class,
+}
+
+impl DefaultDeclarationKind {
+    /// Resolve the text insertion offset for adding `defaultExport`.
+    fn default_name_insert_offset(&self, declaration_text: &str) -> Option<usize> {
+        match self {
+            Self::Function => function_name_insert_offset(declaration_text),
+            Self::Class => class_name_insert_offset(declaration_text),
+        }
+    }
+}
+
+/// Resolve insertion offset for anonymous function declarations.
+fn function_name_insert_offset(declaration_text: &str) -> Option<usize> {
+    let keyword_offset = declaration_text.find("function")?;
+    let mut cursor = keyword_offset + "function".len();
+    let bytes = declaration_text.as_bytes();
+
+    // handle generator form: function* ()
+    while cursor < bytes.len() && bytes[cursor].is_ascii_whitespace() {
+        cursor += 1;
+    }
+    if cursor < bytes.len() && bytes[cursor] == b'*' {
+        cursor += 1;
+    }
+
+    while cursor < bytes.len() && bytes[cursor].is_ascii_whitespace() {
+        cursor += 1;
+    }
+
+    Some(cursor)
+}
+
+/// Resolve insertion offset for anonymous class declarations.
+fn class_name_insert_offset(declaration_text: &str) -> Option<usize> {
+    let keyword_offset = declaration_text.find("class")?;
+    let mut cursor = keyword_offset + "class".len();
+    let bytes = declaration_text.as_bytes();
+
+    while cursor < bytes.len() && bytes[cursor].is_ascii_whitespace() {
+        cursor += 1;
+    }
+
+    Some(cursor)
+}
+
+/// Insert text at a byte offset.
+fn insert_text(text: &str, offset: usize, insertion: &str) -> String {
+    let mut rewritten = String::new();
+    rewritten.push_str(&text[..offset]);
+    rewritten.push_str(insertion);
+    rewritten.push_str(&text[offset..]);
+    rewritten
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -122,7 +213,8 @@ export default function() {
 "#,
         );
         test.result(result)
-            .assert_lint("no-anonymous-default-export");
+            .assert_lint("no-anonymous-default-export")
+            .assert_has_fix("no-anonymous-default-export");
     }
 
     #[test]
@@ -137,7 +229,8 @@ export default class {
 "#,
         );
         test.result(result)
-            .assert_lint("no-anonymous-default-export");
+            .assert_lint("no-anonymous-default-export")
+            .assert_has_fix("no-anonymous-default-export");
     }
 
     #[test]
@@ -235,5 +328,85 @@ export function bar() {}
         );
         test.result(result)
             .assert_no_lint("no-anonymous-default-export");
+    }
+
+    #[test]
+    fn test_fix_renames_anonymous_default_function() {
+        let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
+        let result = test.lint_ast(
+            "no_anonymous_default_export/test_fix_renames_anonymous_default_function.ts",
+            r#"
+export default function() {
+    return 42;
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-anonymous-default-export")
+            .assert_unsafe_fixed(
+                r#"
+export default function defaultExport() {
+    return 42;
+}
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_renames_anonymous_default_class() {
+        let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
+        let result = test.lint_ast(
+            "no_anonymous_default_export/test_fix_renames_anonymous_default_class.ts",
+            r#"
+export default class {
+    foo() {}
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-anonymous-default-export")
+            .assert_unsafe_fixed(
+                r#"
+export default class defaultExport {
+    foo() {}
+}
+"#,
+            );
+    }
+
+    #[test]
+    fn test_mutation_fix_renames_anonymous_default_generator_function() {
+        let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
+        let result = test.lint_ast(
+            "no_anonymous_default_export/test_mutation_fix_renames_anonymous_default_generator_function.ts",
+            r#"
+export default function*() {
+    yield 1;
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-anonymous-default-export")
+            .assert_unsafe_fixed(
+                r#"
+export default function* defaultExport() {
+    yield 1;
+}
+"#,
+            );
+    }
+
+    #[test]
+    fn test_no_fix_for_anonymous_default_expression_export() {
+        let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
+        let result = test.lint_ast(
+            "no_anonymous_default_export/test_no_fix_for_anonymous_default_expression_export.ts",
+            r#"
+export default { foo: 1 };
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-anonymous-default-export")
+            .assert_has_no_fix("no-anonymous-default-export");
     }
 }

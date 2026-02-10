@@ -1,7 +1,9 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use destack_source::Span;
+
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow multiple declarators in a single let/const statement.
@@ -16,7 +18,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -33,10 +35,12 @@ impl LintRule for NoMultiDeclarators {
         let meta = self.meta();
 
         for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let (ast::Expression::Let { declarators, .. }
-            | ast::Expression::Using { declarators, .. }) = ctx.tree.get(expression_id)
-            else {
-                continue;
+            let (declarators, let_kind) = match ctx.tree.get(expression_id) {
+                ast::Expression::Let {
+                    declarators, kind, ..
+                } => (declarators.as_slice(), Some(*kind)),
+                ast::Expression::Using { declarators, .. } => (declarators.as_slice(), None),
+                _ => continue,
             };
 
             // check if there are multiple declarators
@@ -47,21 +51,104 @@ impl LintRule for NoMultiDeclarators {
                 }
 
                 let span = ctx.tree.get_span(expression_id);
-                ctx.report(
-                    LintDiagnostic::new(
-                        NO_MULTI_DECLARATORS.id,
-                        NO_MULTI_DECLARATORS.code,
-                        NO_MULTI_DECLARATORS.category,
-                        severity,
-                        "multiple declarators in single statement",
-                        ctx.module.file_id,
-                        span,
-                    )
-                    .with_label("split into separate statements"),
-                );
+                let mut diagnostic = LintDiagnostic::new(
+                    NO_MULTI_DECLARATORS.id,
+                    NO_MULTI_DECLARATORS.code,
+                    NO_MULTI_DECLARATORS.category,
+                    severity,
+                    "multiple declarators in single statement",
+                    ctx.module.file_id,
+                    span,
+                )
+                .with_label("split into separate statements");
+
+                if let Some(kind) = let_kind
+                    && let Some(fix) = split_declarator_fix(ctx, expression_id, declarators, kind)
+                {
+                    diagnostic = diagnostic.with_fix(fix);
+                }
+
+                ctx.report(diagnostic);
             }
         }
     }
+}
+
+/// Build a fix that splits one let statement into one statement per declarator.
+fn split_declarator_fix(
+    ctx: &LintModuleAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+    declarators: &[ast::LocalNodeId<ast::Declarator>],
+    kind: ast::LetKind,
+) -> Option<LintFix> {
+    // skip for-loop initializers: splitting requires control-flow surgery
+    if is_for_initializer(ctx, expression_id) {
+        return None;
+    }
+
+    // skip comment-bearing declarations to avoid dropping trivia
+    let statement_span = ctx.tree.get_span(expression_id);
+    let statement_text = ctx.get_span_text(statement_span);
+    if statement_text.contains("//") || statement_text.contains("/*") {
+        return None;
+    }
+
+    // derive prefix text up to the first declarator
+    let first_declarator_span = ctx.tree.get_span(declarators[0]);
+    let prefix_span = Span::new(
+        statement_span.file,
+        statement_span.start,
+        first_declarator_span.start,
+    );
+    let mut prefix = ctx.get_span_text(prefix_span).to_string();
+    if prefix.trim().is_empty() {
+        let keyword = match kind {
+            ast::LetKind::Let => "let ",
+            ast::LetKind::Var => "var ",
+            ast::LetKind::Const => "const ",
+        };
+        prefix = keyword.to_string();
+    }
+
+    // build one statement per declarator
+    let mut statements = Vec::new();
+    for declarator_id in declarators {
+        let declarator_span = ctx.tree.get_span(*declarator_id);
+        let declarator_text = ctx.get_span_text(declarator_span);
+        statements.push(format!("{prefix}{declarator_text};"));
+    }
+
+    // replace the original multi declarator statement
+    let replacement = statements.join("\n");
+    let edits = ctx
+        .edit_builder()
+        .replace(statement_span, replacement)
+        .into_edits();
+
+    Some(LintFix::safe("Split declarators into separate statements").with_edits(edits))
+}
+
+/// Return true when one expression is the initializer of a for loop.
+fn is_for_initializer(
+    ctx: &LintModuleAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    let Some(parent_id) = ctx.parents.get(expression_id) else {
+        return false;
+    };
+    if ctx.tree.get_node_type(parent_id) != ast::NodeType::Expression {
+        return false;
+    }
+
+    let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
+    let parent_expression = ctx.tree.get(parent_expression_id);
+    matches!(
+        parent_expression,
+        ast::Expression::For {
+            initialization: Some(initialization_id),
+            ..
+        } if *initialization_id == expression_id
+    )
 }
 
 #[cfg(test)]
@@ -78,7 +165,9 @@ mod tests {
 let a = 1, b = 2;
 "#,
         );
-        test.result(result).assert_lint("no-multi-declarators");
+        test.result(result)
+            .assert_lint("no-multi-declarators")
+            .assert_has_fix("no-multi-declarators");
     }
 
     #[test]
@@ -115,6 +204,108 @@ let a: int32, b: int32;
 "#,
         );
         test.result(result).assert_lint("no-multi-declarators");
+    }
+
+    #[test]
+    fn test_fix_multiple_declarators_with_const() {
+        let test = TestProgram::for_rule_without_prelude(NoMultiDeclarators);
+        let result = test.lint_ast(
+            "no_multi_declarators/test_fix_multiple_declarators_with_const.ds",
+            r#"
+const a = 1, b = 2, c = 3;
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-multi-declarators")
+            .assert_has_fix("no-multi-declarators")
+            .assert_safe_fixed(
+                r#"
+const a = 1;
+const b = 2;
+const c = 3;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_multiple_declarators_with_type_annotations() {
+        let test = TestProgram::for_rule_without_prelude(NoMultiDeclarators);
+        let result = test.lint_ast(
+            "no_multi_declarators/test_fix_multiple_declarators_with_type_annotations.ds",
+            r#"
+let a: int32 = 1, b: int32 = 2;
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-multi-declarators")
+            .assert_safe_fixed(
+                r#"
+let a: int32 = 1;
+let b: int32 = 2;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_no_fix_for_for_initializer() {
+        let test = TestProgram::for_rule_without_prelude(NoMultiDeclarators);
+        let result = test.lint_ast(
+            "no_multi_declarators/test_no_fix_for_for_initializer.ds",
+            r#"
+for (let a = 0, b = 1; a < 10; a++) {}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-multi-declarators")
+            .assert_has_no_fix("no-multi-declarators");
+    }
+
+    #[test]
+    fn test_no_fix_for_comment_bearing_statement() {
+        let test = TestProgram::for_rule_without_prelude(NoMultiDeclarators);
+        let result = test.lint_ast(
+            "no_multi_declarators/test_no_fix_for_comment_bearing_statement.ds",
+            r#"
+let a = 1, /* keep */ b = 2;
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-multi-declarators")
+            .assert_has_no_fix("no-multi-declarators");
+    }
+
+    #[test]
+    fn test_mutation_fix_with_destructuring_and_binding() {
+        let test = TestProgram::for_rule_without_prelude(NoMultiDeclarators);
+        let result = test.lint_ast(
+            "no_multi_declarators/test_mutation_fix_with_destructuring_and_binding.ds",
+            r#"
+let (x, y) = point, z = 0;
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-multi-declarators")
+            .assert_has_fix("no-multi-declarators")
+            .assert_safe_fixed(
+                r#"
+let (x, y) = point;
+let z = 0;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_reports_using_multi_declarators_without_fix() {
+        let test = TestProgram::for_rule_without_prelude(NoMultiDeclarators);
+        let result = test.lint_ast(
+            "no_multi_declarators/test_reports_using_multi_declarators_without_fix.ds",
+            r#"
+using a = openA(), b = openB();
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-multi-declarators")
+            .assert_has_no_fix("no-multi-declarators");
     }
 
     #[test]
