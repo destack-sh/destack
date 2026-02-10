@@ -79,6 +79,7 @@ pub use self::classify::{
     is_trivial_argument, is_trivial_expression, is_trivial_property,
 };
 pub(crate) use self::core::format_expression;
+pub(crate) use self::scan::source_min_inline_char_len;
 
 // chain head promotion limits
 const MAX_CHAIN_HEAD_OPS: usize = 4;

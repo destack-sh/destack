@@ -428,6 +428,21 @@ pub(super) fn format_declarator<'ast>(
         .map(|span| f.context().span_char_len(span))
         .unwrap_or(0);
     let value_has_newline = f.context().has_newline(value_span);
+    let pattern_min_source_len = source_min_inline_char_len(f.context().get_span_str(pattern_span));
+    let type_min_source_len = ty.map(|ty_id| {
+        let type_span = f.context().get_span(ty_id);
+        source_min_inline_char_len(f.context().get_span_str(type_span))
+    });
+    let header_min_source_len = type_min_source_len.map_or(pattern_min_source_len, |type_len| {
+        pattern_min_source_len
+            .saturating_add(type_len)
+            .saturating_add(2)
+    });
+    let value_min_source_len = source_min_inline_char_len(f.context().get_span_str(value_span));
+    let inline_declarator_is_impossible = header_min_source_len
+        .saturating_add(3)
+        .saturating_add(value_min_source_len)
+        > line_width;
     let value_is_parenthesized = matches!(value_expr, Expression::Parenthesized { .. });
     let value_has_generic_class_heritage =
         value_has_generic_class_heritage(f.context(), value_inner_id);
@@ -667,28 +682,38 @@ pub(super) fn format_declarator<'ast>(
                     || has_significant_between_comment
                     || should_try_operator_break_before_header_expand
                 {
-                    f.context().record_best_fitting(
-                        "best_fitting.expression.core.own_break.pattern_breakable.operator_first",
-                        4,
-                    );
-                    best_fitting![
-                        format_inline,
-                        format_break_after_operator_for_binary,
-                        format_header_expanded,
-                        format_value_expanded_strict
-                    ]
-                    .format(f)?;
+                    if inline_declarator_is_impossible {
+                        // when inline is impossible, keep the operator-first fallback directly
+                        write!(f, [format_break_after_operator_for_binary])?;
+                    } else {
+                        f.context().record_best_fitting(
+                            "best_fitting.expression.core.own_break.pattern_breakable.operator_first",
+                            4,
+                        );
+                        best_fitting![
+                            format_inline,
+                            format_break_after_operator_for_binary,
+                            format_header_expanded,
+                            format_value_expanded_strict
+                        ]
+                        .format(f)?;
+                    }
                 } else {
-                    f.context().record_best_fitting(
-                        "best_fitting.expression.core.own_break.pattern_breakable.header_first",
-                        3,
-                    );
-                    best_fitting![
-                        format_inline,
-                        format_header_expanded,
-                        format_value_expanded_strict
-                    ]
-                    .format(f)?;
+                    if inline_declarator_is_impossible {
+                        // when inline is impossible, prefer the header-first fallback directly
+                        write!(f, [format_header_expanded])?;
+                    } else {
+                        f.context().record_best_fitting(
+                            "best_fitting.expression.core.own_break.pattern_breakable.header_first",
+                            3,
+                        );
+                        best_fitting![
+                            format_inline,
+                            format_header_expanded,
+                            format_value_expanded_strict
+                        ]
+                        .format(f)?;
+                    }
                 }
             }
             false => {
@@ -722,15 +747,26 @@ pub(super) fn format_declarator<'ast>(
         match (pattern_breakable, value_breakable) {
             (true, true) => {
                 // both sides breakable: prefer inline, then expanded variants
-                f.context()
-                    .record_best_fitting("best_fitting.expression.core.both_breakable", 4);
-                best_fitting![
-                    format_inline,
-                    format_value_expanded,
-                    format_header_expanded,
-                    format_indented
-                ]
-                .format(f)?;
+                if inline_declarator_is_impossible {
+                    f.context()
+                        .record_best_fitting("best_fitting.expression.core.both_breakable", 3);
+                    best_fitting![
+                        format_value_expanded,
+                        format_header_expanded,
+                        format_indented
+                    ]
+                    .format(f)?;
+                } else {
+                    f.context()
+                        .record_best_fitting("best_fitting.expression.core.both_breakable", 4);
+                    best_fitting![
+                        format_inline,
+                        format_value_expanded,
+                        format_header_expanded,
+                        format_indented
+                    ]
+                    .format(f)?;
+                }
             }
             (true, false) => {
                 let pattern_has_newline = f.context().has_newline(pattern_span);
@@ -739,24 +775,44 @@ pub(super) fn format_declarator<'ast>(
 
                 // keep long atomic rhs values inline when possible
                 if pattern_has_newline {
-                    f.context().record_best_fitting(
-                        "best_fitting.expression.core.pattern_breakable.pattern_newline",
-                        3,
-                    );
-                    best_fitting![format_header_expanded, format_inline, format_indented]
-                        .format(f)?;
-                } else if value_is_long {
-                    if pattern_has_comments_or_annotations {
+                    if inline_declarator_is_impossible {
                         f.context().record_best_fitting(
-                            "best_fitting.expression.core.pattern_breakable.long_with_comments",
+                            "best_fitting.expression.core.pattern_breakable.pattern_newline",
+                            2,
+                        );
+                        best_fitting![format_header_expanded, format_indented].format(f)?;
+                    } else {
+                        f.context().record_best_fitting(
+                            "best_fitting.expression.core.pattern_breakable.pattern_newline",
                             3,
                         );
-                        best_fitting![
-                            format_inline,
-                            format_break_after_operator_for_binary,
-                            format_header_expanded
-                        ]
-                        .format(f)?;
+                        best_fitting![format_header_expanded, format_inline, format_indented]
+                            .format(f)?;
+                    }
+                } else if value_is_long {
+                    if pattern_has_comments_or_annotations {
+                        if inline_declarator_is_impossible {
+                            f.context().record_best_fitting(
+                                "best_fitting.expression.core.pattern_breakable.long_with_comments",
+                                2,
+                            );
+                            best_fitting![
+                                format_break_after_operator_for_binary,
+                                format_header_expanded
+                            ]
+                            .format(f)?;
+                        } else {
+                            f.context().record_best_fitting(
+                                "best_fitting.expression.core.pattern_breakable.long_with_comments",
+                                3,
+                            );
+                            best_fitting![
+                                format_inline,
+                                format_break_after_operator_for_binary,
+                                format_header_expanded
+                            ]
+                            .format(f)?;
+                        }
                     } else {
                         if inline_declarator_fits {
                             write!(f, [format_inline])?;

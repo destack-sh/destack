@@ -1,6 +1,19 @@
 use super::*;
 use crate::scan::previous_non_whitespace_before_span as previous_non_whitespace_before_source_span;
 
+/// Return a compact lower bound for one-line width from source text.
+#[inline]
+pub(crate) fn source_min_inline_char_len(source: &str) -> usize {
+    if source.is_ascii() {
+        source
+            .bytes()
+            .filter(|byte| !byte.is_ascii_whitespace())
+            .count()
+    } else {
+        source.chars().filter(|ch| !ch.is_whitespace()).count()
+    }
+}
+
 /// Return the previous non-whitespace character before a span.
 pub(super) fn previous_non_whitespace_before_span(
     context: &DestackFormatContext<'_>,

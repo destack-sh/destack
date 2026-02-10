@@ -4,7 +4,9 @@ use crate::annotation::{
 };
 use crate::argument::list_like;
 use crate::block::format_block_of_statements;
-use crate::expression::{is_expression_breakable, lambda_expression_should_break};
+use crate::expression::{
+    is_expression_breakable, lambda_expression_should_break, source_min_inline_char_len,
+};
 use crate::key::format_key_with_quote_policy;
 use crate::property::format_block_of_members;
 use crate::signature::{
@@ -852,8 +854,15 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 let inline_header_len = f.context().span_char_len(leading_value_span);
                 let inline_value_len = f.context().span_char_len(value_span);
                 let inline_total_len = inline_header_len.saturating_add(inline_value_len);
+                let inline_header_min_len =
+                    source_min_inline_char_len(f.context().get_span_str(leading_value_span));
+                let inline_value_min_len =
+                    source_min_inline_char_len(f.context().get_span_str(value_span));
+                let inline_total_min_len =
+                    inline_header_min_len.saturating_add(inline_value_min_len);
                 let line_width = usize::from(f.context().options.line_width);
                 let value_has_newline = f.context().has_newline(value_span);
+                let inline_is_impossible = inline_total_min_len > line_width;
                 let should_break_template_literal_type_after_equals = match value_expression {
                     Expression::TypeTemplateLiteral { spans, .. } => {
                         let has_conditional_interpolation = spans.iter().any(|span_id| {
@@ -912,21 +921,53 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                         format_inline.format(f)?;
                     } else {
                         if value_has_prefix_annotation {
-                            f.context()
-                                .record_best_fitting("best_fitting.declaration", 3);
-                            best_fitting![format_inline, format_soft_break, format_indented]
-                                .format(f)?;
+                            if inline_is_impossible {
+                                // when inline is impossible, prefix-commented values should break after `=`
+                                format_soft_break.format(f)?;
+                            } else {
+                                f.context()
+                                    .record_best_fitting("best_fitting.declaration", 3);
+                                best_fitting![format_inline, format_soft_break, format_indented]
+                                    .format(f)?;
+                            }
                         } else {
-                            f.context()
-                                .record_best_fitting("best_fitting.declaration", 3);
-                            best_fitting![format_inline, format_inline_expanded, format_indented]
+                            if inline_is_impossible {
+                                // long conditional-like type values can skip best fitting probes
+                                if matches!(
+                                    value_expression,
+                                    Expression::TypeConditional { .. }
+                                        | Expression::If {
+                                            kind: IfKind::Ternary,
+                                            ..
+                                        }
+                                ) {
+                                    format_inline_expanded.format(f)?;
+                                } else {
+                                    f.context()
+                                        .record_best_fitting("best_fitting.declaration", 2);
+                                    best_fitting![format_inline_expanded, format_indented]
+                                        .format(f)?;
+                                }
+                            } else {
+                                f.context()
+                                    .record_best_fitting("best_fitting.declaration", 3);
+                                best_fitting![
+                                    format_inline,
+                                    format_inline_expanded,
+                                    format_indented
+                                ]
                                 .format(f)?;
+                            }
                         }
                     }
                 } else {
-                    f.context()
-                        .record_best_fitting("best_fitting.declaration", 2);
-                    best_fitting![format_inline, format_indented].format(f)?;
+                    if inline_is_impossible {
+                        format_indented.format(f)?;
+                    } else {
+                        f.context()
+                            .record_best_fitting("best_fitting.declaration", 2);
+                        best_fitting![format_inline, format_indented].format(f)?;
+                    }
                 }
                 // type alias declarations need trailing semicolon (like const/let)
                 write!(f, [token(";")])?;

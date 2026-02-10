@@ -2,19 +2,6 @@ use super::*;
 use crate::collection::{collection_nodes_have_annotations, collection_value_should_force_break};
 use destack_fir::{format_args, write};
 
-/// Return a compact lower bound for inline width from source text.
-#[inline]
-fn source_min_inline_char_len(source: &str) -> usize {
-    if source.is_ascii() {
-        source
-            .bytes()
-            .filter(|byte| !byte.is_ascii_whitespace())
-            .count()
-    } else {
-        source.chars().filter(|ch| !ch.is_whitespace()).count()
-    }
-}
-
 /// Return whether JSX argument formatting should force multiline mode.
 pub(super) fn has_multiline_jsx_argument(
     tree: &NodeTree,
@@ -706,9 +693,7 @@ pub(super) fn format_hugged<'ast>(
                 f.context().get_span_str(value_span),
             ))
             .saturating_add(usize::from(config.force_trailing));
-        let should_skip_probe_for_overflow = config.prefer_hugged_on_overflow
-            && !is_arrow_function
-            && inline_compact_candidate_len > line_width;
+        let should_skip_probe_for_overflow = inline_compact_candidate_len > line_width;
         let can_use_inline_fast_path = !f.context().has_annotation(argument_id)
             && !f.context().has_annotation(value_id)
             && !is_arrow_function
@@ -720,6 +705,28 @@ pub(super) fn format_hugged<'ast>(
             return Ok(true);
         }
 
+        let can_use_arrow_inline_fast_path = !f.context().has_annotation(argument_id)
+            && !f.context().has_annotation(value_id)
+            && is_arrow_function
+            && !arrow_force_expand
+            && !f
+                .context()
+                .get_parent(argument_id)
+                .is_some_and(|(parent_id, parent_type)| {
+                    parent_type == NodeType::Expression
+                        && is_expression_chain(
+                            f.context().tree,
+                            LocalNodeId::<Expression>::new(parent_id),
+                        )
+                })
+            && inline_compact_candidate_len <= line_width / 2;
+        if can_use_arrow_inline_fast_path {
+            f.context()
+                .increment_counter("profile.jsx.hug.inline.arrow_fast_path", 1);
+            inline_format.format(f)?;
+            return Ok(true);
+        }
+
         if should_skip_probe_for_overflow {
             f.context()
                 .increment_counter("profile.jsx.hug.skip_probe_overflow", 1);
@@ -727,6 +734,44 @@ pub(super) fn format_hugged<'ast>(
             return Ok(true);
         }
 
+        let is_annotated =
+            f.context().has_annotation(argument_id) || f.context().has_annotation(value_id);
+        if is_annotated {
+            f.context()
+                .increment_counter("profile.jsx.hug.best_fit.annotated", 1);
+        } else {
+            f.context()
+                .increment_counter("profile.jsx.hug.best_fit.unannotated", 1);
+        }
+        match f.context().tree.get(value_id) {
+            Expression::Declaration(_) => {
+                f.context()
+                    .increment_counter("profile.jsx.hug.best_fit.arrow", 1);
+                if inline_compact_candidate_len <= line_width / 2 {
+                    f.context()
+                        .increment_counter("profile.jsx.hug.best_fit.arrow.len_le_half", 1);
+                } else if inline_compact_candidate_len <= (line_width * 3) / 4 {
+                    f.context().increment_counter(
+                        "profile.jsx.hug.best_fit.arrow.len_le_three_quarters",
+                        1,
+                    );
+                } else {
+                    f.context().increment_counter(
+                        "profile.jsx.hug.best_fit.arrow.len_gt_three_quarters",
+                        1,
+                    );
+                }
+            }
+            Expression::ObjectExpression { .. } => {
+                f.context()
+                    .increment_counter("profile.jsx.hug.best_fit.object", 1);
+            }
+            Expression::ArrayExpression { .. } => {
+                f.context()
+                    .increment_counter("profile.jsx.hug.best_fit.array", 1);
+            }
+            _ => {}
+        }
         f.context()
             .record_best_fitting("best_fitting.expression.jsx", 2);
         best_fitting![inline_format, hugged_format].format(f)?;

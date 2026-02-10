@@ -241,6 +241,17 @@ pub struct CachedCallArgumentFacts {
     pub has_complex_non_callback_argument: bool,
 }
 
+/// Cached regular call argument expansion profile keyed by call expression node id.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct CachedCallArgumentExpansionProfile {
+    /// The final force expand decision.
+    pub force_expand: bool,
+    /// Whether the call has a non blank infix annotation.
+    pub has_call_infix_annotations: bool,
+    /// Whether the last argument is a collection literal.
+    pub trailing_collection_argument: bool,
+}
+
 /// Destack format options.
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct DestackFormatOptions {
@@ -442,6 +453,9 @@ pub struct DestackFormatContext<'a> {
     pub node_has_newline_cache: RefCell<Vec<Option<bool>>>,
     /// Cached call argument expand decisions for chain planning keyed by call node id.
     pub call_chain_argument_expand_cache: RefCell<Vec<Option<bool>>>,
+    /// Cached call argument expansion profile for regular call formatting keyed by call node id.
+    pub call_regular_argument_expand_cache:
+        RefCell<Vec<Option<CachedCallArgumentExpansionProfile>>>,
     /// Cached call argument annotation profiles keyed by argument node id.
     pub argument_annotation_profile_cache: RefCell<Vec<Option<CachedArgumentAnnotationProfile>>>,
     /// Cached call argument expansion facts keyed by call expression node id.
@@ -559,6 +573,7 @@ impl<'a> DestackFormatContext<'a> {
             node_span_char_len_cache: RefCell::new(vec![None; tree.next_id() as usize]),
             node_has_newline_cache: RefCell::new(vec![None; tree.next_id() as usize]),
             call_chain_argument_expand_cache: RefCell::new(vec![None; tree.next_id() as usize]),
+            call_regular_argument_expand_cache: RefCell::new(vec![None; tree.next_id() as usize]),
             argument_annotation_profile_cache: RefCell::new(vec![None; tree.next_id() as usize]),
             call_argument_facts_cache: RefCell::new(vec![None; tree.next_id() as usize]),
             transparent_inner_expression_cache: RefCell::new(vec![None; tree.next_id() as usize]),
@@ -1445,6 +1460,32 @@ impl<'a> DestackFormatContext<'a> {
             cache.resize((call_node_id.id + 1) as usize, None);
         }
         cache[call_node_id.id as usize] = Some(facts);
+    }
+
+    /// Return cached regular call argument expansion profile for one call expression node.
+    #[inline]
+    pub fn cached_call_argument_expansion_profile(
+        &self,
+        call_node_id: LocalNodeId<Expression>,
+    ) -> Option<CachedCallArgumentExpansionProfile> {
+        self.call_regular_argument_expand_cache
+            .borrow()
+            .get(call_node_id.id as usize)
+            .and_then(|entry| *entry)
+    }
+
+    /// Cache regular call argument expansion profile for one call expression node.
+    #[inline]
+    pub fn cache_call_argument_expansion_profile(
+        &self,
+        call_node_id: LocalNodeId<Expression>,
+        profile: CachedCallArgumentExpansionProfile,
+    ) {
+        let mut cache = self.call_regular_argument_expand_cache.borrow_mut();
+        if call_node_id.id as usize >= cache.len() {
+            cache.resize((call_node_id.id + 1) as usize, None);
+        }
+        cache[call_node_id.id as usize] = Some(profile);
     }
 
     /// Compute annotation facts for one argument node.
