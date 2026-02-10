@@ -1,0 +1,11 @@
+[package]
+name = "socket-io"
+description = "Socket.IO realtime framework"
+repo = "https://github.com/socketio/socket.io"
+ref = "74599a6b9e3dbeff1a9efe46c305d5d25d6e3dd8"
+language = "ts"
+tags = ["backend", "server", "realtime", "monorepo"]
+
+[discovery]
+include = ["packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/fixtures/**", "**/dist/**", "**/node_modules/**"]

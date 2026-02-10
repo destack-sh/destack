@@ -1,0 +1,11 @@
+[package]
+name = "swr"
+description = "SWR React data fetching library"
+repo = "https://github.com/vercel/swr"
+ref = "acd241eb66d2a4381afe1d51a977809079f4c67a"
+language = "ts"
+tags = ["library", "frontend", "react", "vercel"]
+
+[discovery]
+include = ["src/**/*.ts", "src/**/*.tsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/fixtures/**", "**/dist/**", "**/node_modules/**"]

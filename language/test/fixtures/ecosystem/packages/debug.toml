@@ -1,0 +1,11 @@
+[package]
+name = "debug"
+description = "debug logging utility"
+repo = "https://github.com/debug-js/debug"
+ref = "6704cea64eb6943f74fc82159401731acb170b3c"
+language = "js"
+tags = ["library", "utility"]
+
+[discovery]
+include = ["src/**/*.js"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/benchmark/**", "**/dist/**", "**/node_modules/**"]

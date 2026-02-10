@@ -1,0 +1,11 @@
+[package]
+name = "radix-primitives"
+description = "Radix UI primitives monorepo"
+repo = "https://github.com/radix-ui/primitives"
+ref = "907513701a75b11a115563f9554ac6e8147bf2db"
+language = "ts"
+tags = ["library", "frontend", "ui", "accessibility", "monorepo"]
+
+[discovery]
+include = ["packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/fixtures/**", "**/dist/**", "**/node_modules/**"]
