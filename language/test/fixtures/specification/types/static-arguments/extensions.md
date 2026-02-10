@@ -48,7 +48,7 @@ buffer.get() satisfies string;
 
 ```ds
 struct Pair<A, B> { 
-    left: A, 
+    left: A; 
     right: B 
 }
 

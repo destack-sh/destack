@@ -10,7 +10,7 @@ Tests for basic extension declarations on different types.
 
 ```ds
 struct Point {
-    x: number,
+    x: number;
     y: number
 }
 
@@ -32,7 +32,7 @@ point.magnitude() satisfies number;
 
 ```ds
 struct Point {
-    x: number,
+    x: number;
     y: number
 }
 
@@ -54,7 +54,7 @@ point.y satisfies number;
 > A type can have multiple extension blocks.
 
 ```ds
-struct Vector2 { x: number, y: number }
+struct Vector2 { x: number; y: number }
 
 extension for Vector2 {
     add(other: Vector2): Vector2 {

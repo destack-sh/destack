@@ -17,5 +17,5 @@ newtype OrderId = int64;
 > Structs model value oriented types with named fields.
 
 ```ds
-struct Point { x: float32, y: float32 }
+struct Point { x: float32; y: float32 }
 ```

@@ -8,11 +8,11 @@
 
 ```ds native=true
 struct Data {
-    value: int32,
+    value: int32;
 }
 
 struct Container {
-    data: Data,
+    data: Data;
 }
 
 function makeDataRef(): &Data {

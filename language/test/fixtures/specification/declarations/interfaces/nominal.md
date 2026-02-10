@@ -14,8 +14,8 @@ newtype interface Add<T> {
 }
 
 struct Vec2 {
-    x: int32,
-    y: int32,
+    x: int32;
+    y: int32;
 
     add(other: Vec2): Vec2 {
         Vec2 { x: this.x + other.x, y: this.y + other.y }
@@ -37,8 +37,8 @@ newtype interface Add<T> {
 }
 
 struct Vec2 {
-    x: int32,
-    y: int32,
+    x: int32;
+    y: int32;
 }
 
 extension for Vec2 implements Add<Vec2> {

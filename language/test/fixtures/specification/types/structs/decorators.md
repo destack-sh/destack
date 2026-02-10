@@ -11,7 +11,7 @@ Tests for decorators on struct declarations and members.
 ```ds
 struct User {
     @deprecated
-    name: string,
+    name: string;
 }
 
 const user = User { name: "Ada" };

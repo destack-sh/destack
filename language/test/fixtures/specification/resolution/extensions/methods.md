@@ -9,7 +9,7 @@ Tests for extension method signatures, parameters, and special members.
 > Extension methods can return primitive types.
 
 ```ds
-struct Point { x: number, y: number }
+struct Point { x: number; y: number }
 
 extension for Point {
     length(): number { return 0 }
@@ -43,7 +43,7 @@ logger.log("hello");
 > Extension methods can return the same type they extend.
 
 ```ds
-struct Vector2 { x: number, y: number }
+struct Vector2 { x: number; y: number }
 
 extension for Vector2 {
     normalized(): Vector2 {
@@ -62,7 +62,7 @@ vector.normalized() satisfies Vector2;
 > Extension methods can return a different type.
 
 ```ds
-struct Point { x: number, y: number }
+struct Point { x: number; y: number }
 
 extension for Point {
     toString(): string {
@@ -83,7 +83,7 @@ point.toString() satisfies string;
 > Extension methods can have one parameter.
 
 ```ds
-struct Point { x: number, y: number }
+struct Point { x: number; y: number }
 
 extension for Point {
     scale(factor: number): Point {
@@ -102,7 +102,7 @@ point.scale(2) satisfies Point;
 > Extension methods can have multiple parameters.
 
 ```ds
-struct Point { x: number, y: number }
+struct Point { x: number; y: number }
 
 extension for Point {
     translate(dx: number, dy: number): Point {

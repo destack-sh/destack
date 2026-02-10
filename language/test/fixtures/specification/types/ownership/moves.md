@@ -8,7 +8,7 @@
 
 ```ds native=true
 struct Data {
-    value: int32,
+    value: int32;
 }
 
 function consume(value: ^Data): void {
@@ -30,7 +30,7 @@ function run(): void {
 
 ```ds native=true
 struct Data {
-    value: int32,
+    value: int32;
 }
 
 function consume(value: ^Data): void {
@@ -49,7 +49,7 @@ function run(): void {
 
 ```ds native=true
 struct Data {
-    value: int32,
+    value: int32;
 }
 
 function consume(value: ^Data): void {
@@ -73,7 +73,7 @@ function run(flag: boolean): void {
 
 ```ds native=true
 struct Data {
-    value: int32,
+    value: int32;
 }
 
 function consume(value: ^Data): void {
@@ -97,11 +97,11 @@ function run(): void {
 
 ```ds native=true
 struct Data {
-    value: int32,
+    value: int32;
 }
 
 struct Container {
-    data: Data,
+    data: Data;
 }
 
 function consume(value: ^Container): void {
@@ -124,11 +124,11 @@ function run(): void {
 
 ```ds native=true
 struct Data {
-    value: int32,
+    value: int32;
 }
 
 struct Container {
-    data: Data,
+    data: Data;
 }
 
 function consume(value: ^Container): void {

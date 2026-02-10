@@ -15,7 +15,7 @@ interface Describable {
     describe(): string
 }
 
-struct Point { x: number, y: number }
+struct Point { x: number; y: number }
 
 extension for Point implements Describable {
     describe(): string {

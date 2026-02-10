@@ -9,7 +9,7 @@ Tests for operator overloading via interface implementations.
 > The `+` operator dispatches to the `add` method on the receiver.
 
 ```ds
-struct Vector2 { x: number, y: number }
+struct Vector2 { x: number; y: number }
 
 extension for Vector2 implements Add<Vector2> {
     add(other: Vector2): Vector2 {
@@ -30,7 +30,7 @@ sum satisfies Vector2;
 > The `+` operator requires an explicit `implements Add` clause.
 
 ```ds
-struct Vector2 { x: number, y: number }
+struct Vector2 { x: number; y: number }
 
 extension for Vector2 {
     add(other: Vector2): Vector2 {
