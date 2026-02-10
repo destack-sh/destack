@@ -213,6 +213,17 @@ fn template_argument_should_force_inline(
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
     let expression_id = template_argument_expression_id(context, argument_id);
+    let expression_span = context.get_span(expression_id);
+    let argument_span = context.get_span(argument_id);
+    let expression_is_inline_trivial =
+        is_trivial_expression(context.tree, context.tree.get(expression_id))
+            && !context.has_annotation(expression_id)
+            && !context.has_annotation(argument_id)
+            && !context.has_newline(expression_span)
+            && !context.has_newline(argument_span);
+    if expression_is_inline_trivial {
+        return true;
+    }
 
     matches!(
         context.tree.get(expression_id),
@@ -220,8 +231,8 @@ fn template_argument_should_force_inline(
             kind: IfKind::Ternary,
             ..
         }
-    ) && !context.has_newline(context.get_span(expression_id))
-        && !context.has_newline(context.get_span(argument_id))
+    ) && !context.has_newline(expression_span)
+        && !context.has_newline(argument_span)
 }
 
 /// Decide whether a template literal interpolation should break across lines.

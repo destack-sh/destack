@@ -3,7 +3,9 @@ use std::sync::Arc;
 use std::{env, fs, io};
 
 use destack_ast::{LocalNodeId, NodeParentIndex};
-use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
+use destack_formatter::{
+    DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, statement_list,
+};
 use destack_parser::Parser;
 use destack_source::{File, FileId, FileType, LanguageType, MultiSpan, Uri};
 
@@ -214,13 +216,15 @@ fn format_source(file_id: u32, path: &Path, source: &str) -> Result<String, Stri
     let options = DestackFormatOptions::default();
     let context = DestackFormatContext::new(
         options,
-        file.as_ref(),
-        &tree,
-        &tokens,
-        &side_tokens,
-        &side_span,
-        &strings,
-        parents,
+        DestackFormatArtifacts {
+            file: file.as_ref(),
+            tree: &tree,
+            tokens: &tokens,
+            side_tokens: &side_tokens,
+            side_span: &side_span,
+            strings: &strings,
+            parents,
+        },
     );
 
     let formatted = destack_fir::format!(context, [statement_list(&expressions)])

@@ -14,6 +14,97 @@ pub(crate) fn source_min_inline_char_len(source: &str) -> usize {
     }
 }
 
+/// Return whether an expression tree contains static type arguments.
+pub(crate) fn expression_has_static_type_arguments(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let expression_id = transparent_inner_expression(context, expression_id);
+
+    match context.tree.get(expression_id) {
+        Expression::Path {
+            static_arguments, ..
+        } => static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty()),
+        Expression::Member {
+            left,
+            static_arguments,
+            ..
+        }
+        | Expression::PrivateMember {
+            left,
+            static_arguments,
+            ..
+        } => {
+            static_arguments
+                .as_ref()
+                .is_some_and(|arguments| !arguments.is_empty())
+                || expression_has_static_type_arguments(context, *left)
+        }
+        Expression::Call {
+            left,
+            static_arguments,
+            ..
+        }
+        | Expression::New {
+            left,
+            static_arguments,
+            ..
+        } => {
+            static_arguments
+                .as_ref()
+                .is_some_and(|arguments| !arguments.is_empty())
+                || expression_has_static_type_arguments(context, *left)
+        }
+        Expression::Instantiation {
+            left,
+            static_arguments,
+        } => !static_arguments.is_empty() || expression_has_static_type_arguments(context, *left),
+        Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+            expression_has_static_type_arguments(context, *expression)
+        }
+        _ => false,
+    }
+}
+
+/// Return whether an expression has a non-doc multiline block prefix comment annotation.
+pub(crate) fn expression_has_non_doc_multiline_block_prefix_comment_annotation(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    context
+        .with_annotations(expression_id, |annotations| {
+            annotations.iter().any(|annotation_id| {
+                let annotation = context.tree.get::<Annotation>(*annotation_id);
+                if !matches!(annotation.position(), AnnotationPosition::BlockPrefix)
+                    || !matches!(annotation, Annotation::Comment { .. })
+                {
+                    return false;
+                }
+
+                let annotation_span = context.get_span::<Annotation>(*annotation_id);
+                let annotation_source = context.get_span_str(annotation_span);
+                let trimmed = annotation_source.trim_start();
+
+                annotation_source.contains('\n') && !trimmed.starts_with("/**")
+            })
+        })
+        .unwrap_or(false)
+}
+
+/// Return compact and source-width inline character bounds for one span.
+#[inline]
+pub(crate) fn span_inline_char_bounds(
+    context: &DestackFormatContext<'_>,
+    span: Span,
+) -> (usize, usize) {
+    let source = context.get_span_str(span);
+    let min_len = source_min_inline_char_len(source);
+    let max_len = context.span_char_len(span);
+    (min_len, max_len)
+}
+
 /// Return the previous non-whitespace character before a span.
 pub(super) fn previous_non_whitespace_before_span(
     context: &DestackFormatContext<'_>,

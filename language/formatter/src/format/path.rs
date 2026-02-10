@@ -3,7 +3,9 @@ use destack_ast::Path;
 use destack_fir::prelude::*;
 use destack_fir::write;
 
+/// Format a path with dot-separated segments.
 impl<'ast> Format<DestackFormatContext<'ast>> for Path {
+    /// Write every segment with `.` separators.
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         let mut segments = self.segments.iter().copied();
         let Some(first_segment) = segments.next() else {

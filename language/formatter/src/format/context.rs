@@ -105,7 +105,7 @@ impl FormatterCountersCollector {
         let mut snapshot = counters
             .iter()
             .map(|(name, value)| FormatterCounterEntry {
-                name: *name,
+                name,
                 value: *value,
             })
             .collect::<Vec<_>>();
@@ -250,6 +250,15 @@ pub struct CachedCallArgumentExpansionProfile {
     pub has_call_infix_annotations: bool,
     /// Whether the last argument is a collection literal.
     pub trailing_collection_argument: bool,
+}
+
+/// Cached regular and chain call argument expansion profiles keyed by call expression node id.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct CachedCallArgumentExpansionProfiles {
+    /// Cached regular call expansion profile.
+    pub regular: CachedCallArgumentExpansionProfile,
+    /// Cached chain call force-expand decision.
+    pub chain_force_expand: bool,
 }
 
 /// Destack format options.
@@ -451,11 +460,9 @@ pub struct DestackFormatContext<'a> {
     pub node_span_char_len_cache: RefCell<Vec<Option<usize>>>,
     /// Cached node span newline predicates keyed by node id.
     pub node_has_newline_cache: RefCell<Vec<Option<bool>>>,
-    /// Cached call argument expand decisions for chain planning keyed by call node id.
-    pub call_chain_argument_expand_cache: RefCell<Vec<Option<bool>>>,
-    /// Cached call argument expansion profile for regular call formatting keyed by call node id.
-    pub call_regular_argument_expand_cache:
-        RefCell<Vec<Option<CachedCallArgumentExpansionProfile>>>,
+    /// Cached call argument expansion profiles for regular and chain modes keyed by call node id.
+    pub call_argument_expansion_profiles_cache:
+        RefCell<Vec<Option<CachedCallArgumentExpansionProfiles>>>,
     /// Cached call argument annotation profiles keyed by argument node id.
     pub argument_annotation_profile_cache: RefCell<Vec<Option<CachedArgumentAnnotationProfile>>>,
     /// Cached call argument expansion facts keyed by call expression node id.
@@ -488,20 +495,38 @@ pub struct DestackFormatContext<'a> {
     pub counters: Rc<FormatterCountersCollector>,
 }
 
+/// Parser artifacts required to build a formatter context.
+#[derive(Debug)]
+pub struct DestackFormatArtifacts<'a> {
+    /// The source file being formatted.
+    pub file: &'a File,
+    /// The parsed node tree for the source file.
+    pub tree: &'a NodeTree,
+    /// Primary parser tokens for the source file.
+    pub tokens: &'a Vec<TokenSpan>,
+    /// Side token stream for comments and other non-primary trivia.
+    pub side_tokens: &'a Vec<TokenSpan>,
+    /// Span map for side tokens.
+    pub side_span: &'a MultiSpan,
+    /// Shared string pool for interned string data.
+    pub strings: &'a ImmutableStringPool,
+    /// Precomputed parent index for fast ancestry lookups.
+    pub parents: NodeParentIndex,
+}
+
 impl<'a> DestackFormatContext<'a> {
     /// Construct a formatting context from parse artifacts.
-    pub fn new(
+    pub fn new(options: DestackFormatOptions, artifacts: DestackFormatArtifacts<'a>) -> Self {
+        Self::new_with_timings(options, artifacts, false)
+    }
+
+    /// Construct a formatting context from parse artifacts with optional timing collection.
+    pub fn new_with_timings(
         options: DestackFormatOptions,
-        file: &'a File,
-        tree: &'a NodeTree,
-        tokens: &'a Vec<TokenSpan>,
-        side_tokens: &'a Vec<TokenSpan>,
-        side_span: &'a MultiSpan,
-        strings: &'a ImmutableStringPool,
-        parents: NodeParentIndex,
+        artifacts: DestackFormatArtifacts<'a>,
+        timings_enabled: bool,
     ) -> Self {
-        Self::new_with_timings(
-            options,
+        let DestackFormatArtifacts {
             file,
             tree,
             tokens,
@@ -509,22 +534,7 @@ impl<'a> DestackFormatContext<'a> {
             side_span,
             strings,
             parents,
-            false,
-        )
-    }
-
-    /// Construct a formatting context from parse artifacts with optional timing collection.
-    pub fn new_with_timings(
-        options: DestackFormatOptions,
-        file: &'a File,
-        tree: &'a NodeTree,
-        tokens: &'a Vec<TokenSpan>,
-        side_tokens: &'a Vec<TokenSpan>,
-        side_span: &'a MultiSpan,
-        strings: &'a ImmutableStringPool,
-        parents: NodeParentIndex,
-        timings_enabled: bool,
-    ) -> Self {
+        } = artifacts;
         let timings_enabled = timings_enabled || timings_enabled_from_env();
         let file_text = file.text();
         let has_ignore_directive_markers = file_text.contains("format-ignore")
@@ -572,8 +582,10 @@ impl<'a> DestackFormatContext<'a> {
             span_has_comment_cache: RefCell::new(FxHashMap::default()),
             node_span_char_len_cache: RefCell::new(vec![None; tree.next_id() as usize]),
             node_has_newline_cache: RefCell::new(vec![None; tree.next_id() as usize]),
-            call_chain_argument_expand_cache: RefCell::new(vec![None; tree.next_id() as usize]),
-            call_regular_argument_expand_cache: RefCell::new(vec![None; tree.next_id() as usize]),
+            call_argument_expansion_profiles_cache: RefCell::new(vec![
+                None;
+                tree.next_id() as usize
+            ]),
             argument_annotation_profile_cache: RefCell::new(vec![None; tree.next_id() as usize]),
             call_argument_facts_cache: RefCell::new(vec![None; tree.next_id() as usize]),
             transparent_inner_expression_cache: RefCell::new(vec![None; tree.next_id() as usize]),
@@ -1413,25 +1425,20 @@ impl<'a> DestackFormatContext<'a> {
         &self,
         argument_id: LocalNodeId<Argument>,
     ) -> CachedArgumentAnnotationProfile {
+        if let Some(profile) =
+            self.cache_get_copy_entry(&self.argument_annotation_profile_cache, argument_id.id)
         {
-            let cache = self.argument_annotation_profile_cache.borrow();
-            if let Some(profile) = cache
-                .get(argument_id.id as usize)
-                .and_then(|entry| entry.as_ref())
-            {
-                self.increment_counter("cache.argument_annotation_profile.hits", 1);
-                return *profile;
-            }
+            self.increment_counter("cache.argument_annotation_profile.hits", 1);
+            return profile;
         }
 
         self.increment_counter("cache.argument_annotation_profile.misses", 1);
         let profile = self.compute_argument_annotation_profile(argument_id);
-
-        let mut cache = self.argument_annotation_profile_cache.borrow_mut();
-        if argument_id.id as usize >= cache.len() {
-            cache.resize((argument_id.id + 1) as usize, None);
-        }
-        cache[argument_id.id as usize] = Some(profile);
+        self.cache_set_copy_entry(
+            &self.argument_annotation_profile_cache,
+            argument_id.id,
+            profile,
+        );
 
         profile
     }
@@ -1442,10 +1449,7 @@ impl<'a> DestackFormatContext<'a> {
         &self,
         call_node_id: LocalNodeId<Expression>,
     ) -> Option<CachedCallArgumentFacts> {
-        self.call_argument_facts_cache
-            .borrow()
-            .get(call_node_id.id as usize)
-            .and_then(|entry| *entry)
+        self.cache_get_copy_entry(&self.call_argument_facts_cache, call_node_id.id)
     }
 
     /// Cache call argument expansion facts for one call expression node.
@@ -1455,37 +1459,33 @@ impl<'a> DestackFormatContext<'a> {
         call_node_id: LocalNodeId<Expression>,
         facts: CachedCallArgumentFacts,
     ) {
-        let mut cache = self.call_argument_facts_cache.borrow_mut();
-        if call_node_id.id as usize >= cache.len() {
-            cache.resize((call_node_id.id + 1) as usize, None);
-        }
-        cache[call_node_id.id as usize] = Some(facts);
+        self.cache_set_copy_entry(&self.call_argument_facts_cache, call_node_id.id, facts);
     }
 
-    /// Return cached regular call argument expansion profile for one call expression node.
+    /// Return cached regular and chain call argument expansion profiles for one call node.
     #[inline]
-    pub fn cached_call_argument_expansion_profile(
+    pub fn cached_call_argument_expansion_profiles(
         &self,
         call_node_id: LocalNodeId<Expression>,
-    ) -> Option<CachedCallArgumentExpansionProfile> {
-        self.call_regular_argument_expand_cache
-            .borrow()
-            .get(call_node_id.id as usize)
-            .and_then(|entry| *entry)
+    ) -> Option<CachedCallArgumentExpansionProfiles> {
+        self.cache_get_copy_entry(
+            &self.call_argument_expansion_profiles_cache,
+            call_node_id.id,
+        )
     }
 
-    /// Cache regular call argument expansion profile for one call expression node.
+    /// Cache regular and chain call argument expansion profiles for one call node.
     #[inline]
-    pub fn cache_call_argument_expansion_profile(
+    pub fn cache_call_argument_expansion_profiles(
         &self,
         call_node_id: LocalNodeId<Expression>,
-        profile: CachedCallArgumentExpansionProfile,
+        profiles: CachedCallArgumentExpansionProfiles,
     ) {
-        let mut cache = self.call_regular_argument_expand_cache.borrow_mut();
-        if call_node_id.id as usize >= cache.len() {
-            cache.resize((call_node_id.id + 1) as usize, None);
-        }
-        cache[call_node_id.id as usize] = Some(profile);
+        self.cache_set_copy_entry(
+            &self.call_argument_expansion_profiles_cache,
+            call_node_id.id,
+            profiles,
+        );
     }
 
     /// Compute annotation facts for one argument node.
@@ -1535,6 +1535,33 @@ impl<'a> DestackFormatContext<'a> {
         });
 
         profile
+    }
+
+    /// Read one copyable value from an index-addressed optional cache.
+    fn cache_get_copy_entry<T: Copy>(
+        &self,
+        cache: &RefCell<Vec<Option<T>>>,
+        node_id: u32,
+    ) -> Option<T> {
+        cache
+            .borrow()
+            .get(node_id as usize)
+            .and_then(|entry| entry.as_ref())
+            .copied()
+    }
+
+    /// Write one copyable value into an index-addressed optional cache.
+    fn cache_set_copy_entry<T: Copy>(
+        &self,
+        cache: &RefCell<Vec<Option<T>>>,
+        node_id: u32,
+        value: T,
+    ) {
+        let mut cache = cache.borrow_mut();
+        if node_id as usize >= cache.len() {
+            cache.resize((node_id + 1) as usize, None);
+        }
+        cache[node_id as usize] = Some(value);
     }
 
     /// Start a formatter timing scope.

@@ -79,10 +79,8 @@ outer.map((x) => x.items.filter((y) => y.ok).map((y) => y.value))
 
 ```ds expected
 outer.map((x) =>
-    x.items
-        .filter((y) => y.ok)
-        .map((y) => y.value),
-);
+    x.items.filter((y) => y.ok).map((y) =>
+        y.value));
 ```
 
 ## Assignments and Chains
@@ -232,8 +230,7 @@ const x = a + b + c + d + e
 ```
 
 ```ds expected
-const x =
-    a
+const x = a
     + b
     + c
     + d
@@ -485,8 +482,7 @@ a((x) => b((y) => c((z) => d(x, y, z))))
 
 ```ds expected
 a((x) =>
-    b((y) => c((z) => d(x, y, z))),
-);
+    b((y) => c((z) => d(x, y, z))));
 ```
 
 ## Async/Await Patterns
@@ -513,8 +509,7 @@ const json = await fetch(url).then((r) => r.json())
 
 ```ds expected
 const json = await fetch(url).then((r) =>
-    r.json(),
-);
+    r.json());
 ```
 
 ### multiple awaits in expression
@@ -752,10 +747,7 @@ obj.items[0].getValue().transform()
 ```
 
 ```ds expected
-obj
-    .items[0]
-    .getValue()
-    .transform();
+obj.items[0].getValue().transform();
 ```
 
 ## Curried Function Calls

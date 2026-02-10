@@ -190,7 +190,10 @@ pub(super) fn format_primary_expression<'ast>(
                 .context()
                 .timing_scope(tags::FORMAT_EXPRESSION_PRIMARY_TYPE_MAPPED);
             let include_space = f.context().options.bracket_spacing;
-            let break_parameter_clause = usize::from(f.context().options.line_width) <= 60;
+            let break_parameter_clause = f.context().has_annotation(parameter.constraint)
+                || f.context()
+                    .has_newline(f.context().get_span(parameter.constraint))
+                || is_expression_breakable(tree, tree.get(parameter.constraint));
             let inline_separator = if include_space {
                 soft_line_break_or_space()
             } else {

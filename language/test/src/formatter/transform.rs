@@ -5,7 +5,9 @@ use crate::harness::{TestResult, format_diagnostics};
 use crate::mdtest::MdTestCase;
 use destack_ast::{NodeParentIndex, TokenSpan};
 use destack_fir::format as fir_format;
-use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
+use destack_formatter::{
+    DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, statement_list,
+};
 use destack_parser::{Parser, source_colorizer};
 use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileRegistry, FileSystem,
@@ -179,13 +181,15 @@ fn format_expressions(
     // format context
     let context = DestackFormatContext::new(
         format_options,
-        file,
-        &parser.tree,
-        tokens,
-        side_tokens,
-        &side_span,
-        &strings,
-        parents,
+        DestackFormatArtifacts {
+            file,
+            tree: &parser.tree,
+            tokens,
+            side_tokens,
+            side_span: &side_span,
+            strings: &strings,
+            parents,
+        },
     );
 
     // format expressions

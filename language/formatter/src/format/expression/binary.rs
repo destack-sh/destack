@@ -462,6 +462,14 @@ pub(super) fn is_type_grouping_binary_operator(operator: BinaryOperator) -> bool
     )
 }
 
+/// Return whether a long binary rhs should break immediately after an assignment operator.
+pub(super) fn binary_rhs_prefers_break_after_operator(
+    value_source_len: usize,
+    line_width: usize,
+) -> bool {
+    value_source_len > line_width
+}
+
 /// Return whether a type binary operand needs grouping parentheses.
 pub(super) fn type_binary_operand_needs_grouping_parentheses(
     context: &DestackFormatContext<'_>,

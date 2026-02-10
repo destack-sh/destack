@@ -283,8 +283,6 @@ pub(super) fn property_has_complex_type_value(
     property_id: LocalNodeId<Property>,
 ) -> bool {
     let tree = context.tree;
-    let line_width = usize::from(context.options.line_width);
-    let type_len_threshold = (line_width / 2).max(30);
 
     if context.has_annotation(property_id) {
         return true;
@@ -295,7 +293,6 @@ pub(super) fn property_has_complex_type_value(
         context.has_annotation(expression_id)
             || is_expression_breakable(tree, expression)
             || !is_trivial_expression(tree, expression)
-            || expression_source_len(context, expression_id) > type_len_threshold
     };
 
     match tree.get(property_id) {
@@ -315,7 +312,6 @@ pub(super) fn should_force_break_tree_attributes(
 ) -> bool {
     let tree = context.tree;
     let line_width = usize::from(context.options.line_width);
-    let complex_len_threshold = (line_width / 2).max(24);
 
     // comments on attributes force a break
     if collection_nodes_have_annotations(context, arguments) {
@@ -358,12 +354,8 @@ pub(super) fn should_force_break_tree_attributes(
                     .any(|property_id| property_has_complex_value(context, property_id));
 
                 // break when the object is clearly complex
-                let should_break_object = collection_value_should_force_break(
-                    has_many_properties,
-                    has_complex_property,
-                    value_source_len,
-                    complex_len_threshold,
-                );
+                let should_break_object =
+                    collection_value_should_force_break(has_many_properties, has_complex_property);
 
                 if should_break_object {
                     return true;
@@ -388,12 +380,8 @@ pub(super) fn should_force_break_tree_attributes(
                 });
 
                 // break when the array is clearly complex
-                let should_break_array = collection_value_should_force_break(
-                    has_many_elements,
-                    has_complex_element,
-                    value_source_len,
-                    complex_len_threshold,
-                );
+                let should_break_array =
+                    collection_value_should_force_break(has_many_elements, has_complex_element);
 
                 if should_break_array {
                     return true;
@@ -685,19 +673,25 @@ pub(super) fn format_hugged<'ast>(
     } else {
         let line_width = usize::from(f.context().options.line_width);
         let value_span = f.context().get_span(value_id);
+        let (inline_compact_value_len, inline_source_value_len) =
+            span_inline_char_bounds(f.context(), value_span);
         let inline_compact_candidate_len = config
             .open
             .len()
             .saturating_add(config.close.len())
-            .saturating_add(source_min_inline_char_len(
-                f.context().get_span_str(value_span),
-            ))
+            .saturating_add(inline_compact_value_len)
+            .saturating_add(usize::from(config.force_trailing));
+        let inline_source_candidate_len = config
+            .open
+            .len()
+            .saturating_add(config.close.len())
+            .saturating_add(inline_source_value_len)
             .saturating_add(usize::from(config.force_trailing));
         let should_skip_probe_for_overflow = inline_compact_candidate_len > line_width;
         let can_use_inline_fast_path = !f.context().has_annotation(argument_id)
             && !f.context().has_annotation(value_id)
             && !is_arrow_function
-            && inline_compact_candidate_len <= line_width;
+            && inline_source_candidate_len <= line_width;
         if can_use_inline_fast_path {
             f.context()
                 .increment_counter("profile.jsx.hug.inline.fast_path", 1);
@@ -709,17 +703,7 @@ pub(super) fn format_hugged<'ast>(
             && !f.context().has_annotation(value_id)
             && is_arrow_function
             && !arrow_force_expand
-            && !f
-                .context()
-                .get_parent(argument_id)
-                .is_some_and(|(parent_id, parent_type)| {
-                    parent_type == NodeType::Expression
-                        && is_expression_chain(
-                            f.context().tree,
-                            LocalNodeId::<Expression>::new(parent_id),
-                        )
-                })
-            && inline_compact_candidate_len <= line_width / 2;
+            && inline_source_candidate_len <= line_width;
         if can_use_arrow_inline_fast_path {
             f.context()
                 .increment_counter("profile.jsx.hug.inline.arrow_fast_path", 1);
@@ -736,45 +720,16 @@ pub(super) fn format_hugged<'ast>(
 
         let is_annotated =
             f.context().has_annotation(argument_id) || f.context().has_annotation(value_id);
-        if is_annotated {
+        let should_hug = is_annotated || arrow_force_expand;
+        if should_hug {
             f.context()
-                .increment_counter("profile.jsx.hug.best_fit.annotated", 1);
+                .increment_counter("profile.jsx.hug.deterministic.hug", 1);
+            hugged_format.format(f)?;
         } else {
             f.context()
-                .increment_counter("profile.jsx.hug.best_fit.unannotated", 1);
+                .increment_counter("profile.jsx.hug.deterministic.inline", 1);
+            inline_format.format(f)?;
         }
-        match f.context().tree.get(value_id) {
-            Expression::Declaration(_) => {
-                f.context()
-                    .increment_counter("profile.jsx.hug.best_fit.arrow", 1);
-                if inline_compact_candidate_len <= line_width / 2 {
-                    f.context()
-                        .increment_counter("profile.jsx.hug.best_fit.arrow.len_le_half", 1);
-                } else if inline_compact_candidate_len <= (line_width * 3) / 4 {
-                    f.context().increment_counter(
-                        "profile.jsx.hug.best_fit.arrow.len_le_three_quarters",
-                        1,
-                    );
-                } else {
-                    f.context().increment_counter(
-                        "profile.jsx.hug.best_fit.arrow.len_gt_three_quarters",
-                        1,
-                    );
-                }
-            }
-            Expression::ObjectExpression { .. } => {
-                f.context()
-                    .increment_counter("profile.jsx.hug.best_fit.object", 1);
-            }
-            Expression::ArrayExpression { .. } => {
-                f.context()
-                    .increment_counter("profile.jsx.hug.best_fit.array", 1);
-            }
-            _ => {}
-        }
-        f.context()
-            .record_best_fitting("best_fitting.expression.jsx", 2);
-        best_fitting![inline_format, hugged_format].format(f)?;
     }
 
     Ok(true)
@@ -841,12 +796,13 @@ pub(super) fn format_tree_attribute_value<'ast>(
 
             let line_width = usize::from(f.context().options.line_width);
             let value_span = f.context().get_span(value_id);
-            let inline_compact_candidate_len = 3usize.saturating_add(source_min_inline_char_len(
-                f.context().get_span_str(value_span),
-            ));
+            let (inline_compact_value_len, inline_source_value_len) =
+                span_inline_char_bounds(f.context(), value_span);
+            let inline_compact_candidate_len = 3usize.saturating_add(inline_compact_value_len);
+            let inline_source_candidate_len = 3usize.saturating_add(inline_source_value_len);
             let should_skip_probe_for_overflow = inline_compact_candidate_len > line_width;
             let can_use_inline_fast_path =
-                !f.context().has_annotation(value_id) && inline_compact_candidate_len <= line_width;
+                !f.context().has_annotation(value_id) && inline_source_candidate_len <= line_width;
             if can_use_inline_fast_path {
                 f.context()
                     .increment_counter("profile.jsx.attribute.inline.fast_path", 1);
@@ -861,9 +817,15 @@ pub(super) fn format_tree_attribute_value<'ast>(
                 return Ok(());
             }
 
-            f.context()
-                .record_best_fitting("best_fitting.expression.jsx", 2);
-            best_fitting![inline_format, hugged_format].format(f)?;
+            if f.context().has_annotation(value_id) {
+                f.context()
+                    .increment_counter("profile.jsx.attribute.deterministic.hug", 1);
+                hugged_format.format(f)?;
+            } else {
+                f.context()
+                    .increment_counter("profile.jsx.attribute.deterministic.inline", 1);
+                inline_format.format(f)?;
+            }
         }
         Expression::ArrayExpression { elements } => {
             let elements = elements.clone();
@@ -908,12 +870,13 @@ pub(super) fn format_tree_attribute_value<'ast>(
 
             let line_width = usize::from(f.context().options.line_width);
             let value_span = f.context().get_span(value_id);
-            let inline_compact_candidate_len = 3usize.saturating_add(source_min_inline_char_len(
-                f.context().get_span_str(value_span),
-            ));
+            let (inline_compact_value_len, inline_source_value_len) =
+                span_inline_char_bounds(f.context(), value_span);
+            let inline_compact_candidate_len = 3usize.saturating_add(inline_compact_value_len);
+            let inline_source_candidate_len = 3usize.saturating_add(inline_source_value_len);
             let should_skip_probe_for_overflow = inline_compact_candidate_len > line_width;
             let can_use_inline_fast_path =
-                !f.context().has_annotation(value_id) && inline_compact_candidate_len <= line_width;
+                !f.context().has_annotation(value_id) && inline_source_candidate_len <= line_width;
             if can_use_inline_fast_path {
                 f.context()
                     .increment_counter("profile.jsx.attribute.inline.fast_path", 1);
@@ -928,9 +891,15 @@ pub(super) fn format_tree_attribute_value<'ast>(
                 return Ok(());
             }
 
-            f.context()
-                .record_best_fitting("best_fitting.expression.jsx", 2);
-            best_fitting![inline_format, hugged_format].format(f)?;
+            if f.context().has_annotation(value_id) {
+                f.context()
+                    .increment_counter("profile.jsx.attribute.deterministic.hug", 1);
+                hugged_format.format(f)?;
+            } else {
+                f.context()
+                    .increment_counter("profile.jsx.attribute.deterministic.inline", 1);
+                inline_format.format(f)?;
+            }
         }
         _ => {
             // regular format for non-huggable values

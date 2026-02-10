@@ -468,7 +468,8 @@ pub(crate) fn assignment_like_remaining_width(
             Some(line_width.saturating_sub(inline_overhead))
         }
         NodeType::Declarator => {
-            let declarator = context.tree.get(LocalNodeId::<Declarator>::new(parent_id));
+            let declarator_id = LocalNodeId::<Declarator>::new(parent_id);
+            let declarator = context.tree.get(declarator_id);
             let pattern_span = context.get_span(declarator.pattern);
             let pattern_source_len = context.span_char_len(pattern_span);
             let type_source_len = declarator
@@ -482,9 +483,8 @@ pub(crate) fn assignment_like_remaining_width(
 
             // account for `header <space> = <space>`
             let remaining_width = line_width.saturating_sub(header_source_len.saturating_add(3));
-
-            // be conservative: declarators often have a leading keyword
-            Some(remaining_width.saturating_sub(DECLARATOR_PREFIX_PADDING))
+            let leading_prefix_len = declarator_leading_prefix_len(context, declarator_id);
+            Some(remaining_width.saturating_sub(leading_prefix_len))
         }
         _ => None,
     }

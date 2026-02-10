@@ -1,56 +1,5 @@
 use super::*;
 
-/// Estimate the inline length of a chain expression.
-pub(crate) fn chain_inline_len(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> Option<usize> {
-    let tree = context.tree;
-
-    if !is_chain_root(tree, node_id)
-        && !is_expression_chain(tree, node_id)
-        && !matches!(tree.get(node_id), Expression::Path { .. })
-    {
-        return None;
-    }
-
-    // collect the nodes that belong to this chain
-    let chain = collect_chain_nodes(tree, node_id);
-
-    let root_id = *chain.first()?;
-
-    let mut total_len = match tree.get(root_id) {
-        Expression::Path {
-            path,
-            static_arguments,
-        } => {
-            let segments_len = path
-                .segments
-                .iter()
-                .map(|segment| context.strings.get(*segment).chars().count())
-                .sum::<usize>();
-            let dot_len = path.segments.len().saturating_sub(1);
-            let static_len = static_arguments_len(context, static_arguments);
-
-            segments_len
-                .saturating_add(dot_len)
-                .saturating_add(static_len)
-        }
-        _ => expression_source_len(context, root_id),
-    };
-
-    for &expression_id in &chain[1..] {
-        let Ok(chain_expression) = chain_expression_from_node(tree, expression_id) else {
-            continue;
-        };
-
-        let operation_len = chain_operation_len(context, &chain_expression);
-        total_len = total_len.saturating_add(operation_len);
-    }
-
-    Some(total_len)
-}
-
 /// Split off simple head operations that should stay with the base.
 pub(crate) fn split_chain_head_operations(
     context: &DestackFormatContext<'_>,
@@ -65,21 +14,9 @@ pub(crate) fn split_chain_head_operations(
         return 0;
     }
 
-    // keep the base head from growing too large
+    // keep promoted head operations within the current inline budget
     let line_width = usize::from(context.options.line_width);
-    let mut max_head_len = if allow_wide_head {
-        line_width.max(12)
-    } else {
-        (line_width / MAX_CHAIN_HEAD_LEN_DIVISOR).max(12)
-    };
-
-    // clamp head growth to the known rhs width when available
-    if let Some(remaining_width) = remaining_width {
-        let remaining_limit = remaining_width
-            .saturating_sub(ASSIGNMENT_CHAIN_TAIL_RESERVE)
-            .max(8);
-        max_head_len = max_head_len.min(remaining_limit);
-    }
+    let max_head_len = remaining_width.unwrap_or(line_width);
 
     // detect whether the chain starts with calls or numeric indexes
     let first_is_call_or_numeric_index = match operations.first() {
@@ -88,6 +25,15 @@ pub(crate) fn split_chain_head_operations(
         Some(ChainExpression::Index { index, .. }) => is_numeric_index(context, index),
         _ => false,
     };
+    let starts_with_member = matches!(operations.first(), Some(ChainExpression::Member { .. }));
+    let has_call_like_tail = operations.iter().any(|operation| {
+        matches!(
+            operation,
+            ChainExpression::Call { .. } | ChainExpression::Instantiation { .. }
+        )
+    });
+    let cap_member_promotion_before_call_tail =
+        starts_with_member && has_call_like_tail && remaining_width.is_none();
 
     // accumulate simple operations while within the promotion limits
     let mut head_len = base_len;
@@ -95,8 +41,8 @@ pub(crate) fn split_chain_head_operations(
     let mut index = 0usize;
 
     while index < operations.len() {
-        // stop after the configured number of promoted operations
-        if head_ops_count >= MAX_CHAIN_HEAD_OPS {
+        // keep member-leading fluent call chains from over-promoting the head
+        if cap_member_promotion_before_call_tail && head_ops_count > 0 {
             break;
         }
 
@@ -179,11 +125,6 @@ pub(crate) fn split_chain_head_operations(
                     && dynamic_arguments.is_empty()
             );
             if base_has_leading_call_like && next_is_empty_call {
-                break;
-            }
-
-            // respect the promotion count limit for paired operations
-            if head_ops_count.saturating_add(2) > MAX_CHAIN_HEAD_OPS {
                 break;
             }
 
@@ -445,9 +386,21 @@ pub(crate) fn analyze_chain_break(
     let has_multiline_call = call_summaries
         .iter()
         .any(|summary| summary.has_multiline_argument);
-    if calls_count > 1 && has_multiline_call {
+    let chain_is_in_conditional_branch = expression_is_in_conditional_branch(context, chain_tail)
+        || expression_is_in_conditional_branch(context, chain_root);
+    if calls_count > 1 && has_multiline_call && !chain_is_in_conditional_branch {
         return ChainBreakAnalysis {
             should_break: true,
+            call_summaries,
+            has_chain_intervening_trivia,
+            has_path_tail_deferred_empty_call_boundary_comment,
+        };
+    }
+
+    // single-call chains should prefer the regular inline fit decision
+    if calls_count == 1 {
+        return ChainBreakAnalysis {
+            should_break: false,
             call_summaries,
             has_chain_intervening_trivia,
             has_path_tail_deferred_empty_call_boundary_comment,
@@ -463,10 +416,7 @@ pub(crate) fn analyze_chain_break(
         } else {
             assignment_like_remaining_width(context, chain_root).unwrap_or(line_width)
         };
-    let inline_len = chain_inline_len(context, chain_tail).unwrap_or(0);
-    let overflow_in_type_binary_left =
-        chain_overflows_in_type_binary_left(context, chain_tail, available_width);
-    let should_break = inline_len > available_width || overflow_in_type_binary_left;
+    let should_break = chain_overflows_in_type_binary_left(context, chain_tail, available_width);
 
     ChainBreakAnalysis {
         should_break,

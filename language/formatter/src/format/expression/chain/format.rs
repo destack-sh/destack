@@ -224,7 +224,8 @@ fn plan_chain_layout(
             })
         }
     };
-    let remaining_width = if is_call_like_argument(context, node_id) {
+    let in_conditional_branch = expression_is_in_conditional_branch(context, node_id);
+    let remaining_width = if is_call_like_argument(context, node_id) || in_conditional_branch {
         None
     } else {
         assignment_like_remaining_width(context, node_id)
@@ -432,12 +433,30 @@ pub(crate) fn format_expression_chain<'ast>(
     // keep compact source chains inline without probing best fitting variants
     let line_width = usize::from(f.context().options.line_width);
     let chain_span = f.context().get_span(node_id);
-    let source_chain_len = f.context().span_char_len(chain_span);
+    let is_chain_call_like_argument = is_call_like_argument(f.context(), node_id);
+    let is_chain_conditional_branch = expression_is_in_conditional_branch(f.context(), node_id);
+    let inline_budget = if is_chain_call_like_argument
+        || in_template_literal_interpolation
+        || is_chain_conditional_branch
+    {
+        line_width
+    } else if chain_has_calls {
+        assignment_like_remaining_width(f.context(), node_id).unwrap_or(line_width)
+    } else {
+        line_width
+    };
+    let inline_chain_len = chain_base_len(f.context(), &base).saturating_add(
+        lines
+            .iter()
+            .flat_map(|line| line.iter())
+            .map(|operation| chain_operation_len(f.context(), operation))
+            .sum::<usize>(),
+    );
     let can_use_inline_fast_path = !chain_should_break
         && deferred_path_boundary_comments.is_empty()
         && !f.context().has_newline(chain_span)
         && lines.len() <= 2
-        && source_chain_len.saturating_add(8) <= line_width;
+        && inline_chain_len <= inline_budget;
     if can_use_inline_fast_path {
         f.context()
             .increment_counter("profile.chain.inline.fast_path", 1);
@@ -451,10 +470,62 @@ pub(crate) fn format_expression_chain<'ast>(
         return Ok(());
     }
 
-    // prefer inline, otherwise chain
-    f.context()
-        .record_best_fitting("best_fitting.expression.chain", 2);
-    best_fitting![format_inline, format_chain].format(f)
+    // keep ternary branch chains attached to their first call hop:
+    // `cond ? null : api.client().get(...)` should not split before `.get(`
+    let prefer_conditional_inline_chain = is_chain_conditional_branch
+        && deferred_path_boundary_comments.is_empty()
+        && lines.first().is_some_and(|line| {
+            line.iter().any(|operation| {
+                matches!(
+                    operation,
+                    ChainExpression::Call {
+                        dynamic_arguments,
+                        ..
+                    } if !dynamic_arguments.is_empty()
+                )
+            })
+        });
+    if prefer_conditional_inline_chain {
+        f.context()
+            .increment_counter("profile.chain.conditional.inline", 1);
+        format_inline.format(f)?;
+        return Ok(());
+    }
+
+    let compact_chain_len = source_min_inline_char_len(f.context().get_span_str(chain_span));
+    let has_call_with_dynamic_arguments =
+        lines.iter().flat_map(|line| line.iter()).any(|operation| {
+            matches!(
+                operation,
+                ChainExpression::Call {
+                    dynamic_arguments,
+                    ..
+                } if !dynamic_arguments.is_empty()
+            )
+        });
+    let should_probe_dynamic_call_overflow = has_call_with_dynamic_arguments
+        && (is_chain_call_like_argument
+            || in_template_literal_interpolation
+            || is_chain_conditional_branch);
+    if compact_chain_len > inline_budget && !should_probe_dynamic_call_overflow {
+        f.context()
+            .increment_counter("profile.chain.skip_probe_overflow", 1);
+        format_chain.format(f)?;
+        return Ok(());
+    }
+
+    let should_inline = deferred_path_boundary_comments.is_empty()
+        && !f.context().has_newline(chain_span)
+        && inline_chain_len <= inline_budget;
+    if should_inline {
+        f.context()
+            .increment_counter("profile.chain.deterministic.inline", 1);
+        format_inline.format(f)
+    } else {
+        f.context()
+            .record_best_fitting("best_fitting.expression.chain", 2);
+        best_fitting![format_inline, format_chain].format(f)
+    }
 }
 /// Format the base segment of a chain.
 fn format_chain_base<'ast>(

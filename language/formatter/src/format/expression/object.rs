@@ -1,5 +1,6 @@
 use super::*;
 use crate::collection::{collection_nodes_have_annotations, collection_nodes_have_newline};
+use crate::directive::any_ignore_range_for_nodes;
 use destack_fir::{format_args, write};
 
 /// Format boundary comments for array-like structures.
@@ -192,9 +193,7 @@ pub(crate) fn format_struct_literal<'ast>(
 
     let comment_tokens = f.context().comment_tokens();
     let has_ignore_ranges = !properties_ids.is_empty()
-        && properties_ids.iter().any(|property_id| {
-            ignore_range_for_node(f.context(), *property_id, &comment_tokens).is_some()
-        });
+        && any_ignore_range_for_nodes(f.context(), properties_ids, comment_tokens);
 
     // only force expand for methods, annotations, comments, or explicit newlines
     // otherwise let best_fitting decide based on line width

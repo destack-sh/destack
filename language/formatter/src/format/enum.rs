@@ -4,7 +4,9 @@ use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
 
+/// Format a single enum field entry.
 impl<'ast> FormatNode<'ast, EnumField> for EnumField {
+    /// Emit the field name, optional value, trailing comma, and attached annotations.
     fn format_node(
         &self,
         node_id: LocalNodeId<EnumField>,

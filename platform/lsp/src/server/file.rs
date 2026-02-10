@@ -4,7 +4,9 @@ use std::sync::Arc;
 
 use destack_ast::{Expression, LocalNodeId, NodeParentIndex};
 use destack_fir::format as fir_format;
-use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
+use destack_formatter::{
+    DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, statement_list,
+};
 use destack_lsp_types as lsp;
 use destack_parser::Parser;
 use destack_source::{
@@ -237,13 +239,15 @@ pub(super) fn format_file(
             let strings = ast.strings.clone().into_immutable();
             let context = DestackFormatContext::new(
                 format_options,
-                file.as_ref(),
-                &ast.tree,
-                &ast.tokens,
-                &ast.side_tokens,
-                &side_span,
-                &strings,
-                ast.parents.clone(),
+                DestackFormatArtifacts {
+                    file: file.as_ref(),
+                    tree: &ast.tree,
+                    tokens: &ast.tokens,
+                    side_tokens: &ast.side_tokens,
+                    side_span: &side_span,
+                    strings: &strings,
+                    parents: ast.parents.clone(),
+                },
             );
 
             return format_expressions(&context, &ast.roots);
@@ -270,13 +274,15 @@ pub(super) fn format_file(
     let parents = NodeParentIndex::from_tree(&parser.tree);
     let context = DestackFormatContext::new(
         format_options,
-        file.as_ref(),
-        &parser.tree,
-        &tokens,
-        &side_tokens,
-        &side_span,
-        &strings,
-        parents,
+        DestackFormatArtifacts {
+            file: file.as_ref(),
+            tree: &parser.tree,
+            tokens: &tokens,
+            side_tokens: &side_tokens,
+            side_span: &side_span,
+            strings: &strings,
+            parents,
+        },
     );
 
     format_expressions(&context, &expressions)
@@ -354,13 +360,15 @@ pub(super) fn format_range(
     };
     let context = DestackFormatContext::new(
         format_options,
-        file.as_ref(),
-        &parser.tree,
-        &tokens,
-        &side_tokens,
-        &side_span,
-        &strings,
-        parents,
+        DestackFormatArtifacts {
+            file: file.as_ref(),
+            tree: &parser.tree,
+            tokens: &tokens,
+            side_tokens: &side_tokens,
+            side_span: &side_span,
+            strings: &strings,
+            parents,
+        },
     );
 
     // format overlapping expressions

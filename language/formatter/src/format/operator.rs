@@ -6,7 +6,9 @@ use destack_fir::write;
 
 use crate::{DestackFormatContext, DestackFormatter};
 
+/// Format unary operators as source tokens.
 impl<'ast> Format<DestackFormatContext<'ast>> for UnaryOperator {
+    /// Write the token form of the unary operator.
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
             UnaryOperator::PostIncrement => token("++"),
@@ -27,7 +29,9 @@ impl<'ast> Format<DestackFormatContext<'ast>> for UnaryOperator {
     }
 }
 
+/// Format type unary operators as source tokens.
 impl<'ast> Format<DestackFormatContext<'ast>> for TypeUnaryOperator {
+    /// Write the token form of the type unary operator.
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
             TypeUnaryOperator::Not => token("!"),
@@ -44,7 +48,9 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TypeUnaryOperator {
     }
 }
 
+/// Format binary operators as source tokens.
 impl<'ast> Format<DestackFormatContext<'ast>> for BinaryOperator {
+    /// Write the token form of the binary operator.
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
             // multiplication
@@ -99,7 +105,9 @@ impl<'ast> Format<DestackFormatContext<'ast>> for BinaryOperator {
     }
 }
 
+/// Format type binary operators as source tokens.
 impl<'ast> Format<DestackFormatContext<'ast>> for TypeBinaryOperator {
+    /// Write the token form of the type binary operator.
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
             TypeBinaryOperator::Cast => token("as"),
@@ -114,7 +122,9 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TypeBinaryOperator {
     }
 }
 
+/// Format assignment operators as source tokens.
 impl<'ast> Format<DestackFormatContext<'ast>> for AssignOperator {
+    /// Write the token form of the assignment operator.
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         let token = token(match self {
             AssignOperator::Assign => "=",
