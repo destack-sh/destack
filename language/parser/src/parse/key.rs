@@ -267,21 +267,32 @@ impl Parser {
                 break;
             };
 
-            let token = *self.eat_token(TokenType::Identifier)?;
+            // kebab segments allow numeric suffixes, like panose-1
+            let token = if is_kebab && self.peek_numeric_literal().is_ok() {
+                let token = *self.peek_numeric_literal()?;
+                self.bump();
+                token
+            } else {
+                *self.eat_token(TokenType::Identifier)?
+            };
             let token_part = self.get_token_str(token);
 
             // disallow escaped identifiers in tree literals
-            if token_part.contains('\\') {
+            if token.token.ty == TokenType::Identifier && token_part.contains('\\') {
                 return Err(ParseError::unexpected(token.span));
             }
             last_span = token.span;
 
             if is_kebab {
-                // uppercase the first character
-                let mut chars = token_part.chars();
-                if let Some(first) = chars.next() {
-                    identifier.extend(first.to_uppercase());
-                    identifier.push_str(chars.as_str());
+                // keep numeric kebab segments as is, uppercase identifier segments
+                if token.token.ty == TokenType::Literal {
+                    identifier.push_str(token_part);
+                } else {
+                    let mut chars = token_part.chars();
+                    if let Some(first) = chars.next() {
+                        identifier.extend(first.to_uppercase());
+                        identifier.push_str(chars.as_str());
+                    }
                 }
             } else {
                 identifier.push(':');
@@ -516,8 +527,10 @@ impl Parser {
                 let name = self.eat_identifier()?;
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;
-                let key_type =
-                    self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
+                let key_type = self
+                    .with_options(self.options.not_in_left_precedence().in_type(), |parser| {
+                        parser.eat_expression()
+                    })?;
                 self.eat_token(TokenType::CloseBracket)?;
                 Ok(Key::NamedExpression {
                     name,
@@ -577,8 +590,10 @@ impl Parser {
                 let name = self.eat_identifier()?;
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;
-                let key_type =
-                    self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
+                let key_type = self
+                    .with_options(self.options.not_in_left_precedence().in_type(), |parser| {
+                        parser.eat_expression()
+                    })?;
                 self.eat_token(TokenType::CloseBracket)?;
                 Ok((
                     Key::NamedExpression {
