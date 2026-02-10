@@ -310,6 +310,35 @@ Baz {
     }
 
     #[test]
+    fn test_parse_typescript_interface_extends_comma_separated_with_newline() {
+        let mut test = TestParser::new_with_options(
+            r###"
+interface Foo extends Bar,
+Baz {
+}
+"###,
+            destack_source::LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let start = parser.mark();
+        let interface_id = parser
+            .eat_interface(
+                &start,
+                DeclarationDescriptor::default(),
+                TypeKind::Structural,
+            )
+            .unwrap();
+        assert_node!(parser.tree, interface_id, Declaration::Interface { heritage, .. } => {
+            let extends_types = heritage.extends_types.as_ref().expect("expected extends");
+            assert_eq!(extends_types.len(), 2);
+            assert_expression_path!(parser, parser.tree.get(extends_types[0]), "Bar");
+            assert_expression_path!(parser, parser.tree.get(extends_types[1]), "Baz");
+        });
+    }
+
+    #[test]
     fn test_parse_interface_with_members() {
         let mut test = TestParser::new(
             r###"

@@ -159,7 +159,7 @@ impl Parser {
                 _ => unreachable!(),
             };
 
-            // reject using bindings in for-in loops for js and ts
+            // reject using bindings in for-in loops for JS/TS
             // destack allows this, see SPECIFICATION.md
             if !self.language.is_destack()
                 && kind == ForEachKind::In

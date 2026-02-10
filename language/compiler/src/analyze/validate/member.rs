@@ -774,7 +774,7 @@ mod tests {
         test.check_has_diagnostic("EA503");
     }
 
-    /// Reject non-simple class method parameters with strict directive prologues in JS and TS.
+    /// Reject non-simple class method parameters with strict directive prologues in JS/TS.
     #[test]
     fn test_reject_class_method_non_simple_parameters_with_use_strict() {
         let test = TestProgram::memory_sequential();

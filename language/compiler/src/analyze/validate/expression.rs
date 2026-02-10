@@ -1188,7 +1188,7 @@ impl Compiler {
         }
     }
 
-    /// Validate catch parameter shape rules for js and ts.
+    /// Validate catch parameter shape rules for JS/TS.
     fn validate_catch_binding_pattern(
         &self,
         module: &Module,
@@ -1363,7 +1363,7 @@ impl Compiler {
         }
     }
 
-    /// Validate empty parenthesized expressions in js and ts.
+    /// Validate empty parenthesized expressions in JS/TS.
     fn validate_empty_parenthesized_expression(
         &self,
         module: &Module,
@@ -1385,7 +1385,7 @@ impl Compiler {
         }
     }
 
-    /// Validate empty sequence expressions used as parenthesized forms in js and ts.
+    /// Validate empty sequence expressions used as parenthesized forms in JS/TS.
     fn validate_empty_parenthesized_sequence(
         &self,
         module: &Module,
@@ -2936,7 +2936,7 @@ impl Compiler {
         tree: &NodeTree,
         declarator_id: LocalNodeId<Declarator>,
     ) {
-        // only js and ts require assignment style declarator bindings
+        // only JS/TS require assignment style declarator bindings
         if !(module.language_type.is_javascript() || module.language_type.is_typescript()) {
             return;
         }
@@ -3675,7 +3675,7 @@ const __proto__ = 1;
         test.check_has_diagnostic("ER201");
     }
 
-    /// Reject non-simple function parameters with strict directive prologues in JS and TS.
+    /// Reject non-simple function parameters with strict directive prologues in JS/TS.
     #[test]
     fn test_reject_function_non_simple_parameters_with_use_strict() {
         let test = TestProgram::memory_sequential();
@@ -3703,7 +3703,7 @@ const __proto__ = 1;
         test.check_no_diagnostic_code("EA503");
     }
 
-    /// Reject non-simple object method parameters with strict directive prologues in JS and TS.
+    /// Reject non-simple object method parameters with strict directive prologues in JS/TS.
     #[test]
     fn test_reject_object_method_non_simple_parameters_with_use_strict() {
         let test = TestProgram::memory_sequential();

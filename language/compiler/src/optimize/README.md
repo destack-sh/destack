@@ -23,7 +23,7 @@ The backend handles low-level optimizations such as register allocation, instruc
 
 MIR verification passes run at O0 for every target because they depend on lowered MIR and optimizer analyses.
 Optimization passes beyond verification run only for native targets.
-JS or TS targets generate code directly from canonical DIR after MIR verification.
+JS/TS targets generate code directly from canonical DIR after MIR verification.
 Comptime execution happens in Execute and is not part of the Optimize pipeline.
 
 ## Optimization Levels

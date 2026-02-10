@@ -4,7 +4,7 @@ Destack is "TypeScript++" for building correct, optimal, integrated software sys
 This document describes the motivation and tradeoffs in choosing TypeScript and why we added what.
 (Basically, Destack adds features to TypeScript that wouldn't fit in TypeScript itself, much like `.tsx` or `.svelte` do).
 
-Of course, other languages with some similar features also have tried this before, and some are moderately successful.
+Of course, other JS/TS-derived languages with similar features have tried this before, and some are moderately successful (e.g., AssemblyScript, NativeScript (sort of)).
 But they all fall short in interoperability, usefulness and - ultimately - adoption.
 We feel that now is the time to try this again, and have made some different tradeoffs to enable TypeScript to cover many more usage scenarios.
 

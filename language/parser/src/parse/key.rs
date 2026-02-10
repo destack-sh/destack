@@ -22,7 +22,7 @@ impl Parser {
         let index = self.pos_index();
         let token = *self.eat_token(TokenType::Identifier)?;
 
-        // reject escaped keywords in js or ts
+        // reject escaped keywords in JS/TS
         {
             let raw = self.file.span_str(token.span);
             if (self.language.is_javascript() || self.language.is_typescript())

@@ -550,7 +550,7 @@ impl Parser {
         second.is_ascii_digit() || second == '_'
     }
 
-    /// Return true when a js or ts numeric literal is immediately followed by an identifier.
+    /// Return true when a JS/TS numeric literal is immediately followed by an identifier.
     fn numeric_literal_has_invalid_js_ts_suffix(&mut self, literal: TokenSpan) -> bool {
         if !(self.language.is_javascript() || self.language.is_typescript()) {
             return false;
@@ -1306,7 +1306,7 @@ impl Parser {
         Ok(self.tree.insert(expression, self.get_span_from(&start)))
     }
 
-    /// Validate shorthand object literal keys in js and ts.
+    /// Validate shorthand object literal keys in JS/TS.
     fn validate_object_literal_shorthand_keys(
         &self,
         properties: &[LocalNodeId<Property>],

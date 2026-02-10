@@ -13,7 +13,7 @@ The tier definitions are below.
 
 Conflict resolution follows this order.
 1. Destack language spec and formatter fixtures for DS and TS++ behavior.
-2. `oxfmt` for shared JS and TS behavior.
+2. `oxfmt` for shared JS/TS behavior.
 3. `prettier` and `biome` as advisory when they conflict with `oxfmt`.
 
 Known failures and ignored files have strict meanings.

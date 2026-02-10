@@ -12,7 +12,7 @@ impl Parser {
             .any(|character| matches!(character, '\n' | '\r' | '\u{2028}' | '\u{2029}'))
     }
 
-    /// Return true when regex flags are valid for modern js and ts.
+    /// Return true when regex flags are valid for modern JS/TS.
     pub(super) fn regex_flags_are_valid(&self, flags: &str) -> bool {
         let mut seen_d = false;
         let mut seen_g = false;

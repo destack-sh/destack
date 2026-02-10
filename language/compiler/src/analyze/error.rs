@@ -429,7 +429,7 @@ pub enum AnalyzeError {
     )]
     InvalidExponentLeftUnary { node: AnchoredGlobalNodeId },
 
-    /// Parenthesized expressions cannot be empty in JS and TS.
+    /// Parenthesized expressions cannot be empty in JS/TS.
     #[error(code = "EA241", message = "empty parenthesized expression")]
     EmptyParenthesizedExpression { node: AnchoredGlobalNodeId },
 

@@ -160,10 +160,3 @@ cargo test -p destack_test --test ecosystem -- --all-phases
 cargo test -p destack_test --test ecosystem -- --phase analyze --include-known-failures
 cargo test -p destack_test --test ecosystem -- --update-known-failures
 ```
-
-## Design Goals
-
-The suite should stay deterministic, reproducible, and scalable across larger corpora.
-Patch overlays are stamped and only re-applied when overlay content changes.
-Compiler phase entrypoints prefer `package.json` entry fields (`exports`, `main`, `module`, `types`, `bin`) and fall back to deterministic source sampling.
-Known failures are skipped by default, so use `--include-known-failures` when you want full diagnostics for those cases.

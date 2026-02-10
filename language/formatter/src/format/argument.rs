@@ -1091,7 +1091,7 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
             }
         }
 
-        // preserve js and ts trailing comma placement before trailing line comments
+        // preserve JS/TS trailing comma placement before trailing line comments
         if argument_should_emit_trailing_comma(f.context(), node_id) {
             write!(f, [if_group_breaks(&token(","))])?;
         }
