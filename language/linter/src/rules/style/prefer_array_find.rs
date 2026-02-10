@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{const_i64, expression_method_call, is_array_type};
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest `.find()` over `.filter()[0]`.
@@ -18,7 +18,7 @@ declare_lint! {
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -122,7 +122,7 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
 
         // check if left is a filter call on an array
         if self.is_array_filter_call(*left) {
-            self.report(expression_id, FirstElementAccess::Index);
+            self.report(expression_id, *left, FirstElementAccess::Index);
         }
     }
 
@@ -146,7 +146,7 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
             }
 
             if self.is_array_filter_call(call.receiver_id) {
-                self.report(expression_id, FirstElementAccess::Shift);
+                self.report(expression_id, call.receiver_id, FirstElementAccess::Shift);
             }
             return;
         }
@@ -158,9 +158,30 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
             }
 
             if self.is_array_filter_call(call.receiver_id) {
-                self.report(expression_id, FirstElementAccess::At);
+                self.report(expression_id, call.receiver_id, FirstElementAccess::At);
             }
         }
+    }
+
+    /// Build a find replacement for a filter call.
+    fn build_find_replacement(
+        &self,
+        filter_call_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<String> {
+        let filter_call = expression_method_call(self.ctx.tree, filter_call_id)?;
+        if filter_call.method_name != self.filter_name {
+            return None;
+        }
+
+        // rewrite the matched call text itself to preserve receiver and arguments
+        let filter_span = self.ctx.get_span(filter_call_id);
+        let filter_text = self.ctx.get_span_text(filter_span);
+        let replacement = filter_text.replacen(".filter(", ".find(", 1);
+        if replacement == filter_text {
+            return None;
+        }
+
+        Some(replacement)
     }
 
     /// Check if this is a .at(0) call.
@@ -231,6 +252,7 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
     fn report(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
+        filter_call_id: dir::LocalNodeId<dir::Expression>,
         access: FirstElementAccess,
     ) {
         // honor per node severity
@@ -245,21 +267,33 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
             FirstElementAccess::Shift => "filter().shift()",
             FirstElementAccess::At => "filter().at(0)",
         };
-
-        // report the diagnostic
         let span = self.ctx.get_span(expression_id);
-        self.ctx.report(
-            LintDiagnostic::new(
-                PREFER_ARRAY_FIND.id,
-                PREFER_ARRAY_FIND.code,
-                PREFER_ARRAY_FIND.category,
-                severity,
-                format!("prefer find() over {pattern}"),
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label("use array.find(...) instead"),
-        );
+
+        // attach a fix when the replacement is well-formed
+        let mut diagnostic = LintDiagnostic::new(
+            PREFER_ARRAY_FIND.id,
+            PREFER_ARRAY_FIND.code,
+            PREFER_ARRAY_FIND.category,
+            severity,
+            format!("prefer find() over {pattern}"),
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label("use array.find(...) instead");
+        if self.ctx.include_fixes
+            && let Some(replacement) = self.build_find_replacement(filter_call_id)
+        {
+            let edits = self
+                .ctx
+                .edit_builder()
+                .replace(span, replacement)
+                .into_edits();
+            let fix =
+                LintFix::safe("Replace filter first-element access with find").with_edits(edits);
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
     }
 }
 
@@ -305,7 +339,14 @@ let items = [1, 2, 3];
 let first = items.filter(x => x > 1)[0];
 "#,
         );
-        test.result(result).assert_lint("prefer-array-find");
+        test.result(result)
+            .assert_lint("prefer-array-find")
+            .assert_safe_fixed(
+                r#"
+let items = [1, 2, 3];
+let first = items.find((x) => x > 1);
+"#,
+            );
     }
 
     /// Flag filter().shift() pattern.
@@ -319,7 +360,14 @@ let items = [1, 2, 3];
 let first = items.filter(x => x > 1).shift();
 "#,
         );
-        test.result(result).assert_lint("prefer-array-find");
+        test.result(result)
+            .assert_lint("prefer-array-find")
+            .assert_safe_fixed(
+                r#"
+let items = [1, 2, 3];
+let first = items.find((x) => x > 1);
+"#,
+            );
     }
 
     /// Flag filter().at(0) pattern.
@@ -333,7 +381,14 @@ let items = [1, 2, 3];
 let first = items.filter(x => x > 1).at(0);
 "#,
         );
-        test.result(result).assert_lint("prefer-array-find");
+        test.result(result)
+            .assert_lint("prefer-array-find")
+            .assert_safe_fixed(
+                r#"
+let items = [1, 2, 3];
+let first = items.find((x) => x > 1);
+"#,
+            );
     }
 
     /// Allow filter()[1] since it's not a first-element access.
@@ -404,5 +459,26 @@ let last = items.filter(x => x > 0).at(-1);
 "#,
         );
         test.result(result).assert_no_lint("prefer-array-find");
+    }
+
+    /// Keep thisArg arguments when rewriting filter to find.
+    #[test]
+    fn test_fix_preserves_filter_this_arg() {
+        let test = TestProgram::for_rule_with_prelude(PreferArrayFind);
+        let result = test.lint_dir(
+            "prefer_array_find/test_fix_preserves_filter_this_arg.ds",
+            r#"
+let items = [1, 2, 3];
+let first = items.filter(predicate, context)[0];
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-array-find")
+            .assert_safe_fixed(
+                r#"
+let items = [1, 2, 3];
+let first = items.find(predicate, context);
+"#,
+            );
     }
 }

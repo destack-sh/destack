@@ -1,11 +1,12 @@
 use destack_ast as ast;
+use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     has_hyphen_separator, has_multiple_sentence_starts, is_directive_comment,
     is_non_prose_doc_line, is_separator_comment, parse_keyword_comment_with_options,
 };
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce comment layout conventions.
@@ -21,7 +22,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -129,18 +130,29 @@ impl LintRule for CommentLayout {
 
                         // enforce uppercase keyword comments
                         if !keyword_info.keyword_is_uppercase {
-                            ctx.report(
-                                LintDiagnostic::new(
-                                    COMMENT_LAYOUT.id,
-                                    COMMENT_LAYOUT.code,
-                                    COMMENT_LAYOUT.category,
-                                    severity,
-                                    "keyword comments should use uppercase keywords",
-                                    ctx.module.file_id,
-                                    ctx.tree.get_span(node_id),
+                            let mut diagnostic = LintDiagnostic::new(
+                                COMMENT_LAYOUT.id,
+                                COMMENT_LAYOUT.code,
+                                COMMENT_LAYOUT.category,
+                                severity,
+                                "keyword comments should use uppercase keywords",
+                                ctx.module.file_id,
+                                ctx.tree.get_span(node_id),
+                            )
+                            .with_label("use NOTE, TODO, or FUGU in uppercase");
+
+                            // compute fixes only when requested by the runner
+                            if ctx.compute_fixes
+                                && let Some(fix) = uppercase_keyword_comment_fix(
+                                    ctx,
+                                    node_id,
+                                    &keyword_info.keyword,
                                 )
-                                .with_label("use NOTE, TODO, or FUGU in uppercase"),
-                            );
+                            {
+                                diagnostic = diagnostic.with_fix(fix);
+                            }
+
+                            ctx.report(diagnostic);
                         }
 
                         // reject unknown keyword tags
@@ -234,6 +246,47 @@ fn known_comment_tag_label(tags: &[String]) -> String {
     }
 
     format!("use one of {}", tags.join(", "))
+}
+
+/// Build a safe fix for lowercase keyword comments.
+fn uppercase_keyword_comment_fix(
+    ctx: &LintModuleAstContext<'_>,
+    annotation_id: ast::LocalNodeId<ast::Annotation>,
+    uppercase_keyword: &str,
+) -> Option<LintFix> {
+    let annotation_span = ctx.tree.get_span(annotation_id);
+    let annotation_text = ctx.get_span_text(annotation_span);
+    let start_offset = annotation_text
+        .char_indices()
+        .find_map(|(offset, character)| character.is_alphabetic().then_some(offset))?;
+    let token = &annotation_text[start_offset..];
+    let end_offset = token
+        .char_indices()
+        .find_map(|(offset, character)| character.is_whitespace().then_some(offset))
+        .unwrap_or(token.len());
+    let token = &token[..end_offset];
+    let token_without_colon = token.trim_end_matches(':');
+
+    if !token_without_colon.eq_ignore_ascii_case(uppercase_keyword) {
+        return None;
+    }
+
+    let suffix = &token[token_without_colon.len()..];
+    let replacement = format!("{uppercase_keyword}{suffix}");
+    if replacement == token {
+        return None;
+    }
+
+    let token_span = Span::new(
+        annotation_span.file,
+        annotation_span.start + start_offset as u32,
+        annotation_span.start + (start_offset + token.len()) as u32,
+    );
+    let edits = ctx
+        .edit_builder()
+        .replace(token_span, replacement)
+        .into_edits();
+    Some(LintFix::safe("Uppercase comment keyword").with_edits(edits))
 }
 
 #[cfg(test)]
@@ -361,6 +414,27 @@ const value = 1;
         test.result(result).assert_lint("comment-layout");
     }
 
+    /// Auto-fix lowercase keyword comments.
+    #[test]
+    fn test_fix_uppercases_keyword_comment() {
+        let test = TestProgram::for_rule_without_prelude(CommentLayout);
+        let result = test.lint_ast(
+            "comment_layout/test_fix_uppercases_keyword_comment.ds",
+            r#"
+// todo #Cleanup: normalize this branch
+const value = 1;
+"#,
+        );
+        test.result(result)
+            .assert_lint("comment-layout")
+            .assert_safe_fixed(
+                r#"
+// TODO #Cleanup: normalize this branch
+const value = 1;
+"#,
+            );
+    }
+
     /// Reject unknown keyword tags.
     #[test]
     fn test_keyword_comment_rejects_unknown_tag() {
@@ -373,6 +447,22 @@ const value = 1;
 "#,
         );
         test.result(result).assert_lint("comment-layout");
+    }
+
+    /// Skip fixes for unknown keyword tags.
+    #[test]
+    fn test_no_fix_for_unknown_keyword_tag() {
+        let test = TestProgram::for_rule_without_prelude(CommentLayout);
+        let result = test.lint_ast(
+            "comment_layout/test_no_fix_for_unknown_keyword_tag.ds",
+            r#"
+// TODO #Whatever: normalize this branch
+const value = 1;
+"#,
+        );
+        test.result(result)
+            .assert_lint("comment-layout")
+            .assert_has_no_fix("comment-layout");
     }
 
     /// Accept keyword comments with known tags.

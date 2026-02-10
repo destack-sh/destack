@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, Expression, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Warn on exclusive ranges that are likely meant to be inclusive.
@@ -29,7 +29,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -74,22 +74,27 @@ impl LintRule for NoIncompleteRange {
                     continue;
                 }
 
-                ctx.report(
-                    LintDiagnostic::new(
-                        NO_INCOMPLETE_RANGE.id,
-                        NO_INCOMPLETE_RANGE.code,
-                        NO_INCOMPLETE_RANGE.category,
-                        severity,
-                        format!(
-                            "exclusive range `'{start_char}'..'{end_char}'` excludes `'{end_char}'`",
-                        ),
-                        ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
-                    )
-                    .with_label(format!(
-                        "use `'{start_char}'..='{end_char}'` to include `'{end_char}'`",
-                    )),
-                );
+                let mut diagnostic = LintDiagnostic::new(
+                    NO_INCOMPLETE_RANGE.id,
+                    NO_INCOMPLETE_RANGE.code,
+                    NO_INCOMPLETE_RANGE.category,
+                    severity,
+                    format!(
+                        "exclusive range `'{start_char}'..'{end_char}'` excludes `'{end_char}'`",
+                    ),
+                    ctx.module.file_id,
+                    ctx.tree.get_span(node_id),
+                )
+                .with_label(format!(
+                    "use `'{start_char}'..='{end_char}'` to include `'{end_char}'`",
+                ));
+                if ctx.compute_fixes
+                    && let Some(fix) = incomplete_char_range_fix(ctx, node_id, *start, *end)
+                {
+                    diagnostic = diagnostic.with_fix(fix);
+                }
+
+                ctx.report(diagnostic);
                 continue;
             }
 
@@ -115,6 +120,29 @@ impl LintRule for NoIncompleteRange {
             }
         }
     }
+}
+
+/// Build a safe exclusive-char-range to inclusive-char-range rewrite.
+fn incomplete_char_range_fix(
+    ctx: &LintModuleAstContext<'_>,
+    range_expression_id: ast::LocalNodeId<ast::Expression>,
+    start_expression_id: ast::LocalNodeId<ast::Expression>,
+    end_expression_id: ast::LocalNodeId<ast::Expression>,
+) -> Option<LintFix> {
+    let start_span = ctx.tree.get_span(start_expression_id);
+    let end_span = ctx.tree.get_span(end_expression_id);
+    if end_span.end <= start_span.start {
+        return None;
+    }
+
+    let start_text = ctx.get_span_text(start_span);
+    let end_text = ctx.get_span_text(end_span);
+    let replacement = format!("{start_text}..={end_text}");
+    let edits = ctx
+        .edit_builder()
+        .replace(ctx.tree.get_span(range_expression_id), replacement)
+        .into_edits();
+    Some(LintFix::safe("Convert exclusive char range to inclusive range").with_edits(edits))
 }
 
 /// Extract character values from a character range.
@@ -173,7 +201,13 @@ mod tests {
 const range = 'a'..'z'
 "#,
         );
-        test.result(result).assert_lint("no-incomplete-range");
+        test.result(result)
+            .assert_lint("no-incomplete-range")
+            .assert_safe_fixed(
+                r#"
+const range = 'a'..='z';
+"#,
+            );
     }
 
     #[test]
@@ -285,7 +319,17 @@ function foo() {
 }
 "#,
         );
-        test.result(result).assert_lint("no-incomplete-range");
+        test.result(result)
+            .assert_lint("no-incomplete-range")
+            .assert_safe_fixed(
+                r#"
+function foo() {
+    for (const c of 'a'..='z') {
+        print(c)
+    }
+}
+"#,
+            );
     }
 
     #[test]
@@ -301,7 +345,9 @@ function foo(arr: int[]) {
 }
 "#,
         );
-        test.result(result).assert_lint("no-incomplete-range");
+        test.result(result)
+            .assert_lint("no-incomplete-range")
+            .assert_has_no_fix("no-incomplete-range");
     }
 
     #[test]

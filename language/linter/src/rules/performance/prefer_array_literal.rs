@@ -9,7 +9,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::expression_method_call;
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer array literal over empty array followed by push.
@@ -23,7 +23,7 @@ declare_lint! {
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -44,14 +44,18 @@ impl LintRule for PreferArrayLiteral {
 }
 
 /// Info about an empty array declaration.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 struct EmptyArrayDecl {
     /// The expression id of the declaration.
     expression_id: LocalNodeId<dir::Expression>,
+    /// The initializer expression id (`[]`).
+    initializer_id: LocalNodeId<dir::Expression>,
     /// Whether we've seen a non-push use of this variable.
     has_other_use: bool,
     /// Number of consecutive push calls seen.
     push_count: u32,
+    /// Push calls seen for this declaration.
+    push_call_ids: Vec<LocalNodeId<dir::Expression>>,
 }
 
 /// Visitor that flags empty array + push patterns.
@@ -143,8 +147,10 @@ impl<'a, 'b> PreferArrayLiteralVisitor<'a, 'b> {
                 global_symbol,
                 EmptyArrayDecl {
                     expression_id,
+                    initializer_id: init_id,
                     has_other_use: false,
                     push_count: 0,
+                    push_call_ids: Vec::new(),
                 },
             );
         }
@@ -173,6 +179,7 @@ impl<'a, 'b> PreferArrayLiteralVisitor<'a, 'b> {
         // increment the push count
         if let Some(decl) = self.empty_arrays.get_mut(&target_symbol) {
             decl.push_count += 1;
+            decl.push_call_ids.push(expression_id);
         }
     }
 
@@ -192,7 +199,8 @@ impl<'a, 'b> PreferArrayLiteralVisitor<'a, 'b> {
 
     /// Report arrays that could be array literals.
     fn report_candidates(&mut self) {
-        for decl in self.empty_arrays.values() {
+        let declaration_candidates = self.empty_arrays.values().cloned().collect::<Vec<_>>();
+        for decl in declaration_candidates {
             // only report if we have pushes and no other uses
             if decl.push_count == 0 || decl.has_other_use {
                 continue;
@@ -206,21 +214,110 @@ impl<'a, 'b> PreferArrayLiteralVisitor<'a, 'b> {
                 continue;
             }
 
-            // report the diagnostic
             let span = self.ctx.get_span(decl.expression_id);
-            self.ctx.report(
-                LintDiagnostic::new(
-                    PREFER_ARRAY_LITERAL.id,
-                    PREFER_ARRAY_LITERAL.code,
-                    PREFER_ARRAY_LITERAL.category,
-                    severity,
-                    "prefer array literal over empty array + push",
-                    self.ctx.module.file_id,
-                    span,
-                )
-                .with_label("initialize with values directly"),
-            );
+            let mut diagnostic = LintDiagnostic::new(
+                PREFER_ARRAY_LITERAL.id,
+                PREFER_ARRAY_LITERAL.code,
+                PREFER_ARRAY_LITERAL.category,
+                severity,
+                "prefer array literal over empty array + push",
+                self.ctx.module.file_id,
+                span,
+            )
+            .with_label("initialize with values directly");
+            if self.ctx.include_fixes
+                && let Some(fix) = self.prefer_array_literal_fix(&decl)
+            {
+                diagnostic = diagnostic.with_fix(fix);
+            }
+            self.ctx.report(diagnostic);
         }
+    }
+
+    /// Build an unsafe fix by moving pushed values into the initializer.
+    fn prefer_array_literal_fix(&self, decl: &EmptyArrayDecl) -> Option<LintFix> {
+        let (container_id, declaration_item_id) =
+            self.container_and_item_expression_id(decl.expression_id)?;
+        let declaration_item_span = self.ctx.get_span(declaration_item_id);
+        let mut push_statement_ids = Vec::new();
+        let mut literal_elements = Vec::new();
+        for push_call_id in &decl.push_call_ids {
+            let (push_container_id, push_item_id) =
+                self.container_and_item_expression_id(*push_call_id)?;
+            if push_container_id != container_id {
+                return None;
+            }
+
+            // keep pushes after declaration in the same container
+            let push_item_span = self.ctx.get_span(push_item_id);
+            if push_item_span.start <= declaration_item_span.start {
+                return None;
+            }
+
+            let push_call = self.ctx.tree.get(*push_call_id);
+            let dir::Expression::Call {
+                static_arguments,
+                dynamic_arguments,
+                ..
+            } = push_call
+            else {
+                return None;
+            };
+            if static_arguments
+                .as_ref()
+                .is_some_and(|arguments| !arguments.is_empty())
+                || dynamic_arguments.len() != 1
+            {
+                return None;
+            }
+            let argument = self.ctx.tree.get(dynamic_arguments[0]);
+            let dir::Argument::Positional { value, .. } = argument else {
+                return None;
+            };
+
+            // keep positional push values only
+            literal_elements.push(
+                self.ctx
+                    .get_span_text(self.ctx.get_span(*value))
+                    .to_string(),
+            );
+            push_statement_ids.push(push_item_id);
+        }
+
+        // rewrite initializer and remove pushes
+        let array_literal = format!("[{}]", literal_elements.join(", "));
+        let mut edit_builder = self.ctx.edit_builder();
+        edit_builder = edit_builder.replace(self.ctx.get_span(decl.initializer_id), array_literal);
+        for push_statement_id in push_statement_ids {
+            edit_builder = edit_builder.replace(self.ctx.get_span(push_statement_id), "");
+        }
+        let edits = edit_builder.into_edits();
+        Some(LintFix::r#unsafe("Initialize array with literal and remove pushes").with_edits(edits))
+    }
+
+    /// Return a container id and removable expression item for one expression.
+    fn container_and_item_expression_id(
+        &self,
+        expression_id: LocalNodeId<dir::Expression>,
+    ) -> Option<(Option<u32>, LocalNodeId<dir::Expression>)> {
+        let parent_id = self.ctx.tree.get_parent_id(expression_id.id);
+        let Some(parent_id) = parent_id else {
+            return Some((None, expression_id));
+        };
+
+        if self.ctx.tree.get_node_type(parent_id) == dir::NodeType::Expression {
+            let parent_expression_id = LocalNodeId::<dir::Expression>::new(parent_id);
+            let parent_expression = self.ctx.tree.get(parent_expression_id);
+            if matches!(
+                parent_expression,
+                dir::Expression::Statement { statement } if *statement == expression_id
+            ) {
+                let container_id = self.ctx.tree.get_parent_id(parent_id);
+                return Some((container_id, parent_expression_id));
+            }
+        }
+
+        Some((Some(parent_id), expression_id))
     }
 }
 
@@ -275,7 +372,13 @@ items.push(1);
 items.push(2);
 "#,
         );
-        test.result(result).assert_lint("prefer-array-literal");
+        test.result(result)
+            .assert_lint("prefer-array-literal")
+            .assert_unsafe_fixed(
+                r#"
+let items: number[] = [1, 2];
+"#,
+            );
     }
 
     /// Flag single push.
@@ -289,7 +392,13 @@ let items: string[] = [];
 items.push("hello");
 "#,
         );
-        test.result(result).assert_lint("prefer-array-literal");
+        test.result(result)
+            .assert_lint("prefer-array-literal")
+            .assert_unsafe_fixed(
+                r#"
+let items: string[] = ["hello"];
+"#,
+            );
     }
 
     /// Allow array literal.
@@ -334,10 +443,9 @@ for (let i = 0; i < 10; i += 1) {
 }
 "#,
         );
-        // the loop body references items in a non-push context (the push is inside a loop)
-        // this is more complex to detect, so we'll flag it for now
-        // in reality this is a valid pattern, but we'd need CFG analysis to allow it
-        test.result(result).assert_lint("prefer-array-literal");
+        test.result(result)
+            .assert_lint("prefer-array-literal")
+            .assert_has_no_fix("prefer-array-literal");
     }
 
     /// Allow const arrays.
@@ -351,5 +459,22 @@ const items: number[] = [];
 "#,
         );
         test.result(result).assert_no_lint("prefer-array-literal");
+    }
+
+    /// keep no fix when push value uses named arguments
+    #[test]
+    fn test_no_fix_for_non_positional_push_argument() {
+        let test = TestProgram::for_rule_without_prelude(PreferArrayLiteral);
+        let result = test.lint_dir(
+            "prefer_array_literal/test_no_fix_for_non_positional_push_argument.ds",
+            r#"
+let items: number[] = [];
+const values = [1];
+items.push(...values);
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-array-literal")
+            .assert_has_no_fix("prefer-array-literal");
     }
 }

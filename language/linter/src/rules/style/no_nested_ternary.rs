@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow nested ternary expressions.
@@ -16,7 +16,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -58,18 +58,23 @@ impl LintRule for NoNestedTernary {
                     continue;
                 }
 
-                ctx.report(
-                    LintDiagnostic::new(
-                        NO_NESTED_TERNARY.id,
-                        NO_NESTED_TERNARY.code,
-                        NO_NESTED_TERNARY.category,
-                        severity,
-                        "nested ternary expression",
-                        ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
-                    )
-                    .with_label("consider using if-else instead"),
-                );
+                let mut diagnostic = LintDiagnostic::new(
+                    NO_NESTED_TERNARY.id,
+                    NO_NESTED_TERNARY.code,
+                    NO_NESTED_TERNARY.category,
+                    severity,
+                    "nested ternary expression",
+                    ctx.module.file_id,
+                    ctx.tree.get_span(node_id),
+                )
+                .with_label("consider using if-else instead");
+                if ctx.compute_fixes
+                    && let Some(fix) = no_nested_ternary_fix(ctx, node_id, condition_id)
+                {
+                    diagnostic = diagnostic.with_fix(fix);
+                }
+
+                ctx.report(diagnostic);
             }
         }
     }
@@ -88,6 +93,45 @@ fn is_ternary(ctx: &LintModuleAstContext<'_>, expr_id: ast::LocalNodeId<ast::Exp
     }
 }
 
+/// Build an unsafe ternary-to-if-expression rewrite.
+fn no_nested_ternary_fix(
+    ctx: &LintModuleAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+    condition_id: ast::LocalNodeId<ast::Expression>,
+) -> Option<LintFix> {
+    let expression = ctx.tree.get(expression_id);
+    let ast::Expression::If {
+        kind: ast::IfKind::Ternary,
+        then_expression,
+        else_expression,
+        ..
+    } = expression
+    else {
+        return None;
+    };
+    let else_expression = (*else_expression)?;
+
+    let condition_text = ctx
+        .get_span_text(ctx.tree.get_span(condition_id))
+        .to_string();
+    let then_text = ctx
+        .get_span_text(ctx.tree.get_span(*then_expression))
+        .to_string();
+    let else_text = ctx
+        .get_span_text(ctx.tree.get_span(else_expression))
+        .to_string();
+    if condition_text.is_empty() || then_text.is_empty() || else_text.is_empty() {
+        return None;
+    }
+
+    let replacement = format!("if ({condition_text}) {{ {then_text} }} else {{ {else_text} }}");
+    let edits = ctx
+        .edit_builder()
+        .replace(ctx.tree.get_span(expression_id), replacement)
+        .into_edits();
+    Some(LintFix::r#unsafe("Rewrite nested ternary to if/else expression").with_edits(edits))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -102,7 +146,13 @@ mod tests {
 const x = a ? b ? 1 : 2 : 3;
 "#,
         );
-        test.result(result).assert_lint("no-nested-ternary");
+        test.result(result)
+            .assert_lint("no-nested-ternary")
+            .assert_unsafe_fixed(
+                r#"
+const x = if (a) { b ? 1 : 2; } else { 3 };
+"#,
+            );
     }
 
     #[test]
@@ -114,7 +164,13 @@ const x = a ? b ? 1 : 2 : 3;
 const x = a ? 1 : b ? 2 : 3;
 "#,
         );
-        test.result(result).assert_lint("no-nested-ternary");
+        test.result(result)
+            .assert_lint("no-nested-ternary")
+            .assert_unsafe_fixed(
+                r#"
+const x = if (a) { 1 } else { b ? 2 : 3; };
+"#,
+            );
     }
 
     #[test]
@@ -126,7 +182,13 @@ const x = a ? 1 : b ? 2 : 3;
 const x = (a ? true : false) ? 1 : 2;
 "#,
         );
-        test.result(result).assert_lint("no-nested-ternary");
+        test.result(result)
+            .assert_lint("no-nested-ternary")
+            .assert_unsafe_fixed(
+                r#"
+const x = if ((a ? true : false)) { 1 } else { 2 };
+"#,
+            );
     }
 
     #[test]

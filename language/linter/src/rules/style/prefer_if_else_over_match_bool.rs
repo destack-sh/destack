@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, Expression, MatchCase, Pattern, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest using if/else instead of match on booleans.
@@ -30,7 +30,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -49,7 +49,7 @@ impl LintRule for PreferIfElseOverMatchBool {
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
 
-            let ast::Expression::Match { cases, .. } = expression else {
+            let ast::Expression::Match { value, cases, .. } = expression else {
                 continue;
             };
 
@@ -76,18 +76,23 @@ impl LintRule for PreferIfElseOverMatchBool {
                 continue;
             }
 
-            ctx.report(
-                LintDiagnostic::new(
-                    PREFER_IF_ELSE_OVER_MATCH_BOOL.id,
-                    PREFER_IF_ELSE_OVER_MATCH_BOOL.code,
-                    PREFER_IF_ELSE_OVER_MATCH_BOOL.category,
-                    severity,
-                    "use `if/else` instead of `match` on boolean",
-                    ctx.module.file_id,
-                    ctx.tree.get_span(node_id),
-                )
-                .with_label("replace with if/else"),
-            );
+            let mut diagnostic = LintDiagnostic::new(
+                PREFER_IF_ELSE_OVER_MATCH_BOOL.id,
+                PREFER_IF_ELSE_OVER_MATCH_BOOL.code,
+                PREFER_IF_ELSE_OVER_MATCH_BOOL.category,
+                severity,
+                "use `if/else` instead of `match` on boolean",
+                ctx.module.file_id,
+                ctx.tree.get_span(node_id),
+            )
+            .with_label("replace with if/else");
+            if ctx.compute_fixes
+                && let Some(fix) = prefer_if_else_over_match_bool_fix(ctx, node_id, *value, cases)
+            {
+                diagnostic = diagnostic.with_fix(fix);
+            }
+
+            ctx.report(diagnostic);
         }
     }
 }
@@ -105,11 +110,14 @@ fn get_case_pattern(
 
     let ast::MatchSelector::Pattern {
         pattern: pattern_id,
-        ..
+        guard,
     } = selector
     else {
         return None;
     };
+    if guard.is_some() {
+        return None;
+    }
 
     let pattern = ctx.tree.get(*pattern_id);
 
@@ -124,6 +132,89 @@ fn get_case_pattern(
         Expression::ScalarLiteral(ScalarLiteral::Boolean(b)) => Some(*b),
         _ => None,
     }
+}
+
+/// Build a safe rewrite from `match bool` to `if/else` for expression arm bodies.
+fn prefer_if_else_over_match_bool_fix(
+    ctx: &LintModuleAstContext<'_>,
+    match_expression_id: ast::LocalNodeId<Expression>,
+    value_expression_id: ast::LocalNodeId<Expression>,
+    case_ids: &[ast::LocalNodeId<MatchCase>],
+) -> Option<LintFix> {
+    // keep exactly two expression-body boolean cases
+    if case_ids.len() != 2 {
+        return None;
+    }
+
+    let (first_bool, first_body_id) = bool_expression_case_body(ctx, case_ids[0])?;
+    let (second_bool, second_body_id) = bool_expression_case_body(ctx, case_ids[1])?;
+    if first_bool == second_bool {
+        return None;
+    }
+
+    // map explicit true/false arm bodies
+    let (true_body_id, false_body_id) = if first_bool {
+        (first_body_id, second_body_id)
+    } else {
+        (second_body_id, first_body_id)
+    };
+
+    // rewrite the whole match expression to if/else
+    let value_text = ctx.get_span_text(ctx.tree.get_span(value_expression_id));
+    let true_body_text = ctx.get_span_text(ctx.tree.get_span(true_body_id));
+    let false_body_text = ctx.get_span_text(ctx.tree.get_span(false_body_id));
+    let replacement =
+        format!("if {value_text} {{ {true_body_text} }} else {{ {false_body_text} }}");
+
+    let match_span = ctx.tree.get_span(match_expression_id);
+    let mut edit_builder = ctx.edit_builder().replace(match_span, replacement);
+
+    // remove a leading `match ` token when the expression span starts at the selector value
+    if match_span.start >= 6 {
+        let prefix_span =
+            destack_source::Span::new(match_span.file, match_span.start - 6, match_span.start);
+        if ctx.get_span_text(prefix_span) == "match " {
+            edit_builder = edit_builder.replace(prefix_span, "");
+        }
+    }
+
+    let edits = edit_builder.into_edits();
+    Some(LintFix::safe("Rewrite boolean match to if/else").with_edits(edits))
+}
+
+/// Return `(bool_value, body_expression)` for one simple boolean expression case.
+fn bool_expression_case_body(
+    ctx: &LintModuleAstContext<'_>,
+    case_id: ast::LocalNodeId<MatchCase>,
+) -> Option<(bool, ast::LocalNodeId<Expression>)> {
+    let case = ctx.tree.get(case_id);
+    let (selector, body) = match case {
+        MatchCase::Expression { selector, body } => (selector, *body),
+        MatchCase::Block { .. } => return None,
+    };
+
+    let ast::MatchSelector::Pattern {
+        pattern: pattern_id,
+        guard,
+    } = selector
+    else {
+        return None;
+    };
+    if guard.is_some() {
+        return None;
+    }
+
+    let pattern = ctx.tree.get(*pattern_id);
+    let Pattern::Expression { value } = pattern else {
+        return None;
+    };
+
+    let expression = ctx.tree.get(*value);
+    let Expression::ScalarLiteral(ScalarLiteral::Boolean(boolean_value)) = expression else {
+        return None;
+    };
+
+    Some((*boolean_value, body))
 }
 
 #[cfg(test)]
@@ -146,7 +237,14 @@ function foo(condition: bool) {
 "#,
         );
         test.result(result)
-            .assert_lint("prefer-if-else-over-match-bool");
+            .assert_lint("prefer-if-else-over-match-bool")
+            .assert_safe_fixed(
+                r#"
+function foo(condition: bool) {
+    if (condition) { doX() } else { doY() }
+}
+"#,
+            );
     }
 
     #[test]
@@ -164,7 +262,14 @@ function foo(condition: bool) {
 "#,
         );
         test.result(result)
-            .assert_lint("prefer-if-else-over-match-bool");
+            .assert_lint("prefer-if-else-over-match-bool")
+            .assert_safe_fixed(
+                r#"
+function foo(condition: bool) {
+    if (condition) { doX() } else { doY() }
+}
+"#,
+            );
     }
 
     #[test]
@@ -239,6 +344,47 @@ function foo(condition: bool) {
         // using wildcard instead of explicit false is fine
         test.result(result)
             .assert_no_lint("prefer-if-else-over-match-bool");
+    }
+
+    #[test]
+    fn test_match_bool_with_guard_allowed() {
+        let test = TestProgram::for_rule_without_prelude(PreferIfElseOverMatchBool);
+        let result = test.lint_ast(
+            "prefer_if_else_over_match_bool/test_match_bool_with_guard_allowed.ds",
+            r#"
+function foo(condition: bool) {
+    match condition {
+        true if isReady() => doX()
+        false => doY()
+    }
+}
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("prefer-if-else-over-match-bool");
+    }
+
+    #[test]
+    fn test_no_fix_for_block_body_cases() {
+        let test = TestProgram::for_rule_without_prelude(PreferIfElseOverMatchBool);
+        let result = test.lint_ast(
+            "prefer_if_else_over_match_bool/test_no_fix_for_block_body_cases.ds",
+            r#"
+function foo(condition: bool) {
+    match condition {
+        true => {
+            doX()
+        }
+        false => {
+            doY()
+        }
+    }
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-if-else-over-match-bool")
+            .assert_has_no_fix("prefer-if-else-over-match-bool");
     }
 
     #[test]

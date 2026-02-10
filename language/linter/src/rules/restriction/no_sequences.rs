@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow sequence expressions (comma operator).
@@ -16,7 +16,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Always,
         stability = Stable
     )]
@@ -43,20 +43,72 @@ impl LintRule for NoSequences {
                 continue;
             }
             let span = ctx.tree.get_span(node_id);
-            ctx.report(
-                LintDiagnostic::new(
-                    NO_SEQUENCES.id,
-                    NO_SEQUENCES.code,
-                    NO_SEQUENCES.category,
-                    severity,
-                    "sequence expression is not allowed",
-                    ctx.module.file_id,
-                    span,
-                )
-                .with_label("use separate statements instead of comma operator"),
-            );
+            let mut diagnostic = LintDiagnostic::new(
+                NO_SEQUENCES.id,
+                NO_SEQUENCES.code,
+                NO_SEQUENCES.category,
+                severity,
+                "sequence expression is not allowed",
+                ctx.module.file_id,
+                span,
+            )
+            .with_label("use separate statements instead of comma operator");
+            if ctx.compute_fixes
+                && let Some(fix) = no_sequences_fix(ctx, node_id, expression)
+            {
+                diagnostic = diagnostic.with_fix(fix);
+            }
+
+            ctx.report(diagnostic);
         }
     }
+}
+
+/// Build a safe fix for statement-level sequence expressions.
+fn no_sequences_fix(
+    ctx: &LintModuleAstContext<'_>,
+    sequence_expression_id: ast::LocalNodeId<ast::Expression>,
+    sequence_expression: &ast::Expression,
+) -> Option<LintFix> {
+    let ast::Expression::SequenceExpression { expressions } = sequence_expression else {
+        return None;
+    };
+    if expressions.is_empty() {
+        return None;
+    }
+
+    // keep statement position only
+    let Some(parent_id) = ctx.parents.get(sequence_expression_id) else {
+        return None;
+    };
+    if ctx.tree.get_node_type(parent_id) != ast::NodeType::Expression {
+        return None;
+    }
+    let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
+    let parent_expression = ctx.tree.get(parent_expression_id);
+    if !matches!(parent_expression, ast::Expression::Statement(inner) if *inner == sequence_expression_id)
+    {
+        return None;
+    }
+
+    let mut statements = Vec::new();
+    for expression_id in expressions {
+        let expression_text = ctx
+            .get_span_text(ctx.tree.get_span(*expression_id))
+            .trim()
+            .to_string();
+        if expression_text.is_empty() {
+            return None;
+        }
+        statements.push(format!("{expression_text};"));
+    }
+
+    let replacement_text = statements.join("\n");
+    let edits = ctx
+        .edit_builder()
+        .replace(ctx.tree.get_span(parent_expression_id), replacement_text)
+        .into_edits();
+    Some(LintFix::safe("Split sequence into separate statements").with_edits(edits))
 }
 
 #[cfg(test)]
@@ -111,5 +163,39 @@ let tuple = (1, 2, 3);
 "#,
         );
         test.result(result).assert_no_lint("no-sequences");
+    }
+
+    #[test]
+    fn test_fix_splits_statement_sequence_expression() {
+        let test = TestProgram::for_rule_without_prelude(NoSequences);
+        let result = test.lint_ast(
+            "no_sequences/test_fix_splits_statement_sequence_expression.ts",
+            r#"
+(first(), second(), third());
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-sequences")
+            .assert_safe_fixed(
+                r#"
+first();
+second();
+third();
+"#,
+            );
+    }
+
+    #[test]
+    fn test_no_fix_for_sequence_expression_used_as_value() {
+        let test = TestProgram::for_rule_without_prelude(NoSequences);
+        let result = test.lint_ast(
+            "no_sequences/test_no_fix_for_sequence_expression_used_as_value.ts",
+            r#"
+let value = (first(), second());
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-sequences")
+            .assert_has_no_fix("no-sequences");
     }
 }

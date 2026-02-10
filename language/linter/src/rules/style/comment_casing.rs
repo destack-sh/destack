@@ -1,11 +1,12 @@
 use destack_ast as ast;
+use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     first_alphabetic_character, is_directive_comment, is_non_prose_doc_line, is_separator_comment,
     parse_keyword_comment_with_options,
 };
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce comment casing conventions.
@@ -19,7 +20,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -74,18 +75,26 @@ impl LintRule for CommentCasing {
                             continue;
                         }
 
-                        ctx.report(
-                            LintDiagnostic::new(
-                                COMMENT_CASING.id,
-                                COMMENT_CASING.code,
-                                COMMENT_CASING.category,
-                                severity,
-                                "inline comment should start with lowercase",
-                                ctx.module.file_id,
-                                ctx.tree.get_span(node_id),
-                            )
-                            .with_label("use lowercase for inline comments"),
-                        );
+                        let mut diagnostic = LintDiagnostic::new(
+                            COMMENT_CASING.id,
+                            COMMENT_CASING.code,
+                            COMMENT_CASING.category,
+                            severity,
+                            "inline comment should start with lowercase",
+                            ctx.module.file_id,
+                            ctx.tree.get_span(node_id),
+                        )
+                        .with_label("use lowercase for inline comments");
+
+                        // compute fixes only when requested by the runner
+                        if ctx.compute_fixes
+                            && let Some(fix) =
+                                comment_casing_fix(ctx, node_id, CasingFixKind::LowercaseInline)
+                        {
+                            diagnostic = diagnostic.with_fix(fix);
+                        }
+
+                        ctx.report(diagnostic);
                     }
                 }
 
@@ -113,18 +122,26 @@ impl LintRule for CommentCasing {
                             continue;
                         }
 
-                        ctx.report(
-                            LintDiagnostic::new(
-                                COMMENT_CASING.id,
-                                COMMENT_CASING.code,
-                                COMMENT_CASING.category,
-                                severity,
-                                "doc comment should start with uppercase",
-                                ctx.module.file_id,
-                                ctx.tree.get_span(node_id),
-                            )
-                            .with_label("use uppercase for doc comments"),
-                        );
+                        let mut diagnostic = LintDiagnostic::new(
+                            COMMENT_CASING.id,
+                            COMMENT_CASING.code,
+                            COMMENT_CASING.category,
+                            severity,
+                            "doc comment should start with uppercase",
+                            ctx.module.file_id,
+                            ctx.tree.get_span(node_id),
+                        )
+                        .with_label("use uppercase for doc comments");
+
+                        // compute fixes only when requested by the runner
+                        if ctx.compute_fixes
+                            && let Some(fix) =
+                                comment_casing_fix(ctx, node_id, CasingFixKind::UppercaseDoc)
+                        {
+                            diagnostic = diagnostic.with_fix(fix);
+                        }
+
+                        ctx.report(diagnostic);
                     }
                 }
 
@@ -153,6 +170,81 @@ fn is_separator_heading_block(comment_text: &str, min_lines: usize) -> bool {
     };
 
     is_separator_comment(first_line) && is_separator_comment(last_line)
+}
+
+/// The casing change for one comment annotation.
+enum CasingFixKind {
+    /// Lowercase the first alphabetic character in one inline comment.
+    LowercaseInline,
+    /// Uppercase the first alphabetic character in the first prose doc line.
+    UppercaseDoc,
+}
+
+/// Build a safe fix for one comment casing violation.
+fn comment_casing_fix(
+    ctx: &LintModuleAstContext<'_>,
+    annotation_id: ast::LocalNodeId<ast::Annotation>,
+    fix_kind: CasingFixKind,
+) -> Option<LintFix> {
+    let annotation_span = ctx.tree.get_span(annotation_id);
+    let annotation_text = ctx.get_span_text(annotation_span);
+
+    // locate the first alphabetic character to rewrite
+    let (offset, current_char) = match fix_kind {
+        CasingFixKind::LowercaseInline => first_alphabetic_char_offset(annotation_text)?,
+        CasingFixKind::UppercaseDoc => first_doc_prose_alphabetic_char_offset(annotation_text)?,
+    };
+
+    let replacement = match fix_kind {
+        CasingFixKind::LowercaseInline => current_char.to_lowercase().to_string(),
+        CasingFixKind::UppercaseDoc => current_char.to_uppercase().to_string(),
+    };
+    if replacement == current_char.to_string() {
+        return None;
+    }
+
+    // rewrite only one character to avoid touching surrounding formatting
+    let replacement_span = Span::new(
+        annotation_span.file,
+        annotation_span.start + offset as u32,
+        annotation_span.start + offset as u32 + current_char.len_utf8() as u32,
+    );
+    let edits = ctx
+        .edit_builder()
+        .replace(replacement_span, replacement)
+        .into_edits();
+    Some(LintFix::safe("Fix comment casing").with_edits(edits))
+}
+
+/// Return the first alphabetic character offset and value.
+fn first_alphabetic_char_offset(text: &str) -> Option<(usize, char)> {
+    text.char_indices()
+        .find(|(_, character)| character.is_alphabetic())
+}
+
+/// Return the first prose doc alphabetic character offset and value.
+fn first_doc_prose_alphabetic_char_offset(text: &str) -> Option<(usize, char)> {
+    let mut base_offset = 0usize;
+
+    for line in text.split_inclusive('\n') {
+        let line_without_newline = line.trim_end_matches('\n');
+        let trimmed = line_without_newline.trim();
+        if is_non_prose_doc_line(trimmed) {
+            base_offset += line.len();
+            continue;
+        }
+
+        if let Some((line_offset, character)) = line_without_newline
+            .char_indices()
+            .find(|(_, character)| character.is_alphabetic())
+        {
+            return Some((base_offset + line_offset, character));
+        }
+
+        base_offset += line.len();
+    }
+
+    None
 }
 
 #[cfg(test)]
@@ -185,6 +277,24 @@ let x = 1 // This should be lowercase
     }
 
     #[test]
+    fn test_fix_lowercases_inline_comment_start() {
+        let test = TestProgram::for_rule_without_prelude(CommentCasing);
+        let result = test.lint_ast(
+            "comment_casing/test_fix_lowercases_inline_comment_start.ds",
+            r#"
+let x = 1 // This should be lowercase
+"#,
+        );
+        test.result(result)
+            .assert_lint("comment-casing")
+            .assert_safe_fixed(
+                r#"
+let x = 1; // this should be lowercase
+"#,
+            );
+    }
+
+    #[test]
     fn test_doc_comment_uppercase_allowed() {
         let test = TestProgram::for_rule_without_prelude(CommentCasing);
         let result = test.lint_ast(
@@ -208,6 +318,26 @@ function foo() {}
 "#,
         );
         test.result(result).assert_lint("comment-casing");
+    }
+
+    #[test]
+    fn test_fix_uppercases_doc_comment_start() {
+        let test = TestProgram::for_rule_without_prelude(CommentCasing);
+        let result = test.lint_ast(
+            "comment_casing/test_fix_uppercases_doc_comment_start.ds",
+            r#"
+/// this should be uppercase
+function foo() {}
+"#,
+        );
+        test.result(result)
+            .assert_lint("comment-casing")
+            .assert_safe_fixed(
+                r#"
+/// This should be uppercase
+function foo() {}
+"#,
+            );
     }
 
     #[test]

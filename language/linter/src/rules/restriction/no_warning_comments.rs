@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow specified warning terms in comments.
@@ -15,7 +15,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Always,
         recommended = Strict,
         stability = Stable
     )]
@@ -51,23 +51,40 @@ impl LintRule for NoWarningComments {
                     if !severity.is_enabled() {
                         break;
                     }
-                    ctx.report(
-                        LintDiagnostic::new(
-                            NO_WARNING_COMMENTS.id,
-                            NO_WARNING_COMMENTS.code,
-                            NO_WARNING_COMMENTS.category,
-                            severity,
-                            format!("warning comment contains `{term}`"),
-                            ctx.module.file_id,
-                            ctx.tree.get_span(node_id),
-                        )
-                        .with_label("resolve before committing"),
-                    );
+                    let mut diagnostic = LintDiagnostic::new(
+                        NO_WARNING_COMMENTS.id,
+                        NO_WARNING_COMMENTS.code,
+                        NO_WARNING_COMMENTS.category,
+                        severity,
+                        format!("warning comment contains `{term}`"),
+                        ctx.module.file_id,
+                        ctx.tree.get_span(node_id),
+                    )
+                    .with_label("resolve before committing");
+
+                    // compute fixes only when requested by the runner
+                    if ctx.compute_fixes
+                        && let Some(fix) = warning_comment_fix(ctx, node_id)
+                    {
+                        diagnostic = diagnostic.with_fix(fix);
+                    }
+
+                    ctx.report(diagnostic);
                     break; // only report once per comment
                 }
             }
         }
     }
+}
+
+/// Build a safe fix by removing one warning comment.
+fn warning_comment_fix(
+    ctx: &LintModuleAstContext<'_>,
+    annotation_id: ast::LocalNodeId<ast::Annotation>,
+) -> Option<LintFix> {
+    let annotation_span = ctx.tree.get_span(annotation_id);
+    let edits = ctx.edit_builder().delete(annotation_span).into_edits();
+    Some(LintFix::safe("Remove warning comment").with_edits(edits))
 }
 
 #[cfg(test)]
@@ -83,6 +100,24 @@ mod tests {
             "// TODO: fix this",
         );
         test.result(result).assert_lint("no-warning-comments");
+    }
+
+    #[test]
+    fn test_fix_removes_todo_comment() {
+        let test = TestProgram::for_rule_without_prelude(NoWarningComments);
+        let result = test.lint_ast(
+            "no_warning_comments/test_fix_removes_todo_comment.ts",
+            r#"
+const value = 1 // TODO: remove temporary path
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-warning-comments")
+            .assert_safe_fixed(
+                r#"
+const value = 1;
+"#,
+            );
     }
 
     #[test]
@@ -123,5 +158,24 @@ mod tests {
             "// this is a regular comment",
         );
         test.result(result).assert_no_lint("no-warning-comments");
+    }
+
+    #[test]
+    fn test_mutation_fix_removes_block_hack_comment() {
+        let test = TestProgram::for_rule_without_prelude(NoWarningComments);
+        let result = test.lint_ast(
+            "no_warning_comments/test_mutation_fix_removes_block_hack_comment.ts",
+            r#"
+/* HACK: temporary workaround */
+const value = 1
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-warning-comments")
+            .assert_safe_fixed(
+                r#"
+const value = 1;
+"#,
+            );
     }
 }

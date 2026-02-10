@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{expression_method_call, is_array_type};
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `for-of` over `Array.forEach()`.
@@ -19,7 +19,7 @@ declare_lint! {
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -107,19 +107,141 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
 
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
-        self.ctx.report(
-            LintDiagnostic::new(
-                NO_ARRAY_FOR_EACH.id,
-                NO_ARRAY_FOR_EACH.code,
-                NO_ARRAY_FOR_EACH.category,
-                severity,
-                "prefer for-of over forEach",
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label("use a for-of loop instead"),
-        );
+        let mut diagnostic = LintDiagnostic::new(
+            NO_ARRAY_FOR_EACH.id,
+            NO_ARRAY_FOR_EACH.code,
+            NO_ARRAY_FOR_EACH.category,
+            severity,
+            "prefer for-of over forEach",
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label("use a for-of loop instead");
+        if self.ctx.include_fixes
+            && let Some(fix) = self.no_array_for_each_fix(expression_id)
+        {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
     }
+
+    /// Build an unsafe forEach to for-of rewrite for simple inline callbacks.
+    fn no_array_for_each_fix(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<LintFix> {
+        let expression = self.ctx.tree.get(expression_id);
+        let dir::Expression::Call {
+            left,
+            static_arguments,
+            dynamic_arguments,
+        } = expression
+        else {
+            return None;
+        };
+
+        // require no static args and exactly one dynamic callback arg
+        if static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty())
+            || dynamic_arguments.len() != 1
+        {
+            return None;
+        }
+
+        // keep statement-level calls only
+        let parent_id = self.ctx.tree.get_parent_id(expression_id.id)?;
+        if self.ctx.tree.get_node_type(parent_id) != dir::NodeType::Expression {
+            return None;
+        }
+        let statement_id = dir::LocalNodeId::<dir::Expression>::new(parent_id);
+        let parent_expression = self.ctx.tree.get(statement_id);
+        if !matches!(
+            parent_expression,
+            dir::Expression::Statement { statement } if *statement == expression_id
+        ) {
+            return None;
+        }
+
+        // require a direct `.forEach` member access
+        let member_expression = self.ctx.tree.get(*left);
+        let dir::Expression::Member {
+            left: _receiver_id,
+            name,
+            ..
+        } = member_expression
+        else {
+            return None;
+        };
+        if *name != self.for_each_name {
+            return None;
+        }
+
+        // require an inline non-async function callback
+        let callback_argument = self.ctx.tree.get(dynamic_arguments[0]);
+        let dir::Argument::Positional {
+            value: callback_id, ..
+        } = callback_argument
+        else {
+            return None;
+        };
+        let callback_expression = self.ctx.tree.get(*callback_id);
+        let dir::Expression::Declaration { declaration } = callback_expression else {
+            return None;
+        };
+        let callback_declaration = self.ctx.tree.get(*declaration);
+        let dir::Declaration::Function {
+            signature,
+            body: Some(body_id),
+            ..
+        } = callback_declaration
+        else {
+            return None;
+        };
+        if signature.asynchrony != dir::Asynchrony::Sync || signature.dynamic_parameters.len() != 1
+        {
+            return None;
+        }
+
+        // require a single named parameter without modifiers/default
+        let parameter_id = signature.dynamic_parameters[0];
+        let parameter = self.ctx.tree.get(parameter_id);
+        let dir::Parameter::Named {
+            modifiers: None,
+            name,
+            default: None,
+            ..
+        } = parameter
+        else {
+            return None;
+        };
+
+        // require a block body so we can preserve statements exactly
+        let body_expression = self.ctx.tree.get(*body_id);
+        if !matches!(body_expression, dir::Expression::Block { .. }) {
+            return None;
+        }
+
+        // rewrite to a simple for-of loop
+        let parameter_name = self.ctx.program.strings.get(*name).to_string();
+        let member_text = self.ctx.get_span_text(self.ctx.get_span(*left));
+        let receiver_text = strip_dot_member_suffix(member_text.as_ref(), "forEach")?;
+        let body_text = self.ctx.get_span_text(self.ctx.get_span(*body_id));
+        let replacement = format!("for (const {parameter_name} of {receiver_text}) {body_text}");
+        let edits = self
+            .ctx
+            .edit_builder()
+            .replace(self.ctx.get_span(statement_id), replacement)
+            .into_edits();
+        Some(LintFix::r#unsafe("Rewrite forEach callback as for-of loop").with_edits(edits))
+    }
+}
+
+/// Strip one `.member` suffix from member expression text.
+fn strip_dot_member_suffix<'a>(text: &'a str, member: &str) -> Option<&'a str> {
+    let suffix = format!(".{member}");
+    text.strip_suffix(&suffix).map(str::trim_end)
 }
 
 impl NodeVisitor for NoArrayForEachVisitor<'_, '_> {
@@ -161,7 +283,16 @@ items.forEach((item) => {
 });
 "#,
         );
-        test.result(result).assert_lint("no-array-for-each");
+        test.result(result)
+            .assert_lint("no-array-for-each")
+            .assert_unsafe_fixed(
+                r#"
+let items = [1, 2, 3];
+for (const item of items) {
+    console.log(item);
+}
+"#,
+            );
     }
 
     /// Flag forEach with index parameter.
@@ -222,5 +353,42 @@ let doubled = items.map((item) => item * 2);
 "#,
         );
         test.result(result).assert_no_lint("no-array-for-each");
+    }
+
+    /// keep no fix for callbacks that depend on index parameter
+    #[test]
+    fn test_no_fix_for_index_callback() {
+        let test = TestProgram::for_rule_without_prelude(NoArrayForEach);
+        let result = test.lint_dir(
+            "no_array_for_each/test_no_fix_for_index_callback.ds",
+            r#"
+let items = ["a", "b", "c"];
+items.forEach((item, index) => {
+    console.log(index, item);
+});
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-array-for-each")
+            .assert_has_no_fix("no-array-for-each");
+    }
+
+    /// keep no fix for non-inline callbacks
+    #[test]
+    fn test_no_fix_for_non_inline_callback() {
+        let test = TestProgram::for_rule_without_prelude(NoArrayForEach);
+        let result = test.lint_dir(
+            "no_array_for_each/test_no_fix_for_non_inline_callback.ds",
+            r#"
+let items = [1, 2, 3];
+const logItem = (item) => {
+    console.log(item);
+};
+items.forEach(logItem);
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-array-for-each")
+            .assert_has_no_fix("no-array-for-each");
     }
 }

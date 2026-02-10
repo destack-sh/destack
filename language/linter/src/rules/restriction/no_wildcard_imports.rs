@@ -1,7 +1,8 @@
 use destack_ast as ast;
+use destack_source::Span;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow wildcard imports.
@@ -15,7 +16,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Off,
         stability = Stable
     )]
@@ -45,22 +46,66 @@ impl LintRule for NoWildcardImports {
                     if !severity.is_enabled() {
                         continue;
                     }
-                    ctx.report(
-                        LintDiagnostic::new(
-                            NO_WILDCARD_IMPORTS.id,
-                            NO_WILDCARD_IMPORTS.code,
-                            NO_WILDCARD_IMPORTS.category,
-                            severity,
-                            "wildcard import",
-                            ctx.module.file_id,
-                            ctx.tree.get_span(*item_id),
-                        )
-                        .with_label("use named imports instead"),
-                    );
+                    let mut diagnostic = LintDiagnostic::new(
+                        NO_WILDCARD_IMPORTS.id,
+                        NO_WILDCARD_IMPORTS.code,
+                        NO_WILDCARD_IMPORTS.category,
+                        severity,
+                        "wildcard import",
+                        ctx.module.file_id,
+                        ctx.tree.get_span(*item_id),
+                    )
+                    .with_label("use named imports instead");
+                    if ctx.compute_fixes
+                        && let Some(fix) = no_wildcard_imports_fix(ctx, node_id, items, item_id)
+                    {
+                        diagnostic = diagnostic.with_fix(fix);
+                    }
+
+                    ctx.report(diagnostic);
                 }
             }
         }
     }
+}
+
+/// Build an unsafe fix by removing one wildcard import item.
+fn no_wildcard_imports_fix(
+    ctx: &LintModuleAstContext<'_>,
+    import_expression_id: ast::LocalNodeId<ast::Expression>,
+    items: &[ast::LocalNodeId<ast::DependencyItem>],
+    wildcard_item_id: &ast::LocalNodeId<ast::DependencyItem>,
+) -> Option<LintFix> {
+    let wildcard_index = items
+        .iter()
+        .position(|item_id| item_id == wildcard_item_id)?;
+    let remove_span = import_item_removal_span(ctx, import_expression_id, items, wildcard_index)?;
+    if remove_span.is_empty() {
+        return None;
+    }
+
+    let edits = ctx.edit_builder().delete(remove_span).into_edits();
+    Some(LintFix::r#unsafe("Remove wildcard import").with_edits(edits))
+}
+
+/// Return a span that safely removes one import item from an import expression.
+fn import_item_removal_span(
+    ctx: &LintModuleAstContext<'_>,
+    import_expression_id: ast::LocalNodeId<ast::Expression>,
+    items: &[ast::LocalNodeId<ast::DependencyItem>],
+    item_index: usize,
+) -> Option<Span> {
+    if item_index >= items.len() {
+        return None;
+    }
+
+    // only apply to standalone wildcard imports
+    if items.len() != 1 {
+        return None;
+    }
+
+    // single item import: remove full statement
+    Some(ctx.tree.get_span(import_expression_id))
 }
 
 #[cfg(test)]
@@ -75,7 +120,9 @@ mod tests {
             "no_wildcard_imports/test_detects_star_import.ts",
             r#"import * as foo from "foo";"#,
         );
-        test.result(result).assert_lint("no-wildcard-imports");
+        test.result(result)
+            .assert_lint("no-wildcard-imports")
+            .assert_unsafe_fixed("");
     }
 
     #[test]
@@ -106,5 +153,17 @@ mod tests {
             r#"import "foo";"#,
         );
         test.result(result).assert_no_lint("no-wildcard-imports");
+    }
+
+    #[test]
+    fn test_fix_removes_wildcard_item_from_mixed_import() {
+        let test = TestProgram::for_rule_without_prelude(NoWildcardImports);
+        let result = test.lint_ast(
+            "no_wildcard_imports/test_fix_removes_wildcard_item_from_mixed_import.ts",
+            r#"import foo, * as ns from "foo";"#,
+        );
+        test.result(result)
+            .assert_lint("no-wildcard-imports")
+            .assert_has_no_fix("no-wildcard-imports");
     }
 }

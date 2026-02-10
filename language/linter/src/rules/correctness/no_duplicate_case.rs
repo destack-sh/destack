@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::ExpressionDuplicateTracker;
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow duplicate case labels in switch statements.
@@ -16,7 +16,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Always,
         recommended = Always,
         stability = Stable
     )]
@@ -71,18 +71,25 @@ impl LintRule for NoDuplicateCase {
                     if !severity.is_enabled() {
                         continue;
                     }
-                    ctx.report(
-                        LintDiagnostic::new(
-                            NO_DUPLICATE_CASE.id,
-                            NO_DUPLICATE_CASE.code,
-                            NO_DUPLICATE_CASE.category,
-                            severity,
-                            "duplicate case label",
-                            ctx.module.file_id,
-                            ctx.tree.get_span(*case_id),
-                        )
-                        .with_label("this case was already handled"),
-                    );
+                    let mut diagnostic = LintDiagnostic::new(
+                        NO_DUPLICATE_CASE.id,
+                        NO_DUPLICATE_CASE.code,
+                        NO_DUPLICATE_CASE.category,
+                        severity,
+                        "duplicate case label",
+                        ctx.module.file_id,
+                        ctx.tree.get_span(*case_id),
+                    )
+                    .with_label("this case was already handled");
+
+                    // compute fixes only when requested by the runner
+                    if ctx.compute_fixes
+                        && let Some(fix) = duplicate_case_fix(ctx, *case_id)
+                    {
+                        diagnostic = diagnostic.with_fix(fix);
+                    }
+
+                    ctx.report(diagnostic);
                 }
             }
         }
@@ -95,6 +102,16 @@ fn pattern_to_expression(pattern: &ast::Pattern) -> Option<ast::LocalNodeId<ast:
         ast::Pattern::Expression { value } => Some(*value),
         _ => None,
     }
+}
+
+/// Build an unsafe fix that removes the duplicate switch case.
+fn duplicate_case_fix(
+    ctx: &LintModuleAstContext<'_>,
+    case_id: ast::LocalNodeId<ast::MatchCase>,
+) -> Option<LintFix> {
+    let case_span = ctx.tree.get_span(case_id);
+    let edits = ctx.edit_builder().replace(case_span, "").into_edits();
+    Some(LintFix::r#unsafe("Remove duplicate switch case").with_edits(edits))
 }
 
 #[cfg(test)]
@@ -117,6 +134,33 @@ switch (x) {
 "#,
         );
         test.result(result).assert_lint("no-duplicate-case");
+    }
+
+    #[test]
+    fn test_fix_removes_duplicate_integer_case() {
+        let test = TestProgram::for_rule_without_prelude(NoDuplicateCase);
+        let result = test.lint_ast(
+            "no_duplicate_case/test_fix_removes_duplicate_integer_case.ds",
+            r#"
+let x = 1;
+switch (x) {
+    case 1: break;
+    case 2: break;
+    case 1: break;
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-duplicate-case")
+            .assert_unsafe_fixed(
+                r#"
+let x = 1;
+switch (x) {
+    case 1: break
+    case 2: break
+}
+"#,
+            );
     }
 
     #[test]
@@ -184,5 +228,32 @@ match (x) {
 "#,
         );
         test.result(result).assert_no_lint("no-duplicate-case");
+    }
+
+    #[test]
+    fn test_mutation_fix_removes_duplicate_string_case() {
+        let test = TestProgram::for_rule_without_prelude(NoDuplicateCase);
+        let result = test.lint_ast(
+            "no_duplicate_case/test_mutation_fix_removes_duplicate_string_case.ds",
+            r#"
+let x = "a";
+switch (x) {
+    case "a": break;
+    case "b": break;
+    case "a": break;
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-duplicate-case")
+            .assert_unsafe_fixed(
+                r#"
+let x = 'a';
+switch (x) {
+    case 'a': break
+    case 'b': break
+}
+"#,
+            );
     }
 }

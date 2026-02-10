@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, Member};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer struct for data-only classes.
@@ -30,7 +30,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -78,21 +78,46 @@ impl LintRule for PreferStruct {
                     continue;
                 }
 
-                ctx.report(
-                    LintDiagnostic::new(
-                        PREFER_STRUCT.id,
-                        PREFER_STRUCT.code,
-                        PREFER_STRUCT.category,
-                        severity,
-                        "class with only fields should be a struct",
-                        ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
-                    )
-                    .with_label("use struct instead"),
-                );
+                let mut diagnostic = LintDiagnostic::new(
+                    PREFER_STRUCT.id,
+                    PREFER_STRUCT.code,
+                    PREFER_STRUCT.category,
+                    severity,
+                    "class with only fields should be a struct",
+                    ctx.module.file_id,
+                    ctx.tree.get_span(node_id),
+                )
+                .with_label("use struct instead");
+
+                // compute fixes only when requested by the runner
+                if ctx.compute_fixes
+                    && let Some(fix) = prefer_struct_fix(ctx, node_id)
+                {
+                    diagnostic = diagnostic.with_fix(fix);
+                }
+
+                ctx.report(diagnostic);
             }
         }
     }
+}
+
+/// Build an unsafe fix by replacing the `class` keyword with `struct`.
+fn prefer_struct_fix(
+    ctx: &LintModuleAstContext<'_>,
+    declaration_id: ast::LocalNodeId<ast::Declaration>,
+) -> Option<LintFix> {
+    let declaration_span = ctx.tree.get_span(declaration_id);
+    let declaration_text = ctx.get_span_text(declaration_span);
+    let class_offset = declaration_text.find("class")?;
+
+    let mut replacement = declaration_text.to_string();
+    replacement.replace_range(class_offset..class_offset + 5, "struct");
+    let edits = ctx
+        .edit_builder()
+        .replace(declaration_span, replacement)
+        .into_edits();
+    Some(LintFix::r#unsafe("Convert class declaration to struct").with_edits(edits))
 }
 
 #[cfg(test)]
@@ -113,6 +138,30 @@ class Point {
 "#,
         );
         test.result(result).assert_lint("prefer-struct");
+    }
+
+    #[test]
+    fn test_fix_converts_data_only_class_to_struct() {
+        let test = TestProgram::for_rule_without_prelude(PreferStruct);
+        let result = test.lint_ast(
+            "prefer_struct/test_fix_converts_data_only_class_to_struct.ds",
+            r#"
+class Point {
+    x: int32
+    y: int32
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-struct")
+            .assert_unsafe_fixed(
+                r#"
+struct Point {
+    x: int32;
+    y: int32;
+}
+"#,
+            );
     }
 
     #[test]
@@ -173,5 +222,27 @@ class Empty {}
 "#,
         );
         test.result(result).assert_no_lint("prefer-struct");
+    }
+
+    #[test]
+    fn test_mutation_fix_converts_private_field_class() {
+        let test = TestProgram::for_rule_without_prelude(PreferStruct);
+        let result = test.lint_ast(
+            "prefer_struct/test_mutation_fix_converts_private_field_class.ds",
+            r#"
+class Session {
+    private token: string
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-struct")
+            .assert_unsafe_fixed(
+                r#"
+struct Session {
+    private token: string;
+}
+"#,
+            );
     }
 }

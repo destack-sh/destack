@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow empty destructuring patterns.
@@ -15,7 +15,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Always,
         stability = Stable
     )]
@@ -54,8 +54,8 @@ impl LintRule for NoEmptyPattern {
                     _ => unreachable!(),
                 };
 
-                ctx.report(
-                    LintDiagnostic::new(
+                ctx.report({
+                    let mut diagnostic = LintDiagnostic::new(
                         NO_EMPTY_PATTERN.id,
                         NO_EMPTY_PATTERN.code,
                         NO_EMPTY_PATTERN.category,
@@ -64,11 +64,44 @@ impl LintRule for NoEmptyPattern {
                         ctx.module.file_id,
                         ctx.tree.get_span(node_id),
                     )
-                    .with_label("this pattern doesn't bind any values"),
-                );
+                    .with_label("this pattern doesn't bind any values");
+                    if ctx.compute_fixes
+                        && let Some(fix) = no_empty_pattern_fix(ctx, node_id)
+                    {
+                        diagnostic = diagnostic.with_fix(fix);
+                    }
+
+                    diagnostic
+                });
             }
         }
     }
+}
+
+/// Build a safe replacement for empty declarator patterns.
+fn no_empty_pattern_fix(
+    ctx: &LintModuleAstContext<'_>,
+    pattern_id: ast::LocalNodeId<ast::Pattern>,
+) -> Option<LintFix> {
+    // keep declaration patterns only
+    let mut declarator_for_pattern = None;
+    for declarator_id in ctx.tree.iter_nodes::<ast::Declarator>() {
+        let declarator = ctx.tree.get(declarator_id);
+        if declarator.pattern == pattern_id {
+            declarator_for_pattern = Some(declarator_id);
+            break;
+        }
+    }
+    let declarator_id = declarator_for_pattern?;
+    let declarator = ctx.tree.get(declarator_id);
+
+    // keep declarators with initializer so rewrite preserves behavior
+    declarator.value?;
+
+    // replace the empty pattern with `_`
+    let pattern_span = ctx.tree.get_span(pattern_id);
+    let edits = ctx.edit_builder().replace(pattern_span, "_").into_edits();
+    Some(LintFix::safe("Replace empty pattern with wildcard binding").with_edits(edits))
 }
 
 #[cfg(test)]
@@ -85,7 +118,13 @@ mod tests {
 const {} = obj
 "#,
         );
-        test.result(result).assert_lint("no-empty-pattern");
+        test.result(result)
+            .assert_lint("no-empty-pattern")
+            .assert_safe_fixed(
+                r#"
+const _ = obj;
+"#,
+            );
     }
 
     #[test]
@@ -97,7 +136,13 @@ const {} = obj
 const [] = arr
 "#,
         );
-        test.result(result).assert_lint("no-empty-pattern");
+        test.result(result)
+            .assert_lint("no-empty-pattern")
+            .assert_safe_fixed(
+                r#"
+const _ = arr;
+"#,
+            );
     }
 
     #[test]
@@ -109,7 +154,13 @@ const [] = arr
 const () = tuple
 "#,
         );
-        test.result(result).assert_lint("no-empty-pattern");
+        test.result(result)
+            .assert_lint("no-empty-pattern")
+            .assert_safe_fixed(
+                r#"
+const _ = tuple;
+"#,
+            );
     }
 
     #[test]
@@ -121,7 +172,9 @@ const () = tuple
 function foo({}) {}
 "#,
         );
-        test.result(result).assert_lint("no-empty-pattern");
+        test.result(result)
+            .assert_lint("no-empty-pattern")
+            .assert_has_no_fix("no-empty-pattern");
     }
 
     #[test]

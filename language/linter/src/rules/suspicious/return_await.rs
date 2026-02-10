@@ -63,30 +63,30 @@ impl LintRule for ReturnAwait {
                 continue;
             }
 
-            // build safe replacement from awaited expression text
-            let await_span = ctx.get_span(await_expression_id);
-            let awaited_span = ctx.get_span(awaited_value_id);
-            let awaited_text = ctx.get_span_text(awaited_span).to_string();
-            let edits = ctx
-                .edit_builder()
-                .replace(await_span, awaited_text)
-                .into_edits();
-            let fix = LintFix::safe("Remove redundant await in return").with_edits(edits);
-
             // report redundant return await
-            ctx.report(
-                LintDiagnostic::new(
-                    RETURN_AWAIT.id,
-                    RETURN_AWAIT.code,
-                    RETURN_AWAIT.category,
-                    severity,
-                    "redundant return await",
-                    ctx.module.file_id,
-                    await_span,
-                )
-                .with_label("this await is redundant in an async return outside try/catch/finally")
-                .with_fix(fix),
-            );
+            let await_span = ctx.get_span(await_expression_id);
+            let mut diagnostic = LintDiagnostic::new(
+                RETURN_AWAIT.id,
+                RETURN_AWAIT.code,
+                RETURN_AWAIT.category,
+                severity,
+                "redundant return await",
+                ctx.module.file_id,
+                await_span,
+            )
+            .with_label("this await is redundant in an async return outside try/catch/finally");
+            if ctx.include_fixes {
+                let awaited_span = ctx.get_span(awaited_value_id);
+                let awaited_text = ctx.get_span_text(awaited_span).to_string();
+                let edits = ctx
+                    .edit_builder()
+                    .replace(await_span, awaited_text)
+                    .into_edits();
+                let fix = LintFix::safe("Remove redundant await in return").with_edits(edits);
+                diagnostic = diagnostic.with_fix(fix);
+            }
+
+            ctx.report(diagnostic);
         }
     }
 }
@@ -350,5 +350,34 @@ async function fetchValue(): Promise<int32> {
 }
 "#,
             );
+    }
+
+    /// Keep try-context semantics scoped to each callable boundary.
+    #[test]
+    fn test_flags_nested_async_return_await_inside_outer_try() {
+        let test = TestProgram::for_rule_with_prelude(ReturnAwait);
+        let result = test.lint_dir(
+            "return_await/test_flags_nested_async_return_await_inside_outer_try.ds",
+            r#"
+async function outer(): Promise<int32> {
+    try {
+        async function inner(): Promise<int32> {
+            return await fetchValue();
+        }
+
+        return await inner();
+    } catch (error) {
+        return 0;
+    }
+}
+
+async function fetchValue(): Promise<int32> {
+    return 1;
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("return-await")
+            .assert_lint_count("return-await", 1);
     }
 }

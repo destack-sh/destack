@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, Expression, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow assertions on constant values.
@@ -28,7 +28,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Always,
         stability = Stable
     )]
@@ -95,20 +95,61 @@ impl LintRule for NoConstantAssertion {
                 )
             };
 
-            ctx.report(
-                LintDiagnostic::new(
-                    NO_CONSTANT_ASSERTION.id,
-                    NO_CONSTANT_ASSERTION.code,
-                    NO_CONSTANT_ASSERTION.category,
-                    severity,
-                    message,
-                    ctx.module.file_id,
-                    ctx.tree.get_span(node_id),
-                )
-                .with_label(label),
-            );
+            let mut diagnostic = LintDiagnostic::new(
+                NO_CONSTANT_ASSERTION.id,
+                NO_CONSTANT_ASSERTION.code,
+                NO_CONSTANT_ASSERTION.category,
+                severity,
+                message,
+                ctx.module.file_id,
+                ctx.tree.get_span(node_id),
+            )
+            .with_label(label);
+
+            // compute fixes only when requested by the runner
+            if ctx.compute_fixes
+                && constant_truthiness
+                && let Some(fix) = constant_true_assertion_fix(ctx, node_id, arg_value)
+            {
+                diagnostic = diagnostic.with_fix(fix);
+            }
+
+            ctx.report(diagnostic);
         }
     }
+}
+
+/// Build a safe fix by removing one standalone constant-true assertion statement.
+fn constant_true_assertion_fix(
+    ctx: &LintModuleAstContext<'_>,
+    call_expression_id: ast::LocalNodeId<Expression>,
+    argument_expression_id: ast::LocalNodeId<Expression>,
+) -> Option<LintFix> {
+    let argument_expression = ctx.tree.get(argument_expression_id);
+    if !matches!(
+        argument_expression,
+        Expression::ScalarLiteral(ScalarLiteral::Boolean(true))
+    ) {
+        return None;
+    }
+
+    let parent_id = ctx.parents.get(call_expression_id)?;
+    if ctx.tree.get_node_type(parent_id) != ast::NodeType::Expression {
+        return None;
+    }
+
+    let statement_expression_id = ast::LocalNodeId::<Expression>::new(parent_id);
+    let statement_expression = ctx.tree.get(statement_expression_id);
+    let ast::Expression::Statement(inner_expression_id) = statement_expression else {
+        return None;
+    };
+    if *inner_expression_id != call_expression_id {
+        return None;
+    }
+
+    let statement_span = ctx.tree.get_span(statement_expression_id);
+    let edits = ctx.edit_builder().delete(statement_span).into_edits();
+    Some(LintFix::safe("Remove constant-true assertion").with_edits(edits))
 }
 
 /// Check if an expression is a call to an assert function.
@@ -200,6 +241,25 @@ assert(true)
     }
 
     #[test]
+    fn test_fix_removes_assert_true_statement() {
+        let test = TestProgram::for_rule_without_prelude(NoConstantAssertion);
+        let result = test.lint_ast(
+            "no_constant_assertion/test_fix_removes_assert_true_statement.ds",
+            r#"
+assert(true)
+const value = 1
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-constant-assertion")
+            .assert_safe_fixed(
+                r#"
+const value = 1;
+"#,
+            );
+    }
+
+    #[test]
     fn test_assert_false_detected() {
         let test = TestProgram::for_rule_without_prelude(NoConstantAssertion);
         let result = test.lint_ast(
@@ -212,6 +272,20 @@ assert(false)
     }
 
     #[test]
+    fn test_no_fix_for_assert_false() {
+        let test = TestProgram::for_rule_without_prelude(NoConstantAssertion);
+        let result = test.lint_ast(
+            "no_constant_assertion/test_no_fix_for_assert_false.ds",
+            r#"
+assert(false)
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-constant-assertion")
+            .assert_has_no_fix("no-constant-assertion");
+    }
+
+    #[test]
     fn test_console_assert_true_detected() {
         let test = TestProgram::for_rule_without_prelude(NoConstantAssertion);
         let result = test.lint_ast(
@@ -221,6 +295,25 @@ console.assert(true)
 "#,
         );
         test.result(result).assert_lint("no-constant-assertion");
+    }
+
+    #[test]
+    fn test_mutation_fix_removes_console_assert_true_statement() {
+        let test = TestProgram::for_rule_without_prelude(NoConstantAssertion);
+        let result = test.lint_ast(
+            "no_constant_assertion/test_mutation_fix_removes_console_assert_true_statement.ds",
+            r#"
+console.assert(true)
+run()
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-constant-assertion")
+            .assert_safe_fixed(
+                r#"
+run();
+"#,
+            );
     }
 
     #[test]

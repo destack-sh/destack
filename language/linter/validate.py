@@ -6,7 +6,9 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-README_HEADER = "| Code | Rule | Source | Level | Status | Fixability | Description |"
+README_HEADER = (
+    "| Code | Rule | Source | Level | Status | Autofix Support | Fixability | Description |"
+)
 CODE_PATTERN = re.compile(r"\bL([A-Z])([0-9]{3})\b")
 CATEGORY_BY_LETTER = {
     "C": "Correctness",
@@ -20,6 +22,7 @@ CATEGORY_BY_LETTER = {
 LETTER_BY_CATEGORY = {value: key for key, value in CATEGORY_BY_LETTER.items()}
 VALID_LEVELS = {"AST", "DIR", "MIR"}
 VALID_FIXABILITY = {"None", "Safe", "Unsafe", "Suggestion", "Always"}
+VALID_AUTOFIX_SUPPORT = {"No", "Sometimes", "Always"}
 ALLOWED_SUFFIXES = {".rs", ".md", ".ds", ".txt"}
 
 
@@ -32,6 +35,7 @@ class RuleSpec:
     category_letter: str
     level: str
     status: str
+    autofix_support: str
     fixability: str
     line: int
 
@@ -90,18 +94,19 @@ def parse_readme(path: Path) -> tuple[dict[str, RuleSpec], list[str]]:
             errors.append(f"{path}:{line_number}: failed to parse row")
             continue
 
-        if len(columns) < 7:
-            errors.append(f"{path}:{line_number}: expected 7 columns, got {len(columns)}")
+        if len(columns) < 8:
+            errors.append(f"{path}:{line_number}: expected 8 columns, got {len(columns)}")
             continue
 
-        if len(columns) > 7:
-            columns = columns[:6] + [" | ".join(columns[6:])]
+        if len(columns) > 8:
+            columns = columns[:7] + [" | ".join(columns[7:])]
 
         code = columns[0].strip("`")
         rule_id = columns[1].strip("`")
         level = columns[3].strip().upper()
         status = columns[4].strip()
-        fixability = columns[5].strip()
+        autofix_support = columns[5].strip()
+        fixability = columns[6].strip()
 
         # validate code format and category prefix
         code_match = CODE_PATTERN.fullmatch(code)
@@ -141,6 +146,16 @@ def parse_readme(path: Path) -> tuple[dict[str, RuleSpec], list[str]]:
                 f"{path}:{line_number}: invalid status '{status}', expected blank or ✓"
             )
 
+        if status == "✓":
+            if autofix_support not in VALID_AUTOFIX_SUPPORT:
+                errors.append(
+                    f"{path}:{line_number}: invalid autofix support '{autofix_support}', expected one of {sorted(VALID_AUTOFIX_SUPPORT)}"
+                )
+        elif autofix_support and autofix_support not in VALID_AUTOFIX_SUPPORT:
+            errors.append(
+                f"{path}:{line_number}: invalid autofix support '{autofix_support}', expected blank or one of {sorted(VALID_AUTOFIX_SUPPORT)}"
+            )
+
         if fixability not in VALID_FIXABILITY:
             errors.append(
                 f"{path}:{line_number}: invalid fixability '{fixability}', expected one of {sorted(VALID_FIXABILITY)}"
@@ -152,6 +167,7 @@ def parse_readme(path: Path) -> tuple[dict[str, RuleSpec], list[str]]:
             category_letter=category_letter or "?",
             level=level,
             status=status,
+            autofix_support=autofix_support,
             fixability=fixability,
             line=line_number,
         )
@@ -251,6 +267,11 @@ def validate_rule_files(
         if spec.level != readme_rule.level:
             errors.append(
                 f"{path}: level '{spec.level}' does not match README level '{readme_rule.level}'"
+            )
+
+        if spec.fixable != readme_rule.autofix_support:
+            errors.append(
+                f"{path}: fixable '{spec.fixable}' does not match README autofix support '{readme_rule.autofix_support}'"
             )
 
         if readme_rule.status != "✓":

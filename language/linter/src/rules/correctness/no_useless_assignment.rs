@@ -3,7 +3,8 @@ use std::collections::{HashMap, HashSet};
 use destack_dir::{self as dir, GlobalSymbolId, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::rules::common::collect_pattern_value_binding_symbols;
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow assignments that are immediately overwritten.
@@ -17,7 +18,7 @@ declare_lint! {
         level = Dir,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Always,
         stability = Stable
     )]
@@ -77,7 +78,7 @@ impl<'a, 'b> UselessAssignmentVisitor<'a, 'b> {
         // track the last assignment expression for each variable
         let mut last_assignments: HashMap<GlobalSymbolId, dir::LocalNodeId<dir::Expression>> =
             HashMap::new();
-        let mut to_report: Vec<dir::LocalNodeId<dir::Expression>> = Vec::new();
+        let mut to_report: HashSet<u32> = HashSet::new();
 
         for expr_id in &block.expressions {
             let expression = self.ctx.tree.get(*expr_id);
@@ -91,16 +92,16 @@ impl<'a, 'b> UselessAssignmentVisitor<'a, 'b> {
             let inner_expr = self.ctx.tree.get(inner_id);
 
             // check if this expression reads any of the assigned variables
-            let reads = self.collect_reads_expr(inner_id);
+            let reads = collect_expression_reads(self.ctx.tree, inner_id);
             for read in &reads {
                 last_assignments.remove(read);
             }
 
-            // check if this expression is an assignment
-            if let Some(assigned_symbol) = self.get_assignment_target(inner_expr) {
-                // if there was a previous assignment, it's useless
+            // check if this expression writes assigned variables
+            for assigned_symbol in self.assignment_targets(inner_expr) {
+                // if there was a previous assignment, it is useless
                 if let Some(prev_expr_id) = last_assignments.get(&assigned_symbol) {
-                    to_report.push(*prev_expr_id);
+                    to_report.insert(prev_expr_id.id);
                 }
                 last_assignments.insert(assigned_symbol, inner_id);
             }
@@ -108,105 +109,44 @@ impl<'a, 'b> UselessAssignmentVisitor<'a, 'b> {
 
         // report useless assignments
         for expr_id in to_report {
-            self.report(expr_id);
+            self.report(dir::LocalNodeId::new(expr_id));
         }
     }
 
-    /// Get the assignment target symbol if this is an assignment expression.
-    fn get_assignment_target(&self, expression: &dir::Expression) -> Option<GlobalSymbolId> {
+    /// Get write targets for one assignment-like expression.
+    fn assignment_targets(&self, expression: &dir::Expression) -> Vec<GlobalSymbolId> {
+        let mut targets = Vec::new();
+
         match expression {
-            // regular assignment like `x = 1`
-            dir::Expression::Assign { left, .. } => {
+            // regular assignments like `x = 1` and `x += 1`
+            dir::Expression::Assign { left, .. } | dir::Expression::AssignBinary { left, .. } => {
                 let left_expr = self.ctx.tree.get(*left);
-                left_expr.target_symbol()
+                if let Some(target_symbol) = left_expr.target_symbol() {
+                    targets.push(target_symbol);
+                }
             }
-            // let binding like `let x = 1`
+
+            // let bindings like `let x = 1` and destructuring patterns
             dir::Expression::Let { declarators, .. } => {
-                // only handle single declarator for simplicity
-                if declarators.len() == 1 {
-                    let declarator = self.ctx.tree.get(declarators[0]);
-                    let pattern = self.ctx.tree.get(declarator.pattern);
-                    if let dir::Pattern::Binding { symbol, .. } = pattern {
-                        return Some(symbol.into_global(self.ctx.module.id));
+                for declarator_id in declarators {
+                    let declarator = self.ctx.tree.get(*declarator_id);
+                    let mut local_symbols = HashSet::new();
+                    collect_pattern_value_binding_symbols(
+                        self.ctx.tree,
+                        self.ctx.symbols,
+                        declarator.pattern,
+                        &mut local_symbols,
+                    );
+                    for local_symbol in local_symbols {
+                        targets.push(local_symbol.into_global(self.ctx.module.id));
                     }
                 }
-                None
             }
-            _ => None,
-        }
-    }
 
-    /// Collect all symbol reads in an expression.
-    fn collect_reads_expr(
-        &self,
-        expr_id: dir::LocalNodeId<dir::Expression>,
-    ) -> HashSet<GlobalSymbolId> {
-        let mut reads = HashSet::new();
-        self.collect_reads_recursive(expr_id, &mut reads);
-        reads
-    }
-
-    /// Recursively collect reads from an expression.
-    fn collect_reads_recursive(
-        &self,
-        expr_id: dir::LocalNodeId<dir::Expression>,
-        reads: &mut HashSet<GlobalSymbolId>,
-    ) {
-        let expr = self.ctx.tree.get(expr_id);
-
-        // skip the left side of assignments (only collect from right side)
-        if let dir::Expression::Assign { right, .. } = expr {
-            self.collect_reads_recursive(*right, reads);
-            return;
-        }
-
-        // skip let bindings (only collect from initializer)
-        if let dir::Expression::Let { declarators, .. } = expr {
-            for decl_id in declarators {
-                let decl = self.ctx.tree.get(*decl_id);
-                if let Some(value) = decl.value {
-                    self.collect_reads_recursive(value, reads);
-                }
-            }
-            return;
-        }
-
-        // collect reference reads
-        if let Some(symbol) = expr.target_symbol() {
-            reads.insert(symbol);
-        }
-
-        // walk children based on expression type
-        match expr {
-            dir::Expression::Binary { left, right, .. } => {
-                self.collect_reads_recursive(*left, reads);
-                self.collect_reads_recursive(*right, reads);
-            }
-            dir::Expression::Unary { right, .. } => {
-                self.collect_reads_recursive(*right, reads);
-            }
-            dir::Expression::Call {
-                left,
-                dynamic_arguments,
-                ..
-            } => {
-                self.collect_reads_recursive(*left, reads);
-                for arg_id in dynamic_arguments {
-                    let arg = self.ctx.tree.get(*arg_id);
-                    self.collect_reads_recursive(arg.value(), reads);
-                }
-            }
-            dir::Expression::Member { left, .. } => {
-                self.collect_reads_recursive(*left, reads);
-            }
-            dir::Expression::Index { left, right } => {
-                self.collect_reads_recursive(*left, reads);
-                if let Some(right) = right {
-                    self.collect_reads_recursive(*right, reads);
-                }
-            }
             _ => {}
         }
+
+        targets
     }
 
     /// Report a useless assignment.
@@ -219,18 +159,122 @@ impl<'a, 'b> UselessAssignmentVisitor<'a, 'b> {
 
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
-        self.ctx.report(
-            LintDiagnostic::new(
-                NO_USELESS_ASSIGNMENT.id,
-                NO_USELESS_ASSIGNMENT.code,
-                NO_USELESS_ASSIGNMENT.category,
-                severity,
-                "assignment is immediately overwritten",
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label("this value is never used"),
-        );
+        let mut diagnostic = LintDiagnostic::new(
+            NO_USELESS_ASSIGNMENT.id,
+            NO_USELESS_ASSIGNMENT.code,
+            NO_USELESS_ASSIGNMENT.category,
+            severity,
+            "assignment is immediately overwritten",
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label("this value is never used");
+
+        // compute fixes only when requested by the runner
+        if self.ctx.include_fixes
+            && let Some(fix) = useless_assignment_fix(self.ctx, expression_id)
+        {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
+    }
+}
+
+/// Build an unsafe fix by removing one overwritten assignment.
+fn useless_assignment_fix(
+    ctx: &LintModuleDirContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<LintFix> {
+    let expression = ctx.tree.get(expression_id);
+    if !matches!(expression, dir::Expression::Assign { .. }) {
+        return None;
+    }
+
+    let statement_span = parent_statement_span(ctx, expression_id)?;
+    let edits = ctx.edit_builder().delete(statement_span).into_edits();
+    Some(LintFix::r#unsafe("Remove overwritten assignment").with_edits(edits))
+}
+
+/// Return the parent statement span for one expression.
+fn parent_statement_span(
+    ctx: &LintModuleDirContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<destack_source::Span> {
+    let parent_id = ctx.tree.get_parent(expression_id.id)?;
+    if parent_id.ty != dir::NodeType::Expression {
+        return None;
+    }
+
+    let parent_expression_id = parent_id.into_typed::<dir::Expression>();
+    let parent_expression = ctx.tree.get(parent_expression_id);
+    if !matches!(
+        parent_expression,
+        dir::Expression::Statement { statement } if *statement == expression_id
+    ) {
+        return None;
+    }
+
+    Some(ctx.get_span(parent_expression_id))
+}
+
+/// Collect read symbols in one expression subtree.
+fn collect_expression_reads(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> HashSet<GlobalSymbolId> {
+    let mut visitor = ExpressionReadCollector {
+        reads: HashSet::new(),
+        options: NodeVisitorOptions::default(),
+    };
+    let expression = tree.get(expression_id);
+    visitor.visit_expression(tree, expression_id, expression);
+    visitor.reads
+}
+
+/// Collect symbol reads while skipping write positions.
+struct ExpressionReadCollector {
+    /// Collected symbols read from the expression.
+    reads: HashSet<GlobalSymbolId>,
+    /// Visitor options.
+    options: NodeVisitorOptions,
+}
+
+impl NodeVisitor for ExpressionReadCollector {
+    fn options(&self) -> &NodeVisitorOptions {
+        &self.options
+    }
+
+    fn visit_expression(
+        &mut self,
+        tree: &dir::NodeTree,
+        id: dir::LocalNodeId<dir::Expression>,
+        expression: &dir::Expression,
+    ) {
+        // assignment left side is a write, only visit right side
+        if let dir::Expression::Assign { right, .. } = expression {
+            let right_expression = tree.get(*right);
+            self.visit_expression(tree, *right, right_expression);
+            return;
+        }
+
+        // let declarator patterns are writes, only visit initializers
+        if let dir::Expression::Let { declarators, .. } = expression {
+            for declarator_id in declarators {
+                let declarator = tree.get(*declarator_id);
+                if let Some(value_expression_id) = declarator.value {
+                    let value_expression = tree.get(value_expression_id);
+                    self.visit_expression(tree, value_expression_id, value_expression);
+                }
+            }
+            return;
+        }
+
+        if let Some(symbol) = expression.target_symbol() {
+            self.reads.insert(symbol);
+        }
+
+        walk_expression(self, tree, id, expression);
     }
 }
 
@@ -288,6 +332,35 @@ function test(): void {
         test.result(result).assert_lint("no-useless-assignment");
     }
 
+    /// Remove overwritten assignments.
+    #[test]
+    fn test_fix_removes_overwritten_assignment() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessAssignment);
+        let result = test.lint_dir(
+            "no_useless_assignment/test_fix_removes_overwritten_assignment.ds",
+            r#"
+function test(): void {
+    let x: int32;
+    x = 1;
+    x = 2;
+    console.log(x);
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-useless-assignment")
+            .assert_unsafe_fixed(
+                r#"
+function test(): void {
+    let x: int32;
+
+    x = 2;
+    console.log(x);
+}
+"#,
+            );
+    }
+
     /// Allow assignment followed by use.
     #[test]
     fn test_allows_used_assignment() {
@@ -316,6 +389,71 @@ function test(): void {
     let x = 1;
     let y = 2;
     let z = x + y;
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-useless-assignment");
+    }
+
+    /// Mutation: remove overwritten let declarations.
+    #[test]
+    fn test_mutation_fix_removes_overwritten_let_declaration() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessAssignment);
+        let result = test.lint_dir(
+            "no_useless_assignment/test_mutation_fix_removes_overwritten_let_declaration.ds",
+            r#"
+function test(): void {
+    let value: int32;
+    value = 1;
+    value = 2;
+    return value;
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-useless-assignment")
+            .assert_unsafe_fixed(
+                r#"
+function test(): void {
+    let value: int32;
+
+    value = 2;
+    return value;
+}
+"#,
+            );
+    }
+
+    /// Allow assignment used in a conditional expression before overwrite.
+    #[test]
+    fn test_allows_assignment_read_in_condition_before_overwrite() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessAssignment);
+        let result = test.lint_dir(
+            "no_useless_assignment/test_allows_assignment_read_in_condition_before_overwrite.ds",
+            r#"
+function test(): void {
+    let value = 1;
+    if (value > 0) {
+        log(value);
+    }
+    value = 2;
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-useless-assignment");
+    }
+
+    /// Allow compound assignments that read the previous value.
+    #[test]
+    fn test_allows_compound_assignment_reading_previous_value() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessAssignment);
+        let result = test.lint_dir(
+            "no_useless_assignment/test_allows_compound_assignment_reading_previous_value.ds",
+            r#"
+function test(): void {
+    let value = 1;
+    value += 2;
+    return value;
 }
 "#,
         );

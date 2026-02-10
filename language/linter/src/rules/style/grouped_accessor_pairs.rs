@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use destack_ast::{self as ast, Declaration, FunctionMode, Key, Member, Name};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Require grouped accessor pairs in object literals and classes.
@@ -33,7 +33,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -116,6 +116,7 @@ fn check_members_for_ungrouped_accessors(
     }
 
     // check for non-adjacent pairs
+    let mut has_reported_reorder_fix = false;
     for (name_id, (getter_idx, setter_idx)) in accessor_indices {
         let (Some(getter_idx), Some(setter_idx)) = (getter_idx, setter_idx) else {
             continue;
@@ -132,18 +133,25 @@ fn check_members_for_ungrouped_accessors(
             }
             let name = ctx.strings.get(name_id);
 
-            ctx.report(
-                LintDiagnostic::new(
-                    GROUPED_ACCESSOR_PAIRS.id,
-                    GROUPED_ACCESSOR_PAIRS.code,
-                    GROUPED_ACCESSOR_PAIRS.category,
-                    severity,
-                    format!("getter and setter for `{}` are not adjacent", name.as_ref()),
-                    ctx.module.file_id,
-                    ctx.tree.get_span(later_member_id),
-                )
-                .with_label("move to be adjacent to its counterpart"),
-            );
+            let mut diagnostic = LintDiagnostic::new(
+                GROUPED_ACCESSOR_PAIRS.id,
+                GROUPED_ACCESSOR_PAIRS.code,
+                GROUPED_ACCESSOR_PAIRS.category,
+                severity,
+                format!("getter and setter for `{}` are not adjacent", name.as_ref()),
+                ctx.module.file_id,
+                ctx.tree.get_span(later_member_id),
+            )
+            .with_label("move to be adjacent to its counterpart");
+            if ctx.compute_fixes && !has_reported_reorder_fix {
+                if let Some(fix) = grouped_member_accessor_fix(ctx, members, getter_idx, setter_idx)
+                {
+                    diagnostic = diagnostic.with_fix(fix);
+                }
+                has_reported_reorder_fix = true;
+            }
+
+            ctx.report(diagnostic);
         }
     }
 }
@@ -190,6 +198,7 @@ fn check_properties_for_ungrouped_accessors(
     }
 
     // check for non-adjacent pairs
+    let mut has_reported_reorder_fix = false;
     for (name_id, (getter_idx, setter_idx)) in accessor_indices {
         let (Some(getter_idx), Some(setter_idx)) = (getter_idx, setter_idx) else {
             continue;
@@ -206,20 +215,131 @@ fn check_properties_for_ungrouped_accessors(
             }
             let name = ctx.strings.get(name_id);
 
-            ctx.report(
-                LintDiagnostic::new(
-                    GROUPED_ACCESSOR_PAIRS.id,
-                    GROUPED_ACCESSOR_PAIRS.code,
-                    GROUPED_ACCESSOR_PAIRS.category,
-                    severity,
-                    format!("getter and setter for `{}` are not adjacent", name.as_ref()),
-                    ctx.module.file_id,
-                    ctx.tree.get_span(later_prop_id),
-                )
-                .with_label("move to be adjacent to its counterpart"),
-            );
+            let mut diagnostic = LintDiagnostic::new(
+                GROUPED_ACCESSOR_PAIRS.id,
+                GROUPED_ACCESSOR_PAIRS.code,
+                GROUPED_ACCESSOR_PAIRS.category,
+                severity,
+                format!("getter and setter for `{}` are not adjacent", name.as_ref()),
+                ctx.module.file_id,
+                ctx.tree.get_span(later_prop_id),
+            )
+            .with_label("move to be adjacent to its counterpart");
+            if ctx.compute_fixes && !has_reported_reorder_fix {
+                if let Some(fix) =
+                    grouped_property_accessor_fix(ctx, properties, getter_idx, setter_idx)
+                {
+                    diagnostic = diagnostic.with_fix(fix);
+                }
+                has_reported_reorder_fix = true;
+            }
+
+            ctx.report(diagnostic);
         }
     }
+}
+
+/// Build an unsafe reorder fix for class-like member accessor pairs.
+fn grouped_member_accessor_fix(
+    ctx: &LintModuleAstContext<'_>,
+    members: &[ast::LocalNodeId<Member>],
+    getter_index: usize,
+    setter_index: usize,
+) -> Option<LintFix> {
+    if members.is_empty() {
+        return None;
+    }
+
+    let first_member_span = ctx.tree.get_span(*members.first()?);
+    let last_member_span = ctx.tree.get_span(*members.last()?);
+    let full_span = destack_source::Span::new(
+        first_member_span.file,
+        first_member_span.start,
+        last_member_span.end,
+    );
+    let full_text = ctx.get_span_text(full_span);
+    if full_text.contains("//") || full_text.contains("/*") {
+        return None;
+    }
+
+    let reordered_indices = reorder_accessor_indices(members.len(), getter_index, setter_index)?;
+    let replacement = reordered_indices
+        .iter()
+        .map(|member_index| {
+            let member_id = members[*member_index];
+            ctx.get_span_text(ctx.tree.get_span(member_id)).to_string()
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let edits = ctx
+        .edit_builder()
+        .replace(full_span, replacement)
+        .into_edits();
+    Some(LintFix::r#unsafe("Group getter and setter accessors together").with_edits(edits))
+}
+
+/// Build an unsafe reorder fix for object property accessor pairs.
+fn grouped_property_accessor_fix(
+    ctx: &LintModuleAstContext<'_>,
+    properties: &[ast::LocalNodeId<ast::Property>],
+    getter_index: usize,
+    setter_index: usize,
+) -> Option<LintFix> {
+    if properties.is_empty() {
+        return None;
+    }
+
+    let first_property_span = ctx.tree.get_span(*properties.first()?);
+    let last_property_span = ctx.tree.get_span(*properties.last()?);
+    let full_span = destack_source::Span::new(
+        first_property_span.file,
+        first_property_span.start,
+        last_property_span.end,
+    );
+    let full_text = ctx.get_span_text(full_span);
+    if full_text.contains("//") || full_text.contains("/*") {
+        return None;
+    }
+
+    let reordered_indices = reorder_accessor_indices(properties.len(), getter_index, setter_index)?;
+    let replacement = reordered_indices
+        .iter()
+        .map(|property_index| {
+            let property_id = properties[*property_index];
+            ctx.get_span_text(ctx.tree.get_span(property_id))
+                .to_string()
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let edits = ctx
+        .edit_builder()
+        .replace(full_span, replacement)
+        .into_edits();
+    Some(LintFix::r#unsafe("Group getter and setter accessors together").with_edits(edits))
+}
+
+/// Return reordered indices with the later accessor moved next to the earlier one.
+fn reorder_accessor_indices(
+    item_count: usize,
+    getter_index: usize,
+    setter_index: usize,
+) -> Option<Vec<usize>> {
+    if getter_index >= item_count || setter_index >= item_count {
+        return None;
+    }
+
+    let earlier_index = getter_index.min(setter_index);
+    let later_index = getter_index.max(setter_index);
+    if later_index.abs_diff(earlier_index) <= 1 {
+        return None;
+    }
+
+    let mut reordered_indices = (0..item_count).collect::<Vec<_>>();
+    let moved_index = reordered_indices.remove(later_index);
+    reordered_indices.insert(earlier_index + 1, moved_index);
+    Some(reordered_indices)
 }
 
 #[cfg(test)]
@@ -270,7 +390,21 @@ class Example {
 }
 "#,
         );
-        test.result(result).assert_lint("grouped-accessor-pairs");
+        test.result(result)
+            .assert_lint("grouped-accessor-pairs")
+            .assert_unsafe_fixed(
+                r#"
+class Example {
+    get foo() {
+        return this._foo;
+    }
+    set foo(v) {
+        this._foo = v
+    }
+    bar: int32 = 1;
+}
+"#,
+            );
     }
 
     #[test]
@@ -333,7 +467,21 @@ const obj = {
 }
 "#,
         );
-        test.result(result).assert_lint("grouped-accessor-pairs");
+        test.result(result)
+            .assert_lint("grouped-accessor-pairs")
+            .assert_unsafe_fixed(
+                r#"
+const obj = {
+    get foo() {
+        return this._foo;
+    },
+    set foo(v) {
+        this._foo = v
+    },
+    bar: 1,
+};
+"#,
+            );
     }
 
     #[test]
@@ -384,5 +532,24 @@ struct Example {
 "#,
         );
         test.result(result).assert_lint("grouped-accessor-pairs");
+    }
+
+    #[test]
+    fn test_no_fix_when_member_range_contains_comments() {
+        let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
+        let result = test.lint_ast(
+            "grouped_accessor_pairs/test_no_fix_when_member_range_contains_comments.ds",
+            r#"
+class Example {
+    get foo() { return this._foo }
+    // keep bar grouped with docs
+    bar: int32 = 1
+    set foo(v) { this._foo = v }
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("grouped-accessor-pairs")
+            .assert_has_no_fix("grouped-accessor-pairs");
     }
 }

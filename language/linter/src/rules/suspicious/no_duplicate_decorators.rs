@@ -1,4 +1,5 @@
 use destack_ast as ast;
+use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::ExpressionDuplicateTracker;
@@ -62,25 +63,58 @@ impl LintRule for NoDuplicateDecorators {
                         .unwrap_or_else(|| "<unknown>".to_string());
 
                     let span = ctx.tree.get_span(*annotation_id);
-                    let fix = LintFix::safe("Remove duplicate decorator").delete(span);
+                    let mut diagnostic = LintDiagnostic::new(
+                        NO_DUPLICATE_DECORATORS.id,
+                        NO_DUPLICATE_DECORATORS.code,
+                        NO_DUPLICATE_DECORATORS.category,
+                        severity,
+                        format!("duplicate decorator '@{name}'"),
+                        ctx.module.file_id,
+                        span,
+                    )
+                    .with_label("this decorator is already applied with identical arguments");
+                    if ctx.compute_fixes {
+                        let fix_span = duplicate_decorator_fix_span(ctx, span);
+                        let fix = LintFix::safe("Remove duplicate decorator").delete(fix_span);
+                        diagnostic = diagnostic.with_fix(fix);
+                    }
 
-                    ctx.report(
-                        LintDiagnostic::new(
-                            NO_DUPLICATE_DECORATORS.id,
-                            NO_DUPLICATE_DECORATORS.code,
-                            NO_DUPLICATE_DECORATORS.category,
-                            severity,
-                            format!("duplicate decorator '@{name}'"),
-                            ctx.module.file_id,
-                            span,
-                        )
-                        .with_label("this decorator is already applied with identical arguments")
-                        .with_fix(fix),
-                    );
+                    ctx.report(diagnostic);
                 }
             }
         }
     }
+}
+
+/// Return a deletion span that removes one duplicate decorator line cleanly.
+fn duplicate_decorator_fix_span(ctx: &LintModuleAstContext<'_>, annotation_span: Span) -> Span {
+    let source = ctx.source_text().as_bytes();
+    let mut start = annotation_span.start as usize;
+    let mut end = annotation_span.end as usize;
+
+    // include line indentation when decorator starts a standalone line
+    let mut line_start = start;
+    while line_start > 0 && source[line_start - 1] != b'\n' {
+        line_start -= 1;
+    }
+    if source[line_start..start]
+        .iter()
+        .all(|byte| *byte == b' ' || *byte == b'\t')
+    {
+        start = line_start;
+    }
+
+    // consume trailing spaces and one newline
+    while end < source.len()
+        && (source[end] == b' ' || source[end] == b'\t' || source[end] == b'\r')
+    {
+        end += 1;
+    }
+    if end < source.len() && source[end] == b'\n' {
+        end += 1;
+    }
+
+    Span::new(annotation_span.file, start as u32, end as u32)
 }
 
 #[cfg(test)]
@@ -205,5 +239,52 @@ function foo() {}
         );
         test.result(result)
             .assert_lint_count("no-duplicate-decorators", 1);
+    }
+
+    #[test]
+    fn test_fix_removes_duplicate_decorator() {
+        let test = TestProgram::for_rule_without_prelude(NoDuplicateDecorators);
+        let result = test.lint_ast(
+            "no_duplicate_decorators/test_fix_removes_duplicate_decorator.ds",
+            r#"
+@inline
+@inline
+function foo() {}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-duplicate-decorators")
+            .assert_has_fix("no-duplicate-decorators")
+            .assert_safe_fixed(
+                r#"
+@inline
+function foo() {}
+"#,
+            );
+    }
+
+    #[test]
+    fn test_mutation_fix_collapses_multiple_duplicate_decorators() {
+        let test = TestProgram::for_rule_without_prelude(NoDuplicateDecorators);
+        let result = test.lint_ast(
+            "no_duplicate_decorators/test_mutation_fix_collapses_multiple_duplicate_decorators.ds",
+            r#"
+@inline
+@inline
+@inline
+@deprecated
+function foo() {}
+"#,
+        );
+        test.result(result)
+            .assert_lint_count("no-duplicate-decorators", 2)
+            .assert_has_fix("no-duplicate-decorators")
+            .assert_safe_fixed(
+                r#"
+@inline
+@deprecated
+function foo() {}
+"#,
+            );
     }
 }

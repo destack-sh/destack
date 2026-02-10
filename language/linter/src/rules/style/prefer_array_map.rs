@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{expression_method_call, is_array_type};
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest `.map()` over `forEach` with push.
@@ -17,7 +17,7 @@ declare_lint! {
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -35,6 +35,26 @@ impl LintRule for PreferArrayMap {
         let mut visitor = PreferArrayMapVisitor::new(ctx, meta);
         visitor.run();
     }
+}
+
+/// Pattern data for one `forEach` callback that only pushes into a target array.
+#[derive(Clone, Copy)]
+struct MapPattern {
+    /// The callback parameter name.
+    parameter_name: StringId,
+    /// The symbol receiving `.push(...)`.
+    push_target_symbol: dir::GlobalSymbolId,
+    /// The pushed value expression.
+    pushed_value_id: dir::LocalNodeId<dir::Expression>,
+}
+
+/// Empty array declaration info immediately before a `forEach` statement.
+#[derive(Clone, Copy)]
+struct EmptyArrayDeclaration {
+    /// The declaration symbol.
+    symbol: dir::GlobalSymbolId,
+    /// The `[]` initializer expression id.
+    initializer_id: dir::LocalNodeId<dir::Expression>,
 }
 
 /// Visitor that flags forEach with unconditional push patterns.
@@ -96,87 +116,289 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
             return;
         }
 
-        // get the callback argument
+        // extract a strict callback push pattern
+        let Some(pattern) = self.extract_map_pattern(expression_id) else {
+            return;
+        };
+
+        self.report(expression_id, pattern);
+    }
+
+    /// Extract a strict map pattern from a forEach call.
+    fn extract_map_pattern(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<MapPattern> {
         let expression = self.ctx.tree.get(expression_id);
         let dir::Expression::Call {
-            dynamic_arguments, ..
+            static_arguments,
+            dynamic_arguments,
+            ..
         } = expression
         else {
-            return;
-        };
-        if dynamic_arguments.is_empty() {
-            return;
-        }
-
-        // get callback expression
-        let callback_arg = self.ctx.tree.get(dynamic_arguments[0]);
-        let callback_id = callback_arg.value();
-        let callback = self.ctx.tree.get(callback_id);
-
-        // match function expression (arrow functions and regular functions are Declaration::Function)
-        let body_id = match callback {
-            dir::Expression::Declaration { declaration } => {
-                let decl = self.ctx.tree.get(*declaration);
-                let dir::Declaration::Function { body, .. } = decl else {
-                    return;
-                };
-                let Some(body) = body else {
-                    return;
-                };
-                *body
-            }
-            _ => return,
+            return None;
         };
 
-        // check if callback body matches the unconditional push pattern
-        if self.is_unconditional_push_body(body_id) {
-            self.report(expression_id);
+        // keep simple callback-only forEach calls
+        if static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty())
+            || dynamic_arguments.len() != 1
+        {
+            return None;
         }
+
+        // keep positional callback expressions
+        let callback_argument = self.ctx.tree.get(dynamic_arguments[0]);
+        let dir::Argument::Positional {
+            value: callback_id, ..
+        } = callback_argument
+        else {
+            return None;
+        };
+
+        // keep inline sync callbacks with one named parameter
+        let callback_expression = self.ctx.tree.get(*callback_id);
+        let dir::Expression::Declaration { declaration } = callback_expression else {
+            return None;
+        };
+        let callback_declaration = self.ctx.tree.get(*declaration);
+        let dir::Declaration::Function {
+            signature,
+            body: Some(body_id),
+            ..
+        } = callback_declaration
+        else {
+            return None;
+        };
+        if signature.asynchrony != dir::Asynchrony::Sync || signature.dynamic_parameters.len() != 1
+        {
+            return None;
+        }
+
+        // keep one plain named callback parameter
+        let parameter = self.ctx.tree.get(signature.dynamic_parameters[0]);
+        let dir::Parameter::Named {
+            modifiers: None,
+            name,
+            default: None,
+            ..
+        } = parameter
+        else {
+            return None;
+        };
+
+        // keep one push call in callback body
+        let push_call_id = self.push_call_from_callback_body(*body_id)?;
+        let push_call = expression_method_call(self.ctx.tree, push_call_id)?;
+        if push_call.method_name != self.push_name {
+            return None;
+        }
+
+        // keep one positional pushed value
+        let push_expression = self.ctx.tree.get(push_call_id);
+        let dir::Expression::Call {
+            static_arguments,
+            dynamic_arguments,
+            ..
+        } = push_expression
+        else {
+            return None;
+        };
+        if static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty())
+            || dynamic_arguments.len() != 1
+        {
+            return None;
+        }
+        let pushed_argument = self.ctx.tree.get(dynamic_arguments[0]);
+        let dir::Argument::Positional {
+            value: pushed_value_id,
+            ..
+        } = pushed_argument
+        else {
+            return None;
+        };
+
+        // keep push targets that resolve to a symbol
+        let push_receiver_expression = self.ctx.tree.get(push_call.receiver_id);
+        let push_target_symbol = push_receiver_expression.target_symbol()?;
+
+        Some(MapPattern {
+            parameter_name: *name,
+            push_target_symbol,
+            pushed_value_id: *pushed_value_id,
+        })
     }
 
-    /// Check if the callback body is an unconditional push pattern.
-    fn is_unconditional_push_body(&self, body_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        let body = self.ctx.tree.get(body_id);
+    /// Keep callback bodies with exactly one push call.
+    fn push_call_from_callback_body(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<dir::LocalNodeId<dir::Expression>> {
+        let expression = self.ctx.tree.get(expression_id);
 
-        // body can be a block or a push call directly
-        match body {
-            // block body: check for single push statement
-            dir::Expression::Block { block } => {
-                let block_node = self.ctx.tree.get(*block);
-                // should have exactly one statement
-                if block_node.expressions.len() != 1 {
-                    return false;
-                }
-                self.is_push_call(block_node.expressions[0])
+        // block callbacks: keep single body expression
+        if let dir::Expression::Block { block } = expression {
+            let block = self.ctx.tree.get(*block);
+            if block.expressions.len() != 1 {
+                return None;
             }
-            // direct push call (concise arrow body)
-            dir::Expression::Call { .. } => self.is_push_call(body_id),
-            _ => false,
+            return Some(self.unwrap_statement_expression(block.expressions[0]));
         }
+
+        // concise callbacks: body must already be a call
+        if matches!(expression, dir::Expression::Call { .. }) {
+            return Some(expression_id);
+        }
+
+        None
     }
 
-    /// Unwrap statement expressions to get the inner expression.
-    fn unwrap_statement(
+    /// Unwrap one statement wrapper when present.
+    fn unwrap_statement_expression(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> dir::LocalNodeId<dir::Expression> {
         let expression = self.ctx.tree.get(expression_id);
         if let dir::Expression::Statement { statement } = expression {
-            *statement
-        } else {
-            expression_id
+            return *statement;
         }
+
+        expression_id
     }
 
-    /// Check if expression is a push call.
-    fn is_push_call(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        // unwrap statement if present
-        let expression_id = self.unwrap_statement(expression_id);
-        let Some(call) = expression_method_call(self.ctx.tree, expression_id) else {
-            return false;
-        };
+    /// Resolve the statement wrapper id for one expression.
+    fn statement_expression_id(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<dir::LocalNodeId<dir::Expression>> {
+        let parent_id = self.ctx.tree.get_parent_id(expression_id.id)?;
+        if self.ctx.tree.get_node_type(parent_id) != dir::NodeType::Expression {
+            return None;
+        }
 
-        call.method_name == self.push_name
+        let statement_id = dir::LocalNodeId::<dir::Expression>::new(parent_id);
+        let statement_expression = self.ctx.tree.get(statement_id);
+        if !matches!(
+            statement_expression,
+            dir::Expression::Statement { statement } if *statement == expression_id
+        ) {
+            return None;
+        }
+
+        Some(statement_id)
+    }
+
+    /// Resolve the immediate previous expression in the same container.
+    fn previous_expression_in_container(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<dir::LocalNodeId<dir::Expression>> {
+        // check block containers first
+        if let Some(parent_id) = self.ctx.tree.get_parent_id(expression_id.id)
+            && self.ctx.tree.get_node_type(parent_id) == dir::NodeType::Block
+        {
+            let block_id = dir::LocalNodeId::<dir::Block>::new(parent_id);
+            let block = self.ctx.tree.get(block_id);
+            let index = block
+                .expressions
+                .iter()
+                .position(|item| *item == expression_id)?;
+            if index == 0 {
+                return None;
+            }
+
+            return Some(block.expressions[index - 1]);
+        }
+
+        // then check top-level roots
+        let root_index = self
+            .ctx
+            .roots
+            .iter()
+            .position(|item| *item == expression_id)?;
+        if root_index == 0 {
+            return None;
+        }
+
+        Some(self.ctx.roots[root_index - 1])
+    }
+
+    /// Extract one empty array declaration shape.
+    fn empty_array_declaration(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<EmptyArrayDeclaration> {
+        let expression_id = self.unwrap_statement_expression(expression_id);
+        let expression = self.ctx.tree.get(expression_id);
+        let dir::Expression::Let { declarators, .. } = expression else {
+            return None;
+        };
+        if declarators.len() != 1 {
+            return None;
+        }
+
+        let declarator = self.ctx.tree.get(declarators[0]);
+        let initializer_id = declarator.value?;
+        let initializer = self.ctx.tree.get(initializer_id);
+        if !matches!(
+            initializer,
+            dir::Expression::ArrayExpression { elements } if elements.is_empty()
+        ) {
+            return None;
+        }
+
+        let pattern = self.ctx.tree.get(declarator.pattern);
+        let symbol = pattern.symbol()?.into_global(self.ctx.module_id());
+        Some(EmptyArrayDeclaration {
+            symbol,
+            initializer_id,
+        })
+    }
+
+    /// Build an unsafe map rewrite when an empty target declaration is adjacent.
+    fn map_fix(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        pattern: MapPattern,
+    ) -> Option<LintFix> {
+        let statement_id = self.statement_expression_id(expression_id)?;
+        let previous_expression_id = self.previous_expression_in_container(statement_id)?;
+        let declaration = self.empty_array_declaration(previous_expression_id)?;
+        if declaration.symbol != pattern.push_target_symbol {
+            return None;
+        }
+
+        // read receiver text for `receiver.map(...)`
+        let expression = self.ctx.tree.get(expression_id);
+        let dir::Expression::Call { left, .. } = expression else {
+            return None;
+        };
+        let member_text = self.ctx.get_span_text(self.ctx.get_span(*left)).to_string();
+        let receiver_text = strip_dot_member_suffix(&member_text, "forEach")?.to_string();
+
+        // read pushed value text for mapper callback expression
+        let pushed_value_text = self
+            .ctx
+            .get_span_text(self.ctx.get_span(pattern.pushed_value_id))
+            .to_string();
+        let parameter_name = self.ctx.program.strings.get(pattern.parameter_name);
+        let replacement = format!(
+            "{receiver}.map(({parameter}) => ({value}))",
+            receiver = receiver_text,
+            parameter = parameter_name.as_ref(),
+            value = pushed_value_text,
+        );
+
+        // replace initializer and remove the old forEach statement
+        let mut edit_builder = self.ctx.edit_builder();
+        edit_builder =
+            edit_builder.replace(self.ctx.get_span(declaration.initializer_id), replacement);
+        edit_builder = edit_builder.replace(self.ctx.get_span(statement_id), "");
+        let edits = edit_builder.into_edits();
+        Some(LintFix::r#unsafe("Rewrite forEach push loop as map assignment").with_edits(edits))
     }
 
     /// Return true when the receiver expression is an array type.
@@ -189,7 +411,7 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
     }
 
     /// Report a prefer-array-map match.
-    fn report(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) {
+    fn report(&mut self, expression_id: dir::LocalNodeId<dir::Expression>, pattern: MapPattern) {
         // honor per node severity
         let severity = self.ctx.get_effective_severity(self.meta, expression_id);
         if !severity.is_enabled() {
@@ -198,19 +420,30 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
 
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
-        self.ctx.report(
-            LintDiagnostic::new(
-                PREFER_ARRAY_MAP.id,
-                PREFER_ARRAY_MAP.code,
-                PREFER_ARRAY_MAP.category,
-                severity,
-                "prefer map() over forEach with push",
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label("use array.map(...) instead"),
-        );
+        let mut diagnostic = LintDiagnostic::new(
+            PREFER_ARRAY_MAP.id,
+            PREFER_ARRAY_MAP.code,
+            PREFER_ARRAY_MAP.category,
+            severity,
+            "prefer map() over forEach with push",
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label("use array.map(...) instead");
+        if self.ctx.include_fixes
+            && let Some(fix) = self.map_fix(expression_id, pattern)
+        {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
     }
+}
+
+/// Strip one `.member` suffix from member expression text.
+fn strip_dot_member_suffix<'a>(text: &'a str, member: &str) -> Option<&'a str> {
+    let suffix = format!(".{member}");
+    text.strip_suffix(&suffix).map(str::trim_end)
 }
 
 impl NodeVisitor for PreferArrayMapVisitor<'_, '_> {
@@ -253,7 +486,14 @@ items.forEach(x => {
 });
 "#,
         );
-        test.result(result).assert_lint("prefer-array-map");
+        test.result(result)
+            .assert_lint("prefer-array-map")
+            .assert_unsafe_fixed(
+                r#"
+let items = [1, 2, 3];
+let result: number[] = items.map((x) => (x * 2));
+"#,
+            );
     }
 
     /// Flag arrow function with block body.
@@ -320,5 +560,62 @@ let result = items.map(x => x * 2);
 "#,
         );
         test.result(result).assert_no_lint("prefer-array-map");
+    }
+
+    /// allow index callback patterns, this rule intentionally skips them
+    #[test]
+    fn test_allows_index_callback_parameter() {
+        let test = TestProgram::for_rule_with_prelude(PreferArrayMap);
+        let result = test.lint_dir(
+            "prefer_array_map/test_allows_index_callback_parameter.ds",
+            r#"
+let items = [1, 2, 3];
+let result: number[] = [];
+items.forEach((x, index) => {
+    result.push(index + x);
+});
+"#,
+        );
+        test.result(result).assert_no_lint("prefer-array-map");
+    }
+
+    /// keep no fix without an adjacent empty array declaration
+    #[test]
+    fn test_no_fix_without_adjacent_empty_array_declaration() {
+        let test = TestProgram::for_rule_with_prelude(PreferArrayMap);
+        let result = test.lint_dir(
+            "prefer_array_map/test_no_fix_without_adjacent_empty_array_declaration.ds",
+            r#"
+let items = [1, 2, 3];
+let result: number[] = [];
+console.log(items.length);
+items.forEach((x) => {
+    result.push(x * 2);
+});
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-array-map")
+            .assert_has_no_fix("prefer-array-map");
+    }
+
+    /// keep no fix when callback pushes into a different target
+    #[test]
+    fn test_no_fix_for_mismatched_push_target() {
+        let test = TestProgram::for_rule_with_prelude(PreferArrayMap);
+        let result = test.lint_dir(
+            "prefer_array_map/test_no_fix_for_mismatched_push_target.ds",
+            r#"
+let items = [1, 2, 3];
+let result: number[] = [];
+let other: number[] = [];
+items.forEach((x) => {
+    result.push(x * 2);
+});
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-array-map")
+            .assert_has_no_fix("prefer-array-map");
     }
 }
