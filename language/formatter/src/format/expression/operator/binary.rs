@@ -241,6 +241,71 @@ pub(super) fn format_binary_expression<'ast>(
         flatten_binary_expression(f.context().tree, node_id, *operator)
     };
 
+    // clean binary fast path
+    let can_use_clean_binary_fast_path = !is_type_union
+        && !is_type_intersection
+        && !f.context().has_annotation(node_id)
+        && operands
+            .iter()
+            .all(|operand| !f.context().has_annotation(operand.expression))
+        && operands
+            .iter()
+            .all(|operand| !expression_has_leading_prefix_comment(f.context(), operand.expression))
+        && operands.windows(2).all(|window| {
+            let [left_operand, right_operand] = window else {
+                return true;
+            };
+            !has_newline_between_expressions(
+                f.context(),
+                left_operand.expression,
+                right_operand.expression,
+            ) && line_comment_between_expressions(
+                f.context(),
+                left_operand.expression,
+                right_operand.expression,
+            )
+            .is_none()
+        });
+    if can_use_clean_binary_fast_path {
+        f.context()
+            .increment_counter("profile.binary.clean.fast_path", 1);
+        write!(
+            f,
+            [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                let Some(first_operand) = operands.first() else {
+                    return Ok(());
+                };
+                format_binary_operand_with_grouping_parentheses(
+                    f,
+                    *operator,
+                    first_operand.expression,
+                )?;
+
+                for operand in operands.iter().skip(1) {
+                    let Some(op) = operand.operator else {
+                        continue;
+                    };
+                    write!(
+                        f,
+                        [indent(&format_with(
+                            |f: &mut DestackFormatter<'ast, '_>| {
+                                write!(f, [soft_line_break_or_space(), op, space()])?;
+                                format_binary_operand_with_grouping_parentheses(
+                                    f,
+                                    *operator,
+                                    operand.expression,
+                                )
+                            }
+                        ))]
+                    )?;
+                }
+
+                Ok(())
+            }))]
+        )?;
+        return Ok(());
+    }
+
     // leading pipe unions
     if is_type_union && union_source_has_leading_pipe(f.context(), node_id) {
         let has_block_prefix_ancestor =

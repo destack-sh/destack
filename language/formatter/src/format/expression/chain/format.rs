@@ -23,6 +23,7 @@ struct ChainLayoutPlan {
     lines: Vec<SmallVec<[ChainExpression; 2]>>,
     deferred_path_boundary_comments: Vec<String>,
     should_break: bool,
+    has_chain_intervening_trivia: bool,
     has_calls: bool,
     in_template_literal_interpolation: bool,
 }
@@ -350,6 +351,7 @@ fn plan_chain_layout(
         lines,
         deferred_path_boundary_comments: normalized.deferred_path_boundary_comments,
         should_break,
+        has_chain_intervening_trivia,
         has_calls: !chain_call_summaries.is_empty(),
         in_template_literal_interpolation: expression_is_in_template_literal_interpolation(
             context, node_id,
@@ -368,6 +370,7 @@ pub(crate) fn format_expression_chain<'ast>(
         lines,
         deferred_path_boundary_comments,
         should_break: chain_should_break,
+        has_chain_intervening_trivia,
         has_calls: chain_has_calls,
         in_template_literal_interpolation,
     } = plan;
@@ -492,6 +495,32 @@ pub(crate) fn format_expression_chain<'ast>(
         return Ok(());
     }
 
+    let has_multiline_dynamic_call_argument =
+        lines.iter().flat_map(|line| line.iter()).any(|operation| {
+            let ChainExpression::Call {
+                dynamic_arguments, ..
+            } = operation
+            else {
+                return false;
+            };
+            dynamic_arguments
+                .iter()
+                .any(|argument_id| f.context().node_has_newline(*argument_id))
+        });
+    let can_inline_multiline_call_argument_chain = deferred_path_boundary_comments.is_empty()
+        && f.context().has_newline(chain_span)
+        && (is_chain_call_like_argument
+            || in_template_literal_interpolation
+            || is_chain_conditional_branch)
+        && !has_chain_intervening_trivia
+        && has_multiline_dynamic_call_argument;
+    if can_inline_multiline_call_argument_chain {
+        f.context()
+            .increment_counter("profile.chain.inline.multiline_call_argument", 1);
+        format_inline.format(f)?;
+        return Ok(());
+    }
+
     let compact_chain_len = source_min_inline_char_len(f.context().get_span_str(chain_span));
     let has_call_with_dynamic_arguments =
         lines.iter().flat_map(|line| line.iter()).any(|operation| {
@@ -522,6 +551,16 @@ pub(crate) fn format_expression_chain<'ast>(
             .increment_counter("profile.chain.deterministic.inline", 1);
         format_inline.format(f)
     } else {
+        let best_fitting_reason = if !deferred_path_boundary_comments.is_empty() {
+            "profile.chain.best_fitting.reason.deferred_boundary_comment"
+        } else if f.context().has_newline(chain_span) {
+            "profile.chain.best_fitting.reason.source_newline"
+        } else if inline_chain_len > inline_budget {
+            "profile.chain.best_fitting.reason.inline_len_overflow"
+        } else {
+            "profile.chain.best_fitting.reason.other"
+        };
+        f.context().increment_counter(best_fitting_reason, 1);
         f.context()
             .record_best_fitting("best_fitting.expression.chain", 2);
         best_fitting![format_inline, format_chain].format(f)

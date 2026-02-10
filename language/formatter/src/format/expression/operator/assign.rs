@@ -113,7 +113,7 @@ pub(super) fn format_assign_expression<'ast>(
     let right_is_long_binary = if right_is_binary {
         let binary_operand_count = match inner_right_expr {
             Expression::Binary { operator, .. } => {
-                flatten_binary_expression(f.context().tree, inner_right_id, *operator).len()
+                flattened_binary_operand_count(f.context().tree, inner_right_id, *operator)
             }
             _ => 0,
         };
