@@ -1,16 +1,22 @@
-//! Minimal .gitignore-like matcher used by directory walking:
+//! Minimal git ignore matcher used by directory walking:
 //! - comments starting with '#'
 //! - blank lines
 //! - negation with '!'
 //! - directory-only pattern (trailing '/')
 //! - '*' and '?' wildcards
 //! - patterns matched against paths relative to the ignore file directory
+//! - stats aware .gitattributes attributes
 
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
 use super::matches;
+
+const GITIGNORE_FILE_NAME: &str = ".gitignore";
+const GITATTRIBUTES_FILE_NAME: &str = ".gitattributes";
+const STATS_ATTRIBUTE_NAMES: &[&str] =
+    &["linguist-generated", "linguist-vendored", "export-ignore"];
 
 /// One parsed ignore pattern.
 #[derive(Debug, Clone)]
@@ -20,7 +26,7 @@ pub struct IgnorePattern {
     pub directory_only: bool,
 }
 
-/// Ignore rules loaded from a directory's .gitignore.
+/// Ignore rules loaded from a directory's .gitignore and .gitattributes.
 #[derive(Debug, Clone)]
 pub struct IgnoreFile {
     pub base: PathBuf,
@@ -41,7 +47,7 @@ impl IgnoreSet {
         }
     }
 
-    /// Load ignore file for a directory if not already loaded.
+    /// Load ignore files for a directory if not already loaded.
     ///
     /// No-op if already loaded or missing.
     pub fn load_dir(&mut self, directory: &Path) {
@@ -49,19 +55,20 @@ impl IgnoreSet {
         if self.loaded.contains_key(&key) {
             return;
         }
-        let ignore_file = directory.join(".gitignore");
-        let Ok(text) = fs::read_to_string(&ignore_file) else {
-            // mark as checked to avoid repeated io
-            self.loaded.insert(
-                key,
-                IgnoreFile {
-                    base: directory.to_path_buf(),
-                    patterns: Vec::new(),
-                },
-            );
-            return;
-        };
-        let patterns = parse_patterns(&text);
+
+        // load gitignore patterns first
+        let mut patterns = Vec::new();
+        let ignore_file = directory.join(GITIGNORE_FILE_NAME);
+        if let Ok(text) = fs::read_to_string(&ignore_file) {
+            patterns.extend(parse_patterns(&text));
+        }
+
+        // load stats relevant gitattributes patterns
+        let attributes_file = directory.join(GITATTRIBUTES_FILE_NAME);
+        if let Ok(text) = fs::read_to_string(&attributes_file) {
+            patterns.extend(parse_gitattributes_patterns(&text));
+        }
+
         self.loaded.insert(
             key,
             IgnoreFile {
@@ -71,7 +78,7 @@ impl IgnoreSet {
         );
     }
 
-    /// Check if a path is ignored, considering all ancestor .gitignore files.
+    /// Check if a path is ignored, considering all ancestor ignore files.
     pub fn is_ignored(&self, root: &Path, path: &Path, is_directory: bool) -> bool {
         let mut ignored = false;
         let ancestors = get_ancestors_between(root, path.parent().unwrap_or(root));
@@ -123,6 +130,91 @@ fn parse_patterns(text: &str) -> Vec<IgnorePattern> {
         });
     }
     output
+}
+
+/// Parse .gitattributes content into ignore patterns for stats.
+fn parse_gitattributes_patterns(text: &str) -> Vec<IgnorePattern> {
+    let mut output = Vec::new();
+    for raw_line in text.lines() {
+        let line = raw_line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+
+        let mut parts = line.split_whitespace();
+        let Some(raw_pattern) = parts.next() else {
+            continue;
+        };
+
+        // use the last stats attribute on the line
+        let mut should_ignore = None;
+        for attribute in parts {
+            if let Some(value) = parse_stats_attribute(attribute) {
+                should_ignore = Some(value);
+            }
+        }
+        let Some(should_ignore) = should_ignore else {
+            continue;
+        };
+
+        let directory_only = raw_pattern.ends_with('/');
+        let pattern = if directory_only {
+            &raw_pattern[..raw_pattern.len() - 1]
+        } else {
+            raw_pattern
+        };
+        if pattern.is_empty() {
+            continue;
+        }
+
+        output.push(IgnorePattern {
+            pattern: pattern.to_string(),
+            is_negation: !should_ignore,
+            directory_only,
+        });
+    }
+    output
+}
+
+/// Parse a single stats relevant attribute value.
+fn parse_stats_attribute(attribute: &str) -> Option<bool> {
+    for name in STATS_ATTRIBUTE_NAMES {
+        if attribute == *name {
+            return Some(true);
+        }
+        if let Some(value) = attribute.strip_prefix('-')
+            && value == *name
+        {
+            return Some(false);
+        }
+        if let Some((key, value)) = attribute.split_once('=')
+            && key == *name
+        {
+            return parse_attribute_value(value);
+        }
+    }
+    None
+}
+
+/// Parse a gitattributes bool-like value.
+fn parse_attribute_value(value: &str) -> Option<bool> {
+    if value.eq_ignore_ascii_case("set")
+        || value.eq_ignore_ascii_case("true")
+        || value.eq_ignore_ascii_case("on")
+        || value.eq_ignore_ascii_case("yes")
+        || value == "1"
+    {
+        return Some(true);
+    }
+    if value.eq_ignore_ascii_case("unset")
+        || value.eq_ignore_ascii_case("false")
+        || value.eq_ignore_ascii_case("off")
+        || value.eq_ignore_ascii_case("no")
+        || value == "0"
+    {
+        return Some(false);
+    }
+    None
 }
 
 /// Check if pattern matches either the relative path or file name when pattern has no slash.
@@ -223,5 +315,36 @@ mod tests {
         let root = Path::new("workspace/root");
         let ancestors = get_ancestors_between(root, Path::new("/"));
         assert_eq!(ancestors, vec![PathBuf::from("/")]);
+    }
+
+    /// Match stats ignore patterns from gitattributes.
+    #[test]
+    fn test_parse_and_match_gitattributes() {
+        let fs = TemporaryPhysicalFileSystem::new_with_prefix("file_gitattributes");
+        fs.create_dir_all(Path::new("project"))
+            .expect("create attributes directory");
+        fs.write_bytes(
+            "project/.gitattributes",
+            b"generated/parser.c linguist-generated\ngenerated/keep.c linguist-generated\ngenerated/keep.c -linguist-generated\nvendor.txt linguist-vendored\narchive.tar export-ignore\n",
+        )
+        .expect("write attributes file");
+
+        let mut ignore_set = IgnoreSet::new();
+        ignore_set.load_dir(&fs.path_for("project"));
+
+        let generated_file = fs.path_for("project/generated/parser.c");
+        assert!(ignore_set.is_ignored(fs.root(), &generated_file, false));
+
+        let kept_file = fs.path_for("project/generated/keep.c");
+        assert!(!ignore_set.is_ignored(fs.root(), &kept_file, false));
+
+        let vendor_file = fs.path_for("project/vendor.txt");
+        assert!(ignore_set.is_ignored(fs.root(), &vendor_file, false));
+
+        let archive_file = fs.path_for("project/archive.tar");
+        assert!(ignore_set.is_ignored(fs.root(), &archive_file, false));
+
+        let source_file = fs.path_for("project/source.rs");
+        assert!(!ignore_set.is_ignored(fs.root(), &source_file, false));
     }
 }
