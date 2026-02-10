@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::is_any_type;
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow implicit `any` in parameters and declarators.
@@ -16,7 +16,7 @@ declare_lint! {
         level = Dir,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Always,
         recommended = Strict,
         stability = Stable
     )]
@@ -44,18 +44,25 @@ impl LintRule for NoImplicitAny {
             }
 
             let span = ctx.get_span(declarator_id);
-            ctx.report(
-                LintDiagnostic::new(
-                    NO_IMPLICIT_ANY.id,
-                    NO_IMPLICIT_ANY.code,
-                    NO_IMPLICIT_ANY.category,
-                    severity,
-                    "implicit any in variable declaration",
-                    ctx.module.file_id,
-                    span,
-                )
-                .with_label("add an explicit type annotation or initializer"),
-            );
+            let mut diagnostic = LintDiagnostic::new(
+                NO_IMPLICIT_ANY.id,
+                NO_IMPLICIT_ANY.code,
+                NO_IMPLICIT_ANY.category,
+                severity,
+                "implicit any in variable declaration",
+                ctx.module.file_id,
+                span,
+            )
+            .with_label("add an explicit type annotation or initializer");
+
+            // compute fixes only when requested by the runner
+            if ctx.include_fixes
+                && let Some(fix) = no_implicit_any_declarator_fix(ctx, declarator_id)
+            {
+                diagnostic = diagnostic.with_fix(fix);
+            }
+
+            ctx.report(diagnostic);
         }
 
         // parameters
@@ -70,20 +77,54 @@ impl LintRule for NoImplicitAny {
             }
 
             let span = ctx.get_span(parameter_id);
-            ctx.report(
-                LintDiagnostic::new(
-                    NO_IMPLICIT_ANY.id,
-                    NO_IMPLICIT_ANY.code,
-                    NO_IMPLICIT_ANY.category,
-                    severity,
-                    "implicit any in parameter",
-                    ctx.module.file_id,
-                    span,
-                )
-                .with_label("add an explicit type annotation"),
-            );
+            let mut diagnostic = LintDiagnostic::new(
+                NO_IMPLICIT_ANY.id,
+                NO_IMPLICIT_ANY.code,
+                NO_IMPLICIT_ANY.category,
+                severity,
+                "implicit any in parameter",
+                ctx.module.file_id,
+                span,
+            )
+            .with_label("add an explicit type annotation");
+
+            // compute fixes only when requested by the runner
+            if ctx.include_fixes
+                && let Some(fix) = no_implicit_any_parameter_fix(ctx, parameter_id)
+            {
+                diagnostic = diagnostic.with_fix(fix);
+            }
+
+            ctx.report(diagnostic);
         }
     }
+}
+
+/// Build an unsafe fix by annotating a declarator with `unknown`.
+fn no_implicit_any_declarator_fix(
+    ctx: &LintModuleDirContext<'_>,
+    declarator_id: dir::LocalNodeId<dir::Declarator>,
+) -> Option<LintFix> {
+    let declarator = ctx.tree.get(declarator_id);
+    let pattern_span = ctx.get_span(declarator.pattern);
+    let edits = ctx
+        .edit_builder()
+        .insert(pattern_span.end, ": unknown")
+        .into_edits();
+    Some(LintFix::r#unsafe("Add `unknown` type annotation").with_edits(edits))
+}
+
+/// Build an unsafe fix by annotating a parameter with `unknown`.
+fn no_implicit_any_parameter_fix(
+    ctx: &LintModuleDirContext<'_>,
+    parameter_id: dir::LocalNodeId<dir::Parameter>,
+) -> Option<LintFix> {
+    let parameter_span = ctx.get_span(parameter_id);
+    let edits = ctx
+        .edit_builder()
+        .insert(parameter_span.end, ": unknown")
+        .into_edits();
+    Some(LintFix::r#unsafe("Add `unknown` type annotation").with_edits(edits))
 }
 
 /// Return true when a declarator is an implicit any candidate.
@@ -155,7 +196,9 @@ mod tests {
 let value;
 "#,
         );
-        test.result(result).assert_lint("no-implicit-any");
+        test.result(result)
+            .assert_lint("no-implicit-any")
+            .assert_has_fix("no-implicit-any");
     }
 
     /// Allow declarators with initializers.
@@ -183,7 +226,9 @@ function identity(value) {
 }
 "#,
         );
-        test.result(result).assert_lint("no-implicit-any");
+        test.result(result)
+            .assert_lint("no-implicit-any")
+            .assert_has_fix("no-implicit-any");
     }
 
     /// Allow explicitly typed parameters.
@@ -243,5 +288,70 @@ function id<T>(value: T): T {
 "#,
         );
         test.result(result).assert_no_lint("no-implicit-any");
+    }
+
+    /// Unsafely annotate untyped declarators with unknown.
+    #[test]
+    fn test_fix_untyped_declarator_without_initializer() {
+        let test = TestProgram::for_rule_without_prelude(NoImplicitAny);
+        let result = test.lint_dir(
+            "no_implicit_any/test_fix_untyped_declarator_without_initializer.ts",
+            r#"
+let value;
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-implicit-any")
+            .assert_unsafe_fixed(
+                r#"
+let value: unknown;
+"#,
+            );
+    }
+
+    /// Unsafely annotate untyped parameters with unknown.
+    #[test]
+    fn test_fix_untyped_parameter() {
+        let test = TestProgram::for_rule_without_prelude(NoImplicitAny);
+        let result = test.lint_dir(
+            "no_implicit_any/test_fix_untyped_parameter.ts",
+            r#"
+function identity(value) {
+    return value;
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-implicit-any")
+            .assert_unsafe_fixed(
+                r#"
+function identity(value: unknown) {
+    return value;
+}
+"#,
+            );
+    }
+
+    /// Mutation: annotate destructured parameters when implicitly any typed.
+    #[test]
+    fn test_mutation_fix_pattern_parameter() {
+        let test = TestProgram::for_rule_without_prelude(NoImplicitAny);
+        let result = test.lint_dir(
+            "no_implicit_any/test_mutation_fix_pattern_parameter.ts",
+            r#"
+function select({ value }) {
+    return value;
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-implicit-any")
+            .assert_unsafe_fixed(
+                r#"
+function select({ value }: unknown) {
+    return value;
+}
+"#,
+            );
     }
 }

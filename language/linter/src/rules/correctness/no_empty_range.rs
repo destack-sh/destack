@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, Expression, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow empty ranges where start > end.
@@ -15,7 +15,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Always,
         stability = Stable
     )]
@@ -64,21 +64,59 @@ impl LintRule for NoEmptyRange {
                     continue;
                 }
                 let range_type = if *is_inclusive { "..=" } else { ".." };
-                ctx.report(
-                    LintDiagnostic::new(
-                        NO_EMPTY_RANGE.id,
-                        NO_EMPTY_RANGE.code,
-                        NO_EMPTY_RANGE.category,
-                        severity,
-                        format!("empty range: {start_val}{range_type}{end_val}"),
-                        ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
-                    )
-                    .with_label("this range contains no elements"),
-                );
+                let span = ctx.tree.get_span(node_id);
+                let mut diagnostic = LintDiagnostic::new(
+                    NO_EMPTY_RANGE.id,
+                    NO_EMPTY_RANGE.code,
+                    NO_EMPTY_RANGE.category,
+                    severity,
+                    format!("empty range: {start_val}{range_type}{end_val}"),
+                    ctx.module.file_id,
+                    span,
+                )
+                .with_label("this range contains no elements");
+
+                // reverse bounds for clearly inverted ranges
+                if ctx.compute_fixes
+                    && let Some(fix) =
+                        build_empty_range_fix(ctx, *start, *end, *is_inclusive, start_val, end_val)
+                {
+                    diagnostic = diagnostic.with_fix(fix);
+                }
+
+                ctx.report(diagnostic);
             }
         }
     }
+}
+
+/// Build an unsafe fix for one inverted range.
+fn build_empty_range_fix(
+    ctx: &LintModuleAstContext<'_>,
+    start_id: ast::LocalNodeId<Expression>,
+    end_id: ast::LocalNodeId<Expression>,
+    is_inclusive: bool,
+    start_value: f64,
+    end_value: f64,
+) -> Option<LintFix> {
+    // equal exclusive ranges are ambiguous: do not guess intent
+    if !is_inclusive && start_value == end_value {
+        return None;
+    }
+
+    let start_text = ctx.get_span_text(ctx.tree.get_span(start_id));
+    let end_text = ctx.get_span_text(ctx.tree.get_span(end_id));
+    let operator = if is_inclusive { "..=" } else { ".." };
+    let replacement = format!("{end_text}{operator}{start_text}");
+    let edit = ctx
+        .edit_builder()
+        .replace(
+            ctx.tree.get_span(start_id).merge(ctx.tree.get_span(end_id)),
+            replacement,
+        )
+        .into_edits();
+
+    Some(LintFix::r#unsafe("Swap range bounds").with_edits(edit))
 }
 
 /// try to extract a numeric value from an expression
@@ -121,6 +159,44 @@ let range = 10..5
     }
 
     #[test]
+    fn test_fix_swaps_exclusive_range_bounds() {
+        let test = TestProgram::for_rule_without_prelude(NoEmptyRange);
+        let result = test.lint_ast(
+            "no_empty_range/test_fix_swaps_exclusive_range_bounds.ds",
+            r#"
+let range = 10..5
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-empty-range")
+            .assert_has_fix("no-empty-range")
+            .assert_unsafe_fixed(
+                r#"
+let range = 5..10;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_mutation_fix_swaps_inclusive_range_bounds() {
+        let test = TestProgram::for_rule_without_prelude(NoEmptyRange);
+        let result = test.lint_ast(
+            "no_empty_range/test_mutation_fix_swaps_inclusive_range_bounds.ds",
+            r#"
+let range = 10..=5
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-empty-range")
+            .assert_has_fix("no-empty-range")
+            .assert_unsafe_fixed(
+                r#"
+let range = 5..=10;
+"#,
+            );
+    }
+
+    #[test]
     fn test_detects_empty_equal_exclusive_range() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyRange);
         let result = test.lint_ast(
@@ -129,7 +205,9 @@ let range = 10..5
 let range = 5..5
 "#,
         );
-        test.result(result).assert_lint("no-empty-range");
+        test.result(result)
+            .assert_lint("no-empty-range")
+            .assert_has_no_fix("no-empty-range");
     }
 
     #[test]

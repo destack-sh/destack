@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, Expression, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow approximate representations of mathematical constants.
@@ -16,7 +16,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Always,
         stability = Stable
     )]
@@ -56,18 +56,29 @@ impl LintRule for NoApproxConstant {
                 if !severity.is_enabled() {
                     continue;
                 }
-                ctx.report(
-                    LintDiagnostic::new(
-                        NO_APPROX_CONSTANT.id,
-                        NO_APPROX_CONSTANT.code,
-                        NO_APPROX_CONSTANT.category,
-                        severity,
-                        format!("approximate value of `Math.{name}`"),
-                        ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
-                    )
-                    .with_label(format!("use `Math.{name}` instead")),
-                );
+
+                let span = ctx.tree.get_span(node_id);
+                let mut diagnostic = LintDiagnostic::new(
+                    NO_APPROX_CONSTANT.id,
+                    NO_APPROX_CONSTANT.code,
+                    NO_APPROX_CONSTANT.category,
+                    severity,
+                    format!("approximate value of `Math.{name}`"),
+                    ctx.module.file_id,
+                    span,
+                )
+                .with_label(format!("use `Math.{name}` instead"));
+
+                // rewrite to the canonical Math constant when fixes are enabled
+                if ctx.compute_fixes {
+                    let replacement = format!("Math.{name}");
+                    let edits = ctx.edit_builder().replace(span, replacement).into_edits();
+                    let fix = LintFix::r#unsafe("Replace approximation with Math constant")
+                        .with_edits(edits);
+                    diagnostic = diagnostic.with_fix(fix);
+                }
+
+                ctx.report(diagnostic);
             }
         }
     }
@@ -117,6 +128,44 @@ let pi = 3.14159
 "#,
         );
         test.result(result).assert_lint("no-approx-constant");
+    }
+
+    #[test]
+    fn test_fix_rewrites_approx_pi_to_math_constant() {
+        let test = TestProgram::for_rule_without_prelude(NoApproxConstant);
+        let result = test.lint_ast(
+            "no_approx_constant/test_fix_rewrites_approx_pi_to_math_constant.ds",
+            r#"
+let pi = 3.14159
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-approx-constant")
+            .assert_has_fix("no-approx-constant")
+            .assert_unsafe_fixed(
+                r#"
+let pi = Math.PI;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_mutation_fix_rewrites_approx_tau_to_math_constant() {
+        let test = TestProgram::for_rule_without_prelude(NoApproxConstant);
+        let result = test.lint_ast(
+            "no_approx_constant/test_mutation_fix_rewrites_approx_tau_to_math_constant.ds",
+            r#"
+let tau = 6.28318
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-approx-constant")
+            .assert_has_fix("no-approx-constant")
+            .assert_unsafe_fixed(
+                r#"
+let tau = Math.TAU;
+"#,
+            );
     }
 
     #[test]

@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_unwrap_parenthesized;
-use crate::{LintDiagnostic, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow throwing literals.
@@ -15,7 +15,7 @@ declare_lint! {
         level = Dir,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Always,
         recommended = Strict,
         stability = Stable
     )]
@@ -56,18 +56,25 @@ impl LintRule for NoThrowLiteral {
 
             // report the diagnostic
             let span = ctx.get_span(node_id);
-            ctx.report(
-                LintDiagnostic::new(
-                    NO_THROW_LITERAL.id,
-                    NO_THROW_LITERAL.code,
-                    NO_THROW_LITERAL.category,
-                    severity,
-                    "throwing a literal value",
-                    ctx.module.file_id,
-                    span,
-                )
-                .with_label("throw an Error object instead"),
-            );
+            let mut diagnostic = LintDiagnostic::new(
+                NO_THROW_LITERAL.id,
+                NO_THROW_LITERAL.code,
+                NO_THROW_LITERAL.category,
+                severity,
+                "throwing a literal value",
+                ctx.module.file_id,
+                span,
+            )
+            .with_label("throw an Error object instead");
+
+            // compute fixes only when requested by the runner
+            if ctx.include_fixes
+                && let Some(fix) = no_throw_literal_fix(ctx, node_id, thrown_id)
+            {
+                diagnostic = diagnostic.with_fix(fix);
+            }
+
+            ctx.report(diagnostic);
         }
     }
 }
@@ -82,6 +89,40 @@ fn is_literal_expression(expression: &dir::Expression) -> bool {
             | dir::Expression::TupleExpression { .. }
             | dir::Expression::ObjectExpression { .. }
     )
+}
+
+/// Build one unsafe fix by wrapping a thrown literal in Error.
+fn no_throw_literal_fix(
+    ctx: &LintModuleDirContext<'_>,
+    throw_id: dir::LocalNodeId<dir::Expression>,
+    thrown_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<LintFix> {
+    let thrown_expression = ctx.tree.get(thrown_id);
+    let thrown_span = ctx.get_span(thrown_id);
+    let thrown_text = ctx.get_span_text(thrown_span);
+    if thrown_text.trim().is_empty() {
+        return None;
+    }
+
+    let replacement_value = if matches!(
+        thrown_expression,
+        dir::Expression::ScalarLiteral {
+            value: dir::ScalarLiteral::String(_),
+            ..
+        } | dir::Expression::TemplateExpression { .. }
+    ) {
+        format!("new Error({thrown_text})")
+    } else {
+        format!("new Error(String({thrown_text}))")
+    };
+
+    let throw_span = ctx.get_span(throw_id);
+    let replacement = format!("throw {replacement_value}");
+    let edits = ctx
+        .edit_builder()
+        .replace(throw_span, replacement)
+        .into_edits();
+    Some(LintFix::r#unsafe("Wrap thrown literal in Error").with_edits(edits))
 }
 
 #[cfg(test)]
@@ -99,7 +140,9 @@ mod tests {
 throw "oops";
 "#,
         );
-        test.result(result).assert_lint("no-throw-literal");
+        test.result(result)
+            .assert_lint("no-throw-literal")
+            .assert_has_fix("no-throw-literal");
     }
 
     /// Report throwing object literals.
@@ -126,5 +169,62 @@ throw new Error("oops");
 "#,
         );
         test.result(result).assert_no_lint("no-throw-literal");
+    }
+
+    /// Unsafely rewrite string literal throws to Error construction.
+    #[test]
+    fn test_fix_string_literal_throw() {
+        let test = TestProgram::for_rule_without_prelude(NoThrowLiteral);
+        let result = test.lint_dir(
+            "no_throw_literal/test_fix_string_literal_throw.ds",
+            r#"
+throw "oops";
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-throw-literal")
+            .assert_unsafe_fixed(
+                r#"
+throw new Error("oops");
+"#,
+            );
+    }
+
+    /// Unsafely rewrite non-string literal throws with string coercion.
+    #[test]
+    fn test_fix_numeric_literal_throw() {
+        let test = TestProgram::for_rule_without_prelude(NoThrowLiteral);
+        let result = test.lint_dir(
+            "no_throw_literal/test_fix_numeric_literal_throw.ds",
+            r#"
+throw 42;
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-throw-literal")
+            .assert_unsafe_fixed(
+                r#"
+throw new Error(String(42));
+"#,
+            );
+    }
+
+    /// Mutation: detect and rewrite template literal throws.
+    #[test]
+    fn test_mutation_fix_template_literal_throw() {
+        let test = TestProgram::for_rule_without_prelude(NoThrowLiteral);
+        let result = test.lint_dir(
+            "no_throw_literal/test_mutation_fix_template_literal_throw.ds",
+            r#"
+throw `failed: ${code}`;
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-throw-literal")
+            .assert_unsafe_fixed(
+                r#"
+throw new Error(`failed: ${code}`);
+"#,
+            );
     }
 }

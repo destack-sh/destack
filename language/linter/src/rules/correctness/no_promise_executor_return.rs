@@ -3,7 +3,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::expression_target_symbol;
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow returning values from Promise executors.
@@ -16,7 +16,7 @@ declare_lint! {
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Promise)],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Always,
         stability = Stable
     )]
@@ -99,7 +99,8 @@ impl<'a, 'b> PromiseExecutorReturnVisitor<'a, 'b> {
         let Some(declaration_id) = executor_declaration(self.ctx, value_id) else {
             return;
         };
-        if !executor_returns_value(self.ctx.tree, declaration_id) {
+        let analysis = analyze_executor_returns(self.ctx.tree, declaration_id);
+        if !analysis.has_return_value {
             return;
         }
 
@@ -111,18 +112,26 @@ impl<'a, 'b> PromiseExecutorReturnVisitor<'a, 'b> {
 
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
-        self.ctx.report(
-            LintDiagnostic::new(
-                NO_PROMISE_EXECUTOR_RETURN.id,
-                NO_PROMISE_EXECUTOR_RETURN.code,
-                NO_PROMISE_EXECUTOR_RETURN.category,
-                severity,
-                "avoid returning values from Promise executors",
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label("use resolve or reject instead of returning"),
-        );
+        let mut diagnostic = LintDiagnostic::new(
+            NO_PROMISE_EXECUTOR_RETURN.id,
+            NO_PROMISE_EXECUTOR_RETURN.code,
+            NO_PROMISE_EXECUTOR_RETURN.category,
+            severity,
+            "avoid returning values from Promise executors",
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label("use resolve or reject instead of returning");
+
+        // compute fixes only when requested by the runner
+        if self.ctx.include_fixes
+            && !analysis.has_expression_body_return
+            && let Some(fix) = promise_executor_return_fix(self.ctx, &analysis.return_nodes)
+        {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
     }
 }
 
@@ -190,21 +199,21 @@ fn executor_declaration(
 }
 
 /// Check whether a function declaration returns a value.
-fn executor_returns_value(
+fn analyze_executor_returns(
     tree: &dir::NodeTree,
     declaration_id: dir::LocalNodeId<dir::Declaration>,
-) -> bool {
+) -> ExecutorReturnAnalysis {
     // extract the function body
     let declaration = tree.get(declaration_id);
     let dir::Declaration::Function {
         signature, body, ..
     } = declaration
     else {
-        return false;
+        return ExecutorReturnAnalysis::default();
     };
 
     let Some(body_id) = body else {
-        return false;
+        return ExecutorReturnAnalysis::default();
     };
 
     // treat expression bodies as implicit returns for lambdas
@@ -212,13 +221,21 @@ fn executor_returns_value(
     if signature.kind == dir::FunctionKind::Lambda
         && !matches!(body_expression, dir::Expression::Block { .. })
     {
-        return true;
+        return ExecutorReturnAnalysis {
+            has_return_value: true,
+            return_nodes: Vec::new(),
+            has_expression_body_return: true,
+        };
     }
 
     // walk the body for explicit returns with values
     let mut visitor = ReturnValueVisitor::default();
     visitor.visit_expression(tree, *body_id, body_expression);
-    visitor.found_return_value
+    ExecutorReturnAnalysis {
+        has_return_value: visitor.found_return_value,
+        return_nodes: visitor.return_nodes,
+        has_expression_body_return: false,
+    }
 }
 
 /// Visitor that checks for return values.
@@ -226,6 +243,8 @@ fn executor_returns_value(
 struct ReturnValueVisitor {
     /// Whether a return value was found.
     found_return_value: bool,
+    /// Return expressions with values.
+    return_nodes: Vec<dir::LocalNodeId<dir::Expression>>,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -241,16 +260,12 @@ impl NodeVisitor for ReturnValueVisitor {
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
-        // short circuit once a value return is found
-        if self.found_return_value {
-            return;
-        }
-
         // detect explicit return values
         if let dir::Expression::Return { value } = expression
             && value.is_some()
         {
             self.found_return_value = true;
+            self.return_nodes.push(id);
             return;
         }
 
@@ -266,6 +281,54 @@ impl NodeVisitor for ReturnValueVisitor {
     ) {
         // skip nested function declarations
     }
+}
+
+/// Analysis result for one Promise executor declaration.
+#[derive(Default)]
+struct ExecutorReturnAnalysis {
+    /// Whether the executor returns one value.
+    has_return_value: bool,
+    /// Explicit return value nodes found in the executor body.
+    return_nodes: Vec<dir::LocalNodeId<dir::Expression>>,
+    /// Whether the executor uses one expression body return.
+    has_expression_body_return: bool,
+}
+
+/// Build an unsafe fix for explicit Promise executor return values.
+fn promise_executor_return_fix(
+    ctx: &LintModuleDirContext<'_>,
+    return_nodes: &[dir::LocalNodeId<dir::Expression>],
+) -> Option<LintFix> {
+    let mut builder = ctx.edit_builder();
+    let mut replaced_count = 0_usize;
+
+    for return_id in return_nodes {
+        let return_expression = ctx.tree.get(*return_id);
+        let dir::Expression::Return {
+            value: Some(value_id),
+        } = return_expression
+        else {
+            continue;
+        };
+
+        let value_span = ctx.get_span(*value_id);
+        let value_text = ctx.get_span_text(value_span);
+        if value_text.trim().is_empty() {
+            return None;
+        }
+
+        let replacement = format!("{{ ({value_text}); return; }}");
+        let return_span = ctx.get_span(*return_id);
+        builder = builder.replace(return_span, replacement);
+        replaced_count += 1;
+    }
+
+    if replaced_count == 0 {
+        return None;
+    }
+
+    let edits = builder.into_edits();
+    Some(LintFix::r#unsafe("Drop Promise executor return value").with_edits(edits))
 }
 
 #[cfg(test)]
@@ -285,7 +348,8 @@ let task = new Promise((resolve, reject) => {
 "#,
         );
         test.result(result)
-            .assert_lint("no-promise-executor-return");
+            .assert_lint("no-promise-executor-return")
+            .assert_has_fix("no-promise-executor-return");
     }
 
     #[test]
@@ -314,5 +378,80 @@ let task = new Promise((resolve, reject) => {
         );
         test.result(result)
             .assert_no_lint("no-promise-executor-return");
+    }
+
+    #[test]
+    fn test_fix_rewrites_executor_return_value() {
+        let test = TestProgram::for_rule_with_prelude(NoPromiseExecutorReturn);
+        let result = test.lint_dir(
+            "no_promise_executor_return/test_fix_rewrites_executor_return_value.ds",
+            r#"
+let task = new Promise((resolve, reject) => {
+    return computeValue();
+});
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-promise-executor-return")
+            .assert_unsafe_fixed(
+                r#"
+let task = new Promise((resolve, reject) => {
+    {
+        (computeValue());
+        return;
+    }
+});
+"#,
+            );
+    }
+
+    #[test]
+    fn test_mutation_detects_multiple_executor_returns() {
+        let test = TestProgram::for_rule_with_prelude(NoPromiseExecutorReturn);
+        let result = test.lint_dir(
+            "no_promise_executor_return/test_mutation_detects_multiple_executor_returns.ds",
+            r#"
+let task = new Promise((resolve, reject) => {
+    if (flag) {
+        return computeA();
+    }
+
+    return computeB();
+});
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-promise-executor-return")
+            .assert_unsafe_fixed(
+                r#"
+let task = new Promise((resolve, reject) => {
+    if (flag) {
+        {
+            (computeA());
+            return;
+        }
+    }
+
+    {
+        (computeB());
+        return;
+    }
+});
+"#,
+            );
+    }
+
+    #[test]
+    fn test_no_fix_for_executor_expression_body() {
+        let test = TestProgram::for_rule_with_prelude(NoPromiseExecutorReturn);
+        let result = test.lint_dir(
+            "no_promise_executor_return/test_no_fix_for_executor_expression_body.ds",
+            r#"
+let task = new Promise((resolve, reject) => resolve(1));
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-promise-executor-return")
+            .assert_has_no_fix("no-promise-executor-return");
     }
 }

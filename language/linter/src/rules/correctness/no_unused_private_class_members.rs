@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::collect_module_symbol_usage;
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow private class members that are never used.
@@ -15,7 +15,7 @@ declare_lint! {
         level = Dir,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable,
         declarations = Exclude
@@ -66,21 +66,49 @@ impl LintRule for NoUnusedPrivateClassMembers {
 
                 // report one unused private member
                 let span = ctx.get_span(*member_id);
-                ctx.report(
-                    LintDiagnostic::new(
-                        NO_UNUSED_PRIVATE_CLASS_MEMBERS.id,
-                        NO_UNUSED_PRIVATE_CLASS_MEMBERS.code,
-                        NO_UNUSED_PRIVATE_CLASS_MEMBERS.category,
-                        severity,
-                        "unused private class member",
-                        ctx.module.file_id,
-                        span,
-                    )
-                    .with_label("this private class member is never used"),
-                );
+                let mut diagnostic = LintDiagnostic::new(
+                    NO_UNUSED_PRIVATE_CLASS_MEMBERS.id,
+                    NO_UNUSED_PRIVATE_CLASS_MEMBERS.code,
+                    NO_UNUSED_PRIVATE_CLASS_MEMBERS.category,
+                    severity,
+                    "unused private class member",
+                    ctx.module.file_id,
+                    span,
+                )
+                .with_label("this private class member is never used");
+
+                // compute fixes only when requested by the runner
+                if ctx.include_fixes
+                    && let Some(fix) = unused_private_member_fix(ctx, *member_id, member)
+                {
+                    diagnostic = diagnostic.with_fix(fix);
+                }
+
+                ctx.report(diagnostic);
             }
         }
     }
+}
+
+/// Build an unsafe fix for removable unused private members.
+fn unused_private_member_fix(
+    ctx: &LintModuleDirContext<'_>,
+    member_id: dir::LocalNodeId<dir::Member>,
+    member: &dir::Member,
+) -> Option<LintFix> {
+    // keep method members only to avoid dropping field initializer side effects
+    let dir::Member::Method { signature, .. } = member else {
+        return None;
+    };
+
+    // keep non constructor methods only
+    if signature.mode == Some(dir::FunctionMode::Constructor) {
+        return None;
+    }
+
+    let member_span = ctx.get_span(member_id);
+    let edits = ctx.edit_builder().delete(member_span).into_edits();
+    Some(LintFix::r#unsafe("Remove unused private method").with_edits(edits))
 }
 
 /// Return the symbol id for members this rule should inspect.
@@ -308,5 +336,57 @@ class Service {
         );
         test.result(result)
             .assert_no_lint("no-unused-private-class-members");
+    }
+
+    /// Unsafely remove one unused private method.
+    #[test]
+    fn test_fix_removes_unused_private_method() {
+        let test = TestProgram::for_rule_without_prelude(NoUnusedPrivateClassMembers);
+        let result = test.lint_dir(
+            "no_unused_private_class_members/test_fix_removes_unused_private_method.ds",
+            r#"
+class Service {
+    private helper(): int32 {
+        return 1;
+    }
+
+    read(): int32 {
+        return 2;
+    }
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-unused-private-class-members")
+            .assert_unsafe_fixed(
+                r#"
+class Service {
+    read(): int32 {
+        return 2;
+    }
+}
+"#,
+            );
+    }
+
+    /// Keep private field diagnostics without auto-fix.
+    #[test]
+    fn test_no_fix_for_unused_private_field() {
+        let test = TestProgram::for_rule_without_prelude(NoUnusedPrivateClassMembers);
+        let result = test.lint_dir(
+            "no_unused_private_class_members/test_no_fix_for_unused_private_field.ds",
+            r#"
+class Service {
+    private token: int32 = 1;
+
+    read(): int32 {
+        return 2;
+    }
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-unused-private-class-members")
+            .assert_has_no_fix("no-unused-private-class-members");
     }
 }

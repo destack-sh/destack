@@ -3,7 +3,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::expression_target_symbol;
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Require symbol descriptions.
@@ -17,7 +17,7 @@ declare_lint! {
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Symbol)],
         requires_any = [],
-        fixable = No,
+        fixable = Always,
         recommended = Strict,
         stability = Stable
     )]
@@ -107,18 +107,22 @@ impl<'a, 'b> SymbolDescriptionVisitor<'a, 'b> {
 
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
-        self.ctx.report(
-            LintDiagnostic::new(
-                SYMBOL_DESCRIPTION.id,
-                SYMBOL_DESCRIPTION.code,
-                SYMBOL_DESCRIPTION.category,
-                severity,
-                "Symbol() called without description",
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label("add a description string to Symbol()"),
-        );
+        let mut diagnostic = LintDiagnostic::new(
+            SYMBOL_DESCRIPTION.id,
+            SYMBOL_DESCRIPTION.code,
+            SYMBOL_DESCRIPTION.category,
+            severity,
+            "Symbol() called without description",
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label("add a description string to Symbol()");
+
+        if let Some(fix) = symbol_description_fix(self.ctx, *left, span) {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
     }
 }
 
@@ -143,6 +147,21 @@ impl NodeVisitor for SymbolDescriptionVisitor<'_, '_> {
     }
 }
 
+/// Build a fix that inserts a fallback description for Symbol calls.
+fn symbol_description_fix(
+    ctx: &LintModuleDirContext<'_>,
+    callee_id: dir::LocalNodeId<dir::Expression>,
+    call_span: destack_source::Span,
+) -> Option<LintFix> {
+    let callee_text = ctx.get_span_text(ctx.get_span(callee_id));
+    let replacement = format!("{callee_text}(\"symbol\")");
+    let edits = ctx
+        .edit_builder()
+        .replace(call_span, replacement)
+        .into_edits();
+    Some(LintFix::safe("Add Symbol description").with_edits(edits))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -158,7 +177,9 @@ mod tests {
 let sym = Symbol();
 "#,
         );
-        test.result(result).assert_lint("symbol-description");
+        test.result(result)
+            .assert_lint("symbol-description")
+            .assert_has_fix("symbol-description");
     }
 
     /// Allow Symbol() with description.
@@ -199,5 +220,45 @@ let value = Symbol();
 "#,
         );
         test.result(result).assert_no_lint("symbol-description");
+    }
+
+    /// Add description to Symbol() calls without arguments.
+    #[test]
+    fn test_fix_symbol_without_description() {
+        let test = TestProgram::for_rule_with_prelude(SymbolDescription);
+        let result = test.lint_dir(
+            "symbol_description/test_fix_symbol_without_description.ds",
+            r#"
+let sym = Symbol()
+"#,
+        );
+        test.result(result)
+            .assert_lint("symbol-description")
+            .assert_safe_fixed(
+                r#"
+let sym = Symbol("symbol");
+"#,
+            );
+    }
+
+    /// Fix multiple Symbol() calls in the same module.
+    #[test]
+    fn test_mutation_fix_multiple_symbol_calls() {
+        let test = TestProgram::for_rule_with_prelude(SymbolDescription);
+        let result = test.lint_dir(
+            "symbol_description/test_mutation_fix_multiple_symbol_calls.ds",
+            r#"
+let first = Symbol()
+let second = Symbol()
+"#,
+        );
+        test.result(result)
+            .assert_lint_count("symbol-description", 2)
+            .assert_safe_fixed(
+                r#"
+let first = Symbol("symbol");
+let second = Symbol("symbol");
+"#,
+            );
     }
 }

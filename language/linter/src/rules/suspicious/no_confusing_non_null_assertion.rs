@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow non-null assertion (`!`) next to optional chain (`?.`).
@@ -15,7 +15,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Always,
         recommended = Always,
         stability = Stable
     )]
@@ -44,18 +44,26 @@ impl LintRule for NoConfusingNonNullAssertion {
                         continue;
                     }
 
-                    ctx.report(
-                        LintDiagnostic::new(
-                            NO_CONFUSING_NON_NULL_ASSERTION.id,
-                            NO_CONFUSING_NON_NULL_ASSERTION.code,
-                            NO_CONFUSING_NON_NULL_ASSERTION.category,
-                            severity,
-                            "confusing non-null assertion before optional chain",
-                            ctx.module.file_id,
-                            ctx.tree.get_span(node_id),
-                        )
-                        .with_label("`!` before `?.` is confusing"),
-                    );
+                    let mut diagnostic = LintDiagnostic::new(
+                        NO_CONFUSING_NON_NULL_ASSERTION.id,
+                        NO_CONFUSING_NON_NULL_ASSERTION.code,
+                        NO_CONFUSING_NON_NULL_ASSERTION.category,
+                        severity,
+                        "confusing non-null assertion before optional chain",
+                        ctx.module.file_id,
+                        ctx.tree.get_span(node_id),
+                    )
+                    .with_label("`!` before `?.` is confusing");
+
+                    // compute fixes only when requested by the runner
+                    if ctx.compute_fixes
+                        && let Some(fix) =
+                            parenthesize_non_null_before_optional_chain_fix(ctx, node_id)
+                    {
+                        diagnostic = diagnostic.with_fix(fix);
+                    }
+
+                    ctx.report(diagnostic);
                     continue;
                 }
 
@@ -66,22 +74,70 @@ impl LintRule for NoConfusingNonNullAssertion {
                         continue;
                     }
 
-                    ctx.report(
-                        LintDiagnostic::new(
-                            NO_CONFUSING_NON_NULL_ASSERTION.id,
-                            NO_CONFUSING_NON_NULL_ASSERTION.code,
-                            NO_CONFUSING_NON_NULL_ASSERTION.category,
-                            severity,
-                            "confusing non-null assertion after optional chain",
-                            ctx.module.file_id,
-                            ctx.tree.get_span(node_id),
-                        )
-                        .with_label("`!` after `?.` chain is confusing"),
-                    );
+                    let mut diagnostic = LintDiagnostic::new(
+                        NO_CONFUSING_NON_NULL_ASSERTION.id,
+                        NO_CONFUSING_NON_NULL_ASSERTION.code,
+                        NO_CONFUSING_NON_NULL_ASSERTION.category,
+                        severity,
+                        "confusing non-null assertion after optional chain",
+                        ctx.module.file_id,
+                        ctx.tree.get_span(node_id),
+                    )
+                    .with_label("`!` after `?.` chain is confusing");
+
+                    // compute fixes only when requested by the runner
+                    if ctx.compute_fixes
+                        && let Some(fix) =
+                            parenthesize_optional_chain_before_non_null_fix(ctx, node_id, *left)
+                    {
+                        diagnostic = diagnostic.with_fix(fix);
+                    }
+
+                    ctx.report(diagnostic);
                 }
             }
         }
     }
+}
+
+/// Build one safe fix by parenthesizing the non-null expression before optional chaining.
+fn parenthesize_non_null_before_optional_chain_fix(
+    ctx: &LintModuleAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> Option<LintFix> {
+    let expression_span = ctx.tree.get_span(expression_id);
+    let expression_text = ctx.get_span_text(expression_span);
+    if expression_text.trim().is_empty() {
+        return None;
+    }
+
+    let replacement = format!("({expression_text})");
+    let edits = ctx
+        .edit_builder()
+        .replace(expression_span, replacement)
+        .into_edits();
+    Some(LintFix::safe("Add grouping around non-null assertion").with_edits(edits))
+}
+
+/// Build one safe fix by parenthesizing the optional chain before non-null assertion.
+fn parenthesize_optional_chain_before_non_null_fix(
+    ctx: &LintModuleAstContext<'_>,
+    must_expression_id: ast::LocalNodeId<ast::Expression>,
+    optional_chain_id: ast::LocalNodeId<ast::Expression>,
+) -> Option<LintFix> {
+    let optional_span = ctx.tree.get_span(optional_chain_id);
+    let optional_text = ctx.get_span_text(optional_span);
+    if optional_text.trim().is_empty() {
+        return None;
+    }
+
+    let replacement = format!("({optional_text})!");
+    let must_span = ctx.tree.get_span(must_expression_id);
+    let edits = ctx
+        .edit_builder()
+        .replace(must_span, replacement)
+        .into_edits();
+    Some(LintFix::safe("Add grouping around optional chain").with_edits(edits))
 }
 
 /// Check if a node is used with optional chaining (is the left of a `?.` operation).
@@ -139,7 +195,8 @@ const x = foo!.?bar
 "#,
         );
         test.result(result)
-            .assert_lint("no-confusing-non-null-assertion");
+            .assert_lint("no-confusing-non-null-assertion")
+            .assert_has_fix("no-confusing-non-null-assertion");
     }
 
     #[test]
@@ -180,5 +237,59 @@ const x = getValue()!
         );
         test.result(result)
             .assert_no_lint("no-confusing-non-null-assertion");
+    }
+
+    #[test]
+    fn test_fix_parenthesizes_non_null_before_optional_chain() {
+        let test = TestProgram::for_rule_without_prelude(NoConfusingNonNullAssertion);
+        let result = test.lint_ast(
+            "no_confusing_non_null_assertion/test_fix_parenthesizes_non_null_before_optional_chain.ds",
+            r#"
+const x = foo!.?bar
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-confusing-non-null-assertion")
+            .assert_safe_fixed(
+                r#"
+const x = (foo!).?bar
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_parenthesizes_optional_chain_before_non_null() {
+        let test = TestProgram::for_rule_without_prelude(NoConfusingNonNullAssertion);
+        let result = test.lint_ast(
+            "no_confusing_non_null_assertion/test_fix_parenthesizes_optional_chain_before_non_null.ds",
+            r#"
+const x = foo?.bar!
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-confusing-non-null-assertion")
+            .assert_safe_fixed(
+                r#"
+const x = (foo?.bar)!;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_mutation_detects_nested_optional_chain_non_null_pattern() {
+        let test = TestProgram::for_rule_without_prelude(NoConfusingNonNullAssertion);
+        let result = test.lint_ast(
+            "no_confusing_non_null_assertion/test_mutation_detects_nested_optional_chain_non_null_pattern.ds",
+            r#"
+const x = data?.user?.name!
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-confusing-non-null-assertion")
+            .assert_safe_fixed(
+                r#"
+const x = (data?.user?.name)!;
+"#,
+            );
     }
 }

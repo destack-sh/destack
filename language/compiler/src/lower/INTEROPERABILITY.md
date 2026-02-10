@@ -41,6 +41,8 @@ Instead, use `Result<T, E>` with the `?` operator for recoverable errors
 (or any other type implementing `Try`):
 
 ```ds
+import { Error, readFile } from "destack:fs";
+
 function readConfig(): Result<Config, Error> {
     const text = readFile("config.json")?;    // propagates error
     Result.ok(parseConfig(text))
@@ -58,12 +60,8 @@ try {
 }
 ```
 
-For JS targets, `throw` works normally for compatibility.
+For JS/TS targets, `throw` works normally for compatibility.
 You can still take advantage of Destack's many other features while keeping exceptions around at no extra cost (other than the pre-existing code smell).
-
-Exceptions don't cross FFI boundaries. 
-If calling JS that throws (via WASM), wrap it on the JS side to return a Result-like object.
-See [FFI Error Handling](#ffi-error-handling) for more details.
 
 ### Forbidden Features
 

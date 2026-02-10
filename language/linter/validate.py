@@ -6,8 +6,8 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-README_HEADER = "| Code | Rule | Source | Level | Ready | Status | Fixability | Description |"
-CODE_PATTERN = re.compile(r"\bL[A-Z][0-9]{3}\b")
+README_HEADER = "| Code | Rule | Source | Level | Status | Fixability | Description |"
+CODE_PATTERN = re.compile(r"\bL([A-Z])([0-9]{3})\b")
 CATEGORY_BY_LETTER = {
     "C": "Correctness",
     "U": "Suspicious",
@@ -17,28 +17,38 @@ CATEGORY_BY_LETTER = {
     "X": "Complexity",
     "R": "Restriction",
 }
+LETTER_BY_CATEGORY = {value: key for key, value in CATEGORY_BY_LETTER.items()}
+VALID_LEVELS = {"AST", "DIR", "MIR"}
+VALID_FIXABILITY = {"None", "Safe", "Unsafe", "Suggestion", "Always"}
 ALLOWED_SUFFIXES = {".rs", ".md", ".ds", ".txt"}
 
 
 @dataclass(frozen=True)
 class RuleSpec:
-    """Lint rule metadata parsed from README.
-
-    Attributes:
-        rule_id: The lint rule id.
-        code: The lint code.
-        category_letter: The category letter for this rule.
-        line: The README line number for this rule.
-    """
+    """Lint rule metadata parsed from README."""
 
     rule_id: str
     code: str
     category_letter: str
+    level: str
+    status: str
+    fixability: str
     line: int
 
 
+@dataclass(frozen=True)
+class RuleFileSpec:
+    """Lint rule metadata parsed from a rule file."""
+
+    rule_id: str
+    code: str
+    category: str
+    level: str
+    fixable: str
+
+
 def parse_readme(path: Path) -> tuple[dict[str, RuleSpec], list[str]]:
-    """Parse lint rule metadata from the README table."""
+    """Parse lint rule metadata from the README tables."""
     lines = path.read_text().splitlines()
     errors: list[str] = []
     rules_by_id: dict[str, RuleSpec] = {}
@@ -65,62 +75,86 @@ def parse_readme(path: Path) -> tuple[dict[str, RuleSpec], list[str]]:
             pending_separator = False
             continue
 
-        if in_table:
-            if line.strip().startswith("| `"):
-                columns = split_markdown_row(line)
-                if not columns:
-                    errors.append(f"{path}:{line_number}: failed to parse row")
-                    continue
+        if not in_table:
+            continue
 
-                if len(columns) < 8:
-                    errors.append(
-                        f"{path}:{line_number}: expected 8 columns, got {len(columns)}"
-                    )
-                    continue
+        if not line.strip().startswith("|"):
+            in_table = False
+            continue
 
-                if len(columns) > 8:
-                    columns = columns[:7] + [" | ".join(columns[7:])]
+        if not line.strip().startswith("| `L"):
+            continue
 
-                code = columns[0].strip("`")
-                rule_id = columns[1].strip("`")
+        columns = split_markdown_row(line)
+        if not columns:
+            errors.append(f"{path}:{line_number}: failed to parse row")
+            continue
 
-                # validate code format and category prefix
-                if not CODE_PATTERN.fullmatch(code):
-                    errors.append(f"{path}:{line_number}: invalid code '{code}'")
-                elif category_letter and code[1] != category_letter:
-                    errors.append(
-                        f"{path}:{line_number}: code '{code}' does not match category {category_letter}"
-                    )
-                else:
-                    try:
-                        code_index = int(code[2:])
-                    except ValueError:
-                        code_index = -1
-                    if code_index < 1:
-                        errors.append(
-                            f"{path}:{line_number}: code '{code}' must be >= {code[1]}001"
-                        )
+        if len(columns) < 7:
+            errors.append(f"{path}:{line_number}: expected 7 columns, got {len(columns)}")
+            continue
 
-                # ensure codes are unique and sequential
-                if code in seen_codes:
-                    errors.append(f"{path}:{line_number}: duplicate code '{code}'")
-                else:
-                    seen_codes.add(code)
+        if len(columns) > 7:
+            columns = columns[:6] + [" | ".join(columns[6:])]
 
-                # ensure rule ids are unique
-                if rule_id in rules_by_id:
-                    errors.append(f"{path}:{line_number}: duplicate rule id '{rule_id}'")
-                else:
-                    rules_by_id[rule_id] = RuleSpec(
-                        rule_id=rule_id,
-                        code=code,
-                        category_letter=category_letter or "?",
-                        line=line_number,
-                    )
-                continue
+        code = columns[0].strip("`")
+        rule_id = columns[1].strip("`")
+        level = columns[3].strip().upper()
+        status = columns[4].strip()
+        fixability = columns[5].strip()
 
-            if not line.strip().startswith("|"):
-                in_table = False
+        # validate code format and category prefix
+        code_match = CODE_PATTERN.fullmatch(code)
+        if not code_match:
+            errors.append(f"{path}:{line_number}: invalid code '{code}'")
+        else:
+            code_letter = code_match.group(1)
+            code_index = int(code_match.group(2))
+
+            if category_letter and code_letter != category_letter:
+                errors.append(
+                    f"{path}:{line_number}: code '{code}' does not match category {category_letter}"
+                )
+            if code_index < 1:
+                errors.append(
+                    f"{path}:{line_number}: code '{code}' must be >= L{code_letter}001"
+                )
+
+        # ensure codes are unique
+        if code in seen_codes:
+            errors.append(f"{path}:{line_number}: duplicate code '{code}'")
+        else:
+            seen_codes.add(code)
+
+        # ensure rule ids are unique
+        if rule_id in rules_by_id:
+            errors.append(f"{path}:{line_number}: duplicate rule id '{rule_id}'")
+            continue
+
+        if level not in VALID_LEVELS:
+            errors.append(
+                f"{path}:{line_number}: invalid level '{columns[3].strip()}', expected AST, DIR, or MIR"
+            )
+
+        if status not in {"", "✓"}:
+            errors.append(
+                f"{path}:{line_number}: invalid status '{status}', expected blank or ✓"
+            )
+
+        if fixability not in VALID_FIXABILITY:
+            errors.append(
+                f"{path}:{line_number}: invalid fixability '{fixability}', expected one of {sorted(VALID_FIXABILITY)}"
+            )
+
+        rules_by_id[rule_id] = RuleSpec(
+            rule_id=rule_id,
+            code=code,
+            category_letter=category_letter or "?",
+            level=level,
+            status=status,
+            fixability=fixability,
+            line=line_number,
+        )
 
     return rules_by_id, errors
 
@@ -136,77 +170,109 @@ def split_markdown_row(line: str) -> list[str] | None:
     current: list[str] = []
     is_escaping = False
 
-    for ch in content:
+    for char in content:
         if is_escaping:
-            current.append(ch)
+            current.append(char)
             is_escaping = False
             continue
 
-        if ch == "\\":
-            current.append(ch)
+        if char == "\\":
+            current.append(char)
             is_escaping = True
             continue
 
-        if ch == "|":
+        if char == "|":
             columns.append("".join(current).strip())
             current = []
             continue
 
-        current.append(ch)
+        current.append(char)
 
     columns.append("".join(current).strip())
     return columns
 
 
-def parse_rule_file(path: Path) -> tuple[str | None, str | None, str | None]:
-    """Parse rule metadata from a rule file."""
+def parse_rule_file(path: Path) -> RuleFileSpec | None:
+    """Parse lint metadata from a rule file."""
     text = path.read_text()
 
     # skip non lint rule modules
     if "declare_lint!" not in text:
-        return None, None, None
+        return None
 
-    # extract lint attribute values
     rule_id_match = re.search(r'\bid\s*=\s*"([^"]+)"', text)
     code_match = re.search(r'\bcode\s*=\s*"([^"]+)"', text)
     category_match = re.search(r"\bcategory\s*=\s*([A-Za-z]+)\b", text)
+    level_match = re.search(r"\blevel\s*=\s*([A-Za-z]+)\b", text)
+    fixable_match = re.search(r"\bfixable\s*=\s*([A-Za-z]+)\b", text)
 
-    rule_id = rule_id_match.group(1) if rule_id_match else None
-    code = code_match.group(1) if code_match else None
-    category = category_match.group(1) if category_match else None
-    return rule_id, code, category
+    if not (rule_id_match and code_match and category_match and level_match and fixable_match):
+        return None
+
+    return RuleFileSpec(
+        rule_id=rule_id_match.group(1),
+        code=code_match.group(1),
+        category=category_match.group(1),
+        level=level_match.group(1).upper(),
+        fixable=fixable_match.group(1),
+    )
 
 
 def validate_rule_files(
-    rules_dir: Path, rules_by_id: dict[str, RuleSpec]
+    rules_dir: Path, rules_by_id: dict[str, RuleSpec], readme_path: Path
 ) -> list[str]:
     """Validate rule files against README metadata."""
     errors: list[str] = []
+    seen_rule_ids: set[str] = set()
 
     # check each rule file for matching metadata
     for path in sorted(rules_dir.rglob("*.rs")):
-        rule_id, code, category = parse_rule_file(path)
-        if rule_id is None and code is None and category is None:
+        spec = parse_rule_file(path)
+        if spec is None:
             continue
 
-        if not rule_id or not code or not category:
-            errors.append(f"{path}: missing id, code, or category")
+        seen_rule_ids.add(spec.rule_id)
+        readme_rule = rules_by_id.get(spec.rule_id)
+        if not readme_rule:
+            errors.append(f"{path}: rule id '{spec.rule_id}' is missing from README")
             continue
 
-        spec = rules_by_id.get(rule_id)
-        if not spec:
-            errors.append(f"{path}: rule id '{rule_id}' is missing from README")
-            continue
-
-        if code != spec.code:
+        if spec.code != readme_rule.code:
             errors.append(
-                f"{path}: code '{code}' does not match README '{spec.code}'"
+                f"{path}: code '{spec.code}' does not match README '{readme_rule.code}'"
             )
 
-        expected_category = CATEGORY_BY_LETTER.get(spec.category_letter)
-        if expected_category and category != expected_category:
+        expected_category = LETTER_BY_CATEGORY.get(spec.category)
+        if expected_category and expected_category != readme_rule.category_letter:
             errors.append(
-                f"{path}: category '{category}' does not match README '{expected_category}'"
+                f"{path}: category '{spec.category}' does not match README category '{readme_rule.category_letter}'"
+            )
+
+        if spec.level != readme_rule.level:
+            errors.append(
+                f"{path}: level '{spec.level}' does not match README level '{readme_rule.level}'"
+            )
+
+        if readme_rule.status != "✓":
+            errors.append(
+                f"{path}: README row for '{spec.rule_id}' must have status '✓' ({readme_path}:{readme_rule.line})"
+            )
+
+        # validate fixability presence only: No => None, otherwise non None
+        if spec.fixable == "No" and readme_rule.fixability != "None":
+            errors.append(
+                f"{path}: fixable=No requires README fixability None, got '{readme_rule.fixability}'"
+            )
+        if spec.fixable != "No" and readme_rule.fixability == "None":
+            errors.append(
+                f"{path}: fixable={spec.fixable} requires non None README fixability"
+            )
+
+    # any row marked implemented must exist on disk
+    for rule_id, readme_rule in rules_by_id.items():
+        if readme_rule.status == "✓" and rule_id not in seen_rule_ids:
+            errors.append(
+                f"{readme_path}:{readme_rule.line}: status is ✓ but rule '{rule_id}' has no implementation file"
             )
 
     return errors
@@ -237,7 +303,7 @@ def find_unknown_codes(root: Path, valid_codes: set[str]) -> list[str]:
 
 
 def main() -> int:
-    """Run lint code validation."""
+    """Run lint metadata validation."""
     readme_path = Path(__file__).with_name("README.md")
     rules_dir = Path(__file__).parent / "src" / "rules"
     language_root = Path(__file__).resolve().parents[1]
@@ -246,7 +312,7 @@ def main() -> int:
     rules_by_id, errors = parse_readme(readme_path)
 
     # validate rule files
-    errors.extend(validate_rule_files(rules_dir, rules_by_id))
+    errors.extend(validate_rule_files(rules_dir, rules_by_id, readme_path))
 
     # scan for stale code references
     valid_codes = {spec.code for spec in rules_by_id.values()}
@@ -257,7 +323,7 @@ def main() -> int:
             print(error, file=sys.stderr)
         return 1
 
-    print("lint code validation ok")
+    print("lint metadata validation ok")
     return 0
 
 

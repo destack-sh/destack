@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{expression_is_promise_like, expression_unwrap_parenthesized};
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Require Promise results to be handled.
@@ -18,7 +18,7 @@ declare_lint! {
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Promise)],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Always,
         stability = Stable
     )]
@@ -170,18 +170,66 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
 
         // report the diagnostic
         let span = self.ctx.get_span(statement_id);
-        self.ctx.report(
-            LintDiagnostic::new(
-                NO_FLOATING_PROMISES.id,
-                NO_FLOATING_PROMISES.code,
-                NO_FLOATING_PROMISES.category,
-                severity,
-                "Promise result is ignored",
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label("await, return, or attach a Promise handler"),
-        );
+        let mut diagnostic = LintDiagnostic::new(
+            NO_FLOATING_PROMISES.id,
+            NO_FLOATING_PROMISES.code,
+            NO_FLOATING_PROMISES.category,
+            severity,
+            "Promise result is ignored",
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label("await, return, or attach a Promise handler");
+
+        // compute fixes only when requested by the runner
+        if self.ctx.include_fixes
+            && let Some(fix) = self.no_floating_promises_fix(inner_id)
+        {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
+    }
+
+    /// Build a safe fix by explicitly discarding Promise results with `void`.
+    fn no_floating_promises_fix(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<LintFix> {
+        // this fix only applies when explicit void discard is accepted
+        if !self.allow_void_discard {
+            return None;
+        }
+
+        // do not stack `void` on existing explicit void expressions
+        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
+        let expression = self.ctx.tree.get(expression_id);
+        if matches!(
+            expression,
+            dir::Expression::Unary {
+                operator: dir::UnaryOperator::Void,
+                ..
+            }
+        ) {
+            return None;
+        }
+
+        // preserve replacement span, but normalize redundant parentheses
+        let replacement_span = self.ctx.get_span(expression_id);
+        let normalized_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
+        let normalized_span = self.ctx.get_span(normalized_id);
+        let expression_text = self.ctx.get_span_text(normalized_span);
+        if expression_text.trim().is_empty() {
+            return None;
+        }
+
+        let replacement = format!("void {expression_text}");
+        let edits = self
+            .ctx
+            .edit_builder()
+            .replace(replacement_span, replacement)
+            .into_edits();
+        Some(LintFix::safe("Explicitly discard the Promise with void").with_edits(edits))
     }
 }
 
@@ -224,7 +272,9 @@ async function load(): Promise<number> {
 load();
 "#,
         );
-        test.result(result).assert_lint("no-floating-promises");
+        test.result(result)
+            .assert_lint("no-floating-promises")
+            .assert_has_fix("no-floating-promises");
     }
 
     #[test]
@@ -335,6 +385,70 @@ new Promise((resolve) => {
 "#,
         );
         test.result(result).assert_lint("no-floating-promises");
+    }
+
+    #[test]
+    fn test_fix_prefixes_floating_promise_with_void() {
+        let test = TestProgram::for_rule_with_prelude(NoFloatingPromises);
+        let result = test.lint_dir(
+            "no_floating_promises/test_fix_prefixes_floating_promise_with_void.ts",
+            r#"
+async function load(): Promise<number> {
+    return 1;
+}
+
+load();
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-floating-promises")
+            .assert_safe_fixed(
+                r#"
+async function load(): Promise<number> {
+    return 1;
+}
+
+void load();
+"#,
+            );
+    }
+
+    #[test]
+    fn test_no_fix_when_void_discard_is_disabled() {
+        let test = TestProgram::for_rule_with_prelude(NoFloatingPromises).with_options(|options| {
+            options.allow_void_discard = false;
+        });
+        let result = test.lint_dir(
+            "no_floating_promises/test_no_fix_when_void_discard_is_disabled.ts",
+            r#"
+async function load(): Promise<number> {
+    return 1;
+}
+
+load();
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-floating-promises")
+            .assert_has_no_fix("no-floating-promises");
+    }
+
+    #[test]
+    fn test_mutation_fix_prefixes_async_iife_with_void() {
+        let test = TestProgram::for_rule_with_prelude(NoFloatingPromises);
+        let result = test.lint_dir(
+            "no_floating_promises/test_mutation_fix_prefixes_async_iife_with_void.ts",
+            r#"
+(async () => 1)();
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-floating-promises")
+            .assert_safe_fixed(
+                r#"
+void (async () => 1)();
+"#,
+            );
     }
 
     #[test]

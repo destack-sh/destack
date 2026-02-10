@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, Expression, Pattern};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer tuple swap syntax over temporary variable.
@@ -25,7 +25,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Always,
         recommended = Strict,
         stability = Stable
     )]
@@ -61,21 +61,42 @@ impl LintRule for PreferTupleSwap {
                         continue;
                     }
 
-                    ctx.report(
-                        LintDiagnostic::new(
-                            PREFER_TUPLE_SWAP.id,
-                            PREFER_TUPLE_SWAP.code,
-                            PREFER_TUPLE_SWAP.category,
-                            severity,
-                            format!(
-                                "use tuple swap `({}, {}) = ({}, {})` instead of temporary variable",
-                                swap_info.var_a, swap_info.var_b, swap_info.var_b, swap_info.var_a
-                            ),
-                            ctx.module.file_id,
-                            ctx.tree.get_span(first_id),
-                        )
-                        .with_label("swap pattern starts here"),
-                    );
+                    let mut diagnostic = LintDiagnostic::new(
+                        PREFER_TUPLE_SWAP.id,
+                        PREFER_TUPLE_SWAP.code,
+                        PREFER_TUPLE_SWAP.category,
+                        severity,
+                        format!(
+                            "use tuple swap `({}, {}) = ({}, {})` instead of temporary variable",
+                            swap_info.var_a, swap_info.var_b, swap_info.var_b, swap_info.var_a
+                        ),
+                        ctx.module.file_id,
+                        ctx.tree.get_span(first_id),
+                    )
+                    .with_label("swap pattern starts here");
+
+                    // compute fixes only when requested by the runner
+                    if ctx.compute_fixes {
+                        let first_span = ctx.tree.get_span(first_id);
+                        let third_span = ctx.tree.get_span(third_id);
+                        let replace_span = destack_source::Span::new(
+                            first_span.file,
+                            first_span.start,
+                            third_span.end,
+                        );
+                        let replacement = format!(
+                            "({}, {}) = ({}, {});",
+                            swap_info.var_a, swap_info.var_b, swap_info.var_b, swap_info.var_a
+                        );
+                        let edits = ctx
+                            .edit_builder()
+                            .replace(replace_span, replacement)
+                            .into_edits();
+                        let fix = LintFix::safe("Use tuple swap assignment").with_edits(edits);
+                        diagnostic = diagnostic.with_fix(fix);
+                    }
+
+                    ctx.report(diagnostic);
                 }
             }
         }
@@ -210,7 +231,9 @@ function swap() {
 }
 "#,
         );
-        test.result(result).assert_lint("prefer-tuple-swap");
+        test.result(result)
+            .assert_lint("prefer-tuple-swap")
+            .assert_has_fix("prefer-tuple-swap");
     }
 
     #[test]
@@ -292,5 +315,53 @@ function notSwap() {
         );
         // array access is not a simple path
         test.result(result).assert_no_lint("prefer-tuple-swap");
+    }
+
+    #[test]
+    fn test_fix_rewrites_swap_to_tuple_assignment() {
+        let test = TestProgram::for_rule_without_prelude(PreferTupleSwap);
+        let result = test.lint_ast(
+            "prefer_tuple_swap/test_fix_rewrites_swap_to_tuple_assignment.ds",
+            r#"
+function swap() {
+    const temp = a
+    a = b
+    b = temp
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-tuple-swap")
+            .assert_safe_fixed(
+                r#"
+function swap() {
+    (a, b,) = (b, a,);
+}
+"#,
+            );
+    }
+
+    #[test]
+    fn test_mutation_fix_rewrites_let_swap_to_tuple_assignment() {
+        let test = TestProgram::for_rule_without_prelude(PreferTupleSwap);
+        let result = test.lint_ast(
+            "prefer_tuple_swap/test_mutation_fix_rewrites_let_swap_to_tuple_assignment.ds",
+            r#"
+function swap() {
+    let temp = left
+    left = right
+    right = temp
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-tuple-swap")
+            .assert_safe_fixed(
+                r#"
+function swap() {
+    (left, right,) = (right, left,);
+}
+"#,
+            );
     }
 }

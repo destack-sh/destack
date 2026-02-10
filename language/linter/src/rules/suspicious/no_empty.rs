@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow empty block statements.
@@ -15,7 +15,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Always,
         recommended = Always,
         stability = Stable
     )]
@@ -43,18 +43,29 @@ impl LintRule for NoEmpty {
                 }
 
                 let span = ctx.tree.get_span(node_id);
-                ctx.report(
-                    LintDiagnostic::new(
-                        NO_EMPTY.id,
-                        NO_EMPTY.code,
-                        NO_EMPTY.category,
-                        severity,
-                        "empty block statement",
-                        ctx.module.file_id,
-                        span,
-                    )
-                    .with_label("this block is empty"),
-                );
+                let mut diagnostic = LintDiagnostic::new(
+                    NO_EMPTY.id,
+                    NO_EMPTY.code,
+                    NO_EMPTY.category,
+                    severity,
+                    "empty block statement",
+                    ctx.module.file_id,
+                    span,
+                )
+                .with_label("this block is empty");
+
+                // compute fixes only when requested by the runner
+                if ctx.compute_fixes {
+                    let edits = ctx
+                        .edit_builder()
+                        .replace(span, "{\n    // intentionally empty\n}")
+                        .into_edits();
+                    let fix =
+                        LintFix::safe("Add intentional empty block comment").with_edits(edits);
+                    diagnostic = diagnostic.with_fix(fix);
+                }
+
+                ctx.report(diagnostic);
             }
         }
     }
@@ -74,7 +85,9 @@ mod tests {
 {}
 "#,
         );
-        test.result(result).assert_lint("no-empty");
+        test.result(result)
+            .assert_lint("no-empty")
+            .assert_has_fix("no-empty");
     }
 
     #[test]
@@ -136,5 +149,45 @@ let x = 1;
 "#,
         );
         test.result(result).assert_no_lint("no-empty");
+    }
+
+    #[test]
+    fn test_fix_adds_comment_to_empty_block() {
+        let test = TestProgram::for_rule_without_prelude(NoEmpty);
+        let result = test.lint_ast(
+            "no_empty/test_fix_adds_comment_to_empty_block.ds",
+            r#"
+{}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-empty")
+            .assert_safe_fixed(
+                r#"
+{
+    // intentionally empty
+}
+"#,
+            );
+    }
+
+    #[test]
+    fn test_mutation_fix_adds_comment_to_empty_if_block() {
+        let test = TestProgram::for_rule_without_prelude(NoEmpty);
+        let result = test.lint_ast(
+            "no_empty/test_mutation_fix_adds_comment_to_empty_if_block.ds",
+            r#"
+if (ready) {}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-empty")
+            .assert_safe_fixed(
+                r#"
+if (ready) {
+    // intentionally empty
+}
+"#,
+            );
     }
 }

@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, BinaryOperator, Expression};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer range `in` operator over comparison chains.
@@ -26,7 +26,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -55,141 +55,203 @@ impl LintRule for PreferRangeContains {
                 continue;
             };
 
-            let left_expression = ctx.tree.get(*left);
-            let right_expression = ctx.tree.get(*right);
+            let Some(range_check) = extract_range_check(ctx, *left, *right) else {
+                continue;
+            };
 
-            // check if this looks like a range check: x >= start && x < end
-            if is_range_check_pattern(ctx, left_expression, right_expression) {
-                let severity = ctx.get_effective_severity(meta, node_id);
-                if !severity.is_enabled() {
-                    continue;
-                }
-
-                ctx.report(
-                    LintDiagnostic::new(
-                        PREFER_RANGE_CONTAINS.id,
-                        PREFER_RANGE_CONTAINS.code,
-                        PREFER_RANGE_CONTAINS.category,
-                        severity,
-                        "use `in` operator with range instead of comparison chain",
-                        ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
-                    )
-                    .with_label("replace with `x in start..end`"),
-                );
+            let severity = ctx.get_effective_severity(meta, node_id);
+            if !severity.is_enabled() {
+                continue;
             }
+
+            let mut diagnostic = LintDiagnostic::new(
+                PREFER_RANGE_CONTAINS.id,
+                PREFER_RANGE_CONTAINS.code,
+                PREFER_RANGE_CONTAINS.category,
+                severity,
+                "use `in` operator with range instead of comparison chain",
+                ctx.module.file_id,
+                ctx.tree.get_span(node_id),
+            )
+            .with_label("replace with `x in start..end`");
+
+            // rewrite comparable chains where lower bound is inclusive
+            if ctx.compute_fixes
+                && let Some(fix) = build_range_contains_fix(ctx, node_id, &range_check)
+            {
+                diagnostic = diagnostic.with_fix(fix);
+            }
+
+            ctx.report(diagnostic);
         }
     }
 }
 
-/// Check if two expressions form a range check pattern.
-/// Patterns like: x >= start && x < end, or x > start && x <= end
-fn is_range_check_pattern(
+/// One comparison bound descriptor.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum BoundKind {
+    /// Lower bound, either `>` or `>=`.
+    Lower { is_inclusive: bool },
+    /// Upper bound, either `<` or `<=`.
+    Upper { is_inclusive: bool },
+}
+
+/// One normalized comparison expression.
+struct ComparisonInfo {
+    /// The compared variable name.
+    variable_name: ast::StringId,
+    /// The compared variable expression.
+    variable_id: ast::LocalNodeId<Expression>,
+    /// The bound expression on the right side.
+    bound_id: ast::LocalNodeId<Expression>,
+    /// The bound kind.
+    bound_kind: BoundKind,
+}
+
+/// One normalized range check extracted from two comparisons.
+struct RangeCheckInfo {
+    /// The variable expression being tested.
+    variable_id: ast::LocalNodeId<Expression>,
+    /// The lower bound expression.
+    lower_bound_id: ast::LocalNodeId<Expression>,
+    /// The upper bound expression.
+    upper_bound_id: ast::LocalNodeId<Expression>,
+    /// Whether the lower bound is inclusive.
+    lower_inclusive: bool,
+    /// Whether the upper bound is inclusive.
+    upper_inclusive: bool,
+}
+
+/// Extract a range check from a binary `&&` chain.
+fn extract_range_check(
     ctx: &LintModuleAstContext<'_>,
-    left: &Expression,
-    right: &Expression,
-) -> bool {
+    left_id: ast::LocalNodeId<Expression>,
+    right_id: ast::LocalNodeId<Expression>,
+) -> Option<RangeCheckInfo> {
     // get comparison info from both sides
-    let left_cmp = get_comparison_info(ctx, left);
-    let right_cmp = get_comparison_info(ctx, right);
+    let left_cmp = get_comparison_info(ctx, left_id);
+    let right_cmp = get_comparison_info(ctx, right_id);
 
     let (Some(left_info), Some(right_info)) = (left_cmp, right_cmp) else {
-        return false;
+        return None;
     };
 
     // check if they're comparing the same variable
-    if left_info.var_name != right_info.var_name {
-        return false;
+    if left_info.variable_name != right_info.variable_name {
+        return None;
     }
 
-    // check if one is a lower bound and one is an upper bound
-    let has_lower_bound = matches!(
-        left_info.kind,
-        ComparisonKind::GreaterOrEqual | ComparisonKind::Greater
-    ) || matches!(
-        right_info.kind,
-        ComparisonKind::GreaterOrEqual | ComparisonKind::Greater
-    );
-
-    let has_upper_bound = matches!(
-        left_info.kind,
-        ComparisonKind::LessOrEqual | ComparisonKind::Less
-    ) || matches!(
-        right_info.kind,
-        ComparisonKind::LessOrEqual | ComparisonKind::Less
-    );
-
-    has_lower_bound && has_upper_bound
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-enum ComparisonKind {
-    Less,
-    LessOrEqual,
-    Greater,
-    GreaterOrEqual,
-}
-
-struct ComparisonInfo {
-    var_name: String,
-    kind: ComparisonKind,
+    match (left_info.bound_kind, right_info.bound_kind) {
+        (
+            BoundKind::Lower {
+                is_inclusive: lower_inclusive,
+            },
+            BoundKind::Upper {
+                is_inclusive: upper_inclusive,
+            },
+        ) => Some(RangeCheckInfo {
+            variable_id: left_info.variable_id,
+            lower_bound_id: left_info.bound_id,
+            upper_bound_id: right_info.bound_id,
+            lower_inclusive,
+            upper_inclusive,
+        }),
+        (
+            BoundKind::Upper {
+                is_inclusive: upper_inclusive,
+            },
+            BoundKind::Lower {
+                is_inclusive: lower_inclusive,
+            },
+        ) => Some(RangeCheckInfo {
+            variable_id: left_info.variable_id,
+            lower_bound_id: right_info.bound_id,
+            upper_bound_id: left_info.bound_id,
+            lower_inclusive,
+            upper_inclusive,
+        }),
+        _ => None,
+    }
 }
 
 /// Extract comparison info from a binary comparison expression.
 fn get_comparison_info(
     ctx: &LintModuleAstContext<'_>,
-    expression: &Expression,
+    expression_id: ast::LocalNodeId<Expression>,
 ) -> Option<ComparisonInfo> {
+    let expression = ctx.tree.get(expression_id);
     let Expression::Binary {
         operator,
         left,
-        right: _,
+        right,
     } = expression
     else {
         return None;
     };
 
     let left_expression = ctx.tree.get(*left);
-
-    // determine the comparison kind and which side has the variable
-    let (var_name, kind) = match operator {
-        BinaryOperator::LessThan => {
-            // x < y: x is the variable
-            let name = get_simple_path_name(ctx, left_expression)?;
-            (name, ComparisonKind::Less)
-        }
-        BinaryOperator::LessThanOrEqual => {
-            // x <= y: x is the variable
-            let name = get_simple_path_name(ctx, left_expression)?;
-            (name, ComparisonKind::LessOrEqual)
-        }
-        BinaryOperator::GreaterThan => {
-            // x > y: x is the variable
-            let name = get_simple_path_name(ctx, left_expression)?;
-            (name, ComparisonKind::Greater)
-        }
-        BinaryOperator::GreaterThanOrEqual => {
-            // x >= y: x is the variable
-            let name = get_simple_path_name(ctx, left_expression)?;
-            (name, ComparisonKind::GreaterOrEqual)
-        }
-        _ => return None,
-    };
-
-    Some(ComparisonInfo { var_name, kind })
-}
-
-/// Get the name of a simple path expression.
-fn get_simple_path_name(ctx: &LintModuleAstContext<'_>, expression: &Expression) -> Option<String> {
-    let Expression::Path { path, .. } = expression else {
+    let Expression::Path {
+        path,
+        static_arguments: None,
+    } = left_expression
+    else {
         return None;
     };
-
     if path.segments.len() != 1 {
         return None;
     }
 
-    Some(ctx.strings.get(path.segments[0]).to_string())
+    let variable_name = path.segments[0];
+    let variable_id = *left;
+    let bound_id = *right;
+
+    // determine the comparison kind and which side has the variable
+    let bound_kind = match operator {
+        BinaryOperator::LessThan => BoundKind::Upper {
+            is_inclusive: false,
+        },
+        BinaryOperator::LessThanOrEqual => BoundKind::Upper { is_inclusive: true },
+        BinaryOperator::GreaterThan => BoundKind::Lower {
+            is_inclusive: false,
+        },
+        BinaryOperator::GreaterThanOrEqual => BoundKind::Lower { is_inclusive: true },
+        _ => return None,
+    };
+
+    Some(ComparisonInfo {
+        variable_name,
+        variable_id,
+        bound_id,
+        bound_kind,
+    })
+}
+
+/// Build an unsafe replacement when a range check maps directly to `in`.
+fn build_range_contains_fix(
+    ctx: &LintModuleAstContext<'_>,
+    expression_id: ast::LocalNodeId<Expression>,
+    range_check: &RangeCheckInfo,
+) -> Option<LintFix> {
+    // `x > lower` cannot be represented directly in one `in start..end` expression
+    if !range_check.lower_inclusive {
+        return None;
+    }
+
+    let variable_text = ctx.get_span_text(ctx.tree.get_span(range_check.variable_id));
+    let lower_text = ctx.get_span_text(ctx.tree.get_span(range_check.lower_bound_id));
+    let upper_text = ctx.get_span_text(ctx.tree.get_span(range_check.upper_bound_id));
+    let range_operator = if range_check.upper_inclusive {
+        "..="
+    } else {
+        ".."
+    };
+
+    let replacement = format!("{variable_text} in {lower_text}{range_operator}{upper_text}");
+    let edits = ctx
+        .edit_builder()
+        .replace(ctx.tree.get_span(expression_id), replacement)
+        .into_edits();
+    Some(LintFix::r#unsafe("Replace with range contains expression").with_edits(edits))
 }
 
 #[cfg(test)]
@@ -214,6 +276,33 @@ function foo(x: int32) {
     }
 
     #[test]
+    fn test_fix_rewrites_inclusive_exclusive_range_check() {
+        let test = TestProgram::for_rule_without_prelude(PreferRangeContains);
+        let result = test.lint_ast(
+            "prefer_range_contains/test_fix_rewrites_inclusive_exclusive_range_check.ds",
+            r#"
+function foo(x: int32) {
+    if x >= 0 && x < 10 {
+        doX()
+    }
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-range-contains")
+            .assert_has_fix("prefer-range-contains")
+            .assert_unsafe_fixed(
+                r#"
+function foo(x: int32) {
+    if (x in 0..10) {
+        doX()
+    }
+}
+"#,
+            );
+    }
+
+    #[test]
     fn test_range_check_greater_less_or_equal() {
         let test = TestProgram::for_rule_without_prelude(PreferRangeContains);
         let result = test.lint_ast(
@@ -227,6 +316,51 @@ function foo(x: int32) {
 "#,
         );
         test.result(result).assert_lint("prefer-range-contains");
+    }
+
+    #[test]
+    fn test_mutation_fix_rewrites_inclusive_inclusive_range_check() {
+        let test = TestProgram::for_rule_without_prelude(PreferRangeContains);
+        let result = test.lint_ast(
+            "prefer_range_contains/test_mutation_fix_rewrites_inclusive_inclusive_range_check.ds",
+            r#"
+function foo(x: int32) {
+    if x >= 0 && x <= 10 {
+        doX()
+    }
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-range-contains")
+            .assert_has_fix("prefer-range-contains")
+            .assert_unsafe_fixed(
+                r#"
+function foo(x: int32) {
+    if (x in 0..=10) {
+        doX()
+    }
+}
+"#,
+            );
+    }
+
+    #[test]
+    fn test_no_fix_for_exclusive_lower_bound() {
+        let test = TestProgram::for_rule_without_prelude(PreferRangeContains);
+        let result = test.lint_ast(
+            "prefer_range_contains/test_no_fix_for_exclusive_lower_bound.ds",
+            r#"
+function foo(x: int32) {
+    if x > 0 && x <= 10 {
+        doX()
+    }
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-range-contains")
+            .assert_has_no_fix("prefer-range-contains");
     }
 
     #[test]

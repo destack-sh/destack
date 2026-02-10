@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow for loops that go in the wrong direction.
@@ -15,7 +15,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Always,
         stability = Stable
     )]
@@ -70,20 +70,104 @@ impl LintRule for ForDirection {
                     Direction::Increasing => "increase",
                     Direction::Decreasing => "decrease",
                 };
-                ctx.report(
-                    LintDiagnostic::new(
-                        FOR_DIRECTION.id,
-                        FOR_DIRECTION.code,
-                        FOR_DIRECTION.category,
-                        severity,
-                        format!("for loop counter should {direction_word} to match condition"),
-                        ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
-                    )
-                    .with_label("counter moves in wrong direction"),
-                );
+                let mut diagnostic = LintDiagnostic::new(
+                    FOR_DIRECTION.id,
+                    FOR_DIRECTION.code,
+                    FOR_DIRECTION.category,
+                    severity,
+                    format!("for loop counter should {direction_word} to match condition"),
+                    ctx.module.file_id,
+                    ctx.tree.get_span(node_id),
+                )
+                .with_label("counter moves in wrong direction");
+
+                // invert increment direction when the update expression is a known form
+                if ctx.compute_fixes
+                    && let Some(fix) =
+                        build_for_direction_fix(ctx, *increment_id, condition_direction)
+                {
+                    diagnostic = diagnostic.with_fix(fix);
+                }
+
+                ctx.report(diagnostic);
             }
         }
+    }
+}
+
+/// Build an unsafe fix that flips increment direction for one loop update.
+fn build_for_direction_fix(
+    ctx: &LintModuleAstContext<'_>,
+    increment_id: ast::LocalNodeId<ast::Expression>,
+    expected_direction: Direction,
+) -> Option<LintFix> {
+    let replacement = increment_with_expected_direction(ctx, increment_id, expected_direction)?;
+    let edits = ctx
+        .edit_builder()
+        .replace(ctx.tree.get_span(increment_id), replacement)
+        .into_edits();
+    Some(LintFix::r#unsafe("Flip loop update direction").with_edits(edits))
+}
+
+/// Render one increment expression with the expected direction.
+fn increment_with_expected_direction(
+    ctx: &LintModuleAstContext<'_>,
+    increment_id: ast::LocalNodeId<ast::Expression>,
+    expected_direction: Direction,
+) -> Option<String> {
+    let increment = ctx.tree.get(increment_id);
+    match increment {
+        ast::Expression::Unary { operator, right } => {
+            let operand_text = ctx.get_span_text(ctx.tree.get_span(*right));
+            let replacement = match (operator, expected_direction) {
+                (ast::UnaryOperator::PostIncrement, Direction::Decreasing) => {
+                    format!("{operand_text}--")
+                }
+                (ast::UnaryOperator::PostDecrement, Direction::Increasing) => {
+                    format!("{operand_text}++")
+                }
+                (ast::UnaryOperator::PreIncrement, Direction::Decreasing) => {
+                    format!("--{operand_text}")
+                }
+                (ast::UnaryOperator::PreDecrement, Direction::Increasing) => {
+                    format!("++{operand_text}")
+                }
+                _ => return None,
+            };
+            Some(replacement)
+        }
+        ast::Expression::Assign {
+            operator,
+            left,
+            right,
+        } => {
+            let replacement_operator =
+                assign_operator_with_expected_direction(*operator, expected_direction)?;
+            let left_text = ctx.get_span_text(ctx.tree.get_span(*left));
+            let right_text = ctx.get_span_text(ctx.tree.get_span(*right));
+            Some(format!("{left_text} {replacement_operator} {right_text}"))
+        }
+        ast::Expression::Parenthesized { expression } => {
+            let inner = increment_with_expected_direction(ctx, *expression, expected_direction)?;
+            Some(format!("({inner})"))
+        }
+        _ => None,
+    }
+}
+
+/// Return an assignment operator matching the expected direction.
+fn assign_operator_with_expected_direction(
+    operator: ast::AssignOperator,
+    expected_direction: Direction,
+) -> Option<&'static str> {
+    match (operator, expected_direction) {
+        (ast::AssignOperator::AddAssign, Direction::Decreasing) => Some("-="),
+        (ast::AssignOperator::WrappingAddAssign, Direction::Decreasing) => Some("-%="),
+        (ast::AssignOperator::SaturatingAddAssign, Direction::Decreasing) => Some("-|="),
+        (ast::AssignOperator::SubtractAssign, Direction::Increasing) => Some("+="),
+        (ast::AssignOperator::WrappingSubtractAssign, Direction::Increasing) => Some("+%="),
+        (ast::AssignOperator::SaturatingSubtractAssign, Direction::Increasing) => Some("+|="),
+        _ => None,
     }
 }
 
@@ -162,6 +246,29 @@ for (let i = 0; i < 10; i--) {
     }
 
     #[test]
+    fn test_fix_flips_post_decrement_to_increment() {
+        let test = TestProgram::for_rule_without_prelude(ForDirection);
+        let result = test.lint_ast(
+            "for_direction/test_fix_flips_post_decrement_to_increment.ds",
+            r#"
+for (let i = 0; i < 10; i--) {
+    console.log(i);
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("for-direction")
+            .assert_has_fix("for-direction")
+            .assert_unsafe_fixed(
+                r#"
+for (let i = 0; i < 10; i++) {
+    console.log(i);
+}
+"#,
+            );
+    }
+
+    #[test]
     fn test_detects_wrong_direction_decrement() {
         let test = TestProgram::for_rule_without_prelude(ForDirection);
         let result = test.lint_ast(
@@ -173,6 +280,29 @@ for (let i = 10; i > 0; i++) {
 "#,
         );
         test.result(result).assert_lint("for-direction");
+    }
+
+    #[test]
+    fn test_mutation_fix_flips_add_assign_to_subtract_assign() {
+        let test = TestProgram::for_rule_without_prelude(ForDirection);
+        let result = test.lint_ast(
+            "for_direction/test_mutation_fix_flips_add_assign_to_subtract_assign.ds",
+            r#"
+for (let i = 10; i > 0; i += 2) {
+    console.log(i);
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("for-direction")
+            .assert_has_fix("for-direction")
+            .assert_unsafe_fixed(
+                r#"
+for (let i = 10; i > 0; i -= 2) {
+    console.log(i);
+}
+"#,
+            );
     }
 
     #[test]

@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, Expression, ScalarLiteral, TypeBinaryOperator};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `as const` over literal type assertions.
@@ -14,7 +14,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -35,7 +35,7 @@ impl LintRule for PreferAsConst {
 
             // look for type cast expressions
             let Expression::TypeBinary {
-                left: _,
+                left,
                 operator: TypeBinaryOperator::Cast,
                 right,
             } = expr
@@ -61,20 +61,54 @@ impl LintRule for PreferAsConst {
                     continue;
                 }
 
-                ctx.report(
-                    LintDiagnostic::new(
-                        PREFER_AS_CONST.id,
-                        PREFER_AS_CONST.code,
-                        PREFER_AS_CONST.category,
-                        severity,
-                        "use `as const` instead of literal type assertion",
-                        ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
-                    )
-                    .with_label("prefer `as const`"),
-                );
+                // attach a safe fix for exact literal self casts
+                let mut diagnostic = LintDiagnostic::new(
+                    PREFER_AS_CONST.id,
+                    PREFER_AS_CONST.code,
+                    PREFER_AS_CONST.category,
+                    severity,
+                    "use `as const` instead of literal type assertion",
+                    ctx.module.file_id,
+                    ctx.tree.get_span(node_id),
+                )
+                .with_label("prefer `as const`");
+
+                if is_exact_literal_self_cast(ctx.tree, *left, *right) {
+                    let right_span = ctx.tree.get_span(*right);
+                    let edits = ctx.edit_builder().replace(right_span, "const").into_edits();
+                    let fix = LintFix::safe("Replace literal type assertion with `as const`")
+                        .with_edits(edits);
+                    diagnostic = diagnostic.with_fix(fix);
+                }
+
+                ctx.report(diagnostic);
             }
         }
+    }
+}
+
+/// Return true when a cast has the same literal value on both sides.
+fn is_exact_literal_self_cast(
+    tree: &ast::NodeTree,
+    left_id: ast::LocalNodeId<Expression>,
+    right_id: ast::LocalNodeId<Expression>,
+) -> bool {
+    let left = tree.get(left_id);
+    let right = tree.get(right_id);
+    match (left, right) {
+        (
+            Expression::ScalarLiteral(ScalarLiteral::String(left)),
+            Expression::ScalarLiteral(ScalarLiteral::String(right)),
+        ) => left == right,
+        (
+            Expression::ScalarLiteral(ScalarLiteral::Integer(left)),
+            Expression::ScalarLiteral(ScalarLiteral::Integer(right)),
+        ) => left == right,
+        (
+            Expression::ScalarLiteral(ScalarLiteral::Boolean(left)),
+            Expression::ScalarLiteral(ScalarLiteral::Boolean(right)),
+        ) => left == right,
+        _ => false,
     }
 }
 
@@ -96,6 +130,39 @@ const x = "hello" as "hello"
     }
 
     #[test]
+    fn test_fix_string_literal_self_cast() {
+        let test = TestProgram::for_rule_without_prelude(PreferAsConst);
+        let result = test.lint_ast(
+            "prefer_as_const/test_fix_string_literal_self_cast.ds",
+            r#"
+const x = "hello" as "hello"
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-as-const")
+            .assert_has_fix("prefer-as-const")
+            .assert_safe_fixed(
+                r#"
+const x = "hello" as const;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_no_fix_for_non_literal_self_cast() {
+        let test = TestProgram::for_rule_without_prelude(PreferAsConst);
+        let result = test.lint_ast(
+            "prefer_as_const/test_no_fix_for_non_literal_self_cast.ds",
+            r#"
+const x = value as "hello"
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-as-const")
+            .assert_has_no_fix("prefer-as-const");
+    }
+
+    #[test]
     fn test_detects_number_literal_cast() {
         let test = TestProgram::for_rule_without_prelude(PreferAsConst);
         let result = test.lint_ast(
@@ -105,6 +172,86 @@ const x = 42 as 42
 "#,
         );
         test.result(result).assert_lint("prefer-as-const");
+    }
+
+    #[test]
+    fn test_fix_number_literal_self_cast() {
+        let test = TestProgram::for_rule_without_prelude(PreferAsConst);
+        let result = test.lint_ast(
+            "prefer_as_const/test_fix_number_literal_self_cast.ds",
+            r#"
+const x = 42 as 42
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-as-const")
+            .assert_has_fix("prefer-as-const")
+            .assert_safe_fixed(
+                r#"
+const x = 42 as const;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_boolean_literal_self_cast() {
+        let test = TestProgram::for_rule_without_prelude(PreferAsConst);
+        let result = test.lint_ast(
+            "prefer_as_const/test_fix_boolean_literal_self_cast.ds",
+            r#"
+const x = true as true
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-as-const")
+            .assert_has_fix("prefer-as-const")
+            .assert_safe_fixed(
+                r#"
+const x = true as const;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_no_fix_for_string_literal_mismatch() {
+        let test = TestProgram::for_rule_without_prelude(PreferAsConst);
+        let result = test.lint_ast(
+            "prefer_as_const/test_no_fix_for_string_literal_mismatch.ds",
+            r#"
+const x = "hello" as "world"
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-as-const")
+            .assert_has_no_fix("prefer-as-const");
+    }
+
+    #[test]
+    fn test_no_fix_for_number_literal_mismatch() {
+        let test = TestProgram::for_rule_without_prelude(PreferAsConst);
+        let result = test.lint_ast(
+            "prefer_as_const/test_no_fix_for_number_literal_mismatch.ds",
+            r#"
+const x = 41 as 42
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-as-const")
+            .assert_has_no_fix("prefer-as-const");
+    }
+
+    #[test]
+    fn test_no_fix_for_boolean_literal_mismatch() {
+        let test = TestProgram::for_rule_without_prelude(PreferAsConst);
+        let result = test.lint_ast(
+            "prefer_as_const/test_no_fix_for_boolean_literal_mismatch.ds",
+            r#"
+const x = false as true
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-as-const")
+            .assert_has_no_fix("prefer-as-const");
     }
 
     #[test]

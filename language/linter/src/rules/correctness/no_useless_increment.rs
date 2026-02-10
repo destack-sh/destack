@@ -1,7 +1,7 @@
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow increment/decrement whose result is unused.
@@ -16,7 +16,7 @@ declare_lint! {
         level = Dir,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Always,
         recommended = Always,
         stability = Stable
     )]
@@ -76,7 +76,7 @@ impl<'a, 'b> UselessIncrementVisitor<'a, 'b> {
         expression: &dir::Expression,
     ) {
         // match postfix increment/decrement in return
-        let dir::Expression::Unary { operator, .. } = expression else {
+        let dir::Expression::Unary { operator, right } = expression else {
             return;
         };
 
@@ -101,18 +101,53 @@ impl<'a, 'b> UselessIncrementVisitor<'a, 'b> {
             dir::UnaryOperator::PostDecrement => "decrement",
             _ => "update",
         };
-        self.ctx.report(
-            LintDiagnostic::new(
-                NO_USELESS_INCREMENT.id,
-                NO_USELESS_INCREMENT.code,
-                NO_USELESS_INCREMENT.category,
-                severity,
-                format!("postfix {op_name} in return has no effect"),
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label("the updated value is discarded"),
-        );
+        let mut diagnostic = LintDiagnostic::new(
+            NO_USELESS_INCREMENT.id,
+            NO_USELESS_INCREMENT.code,
+            NO_USELESS_INCREMENT.category,
+            severity,
+            format!("postfix {op_name} in return has no effect"),
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label("the updated value is discarded");
+
+        // compute fixes only when requested by the runner
+        if self.ctx.include_fixes
+            && let Some(fix) = self.no_useless_increment_fix(expression_id, *operator, *right)
+        {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
+    }
+
+    /// Build an unsafe fix that rewrites postfix updates to prefix updates.
+    fn no_useless_increment_fix(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        operator: dir::UnaryOperator,
+        operand_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<LintFix> {
+        let operand_span = self.ctx.get_span(operand_id);
+        let operand_text = self.ctx.get_span_text(operand_span);
+        if operand_text.trim().is_empty() {
+            return None;
+        }
+
+        let replacement = match operator {
+            dir::UnaryOperator::PostIncrement => format!("++{operand_text}"),
+            dir::UnaryOperator::PostDecrement => format!("--{operand_text}"),
+            _ => return None,
+        };
+
+        let expression_span = self.ctx.get_span(expression_id);
+        let edits = self
+            .ctx
+            .edit_builder()
+            .replace(expression_span, replacement)
+            .into_edits();
+        Some(LintFix::r#unsafe("Rewrite postfix update to prefix update").with_edits(edits))
     }
 }
 
@@ -156,7 +191,9 @@ function getAndIncrement(): int32 {
 }
 "#,
         );
-        test.result(result).assert_lint("no-useless-increment");
+        test.result(result)
+            .assert_lint("no-useless-increment")
+            .assert_has_fix("no-useless-increment");
     }
 
     /// Flag postfix decrement in return.
@@ -172,7 +209,9 @@ function getAndDecrement(): int32 {
 }
 "#,
         );
-        test.result(result).assert_lint("no-useless-increment");
+        test.result(result)
+            .assert_lint("no-useless-increment")
+            .assert_has_fix("no-useless-increment");
     }
 
     /// Allow prefix increment in return.
@@ -207,5 +246,78 @@ function count(): int32 {
 "#,
         );
         test.result(result).assert_no_lint("no-useless-increment");
+    }
+
+    /// Unsafely rewrite postfix increment returns to prefix updates.
+    #[test]
+    fn test_fix_rewrites_postfix_increment_in_return() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessIncrement);
+        let result = test.lint_dir(
+            "no_useless_increment/test_fix_rewrites_postfix_increment_in_return.ds",
+            r#"
+function getAndIncrement(): int32 {
+    let x = 0;
+    return x++;
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-useless-increment")
+            .assert_unsafe_fixed(
+                r#"
+function getAndIncrement(): int32 {
+    let x = 0;
+    return ++x;
+}
+"#,
+            );
+    }
+
+    /// Unsafely rewrite postfix decrement returns to prefix updates.
+    #[test]
+    fn test_fix_rewrites_postfix_decrement_in_return() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessIncrement);
+        let result = test.lint_dir(
+            "no_useless_increment/test_fix_rewrites_postfix_decrement_in_return.ds",
+            r#"
+function getAndDecrement(): int32 {
+    let x = 10;
+    return x--;
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-useless-increment")
+            .assert_unsafe_fixed(
+                r#"
+function getAndDecrement(): int32 {
+    let x = 10;
+    return --x;
+}
+"#,
+            );
+    }
+
+    /// Mutation: rewrite postfix member updates in return expressions.
+    #[test]
+    fn test_mutation_fix_rewrites_member_postfix_return() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessIncrement);
+        let result = test.lint_dir(
+            "no_useless_increment/test_mutation_fix_rewrites_member_postfix_return.ds",
+            r#"
+function next(items: int32[], index: int32): int32 {
+    return items[index]++;
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-useless-increment")
+            .assert_unsafe_fixed(
+                r#"
+function next(items: int32[], index: int32): int32 {
+    return ++items[index];
+}
+"#,
+            );
     }
 }

@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow the delete operator.
@@ -15,7 +15,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Off,
         stability = Stable
     )]
@@ -52,20 +52,51 @@ impl LintRule for NoDelete {
 
             // report the diagnostic
             let span = ctx.tree.get_span(node_id);
-            ctx.report(
-                LintDiagnostic::new(
-                    NO_DELETE.id,
-                    NO_DELETE.code,
-                    NO_DELETE.category,
-                    severity,
-                    "delete operator is not allowed",
-                    ctx.module.file_id,
-                    span,
-                )
-                .with_label("avoid using delete"),
-            );
+            let mut diagnostic = LintDiagnostic::new(
+                NO_DELETE.id,
+                NO_DELETE.code,
+                NO_DELETE.category,
+                severity,
+                "delete operator is not allowed",
+                ctx.module.file_id,
+                span,
+            )
+            .with_label("avoid using delete");
+
+            // compute fixes only when requested by the runner
+            if ctx.compute_fixes
+                && let Some(fix) = no_delete_fix(ctx, node_id)
+            {
+                diagnostic = diagnostic.with_fix(fix);
+            }
+
+            ctx.report(diagnostic);
         }
     }
+}
+
+/// Build an unsafe fix by removing one standalone delete statement.
+fn no_delete_fix(
+    ctx: &LintModuleAstContext<'_>,
+    delete_id: ast::LocalNodeId<ast::Expression>,
+) -> Option<LintFix> {
+    let parent_id = ctx.parents.get(delete_id)?;
+    if ctx.tree.get_node_type(parent_id) != ast::NodeType::Expression {
+        return None;
+    }
+
+    let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
+    let parent_expression = ctx.tree.get(parent_expression_id);
+    let ast::Expression::Statement(statement_id) = parent_expression else {
+        return None;
+    };
+    if *statement_id != delete_id {
+        return None;
+    }
+
+    let statement_span = ctx.tree.get_span(parent_expression_id);
+    let edits = ctx.edit_builder().delete(statement_span).into_edits();
+    Some(LintFix::r#unsafe("Remove delete statement").with_edits(edits))
 }
 
 #[cfg(test)]
@@ -84,7 +115,9 @@ let item = { value: 1 };
 delete item.value;
 "#,
         );
-        test.result(result).assert_lint("no-delete");
+        test.result(result)
+            .assert_lint("no-delete")
+            .assert_has_fix("no-delete");
     }
 
     /// Allow code without delete usage.
@@ -99,5 +132,61 @@ item.value = 2;
 "#,
         );
         test.result(result).assert_no_lint("no-delete");
+    }
+
+    /// Unsafely remove standalone delete statements.
+    #[test]
+    fn test_fix_removes_delete_statement() {
+        let test = TestProgram::for_rule_without_prelude(NoDelete);
+        let result = test.lint_ast(
+            "no_delete/test_fix_removes_delete_statement.ts",
+            r#"
+let item = { value: 1 };
+delete item.value;
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-delete")
+            .assert_unsafe_fixed(
+                r#"
+let item = { value: 1 };
+"#,
+            );
+    }
+
+    /// Do not auto-fix delete expressions when the value is used.
+    #[test]
+    fn test_no_fix_when_delete_result_is_used() {
+        let test = TestProgram::for_rule_without_prelude(NoDelete);
+        let result = test.lint_ast(
+            "no_delete/test_no_fix_when_delete_result_is_used.ts",
+            r#"
+let item = { value: 1 };
+let removed = delete item.value;
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-delete")
+            .assert_has_no_fix("no-delete");
+    }
+
+    /// Mutation: remove indexed delete statements.
+    #[test]
+    fn test_mutation_fix_removes_index_delete_statement() {
+        let test = TestProgram::for_rule_without_prelude(NoDelete);
+        let result = test.lint_ast(
+            "no_delete/test_mutation_fix_removes_index_delete_statement.ts",
+            r#"
+let items = [1, 2, 3];
+delete items[1];
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-delete")
+            .assert_unsafe_fixed(
+                r#"
+let items = [1, 2, 3];
+"#,
+            );
     }
 }

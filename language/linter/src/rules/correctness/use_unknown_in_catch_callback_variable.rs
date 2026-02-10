@@ -7,7 +7,7 @@ use crate::rules::common::{
     expression_declared_or_inferred_type_id, function_parameter_types_at, is_explicit_any_type,
     is_promise_type, symbol_primary_declaration_for,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Require `unknown` instead of `any` for Promise catch callback variables.
@@ -21,7 +21,7 @@ declare_lint! {
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Promise)],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Experimental,
         declarations = Exclude
@@ -93,20 +93,47 @@ impl LintRule for UseUnknownInCatchCallbackVariable {
                 continue;
             }
 
-            ctx.report(
-                LintDiagnostic::new(
-                    USE_UNKNOWN_IN_CATCH_CALLBACK_VARIABLE.id,
-                    USE_UNKNOWN_IN_CATCH_CALLBACK_VARIABLE.code,
-                    USE_UNKNOWN_IN_CATCH_CALLBACK_VARIABLE.category,
-                    severity,
-                    "catch callback parameter should be unknown",
-                    ctx.module.file_id,
-                    diagnostic_span,
-                )
-                .with_label("use `unknown` instead of `any` for catch callback parameters"),
-            );
+            let mut diagnostic = LintDiagnostic::new(
+                USE_UNKNOWN_IN_CATCH_CALLBACK_VARIABLE.id,
+                USE_UNKNOWN_IN_CATCH_CALLBACK_VARIABLE.code,
+                USE_UNKNOWN_IN_CATCH_CALLBACK_VARIABLE.category,
+                severity,
+                "catch callback parameter should be unknown",
+                ctx.module.file_id,
+                diagnostic_span,
+            )
+            .with_label("use `unknown` instead of `any` for catch callback parameters");
+
+            // compute fixes only when requested by the runner
+            if ctx.include_fixes
+                && let Some(parameter_id) = callback_parameter_id
+                && let Some(fix) = catch_callback_unknown_fix(ctx, parameter_id)
+            {
+                diagnostic = diagnostic.with_fix(fix);
+            }
+
+            ctx.report(diagnostic);
         }
     }
+}
+
+/// Build a safe fix for one explicit `any` catch callback parameter.
+fn catch_callback_unknown_fix(
+    ctx: &LintModuleDirContext<'_>,
+    parameter_id: dir::LocalNodeId<dir::Parameter>,
+) -> Option<LintFix> {
+    let type_expression_id =
+        ast_parameter_type_expression_id(ctx.module, ctx.profile_id, parameter_id)?;
+    if !ast_type_expression_is_explicit_any(ctx.ast, type_expression_id) {
+        return None;
+    }
+
+    let type_span = ctx.ast.get_span(type_expression_id);
+    let edits = ctx
+        .edit_builder()
+        .replace(type_span, "unknown")
+        .into_edits();
+    Some(LintFix::safe("Replace `any` with `unknown`").with_edits(edits))
 }
 
 /// Resolve the receiver expression for `promise.catch(...)`.
@@ -367,7 +394,8 @@ Promise.reject("failed").catch((error: any) => {
 "#,
         );
         test.result(result)
-            .assert_lint("use-unknown-in-catch-callback-variable");
+            .assert_lint("use-unknown-in-catch-callback-variable")
+            .assert_has_fix("use-unknown-in-catch-callback-variable");
     }
 
     /// Allow unknown-typed catch callback parameters.
@@ -542,5 +570,105 @@ Promise.reject("failed").catch(notAHandler as any);
         );
         test.result(result)
             .assert_no_lint("use-unknown-in-catch-callback-variable");
+    }
+
+    /// Safely rewrite inline catch callback `any` annotation.
+    #[test]
+    fn test_fix_inline_catch_callback_parameter_any() {
+        let test = TestProgram::for_rule_with_prelude(UseUnknownInCatchCallbackVariable);
+        let result = test.lint_dir(
+            "use_unknown_in_catch_callback_variable/test_fix_inline_catch_callback_parameter_any.ds",
+            r#"
+Promise.reject("failed").catch((error: any) => {
+    return error;
+});
+"#,
+        );
+        test.result(result)
+            .assert_lint("use-unknown-in-catch-callback-variable")
+            .assert_safe_fixed(
+                r#"
+Promise.reject("failed")
+    .catch((error: unknown) => {
+        return error;
+    });
+"#,
+            );
+    }
+
+    /// Safely rewrite named catch callback parameter annotations.
+    #[test]
+    fn test_fix_named_catch_callback_parameter_any() {
+        let test = TestProgram::for_rule_with_prelude(UseUnknownInCatchCallbackVariable);
+        let result = test.lint_dir(
+            "use_unknown_in_catch_callback_variable/test_fix_named_catch_callback_parameter_any.ds",
+            r#"
+function onError(error: any) {
+    return error;
+}
+
+Promise.reject("failed").catch(onError);
+"#,
+        );
+        test.result(result)
+            .assert_lint("use-unknown-in-catch-callback-variable")
+            .assert_safe_fixed(
+                r#"
+function onError(error: unknown) {
+    return error;
+}
+
+Promise.reject("failed").catch(onError);
+"#,
+            );
+    }
+
+    /// Do not auto-fix cross-module callback declarations.
+    #[test]
+    fn test_no_fix_for_cross_module_callback_parameter() {
+        let test = TestProgram::for_rule_with_prelude(UseUnknownInCatchCallbackVariable);
+        let result = test.lint_module_dir_with_modules(
+            test_modules! {
+                "use_unknown_in_catch_callback_variable/no_fix_cross_module_handler.ds" => r#"
+export function onError(error: any) {
+    return error;
+}
+"#,
+                "use_unknown_in_catch_callback_variable/no_fix_cross_module_main.ds" => r#"
+import { onError } from "./no_fix_cross_module_handler.ds";
+
+Promise.reject("failed").catch(onError);
+"#,
+            },
+            "use_unknown_in_catch_callback_variable/no_fix_cross_module_main.ds",
+        );
+
+        test.result(result)
+            .assert_lint("use-unknown-in-catch-callback-variable")
+            .assert_has_no_fix("use-unknown-in-catch-callback-variable");
+    }
+
+    /// Mutation: detect explicit any in inline function callbacks.
+    #[test]
+    fn test_mutation_flags_inline_function_callback_parameter_any() {
+        let test = TestProgram::for_rule_with_prelude(UseUnknownInCatchCallbackVariable);
+        let result = test.lint_dir(
+            "use_unknown_in_catch_callback_variable/test_mutation_flags_inline_function_callback_parameter_any.ds",
+            r#"
+Promise.reject("failed").catch(function onError(error: any) {
+    return error;
+});
+"#,
+        );
+        test.result(result)
+            .assert_lint("use-unknown-in-catch-callback-variable")
+            .assert_safe_fixed(
+                r#"
+Promise.reject("failed")
+    .catch(function onError(error: unknown) {
+        return error;
+    });
+"#,
+            );
     }
 }

@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, Block, Declaration, Expression, FunctionKind};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer implicit return for simple arrow functions.
@@ -14,7 +14,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = No,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -57,36 +57,68 @@ impl LintRule for PreferImplicitReturn {
 
             let block = ctx.tree.get(*block_id);
 
-            // check for block with single expression that is a return
-            if !is_single_return_block(ctx.tree, block) {
+            // extract the returned expression for implicit body replacement
+            let Some(return_value_id) = single_return_block_value(ctx.tree, block) else {
                 continue;
-            }
+            };
 
             let severity = ctx.get_effective_severity(meta, node_id);
             if !severity.is_enabled() {
                 continue;
             }
 
-            ctx.report(
-                LintDiagnostic::new(
-                    PREFER_IMPLICIT_RETURN.id,
-                    PREFER_IMPLICIT_RETURN.code,
-                    PREFER_IMPLICIT_RETURN.category,
-                    severity,
-                    "use implicit return instead of block with return",
-                    ctx.module.file_id,
-                    ctx.tree.get_span(*body_id),
-                )
-                .with_label("use `() => x` instead of `() => { return x }`"),
-            );
+            // build concise expression body replacement
+            let body_span = ctx.tree.get_span(*body_id);
+            let body_text = ctx.get_span_text(body_span);
+            let return_value_span = ctx.tree.get_span(return_value_id);
+            let return_value = ctx.tree.get(return_value_id);
+            let mut replacement = ctx.get_span_text(return_value_span).to_string();
+            if matches!(return_value, Expression::ObjectExpression { .. }) {
+                replacement = format!("({replacement})");
+            }
+            let maybe_fix = if contains_comment_token(&body_text) {
+                None
+            } else {
+                let edits = ctx
+                    .edit_builder()
+                    .replace(body_span, replacement)
+                    .into_edits();
+                Some(LintFix::safe("Use concise implicit return").with_edits(edits))
+            };
+
+            let diagnostic = LintDiagnostic::new(
+                PREFER_IMPLICIT_RETURN.id,
+                PREFER_IMPLICIT_RETURN.code,
+                PREFER_IMPLICIT_RETURN.category,
+                severity,
+                "use implicit return instead of block with return",
+                ctx.module.file_id,
+                ctx.tree.get_span(*body_id),
+            )
+            .with_label("use `() => x` instead of `() => { return x }`");
+            let diagnostic = if let Some(fix) = maybe_fix {
+                diagnostic.with_fix(fix)
+            } else {
+                diagnostic
+            };
+
+            ctx.report(diagnostic);
         }
     }
 }
 
-/// Check if a block contains only a single return statement with a value.
-fn is_single_return_block(tree: &ast::NodeTree, block: &Block) -> bool {
+/// Return true when one block text may contain comments.
+fn contains_comment_token(text: &str) -> bool {
+    text.contains("//") || text.contains("/*")
+}
+
+/// Return the value expression id when a block has one `return value` statement.
+fn single_return_block_value(
+    tree: &ast::NodeTree,
+    block: &Block,
+) -> Option<ast::LocalNodeId<Expression>> {
     if block.expressions.len() != 1 {
-        return false;
+        return None;
     }
 
     let expr_id = block.expressions[0];
@@ -99,7 +131,15 @@ fn is_single_return_block(tree: &ast::NodeTree, block: &Block) -> bool {
     };
 
     // check if it's a return with a value
-    matches!(inner, Expression::Return { value: Some(_), .. })
+    let Expression::Return {
+        value: Some(value_id),
+        ..
+    } = inner
+    else {
+        return None;
+    };
+
+    Some(*value_id)
 }
 
 #[cfg(test)]
@@ -117,6 +157,75 @@ const double = (x) => { return x * 2 }
 "#,
         );
         test.result(result).assert_lint("prefer-implicit-return");
+    }
+
+    #[test]
+    fn test_detected_block_with_return_has_fix() {
+        let test = TestProgram::for_rule_without_prelude(PreferImplicitReturn);
+        let result = test.lint_ast(
+            "prefer_implicit_return/test_detected_block_with_return_has_fix.ds",
+            r#"
+const double = (x) => { return x * 2 }
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-implicit-return")
+            .assert_has_fix("prefer-implicit-return");
+    }
+
+    #[test]
+    fn test_fix_block_with_return() {
+        let test = TestProgram::for_rule_without_prelude(PreferImplicitReturn);
+        let result = test.lint_ast(
+            "prefer_implicit_return/test_fix_block_with_return.ds",
+            r#"
+const double = (x) => { return x * 2 }
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-implicit-return")
+            .assert_safe_fixed(
+                r#"
+const double = (x) => x * 2;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_block_with_object_return() {
+        let test = TestProgram::for_rule_without_prelude(PreferImplicitReturn);
+        let result = test.lint_ast(
+            "prefer_implicit_return/test_fix_block_with_object_return.ds",
+            r#"
+const value = () => { return { ok: true } }
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-implicit-return")
+            .assert_safe_fixed(
+                r#"
+const value = () => ({ ok: true });
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_block_with_await_return() {
+        let test = TestProgram::for_rule_without_prelude(PreferImplicitReturn);
+        let result = test.lint_ast(
+            "prefer_implicit_return/test_fix_block_with_await_return.ds",
+            r#"
+const load = async () => { return await fetchValue() }
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-implicit-return")
+            .assert_has_fix("prefer-implicit-return")
+            .assert_safe_fixed(
+                r#"
+const load = async () => await fetchValue();
+"#,
+            );
     }
 
     #[test]
@@ -173,5 +282,22 @@ const log = (x) => { return }
 "#,
         );
         test.result(result).assert_no_lint("prefer-implicit-return");
+    }
+
+    #[test]
+    fn test_no_fix_when_return_block_contains_comment() {
+        let test = TestProgram::for_rule_without_prelude(PreferImplicitReturn);
+        let result = test.lint_ast(
+            "prefer_implicit_return/test_no_fix_when_return_block_contains_comment.ds",
+            r#"
+const value = () => {
+    // keep this explanation
+    return 1
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-implicit-return")
+            .assert_has_no_fix("prefer-implicit-return");
     }
 }
