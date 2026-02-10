@@ -1,12 +1,9 @@
-ms-execute
+ms-analyze
 ms-lower
-ms-optimize
 ms-resolve
-valibot-execute
+valibot-analyze
 valibot-lower
-valibot-optimize
 valibot-resolve
-zod-execute
+zod-analyze
 zod-lower
-zod-optimize
 zod-resolve
