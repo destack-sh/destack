@@ -3,6 +3,10 @@ use super::*;
 use crate::collection::{collection_nodes_have_annotations, collection_range_is_inline};
 use destack_fir::{format_args, write};
 
+// parenthesized assignment target thresholds
+const PAREN_ASSIGNMENT_OBJECT_EXPAND_MIN_PROPERTIES: usize = 3;
+const PAREN_ASSIGNMENT_ARRAY_EXPAND_MIN_ELEMENTS: usize = 4;
+
 /// Format primary expression variants.
 pub(super) fn format_primary_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -191,8 +195,7 @@ pub(super) fn format_primary_expression<'ast>(
                 .timing_scope(tags::FORMAT_EXPRESSION_PRIMARY_TYPE_MAPPED);
             let include_space = f.context().options.bracket_spacing;
             let break_parameter_clause = f.context().has_annotation(parameter.constraint)
-                || f.context()
-                    .has_newline(f.context().get_span(parameter.constraint))
+                || f.context().node_has_newline(parameter.constraint)
                 || is_expression_breakable(tree, tree.get(parameter.constraint));
             let inline_separator = if include_space {
                 soft_line_break_or_space()
@@ -547,10 +550,12 @@ pub(super) fn format_primary_expression<'ast>(
                 let should_expand_assignment_target = match inner_expression {
                     // prefer expanded destructuring targets once they become moderately wide
                     Expression::ObjectExpression { properties, .. } => {
-                        properties.len() > 2 && is_assignment_left_target(f.context(), *expression)
+                        properties.len() >= PAREN_ASSIGNMENT_OBJECT_EXPAND_MIN_PROPERTIES
+                            && is_assignment_left_target(f.context(), *expression)
                     }
                     Expression::ArrayExpression { elements } => {
-                        elements.len() > 3 && is_assignment_left_target(f.context(), *expression)
+                        elements.len() >= PAREN_ASSIGNMENT_ARRAY_EXPAND_MIN_ELEMENTS
+                            && is_assignment_left_target(f.context(), *expression)
                     }
                     _ => false,
                 };
@@ -573,7 +578,7 @@ pub(super) fn format_primary_expression<'ast>(
                 {
                     let tree_should_break =
                         tree_literal_should_break(f.context(), arguments, elements)
-                            || f.context().has_newline(f.context().get_span(*expression));
+                            || f.context().node_has_newline(*expression);
                     if is_call_like_argument(f.context(), node_id) {
                         write!(f, [*expression])?;
                     } else if has_parenthesized_leading_inner_trivia || tree_should_break {
@@ -626,7 +631,7 @@ pub(super) fn format_primary_expression<'ast>(
                         ])]
                     )?;
                 } else if has_parenthesized_prefix_annotation {
-                    if f.context().has_newline(f.context().get_span(*expression))
+                    if f.context().node_has_newline(*expression)
                         || has_parenthesized_leading_inner_trivia
                     {
                         write!(

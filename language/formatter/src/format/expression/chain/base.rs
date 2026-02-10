@@ -1,6 +1,21 @@
 use super::*;
 use destack_fir::write;
 
+// assignment/declarator inline width constants
+const ASSIGNMENT_OPERATOR_PADDING_WIDTH: usize = 2;
+const DECLARATOR_TYPE_SEPARATOR_INLINE_WIDTH: usize = 2;
+const DECLARATOR_ASSIGNMENT_SEPARATOR_INLINE_WIDTH: usize = 3;
+
+// declaration prefix lengths with trailing space
+const EXPORT_PREFIX_LEN: usize = 7;
+const DECLARE_PREFIX_LEN: usize = 8;
+const ASYNC_PREFIX_LEN: usize = 6;
+const USING_PREFIX_LEN: usize = 6;
+const LET_PREFIX_LEN: usize = 4;
+const VAR_PREFIX_LEN: usize = 4;
+const CONST_PREFIX_LEN: usize = 6;
+const HUG_STATIC_ARGUMENT_MAX_COUNT: usize = 3;
+
 /// Extract a parenthesized base with a direct index chain.
 pub(crate) fn extract_parenthesized_index_chain(
     tree: &NodeTree,
@@ -463,7 +478,7 @@ pub(crate) fn assignment_like_remaining_width(
             let operator_len = assign_operator_len(operator);
             let inline_overhead = left_source_len
                 .saturating_add(operator_len)
-                .saturating_add(2);
+                .saturating_add(ASSIGNMENT_OPERATOR_PADDING_WIDTH);
 
             Some(line_width.saturating_sub(inline_overhead))
         }
@@ -478,11 +493,13 @@ pub(crate) fn assignment_like_remaining_width(
             let header_source_len = type_source_len.map_or(pattern_source_len, |type_len| {
                 pattern_source_len
                     .saturating_add(type_len)
-                    .saturating_add(2)
+                    .saturating_add(DECLARATOR_TYPE_SEPARATOR_INLINE_WIDTH)
             });
 
             // account for `header <space> = <space>`
-            let remaining_width = line_width.saturating_sub(header_source_len.saturating_add(3));
+            let remaining_width = line_width.saturating_sub(
+                header_source_len.saturating_add(DECLARATOR_ASSIGNMENT_SEPARATOR_INLINE_WIDTH),
+            );
             let leading_prefix_len = declarator_leading_prefix_len(context, declarator_id);
             Some(remaining_width.saturating_sub(leading_prefix_len))
         }
@@ -546,14 +563,15 @@ pub(crate) fn declarator_leading_prefix_len(
 
             let mut prefix_len = 0usize;
             if descriptor.export.is_some() {
-                prefix_len = prefix_len.saturating_add(7);
+                prefix_len = prefix_len.saturating_add(EXPORT_PREFIX_LEN);
             }
             if descriptor.kind == DeclarationKind::Declaration {
-                prefix_len = prefix_len.saturating_add(8);
+                prefix_len = prefix_len.saturating_add(DECLARE_PREFIX_LEN);
             }
             prefix_len = prefix_len.saturating_add(match kind {
-                LetKind::Let | LetKind::Var => 4,
-                LetKind::Const => 6,
+                LetKind::Let => LET_PREFIX_LEN,
+                LetKind::Var => VAR_PREFIX_LEN,
+                LetKind::Const => CONST_PREFIX_LEN,
             });
             prefix_len
         }
@@ -571,15 +589,15 @@ pub(crate) fn declarator_leading_prefix_len(
 
             let mut prefix_len = 0usize;
             if descriptor.export.is_some() {
-                prefix_len = prefix_len.saturating_add(7);
+                prefix_len = prefix_len.saturating_add(EXPORT_PREFIX_LEN);
             }
             if descriptor.kind == DeclarationKind::Declaration {
-                prefix_len = prefix_len.saturating_add(8);
+                prefix_len = prefix_len.saturating_add(DECLARE_PREFIX_LEN);
             }
             if *asynchrony == Asynchrony::Async {
-                prefix_len = prefix_len.saturating_add(6);
+                prefix_len = prefix_len.saturating_add(ASYNC_PREFIX_LEN);
             }
-            prefix_len.saturating_add(6)
+            prefix_len.saturating_add(USING_PREFIX_LEN)
         }
         _ => 0,
     }
@@ -671,7 +689,7 @@ pub(crate) fn should_expand_static_argument_list(
 
     // only expand list-level generic wrappers when source is already multiline and
     // the nested type arguments include object-like forms
-    if !context.has_newline(context.get_span(value_id)) {
+    if !context.node_has_newline(value_id) {
         return false;
     }
 
@@ -692,7 +710,7 @@ pub(crate) fn should_hug_static_argument_list(
     context: &DestackFormatContext<'_>,
     static_arguments: &[LocalNodeId<Argument>],
 ) -> bool {
-    if static_arguments.is_empty() || static_arguments.len() > 3 {
+    if static_arguments.is_empty() || static_arguments.len() > HUG_STATIC_ARGUMENT_MAX_COUNT {
         return false;
     }
 

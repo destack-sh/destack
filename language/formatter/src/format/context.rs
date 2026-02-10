@@ -23,7 +23,6 @@ use super::timing::{
     tag_for_node_type, timings_enabled_from_env,
 };
 
-const ANNOTATION_STATE_UNKNOWN: u8 = 0;
 const ANNOTATION_STATE_NONE: u8 = 1;
 const ANNOTATION_STATE_PRESENT: u8 = 2;
 const ANNOTATION_STATE_CACHED: u8 = 3;
@@ -210,6 +209,8 @@ pub struct CachedArgumentAnnotationProfile {
     pub has_line_comment: bool,
     /// Whether the argument has a slash style prefix comment annotation.
     pub has_prefix_line_comment: bool,
+    /// Whether the argument has any non-blank prefix annotation.
+    pub has_prefix_annotation: bool,
 }
 
 /// Cached call argument expansion facts keyed by call expression node id.
@@ -452,6 +453,10 @@ pub struct DestackFormatContext<'a> {
     pub span_text_cache: RefCell<FxHashMap<Span, &'a str>>,
     /// Cached char lengths for repeated span width checks.
     pub span_char_len_cache: RefCell<FxHashMap<Span, usize>>,
+    /// Whether the file text is fully ASCII.
+    pub source_is_ascii: bool,
+    /// Cached newline byte offsets in file text.
+    pub newline_offsets: OnceCell<Vec<u32>>,
     /// Cached newline checks for repeated span newline predicates.
     pub span_has_newline_cache: RefCell<FxHashMap<Span, bool>>,
     /// Cached comment checks for repeated span comment predicates.
@@ -463,8 +468,14 @@ pub struct DestackFormatContext<'a> {
     /// Cached call argument expansion profiles for regular and chain modes keyed by call node id.
     pub call_argument_expansion_profiles_cache:
         RefCell<Vec<Option<CachedCallArgumentExpansionProfiles>>>,
+    /// Cached inline call length estimates without static arguments keyed by call expression id.
+    pub call_inline_len_without_static_arguments_cache: RefCell<Vec<Option<Option<usize>>>>,
     /// Cached call argument annotation profiles keyed by argument node id.
     pub argument_annotation_profile_cache: RefCell<Vec<Option<CachedArgumentAnnotationProfile>>>,
+    /// Cached compact simple unannotated argument predicate keyed by argument node id.
+    pub argument_compact_simple_unannotated_cache: RefCell<Vec<Option<bool>>>,
+    /// Cached compact simple unannotated call argument list predicate keyed by call expression id.
+    pub call_arguments_compact_simple_unannotated_cache: RefCell<Vec<Option<bool>>>,
     /// Cached call argument expansion facts keyed by call expression node id.
     pub call_argument_facts_cache: RefCell<Vec<Option<CachedCallArgumentFacts>>>,
     /// Cached chain call force-expand decisions keyed by call expression node id.
@@ -545,6 +556,7 @@ impl<'a> DestackFormatContext<'a> {
             || file_text.contains("prettier-ignore")
             || file_text.contains("biome-ignore format")
             || file_text.contains("oxfmt-ignore");
+        let source_is_ascii = file_text.is_ascii();
         let has_template_literal_markers = file_text.contains('`');
         let mut comment_spans = tokens
             .iter()
@@ -562,6 +574,14 @@ impl<'a> DestackFormatContext<'a> {
             .collect::<Vec<_>>();
         comment_spans.sort_by_key(|span| span.start);
 
+        let annotation_presence_cache =
+            vec![Cell::new(ANNOTATION_STATE_NONE); tree.next_id() as usize];
+        for node_id in tree.get_all_annotations().keys().copied() {
+            if let Some(annotation_state) = annotation_presence_cache.get(node_id as usize) {
+                annotation_state.set(ANNOTATION_STATE_PRESENT);
+            }
+        }
+
         Self {
             options,
             file,
@@ -574,12 +594,11 @@ impl<'a> DestackFormatContext<'a> {
             strings,
             current_argument_group_id: None,
             annotation_ids_cache: RefCell::new(vec![None; tree.next_id() as usize]),
-            annotation_presence_cache: vec![
-                Cell::new(ANNOTATION_STATE_UNKNOWN);
-                tree.next_id() as usize
-            ],
+            annotation_presence_cache,
             span_text_cache: RefCell::new(FxHashMap::default()),
             span_char_len_cache: RefCell::new(FxHashMap::default()),
+            source_is_ascii,
+            newline_offsets: OnceCell::new(),
             span_has_newline_cache: RefCell::new(FxHashMap::default()),
             span_has_comment_cache: RefCell::new(FxHashMap::default()),
             node_span_char_len_cache: RefCell::new(vec![None; tree.next_id() as usize]),
@@ -588,7 +607,21 @@ impl<'a> DestackFormatContext<'a> {
                 None;
                 tree.next_id() as usize
             ]),
+            call_inline_len_without_static_arguments_cache: RefCell::new(vec![
+                None;
+                tree.next_id()
+                    as usize
+            ]),
             argument_annotation_profile_cache: RefCell::new(vec![None; tree.next_id() as usize]),
+            argument_compact_simple_unannotated_cache: RefCell::new(vec![
+                None;
+                tree.next_id() as usize
+            ]),
+            call_arguments_compact_simple_unannotated_cache: RefCell::new(vec![
+                None;
+                tree.next_id()
+                    as usize
+            ]),
             call_argument_facts_cache: RefCell::new(vec![None; tree.next_id() as usize]),
             call_argument_chain_force_expand_cache: RefCell::new(vec![
                 None;
@@ -712,11 +745,10 @@ impl<'a> DestackFormatContext<'a> {
             }
         }
 
-        let span_str = self.get_span_str(span);
-        let len = if span_str.is_ascii() {
-            span_str.len()
+        let len = if self.source_is_ascii {
+            span.len() as usize
         } else {
-            span_str.chars().count()
+            self.get_span_str(span).chars().count()
         };
         self.span_char_len_cache.borrow_mut().insert(span, len);
         len
@@ -1100,6 +1132,10 @@ impl<'a> DestackFormatContext<'a> {
     /// Whether the given span has a newline.
     #[inline]
     pub fn has_newline(&self, span: Span) -> bool {
+        if span.start >= span.end {
+            return false;
+        }
+
         {
             let cache = self.span_has_newline_cache.borrow();
             if let Some(has_newline) = cache.get(&span) {
@@ -1117,7 +1153,18 @@ impl<'a> DestackFormatContext<'a> {
                 .span_has_newline_misses
                 .set(self.cache_stats.span_has_newline_misses.get() + 1);
         }
-        let has_newline = self.get_span_str(span).contains('\n');
+        let newline_offsets = self.newline_offsets.get_or_init(|| {
+            self.file
+                .text()
+                .bytes()
+                .enumerate()
+                .filter_map(|(index, byte)| (byte == b'\n').then_some(index as u32))
+                .collect()
+        });
+        let newline_index = newline_offsets.partition_point(|offset| *offset < span.start);
+        let has_newline = newline_offsets
+            .get(newline_index)
+            .is_some_and(|offset| *offset < span.end);
         self.span_has_newline_cache
             .borrow_mut()
             .insert(span, has_newline);
@@ -1208,11 +1255,7 @@ impl<'a> DestackFormatContext<'a> {
         NodeTree: NodeTreeImpl<T>,
     {
         let node_index = node_id.id as usize;
-        let state = self
-            .annotation_presence_cache
-            .get(node_index)
-            .map(Cell::get)
-            .unwrap_or(ANNOTATION_STATE_UNKNOWN);
+        let state = self.annotation_presence_cache[node_index].get();
         if state == ANNOTATION_STATE_NONE {
             if self.instrumentation_enabled {
                 self.cache_stats
@@ -1243,28 +1286,14 @@ impl<'a> DestackFormatContext<'a> {
                 .set(self.cache_stats.annotation_cache_misses.get() + 1);
         }
 
-        // lookup annotations once and cache both presence and metadata
-        let node_has_annotations =
-            state == ANNOTATION_STATE_PRESENT || self.tree.has_annotations(node_id.id);
-        if !node_has_annotations {
-            if let Some(presence_state) = self.annotation_presence_cache.get(node_index) {
-                presence_state.set(ANNOTATION_STATE_NONE);
-            }
-            return None;
-        }
-
+        // load annotations once and cache metadata
         let annotation_data =
             CachedAnnotationData::from_ids(self.tree, self.tree.get_annotations(node_id.id));
         {
             let mut cache = self.annotation_ids_cache.borrow_mut();
-            if node_index >= cache.len() {
-                return None;
-            }
             cache[node_index] = Some(annotation_data);
         }
-        if let Some(presence_state) = self.annotation_presence_cache.get(node_index) {
-            presence_state.set(ANNOTATION_STATE_CACHED);
-        }
+        self.annotation_presence_cache[node_index].set(ANNOTATION_STATE_CACHED);
 
         let cache = self.annotation_ids_cache.borrow();
         Some(Ref::map(cache, |cache| {
@@ -1309,43 +1338,25 @@ impl<'a> DestackFormatContext<'a> {
         NodeTree: NodeTreeImpl<T>,
     {
         let node_index = node_id.id as usize;
-        let state = self
-            .annotation_presence_cache
-            .get(node_index)
-            .map(Cell::get)
-            .unwrap_or(ANNOTATION_STATE_UNKNOWN);
+        let state = self.annotation_presence_cache[node_index].get();
+
+        if !self.instrumentation_enabled {
+            return state != ANNOTATION_STATE_NONE;
+        }
+
         if state == ANNOTATION_STATE_NONE {
-            if self.instrumentation_enabled {
-                self.cache_stats
-                    .annotation_cache_hits
-                    .set(self.cache_stats.annotation_cache_hits.get() + 1);
-            }
+            self.cache_stats
+                .annotation_cache_hits
+                .set(self.cache_stats.annotation_cache_hits.get() + 1);
             return false;
         }
         if state == ANNOTATION_STATE_PRESENT || state == ANNOTATION_STATE_CACHED {
-            if self.instrumentation_enabled {
-                self.cache_stats
-                    .annotation_cache_hits
-                    .set(self.cache_stats.annotation_cache_hits.get() + 1);
-            }
+            self.cache_stats
+                .annotation_cache_hits
+                .set(self.cache_stats.annotation_cache_hits.get() + 1);
             return true;
         }
-
-        if self.instrumentation_enabled {
-            self.cache_stats
-                .annotation_cache_misses
-                .set(self.cache_stats.annotation_cache_misses.get() + 1);
-        }
-
-        let has_annotation = self.tree.has_annotations(node_id.id);
-        if let Some(presence_state) = self.annotation_presence_cache.get(node_index) {
-            presence_state.set(if has_annotation {
-                ANNOTATION_STATE_PRESENT
-            } else {
-                ANNOTATION_STATE_NONE
-            });
-        }
-        has_annotation
+        false
     }
 
     /// Check if a node has a prefix annotation.
@@ -1449,6 +1460,58 @@ impl<'a> DestackFormatContext<'a> {
         profile
     }
 
+    /// Return cached compact simple unannotated argument predicate.
+    #[inline]
+    pub fn cached_argument_compact_simple_unannotated(
+        &self,
+        argument_id: LocalNodeId<Argument>,
+    ) -> Option<bool> {
+        self.cache_get_copy_entry(
+            &self.argument_compact_simple_unannotated_cache,
+            argument_id.id,
+        )
+    }
+
+    /// Cache compact simple unannotated argument predicate.
+    #[inline]
+    pub fn cache_argument_compact_simple_unannotated(
+        &self,
+        argument_id: LocalNodeId<Argument>,
+        value: bool,
+    ) {
+        self.cache_set_copy_entry(
+            &self.argument_compact_simple_unannotated_cache,
+            argument_id.id,
+            value,
+        );
+    }
+
+    /// Return cached compact simple unannotated call argument list predicate.
+    #[inline]
+    pub fn cached_call_arguments_compact_simple_unannotated(
+        &self,
+        call_node_id: LocalNodeId<Expression>,
+    ) -> Option<bool> {
+        self.cache_get_copy_entry(
+            &self.call_arguments_compact_simple_unannotated_cache,
+            call_node_id.id,
+        )
+    }
+
+    /// Cache compact simple unannotated call argument list predicate.
+    #[inline]
+    pub fn cache_call_arguments_compact_simple_unannotated(
+        &self,
+        call_node_id: LocalNodeId<Expression>,
+        value: bool,
+    ) {
+        self.cache_set_copy_entry(
+            &self.call_arguments_compact_simple_unannotated_cache,
+            call_node_id.id,
+            value,
+        );
+    }
+
     /// Return cached call argument expansion facts for one call expression node.
     #[inline]
     pub fn cached_call_argument_facts(
@@ -1520,6 +1583,32 @@ impl<'a> DestackFormatContext<'a> {
         );
     }
 
+    /// Return cached inline call length estimate for one call node.
+    #[inline]
+    pub fn cached_call_inline_len_without_static_arguments(
+        &self,
+        call_node_id: LocalNodeId<Expression>,
+    ) -> Option<Option<usize>> {
+        self.cache_get_copy_entry(
+            &self.call_inline_len_without_static_arguments_cache,
+            call_node_id.id,
+        )
+    }
+
+    /// Cache inline call length estimate for one call node.
+    #[inline]
+    pub fn cache_call_inline_len_without_static_arguments(
+        &self,
+        call_node_id: LocalNodeId<Expression>,
+        inline_len_without_static_arguments: Option<usize>,
+    ) {
+        self.cache_set_copy_entry(
+            &self.call_inline_len_without_static_arguments_cache,
+            call_node_id.id,
+            inline_len_without_static_arguments,
+        );
+    }
+
     /// Compute annotation facts for one argument node.
     fn compute_argument_annotation_profile(
         &self,
@@ -1541,6 +1630,13 @@ impl<'a> DestackFormatContext<'a> {
                     Annotation::Doc { position, .. }
                     | Annotation::Decorator { position, .. }
                     | Annotation::Comment { position, .. } => {
+                        if matches!(
+                            position,
+                            AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+                        ) {
+                            profile.has_prefix_annotation = true;
+                        }
+
                         let Annotation::Comment { node, .. } = annotation else {
                             continue;
                         };

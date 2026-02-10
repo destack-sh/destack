@@ -23,9 +23,247 @@ struct ChainLayoutPlan {
     lines: Vec<SmallVec<[ChainExpression; 2]>>,
     deferred_path_boundary_comments: Vec<String>,
     should_break: bool,
-    has_chain_intervening_trivia: bool,
     has_calls: bool,
     in_template_literal_interpolation: bool,
+}
+
+/// Store one-pass operation facts used by chain render decisions.
+#[derive(Default)]
+struct ChainOperationFacts {
+    inline_chain_len: usize,
+    has_call_with_dynamic_arguments: bool,
+    has_optional_chain_operation: bool,
+    has_multiline_dynamic_call_argument: bool,
+}
+
+/// Store normalized render inputs for chain decision making.
+struct ChainRenderInputs {
+    chain_should_break: bool,
+    chain_has_calls: bool,
+    in_template_literal_interpolation: bool,
+    has_deferred_path_boundary_comments: bool,
+    is_chain_call_like_argument: bool,
+    is_chain_conditional_branch: bool,
+    is_assignment_like_rhs: bool,
+    chain_has_source_newline: bool,
+    first_line_has_non_empty_dynamic_call: bool,
+    inline_budget: usize,
+    compact_chain_len: usize,
+    operation_facts: ChainOperationFacts,
+}
+
+/// Store deterministic chain render decisions.
+enum ChainRenderDecision {
+    InlineNoCounter,
+    InlineFastPath,
+    ForcedBreak,
+    ConditionalInline,
+    MultilineCallArgumentInline,
+    BreakForOverflow,
+    DeterministicInline,
+    DeterministicBreak,
+}
+
+/// Visit all chain operations in base and grouped line order.
+fn for_each_chain_operation(
+    base: &ChainExpressionBase,
+    lines: &[SmallVec<[ChainExpression; 2]>],
+    mut visit: impl FnMut(&ChainExpression),
+) {
+    for operation in &base.body {
+        visit(operation);
+    }
+    for line in lines {
+        for operation in line {
+            visit(operation);
+        }
+    }
+}
+
+/// Collect operation facts once for chain render decisions.
+fn collect_chain_operation_facts(
+    context: &DestackFormatContext<'_>,
+    base: &ChainExpressionBase,
+    lines: &[SmallVec<[ChainExpression; 2]>],
+) -> ChainOperationFacts {
+    let mut facts = ChainOperationFacts {
+        inline_chain_len: chain_base_len(context, base),
+        ..ChainOperationFacts::default()
+    };
+
+    // keep inline length parity with previous behavior:
+    // base length plus grouped line operation lengths
+    for line in lines {
+        for operation in line {
+            facts.inline_chain_len = facts
+                .inline_chain_len
+                .saturating_add(chain_operation_len(context, operation));
+        }
+    }
+
+    // multiline dynamic argument checks are line-only by design
+    for line in lines {
+        for operation in line {
+            let ChainExpression::Call {
+                dynamic_arguments, ..
+            } = operation
+            else {
+                continue;
+            };
+            if dynamic_arguments.is_empty() {
+                continue;
+            }
+            if !facts.has_multiline_dynamic_call_argument {
+                facts.has_multiline_dynamic_call_argument = dynamic_arguments
+                    .iter()
+                    .any(|argument_id| context.node_has_newline(*argument_id));
+            }
+        }
+    }
+
+    for_each_chain_operation(base, lines, |operation| {
+        if matches!(operation, ChainExpression::Maybe { .. }) {
+            facts.has_optional_chain_operation = true;
+        }
+
+        let ChainExpression::Call {
+            dynamic_arguments, ..
+        } = operation
+        else {
+            return;
+        };
+        if dynamic_arguments.is_empty() {
+            return;
+        }
+
+        facts.has_call_with_dynamic_arguments = true;
+    });
+
+    facts
+}
+
+/// Build normalized chain render inputs once from layout plan and source context.
+fn build_chain_render_inputs(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+    base: &ChainExpressionBase,
+    lines: &[SmallVec<[ChainExpression; 2]>],
+    deferred_path_boundary_comments: &[String],
+    chain_should_break: bool,
+    chain_has_calls: bool,
+    in_template_literal_interpolation: bool,
+) -> ChainRenderInputs {
+    let line_width = usize::from(context.options.line_width);
+    let chain_span = context.get_span(node_id);
+    let is_chain_call_like_argument = is_call_like_argument(context, node_id);
+    let is_chain_conditional_branch = expression_is_in_conditional_branch(context, node_id);
+    let assignment_like_width = if is_chain_call_like_argument
+        || in_template_literal_interpolation
+        || is_chain_conditional_branch
+        || !chain_has_calls
+    {
+        None
+    } else {
+        assignment_like_remaining_width(context, node_id)
+    };
+    let inline_budget = if is_chain_call_like_argument
+        || in_template_literal_interpolation
+        || is_chain_conditional_branch
+    {
+        line_width
+    } else if chain_has_calls {
+        assignment_like_width.unwrap_or(line_width)
+    } else {
+        line_width
+    };
+    let first_line_has_non_empty_dynamic_call = lines.first().is_some_and(|line| {
+        line.iter().any(|operation| {
+            matches!(
+                operation,
+                ChainExpression::Call {
+                    dynamic_arguments,
+                    ..
+                } if !dynamic_arguments.is_empty()
+            )
+        })
+    });
+    let operation_facts = collect_chain_operation_facts(context, base, lines);
+
+    ChainRenderInputs {
+        chain_should_break,
+        chain_has_calls,
+        in_template_literal_interpolation,
+        has_deferred_path_boundary_comments: !deferred_path_boundary_comments.is_empty(),
+        is_chain_call_like_argument,
+        is_chain_conditional_branch,
+        is_assignment_like_rhs: assignment_like_width.is_some(),
+        chain_has_source_newline: context.has_newline(chain_span),
+        first_line_has_non_empty_dynamic_call,
+        inline_budget,
+        compact_chain_len: source_min_inline_char_len(context.get_span_str(chain_span)),
+        operation_facts,
+    }
+}
+
+/// Decide how to render a chain from normalized inputs.
+fn decide_chain_render(inputs: &ChainRenderInputs, lines_len: usize) -> ChainRenderDecision {
+    if inputs.in_template_literal_interpolation && !inputs.chain_has_calls {
+        return ChainRenderDecision::InlineNoCounter;
+    }
+
+    let can_use_inline_fast_path = !inputs.chain_should_break
+        && !inputs.has_deferred_path_boundary_comments
+        && !inputs.chain_has_source_newline
+        && lines_len <= 2
+        && inputs.operation_facts.inline_chain_len <= inputs.inline_budget;
+    if can_use_inline_fast_path {
+        return ChainRenderDecision::InlineFastPath;
+    }
+
+    if inputs.chain_should_break {
+        return ChainRenderDecision::ForcedBreak;
+    }
+
+    let prefer_conditional_inline_chain = inputs.is_chain_conditional_branch
+        && !inputs.has_deferred_path_boundary_comments
+        && inputs.first_line_has_non_empty_dynamic_call;
+    if prefer_conditional_inline_chain {
+        return ChainRenderDecision::ConditionalInline;
+    }
+
+    let should_avoid_inline_optional_call_chain =
+        inputs.operation_facts.has_optional_chain_operation
+            && inputs.operation_facts.has_call_with_dynamic_arguments
+            && inputs.chain_has_source_newline;
+    let can_inline_multiline_call_argument_chain = !inputs.has_deferred_path_boundary_comments
+        && !inputs.chain_should_break
+        && !should_avoid_inline_optional_call_chain
+        && (inputs.is_chain_call_like_argument
+            || inputs.in_template_literal_interpolation
+            || inputs.is_chain_conditional_branch
+            || inputs.is_assignment_like_rhs)
+        && inputs.operation_facts.has_multiline_dynamic_call_argument;
+    if can_inline_multiline_call_argument_chain {
+        return ChainRenderDecision::MultilineCallArgumentInline;
+    }
+
+    let should_probe_dynamic_call_overflow = inputs.operation_facts.has_call_with_dynamic_arguments
+        && (inputs.is_chain_call_like_argument
+            || inputs.in_template_literal_interpolation
+            || inputs.is_chain_conditional_branch);
+    if inputs.compact_chain_len > inputs.inline_budget && !should_probe_dynamic_call_overflow {
+        return ChainRenderDecision::BreakForOverflow;
+    }
+
+    let should_inline = !inputs.has_deferred_path_boundary_comments
+        && !inputs.chain_should_break
+        && !should_avoid_inline_optional_call_chain
+        && inputs.operation_facts.inline_chain_len <= inputs.inline_budget;
+    if should_inline {
+        ChainRenderDecision::DeterministicInline
+    } else {
+        ChainRenderDecision::DeterministicBreak
+    }
 }
 
 /// Build base head and synthetic root operations for a chain root.
@@ -351,7 +589,6 @@ fn plan_chain_layout(
         lines,
         deferred_path_boundary_comments: normalized.deferred_path_boundary_comments,
         should_break,
-        has_chain_intervening_trivia,
         has_calls: !chain_call_summaries.is_empty(),
         in_template_literal_interpolation: expression_is_in_template_literal_interpolation(
             context, node_id,
@@ -370,7 +607,6 @@ pub(crate) fn format_expression_chain<'ast>(
         lines,
         deferred_path_boundary_comments,
         should_break: chain_should_break,
-        has_chain_intervening_trivia,
         has_calls: chain_has_calls,
         in_template_literal_interpolation,
     } = plan;
@@ -428,142 +664,50 @@ pub(crate) fn format_expression_chain<'ast>(
         .format(f)
     });
 
-    if in_template_literal_interpolation && !chain_has_calls {
-        format_inline.format(f)?;
-        return Ok(());
-    }
-
-    // keep compact source chains inline without probing best fitting variants
-    let line_width = usize::from(f.context().options.line_width);
-    let chain_span = f.context().get_span(node_id);
-    let is_chain_call_like_argument = is_call_like_argument(f.context(), node_id);
-    let is_chain_conditional_branch = expression_is_in_conditional_branch(f.context(), node_id);
-    let inline_budget = if is_chain_call_like_argument
-        || in_template_literal_interpolation
-        || is_chain_conditional_branch
-    {
-        line_width
-    } else if chain_has_calls {
-        assignment_like_remaining_width(f.context(), node_id).unwrap_or(line_width)
-    } else {
-        line_width
-    };
-    let inline_chain_len = chain_base_len(f.context(), &base).saturating_add(
-        lines
-            .iter()
-            .flat_map(|line| line.iter())
-            .map(|operation| chain_operation_len(f.context(), operation))
-            .sum::<usize>(),
+    let render_inputs = build_chain_render_inputs(
+        f.context(),
+        node_id,
+        &base,
+        &lines,
+        &deferred_path_boundary_comments,
+        chain_should_break,
+        chain_has_calls,
+        in_template_literal_interpolation,
     );
-    let can_use_inline_fast_path = !chain_should_break
-        && deferred_path_boundary_comments.is_empty()
-        && !f.context().has_newline(chain_span)
-        && lines.len() <= 2
-        && inline_chain_len <= inline_budget;
-    if can_use_inline_fast_path {
-        f.context()
-            .increment_counter("profile.chain.inline.fast_path", 1);
-        format_inline.format(f)?;
-        return Ok(());
-    }
 
-    // chains that are clearly complex should not try the inline layout first
-    if chain_should_break {
-        write!(f, [group(&format_chain).should_expand(true)])?;
-        return Ok(());
-    }
-
-    // keep ternary branch chains attached to their first call hop:
-    // `cond ? null : api.client().get(...)` should not split before `.get(`
-    let prefer_conditional_inline_chain = is_chain_conditional_branch
-        && deferred_path_boundary_comments.is_empty()
-        && lines.first().is_some_and(|line| {
-            line.iter().any(|operation| {
-                matches!(
-                    operation,
-                    ChainExpression::Call {
-                        dynamic_arguments,
-                        ..
-                    } if !dynamic_arguments.is_empty()
-                )
-            })
-        });
-    if prefer_conditional_inline_chain {
-        f.context()
-            .increment_counter("profile.chain.conditional.inline", 1);
-        format_inline.format(f)?;
-        return Ok(());
-    }
-
-    let has_multiline_dynamic_call_argument =
-        lines.iter().flat_map(|line| line.iter()).any(|operation| {
-            let ChainExpression::Call {
-                dynamic_arguments, ..
-            } = operation
-            else {
-                return false;
-            };
-            dynamic_arguments
-                .iter()
-                .any(|argument_id| f.context().node_has_newline(*argument_id))
-        });
-    let can_inline_multiline_call_argument_chain = deferred_path_boundary_comments.is_empty()
-        && f.context().has_newline(chain_span)
-        && (is_chain_call_like_argument
-            || in_template_literal_interpolation
-            || is_chain_conditional_branch)
-        && !has_chain_intervening_trivia
-        && has_multiline_dynamic_call_argument;
-    if can_inline_multiline_call_argument_chain {
-        f.context()
-            .increment_counter("profile.chain.inline.multiline_call_argument", 1);
-        format_inline.format(f)?;
-        return Ok(());
-    }
-
-    let compact_chain_len = source_min_inline_char_len(f.context().get_span_str(chain_span));
-    let has_call_with_dynamic_arguments =
-        lines.iter().flat_map(|line| line.iter()).any(|operation| {
-            matches!(
-                operation,
-                ChainExpression::Call {
-                    dynamic_arguments,
-                    ..
-                } if !dynamic_arguments.is_empty()
-            )
-        });
-    let should_probe_dynamic_call_overflow = has_call_with_dynamic_arguments
-        && (is_chain_call_like_argument
-            || in_template_literal_interpolation
-            || is_chain_conditional_branch);
-    if compact_chain_len > inline_budget && !should_probe_dynamic_call_overflow {
-        f.context()
-            .increment_counter("profile.chain.skip_probe_overflow", 1);
-        format_chain.format(f)?;
-        return Ok(());
-    }
-
-    let should_inline = deferred_path_boundary_comments.is_empty()
-        && !f.context().has_newline(chain_span)
-        && inline_chain_len <= inline_budget;
-    if should_inline {
-        f.context()
-            .increment_counter("profile.chain.deterministic.inline", 1);
-        format_inline.format(f)
-    } else {
-        let best_fitting_reason = if !deferred_path_boundary_comments.is_empty() {
-            "profile.chain.best_fitting.reason.deferred_boundary_comment"
-        } else if f.context().has_newline(chain_span) {
-            "profile.chain.best_fitting.reason.source_newline"
-        } else if inline_chain_len > inline_budget {
-            "profile.chain.best_fitting.reason.inline_len_overflow"
-        } else {
-            "profile.chain.best_fitting.reason.other"
-        };
-        f.context().increment_counter(best_fitting_reason, 1);
-        f.context()
-            .record_best_fitting("best_fitting.expression.chain", 2);
-        best_fitting![format_inline, format_chain].format(f)
+    match decide_chain_render(&render_inputs, lines.len()) {
+        ChainRenderDecision::InlineNoCounter => format_inline.format(f),
+        ChainRenderDecision::InlineFastPath => {
+            f.context()
+                .increment_counter("profile.chain.inline.fast_path", 1);
+            format_inline.format(f)
+        }
+        ChainRenderDecision::ForcedBreak => write!(f, [group(&format_chain).should_expand(true)]),
+        ChainRenderDecision::ConditionalInline => {
+            f.context()
+                .increment_counter("profile.chain.conditional.inline", 1);
+            format_inline.format(f)
+        }
+        ChainRenderDecision::MultilineCallArgumentInline => {
+            f.context()
+                .increment_counter("profile.chain.inline.multiline_call_argument", 1);
+            format_inline.format(f)
+        }
+        ChainRenderDecision::BreakForOverflow => {
+            f.context()
+                .increment_counter("profile.chain.skip_probe_overflow", 1);
+            format_chain.format(f)
+        }
+        ChainRenderDecision::DeterministicInline => {
+            f.context()
+                .increment_counter("profile.chain.deterministic.inline", 1);
+            format_inline.format(f)
+        }
+        ChainRenderDecision::DeterministicBreak => {
+            f.context()
+                .increment_counter("profile.chain.deterministic.chain", 1);
+            format_chain.format(f)
+        }
     }
 }
 /// Format the base segment of a chain.

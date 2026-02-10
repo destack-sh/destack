@@ -58,7 +58,7 @@ where
     force_expand: bool,
     kind: ListKind,
     group_id: Option<GroupId>,
-    elements: &'e Vec<LocalNodeId<T>>,
+    elements: &'e [LocalNodeId<T>],
 
     _phantom: PhantomData<&'ast ()>,
 }
@@ -526,7 +526,7 @@ pub(crate) fn list_like<'ast, 'e, T>(
     start_token: &'static str,
     end_token: &'static str,
     separator: &'static str,
-    elements: &'e Vec<LocalNodeId<T>>,
+    elements: &'e [LocalNodeId<T>],
 ) -> ListLike<'ast, 'e, T>
 where
     T: Node + Clone + FormatNode<'ast, T>,
@@ -976,6 +976,54 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
         node_id: LocalNodeId<Argument>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        // fast path: annotation free positional and spread arguments dominate call sites
+        // and don't need the expensive prefix and trailing annotation checks
+        let has_argument_annotation = f.context().has_annotation(node_id);
+        if !has_argument_annotation {
+            match self {
+                Argument::Named {
+                    modifiers: None,
+                    name,
+                    value,
+                } => {
+                    write!(f, [*name, token(":"), space(), *value])?;
+                    return Ok(());
+                }
+                Argument::Labeled {
+                    modifiers: None,
+                    label,
+                    value,
+                } => {
+                    write!(f, [*label, token(":"), space(), *value])?;
+                    return Ok(());
+                }
+                Argument::Positional {
+                    modifiers: None,
+                    value,
+                } => {
+                    write!(f, [*value])?;
+                    return Ok(());
+                }
+                Argument::Spread {
+                    modifiers: None,
+                    label: None,
+                    value,
+                } => {
+                    write!(f, [token("..."), *value])?;
+                    return Ok(());
+                }
+                Argument::Spread {
+                    modifiers: None,
+                    label: Some(label),
+                    value,
+                } => {
+                    write!(f, [token("..."), *label, token(":"), space(), *value])?;
+                    return Ok(());
+                }
+                _ => {}
+            }
+        }
+
         // lambda argument comments are deferred to the lambda arrow site
         let should_emit_prefix_annotations =
             argument_should_emit_prefix_annotations(f.context(), node_id);

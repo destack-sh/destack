@@ -6,6 +6,6 @@ pub(super) fn expression_is_trivial_inline_without_annotations(
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     !context.has_annotation(expression_id)
-        && !context.has_newline(context.get_span(expression_id))
+        && !context.node_has_newline(expression_id)
         && is_trivial_expression(context.tree, context.tree.get(expression_id))
 }

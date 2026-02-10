@@ -1,6 +1,14 @@
 use super::super::*;
-use super::shared::expression_is_trivial_inline_without_annotations;
+use super::common::expression_is_trivial_inline_without_annotations;
 use destack_fir::{format_args, write};
+
+// assignment inline width constants
+const ASSIGNMENT_OPERATOR_PADDING_WIDTH: usize = 2;
+
+// assignment shape thresholds
+const LONG_BINARY_OPERAND_COUNT_THRESHOLD: usize = 2;
+const EXPANDED_OBJECT_TARGET_PROPERTY_THRESHOLD: usize = 2;
+const SHORT_OBJECT_PROPERTY_MAX: usize = 3;
 
 /// Format an assignment expression with shared rhs break policy.
 pub(super) fn format_assign_expression<'ast>(
@@ -51,7 +59,7 @@ pub(super) fn format_assign_expression<'ast>(
         let inline_len = left_source_len
             .saturating_add(operator_len)
             .saturating_add(right_source_len)
-            .saturating_add(2);
+            .saturating_add(ASSIGNMENT_OPERATOR_PADDING_WIDTH);
         if inline_len <= line_width {
             f.context()
                 .increment_counter("profile.assign.simple_inline.fast_path", 1);
@@ -86,7 +94,7 @@ pub(super) fn format_assign_expression<'ast>(
         || right_is_chain_tail_lambda
         || right_is_lambda;
     let right_has_prefix_annotation = f.context().has_prefix_annotation(right);
-    let right_has_newline = f.context().has_newline(f.context().get_span(right));
+    let right_has_newline = f.context().node_has_newline(right);
     let right_has_existing_operator_break =
         has_newline_between_expressions(f.context(), left, right);
     let right_has_between_comment = has_comment_between_expressions(f.context(), left, right);
@@ -102,7 +110,7 @@ pub(super) fn format_assign_expression<'ast>(
     let operator_len = assign_operator_len(operator);
     let inline_overhead = left_source_len
         .saturating_add(operator_len)
-        .saturating_add(2);
+        .saturating_add(ASSIGNMENT_OPERATOR_PADDING_WIDTH);
     let remaining_width = line_width.saturating_sub(inline_overhead);
     let right_source_len = expression_source_len(f.context(), inner_right_id);
     let right_annotation_len = expression_prefix_annotation_source_len(f.context(), right);
@@ -118,7 +126,7 @@ pub(super) fn format_assign_expression<'ast>(
             _ => 0,
         };
         right_source_len > remaining_width
-            && binary_operand_count > 2
+            && binary_operand_count > LONG_BINARY_OPERAND_COUNT_THRESHOLD
             && binary_rhs_prefers_break_after_operator(right_source_len, line_width)
     } else {
         false
@@ -283,17 +291,17 @@ pub(super) fn format_assign_expression<'ast>(
             format_inline.format(f)?;
         }
     } else {
-        let left_has_newline = f.context().has_newline(f.context().get_span(left));
+        let left_has_newline = f.context().node_has_newline(left);
         let left_inner_id = transparent_inner_expression(f.context(), left);
         let left_is_expanded_object_target = matches!(
             f.context().tree.get(left_inner_id),
             Expression::ObjectExpression { properties, .. }
-                if properties.len() > 2
+                if properties.len() > EXPANDED_OBJECT_TARGET_PROPERTY_THRESHOLD
                     && is_assignment_left_target(f.context(), left_inner_id)
         );
         let right_is_short_object = matches!(
             inner_right_expr,
-            Expression::ObjectExpression { properties, .. } if properties.len() <= 3
+            Expression::ObjectExpression { properties, .. } if properties.len() <= SHORT_OBJECT_PROPERTY_MAX
         );
         let right_is_inline_atomic =
             expression_is_trivial_inline_without_annotations(f.context(), inner_right_id)

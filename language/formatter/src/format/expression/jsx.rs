@@ -462,7 +462,7 @@ pub(super) fn format_hugged<'ast>(
 
     // multiline object and array inputs usually want regular expanded delimiters
     if !force_expand
-        && f.context().has_newline(f.context().get_span(value_id))
+        && f.context().node_has_newline(value_id)
         && matches!(
             tree.get(value_id),
             Expression::ObjectExpression { .. } | Expression::ArrayExpression { .. }

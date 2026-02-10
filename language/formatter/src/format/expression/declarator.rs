@@ -1,6 +1,233 @@
 use super::*;
 use destack_fir::{format_args, write};
 
+// declarator inline width constants
+const DECLARATOR_TYPE_SEPARATOR_INLINE_WIDTH: usize = 2;
+const DECLARATOR_ASSIGNMENT_SEPARATOR_INLINE_WIDTH: usize = 3;
+
+// declarator chain and binary thresholds
+const COMPLEX_CHAIN_CALL_COUNT_THRESHOLD: usize = 1;
+const LONG_BINARY_OPERAND_COUNT_THRESHOLD: usize = 2;
+
+/// Enumerate declarator layout outcomes.
+#[derive(Clone, Copy)]
+enum DeclaratorLayout {
+    Inline,
+    BreakAfterOperator,
+    ValueExpanded,
+    ValueExpandedStrict,
+    HeaderExpanded,
+    Indented,
+}
+
+/// Store normalized declarator layout selection inputs.
+#[derive(Clone, Copy)]
+struct DeclaratorLayoutInputs {
+    pattern_breakable: bool,
+    value_breakable: bool,
+    value_is_long: bool,
+    inline_declarator_fits: bool,
+    value_is_leading_pipe_type_union: bool,
+    is_string_literal: bool,
+    value_is_long_binary: bool,
+    value_has_internal_comment: bool,
+    value_has_between_comment: bool,
+    value_has_existing_operator_break: bool,
+    value_handles_its_own_breaking: bool,
+    value_has_prefix_annotation: bool,
+    preserve_source_rhs_break: bool,
+    preserve_source_operator_break: bool,
+    prefer_static_argument_operator_break: bool,
+    value_is_chain: bool,
+    has_single_chain_call: bool,
+    value_chain_has_member_access: bool,
+    value_is_complex_chain: bool,
+    has_significant_between_comment: bool,
+    value_has_generic_class_heritage: bool,
+    value_is_lambda: bool,
+    value_is_declaration: bool,
+    value_is_await_expression: bool,
+    value_has_multiline_chain_body: bool,
+    value_is_binary: bool,
+    value_is_call_like: bool,
+    value_has_newline: bool,
+    pattern_has_newline: bool,
+    pattern_has_comments_or_annotations: bool,
+    value_is_parenthesized: bool,
+}
+
+/// Choose the declarator layout from normalized inputs.
+fn choose_declarator_layout(inputs: DeclaratorLayoutInputs) -> DeclaratorLayout {
+    // keep leading pipe unions inline at the declarator level
+    if inputs.value_is_leading_pipe_type_union {
+        return DeclaratorLayout::Inline;
+    }
+
+    // keep string rhs mostly inline
+    if inputs.is_string_literal {
+        if inputs.value_is_long && !inputs.pattern_breakable {
+            return DeclaratorLayout::BreakAfterOperator;
+        }
+
+        if inputs.pattern_breakable {
+            return if inputs.inline_declarator_fits {
+                DeclaratorLayout::Inline
+            } else {
+                DeclaratorLayout::HeaderExpanded
+            };
+        }
+
+        return DeclaratorLayout::Inline;
+    }
+
+    // binary rhs operator break policy
+    if inputs.value_is_long_binary {
+        let prefer_inline_for_internal_binary_comment = inputs.value_has_internal_comment
+            && !inputs.value_has_between_comment
+            && !inputs.value_has_existing_operator_break;
+        let prefer_operator_break = (inputs.value_has_existing_operator_break
+            || inputs.value_has_between_comment
+            || !inputs.inline_declarator_fits)
+            && !prefer_inline_for_internal_binary_comment;
+
+        return if prefer_operator_break {
+            DeclaratorLayout::BreakAfterOperator
+        } else {
+            DeclaratorLayout::Inline
+        };
+    }
+
+    // chain and binary values that already own their line breaking
+    if inputs.value_handles_its_own_breaking {
+        let value_prefers_operator_break = !inputs.value_is_lambda
+            && !inputs.value_is_declaration
+            && (inputs.value_has_prefix_annotation
+                || inputs.preserve_source_rhs_break
+                || inputs.preserve_source_operator_break
+                || inputs.prefer_static_argument_operator_break
+                || (inputs.value_is_chain
+                    && inputs.value_is_long
+                    && inputs.has_single_chain_call
+                    && inputs.value_chain_has_member_access
+                    && !inputs.value_is_complex_chain)
+                || inputs.has_significant_between_comment
+                || (inputs.value_has_generic_class_heritage && inputs.value_is_long));
+        let value_should_lead_with_break = (inputs.value_is_long
+            && !inputs.value_is_await_expression
+            && !inputs.value_has_multiline_chain_body)
+            || inputs.value_has_prefix_annotation
+            || inputs.preserve_source_operator_break
+            || inputs.prefer_static_argument_operator_break
+            || inputs.has_significant_between_comment;
+
+        if inputs.pattern_breakable {
+            let should_try_operator_break_before_header_expand = inputs.value_is_long
+                && (inputs.value_is_binary
+                    || inputs.value_is_chain
+                    || inputs.value_is_call_like
+                    || inputs.value_is_lambda);
+            if inputs.value_has_prefix_annotation
+                || inputs.has_significant_between_comment
+                || should_try_operator_break_before_header_expand
+            {
+                return if !inputs.inline_declarator_fits {
+                    DeclaratorLayout::BreakAfterOperator
+                } else {
+                    DeclaratorLayout::Inline
+                };
+            }
+
+            return if !inputs.inline_declarator_fits {
+                DeclaratorLayout::HeaderExpanded
+            } else {
+                DeclaratorLayout::Inline
+            };
+        }
+
+        if value_prefers_operator_break {
+            if value_should_lead_with_break {
+                return DeclaratorLayout::BreakAfterOperator;
+            }
+
+            return if inputs.inline_declarator_fits {
+                DeclaratorLayout::Inline
+            } else {
+                DeclaratorLayout::BreakAfterOperator
+            };
+        }
+
+        return if inputs.inline_declarator_fits {
+            DeclaratorLayout::Inline
+        } else {
+            DeclaratorLayout::ValueExpandedStrict
+        };
+    }
+
+    // fallback matrix for non self-breaking values
+    match (inputs.pattern_breakable, inputs.value_breakable) {
+        (true, true) => {
+            if !inputs.inline_declarator_fits {
+                DeclaratorLayout::ValueExpanded
+            } else {
+                DeclaratorLayout::Inline
+            }
+        }
+        (true, false) => {
+            if inputs.pattern_has_newline {
+                DeclaratorLayout::HeaderExpanded
+            } else if inputs.value_is_long && inputs.pattern_has_comments_or_annotations {
+                if !inputs.inline_declarator_fits {
+                    DeclaratorLayout::BreakAfterOperator
+                } else {
+                    DeclaratorLayout::Inline
+                }
+            } else if inputs.inline_declarator_fits {
+                DeclaratorLayout::Inline
+            } else {
+                DeclaratorLayout::HeaderExpanded
+            }
+        }
+        (false, true) => {
+            let prefers_operator_break = inputs.value_has_between_comment;
+            let prefer_declaration_operator_break =
+                inputs.value_is_declaration && (inputs.value_is_long || inputs.value_has_newline);
+            if prefers_operator_break || prefer_declaration_operator_break {
+                if inputs.inline_declarator_fits
+                    && !inputs.value_is_long
+                    && !inputs.value_has_between_comment
+                    && !inputs.value_has_prefix_annotation
+                {
+                    DeclaratorLayout::Inline
+                } else {
+                    DeclaratorLayout::Indented
+                }
+            } else if (inputs.value_is_parenthesized && inputs.value_has_newline)
+                || inputs.inline_declarator_fits
+            {
+                DeclaratorLayout::Inline
+            } else if inputs.value_has_newline
+                || inputs.value_has_prefix_annotation
+                || inputs.value_is_long
+            {
+                DeclaratorLayout::ValueExpanded
+            } else {
+                DeclaratorLayout::Indented
+            }
+        }
+        (false, false) => {
+            if inputs.value_has_generic_class_heritage && inputs.value_is_long {
+                DeclaratorLayout::Indented
+            } else if (inputs.value_is_parenthesized && inputs.value_has_newline)
+                || inputs.inline_declarator_fits
+            {
+                DeclaratorLayout::Inline
+            } else {
+                DeclaratorLayout::Indented
+            }
+        }
+    }
+}
+
 /// Return whether a declaration heritage clause contains static type arguments.
 fn declaration_has_generic_heritage(
     context: &DestackFormatContext<'_>,
@@ -82,6 +309,7 @@ pub(super) fn format_declarator<'ast>(
     let value_inner_id = transparent_inner_expression(f.context(), *value_id);
     let value_inner_expr = tree.get(value_inner_id);
 
+    // value shape facts
     let pattern_breakable = is_pattern_breakable(tree, *pattern);
     let value_breakable = is_expression_breakable(tree, value_expr);
     let value_is_binary = matches!(value_inner_expr, Expression::Binary { .. });
@@ -103,6 +331,8 @@ pub(super) fn format_declarator<'ast>(
         || value_is_lambda
         || value_is_declaration;
     let should_force_expand_value = value_breakable && !value_is_poor_chain;
+
+    // chain profile
     let (value_is_complex_chain, value_chain_call_count, value_chain_has_member_access) =
         if value_is_chain {
             let mut chain = Vec::new();
@@ -140,13 +370,15 @@ pub(super) fn format_declarator<'ast>(
                 .iter()
                 .any(|summary| summary.has_multiline_argument);
             (
-                chain_call_count > 1 && has_multiline_call,
+                chain_call_count > COMPLEX_CHAIN_CALL_COUNT_THRESHOLD && has_multiline_call,
                 chain_call_count,
                 chain_has_member_access,
             )
         } else {
             (false, 0, false)
         };
+
+    // call argument profile
     let value_is_multiline_call_like = match value_inner_expr {
         Expression::Call {
             static_arguments,
@@ -187,14 +419,14 @@ pub(super) fn format_declarator<'ast>(
             arguments
                 .iter()
                 .copied()
-                .any(|argument_id| f.context().has_newline(f.context().get_span(argument_id)))
+                .any(|argument_id| f.context().node_has_newline(argument_id))
         }),
         Expression::Instantiation {
             static_arguments, ..
         } => static_arguments
             .iter()
             .copied()
-            .any(|argument_id| f.context().has_newline(f.context().get_span(argument_id))),
+            .any(|argument_id| f.context().node_has_newline(argument_id)),
         _ => false,
     };
     let value_has_static_arguments = match value_inner_expr {
@@ -214,7 +446,7 @@ pub(super) fn format_declarator<'ast>(
     let allow_source_operator_break_preservation =
         !(value_is_complex_chain || (value_is_multiline_call_like && !value_has_static_arguments));
 
-    // estimate remaining width if the declarator stayed inline
+    // width budget
     let line_width = usize::from(f.context().options.line_width);
     let pattern_span = f.context().get_span(*pattern);
     let pattern_source_len = f.context().span_char_len(pattern_span);
@@ -222,9 +454,11 @@ pub(super) fn format_declarator<'ast>(
     let header_source_len = type_source_len.map_or(pattern_source_len, |type_len| {
         pattern_source_len
             .saturating_add(type_len)
-            .saturating_add(2)
+            .saturating_add(DECLARATOR_TYPE_SEPARATOR_INLINE_WIDTH)
     });
-    let remaining_width = line_width.saturating_sub(header_source_len.saturating_add(3));
+    let remaining_width = line_width.saturating_sub(
+        header_source_len.saturating_add(DECLARATOR_ASSIGNMENT_SEPARATOR_INLINE_WIDTH),
+    );
     let leading_prefix_len = declarator_leading_prefix_len(f.context(), declarator_id);
     let remaining_width = remaining_width.saturating_sub(leading_prefix_len);
 
@@ -235,7 +469,7 @@ pub(super) fn format_declarator<'ast>(
     let value_is_long = value_source_len >= remaining_width;
     let estimated_inline_declarator_len = leading_prefix_len
         .saturating_add(header_source_len)
-        .saturating_add(3)
+        .saturating_add(DECLARATOR_ASSIGNMENT_SEPARATOR_INLINE_WIDTH)
         .saturating_add(value_source_len);
     let header_end = ty
         .map(|type_id| f.context().get_span(type_id).end)
@@ -250,6 +484,9 @@ pub(super) fn format_declarator<'ast>(
         .map(|span| f.context().span_char_len(span))
         .unwrap_or(0);
     let value_has_newline = f.context().has_newline(value_span);
+    let pattern_has_newline = f.context().has_newline(pattern_span);
+    let pattern_has_comments_or_annotations =
+        f.context().has_annotation(*pattern) || span_has_comment(f.context(), pattern_span);
     let value_is_parenthesized = matches!(value_expr, Expression::Parenthesized { .. });
     let value_has_generic_class_heritage =
         value_has_generic_class_heritage(f.context(), value_inner_id);
@@ -266,11 +503,12 @@ pub(super) fn format_declarator<'ast>(
     };
     let value_is_long_binary = value_is_binary
         && value_is_long
-        && value_binary_operand_count > 2
+        && value_binary_operand_count > LONG_BINARY_OPERAND_COUNT_THRESHOLD
         && binary_rhs_prefers_break_after_operator(value_source_len, line_width);
     let inline_declarator_fits = estimated_inline_declarator_len <= line_width;
+    let has_single_chain_call = value_chain_call_count <= COMPLEX_CHAIN_CALL_COUNT_THRESHOLD;
 
-    // fast path: trivial declarators should stay inline without best fitting variants
+    // fast path
     let simple_inline_declarator = !pattern_breakable
         && !value_breakable
         && !value_is_long
@@ -286,12 +524,13 @@ pub(super) fn format_declarator<'ast>(
         return Ok(());
     }
 
-    // prefer keeping the value on a single line
+    // layout fragments
     let format_inline = format_with(|f| {
         write!(f, [header, space(), token("="), space(), *value_id])?;
         Ok(())
     });
-    // expand inline if value is breakable (like let x = [\n ... ])
+
+    // expand inline if value is breakable
     let format_value_expanded = format_with(|f| {
         write!(
             f,
@@ -318,12 +557,8 @@ pub(super) fn format_declarator<'ast>(
             ]
         )
     });
-    // expand the header (pattern) while keeping value inline
-    // e.g., const { a, b } = value becomes:
-    // const {
-    //     a,
-    //     b,
-    // } = value;
+
+    // expand the header while keeping value inline
     let format_header_expanded = format_with(|f| {
         write!(
             f,
@@ -336,7 +571,8 @@ pub(super) fn format_declarator<'ast>(
             ]
         )
     });
-    // expand and indent the value on a new line (last resort)
+
+    // expand and indent the value
     let format_indented = format_with(|f| {
         group(&format_args![
             header,
@@ -401,250 +637,75 @@ pub(super) fn format_declarator<'ast>(
     );
     let value_is_leading_pipe_type_union = is_type_context(f.context(), value_inner_id)
         && union_source_has_leading_pipe(f.context(), value_inner_id);
+    let source_rhs_has_newline = value_has_newline && allow_source_operator_break_preservation;
+    let source_operator_has_newline =
+        value_has_existing_operator_break && allow_source_operator_break_preservation;
+    let static_argument_operator_break_candidate = value_is_call_like
+        && value_has_static_arguments
+        && !value_has_multiline_static_argument
+        && (!value_is_chain || has_single_chain_call)
+        && !value_has_prefix_annotation
+        && !value_has_between_comment
+        && estimated_inline_declarator_len >= line_width.saturating_sub(leading_prefix_len);
+    let prefer_static_argument_operator_break =
+        static_argument_operator_break_candidate && (source_operator_has_newline || value_is_long);
+    let preserve_source_rhs_break =
+        source_rhs_has_newline && (value_is_binary || value_is_sequence);
+    let preserve_source_operator_break =
+        source_operator_has_newline && (value_is_chain || value_is_binary || value_is_sequence);
+    let has_significant_between_comment = value_has_between_comment
+        && (value_is_long
+            || estimated_inline_declarator_len.saturating_add(between_source_len)
+                >= line_width.saturating_sub(leading_prefix_len));
+    let value_is_await_expression = matches!(
+        value_expr,
+        Expression::Await { .. } | Expression::AwaitMaybe { .. }
+    );
+    let value_has_multiline_chain_body = value_has_newline && value_is_chain;
 
-    // for string literals, never break at `=`: let them exceed line width
-    if value_is_leading_pipe_type_union {
-        write!(f, [format_inline])?;
-    } else if is_string_literal {
-        if value_is_long && !pattern_breakable {
-            write!(f, [format_break_after_operator_for_binary])?;
-        } else if pattern_breakable {
-            if inline_declarator_fits {
-                write!(f, [format_inline])?;
-            } else {
-                write!(f, [format_header_expanded])?;
-            }
-        } else {
-            write!(f, [format_inline])?;
+    let layout = choose_declarator_layout(DeclaratorLayoutInputs {
+        pattern_breakable,
+        value_breakable,
+        value_is_long,
+        inline_declarator_fits,
+        value_is_leading_pipe_type_union,
+        is_string_literal,
+        value_is_long_binary,
+        value_has_internal_comment,
+        value_has_between_comment,
+        value_has_existing_operator_break,
+        value_handles_its_own_breaking,
+        value_has_prefix_annotation,
+        preserve_source_rhs_break,
+        preserve_source_operator_break,
+        prefer_static_argument_operator_break,
+        value_is_chain,
+        has_single_chain_call,
+        value_chain_has_member_access,
+        value_is_complex_chain,
+        has_significant_between_comment,
+        value_has_generic_class_heritage,
+        value_is_lambda,
+        value_is_declaration,
+        value_is_await_expression,
+        value_has_multiline_chain_body,
+        value_is_binary,
+        value_is_call_like,
+        value_has_newline,
+        pattern_has_newline,
+        pattern_has_comments_or_annotations,
+        value_is_parenthesized,
+    });
+
+    match layout {
+        DeclaratorLayout::Inline => write!(f, [format_inline])?,
+        DeclaratorLayout::BreakAfterOperator => {
+            write!(f, [format_break_after_operator_for_binary])?
         }
-    } else if value_is_long_binary {
-        // comment-heavy logical chains read better with the first operand kept inline
-        let prefer_inline_for_internal_binary_comment = value_has_internal_comment
-            && !value_has_between_comment
-            && !value_has_existing_operator_break;
-
-        // long binary declarators generally break after `=`
-        let prefer_operator_break = (value_has_existing_operator_break
-            || value_has_between_comment
-            || !inline_declarator_fits)
-            && !prefer_inline_for_internal_binary_comment;
-        if prefer_operator_break {
-            write!(f, [format_break_after_operator_for_binary])?;
-        } else {
-            write!(f, [format_inline])?;
-        }
-    } else if value_handles_its_own_breaking {
-        let source_rhs_has_newline = value_has_newline && allow_source_operator_break_preservation;
-        let source_operator_has_newline =
-            value_has_existing_operator_break && allow_source_operator_break_preservation;
-        let static_argument_operator_break_candidate = value_is_call_like
-            && value_has_static_arguments
-            && !value_has_multiline_static_argument
-            && (!value_is_chain || value_chain_call_count <= 1)
-            && !value_has_prefix_annotation
-            && !value_has_between_comment
-            && estimated_inline_declarator_len >= line_width.saturating_sub(leading_prefix_len);
-        let prefer_static_argument_operator_break = static_argument_operator_break_candidate
-            && (source_operator_has_newline || value_is_long);
-        let preserve_source_rhs_break =
-            source_rhs_has_newline && (value_is_binary || value_is_sequence);
-        let preserve_source_operator_break =
-            source_operator_has_newline && (value_is_chain || value_is_binary || value_is_sequence);
-        let has_significant_between_comment = value_has_between_comment
-            && (value_is_long
-                || estimated_inline_declarator_len.saturating_add(between_source_len)
-                    >= line_width.saturating_sub(leading_prefix_len));
-
-        // prefer header expansion before rhs internal expansion
-        let value_prefers_operator_break = !value_is_lambda
-            && !value_is_declaration
-            && (value_has_prefix_annotation
-                || preserve_source_rhs_break
-                || preserve_source_operator_break
-                || prefer_static_argument_operator_break
-                || (value_is_chain
-                    && value_is_long
-                    && value_chain_call_count <= 1
-                    && value_chain_has_member_access
-                    && !value_is_complex_chain)
-                || has_significant_between_comment
-                || (value_has_generic_class_heritage && value_is_long));
-        let value_is_await_expression = matches!(
-            value_expr,
-            Expression::Await { .. } | Expression::AwaitMaybe { .. }
-        );
-        let value_has_multiline_chain_body = value_has_newline && value_is_chain;
-        let value_should_lead_with_break =
-            (value_is_long && !value_is_await_expression && !value_has_multiline_chain_body)
-                || value_has_prefix_annotation
-                || preserve_source_operator_break
-                || prefer_static_argument_operator_break
-                || has_significant_between_comment;
-
-        match pattern_breakable {
-            true => {
-                let should_try_operator_break_before_header_expand = value_is_long
-                    && (value_is_binary || value_is_chain || value_is_call_like || value_is_lambda);
-                if value_has_prefix_annotation
-                    || has_significant_between_comment
-                    || should_try_operator_break_before_header_expand
-                {
-                    if !inline_declarator_fits {
-                        write!(f, [format_break_after_operator_for_binary])?;
-                    } else {
-                        f.context().record_best_fitting(
-                            "best_fitting.expression.core.own_break.pattern_breakable.operator_first",
-                            4,
-                        );
-                        best_fitting![
-                            format_inline,
-                            format_break_after_operator_for_binary,
-                            format_header_expanded,
-                            format_value_expanded_strict
-                        ]
-                        .format(f)?;
-                    }
-                } else if !inline_declarator_fits {
-                    write!(f, [format_header_expanded])?;
-                } else {
-                    f.context().record_best_fitting(
-                        "best_fitting.expression.core.own_break.pattern_breakable.header_first",
-                        3,
-                    );
-                    best_fitting![
-                        format_inline,
-                        format_header_expanded,
-                        format_value_expanded_strict
-                    ]
-                    .format(f)?;
-                }
-            }
-            false => {
-                if value_prefers_operator_break {
-                    if value_should_lead_with_break {
-                        // when rhs should lead with a break, prefer operator-first layout
-                        write!(f, [format_break_after_operator_for_binary])?;
-                    } else if inline_declarator_fits {
-                        write!(f, [format_inline])?;
-                    } else {
-                        write!(f, [format_break_after_operator_for_binary])?;
-                    }
-                } else if inline_declarator_fits {
-                    write!(f, [format_inline])?;
-                } else {
-                    write!(f, [format_value_expanded_strict])?;
-                }
-            }
-        }
-    } else {
-        match (pattern_breakable, value_breakable) {
-            (true, true) => {
-                // both sides breakable: prefer inline, then expanded variants
-                if !inline_declarator_fits {
-                    f.context()
-                        .record_best_fitting("best_fitting.expression.core.both_breakable", 3);
-                    best_fitting![
-                        format_value_expanded,
-                        format_header_expanded,
-                        format_indented
-                    ]
-                    .format(f)?;
-                } else {
-                    f.context()
-                        .record_best_fitting("best_fitting.expression.core.both_breakable", 4);
-                    best_fitting![
-                        format_inline,
-                        format_value_expanded,
-                        format_header_expanded,
-                        format_indented
-                    ]
-                    .format(f)?;
-                }
-            }
-            (true, false) => {
-                let pattern_has_newline = f.context().has_newline(pattern_span);
-                let pattern_has_comments_or_annotations = f.context().has_annotation(*pattern)
-                    || span_has_comment(f.context(), pattern_span);
-
-                // keep long atomic rhs values inline when possible
-                if pattern_has_newline {
-                    if !inline_declarator_fits {
-                        f.context().record_best_fitting(
-                            "best_fitting.expression.core.pattern_breakable.pattern_newline",
-                            2,
-                        );
-                        best_fitting![format_header_expanded, format_indented].format(f)?;
-                    } else {
-                        f.context().record_best_fitting(
-                            "best_fitting.expression.core.pattern_breakable.pattern_newline",
-                            3,
-                        );
-                        best_fitting![format_header_expanded, format_inline, format_indented]
-                            .format(f)?;
-                    }
-                } else if value_is_long && pattern_has_comments_or_annotations {
-                    if !inline_declarator_fits {
-                        f.context().record_best_fitting(
-                            "best_fitting.expression.core.pattern_breakable.long_with_comments",
-                            2,
-                        );
-                        best_fitting![
-                            format_break_after_operator_for_binary,
-                            format_header_expanded
-                        ]
-                        .format(f)?;
-                    } else {
-                        f.context().record_best_fitting(
-                            "best_fitting.expression.core.pattern_breakable.long_with_comments",
-                            3,
-                        );
-                        best_fitting![
-                            format_inline,
-                            format_break_after_operator_for_binary,
-                            format_header_expanded
-                        ]
-                        .format(f)?;
-                    }
-                } else if inline_declarator_fits {
-                    write!(f, [format_inline])?;
-                } else {
-                    write!(f, [format_header_expanded])?;
-                }
-            }
-            (false, true) => {
-                // only force operator break when there is an explicit boundary comment near `=`
-                let prefers_operator_break = value_has_between_comment;
-                let prefer_declaration_operator_break =
-                    value_is_declaration && (value_is_long || value_has_newline);
-
-                if prefers_operator_break || prefer_declaration_operator_break {
-                    if inline_declarator_fits
-                        && !value_is_long
-                        && !value_has_between_comment
-                        && !value_has_prefix_annotation
-                    {
-                        write!(f, [format_inline])?;
-                    } else {
-                        write!(f, [format_indented])?;
-                    }
-                } else if (value_is_parenthesized && value_has_newline) || inline_declarator_fits {
-                    write!(f, [format_inline])?;
-                } else if value_has_newline || value_has_prefix_annotation || value_is_long {
-                    write!(f, [format_value_expanded])?;
-                } else {
-                    write!(f, [format_indented])?;
-                }
-            }
-            (false, false) => {
-                if value_has_generic_class_heritage && value_is_long {
-                    write!(f, [format_indented])?;
-                } else if (value_is_parenthesized && value_has_newline) || inline_declarator_fits {
-                    write!(f, [format_inline])?;
-                } else {
-                    write!(f, [format_indented])?;
-                }
-            }
-        }
+        DeclaratorLayout::ValueExpanded => write!(f, [format_value_expanded])?,
+        DeclaratorLayout::ValueExpandedStrict => write!(f, [format_value_expanded_strict])?,
+        DeclaratorLayout::HeaderExpanded => write!(f, [format_header_expanded])?,
+        DeclaratorLayout::Indented => write!(f, [format_indented])?,
     }
 
     Ok(())

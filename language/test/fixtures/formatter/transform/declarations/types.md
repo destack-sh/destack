@@ -125,12 +125,10 @@ type MaybeUser = { name: string, email: string } | null | undefined
 ```
 
 ```ds expected
-type MaybeUser =
-    {
-        name: string,
-        email: string,
-    } | null | undefined
-;
+type MaybeUser = {
+    name: string,
+    email: string,
+} | null | undefined;
 ```
 
 ### nullable union with comment breaks
