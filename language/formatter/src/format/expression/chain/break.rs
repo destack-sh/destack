@@ -644,15 +644,7 @@ pub(crate) fn expression_is_in_template_literal_interpolation(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    context.any_ancestor(expression_id, |ancestor_id, node_type| {
-        node_type == NodeType::Expression
-            && matches!(
-                context
-                    .tree
-                    .get(LocalNodeId::<Expression>::new(ancestor_id)),
-                Expression::TemplateExpression { .. } | Expression::TypeTemplateLiteral { .. }
-            )
-    })
+    context.expression_is_in_template_literal_interpolation(expression_id)
 }
 
 /// Decide whether a chain should proactively break across lines.

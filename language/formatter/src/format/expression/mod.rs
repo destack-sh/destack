@@ -12,7 +12,7 @@ use destack_ast::{
 };
 use destack_base::StringId;
 use destack_fir::best_fitting;
-use destack_fir::format::{BestFittingMode, FormatError, GroupId, text};
+use destack_fir::format::{FormatError, GroupId, text};
 use destack_fir::prelude::*;
 use destack_source::Span;
 use destack_workspace::TrailingComma;

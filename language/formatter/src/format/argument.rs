@@ -130,8 +130,8 @@ where
             && self.kind.should_add_trailing_comma(trailing_comma_option);
         let should_add_space = self.include_space && options.bracket_spacing && has_elements;
 
-        let mut ignore_ranges_by_id = HashMap::new();
-        if f.context().has_ignore_directive_markers() {
+        let ignore_ranges_by_id = if f.context().has_ignore_directive_markers() {
+            let mut ignore_ranges_by_id = HashMap::new();
             let comment_tokens = f.context().comment_tokens();
             for element_id in self.elements {
                 if let Some(range_span) =
@@ -140,8 +140,15 @@ where
                     ignore_ranges_by_id.insert(element_id.id, range_span);
                 }
             }
-        }
-        let has_ignore_ranges = !ignore_ranges_by_id.is_empty();
+            if ignore_ranges_by_id.is_empty() {
+                None
+            } else {
+                Some(ignore_ranges_by_id)
+            }
+        } else {
+            None
+        };
+        let has_ignore_ranges = ignore_ranges_by_id.is_some();
         let body = &format_with(|f| {
             // leading space
             if should_add_space {
@@ -149,11 +156,11 @@ where
             }
 
             let mut needs_trailing_separator = true;
-            if has_ignore_ranges {
+            if let Some(ignore_ranges_by_id) = ignore_ranges_by_id.as_ref() {
                 needs_trailing_separator = format_list_with_ignored_ranges(
                     f,
                     self.elements,
-                    &ignore_ranges_by_id,
+                    ignore_ranges_by_id,
                     self.separator,
                 )?;
             } else {

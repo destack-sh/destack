@@ -1,5 +1,4 @@
 use std::cell::{Cell, OnceCell, Ref, RefCell};
-use std::collections::HashMap;
 use std::rc::Rc;
 
 use destack_ast::{
@@ -16,6 +15,8 @@ use destack_workspace::{
     ArrowParentheses, FormatterOptions, ImportSortOrder, OrganizeImports, QuoteProperty,
     QuoteStyle, TrailingComma,
 };
+use rustc_hash::FxHashMap;
+use smallvec::SmallVec;
 
 use super::timing::{
     FormatterTimingEntry, FormatterTimingScope, FormatterTimingTag, FormatterTimings,
@@ -26,6 +27,9 @@ const ANNOTATION_STATE_UNKNOWN: u8 = 0;
 const ANNOTATION_STATE_NONE: u8 = 1;
 const ANNOTATION_STATE_PRESENT: u8 = 2;
 const ANNOTATION_STATE_CACHED: u8 = 3;
+const TYPE_CONTEXT_STATE_UNKNOWN: u8 = 0;
+const TYPE_CONTEXT_STATE_FALSE: u8 = 1;
+const TYPE_CONTEXT_STATE_TRUE: u8 = 2;
 
 pub type DestackFormatter<'ast, 'buf> = Formatter<'buf, DestackFormatContext<'ast>>;
 
@@ -84,7 +88,7 @@ pub struct FormatterCounterEntry {
 #[derive(Debug, Default)]
 pub struct FormatterCountersCollector {
     /// Counter values keyed by static counter name.
-    pub counters: RefCell<HashMap<&'static str, usize>>,
+    pub counters: RefCell<FxHashMap<&'static str, usize>>,
 }
 
 impl FormatterCountersCollector {
@@ -423,25 +427,33 @@ pub struct DestackFormatContext<'a> {
     /// Cached node-to-annotation ids and annotation metadata for hot annotation lookups.
     pub annotation_ids_cache: RefCell<Vec<Option<CachedAnnotationData>>>,
     /// Cached annotation presence for node ids.
-    pub annotation_presence_cache: RefCell<Vec<u8>>,
+    pub annotation_presence_cache: Vec<Cell<u8>>,
     /// Cached source slices for repeated span lookups.
-    pub span_text_cache: RefCell<HashMap<Span, &'a str>>,
+    pub span_text_cache: RefCell<FxHashMap<Span, &'a str>>,
     /// Cached char lengths for repeated span width checks.
-    pub span_char_len_cache: RefCell<HashMap<Span, usize>>,
+    pub span_char_len_cache: RefCell<FxHashMap<Span, usize>>,
     /// Cached newline checks for repeated span newline predicates.
-    pub span_has_newline_cache: RefCell<HashMap<Span, bool>>,
+    pub span_has_newline_cache: RefCell<FxHashMap<Span, bool>>,
     /// Cached comment checks for repeated span comment predicates.
-    pub span_has_comment_cache: RefCell<HashMap<Span, bool>>,
+    pub span_has_comment_cache: RefCell<FxHashMap<Span, bool>>,
     /// Cached span char lengths for node ids.
-    pub node_span_char_len_cache: RefCell<HashMap<u32, usize>>,
+    pub node_span_char_len_cache: RefCell<Vec<Option<usize>>>,
     /// Cached node span newline predicates keyed by node id.
-    pub node_has_newline_cache: RefCell<HashMap<u32, bool>>,
+    pub node_has_newline_cache: RefCell<Vec<Option<bool>>>,
     /// Cached call argument expand decisions for chain planning keyed by call node id.
-    pub call_chain_argument_expand_cache: RefCell<HashMap<u32, bool>>,
+    pub call_chain_argument_expand_cache: RefCell<Vec<Option<bool>>>,
     /// Cached call argument annotation profiles keyed by argument node id.
     pub argument_annotation_profile_cache: RefCell<Vec<Option<CachedArgumentAnnotationProfile>>>,
     /// Cached call argument expansion facts keyed by call expression node id.
     pub call_argument_facts_cache: RefCell<Vec<Option<CachedCallArgumentFacts>>>,
+    /// Cached transparent inner expression ids keyed by expression node id.
+    pub transparent_inner_expression_cache: RefCell<Vec<Option<LocalNodeId<Expression>>>>,
+    /// Cached type-context decisions keyed by expression node id.
+    pub expression_type_context_cache: Vec<Cell<u8>>,
+    /// Cached template interpolation ancestry decisions keyed by expression node id.
+    pub expression_template_interpolation_cache: Vec<Cell<u8>>,
+    /// Cached type-conditional ancestry decisions keyed by expression node id.
+    pub expression_type_conditional_ancestor_cache: Vec<Cell<u8>>,
     /// Cached sorted comment tokens for ignore-range and comment-boundary scans.
     pub comment_tokens_cache: OnceCell<Vec<TokenSpan>>,
     /// Comment spans for this file, sorted by start position.
@@ -450,6 +462,8 @@ pub struct DestackFormatContext<'a> {
     pub timings: Option<Rc<FormatterTimings>>,
     /// Whether file text contains formatter ignore directive markers.
     pub has_ignore_directive_markers: bool,
+    /// Whether file text contains template literal markers.
+    pub has_template_literal_markers: bool,
     /// Whether instrumentation counters should be collected.
     pub instrumentation_enabled: bool,
     /// Whether file-level ignore was applied during formatting.
@@ -505,6 +519,7 @@ impl<'a> DestackFormatContext<'a> {
             || file_text.contains("prettier-ignore")
             || file_text.contains("biome-ignore format")
             || file_text.contains("oxfmt-ignore");
+        let has_template_literal_markers = file_text.contains('`');
         let mut comment_spans = tokens
             .iter()
             .chain(side_tokens.iter())
@@ -533,23 +548,37 @@ impl<'a> DestackFormatContext<'a> {
             strings,
             current_argument_group_id: None,
             annotation_ids_cache: RefCell::new(vec![None; tree.next_id() as usize]),
-            annotation_presence_cache: RefCell::new(vec![
-                ANNOTATION_STATE_UNKNOWN;
+            annotation_presence_cache: vec![
+                Cell::new(ANNOTATION_STATE_UNKNOWN);
                 tree.next_id() as usize
-            ]),
-            span_text_cache: RefCell::new(HashMap::new()),
-            span_char_len_cache: RefCell::new(HashMap::new()),
-            span_has_newline_cache: RefCell::new(HashMap::new()),
-            span_has_comment_cache: RefCell::new(HashMap::new()),
-            node_span_char_len_cache: RefCell::new(HashMap::new()),
-            node_has_newline_cache: RefCell::new(HashMap::new()),
-            call_chain_argument_expand_cache: RefCell::new(HashMap::new()),
+            ],
+            span_text_cache: RefCell::new(FxHashMap::default()),
+            span_char_len_cache: RefCell::new(FxHashMap::default()),
+            span_has_newline_cache: RefCell::new(FxHashMap::default()),
+            span_has_comment_cache: RefCell::new(FxHashMap::default()),
+            node_span_char_len_cache: RefCell::new(vec![None; tree.next_id() as usize]),
+            node_has_newline_cache: RefCell::new(vec![None; tree.next_id() as usize]),
+            call_chain_argument_expand_cache: RefCell::new(vec![None; tree.next_id() as usize]),
             argument_annotation_profile_cache: RefCell::new(vec![None; tree.next_id() as usize]),
             call_argument_facts_cache: RefCell::new(vec![None; tree.next_id() as usize]),
+            transparent_inner_expression_cache: RefCell::new(vec![None; tree.next_id() as usize]),
+            expression_type_context_cache: vec![
+                Cell::new(TYPE_CONTEXT_STATE_UNKNOWN);
+                tree.next_id() as usize
+            ],
+            expression_template_interpolation_cache: vec![
+                Cell::new(TYPE_CONTEXT_STATE_UNKNOWN);
+                tree.next_id() as usize
+            ],
+            expression_type_conditional_ancestor_cache: vec![
+                Cell::new(TYPE_CONTEXT_STATE_UNKNOWN);
+                tree.next_id() as usize
+            ],
             comment_tokens_cache: OnceCell::new(),
             comment_spans,
             timings: timings_enabled.then(|| Rc::new(FormatterTimings::default())),
             has_ignore_directive_markers,
+            has_template_literal_markers,
             instrumentation_enabled: timings_enabled,
             file_ignore_applied: Rc::new(Cell::new(false)),
             cache_stats: Rc::new(FormatterCacheStatsCollector::default()),
@@ -561,6 +590,12 @@ impl<'a> DestackFormatContext<'a> {
     #[inline]
     pub fn has_ignore_directive_markers(&self) -> bool {
         self.has_ignore_directive_markers
+    }
+
+    /// Return whether this file may contain template literals.
+    #[inline]
+    pub fn has_template_literal_markers(&self) -> bool {
+        self.has_template_literal_markers
     }
 
     /// Mark that file-level ignore was applied.
@@ -661,19 +696,17 @@ impl<'a> DestackFormatContext<'a> {
         T: Node,
         NodeTree: NodeTreeImpl<T>,
     {
-        let node_index = node_id.id;
+        let node_index = node_id.id as usize;
 
         {
             let cache = self.node_span_char_len_cache.borrow();
-            if let Some(len) = cache.get(&node_index) {
-                return *len;
+            if let Some(len) = cache[node_index] {
+                return len;
             }
         }
 
         let len = self.span_char_len(self.get_span(node_id));
-        self.node_span_char_len_cache
-            .borrow_mut()
-            .insert(node_index, len);
+        self.node_span_char_len_cache.borrow_mut()[node_index] = Some(len);
 
         len
     }
@@ -685,19 +718,17 @@ impl<'a> DestackFormatContext<'a> {
         T: Node,
         NodeTree: NodeTreeImpl<T>,
     {
-        let node_index = node_id.id;
+        let node_index = node_id.id as usize;
 
         {
             let cache = self.node_has_newline_cache.borrow();
-            if let Some(has_newline) = cache.get(&node_index) {
-                return *has_newline;
+            if let Some(has_newline) = cache[node_index] {
+                return has_newline;
             }
         }
 
         let has_newline = self.has_newline(self.get_span(node_id));
-        self.node_has_newline_cache
-            .borrow_mut()
-            .insert(node_index, has_newline);
+        self.node_has_newline_cache.borrow_mut()[node_index] = Some(has_newline);
 
         has_newline
     }
@@ -785,6 +816,212 @@ impl<'a> DestackFormatContext<'a> {
         }
 
         false
+    }
+
+    /// Return the transparent inner expression for one expression node.
+    #[inline]
+    pub fn transparent_inner_expression(
+        &self,
+        node_id: LocalNodeId<Expression>,
+    ) -> LocalNodeId<Expression> {
+        let node_index = node_id.id as usize;
+
+        {
+            let cache = self.transparent_inner_expression_cache.borrow();
+            if let Some(inner_expression_id) = cache[node_index] {
+                return inner_expression_id;
+            }
+        }
+
+        let mut current_id = node_id;
+        let mut visited_expression_indices: SmallVec<[usize; 8]> = SmallVec::new();
+
+        loop {
+            let current_index = current_id.id as usize;
+            visited_expression_indices.push(current_index);
+
+            if self.has_annotation(current_id) {
+                break;
+            }
+
+            let next_id = match self.tree.get(current_id) {
+                Expression::Await { expression }
+                | Expression::AwaitMaybe { expression }
+                | Expression::Parenthesized { expression } => Some(*expression),
+                _ => None,
+            };
+
+            let Some(next_id) = next_id else {
+                break;
+            };
+            current_id = next_id;
+        }
+
+        let mut cache = self.transparent_inner_expression_cache.borrow_mut();
+        for expression_index in visited_expression_indices {
+            cache[expression_index] = Some(current_id);
+        }
+
+        current_id
+    }
+
+    /// Return a cached type-context value for one expression node.
+    #[inline]
+    pub fn cached_expression_type_context(&self, node_id: LocalNodeId<Expression>) -> Option<bool> {
+        let node_index = node_id.id as usize;
+        let state = self
+            .expression_type_context_cache
+            .get(node_index)
+            .map(Cell::get)
+            .unwrap_or(TYPE_CONTEXT_STATE_UNKNOWN);
+
+        if state == TYPE_CONTEXT_STATE_TRUE {
+            return Some(true);
+        }
+        if state == TYPE_CONTEXT_STATE_FALSE {
+            return Some(false);
+        }
+
+        None
+    }
+
+    /// Cache one type-context value for one expression node.
+    #[inline]
+    pub fn set_cached_expression_type_context(
+        &self,
+        node_id: LocalNodeId<Expression>,
+        is_type_context: bool,
+    ) {
+        let node_index = node_id.id as usize;
+        let state = if is_type_context {
+            TYPE_CONTEXT_STATE_TRUE
+        } else {
+            TYPE_CONTEXT_STATE_FALSE
+        };
+        if let Some(cache_state) = self.expression_type_context_cache.get(node_index) {
+            cache_state.set(state);
+        }
+    }
+
+    /// Return whether one expression appears in template-literal interpolation.
+    #[inline]
+    pub fn expression_is_in_template_literal_interpolation(
+        &self,
+        node_id: LocalNodeId<Expression>,
+    ) -> bool {
+        if !self.has_template_literal_markers() {
+            return false;
+        }
+
+        let mut current_id = node_id.id;
+        let mut visited_expression_indices: SmallVec<[usize; 8]> = SmallVec::new();
+
+        let has_template_interpolation_ancestor = loop {
+            let current_index = current_id as usize;
+            let cached_state = self
+                .expression_template_interpolation_cache
+                .get(current_index)
+                .map(Cell::get)
+                .unwrap_or(TYPE_CONTEXT_STATE_UNKNOWN);
+            if cached_state == TYPE_CONTEXT_STATE_TRUE {
+                break true;
+            }
+            if cached_state == TYPE_CONTEXT_STATE_FALSE {
+                break false;
+            }
+
+            visited_expression_indices.push(current_index);
+
+            let Some(parent_id) = self.parents.get_by_id(current_id) else {
+                break false;
+            };
+
+            let is_template_parent = self.tree.get_node_type(parent_id) == NodeType::Expression
+                && matches!(
+                    self.tree.get(LocalNodeId::<Expression>::new(parent_id)),
+                    Expression::TemplateExpression { .. } | Expression::TypeTemplateLiteral { .. }
+                );
+            if is_template_parent {
+                break true;
+            }
+
+            current_id = parent_id;
+        };
+
+        let cached_state = if has_template_interpolation_ancestor {
+            TYPE_CONTEXT_STATE_TRUE
+        } else {
+            TYPE_CONTEXT_STATE_FALSE
+        };
+        for expression_index in visited_expression_indices {
+            if let Some(cache_state) = self
+                .expression_template_interpolation_cache
+                .get(expression_index)
+            {
+                cache_state.set(cached_state);
+            }
+        }
+
+        has_template_interpolation_ancestor
+    }
+
+    /// Return whether one expression has a type-conditional ancestor.
+    #[inline]
+    pub fn expression_has_type_conditional_ancestor(
+        &self,
+        node_id: LocalNodeId<Expression>,
+    ) -> bool {
+        let mut current_id = node_id.id;
+        let mut visited_expression_indices: SmallVec<[usize; 8]> = SmallVec::new();
+
+        let has_type_conditional_ancestor = loop {
+            let current_index = current_id as usize;
+            let cached_state = self
+                .expression_type_conditional_ancestor_cache
+                .get(current_index)
+                .map(Cell::get)
+                .unwrap_or(TYPE_CONTEXT_STATE_UNKNOWN);
+            if cached_state == TYPE_CONTEXT_STATE_TRUE {
+                break true;
+            }
+            if cached_state == TYPE_CONTEXT_STATE_FALSE {
+                break false;
+            }
+
+            visited_expression_indices.push(current_index);
+
+            let Some(parent_id) = self.parents.get_by_id(current_id) else {
+                break false;
+            };
+
+            let is_type_conditional_parent = self.tree.get_node_type(parent_id)
+                == NodeType::Expression
+                && matches!(
+                    self.tree.get(LocalNodeId::<Expression>::new(parent_id)),
+                    Expression::TypeConditional { .. }
+                );
+            if is_type_conditional_parent {
+                break true;
+            }
+
+            current_id = parent_id;
+        };
+
+        let cached_state = if has_type_conditional_ancestor {
+            TYPE_CONTEXT_STATE_TRUE
+        } else {
+            TYPE_CONTEXT_STATE_FALSE
+        };
+        for expression_index in visited_expression_indices {
+            if let Some(cache_state) = self
+                .expression_type_conditional_ancestor_cache
+                .get(expression_index)
+            {
+                cache_state.set(cached_state);
+            }
+        }
+
+        has_type_conditional_ancestor
     }
 
     /// Return the first ancestor of a node that matches the predicate.
@@ -937,36 +1174,34 @@ impl<'a> DestackFormatContext<'a> {
         T: Node,
         NodeTree: NodeTreeImpl<T>,
     {
-        {
-            let presence = self.annotation_presence_cache.borrow();
-            let state = presence
-                .get(node_id.id as usize)
-                .copied()
-                .unwrap_or(ANNOTATION_STATE_UNKNOWN);
-            if state == ANNOTATION_STATE_NONE {
-                if self.instrumentation_enabled {
-                    self.cache_stats
-                        .annotation_cache_hits
-                        .set(self.cache_stats.annotation_cache_hits.get() + 1);
-                }
-                return None;
+        let node_index = node_id.id as usize;
+        let state = self
+            .annotation_presence_cache
+            .get(node_index)
+            .map(Cell::get)
+            .unwrap_or(ANNOTATION_STATE_UNKNOWN);
+        if state == ANNOTATION_STATE_NONE {
+            if self.instrumentation_enabled {
+                self.cache_stats
+                    .annotation_cache_hits
+                    .set(self.cache_stats.annotation_cache_hits.get() + 1);
             }
+            return None;
+        }
 
-            if state == ANNOTATION_STATE_CACHED {
-                if self.instrumentation_enabled {
-                    self.cache_stats
-                        .annotation_cache_hits
-                        .set(self.cache_stats.annotation_cache_hits.get() + 1);
-                }
-                drop(presence);
-                let cache = self.annotation_ids_cache.borrow();
-                return Some(Ref::map(cache, |cache| {
-                    cache
-                        .get(node_id.id as usize)
-                        .and_then(|entry| entry.as_ref())
-                        .expect("annotation cache should contain requested node")
-                }));
+        if state == ANNOTATION_STATE_CACHED {
+            if self.instrumentation_enabled {
+                self.cache_stats
+                    .annotation_cache_hits
+                    .set(self.cache_stats.annotation_cache_hits.get() + 1);
             }
+            let cache = self.annotation_ids_cache.borrow();
+            return Some(Ref::map(cache, |cache| {
+                cache
+                    .get(node_index)
+                    .and_then(|entry| entry.as_ref())
+                    .expect("annotation cache should contain requested node")
+            }));
         }
 
         if self.instrumentation_enabled {
@@ -976,24 +1211,12 @@ impl<'a> DestackFormatContext<'a> {
         }
 
         // lookup annotations once and cache both presence and metadata
-        let node_has_annotations = if self
-            .annotation_presence_cache
-            .borrow()
-            .get(node_id.id as usize)
-            .copied()
-            .unwrap_or(ANNOTATION_STATE_UNKNOWN)
-            == ANNOTATION_STATE_PRESENT
-        {
-            true
-        } else {
-            self.tree.has_annotations(node_id.id)
-        };
+        let node_has_annotations =
+            state == ANNOTATION_STATE_PRESENT || self.tree.has_annotations(node_id.id);
         if !node_has_annotations {
-            let mut presence = self.annotation_presence_cache.borrow_mut();
-            if node_id.id as usize >= presence.len() {
-                presence.resize((node_id.id + 1) as usize, ANNOTATION_STATE_UNKNOWN);
+            if let Some(presence_state) = self.annotation_presence_cache.get(node_index) {
+                presence_state.set(ANNOTATION_STATE_NONE);
             }
-            presence[node_id.id as usize] = ANNOTATION_STATE_NONE;
             return None;
         }
 
@@ -1001,23 +1224,19 @@ impl<'a> DestackFormatContext<'a> {
             CachedAnnotationData::from_ids(self.tree, self.tree.get_annotations(node_id.id));
         {
             let mut cache = self.annotation_ids_cache.borrow_mut();
-            if node_id.id as usize >= cache.len() {
-                cache.resize((node_id.id + 1) as usize, None);
+            if node_index >= cache.len() {
+                return None;
             }
-            cache[node_id.id as usize] = Some(annotation_data);
+            cache[node_index] = Some(annotation_data);
         }
-        {
-            let mut presence = self.annotation_presence_cache.borrow_mut();
-            if node_id.id as usize >= presence.len() {
-                presence.resize((node_id.id + 1) as usize, ANNOTATION_STATE_UNKNOWN);
-            }
-            presence[node_id.id as usize] = ANNOTATION_STATE_CACHED;
+        if let Some(presence_state) = self.annotation_presence_cache.get(node_index) {
+            presence_state.set(ANNOTATION_STATE_CACHED);
         }
 
         let cache = self.annotation_ids_cache.borrow();
         Some(Ref::map(cache, |cache| {
             cache
-                .get(node_id.id as usize)
+                .get(node_index)
                 .and_then(|entry| entry.as_ref())
                 .expect("annotation cache should contain requested node")
         }))
@@ -1056,11 +1275,11 @@ impl<'a> DestackFormatContext<'a> {
         T: Node,
         NodeTree: NodeTreeImpl<T>,
     {
+        let node_index = node_id.id as usize;
         let state = self
             .annotation_presence_cache
-            .borrow()
-            .get(node_id.id as usize)
-            .copied()
+            .get(node_index)
+            .map(Cell::get)
             .unwrap_or(ANNOTATION_STATE_UNKNOWN);
         if state == ANNOTATION_STATE_NONE {
             if self.instrumentation_enabled {
@@ -1086,15 +1305,13 @@ impl<'a> DestackFormatContext<'a> {
         }
 
         let has_annotation = self.tree.has_annotations(node_id.id);
-        let mut presence = self.annotation_presence_cache.borrow_mut();
-        if node_id.id as usize >= presence.len() {
-            presence.resize((node_id.id + 1) as usize, ANNOTATION_STATE_UNKNOWN);
+        if let Some(presence_state) = self.annotation_presence_cache.get(node_index) {
+            presence_state.set(if has_annotation {
+                ANNOTATION_STATE_PRESENT
+            } else {
+                ANNOTATION_STATE_NONE
+            });
         }
-        presence[node_id.id as usize] = if has_annotation {
-            ANNOTATION_STATE_PRESENT
-        } else {
-            ANNOTATION_STATE_NONE
-        };
         has_annotation
     }
 
@@ -1282,7 +1499,7 @@ impl<'a> DestackFormatContext<'a> {
     /// Start a formatter timing scope.
     #[inline]
     pub fn timing_scope(&self, tag: FormatterTimingTag) -> FormatterTimingScope {
-        FormatterTimingScope::new(self.timings.clone(), tag)
+        FormatterTimingScope::new(self.timings.as_ref(), tag)
     }
 
     /// Snapshot timing entries recorded by this formatter context.

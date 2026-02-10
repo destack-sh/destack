@@ -26,7 +26,7 @@ use destack_ast::{
     Key, Keyword, LocalNodeId, Member, Mutability, Name, NodeType, Parameter, Pattern, TypeKind,
     Visibility, WhereClause,
 };
-use destack_fir::format::{BestFittingMode, FormatResult};
+use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::{best_fitting, format_args, write};
 use destack_source::Span;
@@ -915,22 +915,18 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                             f.context()
                                 .record_best_fitting("best_fitting.declaration", 3);
                             best_fitting![format_inline, format_soft_break, format_indented]
-                                .with_mode(BestFittingMode::AllLines)
                                 .format(f)?;
                         } else {
                             f.context()
                                 .record_best_fitting("best_fitting.declaration", 3);
                             best_fitting![format_inline, format_inline_expanded, format_indented]
-                                .with_mode(BestFittingMode::AllLines)
                                 .format(f)?;
                         }
                     }
                 } else {
                     f.context()
                         .record_best_fitting("best_fitting.declaration", 2);
-                    best_fitting![format_inline, format_indented]
-                        .with_mode(BestFittingMode::AllLines)
-                        .format(f)?;
+                    best_fitting![format_inline, format_indented].format(f)?;
                 }
                 // type alias declarations need trailing semicolon (like const/let)
                 write!(f, [token(";")])?;

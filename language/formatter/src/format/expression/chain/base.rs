@@ -327,26 +327,7 @@ pub(crate) fn transparent_inner_expression(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> LocalNodeId<Expression> {
-    let mut current = node_id;
-
-    // peel transparent wrappers when they have no annotations
-    loop {
-        if context.has_annotation(current) {
-            return current;
-        }
-
-        let next = match context.tree.get(current) {
-            Expression::Await { expression }
-            | Expression::AwaitMaybe { expression }
-            | Expression::Parenthesized { expression } => Some(*expression),
-            _ => None,
-        };
-
-        match next {
-            Some(next_id) => current = next_id,
-            None => return current,
-        }
-    }
+    context.transparent_inner_expression(node_id)
 }
 
 /// Get the display width of an assignment operator token.

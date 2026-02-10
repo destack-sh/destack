@@ -4,6 +4,8 @@ use crate::CachedCallArgumentFacts;
 use destack_ast::TemplateLiteral;
 use destack_fir::write;
 
+const HUG_LAST_INLINE_OVERFLOW_SKIP_MARGIN: usize = 16;
+
 /// Store shared argument simplicity checks for call and chain classifiers.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct ArgumentSimplicityOptions {
@@ -273,16 +275,17 @@ pub(super) fn call_should_force_hug_test_like_callback(
         return false;
     }
 
-    if !call_callee_has_test_like_member_name(context, call_node_id) {
-        return false;
-    }
-
     if !argument_is_string_like(context, dynamic_arguments[0]) {
         return false;
     }
 
-    argument_is_lambda_expression(context, dynamic_arguments[1])
-        || argument_is_function_expression(context, dynamic_arguments[1])
+    if !(argument_is_lambda_expression(context, dynamic_arguments[1])
+        || argument_is_function_expression(context, dynamic_arguments[1]))
+    {
+        return false;
+    }
+
+    call_callee_has_test_like_member_name(context, call_node_id)
 }
 
 /// Return whether call arguments span multiple lines in source.
@@ -428,6 +431,7 @@ impl From<CallArgumentFacts> for CachedCallArgumentFacts {
 }
 
 /// Store comment and boundary data for call argument layout decisions.
+#[derive(Default)]
 struct CallArgumentCommentProfile {
     /// Whether any argument has a line comment annotation.
     has_line_comment_annotations: bool,
@@ -975,6 +979,8 @@ pub(super) fn format_call_arguments<'ast>(
                 )
             });
         if use_fast_simple_inline {
+            f.context()
+                .increment_counter("profile.call.arguments.path.fast_simple_inline", 1);
             write!(f, [token("(")])?;
             for (index, argument_id) in dynamic_arguments.iter().enumerate() {
                 if index > 0 {
@@ -1011,6 +1017,8 @@ pub(super) fn format_call_arguments<'ast>(
         if use_single_simple_argument_fast_path {
             f.context()
                 .increment_counter("profile.call.arguments.single_simple.fast_path", 1);
+            f.context()
+                .increment_counter("profile.call.arguments.path.single_simple_fast_path", 1);
             write!(f, [token("("), dynamic_arguments[0], token(")")])?;
             return Ok(());
         }
@@ -1044,16 +1052,19 @@ pub(super) fn format_call_arguments<'ast>(
         } else {
             true
         };
-        if can_use_hugged
-            && format_hugged(
+        if can_use_hugged {
+            let used_hugged = format_hugged(
                 f,
                 dynamic_arguments,
                 HugOptions::CALL,
                 Some(group_id),
                 force_hugged_expand,
-            )?
-        {
-            return Ok(());
+            )?;
+            if used_hugged {
+                f.context()
+                    .increment_counter("profile.call.arguments.path.hugged", 1);
+                return Ok(());
+            }
         }
 
         // keep short single positional arguments inline
@@ -1086,6 +1097,8 @@ pub(super) fn format_call_arguments<'ast>(
         };
 
         if use_single_simple_argument {
+            f.context()
+                .increment_counter("profile.call.arguments.path.single_simple", 1);
             write!(f, [token("("), dynamic_arguments[0], token(")")])?;
             return Ok(());
         }
@@ -1101,6 +1114,10 @@ pub(super) fn format_call_arguments<'ast>(
                 <= line_width.saturating_sub(8);
 
         if use_leading_block_callback_inline {
+            f.context().increment_counter(
+                "profile.call.arguments.path.leading_block_callback_inline",
+                1,
+            );
             write!(f, [token("(")])?;
             for (index, argument_id) in dynamic_arguments.iter().enumerate() {
                 if index > 0 {
@@ -1112,7 +1129,24 @@ pub(super) fn format_call_arguments<'ast>(
             return Ok(());
         }
 
-        let comment_profile = collect_call_argument_comment_profile(f.context(), dynamic_arguments);
+        let has_any_argument_annotation = dynamic_arguments
+            .iter()
+            .copied()
+            .any(|argument_id| f.context().has_annotation(argument_id));
+        let comment_profile = if has_any_argument_annotation || has_call_infix_annotations {
+            let _timing = f
+                .context()
+                .timing_scope(tags::FORMAT_EXPRESSION_CALL_ARGUMENTS_COMMENT_PROFILE);
+            f.context()
+                .increment_counter("profile.call.arguments.comment_profile.calls", 1);
+            collect_call_argument_comment_profile(f.context(), dynamic_arguments)
+        } else {
+            f.context().increment_counter(
+                "profile.call.arguments.comment_profile.skip_no_annotation",
+                1,
+            );
+            CallArgumentCommentProfile::default()
+        };
         let has_line_comment_annotations = comment_profile.has_line_comment_annotations;
         let has_prefix_line_comment_annotations =
             comment_profile.has_prefix_line_comment_annotations;
@@ -1123,6 +1157,8 @@ pub(super) fn format_call_arguments<'ast>(
                 || has_prefix_line_comment_annotations
                 || has_deferred_inline_boundary_comment)
         {
+            f.context()
+                .increment_counter("profile.call.arguments.path.comment_expanded", 1);
             let use_trailing_comma = f.context().options.trailing_comma == TrailingComma::All;
             let deferred_boundary_prefix_annotations = comment_profile
                 .deferred_boundary_prefix_annotations
@@ -1174,17 +1210,22 @@ pub(super) fn format_call_arguments<'ast>(
         }
 
         // decide if the argument list must expand
-        let expansion_profile = build_call_argument_expansion_profile(
-            f.context(),
-            call_node_id,
-            dynamic_arguments,
-            CallArgumentExpansionMode::Regular,
-            Some(has_call_infix_annotations),
-            Some(has_line_comment_annotations),
-            Some(force_expand_single_long_with_static_arguments),
-            Some(force_expand_single_collection_for_type_binary_callee),
-            Some(has_leading_block_callback_with_simple_tail),
-        );
+        let expansion_profile = {
+            let _timing = f
+                .context()
+                .timing_scope(tags::FORMAT_EXPRESSION_CALL_ARGUMENTS_EXPANSION_PROFILE);
+            build_call_argument_expansion_profile(
+                f.context(),
+                call_node_id,
+                dynamic_arguments,
+                CallArgumentExpansionMode::Regular,
+                Some(has_call_infix_annotations),
+                Some(has_line_comment_annotations),
+                Some(force_expand_single_long_with_static_arguments),
+                Some(force_expand_single_collection_for_type_binary_callee),
+                Some(has_leading_block_callback_with_simple_tail),
+            )
+        };
         let force_expand = expansion_profile.force_expand;
         let trailing_collection_argument = expansion_profile.trailing_collection_argument;
         let has_call_infix_annotations = expansion_profile.has_call_infix_annotations;
@@ -1214,8 +1255,33 @@ pub(super) fn format_call_arguments<'ast>(
                     argument_is_lambda_expression(f.context(), *argument_id)
                         || argument_is_function_expression(f.context(), *argument_id)
                 });
-        let force_hug_last_argument =
-            force_hug_test_like_callback || force_hug_reference_callback_with_collection_tail;
+        let force_hug_simple_block_lambda_tail = dynamic_arguments.len() <= 3
+            && dynamic_arguments
+                .last()
+                .is_some_and(|argument_id| is_block_lambda_argument(f.context(), *argument_id))
+            && !f.context().node_has_newline(call_node_id)
+            && dynamic_arguments
+                .iter()
+                .take(dynamic_arguments.len().saturating_sub(1))
+                .copied()
+                .all(|argument_id| {
+                    !f.context().node_has_newline(argument_id)
+                        && !f.context().has_annotation(argument_id)
+                        && argument_is_simple_with_options(
+                            f.context(),
+                            argument_id,
+                            ArgumentSimplicityOptions {
+                                reject_any_argument_annotation: true,
+                                reject_non_blank_argument_annotation: true,
+                                reject_value_annotation: true,
+                                reject_lambda_values: true,
+                                max_value_len: (line_width / 6).max(8),
+                            },
+                        )
+                });
+        let force_hug_last_argument = force_hug_test_like_callback
+            || force_hug_reference_callback_with_collection_tail
+            || force_hug_simple_block_lambda_tail;
         let list_format = format_with(|f| {
             let mut list = list_like("(", ")", ",", dynamic_arguments);
             list.with_group_id(Some(group_id))
@@ -1263,6 +1329,8 @@ pub(super) fn format_call_arguments<'ast>(
             });
 
             if force_hug_last_argument {
+                f.context()
+                    .increment_counter("profile.call.arguments.path.hug_last_forced", 1);
                 hug_last_format.format(f)?;
             } else {
                 let line_width = usize::from(f.context().options.line_width);
@@ -1281,24 +1349,89 @@ pub(super) fn format_call_arguments<'ast>(
                 } else {
                     None
                 };
+                let last_argument_id = dynamic_arguments.last().copied();
+                let last_argument_is_collection_literal =
+                    last_argument_id.is_some_and(|argument_id| {
+                        argument_is_collection_literal(f.context(), argument_id)
+                    });
+                let leading_arguments_are_compact_simple = dynamic_arguments
+                    .iter()
+                    .take(dynamic_arguments.len().saturating_sub(1))
+                    .copied()
+                    .all(|argument_id| {
+                        !f.context().node_has_newline(argument_id)
+                            && !f.context().has_annotation(argument_id)
+                            && argument_is_simple_with_options(
+                                f.context(),
+                                argument_id,
+                                ArgumentSimplicityOptions {
+                                    reject_any_argument_annotation: true,
+                                    reject_non_blank_argument_annotation: true,
+                                    reject_value_annotation: true,
+                                    reject_lambda_values: true,
+                                    max_value_len: (line_width / 5).max(12),
+                                },
+                            )
+                    });
                 if all_arguments_are_single_line_and_unannotated
                     && (call_source_len <= line_width
                         || inline_call_len.is_some_and(|inline_len| inline_len <= line_width))
                 {
                     f.context()
                         .increment_counter("profile.call.arguments.hug_last.fast_path", 1);
+                    f.context()
+                        .increment_counter("profile.call.arguments.path.hug_last_fast", 1);
                     hug_last_format.format(f)?;
+                } else if last_argument_is_collection_literal
+                    && leading_arguments_are_compact_simple
+                {
+                    f.context().increment_counter(
+                        "profile.call.arguments.hug_last.skip_probe.collection",
+                        1,
+                    );
+                    list_format.format(f)?;
+                } else if inline_call_len.is_some_and(|inline_len| {
+                    inline_len > line_width.saturating_add(HUG_LAST_INLINE_OVERFLOW_SKIP_MARGIN)
+                }) {
+                    f.context().increment_counter(
+                        "profile.call.arguments.hug_last.skip_probe_overflow",
+                        1,
+                    );
+                    list_format.format(f)?;
                 } else {
+                    if let Some(last_argument_id) = last_argument_id {
+                        if is_block_lambda_argument(f.context(), last_argument_id) {
+                            f.context().increment_counter(
+                                "profile.call.arguments.hug_last.best_fit.lambda",
+                                1,
+                            );
+                        } else if argument_is_function_expression(f.context(), last_argument_id) {
+                            f.context().increment_counter(
+                                "profile.call.arguments.hug_last.best_fit.function",
+                                1,
+                            );
+                        } else if argument_is_object_literal(f.context(), last_argument_id) {
+                            f.context().increment_counter(
+                                "profile.call.arguments.hug_last.best_fit.object",
+                                1,
+                            );
+                        } else if argument_is_array_literal(f.context(), last_argument_id) {
+                            f.context().increment_counter(
+                                "profile.call.arguments.hug_last.best_fit.array",
+                                1,
+                            );
+                        }
+                    }
                     f.context()
                         .record_best_fitting("best_fitting.expression.call", 2);
-                    best_fitting![hug_last_format, list_format]
-                        .with_mode(BestFittingMode::AllLines)
-                        .format(f)?;
+                    best_fitting![hug_last_format, list_format].format(f)?;
                 }
             }
             return Ok(());
         }
 
+        f.context()
+            .increment_counter("profile.call.arguments.path.list_default", 1);
         list_format.format(f)
     })();
 
@@ -1730,11 +1863,8 @@ pub(super) fn call_arguments_force_expand_for_chain(
     call_node_id: LocalNodeId<Expression>,
     dynamic_arguments: &[LocalNodeId<Argument>],
 ) -> bool {
-    if let Some(force_expand) = context
-        .call_chain_argument_expand_cache
-        .borrow()
-        .get(&call_node_id.id)
-        .copied()
+    if let Some(force_expand) =
+        context.call_chain_argument_expand_cache.borrow()[call_node_id.id as usize]
     {
         context.increment_counter("profile.call_arguments.chain.cache.hits", 1);
         return force_expand;
@@ -1753,10 +1883,8 @@ pub(super) fn call_arguments_force_expand_for_chain(
         None,
     )
     .force_expand;
-    context
-        .call_chain_argument_expand_cache
-        .borrow_mut()
-        .insert(call_node_id.id, force_expand);
+    context.call_chain_argument_expand_cache.borrow_mut()[call_node_id.id as usize] =
+        Some(force_expand);
 
     force_expand
 }

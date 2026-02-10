@@ -64,34 +64,44 @@ impl FormatterTimings {
 
 /// Scoped timing guard that records elapsed time on drop.
 #[derive(Debug)]
-pub struct FormatterTimingScope {
-    timings: Option<Rc<FormatterTimings>>,
-    name: &'static str,
-    started_at: Option<Instant>,
+pub enum FormatterTimingScope {
+    /// Disabled timing scope for normal formatter runs.
+    Disabled,
+    /// Enabled timing scope with start metadata.
+    Enabled {
+        timings: Rc<FormatterTimings>,
+        name: &'static str,
+        started_at: Instant,
+    },
 }
 
 impl FormatterTimingScope {
     /// Start a timing scope if timings are enabled.
-    pub fn new(timings: Option<Rc<FormatterTimings>>, tag: FormatterTimingTag) -> Self {
-        let started_at = timings.is_some().then(Instant::now);
-        Self {
-            timings,
+    pub fn new(timings: Option<&Rc<FormatterTimings>>, tag: FormatterTimingTag) -> Self {
+        let Some(timings) = timings else {
+            return Self::Disabled;
+        };
+        Self::Enabled {
+            timings: Rc::clone(timings),
             name: tag.name(),
-            started_at,
+            started_at: Instant::now(),
         }
     }
 }
 
 impl Drop for FormatterTimingScope {
     fn drop(&mut self) {
-        let Some(started_at) = self.started_at else {
-            return;
+        let (timings, name, started_at) = match self {
+            Self::Disabled => return,
+            Self::Enabled {
+                timings,
+                name,
+                started_at,
+            } => (timings, *name, *started_at),
         };
-        let Some(timings) = self.timings.as_ref() else {
-            return;
-        };
+
         let elapsed = started_at.elapsed();
-        timings.record(FormatterTimingTag::new(self.name), elapsed);
+        timings.record(FormatterTimingTag::new(name), elapsed);
     }
 }
 
@@ -157,6 +167,30 @@ pub mod tags {
         FormatterTimingTag::new("format.expression.statement.return");
     pub const FORMAT_EXPRESSION_PRIMARY: FormatterTimingTag =
         FormatterTimingTag::new("format.expression.primary");
+    pub const FORMAT_EXPRESSION_PRIMARY_PATH: FormatterTimingTag =
+        FormatterTimingTag::new("format.expression.primary.path");
+    pub const FORMAT_EXPRESSION_PRIMARY_PARENTHESES: FormatterTimingTag =
+        FormatterTimingTag::new("format.expression.primary.parenthesized");
+    pub const FORMAT_EXPRESSION_PRIMARY_TYPE_CONDITIONAL: FormatterTimingTag =
+        FormatterTimingTag::new("format.expression.primary.type_conditional");
+    pub const FORMAT_EXPRESSION_PRIMARY_ARRAY: FormatterTimingTag =
+        FormatterTimingTag::new("format.expression.primary.array");
+    pub const FORMAT_EXPRESSION_PRIMARY_TUPLE: FormatterTimingTag =
+        FormatterTimingTag::new("format.expression.primary.tuple");
+    pub const FORMAT_EXPRESSION_PRIMARY_OBJECT: FormatterTimingTag =
+        FormatterTimingTag::new("format.expression.primary.object");
+    pub const FORMAT_EXPRESSION_PRIMARY_TREE: FormatterTimingTag =
+        FormatterTimingTag::new("format.expression.primary.tree");
+    pub const FORMAT_EXPRESSION_PRIMARY_TYPE_MAPPED: FormatterTimingTag =
+        FormatterTimingTag::new("format.expression.primary.type_mapped");
+    pub const FORMAT_EXPRESSION_PRIMARY_PARENTHESES_DROP_POLICY: FormatterTimingTag =
+        FormatterTimingTag::new("format.expression.primary.parenthesized.drop_policy");
+    pub const FORMAT_EXPRESSION_PRIMARY_PARENTHESES_LEADING_TRIVIA: FormatterTimingTag =
+        FormatterTimingTag::new("format.expression.primary.parenthesized.leading_trivia");
+    pub const FORMAT_EXPRESSION_PRIMARY_PARENTHESES_BOUNDARY_COMMENTS: FormatterTimingTag =
+        FormatterTimingTag::new("format.expression.primary.parenthesized.boundary_comments");
+    pub const FORMAT_EXPRESSION_PRIMARY_PARENTHESES_TYPE_DROP: FormatterTimingTag =
+        FormatterTimingTag::new("format.expression.primary.parenthesized.type_drop");
     pub const FORMAT_EXPRESSION_OPERATOR: FormatterTimingTag =
         FormatterTimingTag::new("format.expression.operator");
     pub const FORMAT_EXPRESSION_OPERATOR_BINARY: FormatterTimingTag =
@@ -169,6 +203,10 @@ pub mod tags {
         FormatterTimingTag::new("format.expression.call");
     pub const FORMAT_EXPRESSION_CALL_ARGUMENTS: FormatterTimingTag =
         FormatterTimingTag::new("format.expression.call.arguments");
+    pub const FORMAT_EXPRESSION_CALL_ARGUMENTS_COMMENT_PROFILE: FormatterTimingTag =
+        FormatterTimingTag::new("format.expression.call.arguments.comment_profile");
+    pub const FORMAT_EXPRESSION_CALL_ARGUMENTS_EXPANSION_PROFILE: FormatterTimingTag =
+        FormatterTimingTag::new("format.expression.call.arguments.expansion_profile");
     pub const FORMAT_EXPRESSION_CALL_EMPTY_ARGUMENTS: FormatterTimingTag =
         FormatterTimingTag::new("format.expression.call.empty_arguments");
 

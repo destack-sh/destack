@@ -1044,6 +1044,7 @@ dependencies = [
  "destack_parser",
  "destack_source",
  "destack_workspace",
+ "rustc-hash 2.1.1",
  "serde_json",
  "smallvec",
 ]
