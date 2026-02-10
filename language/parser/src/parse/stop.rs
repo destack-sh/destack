@@ -321,6 +321,78 @@ impl Parser {
         Err(ParseError::expected(self.eof_span(), open_token))
     }
 
+    /// Find a matching close token in expression contexts with tree literal awareness.
+    pub fn find_matching_close_in_expression(
+        &mut self,
+        open_pos: u32,
+        open_token: TokenType,
+        close_token: TokenType,
+    ) -> ParseResult<u32> {
+        let mut depth = 0u32;
+        let mut pos = open_pos as usize;
+        let mut last_non_whitespace_index: Option<usize> = None;
+        let mut last_semantic_index: Option<usize> = None;
+        let mut prev_semantic_index: Option<usize> = None;
+        let tree_literals_allowed = self.language.supports_jsx()
+            && self.token_stream.allow_tree_literals()
+            && !self.options.in_type;
+
+        // we should start at the expected open token
+        #[cfg(debug_assertions)]
+        {
+            self.token_stream.ensure_token(pos);
+            let first_token = self
+                .token_ref_at(pos)
+                .map(|token| token.token.ty)
+                .unwrap_or(TokenType::End);
+            debug_assert_eq!(
+                first_token, open_token,
+                "expected open token {open_token:?} but got {first_token:?}"
+            );
+        }
+
+        // scan until we reach the matching close token
+        loop {
+            let ty = match self.token_ref_at(pos) {
+                Some(token) => token.token.ty,
+                None => break,
+            };
+            let can_start_expression = self.is_expression_start_after_tokens(
+                last_non_whitespace_index,
+                last_semantic_index,
+                prev_semantic_index,
+            );
+
+            // enter tree literal mode when a JSX literal starts at an expression boundary
+            if ty == TokenType::LessThan && tree_literals_allowed && can_start_expression {
+                let can_start_tree = self.with_pos(pos, |parser| parser.can_start_tree_literal());
+                if can_start_tree {
+                    self.token_stream.enter_tree_opening_tag();
+                }
+            }
+
+            // track opening and closing tokens
+            if ty == open_token {
+                depth += 1;
+            } else if ty == close_token {
+                depth = depth.saturating_sub(1);
+                if depth == 0 {
+                    return Ok(pos as u32);
+                }
+            }
+
+            // track previous tokens for expression boundary checks
+            last_non_whitespace_index = Some(pos);
+            if ty != TokenType::Newline {
+                prev_semantic_index = last_semantic_index;
+                last_semantic_index = Some(pos);
+            }
+            pos += 1;
+        }
+
+        Err(ParseError::expected(self.eof_span(), open_token))
+    }
+
     /// Find a token *within* a matching pair of tokens.
     pub fn find_before_matching_close(
         &mut self,
@@ -391,12 +463,7 @@ impl Parser {
             );
 
             // enter tree literal mode when a JSX literal starts at an expression boundary
-            if ty == TokenType::LessThan
-                && tree_literals_allowed
-                && can_start_expression
-                && (!self.token_stream.in_tree_literal()
-                    || self.token_stream.in_tree_attribute_expression())
-            {
+            if ty == TokenType::LessThan && tree_literals_allowed && can_start_expression {
                 let can_start_tree = self.with_pos(pos, |parser| parser.can_start_tree_literal());
                 if can_start_tree {
                     self.token_stream.enter_tree_opening_tag();
