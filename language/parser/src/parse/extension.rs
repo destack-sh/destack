@@ -83,7 +83,7 @@ impl Parser {
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::Declaration)?;
         self.eat_newlines_maybe()?;
-        let members = self.eat_members(true)?;
+        let members = self.eat_members(false)?;
         self.eat_token(TokenType::CloseBrace)?;
 
         // extension
@@ -144,6 +144,23 @@ extension for Foo {
                 assert_path!(parser, *path, "Foo");
             });
         });
+    }
+
+    #[test]
+    fn test_parse_extension_rejects_comma_separated_members() {
+        let mut test = TestParser::new(
+            r###"
+extension for Foo {
+    value: int32,
+}
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let start = parser.mark();
+        let result = parser.eat_extension(&start, DeclarationDescriptor::default());
+        assert!(result.is_err());
     }
 
     #[test]

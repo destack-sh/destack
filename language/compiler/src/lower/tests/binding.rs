@@ -152,8 +152,8 @@ fn test_lower_borrows_member_field() {
         "test.ds",
         r#"
 struct Point {
-    x: int32,
-    y: int32,
+    x: int32;
+    y: int32;
 }
 
 function borrowField(point: &Point): &int32 {

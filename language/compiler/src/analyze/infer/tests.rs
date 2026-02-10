@@ -1822,8 +1822,8 @@ fn test_analyze_inherent_extension() {
         "test.ds",
         r#"
 struct Point {
-    x: number,
-    y: number,
+    x: number;
+    y: number;
 }
 
 extension for Point {
@@ -1905,8 +1905,8 @@ fn test_analyze_local_extension() {
         "point.ds",
         r#"
 export struct Point {
-x: number,
-y: number,
+x: number;
+y: number;
 }
 "#,
     );
@@ -1994,8 +1994,8 @@ fn test_analyze_named_extension() {
         "point.ds",
         r#"
 export struct Point {
-    x: number,
-    y: number,
+    x: number;
+    y: number;
 }
 "#,
     );

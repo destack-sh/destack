@@ -118,7 +118,7 @@ fn test_lower_newtype_struct_payload() {
     let module_id = test.add_module(
         "test.ds",
         r#"
-struct Point { x: int32, y: int32 }
+struct Point { x: int32; y: int32 }
 newtype Location = Point;
 
 function markLocation(value: Location): Location {
@@ -343,7 +343,7 @@ fn test_lower_newtype_struct_field() {
         "test.ds",
         r#"
 newtype UserId = int32;
-struct User { id: UserId, flags: int32 }
+struct User { id: UserId; flags: int32 }
 
 function readUserId(user: User): UserId {
     return user.id;

@@ -216,7 +216,7 @@ debugger;
         );
         test.lint_module(module);
         test.compile();
-        test.check_has_diagnostic("LU010");
+        test.check_has_diagnostic("LU008");
     }
 
     #[test]
@@ -229,7 +229,7 @@ debugger;
         );
         test.lint_module(module);
         test.compile();
-        test.check_has_diagnostic("LU014");
+        test.check_has_diagnostic("LU012");
     }
 
     #[test]
@@ -243,7 +243,7 @@ if (true) { foo(); }
         );
         test.lint_module(module);
         test.compile();
-        test.check_has_diagnostic("LC014");
+        test.check_has_diagnostic("LC009");
     }
 
     #[test]
@@ -258,7 +258,7 @@ x == x;
         );
         test.lint_module(module);
         test.compile();
-        test.check_has_diagnostic("LC038");
+        test.check_has_diagnostic("LC025");
     }
 
     #[test]
@@ -304,6 +304,6 @@ function shared(): int32 {
             package: test.package_stamp(package_id),
         });
         test.compile();
-        test.check_has_diagnostic("LX018");
+        test.check_has_diagnostic("LX017");
     }
 }

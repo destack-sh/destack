@@ -392,6 +392,32 @@ interface Foo extends Baz {
     }
 
     #[test]
+    fn test_parse_interface_allows_comma_separated_members() {
+        let mut test = TestParser::new(
+            r###"
+interface Foo {
+    value: int32,
+    count: int32,
+}
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let start = parser.mark();
+        let interface_id = parser
+            .eat_interface(
+                &start,
+                DeclarationDescriptor::default(),
+                TypeKind::Structural,
+            )
+            .unwrap();
+        assert_node!(parser.tree, interface_id, Declaration::Interface { members, .. } => {
+            assert_eq!(members.len(), 2);
+        });
+    }
+
+    #[test]
     fn test_parse_interface_with_static_parameters() {
         let mut test = TestParser::new("interface Baz<T> {}");
         let mut parser = test.prepare();
