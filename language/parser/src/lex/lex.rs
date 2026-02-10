@@ -44,11 +44,13 @@ pub const TRIVIA_TOKEN_TYPES: [TokenType; 5] = [
     TokenType::DocBlockComment,
 ];
 
-pub const EXPRESSION_START_TOKEN_TYPES: [TokenType; 20] = [
+pub const EXPRESSION_START_TOKEN_TYPES: &[TokenType] = &[
     TokenType::Assign,
     TokenType::Comma,
     TokenType::Colon,
     TokenType::Semicolon,
+    TokenType::Not,
+    TokenType::ElementwiseNot,
     TokenType::Equal,
     TokenType::NotEqual,
     TokenType::EqualWide,
@@ -63,8 +65,34 @@ pub const EXPRESSION_START_TOKEN_TYPES: [TokenType; 20] = [
     TokenType::OpenParenthesis,
     TokenType::OpenBracket,
     TokenType::OpenBrace,
+    TokenType::TemplateStringStart,
+    TokenType::TemplateStringMiddle,
     TokenType::Arrow,
     TokenType::ArrowWide,
+    TokenType::MultiplyAssign,
+    TokenType::WrappingMultiplyAssign,
+    TokenType::SaturatingMultiplyAssign,
+    TokenType::ExponentAssign,
+    TokenType::WrappingExponentAssign,
+    TokenType::SaturatingExponentAssign,
+    TokenType::DivideAssign,
+    TokenType::RemainderAssign,
+    TokenType::AddAssign,
+    TokenType::WrappingAddAssign,
+    TokenType::SaturatingAddAssign,
+    TokenType::SubtractAssign,
+    TokenType::WrappingSubtractAssign,
+    TokenType::SaturatingSubtractAssign,
+    TokenType::ShiftLeftAssign,
+    TokenType::SaturatingShiftLeftAssign,
+    TokenType::ShiftRightAssign,
+    TokenType::UnsignedShiftRightAssign,
+    TokenType::ElementwiseAndAssign,
+    TokenType::ElementwiseXorAssign,
+    TokenType::ElementwiseOrAssign,
+    TokenType::LogicalAndAssign,
+    TokenType::LogicalOrAssign,
+    TokenType::CoalesceAssign,
 ];
 
 /// Check if a token is semantic (not whitespace or comment).
@@ -329,7 +357,19 @@ impl Lexer {
                 }
             }
             '@' => (TokenType::At, None),
-            '#' => (TokenType::Hash, None),
+            '#' => {
+                // hashbang prefix to a file
+                let is_hashbang = self.pos == 1
+                    && self.peek() == '!'
+                    && (self.language.is_javascript() || self.language.is_typescript());
+                if is_hashbang {
+                    self.eat(); // eat !
+                    self.eat_until(b'\n');
+                    (TokenType::LineComment, None)
+                } else {
+                    (TokenType::Hash, None)
+                }
+            }
             '~' => (TokenType::ElementwiseNot, None),
             '?' => {
                 // ??
@@ -676,21 +716,16 @@ impl Lexer {
                     self.eat();
                     (TokenType::LessThanOrEqual, None)
                 }
-                // </ - tree closing tag (when tree state is Content)
-                // NOTE #Robustness: we check tree_state() directly, not in_tree_content()
-                // (because in_tree_content() returns false inside expression containers
-                // but we still need to recognize </tag> for nested tree literals)
-                else if self.tree_state() == TreeState::Content
-                    && self.peek_tree_closing_after_trivia()
-                {
+                // </ - tree closing tag while lexing tree content
+                else if self.in_tree_content() && self.peek_tree_closing_after_trivia() {
                     // pop from content mode (closing tag will finish with >)
                     self.pop_tree_state();
                     // push closing tag mode
                     self.push_tree_state(TreeState::ClosingTag);
                     (TokenType::LessThan, None)
                 }
-                // < - tree opening tag inside tree content
-                else if self.tree_state() == TreeState::Content {
+                // < - tree opening tag while lexing tree content
+                else if self.in_tree_content() {
                     self.push_tree_state(TreeState::OpeningTag);
                     (TokenType::LessThan, None)
                 }
@@ -1512,7 +1547,7 @@ impl Lexer {
 
         let escaped = self.peek();
         match escaped {
-            // \8 and \9 are always invalid
+            // legacy escaped digits are invalid
             '8' | '9' => {
                 self.eat();
                 true
@@ -1748,38 +1783,21 @@ impl Lexer {
         false
     }
 
-    /// Parses a block comment body with nesting support.
+    /// Parse a block comment body.
     /// Assumes the initial `/*` has been seen (the `/` is already consumed and `*` consumed by caller).
     /// Returns true if the comment was properly terminated, false if EOF was reached.
     pub(crate) fn eat_block_comment(&mut self) -> bool {
-        let mut depth: u32 = 1;
+        // stop at the first closing delimiter
         while !self.is_end() {
             let bytes = self.as_str().as_bytes();
-            if bytes.len() >= 2 {
-                // start of nested block comment
-                if bytes[0] == b'/' && bytes[1] == b'*' {
-                    // consume '/*'
-                    self.eat();
-                    self.eat();
-                    depth = depth.saturating_add(1);
-                    continue;
-                }
-                // end of current block comment level
-                if bytes[0] == b'*' && bytes[1] == b'/' {
-                    // consume '*/'
-                    self.eat();
-                    self.eat();
-                    depth = depth.saturating_sub(1);
-                    if depth == 0 {
-                        return true; // properly terminated
-                    }
-                    continue;
-                }
+            if bytes.len() >= 2 && bytes[0] == b'*' && bytes[1] == b'/' {
+                self.eat();
+                self.eat();
+                return true;
             }
-            // consume a single character and continue
             let _ = self.eat();
         }
-        // reached EOF without closing comment
+
         false
     }
 
@@ -1894,6 +1912,12 @@ impl Lexer {
             let Some(last_semantic) = self.options.last_semantic_token.as_ref() else {
                 return true;
             };
+            if self.not_token_is_postfix_non_null_assertion(
+                last_semantic,
+                self.options.prev_semantic_token.as_ref(),
+            ) {
+                return false;
+            }
             if self.is_statement_boundary_after_newline(
                 Some(last_non_whitespace),
                 last_semantic,
@@ -1925,6 +1949,13 @@ impl Lexer {
             return false;
         }
 
+        if self.not_token_is_postfix_non_null_assertion(
+            last_non_whitespace,
+            self.options.prev_semantic_token.as_ref(),
+        ) {
+            return false;
+        }
+
         // control statement headers can be followed by expression statements
         if last_non_whitespace.token.ty == TokenType::CloseParenthesis
             && self.close_parenthesis_ends_control_header()
@@ -1948,6 +1979,44 @@ impl Lexer {
         }
 
         false
+    }
+
+    // detect typescript postfix non null assertions before `/`
+    fn not_token_is_postfix_non_null_assertion(
+        &self,
+        not_token: &TokenSpan,
+        previous_semantic: Option<&TokenSpan>,
+    ) -> bool {
+        if !self.language.is_typescript() || not_token.token.ty != TokenType::Not {
+            return false;
+        }
+        let Some(previous_semantic) = previous_semantic else {
+            return false;
+        };
+        self.token_can_end_expression_for_non_null_assertion(previous_semantic)
+    }
+
+    // detect whether a token can end an expression before a postfix non null assertion
+    fn token_can_end_expression_for_non_null_assertion(&self, token: &TokenSpan) -> bool {
+        match token.token.ty {
+            TokenType::Identifier => {
+                let token_str = self.get_span_str(token.span);
+                match Keyword::from_str(token_str) {
+                    Ok(Keyword::This | Keyword::Super) => true,
+                    Ok(_) => false,
+                    Err(_) => true,
+                }
+            }
+            TokenType::Literal
+            | TokenType::CloseParenthesis
+            | TokenType::CloseBracket
+            | TokenType::CloseBrace
+            | TokenType::TemplateString
+            | TokenType::TemplateStringEnd
+            | TokenType::Increment
+            | TokenType::Decrement => true,
+            _ => false,
+        }
     }
 
     // detect `export default /regex/` context

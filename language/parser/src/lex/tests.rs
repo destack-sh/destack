@@ -182,6 +182,44 @@ fn test_lex_valid_weird_unicode() {
 }
 
 #[test]
+fn test_lex_javascript_and_typescript_hashbang_as_line_comment() {
+    let source = "#!/usr/bin/env node\nimport value from 'pkg';\n";
+    let expected_semantic_tokens = vec![
+        Token::new(TokenType::Newline, 1, None),
+        Token::new(TokenType::Identifier, 6, None),
+        Token::new(TokenType::Identifier, 5, None),
+        Token::new(TokenType::Identifier, 4, None),
+        Token::new(
+            TokenType::Literal,
+            5,
+            Some(LiteralType::String {
+                is_terminated: true,
+                has_invalid_escape: false,
+            }),
+        ),
+        Token::new(TokenType::Semicolon, 1, None),
+        Token::new(TokenType::Newline, 1, None),
+        Token::end(),
+    ];
+    let expected_side_tokens = vec![
+        Token::new(TokenType::LineComment, 19, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Whitespace, 1, None),
+    ];
+
+    // typescript hashbang
+    let (semantic_tokens, side_tokens) = lex_source_tokens(source, LanguageType::TypeScript);
+    assert_eq!(semantic_tokens, expected_semantic_tokens);
+    assert_eq!(side_tokens, expected_side_tokens);
+
+    // javascript hashbang
+    let (semantic_tokens, side_tokens) = lex_source_tokens(source, LanguageType::JavaScript);
+    assert_eq!(semantic_tokens, expected_semantic_tokens);
+    assert_eq!(side_tokens, expected_side_tokens);
+}
+
+#[test]
 fn test_lex_random_symbols() {
     assert_tokenize_eq_roundtrip!(
         "a..b => c->d x _ : ? ! @ ~",
@@ -681,6 +719,21 @@ fn test_lex_regex_literal_after_arrow() {
             Token::new(TokenType::Whitespace, 1, None),
             Token::new(TokenType::Whitespace, 1, None),
         ],
+    );
+}
+
+#[test]
+fn test_lex_regex_literal_after_template_interpolation_start() {
+    assert_tokenize_eq_roundtrip!(
+        "re`/^${/^$/}$/u`",
+        Token::new(TokenType::Identifier, 2, None),
+        Token::new(TokenType::TemplateStringStart, 5, None),
+        Token::new(
+            TokenType::Literal,
+            4,
+            Some(LiteralType::RegexString { has_flags: false })
+        ),
+        Token::new(TokenType::TemplateStringEnd, 5, None),
     );
 }
 
@@ -1331,12 +1384,77 @@ fn test_lex_block_comments_basic_and_doc() {
 }
 
 #[test]
-fn test_lex_block_comment_nested() {
-    assert_tokenize_eq_roundtrip!(
-        "/* a /* b */ c */ d",
-        Token::new(TokenType::BlockComment, 17, None),
-        Token::new(TokenType::Whitespace, 1, None),
-        Token::new(TokenType::Identifier, 1, None),
+fn test_lex_destack_block_comment_no_nesting() {
+    let source = "/* a /* b */ c */ d";
+    let (semantic_tokens, side_tokens) = lex_source_tokens(source, LanguageType::Destack);
+    assert_eq!(
+        semantic_tokens,
+        vec![
+            Token::new(TokenType::Identifier, 1, None),
+            Token::new(TokenType::Multiply, 1, None),
+            Token::new(TokenType::Divide, 1, None),
+            Token::new(TokenType::Identifier, 1, None),
+            Token::end(),
+        ]
+    );
+    assert_eq!(
+        side_tokens,
+        vec![
+            Token::new(TokenType::BlockComment, 12, None),
+            Token::new(TokenType::Whitespace, 1, None),
+            Token::new(TokenType::Whitespace, 1, None),
+            Token::new(TokenType::Whitespace, 1, None),
+        ]
+    );
+}
+
+#[test]
+fn test_lex_typescript_block_comment_no_nesting() {
+    let source = "/* a /* b */ c */ d";
+    let (semantic_tokens, side_tokens) = lex_source_tokens(source, LanguageType::TypeScript);
+    assert_eq!(
+        semantic_tokens,
+        vec![
+            Token::new(TokenType::Identifier, 1, None),
+            Token::new(TokenType::Multiply, 1, None),
+            Token::new(TokenType::Divide, 1, None),
+            Token::new(TokenType::Identifier, 1, None),
+            Token::end(),
+        ]
+    );
+    assert_eq!(
+        side_tokens,
+        vec![
+            Token::new(TokenType::BlockComment, 12, None),
+            Token::new(TokenType::Whitespace, 1, None),
+            Token::new(TokenType::Whitespace, 1, None),
+            Token::new(TokenType::Whitespace, 1, None),
+        ]
+    );
+}
+
+#[test]
+fn test_lex_javascript_block_comment_no_nesting() {
+    let source = "/* a /* b */ c */ d";
+    let (semantic_tokens, side_tokens) = lex_source_tokens(source, LanguageType::JavaScript);
+    assert_eq!(
+        semantic_tokens,
+        vec![
+            Token::new(TokenType::Identifier, 1, None),
+            Token::new(TokenType::Multiply, 1, None),
+            Token::new(TokenType::Divide, 1, None),
+            Token::new(TokenType::Identifier, 1, None),
+            Token::end(),
+        ]
+    );
+    assert_eq!(
+        side_tokens,
+        vec![
+            Token::new(TokenType::BlockComment, 12, None),
+            Token::new(TokenType::Whitespace, 1, None),
+            Token::new(TokenType::Whitespace, 1, None),
+            Token::new(TokenType::Whitespace, 1, None),
+        ]
     );
 }
 
@@ -2162,6 +2280,32 @@ fn test_lex_double_quote_with_newline_is_unterminated() {
     );
 
     assert_eq!(side_tokens, vec![]);
+}
+
+/// Legacy escaped digits in strings are invalid across language modes.
+#[test]
+fn test_lex_string_with_legacy_escaped_digit_is_invalid_across_languages() {
+    let expected_tokens = vec![
+        Token::new(
+            TokenType::Literal,
+            16,
+            Some(LiteralType::String {
+                is_terminated: true,
+                has_invalid_escape: true,
+            }),
+        ),
+        Token::end(),
+    ];
+
+    for language in [
+        LanguageType::default(),
+        LanguageType::TypeScript,
+        LanguageType::JavaScript,
+    ] {
+        let (semantic_tokens, side_tokens) = lex_source_tokens("\"+4\\9 99 999 99\"", language);
+        assert_eq!(side_tokens, vec![]);
+        assert_eq!(semantic_tokens, expected_tokens);
+    }
 }
 
 /// Unterminated single quote in parentheses should not hang.
