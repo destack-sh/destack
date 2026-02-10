@@ -43,6 +43,7 @@ declare namespace security {
         "destack.security.policy.get",
         {
             effect: "deterministic",
+            replay: "nonrecordable",
             requires: ["security.policy.read"],
             scope: "runtime",
             blocking: "never",
@@ -71,6 +72,7 @@ declare namespace security {
         "destack.security.policy.getRules",
         {
             effect: "deterministic",
+            replay: "nonrecordable",
             requires: ["security.policy.read"],
             scope: "runtime",
             blocking: "never",
@@ -101,6 +103,7 @@ declare namespace security {
         "destack.security.policy.set",
         {
             effect: "deterministic",
+            replay: "nonrecordable",
             requires: ["security.policy.write"],
             scope: "runtime",
             blocking: "never",
@@ -129,6 +132,7 @@ declare namespace security {
         "destack.security.policy.setRules",
         {
             effect: "deterministic",
+            replay: "nonrecordable",
             requires: ["security.policy.write"],
             scope: "runtime",
             blocking: "never",

@@ -1,21 +1,21 @@
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 mod basic;
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 mod edge;
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 mod message;
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 mod options;
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 mod resolve;
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 mod shutdown;
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 mod tests;
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 mod udp;
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 mod uds;
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 pub(super) use tests::*;

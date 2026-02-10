@@ -1399,13 +1399,13 @@ pub(crate) unsafe fn destack_net_get_only_v6(
 pub(crate) fn unix_path_bytes(path: OsPath, label: &str) -> RuntimeResult<Vec<u8>> {
     // decode byte paths directly
     if path.encoding == PathEncoding::Bytes {
-        let bytes = unsafe { path.bytes.0.as_slice()? };
+        let bytes = unsafe { path.data.0.as_slice()? };
 
         return Ok(bytes.to_vec());
     }
 
     // decode utf16 paths and transcode to bytes
-    core_fs::utf16_path_to_utf8_bytes(path.utf16, label)
+    core_fs::utf16_path_to_utf8_bytes(path.data, label)
 }
 
 /// Core networking interface exposed to bindings.

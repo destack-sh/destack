@@ -1,10 +1,8 @@
-use std::os::windows::ffi::OsStrExt;
-
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::abi::NativeAbi;
-use crate::platform::fs::{PathBytes, PathBytesAbi, PathUtf16, PathUtf16Abi};
+use crate::platform::fs::{PathBytes, PathBytesAbi, PathUtf16};
 use crate::runtime::RuntimeCallContext;
 
 /// Create a temporary directory with byte paths.
@@ -45,8 +43,8 @@ pub(crate) unsafe fn destack_fs_mkdtemp_utf16(
     }
 
     // validate the template code units
-    let wide = unsafe { template.0.as_slice()? };
-    if wide.contains(&0) {
+    let units = utf16_units(template, "template")?;
+    if units.contains(&0) {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "template",
             "path contains nul code unit",
@@ -55,15 +53,14 @@ pub(crate) unsafe fn destack_fs_mkdtemp_utf16(
     }
 
     // decode the template path
-    let template = string_from_wide(wide, "template")?;
+    let template = string_from_wide(&units, "template")?;
 
     // create the temporary directory
     let path = mkdtemp_from_template(&template)?;
 
     // write the output
-    let wide: Vec<u16> = path.as_os_str().encode_wide().collect();
     unsafe {
-        *out = PathUtf16Abi::<NativeAbi>(context.store_array(wide));
+        *out = path_utf16_from_pathbuf(context, &path);
     }
 
     Ok(())

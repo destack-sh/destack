@@ -1,130 +1,135 @@
-use super::{FsHarness, path_bytes, temp_dir, with_native_harness};
-use crate::platform::fs::{
-    FileMode, FileOffset, OpenFlags, Stat, StatFs, SymlinkType, destack_fs_dir_mkdir,
-    destack_fs_dir_rmdir, destack_fs_file_close, destack_fs_file_open, destack_fs_file_pwrite,
-    destack_fs_path_symlink, destack_fs_path_unlink, destack_fs_stat_fstat, destack_fs_stat_lstat,
-    destack_fs_stat_path, destack_fs_stat_statfs,
-};
-use crate::platform::resource::{FileHandle, ResourceId};
+use super::{temp_dir, with_harness_context};
+#[cfg(unix)]
+use crate::platform::fs::SymlinkType;
+use crate::platform::fs::{FileMode, OpenFlags};
 
 #[cfg(any(unix, windows))]
 #[test]
 fn test_fs_stat_and_fstat() {
-    with_native_harness(|harness| {
-        let runtime = harness.runtime();
+    with_harness_context(|mut context| {
+        // runtime and temp directory
         let temp_dir = temp_dir("fs_stat");
         let file_path = temp_dir.join("file.txt");
 
-        let (handle, expected_size) = harness.with_context(|| {
-            let (_bytes, dir) = path_bytes(&temp_dir);
-            let status = unsafe { destack_fs_dir_mkdir(dir, FileMode(0o755)) };
-            runtime.assert_status_ok(status, "mkdir");
+        let dir = context.path_bytes(&temp_dir);
+        context.mkdir(dir, FileMode(0o755))?;
 
-            let (_bytes, file) = path_bytes(&file_path);
-            let flags = OpenFlags((libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC) as u32);
-            let mut handle = FileHandle(ResourceId(0));
-            let status = unsafe { destack_fs_file_open(&mut handle, file, flags, FileMode(0o644)) };
-            runtime.assert_status_ok(status, "open");
-            let payload = b"statdata".to_vec();
-            let slice = super::native_slice(&payload);
-            let mut out = 0u64;
-            let status = unsafe { destack_fs_file_pwrite(&mut out, handle, slice, FileOffset(0)) };
-            runtime.assert_status_ok(status, "write");
-            (handle, payload.len() as u64)
-        });
+        // write payload
+        let file = context.path_bytes(&file_path);
+        let flags = OpenFlags((libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC) as u32);
+        let handle = context.open(file, flags, FileMode(0o644))?;
+        let payload = b"statdata".to_vec();
+        context.write(handle, &payload)?;
+        let expected_size = payload.len() as u64;
 
-        harness.with_context(|| {
-            let (_bytes, file) = path_bytes(&file_path);
-            let mut stat = std::mem::MaybeUninit::<Stat>::uninit();
-            let status = unsafe { destack_fs_stat_path(stat.as_mut_ptr(), file) };
-            runtime.assert_status_ok(status, "stat");
-            let stat = unsafe { stat.assume_init() };
-            assert_eq!(stat.size.0, expected_size);
+        // stat and fstat
+        let file = context.path_bytes(&file_path);
+        let stat = context.stat(file)?;
+        assert_eq!(stat.size.0, expected_size);
 
-            let mut fstat = std::mem::MaybeUninit::<Stat>::uninit();
-            let status = unsafe { destack_fs_stat_fstat(fstat.as_mut_ptr(), handle) };
-            runtime.assert_status_ok(status, "fstat");
-            let fstat = unsafe { fstat.assume_init() };
-            assert_eq!(fstat.size.0, expected_size);
-        });
+        let fstat = context.fstat(handle)?;
+        assert_eq!(fstat.size.0, expected_size);
 
-        harness.with_context(|| {
-            let status = unsafe { destack_fs_file_close(handle) };
-            runtime.assert_status_ok(status, "close");
+        // cleanup
+        context.close(handle)?;
+        let file = context.path_bytes(&file_path);
+        context.unlink(file)?;
+        let dir = context.path_bytes(&temp_dir);
+        context.rmdir(dir)?;
 
-            let (_bytes, file) = path_bytes(&file_path);
-            let status = unsafe { destack_fs_path_unlink(file) };
-            runtime.assert_status_ok(status, "unlink");
-
-            let (_bytes, dir) = path_bytes(&temp_dir);
-            let status = unsafe { destack_fs_dir_rmdir(dir) };
-            runtime.assert_status_ok(status, "rmdir");
-        });
+        Ok(())
     });
 }
 
 #[cfg(any(unix, windows))]
 #[test]
 fn test_fs_statfs() {
-    with_native_harness(|harness| {
-        let runtime = harness.runtime();
+    with_harness_context(|mut context| {
+        // runtime and temp directory
         let temp_dir = temp_dir("fs_statfs");
+        let dir = context.path_bytes(&temp_dir);
+        context.mkdir(dir, FileMode(0o755))?;
 
-        harness.with_context(|| {
-            let (_bytes, dir) = path_bytes(&temp_dir);
-            let status = unsafe { destack_fs_dir_mkdir(dir, FileMode(0o755)) };
-            runtime.assert_status_ok(status, "mkdir");
+        // statfs
+        let dir = context.path_bytes(&temp_dir);
+        let statfs = context.statfs(dir)?;
+        assert!(statfs.blocks > 0);
+        assert!(statfs.bsize > 0);
 
-            let mut statfs = std::mem::MaybeUninit::<StatFs>::uninit();
-            let status = unsafe { destack_fs_stat_statfs(statfs.as_mut_ptr(), dir) };
-            runtime.assert_status_ok(status, "statfs");
-            let statfs = unsafe { statfs.assume_init() };
-            assert!(statfs.blocks > 0);
-            assert!(statfs.bsize > 0);
+        // cleanup
+        let dir = context.path_bytes(&temp_dir);
+        context.rmdir(dir)?;
 
-            let status = unsafe { destack_fs_dir_rmdir(dir) };
-            runtime.assert_status_ok(status, "rmdir");
-        });
+        Ok(())
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn test_fs_fstatfs() {
+    with_harness_context(|mut context| {
+        // runtime and temp directory
+        let temp_dir = temp_dir("fs_fstatfs");
+        let file_path = temp_dir.join("file.txt");
+
+        let dir = context.path_bytes(&temp_dir);
+        context.mkdir(dir, FileMode(0o755))?;
+
+        // create file
+        let file = context.path_bytes(&file_path);
+        let flags = OpenFlags((libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC) as u32);
+        let handle = context.open(file, flags, FileMode(0o644))?;
+
+        // fstatfs
+        let statfs = context.fstatfs(handle)?;
+        assert!(statfs.blocks > 0);
+        assert!(statfs.bsize > 0);
+
+        // cleanup
+        context.close(handle)?;
+        let file = context.path_bytes(&file_path);
+        context.unlink(file)?;
+        let dir = context.path_bytes(&temp_dir);
+        context.rmdir(dir)?;
+
+        Ok(())
     });
 }
 
 #[cfg(unix)]
 #[test]
 fn test_fs_lstat() {
-    with_native_harness(|harness| {
-        let runtime = harness.runtime();
+    with_harness_context(|mut context| {
+        // runtime and temp directory
         let temp_dir = temp_dir("fs_lstat");
         let file_path = temp_dir.join("file.txt");
         let link_path = temp_dir.join("link.txt");
 
-        harness.with_context(|| {
-            let (_bytes, dir) = path_bytes(&temp_dir);
-            let status = unsafe { destack_fs_dir_mkdir(dir, FileMode(0o755)) };
-            runtime.assert_status_ok(status, "mkdir");
+        let dir = context.path_bytes(&temp_dir);
+        context.mkdir(dir, FileMode(0o755))?;
 
-            let (_bytes, file) = path_bytes(&file_path);
-            let flags = OpenFlags((libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC) as u32);
-            let mut handle = FileHandle(ResourceId(0));
-            let status = unsafe { destack_fs_file_open(&mut handle, file, flags, FileMode(0o644)) };
-            runtime.assert_status_ok(status, "open");
-            let status = unsafe { destack_fs_file_close(handle) };
-            runtime.assert_status_ok(status, "close");
+        // create target file
+        let file = context.path_bytes(&file_path);
+        let flags = OpenFlags((libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC) as u32);
+        let handle = context.open(file, flags, FileMode(0o644))?;
+        context.close(handle)?;
 
-            let (_bytes, target) = path_bytes(&file_path);
-            let (_bytes, link) = path_bytes(&link_path);
-            let status = unsafe { destack_fs_path_symlink(target, link, SymlinkType::File) };
-            runtime.assert_status_ok(status, "symlink");
+        // symlink and lstat
+        let target = context.path_bytes(&file_path);
+        let link = context.path_bytes(&link_path);
+        context.symlink(target, link, SymlinkType::File)?;
 
-            let mut stat = std::mem::MaybeUninit::<Stat>::uninit();
-            let status = unsafe { destack_fs_stat_lstat(stat.as_mut_ptr(), link) };
-            runtime.assert_status_ok(status, "lstat");
+        let link = context.path_bytes(&link_path);
+        let _stat = context.lstat(link)?;
 
-            let status = unsafe { destack_fs_path_unlink(link) };
-            runtime.assert_status_ok(status, "unlink link");
-            let status = unsafe { destack_fs_path_unlink(target) };
-            runtime.assert_status_ok(status, "unlink file");
-            let status = unsafe { destack_fs_dir_rmdir(dir) };
-            runtime.assert_status_ok(status, "rmdir");
-        });
+        // cleanup
+        let link = context.path_bytes(&link_path);
+        context.unlink(link)?;
+        let target = context.path_bytes(&file_path);
+        context.unlink(target)?;
+        let dir = context.path_bytes(&temp_dir);
+        context.rmdir(dir)?;
+
+        Ok(())
     });
 }

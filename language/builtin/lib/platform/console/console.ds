@@ -19,7 +19,16 @@ export declare namespace console {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.console.console.log", { effect: "external", replay: "recordable", requires: ["console.write"] })
+    @binding(
+        "destack.console.console.log",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["console.write"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
     export function log(value: string): Result<void, PlatformError>;
 
     /// Write an info line to stdout.
@@ -39,7 +48,16 @@ export declare namespace console {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.console.console.info", { effect: "external", replay: "recordable", requires: ["console.write"] })
+    @binding(
+        "destack.console.console.info",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["console.write"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
     export function info(value: string): Result<void, PlatformError>;
 
     /// Write a warning line to stderr.
@@ -59,7 +77,16 @@ export declare namespace console {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.console.console.warn", { effect: "external", replay: "recordable", requires: ["console.write"] })
+    @binding(
+        "destack.console.console.warn",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["console.write"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
     export function warn(value: string): Result<void, PlatformError>;
 
     /// Write an error line to stderr.
@@ -79,6 +106,15 @@ export declare namespace console {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.console.console.error", { effect: "external", replay: "recordable", requires: ["console.write"] })
+    @binding(
+        "destack.console.console.error",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["console.write"],
+            scope: "os",
+            blocking: "sometimes",
+        },
+    )
     export function error(value: string): Result<void, PlatformError>;
 }

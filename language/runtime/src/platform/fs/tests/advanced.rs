@@ -1,3 +1,4 @@
+#![cfg_attr(windows, allow(dead_code, unused_imports))]
 use super::{temp_dir, with_harness_context};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs::{
@@ -57,7 +58,11 @@ fn test_fs_seek_dup_lock() {
             OpenFlags(libc::O_RDONLY as u32),
             FileMode(0o644),
         )?;
-        let dup3_result = context.dup3(dup_handle, target, OpenFlags(libc::O_CLOEXEC as u32));
+        #[cfg(unix)]
+        let dup3_flags = OpenFlags(libc::O_CLOEXEC as u32);
+        #[cfg(windows)]
+        let dup3_flags = OpenFlags(0);
+        let dup3_result = context.dup3(dup_handle, target, dup3_flags);
         let dup3 = context.result_ok_or_codes(dup3_result, "dup3", &allowed)?;
         if let Some(dup3_handle) = dup3 {
             context.close(dup3_handle)?;
@@ -133,7 +138,7 @@ fn test_fs_copy_file_range() {
     });
 }
 
-#[cfg(any(unix, windows))]
+#[cfg(unix)]
 #[test]
 fn test_fs_sendfile() {
     with_harness_context(|mut context| {
@@ -181,7 +186,7 @@ fn test_fs_sendfile() {
     });
 }
 
-#[cfg(any(unix, windows))]
+#[cfg(unix)]
 #[test]
 fn test_fs_sync_alloc_advice() {
     with_harness_context(|mut context| {

@@ -26,6 +26,7 @@ declare namespace ffi {
         "destack.ffi.pointer.fromAddress",
         {
             effect: "deterministic",
+            replay: "nonrecordable",
             requires: ["ffi.pointer"],
             scope: "runtime",
             blocking: "never",
@@ -54,6 +55,7 @@ declare namespace ffi {
         "destack.ffi.pointer.address",
         {
             effect: "deterministic",
+            replay: "nonrecordable",
             requires: ["ffi.pointer"],
             scope: "runtime",
             blocking: "never",

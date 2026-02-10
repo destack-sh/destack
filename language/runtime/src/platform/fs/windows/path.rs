@@ -1,5 +1,3 @@
-use std::os::windows::ffi::OsStrExt;
-
 use windows_sys::Wdk::Storage::FileSystem::{
     FILE_DIRECTORY_FILE, FILE_NON_DIRECTORY_FILE, FILE_OPEN, FILE_OPEN_REPARSE_POINT,
 };
@@ -16,8 +14,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::abi::NativeAbi;
 use crate::platform::fs::{
-    AtFlags, DirectoryHandle, PathBytes, PathBytesAbi, PathUtf16, PathUtf16Abi, RenameFlags,
-    SymlinkType,
+    AtFlags, DirectoryHandle, PathBytes, PathBytesAbi, PathUtf16, RenameFlags, SymlinkType,
 };
 use crate::runtime::RuntimeCallContext;
 
@@ -137,12 +134,8 @@ pub(crate) unsafe fn destack_fs_linkat_utf16(
     };
 
     // re-encode the resolved paths
-    let existing = PathUtf16Abi::<NativeAbi>(
-        context.store_array(existing_path.as_os_str().encode_wide().collect()),
-    );
-    let new = PathUtf16Abi::<NativeAbi>(
-        context.store_array(new_path.as_os_str().encode_wide().collect()),
-    );
+    let existing = path_utf16_from_pathbuf(context, &existing_path);
+    let new = path_utf16_from_pathbuf(context, &new_path);
 
     // create the hard link
     unsafe { destack_fs_link_utf16(context, existing, new) }
@@ -263,8 +256,7 @@ pub(crate) unsafe fn destack_fs_symlinkat_utf16(
     base.push(pathbuf);
 
     // re-encode the resolved path
-    let wide: Vec<u16> = base.as_os_str().encode_wide().collect();
-    let path = PathUtf16Abi::<NativeAbi>(context.store_array(wide));
+    let path = path_utf16_from_pathbuf(context, &base);
 
     // create the symlink
     unsafe { destack_fs_symlink_utf16(context, target, path, kind) }
@@ -326,7 +318,7 @@ pub(crate) unsafe fn destack_fs_readlink_utf16(
 
     // write the output
     unsafe {
-        *out = PathUtf16Abi::<NativeAbi>(context.store_array(wide));
+        *out = path_utf16_from_units(context, &wide);
     }
 
     Ok(())
@@ -375,8 +367,7 @@ pub(crate) unsafe fn destack_fs_readlinkat_utf16(
     base.push(pathbuf);
 
     // re-encode the resolved path
-    let wide: Vec<u16> = base.as_os_str().encode_wide().collect();
-    let path = PathUtf16Abi::<NativeAbi>(context.store_array(wide));
+    let path = path_utf16_from_pathbuf(context, &base);
 
     // read the symlink
     unsafe { destack_fs_readlink_utf16(context, out, path) }
@@ -456,7 +447,7 @@ pub(crate) unsafe fn destack_fs_realpath_utf16(
 
     // write the output
     unsafe {
-        *out = PathUtf16Abi::<NativeAbi>(context.store_array(wide));
+        *out = path_utf16_from_units(context, &wide);
     }
 
     Ok(())
@@ -633,12 +624,8 @@ pub(crate) unsafe fn destack_fs_renameat_utf16(
             base.push(to_pathbuf);
             base
         };
-        let from = PathUtf16Abi::<NativeAbi>(
-            context.store_array(from_path.as_os_str().encode_wide().collect()),
-        );
-        let to = PathUtf16Abi::<NativeAbi>(
-            context.store_array(to_path.as_os_str().encode_wide().collect()),
-        );
+        let from = path_utf16_from_pathbuf(context, &from_path);
+        let to = path_utf16_from_pathbuf(context, &to_path);
         return unsafe { destack_fs_rename_utf16(context, from, to) };
     }
 
@@ -777,12 +764,8 @@ pub(crate) unsafe fn destack_fs_renameat2_utf16(
             base.push(to_pathbuf);
             base
         };
-        let from = PathUtf16Abi::<NativeAbi>(
-            context.store_array(from_path.as_os_str().encode_wide().collect()),
-        );
-        let to = PathUtf16Abi::<NativeAbi>(
-            context.store_array(to_path.as_os_str().encode_wide().collect()),
-        );
+        let from = path_utf16_from_pathbuf(context, &from_path);
+        let to = path_utf16_from_pathbuf(context, &to_path);
         return rename_paths_with_flags_utf16(from, to, replace);
     }
 

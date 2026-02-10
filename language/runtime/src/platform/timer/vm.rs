@@ -1,253 +1,179 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::resource::{TimerFdHandle, TimerHandle};
-use crate::platform::timer::{
-    TimerFdClock, TimerFdFlags, TimerFdSetFlags, TimerFdSpecVm, TimerOptionsVm,
-};
-use crate::platform::{PlatformError, ResourceEntry, ResourceKind};
+use crate::platform::timer::TimerOptionsVm;
+use crate::platform::{PlatformError, resource};
 use crate::runtime::RuntimeCallContext;
-use crate::scheduler::Timer;
 use destack_vm as vm;
 
-/// Return a not supported vm binding error.
-fn vm_not_supported(binding_name: &'static str) -> RuntimeResult<()> {
-    let message = format!("{binding_name} is not available in the VM yet");
-    Err(RuntimeError::from(PlatformError::not_supported(message)).boxed())
-}
-
-/// Schedule a timer and return its handle.
-fn schedule_timer(
-    runtime: &RuntimeCallContext,
-    fire_at_nanos: u64,
-    interval_nanos: Option<u64>,
-) -> RuntimeResult<TimerHandle> {
-    // allocate a timer resource id
-    let resource_id = runtime
-        .runtime()
-        .resources
-        .insert(ResourceEntry::new(ResourceKind::Timer));
-    let handle = TimerHandle(resource_id);
-
-    // schedule the timer in the runtime event loop
-    let timer = Timer {
-        handle: resource_id,
-        fire_at_nanos,
-        interval_nanos,
-    };
-    runtime.scheduler().schedule_timer(timer)?;
-
-    Ok(handle)
-}
-
-/// Schedule a one shot timer and return its handle.
-pub fn destack_timer_once(
-    runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
-    delayns: u64,
-    options: TimerOptionsVm,
-) -> RuntimeResult<TimerHandle> {
-    // NOTE #Incomplete: honor timer options in vm mode
-    let _ = options;
-
-    // compute the absolute deadline from wall time
-    let now = runtime.runtime().time.wall_nanos();
-    let fire_at_nanos = now.saturating_add(delayns);
-
-    schedule_timer(runtime, fire_at_nanos, None)
-}
-
-/// Schedule a repeating timer and return its handle.
-pub fn destack_timer_interval(
-    runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
-    periodns: u64,
-    options: TimerOptionsVm,
-) -> RuntimeResult<TimerHandle> {
-    // NOTE #Incomplete: honor timer options in vm mode
-    let _ = options;
-
-    // compute the first deadline from wall time
-    let now = runtime.runtime().time.wall_nanos();
-    let fire_at_nanos = now.saturating_add(periodns);
-
-    schedule_timer(runtime, fire_at_nanos, Some(periodns))
-}
-
-/// Cancel a scheduled timer.
-pub fn destack_timer_cancel(
-    runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
-    handle: TimerHandle,
-) -> RuntimeResult<()> {
-    runtime.scheduler().cancel_timer(handle.0)
-}
-
-/// Schedule a timer for an absolute wall-clock deadline.
-pub fn destack_timer_at(
-    runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
-    deadlinens: u64,
-    options: TimerOptionsVm,
-) -> RuntimeResult<TimerHandle> {
-    // NOTE #Incomplete: honor timer options in vm mode
-    let _ = options;
-
-    schedule_timer(runtime, deadlinens, None)
-}
-
-/// Schedule a timer for an absolute deadline with options.
-pub fn destack_timer_at_with_options(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
-    deadlinens: u64,
-    options: TimerOptionsVm,
-) -> RuntimeResult<TimerHandle> {
-    destack_timer_at(runtime, context, deadlinens, options)
-}
-
-/// Schedule a one shot timer with options.
-pub fn destack_timer_once_with_options(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
-    delayns: u64,
-    options: TimerOptionsVm,
-) -> RuntimeResult<TimerHandle> {
-    destack_timer_once(runtime, context, delayns, options)
-}
-
-/// Schedule an interval timer with options.
-pub fn destack_timer_interval_with_options(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::RuntimeContext<'_>,
-    periodns: u64,
-    options: TimerOptionsVm,
-) -> RuntimeResult<TimerHandle> {
-    destack_timer_interval(runtime, context, periodns, options)
-}
-
-/// Report whether a timer is active.
-pub fn destack_timer_is_active(
+/// Stub for destack.timer.control.cancel.
+pub(super) fn destack_timer_cancel(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
-    handle: TimerHandle,
+    handle: resource::TimerHandle,
+) -> RuntimeResult<()> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.control.cancel is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.timer.control.isActive.
+pub(super) fn destack_timer_is_active(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    handle: resource::TimerHandle,
 ) -> RuntimeResult<bool> {
-    // NOTE #Incomplete: implement vm timer activity query
     let _ = handle;
-    vm_not_supported("destack.timer.isActive")?;
-
-    unreachable!()
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.control.isActive is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Pause a timer.
-pub fn destack_timer_pause(
+/// Stub for destack.timer.control.pause.
+pub(super) fn destack_timer_pause(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
-    handle: TimerHandle,
+    handle: resource::TimerHandle,
 ) -> RuntimeResult<()> {
-    // NOTE #Incomplete: implement vm timer pause
     let _ = handle;
-    vm_not_supported("destack.timer.pause")
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.control.pause is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Resume a timer.
-pub fn destack_timer_resume(
+/// Stub for destack.timer.control.remainingNs.
+pub(super) fn destack_timer_remaining_ns(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
-    handle: TimerHandle,
-) -> RuntimeResult<()> {
-    // NOTE #Incomplete: implement vm timer resume
-    let _ = handle;
-    vm_not_supported("destack.timer.resume")
-}
-
-/// Read remaining nanoseconds for a timer.
-pub fn destack_timer_remaining_ns(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
-    handle: TimerHandle,
+    handle: resource::TimerHandle,
 ) -> RuntimeResult<u64> {
-    // NOTE #Incomplete: implement vm remaining-time query
     let _ = handle;
-    vm_not_supported("destack.timer.remainingNs")?;
-
-    unreachable!()
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.control.remainingNs is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Reset a timer delay.
-pub fn destack_timer_reset(
+/// Stub for destack.timer.control.reset.
+pub(super) fn destack_timer_reset(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
-    handle: TimerHandle,
+    handle: resource::TimerHandle,
     delayns: u64,
 ) -> RuntimeResult<()> {
-    // NOTE #Incomplete: implement vm timer reset
     let _ = (handle, delayns);
-    vm_not_supported("destack.timer.reset")
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.control.reset is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Update an interval timer period.
-pub fn destack_timer_update_interval(
+/// Stub for destack.timer.control.resume.
+pub(super) fn destack_timer_resume(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
-    handle: TimerHandle,
+    handle: resource::TimerHandle,
+) -> RuntimeResult<()> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.control.resume is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.timer.control.updateInterval.
+pub(super) fn destack_timer_update_interval(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    handle: resource::TimerHandle,
     periodns: u64,
 ) -> RuntimeResult<()> {
-    // NOTE #Incomplete: implement vm interval update
     let _ = (handle, periodns);
-    vm_not_supported("destack.timer.updateInterval")
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.control.updateInterval is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Close a timerfd style descriptor.
-pub fn destack_timer_timer_fd_close(
+/// Stub for destack.timer.schedule.at.
+pub(super) fn destack_timer_at(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
-    handle: TimerFdHandle,
-) -> RuntimeResult<()> {
-    let _ = handle;
-    vm_not_supported("destack.timer.timerFdClose")
+    deadlinens: u64,
+) -> RuntimeResult<resource::TimerHandle> {
+    let _ = deadlinens;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.schedule.at is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Read a timerfd specification.
-pub fn destack_timer_timer_fd_get(
+/// Stub for destack.timer.schedule.atWithOptions.
+pub(super) fn destack_timer_at_with_options(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
-    handle: TimerFdHandle,
-) -> RuntimeResult<TimerFdSpecVm> {
-    let _ = handle;
-    vm_not_supported("destack.timer.timerFdGet")?;
-    unreachable!()
+    deadlinens: u64,
+    options: TimerOptionsVm,
+) -> RuntimeResult<resource::TimerHandle> {
+    let _ = (deadlinens, options);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.schedule.atWithOptions is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Open a timerfd style descriptor.
-pub fn destack_timer_timer_fd_open(
+/// Stub for destack.timer.schedule.interval.
+pub(super) fn destack_timer_interval(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
-    clock: TimerFdClock,
-    flags: TimerFdFlags,
-) -> RuntimeResult<TimerFdHandle> {
-    let _ = (clock, flags);
-    vm_not_supported("destack.timer.timerFdOpen")?;
-    unreachable!()
+    periodns: u64,
+) -> RuntimeResult<resource::TimerHandle> {
+    let _ = periodns;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.schedule.interval is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Read expirations from a timerfd descriptor.
-pub fn destack_timer_timer_fd_read(
+/// Stub for destack.timer.schedule.intervalWithOptions.
+pub(super) fn destack_timer_interval_with_options(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
-    handle: TimerFdHandle,
-) -> RuntimeResult<u64> {
-    let _ = handle;
-    vm_not_supported("destack.timer.timerFdRead")?;
-    unreachable!()
+    periodns: u64,
+    options: TimerOptionsVm,
+) -> RuntimeResult<resource::TimerHandle> {
+    let _ = (periodns, options);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.schedule.intervalWithOptions is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Update the timerfd specification.
-pub fn destack_timer_timer_fd_set(
+/// Stub for destack.timer.schedule.once.
+pub(super) fn destack_timer_once(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
-    handle: TimerFdHandle,
-    spec: TimerFdSpecVm,
-    flags: TimerFdSetFlags,
-) -> RuntimeResult<()> {
-    let _ = (handle, spec, flags);
-    vm_not_supported("destack.timer.timerFdSet")
+    delayns: u64,
+) -> RuntimeResult<resource::TimerHandle> {
+    let _ = delayns;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.schedule.once is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.timer.schedule.onceWithOptions.
+pub(super) fn destack_timer_once_with_options(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    delayns: u64,
+    options: TimerOptionsVm,
+) -> RuntimeResult<resource::TimerHandle> {
+    let _ = (delayns, options);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.schedule.onceWithOptions is not available in the VM yet",
+    ))
+    .boxed())
 }

@@ -323,10 +323,8 @@ fn collect_organize_imports_action(session: &Session, file: FileId, actions: &mu
         // add a blank line between side effect and regular groups, and across path groups
         if let Some(next_index) = order.get(position + 1).copied() {
             let (_, next_target, next_is_side_effect, _) = &imports[next_index];
-            let needs_blank = (*is_side_effect && !*next_is_side_effect)
-                || (!*is_side_effect
-                    && !*next_is_side_effect
-                    && categorize_import(target) != categorize_import(next_target));
+            let needs_blank = !*next_is_side_effect
+                && (*is_side_effect || categorize_import(target) != categorize_import(next_target));
             if needs_blank {
                 replacement.push('\n');
             }

@@ -56,6 +56,25 @@ fn decode_bool(
     })
 }
 
+/// Decode a signed integer argument with an explicit width.
+fn decode_int(
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+    bits: u8,
+) -> RuntimeResult<i64> {
+    let (raw, width) = value.as_int_with_width().ok_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
+    })?;
+    if width != bits {
+        return Err(
+            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
+        );
+    }
+
+    Ok(raw)
+}
+
 /// Decode an unsigned integer argument with an explicit width.
 fn decode_uint(
     value: vm::Value,
@@ -75,18 +94,18 @@ fn decode_uint(
     Ok(raw)
 }
 
-/// Decode a u8 argument.
-fn decode_uint8(value: vm::Value, name: &'static str, expected: &'static str) -> RuntimeResult<u8> {
-    Ok(decode_uint(value, name, expected, 8)? as u8)
-}
-
-/// Decode a u16 argument.
-fn decode_uint16(
+/// Decode an i64 argument.
+fn decode_int64(
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
-) -> RuntimeResult<u16> {
-    Ok(decode_uint(value, name, expected, 16)? as u16)
+) -> RuntimeResult<i64> {
+    decode_int(value, name, expected, 64)
+}
+
+/// Decode a u8 argument.
+fn decode_uint8(value: vm::Value, name: &'static str, expected: &'static str) -> RuntimeResult<u8> {
+    Ok(decode_uint(value, name, expected, 8)? as u8)
 }
 
 /// Decode a u32 argument.
@@ -145,7 +164,7 @@ fn decode_array<T>(
 
 /// Decode arguments for destack.fs.attrs.access.
 #[inline]
-fn decode_destack_fs_access_args(
+fn decode_destack_fs_attrs_access_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, AccessMode)> {
@@ -159,10 +178,10 @@ fn decode_destack_fs_access_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -178,16 +197,12 @@ fn decode_destack_fs_access_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     let mode_value = arg_value(args, 1, "mode", "AccessMode")?;
@@ -198,7 +213,7 @@ fn decode_destack_fs_access_args(
 
 /// Encode the result for destack.fs.attrs.access.
 #[inline]
-fn encode_destack_fs_access_result(
+fn encode_destack_fs_attrs_access_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -210,7 +225,7 @@ fn encode_destack_fs_access_result(
 
 /// Decode arguments for destack.fs.attrs.accessat.
 #[inline]
-fn decode_destack_fs_accessat_args(
+fn decode_destack_fs_attrs_accessat_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DirectoryHandle, OsPathVm, AccessMode, AtFlags)> {
@@ -228,10 +243,10 @@ fn decode_destack_fs_accessat_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -247,16 +262,12 @@ fn decode_destack_fs_accessat_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     let mode_value = arg_value(args, 2, "mode", "AccessMode")?;
@@ -270,7 +281,7 @@ fn decode_destack_fs_accessat_args(
 
 /// Encode the result for destack.fs.attrs.accessat.
 #[inline]
-fn encode_destack_fs_accessat_result(
+fn encode_destack_fs_attrs_accessat_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -282,7 +293,7 @@ fn encode_destack_fs_accessat_result(
 
 /// Decode arguments for destack.fs.attrs.chmod.
 #[inline]
-fn decode_destack_fs_chmod_args(
+fn decode_destack_fs_attrs_chmod_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, FileMode)> {
@@ -296,10 +307,10 @@ fn decode_destack_fs_chmod_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -315,16 +326,12 @@ fn decode_destack_fs_chmod_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     let mode_value = arg_value(args, 1, "mode", "FileMode")?;
@@ -335,7 +342,7 @@ fn decode_destack_fs_chmod_args(
 
 /// Encode the result for destack.fs.attrs.chmod.
 #[inline]
-fn encode_destack_fs_chmod_result(
+fn encode_destack_fs_attrs_chmod_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -347,7 +354,7 @@ fn encode_destack_fs_chmod_result(
 
 /// Decode arguments for destack.fs.attrs.chown.
 #[inline]
-fn decode_destack_fs_chown_args(
+fn decode_destack_fs_attrs_chown_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, u32, u32)> {
@@ -361,10 +368,10 @@ fn decode_destack_fs_chown_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -380,16 +387,12 @@ fn decode_destack_fs_chown_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     let uid_value = arg_value(args, 1, "uid", "uint32")?;
@@ -401,7 +404,7 @@ fn decode_destack_fs_chown_args(
 
 /// Encode the result for destack.fs.attrs.chown.
 #[inline]
-fn encode_destack_fs_chown_result(
+fn encode_destack_fs_attrs_chown_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -413,7 +416,7 @@ fn encode_destack_fs_chown_result(
 
 /// Decode arguments for destack.fs.attrs.fchmod.
 #[inline]
-fn decode_destack_fs_fchmod_args(
+fn decode_destack_fs_attrs_fchmod_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, FileMode)> {
@@ -432,7 +435,7 @@ fn decode_destack_fs_fchmod_args(
 
 /// Encode the result for destack.fs.attrs.fchmod.
 #[inline]
-fn encode_destack_fs_fchmod_result(
+fn encode_destack_fs_attrs_fchmod_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -444,7 +447,7 @@ fn encode_destack_fs_fchmod_result(
 
 /// Decode arguments for destack.fs.attrs.fchmodat.
 #[inline]
-fn decode_destack_fs_fchmodat_args(
+fn decode_destack_fs_attrs_fchmodat_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DirectoryHandle, OsPathVm, FileMode, AtFlags)> {
@@ -462,10 +465,10 @@ fn decode_destack_fs_fchmodat_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -481,16 +484,12 @@ fn decode_destack_fs_fchmodat_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     let mode_value = arg_value(args, 2, "mode", "FileMode")?;
@@ -504,7 +503,7 @@ fn decode_destack_fs_fchmodat_args(
 
 /// Encode the result for destack.fs.attrs.fchmodat.
 #[inline]
-fn encode_destack_fs_fchmodat_result(
+fn encode_destack_fs_attrs_fchmodat_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -516,7 +515,7 @@ fn encode_destack_fs_fchmodat_result(
 
 /// Decode arguments for destack.fs.attrs.fchown.
 #[inline]
-fn decode_destack_fs_fchown_args(
+fn decode_destack_fs_attrs_fchown_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, u32, u32)> {
@@ -536,7 +535,7 @@ fn decode_destack_fs_fchown_args(
 
 /// Encode the result for destack.fs.attrs.fchown.
 #[inline]
-fn encode_destack_fs_fchown_result(
+fn encode_destack_fs_attrs_fchown_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -548,7 +547,7 @@ fn encode_destack_fs_fchown_result(
 
 /// Decode arguments for destack.fs.attrs.fchownat.
 #[inline]
-fn decode_destack_fs_fchownat_args(
+fn decode_destack_fs_attrs_fchownat_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DirectoryHandle, OsPathVm, u32, u32, AtFlags)> {
@@ -566,10 +565,10 @@ fn decode_destack_fs_fchownat_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -585,16 +584,12 @@ fn decode_destack_fs_fchownat_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     let uid_value = arg_value(args, 2, "uid", "uint32")?;
@@ -609,7 +604,7 @@ fn decode_destack_fs_fchownat_args(
 
 /// Encode the result for destack.fs.attrs.fchownat.
 #[inline]
-fn encode_destack_fs_fchownat_result(
+fn encode_destack_fs_attrs_fchownat_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -621,7 +616,7 @@ fn encode_destack_fs_fchownat_result(
 
 /// Decode arguments for destack.fs.attrs.futimes.
 #[inline]
-fn decode_destack_fs_futimes_args(
+fn decode_destack_fs_attrs_futimes_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, u64, u64)> {
@@ -641,7 +636,7 @@ fn decode_destack_fs_futimes_args(
 
 /// Encode the result for destack.fs.attrs.futimes.
 #[inline]
-fn encode_destack_fs_futimes_result(
+fn encode_destack_fs_attrs_futimes_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -653,7 +648,7 @@ fn encode_destack_fs_futimes_result(
 
 /// Decode arguments for destack.fs.attrs.lutimes.
 #[inline]
-fn decode_destack_fs_lutimes_args(
+fn decode_destack_fs_attrs_lutimes_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, u64, u64)> {
@@ -667,10 +662,10 @@ fn decode_destack_fs_lutimes_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -686,16 +681,12 @@ fn decode_destack_fs_lutimes_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     let atimens_value = arg_value(args, 1, "atimens", "uint64")?;
@@ -707,7 +698,7 @@ fn decode_destack_fs_lutimes_args(
 
 /// Encode the result for destack.fs.attrs.lutimes.
 #[inline]
-fn encode_destack_fs_lutimes_result(
+fn encode_destack_fs_attrs_lutimes_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -719,7 +710,7 @@ fn encode_destack_fs_lutimes_result(
 
 /// Decode arguments for destack.fs.attrs.utimensat.
 #[inline]
-fn decode_destack_fs_utimensat_args(
+fn decode_destack_fs_attrs_utimensat_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DirectoryHandle, OsPathVm, u64, u64, AtFlags)> {
@@ -737,10 +728,10 @@ fn decode_destack_fs_utimensat_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -756,16 +747,12 @@ fn decode_destack_fs_utimensat_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     let atimens_value = arg_value(args, 2, "atimens", "uint64")?;
@@ -780,7 +767,7 @@ fn decode_destack_fs_utimensat_args(
 
 /// Encode the result for destack.fs.attrs.utimensat.
 #[inline]
-fn encode_destack_fs_utimensat_result(
+fn encode_destack_fs_attrs_utimensat_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -792,7 +779,7 @@ fn encode_destack_fs_utimensat_result(
 
 /// Decode arguments for destack.fs.attrs.utimes.
 #[inline]
-fn decode_destack_fs_utimes_args(
+fn decode_destack_fs_attrs_utimes_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, u64, u64)> {
@@ -806,10 +793,10 @@ fn decode_destack_fs_utimes_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -825,16 +812,12 @@ fn decode_destack_fs_utimes_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     let atimens_value = arg_value(args, 1, "atimens", "uint64")?;
@@ -846,7 +829,7 @@ fn decode_destack_fs_utimes_args(
 
 /// Encode the result for destack.fs.attrs.utimes.
 #[inline]
-fn encode_destack_fs_utimes_result(
+fn encode_destack_fs_attrs_utimes_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -858,7 +841,7 @@ fn encode_destack_fs_utimes_result(
 
 /// Decode arguments for destack.fs.dir.closedir.
 #[inline]
-fn decode_destack_fs_closedir_args(
+fn decode_destack_fs_dir_closedir_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DirectoryHandle,)> {
@@ -874,7 +857,7 @@ fn decode_destack_fs_closedir_args(
 
 /// Encode the result for destack.fs.dir.closedir.
 #[inline]
-fn encode_destack_fs_closedir_result(
+fn encode_destack_fs_dir_closedir_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -886,7 +869,7 @@ fn encode_destack_fs_closedir_result(
 
 /// Decode arguments for destack.fs.dir.dirfd.
 #[inline]
-fn decode_destack_fs_dirfd_args(
+fn decode_destack_fs_dir_dirfd_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DirectoryHandle,)> {
@@ -902,7 +885,7 @@ fn decode_destack_fs_dirfd_args(
 
 /// Encode the result for destack.fs.dir.dirfd.
 #[inline]
-fn encode_destack_fs_dirfd_result(
+fn encode_destack_fs_dir_dirfd_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<resource::FileHandle>,
 ) -> RuntimeResult<vm::Value> {
@@ -914,7 +897,7 @@ fn encode_destack_fs_dirfd_result(
 
 /// Decode arguments for destack.fs.dir.mkdir.
 #[inline]
-fn decode_destack_fs_mkdir_args(
+fn decode_destack_fs_dir_mkdir_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, FileMode)> {
@@ -928,10 +911,10 @@ fn decode_destack_fs_mkdir_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -947,16 +930,12 @@ fn decode_destack_fs_mkdir_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     let mode_value = arg_value(args, 1, "mode", "FileMode")?;
@@ -967,7 +946,7 @@ fn decode_destack_fs_mkdir_args(
 
 /// Encode the result for destack.fs.dir.mkdir.
 #[inline]
-fn encode_destack_fs_mkdir_result(
+fn encode_destack_fs_dir_mkdir_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -979,7 +958,7 @@ fn encode_destack_fs_mkdir_result(
 
 /// Decode arguments for destack.fs.dir.mkdirat.
 #[inline]
-fn decode_destack_fs_mkdirat_args(
+fn decode_destack_fs_dir_mkdirat_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DirectoryHandle, OsPathVm, FileMode)> {
@@ -997,10 +976,10 @@ fn decode_destack_fs_mkdirat_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -1016,16 +995,12 @@ fn decode_destack_fs_mkdirat_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     let mode_value = arg_value(args, 2, "mode", "FileMode")?;
@@ -1036,7 +1011,7 @@ fn decode_destack_fs_mkdirat_args(
 
 /// Encode the result for destack.fs.dir.mkdirat.
 #[inline]
-fn encode_destack_fs_mkdirat_result(
+fn encode_destack_fs_dir_mkdirat_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -1048,7 +1023,7 @@ fn encode_destack_fs_mkdirat_result(
 
 /// Decode arguments for destack.fs.dir.mkdtemp.
 #[inline]
-fn decode_destack_fs_mkdtemp_args(
+fn decode_destack_fs_dir_mkdtemp_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm,)> {
@@ -1063,10 +1038,10 @@ fn decode_destack_fs_mkdtemp_args(
         let slots = context
             .aggregate_slots(template_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "template",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -1082,18 +1057,13 @@ fn decode_destack_fs_mkdtemp_args(
                 .boxed());
             }
         };
-        let template_bytes_inner =
-            decode_array::<u8>(context, slots[1], "template_bytes_inner", "bytes")?;
-        let template_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(template_bytes_inner);
-        let template_utf16_inner =
-            decode_array::<u16>(context, slots[2], "template_utf16_inner", "utf16")?;
-        let template_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(template_utf16_inner);
+        let template_data_inner =
+            decode_array::<u8>(context, slots[1], "template_data_inner", "data")?;
+        let template_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(template_data_inner);
         OsPathVm {
             encoding: template_encoding,
-            bytes: template_bytes,
-            utf16: template_utf16,
+            data: template_data,
         }
     };
     Ok((template,))
@@ -1101,21 +1071,20 @@ fn decode_destack_fs_mkdtemp_args(
 
 /// Encode the result for destack.fs.dir.mkdtemp.
 #[inline]
-fn encode_destack_fs_mkdtemp_result(
+fn encode_destack_fs_dir_mkdtemp_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<OsPathVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
         let field_0 = vm::Value::uint(value.encoding as u8 as u64, 8);
-        let field_1 = value.bytes.0.to_value(context);
-        let field_2 = value.utf16.0.to_value(context);
-        context.allocate_aggregate(vec![field_0, field_1, field_2])
+        let field_1 = value.data.0.to_value(context);
+        context.allocate_aggregate(vec![field_0, field_1])
     })
 }
 
 /// Decode arguments for destack.fs.dir.opendir.
 #[inline]
-fn decode_destack_fs_opendir_args(
+fn decode_destack_fs_dir_opendir_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm,)> {
@@ -1129,10 +1098,10 @@ fn decode_destack_fs_opendir_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -1148,16 +1117,12 @@ fn decode_destack_fs_opendir_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     Ok((path,))
@@ -1165,7 +1130,7 @@ fn decode_destack_fs_opendir_args(
 
 /// Encode the result for destack.fs.dir.opendir.
 #[inline]
-fn encode_destack_fs_opendir_result(
+fn encode_destack_fs_dir_opendir_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<resource::DirectoryHandle>,
 ) -> RuntimeResult<vm::Value> {
@@ -1177,7 +1142,7 @@ fn encode_destack_fs_opendir_result(
 
 /// Decode arguments for destack.fs.dir.readdir.
 #[inline]
-fn decode_destack_fs_readdir_args(
+fn decode_destack_fs_dir_readdir_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DirectoryHandle,)> {
@@ -1193,7 +1158,7 @@ fn decode_destack_fs_readdir_args(
 
 /// Encode the result for destack.fs.dir.readdir.
 #[inline]
-fn encode_destack_fs_readdir_result(
+fn encode_destack_fs_dir_readdir_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<VmArray<DirentVm>>,
 ) -> RuntimeResult<vm::Value> {
@@ -1202,7 +1167,7 @@ fn encode_destack_fs_readdir_result(
 
 /// Decode arguments for destack.fs.dir.readdirNext.
 #[inline]
-fn decode_destack_fs_readdir_next_args(
+fn decode_destack_fs_dir_readdir_next_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DirectoryHandle,)> {
@@ -1218,7 +1183,7 @@ fn decode_destack_fs_readdir_next_args(
 
 /// Encode the result for destack.fs.dir.readdirNext.
 #[inline]
-fn encode_destack_fs_readdir_next_result(
+fn encode_destack_fs_dir_readdir_next_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<DirentNextVm>,
 ) -> RuntimeResult<vm::Value> {
@@ -1227,9 +1192,8 @@ fn encode_destack_fs_readdir_next_result(
         let field_1 = {
             let field_0 = {
                 let field_0 = vm::Value::uint(value.entry.name.encoding as u8 as u64, 8);
-                let field_1 = value.entry.name.bytes.0.to_value(context);
-                let field_2 = value.entry.name.utf16.0.to_value(context);
-                context.allocate_aggregate(vec![field_0, field_1, field_2])
+                let field_1 = value.entry.name.data.0.to_value(context);
+                context.allocate_aggregate(vec![field_0, field_1])
             };
             let field_1 = vm::Value::uint(value.entry.kind as u8 as u64, 8);
             context.allocate_aggregate(vec![field_0, field_1])
@@ -1240,7 +1204,7 @@ fn encode_destack_fs_readdir_next_result(
 
 /// Decode arguments for destack.fs.dir.rewinddir.
 #[inline]
-fn decode_destack_fs_rewinddir_args(
+fn decode_destack_fs_dir_rewinddir_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DirectoryHandle,)> {
@@ -1256,7 +1220,7 @@ fn decode_destack_fs_rewinddir_args(
 
 /// Encode the result for destack.fs.dir.rewinddir.
 #[inline]
-fn encode_destack_fs_rewinddir_result(
+fn encode_destack_fs_dir_rewinddir_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -1268,7 +1232,7 @@ fn encode_destack_fs_rewinddir_result(
 
 /// Decode arguments for destack.fs.dir.rmdir.
 #[inline]
-fn decode_destack_fs_rmdir_args(
+fn decode_destack_fs_dir_rmdir_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm,)> {
@@ -1282,10 +1246,10 @@ fn decode_destack_fs_rmdir_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -1301,16 +1265,12 @@ fn decode_destack_fs_rmdir_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     Ok((path,))
@@ -1318,7 +1278,7 @@ fn decode_destack_fs_rmdir_args(
 
 /// Encode the result for destack.fs.dir.rmdir.
 #[inline]
-fn encode_destack_fs_rmdir_result(
+fn encode_destack_fs_dir_rmdir_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -1330,7 +1290,7 @@ fn encode_destack_fs_rmdir_result(
 
 /// Decode arguments for destack.fs.file.close.
 #[inline]
-fn decode_destack_fs_close_args(
+fn decode_destack_fs_file_close_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle,)> {
@@ -1346,7 +1306,7 @@ fn decode_destack_fs_close_args(
 
 /// Encode the result for destack.fs.file.close.
 #[inline]
-fn encode_destack_fs_close_result(
+fn encode_destack_fs_file_close_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -1358,7 +1318,7 @@ fn encode_destack_fs_close_result(
 
 /// Decode arguments for destack.fs.file.copyFileRange.
 #[inline]
-fn decode_destack_fs_copy_file_range_args(
+fn decode_destack_fs_file_copy_file_range_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
@@ -1376,14 +1336,14 @@ fn decode_destack_fs_copy_file_range_args(
     let src_inner = resource::ResourceId(src_inner_inner);
     let src = resource::FileHandle(src_inner);
     let srcoffset_value = arg_value(args, 1, "srcoffset", "FileOffset")?;
-    let srcoffset_inner = decode_uint64(srcoffset_value, "srcoffset_inner", "FileOffset")?;
+    let srcoffset_inner = decode_int64(srcoffset_value, "srcoffset_inner", "FileOffset")?;
     let srcoffset = FileOffset(srcoffset_inner);
     let dst_value = arg_value(args, 2, "dst", "FileHandle")?;
     let dst_inner_inner = decode_uint64(dst_value, "dst_inner_inner", "FileHandle")?;
     let dst_inner = resource::ResourceId(dst_inner_inner);
     let dst = resource::FileHandle(dst_inner);
     let dstoffset_value = arg_value(args, 3, "dstoffset", "FileOffset")?;
-    let dstoffset_inner = decode_uint64(dstoffset_value, "dstoffset_inner", "FileOffset")?;
+    let dstoffset_inner = decode_int64(dstoffset_value, "dstoffset_inner", "FileOffset")?;
     let dstoffset = FileOffset(dstoffset_inner);
     let length_value = arg_value(args, 4, "length", "FileSize")?;
     let length_inner = decode_uint64(length_value, "length_inner", "FileSize")?;
@@ -1393,7 +1353,7 @@ fn decode_destack_fs_copy_file_range_args(
 
 /// Encode the result for destack.fs.file.copyFileRange.
 #[inline]
-fn encode_destack_fs_copy_file_range_result(
+fn encode_destack_fs_file_copy_file_range_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
@@ -1405,7 +1365,7 @@ fn encode_destack_fs_copy_file_range_result(
 
 /// Decode arguments for destack.fs.file.dup.
 #[inline]
-fn decode_destack_fs_dup_args(
+fn decode_destack_fs_file_dup_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle,)> {
@@ -1421,7 +1381,7 @@ fn decode_destack_fs_dup_args(
 
 /// Encode the result for destack.fs.file.dup.
 #[inline]
-fn encode_destack_fs_dup_result(
+fn encode_destack_fs_file_dup_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<resource::FileHandle>,
 ) -> RuntimeResult<vm::Value> {
@@ -1433,7 +1393,7 @@ fn encode_destack_fs_dup_result(
 
 /// Decode arguments for destack.fs.file.dup2.
 #[inline]
-fn decode_destack_fs_dup2_args(
+fn decode_destack_fs_file_dup2_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, resource::FileHandle)> {
@@ -1453,7 +1413,7 @@ fn decode_destack_fs_dup2_args(
 
 /// Encode the result for destack.fs.file.dup2.
 #[inline]
-fn encode_destack_fs_dup2_result(
+fn encode_destack_fs_file_dup2_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<resource::FileHandle>,
 ) -> RuntimeResult<vm::Value> {
@@ -1465,7 +1425,7 @@ fn encode_destack_fs_dup2_result(
 
 /// Decode arguments for destack.fs.file.dup3.
 #[inline]
-fn decode_destack_fs_dup3_args(
+fn decode_destack_fs_file_dup3_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, resource::FileHandle, OpenFlags)> {
@@ -1488,7 +1448,7 @@ fn decode_destack_fs_dup3_args(
 
 /// Encode the result for destack.fs.file.dup3.
 #[inline]
-fn encode_destack_fs_dup3_result(
+fn encode_destack_fs_file_dup3_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<resource::FileHandle>,
 ) -> RuntimeResult<vm::Value> {
@@ -1500,7 +1460,7 @@ fn encode_destack_fs_dup3_result(
 
 /// Decode arguments for destack.fs.file.fadvise.
 #[inline]
-fn decode_destack_fs_fadvise_args(
+fn decode_destack_fs_file_fadvise_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, FileOffset, FileSize, FileAdvice)> {
@@ -1512,7 +1472,7 @@ fn decode_destack_fs_fadvise_args(
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::FileHandle(handle_inner);
     let offset_value = arg_value(args, 1, "offset", "FileOffset")?;
-    let offset_inner = decode_uint64(offset_value, "offset_inner", "FileOffset")?;
+    let offset_inner = decode_int64(offset_value, "offset_inner", "FileOffset")?;
     let offset = FileOffset(offset_inner);
     let length_value = arg_value(args, 2, "length", "FileSize")?;
     let length_inner = decode_uint64(length_value, "length_inner", "FileSize")?;
@@ -1539,7 +1499,7 @@ fn decode_destack_fs_fadvise_args(
 
 /// Encode the result for destack.fs.file.fadvise.
 #[inline]
-fn encode_destack_fs_fadvise_result(
+fn encode_destack_fs_file_fadvise_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -1551,7 +1511,7 @@ fn encode_destack_fs_fadvise_result(
 
 /// Decode arguments for destack.fs.file.fallocate.
 #[inline]
-fn decode_destack_fs_fallocate_args(
+fn decode_destack_fs_file_fallocate_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, FileOffset, FileSize, AllocFlags)> {
@@ -1563,7 +1523,7 @@ fn decode_destack_fs_fallocate_args(
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::FileHandle(handle_inner);
     let offset_value = arg_value(args, 1, "offset", "FileOffset")?;
-    let offset_inner = decode_uint64(offset_value, "offset_inner", "FileOffset")?;
+    let offset_inner = decode_int64(offset_value, "offset_inner", "FileOffset")?;
     let offset = FileOffset(offset_inner);
     let length_value = arg_value(args, 2, "length", "FileSize")?;
     let length_inner = decode_uint64(length_value, "length_inner", "FileSize")?;
@@ -1576,7 +1536,7 @@ fn decode_destack_fs_fallocate_args(
 
 /// Encode the result for destack.fs.file.fallocate.
 #[inline]
-fn encode_destack_fs_fallocate_result(
+fn encode_destack_fs_file_fallocate_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -1588,7 +1548,7 @@ fn encode_destack_fs_fallocate_result(
 
 /// Decode arguments for destack.fs.file.fdatasync.
 #[inline]
-fn decode_destack_fs_fdatasync_args(
+fn decode_destack_fs_file_fdatasync_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle,)> {
@@ -1604,7 +1564,7 @@ fn decode_destack_fs_fdatasync_args(
 
 /// Encode the result for destack.fs.file.fdatasync.
 #[inline]
-fn encode_destack_fs_fdatasync_result(
+fn encode_destack_fs_file_fdatasync_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -1616,7 +1576,7 @@ fn encode_destack_fs_fdatasync_result(
 
 /// Decode arguments for destack.fs.file.fsync.
 #[inline]
-fn decode_destack_fs_fsync_args(
+fn decode_destack_fs_file_fsync_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle,)> {
@@ -1632,7 +1592,7 @@ fn decode_destack_fs_fsync_args(
 
 /// Encode the result for destack.fs.file.fsync.
 #[inline]
-fn encode_destack_fs_fsync_result(
+fn encode_destack_fs_file_fsync_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -1644,7 +1604,7 @@ fn encode_destack_fs_fsync_result(
 
 /// Decode arguments for destack.fs.file.ftruncate.
 #[inline]
-fn decode_destack_fs_ftruncate_args(
+fn decode_destack_fs_file_ftruncate_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, FileOffset)> {
@@ -1656,14 +1616,14 @@ fn decode_destack_fs_ftruncate_args(
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::FileHandle(handle_inner);
     let size_value = arg_value(args, 1, "size", "FileOffset")?;
-    let size_inner = decode_uint64(size_value, "size_inner", "FileOffset")?;
+    let size_inner = decode_int64(size_value, "size_inner", "FileOffset")?;
     let size = FileOffset(size_inner);
     Ok((handle, size))
 }
 
 /// Encode the result for destack.fs.file.ftruncate.
 #[inline]
-fn encode_destack_fs_ftruncate_result(
+fn encode_destack_fs_file_ftruncate_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -1675,7 +1635,7 @@ fn encode_destack_fs_ftruncate_result(
 
 /// Decode arguments for destack.fs.file.getFdFlags.
 #[inline]
-fn decode_destack_fs_get_fd_flags_args(
+fn decode_destack_fs_file_get_fd_flags_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle,)> {
@@ -1691,7 +1651,7 @@ fn decode_destack_fs_get_fd_flags_args(
 
 /// Encode the result for destack.fs.file.getFdFlags.
 #[inline]
-fn encode_destack_fs_get_fd_flags_result(
+fn encode_destack_fs_file_get_fd_flags_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<FdFlags>,
 ) -> RuntimeResult<vm::Value> {
@@ -1703,7 +1663,7 @@ fn encode_destack_fs_get_fd_flags_result(
 
 /// Decode arguments for destack.fs.file.getStatusFlags.
 #[inline]
-fn decode_destack_fs_get_status_flags_args(
+fn decode_destack_fs_file_get_status_flags_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle,)> {
@@ -1719,7 +1679,7 @@ fn decode_destack_fs_get_status_flags_args(
 
 /// Encode the result for destack.fs.file.getStatusFlags.
 #[inline]
-fn encode_destack_fs_get_status_flags_result(
+fn encode_destack_fs_file_get_status_flags_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<StatusFlags>,
 ) -> RuntimeResult<vm::Value> {
@@ -1731,7 +1691,7 @@ fn encode_destack_fs_get_status_flags_result(
 
 /// Decode arguments for destack.fs.file.lock.
 #[inline]
-fn decode_destack_fs_lock_args(
+fn decode_destack_fs_file_lock_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, FileLockFlags)> {
@@ -1750,7 +1710,7 @@ fn decode_destack_fs_lock_args(
 
 /// Encode the result for destack.fs.file.lock.
 #[inline]
-fn encode_destack_fs_lock_result(
+fn encode_destack_fs_file_lock_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -1762,7 +1722,7 @@ fn encode_destack_fs_lock_result(
 
 /// Decode arguments for destack.fs.file.open.
 #[inline]
-fn decode_destack_fs_open_args(
+fn decode_destack_fs_file_open_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, OpenFlags, FileMode)> {
@@ -1776,10 +1736,10 @@ fn decode_destack_fs_open_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -1795,16 +1755,12 @@ fn decode_destack_fs_open_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     let flags_value = arg_value(args, 1, "flags", "OpenFlags")?;
@@ -1818,7 +1774,7 @@ fn decode_destack_fs_open_args(
 
 /// Encode the result for destack.fs.file.open.
 #[inline]
-fn encode_destack_fs_open_result(
+fn encode_destack_fs_file_open_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<resource::FileHandle>,
 ) -> RuntimeResult<vm::Value> {
@@ -1830,7 +1786,7 @@ fn encode_destack_fs_open_result(
 
 /// Decode arguments for destack.fs.file.openat.
 #[inline]
-fn decode_destack_fs_openat_args(
+fn decode_destack_fs_file_openat_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DirectoryHandle, OsPathVm, OpenFlags, FileMode)> {
@@ -1848,10 +1804,10 @@ fn decode_destack_fs_openat_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -1867,16 +1823,12 @@ fn decode_destack_fs_openat_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     let flags_value = arg_value(args, 2, "flags", "OpenFlags")?;
@@ -1890,7 +1842,7 @@ fn decode_destack_fs_openat_args(
 
 /// Encode the result for destack.fs.file.openat.
 #[inline]
-fn encode_destack_fs_openat_result(
+fn encode_destack_fs_file_openat_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<resource::FileHandle>,
 ) -> RuntimeResult<vm::Value> {
@@ -1902,7 +1854,7 @@ fn encode_destack_fs_openat_result(
 
 /// Decode arguments for destack.fs.file.openat2.
 #[inline]
-fn decode_destack_fs_openat2_args(
+fn decode_destack_fs_file_openat2_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DirectoryHandle, OsPathVm, OpenOptionsVm)> {
@@ -1920,10 +1872,10 @@ fn decode_destack_fs_openat2_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -1939,16 +1891,12 @@ fn decode_destack_fs_openat2_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     let how_value = arg_value(args, 2, "how", "OpenOptions")?;
@@ -1987,7 +1935,7 @@ fn decode_destack_fs_openat2_args(
 
 /// Encode the result for destack.fs.file.openat2.
 #[inline]
-fn encode_destack_fs_openat2_result(
+fn encode_destack_fs_file_openat2_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<resource::FileHandle>,
 ) -> RuntimeResult<vm::Value> {
@@ -1999,7 +1947,7 @@ fn encode_destack_fs_openat2_result(
 
 /// Decode arguments for destack.fs.file.pread.
 #[inline]
-fn decode_destack_fs_pread_args(
+fn decode_destack_fs_file_pread_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, VmSlice<u8>, FileOffset)> {
@@ -2010,14 +1958,14 @@ fn decode_destack_fs_pread_args(
     let buffer_value = arg_value(args, 1, "buffer", "Slice<uint8>")?;
     let buffer = decode_slice::<u8>(context, buffer_value, "buffer", "Slice<uint8>")?;
     let offset_value = arg_value(args, 2, "offset", "FileOffset")?;
-    let offset_inner = decode_uint64(offset_value, "offset_inner", "FileOffset")?;
+    let offset_inner = decode_int64(offset_value, "offset_inner", "FileOffset")?;
     let offset = FileOffset(offset_inner);
     Ok((handle, buffer, offset))
 }
 
 /// Encode the result for destack.fs.file.pread.
 #[inline]
-fn encode_destack_fs_pread_result(
+fn encode_destack_fs_file_pread_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
@@ -2029,7 +1977,7 @@ fn encode_destack_fs_pread_result(
 
 /// Decode arguments for destack.fs.file.preadv.
 #[inline]
-fn decode_destack_fs_preadv_args(
+fn decode_destack_fs_file_preadv_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, VmSlice<VmSlice<u8>>, FileOffset)> {
@@ -2041,14 +1989,14 @@ fn decode_destack_fs_preadv_args(
     let buffers =
         decode_slice::<VmSlice<u8>>(context, buffers_value, "buffers", "Slice<Slice<uint8>>")?;
     let offset_value = arg_value(args, 2, "offset", "FileOffset")?;
-    let offset_inner = decode_uint64(offset_value, "offset_inner", "FileOffset")?;
+    let offset_inner = decode_int64(offset_value, "offset_inner", "FileOffset")?;
     let offset = FileOffset(offset_inner);
     Ok((handle, buffers, offset))
 }
 
 /// Encode the result for destack.fs.file.preadv.
 #[inline]
-fn encode_destack_fs_preadv_result(
+fn encode_destack_fs_file_preadv_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
@@ -2060,7 +2008,7 @@ fn encode_destack_fs_preadv_result(
 
 /// Decode arguments for destack.fs.file.pwrite.
 #[inline]
-fn decode_destack_fs_pwrite_args(
+fn decode_destack_fs_file_pwrite_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, VmSlice<u8>, FileOffset)> {
@@ -2071,14 +2019,14 @@ fn decode_destack_fs_pwrite_args(
     let buffer_value = arg_value(args, 1, "buffer", "Slice<uint8>")?;
     let buffer = decode_slice::<u8>(context, buffer_value, "buffer", "Slice<uint8>")?;
     let offset_value = arg_value(args, 2, "offset", "FileOffset")?;
-    let offset_inner = decode_uint64(offset_value, "offset_inner", "FileOffset")?;
+    let offset_inner = decode_int64(offset_value, "offset_inner", "FileOffset")?;
     let offset = FileOffset(offset_inner);
     Ok((handle, buffer, offset))
 }
 
 /// Encode the result for destack.fs.file.pwrite.
 #[inline]
-fn encode_destack_fs_pwrite_result(
+fn encode_destack_fs_file_pwrite_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
@@ -2090,7 +2038,7 @@ fn encode_destack_fs_pwrite_result(
 
 /// Decode arguments for destack.fs.file.pwritev.
 #[inline]
-fn decode_destack_fs_pwritev_args(
+fn decode_destack_fs_file_pwritev_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, VmSlice<VmSlice<u8>>, FileOffset)> {
@@ -2102,14 +2050,14 @@ fn decode_destack_fs_pwritev_args(
     let buffers =
         decode_slice::<VmSlice<u8>>(context, buffers_value, "buffers", "Slice<Slice<uint8>>")?;
     let offset_value = arg_value(args, 2, "offset", "FileOffset")?;
-    let offset_inner = decode_uint64(offset_value, "offset_inner", "FileOffset")?;
+    let offset_inner = decode_int64(offset_value, "offset_inner", "FileOffset")?;
     let offset = FileOffset(offset_inner);
     Ok((handle, buffers, offset))
 }
 
 /// Encode the result for destack.fs.file.pwritev.
 #[inline]
-fn encode_destack_fs_pwritev_result(
+fn encode_destack_fs_file_pwritev_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
@@ -2121,7 +2069,7 @@ fn encode_destack_fs_pwritev_result(
 
 /// Decode arguments for destack.fs.file.read.
 #[inline]
-fn decode_destack_fs_read_args(
+fn decode_destack_fs_file_read_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, VmSlice<u8>)> {
@@ -2136,7 +2084,7 @@ fn decode_destack_fs_read_args(
 
 /// Encode the result for destack.fs.file.read.
 #[inline]
-fn encode_destack_fs_read_result(
+fn encode_destack_fs_file_read_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
@@ -2148,7 +2096,7 @@ fn encode_destack_fs_read_result(
 
 /// Decode arguments for destack.fs.file.readv.
 #[inline]
-fn decode_destack_fs_readv_args(
+fn decode_destack_fs_file_readv_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, VmSlice<VmSlice<u8>>)> {
@@ -2164,7 +2112,7 @@ fn decode_destack_fs_readv_args(
 
 /// Encode the result for destack.fs.file.readv.
 #[inline]
-fn encode_destack_fs_readv_result(
+fn encode_destack_fs_file_readv_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
@@ -2176,7 +2124,7 @@ fn encode_destack_fs_readv_result(
 
 /// Decode arguments for destack.fs.file.seek.
 #[inline]
-fn decode_destack_fs_seek_args(
+fn decode_destack_fs_file_seek_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, FileOffset, SeekWhence)> {
@@ -2188,7 +2136,7 @@ fn decode_destack_fs_seek_args(
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::FileHandle(handle_inner);
     let offset_value = arg_value(args, 1, "offset", "FileOffset")?;
-    let offset_inner = decode_uint64(offset_value, "offset_inner", "FileOffset")?;
+    let offset_inner = decode_int64(offset_value, "offset_inner", "FileOffset")?;
     let offset = FileOffset(offset_inner);
     let whence_value = arg_value(args, 2, "whence", "SeekWhence")?;
     let whence_raw = decode_uint8(whence_value, "whence_raw", "SeekWhence")?;
@@ -2209,19 +2157,19 @@ fn decode_destack_fs_seek_args(
 
 /// Encode the result for destack.fs.file.seek.
 #[inline]
-fn encode_destack_fs_seek_result(
+fn encode_destack_fs_file_seek_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<FileOffset>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
     let _ = context;
 
-    result.map(|value| vm::Value::uint(value.0, 64))
+    result.map(|value| vm::Value::int(value.0, 64))
 }
 
 /// Decode arguments for destack.fs.file.sendfile.
 #[inline]
-fn decode_destack_fs_sendfile_args(
+fn decode_destack_fs_file_sendfile_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
@@ -2242,7 +2190,7 @@ fn decode_destack_fs_sendfile_args(
     let file_inner = resource::ResourceId(file_inner_inner);
     let file = resource::FileHandle(file_inner);
     let offset_value = arg_value(args, 2, "offset", "FileOffset")?;
-    let offset_inner = decode_uint64(offset_value, "offset_inner", "FileOffset")?;
+    let offset_inner = decode_int64(offset_value, "offset_inner", "FileOffset")?;
     let offset = FileOffset(offset_inner);
     let length_value = arg_value(args, 3, "length", "FileSize")?;
     let length_inner = decode_uint64(length_value, "length_inner", "FileSize")?;
@@ -2252,7 +2200,7 @@ fn decode_destack_fs_sendfile_args(
 
 /// Encode the result for destack.fs.file.sendfile.
 #[inline]
-fn encode_destack_fs_sendfile_result(
+fn encode_destack_fs_file_sendfile_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
@@ -2264,7 +2212,7 @@ fn encode_destack_fs_sendfile_result(
 
 /// Decode arguments for destack.fs.file.setFdFlags.
 #[inline]
-fn decode_destack_fs_set_fd_flags_args(
+fn decode_destack_fs_file_set_fd_flags_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, FdFlags)> {
@@ -2283,7 +2231,7 @@ fn decode_destack_fs_set_fd_flags_args(
 
 /// Encode the result for destack.fs.file.setFdFlags.
 #[inline]
-fn encode_destack_fs_set_fd_flags_result(
+fn encode_destack_fs_file_set_fd_flags_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -2295,7 +2243,7 @@ fn encode_destack_fs_set_fd_flags_result(
 
 /// Decode arguments for destack.fs.file.setStatusFlags.
 #[inline]
-fn decode_destack_fs_set_status_flags_args(
+fn decode_destack_fs_file_set_status_flags_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, StatusFlags)> {
@@ -2314,7 +2262,7 @@ fn decode_destack_fs_set_status_flags_args(
 
 /// Encode the result for destack.fs.file.setStatusFlags.
 #[inline]
-fn encode_destack_fs_set_status_flags_result(
+fn encode_destack_fs_file_set_status_flags_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -2326,7 +2274,7 @@ fn encode_destack_fs_set_status_flags_result(
 
 /// Decode arguments for destack.fs.file.syncFileRange.
 #[inline]
-fn decode_destack_fs_sync_file_range_args(
+fn decode_destack_fs_file_sync_file_range_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, FileOffset, FileSize, SyncFlags)> {
@@ -2338,7 +2286,7 @@ fn decode_destack_fs_sync_file_range_args(
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::FileHandle(handle_inner);
     let offset_value = arg_value(args, 1, "offset", "FileOffset")?;
-    let offset_inner = decode_uint64(offset_value, "offset_inner", "FileOffset")?;
+    let offset_inner = decode_int64(offset_value, "offset_inner", "FileOffset")?;
     let offset = FileOffset(offset_inner);
     let length_value = arg_value(args, 2, "length", "FileSize")?;
     let length_inner = decode_uint64(length_value, "length_inner", "FileSize")?;
@@ -2351,7 +2299,7 @@ fn decode_destack_fs_sync_file_range_args(
 
 /// Encode the result for destack.fs.file.syncFileRange.
 #[inline]
-fn encode_destack_fs_sync_file_range_result(
+fn encode_destack_fs_file_sync_file_range_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -2363,7 +2311,7 @@ fn encode_destack_fs_sync_file_range_result(
 
 /// Decode arguments for destack.fs.file.syncfs.
 #[inline]
-fn decode_destack_fs_syncfs_args(
+fn decode_destack_fs_file_syncfs_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle,)> {
@@ -2379,7 +2327,7 @@ fn decode_destack_fs_syncfs_args(
 
 /// Encode the result for destack.fs.file.syncfs.
 #[inline]
-fn encode_destack_fs_syncfs_result(
+fn encode_destack_fs_file_syncfs_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -2391,7 +2339,7 @@ fn encode_destack_fs_syncfs_result(
 
 /// Decode arguments for destack.fs.file.truncate.
 #[inline]
-fn decode_destack_fs_truncate_args(
+fn decode_destack_fs_file_truncate_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, FileOffset)> {
@@ -2405,10 +2353,10 @@ fn decode_destack_fs_truncate_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -2424,27 +2372,23 @@ fn decode_destack_fs_truncate_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     let size_value = arg_value(args, 1, "size", "FileOffset")?;
-    let size_inner = decode_uint64(size_value, "size_inner", "FileOffset")?;
+    let size_inner = decode_int64(size_value, "size_inner", "FileOffset")?;
     let size = FileOffset(size_inner);
     Ok((path, size))
 }
 
 /// Encode the result for destack.fs.file.truncate.
 #[inline]
-fn encode_destack_fs_truncate_result(
+fn encode_destack_fs_file_truncate_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -2456,7 +2400,7 @@ fn encode_destack_fs_truncate_result(
 
 /// Decode arguments for destack.fs.file.write.
 #[inline]
-fn decode_destack_fs_write_args(
+fn decode_destack_fs_file_write_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, VmSlice<u8>)> {
@@ -2471,7 +2415,7 @@ fn decode_destack_fs_write_args(
 
 /// Encode the result for destack.fs.file.write.
 #[inline]
-fn encode_destack_fs_write_result(
+fn encode_destack_fs_file_write_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
@@ -2483,7 +2427,7 @@ fn encode_destack_fs_write_result(
 
 /// Decode arguments for destack.fs.file.writev.
 #[inline]
-fn decode_destack_fs_writev_args(
+fn decode_destack_fs_file_writev_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, VmSlice<VmSlice<u8>>)> {
@@ -2499,7 +2443,7 @@ fn decode_destack_fs_writev_args(
 
 /// Encode the result for destack.fs.file.writev.
 #[inline]
-fn encode_destack_fs_writev_result(
+fn encode_destack_fs_file_writev_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
@@ -2511,7 +2455,7 @@ fn encode_destack_fs_writev_result(
 
 /// Decode arguments for destack.fs.mmap.madvise.
 #[inline]
-fn decode_destack_fs_madvise_args(
+fn decode_destack_fs_mmap_madvise_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmSlice<u8>, MmapAdvice)> {
@@ -2538,7 +2482,7 @@ fn decode_destack_fs_madvise_args(
 
 /// Encode the result for destack.fs.mmap.madvise.
 #[inline]
-fn encode_destack_fs_madvise_result(
+fn encode_destack_fs_mmap_madvise_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -2550,7 +2494,7 @@ fn encode_destack_fs_madvise_result(
 
 /// Decode arguments for destack.fs.mmap.mprotect.
 #[inline]
-fn decode_destack_fs_mprotect_args(
+fn decode_destack_fs_mmap_mprotect_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmSlice<u8>, MmapProt)> {
@@ -2564,7 +2508,7 @@ fn decode_destack_fs_mprotect_args(
 
 /// Encode the result for destack.fs.mmap.mprotect.
 #[inline]
-fn encode_destack_fs_mprotect_result(
+fn encode_destack_fs_mmap_mprotect_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -2576,7 +2520,7 @@ fn encode_destack_fs_mprotect_result(
 
 /// Decode arguments for destack.fs.mmap.msync.
 #[inline]
-fn decode_destack_fs_msync_args(
+fn decode_destack_fs_mmap_msync_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmSlice<u8>, MmapSyncFlags)> {
@@ -2590,7 +2534,7 @@ fn decode_destack_fs_msync_args(
 
 /// Encode the result for destack.fs.mmap.msync.
 #[inline]
-fn encode_destack_fs_msync_result(
+fn encode_destack_fs_mmap_msync_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -2602,7 +2546,7 @@ fn encode_destack_fs_msync_result(
 
 /// Decode arguments for destack.fs.mmap.munmap.
 #[inline]
-fn decode_destack_fs_munmap_args(
+fn decode_destack_fs_mmap_munmap_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmSlice<u8>,)> {
@@ -2613,7 +2557,7 @@ fn decode_destack_fs_munmap_args(
 
 /// Encode the result for destack.fs.mmap.munmap.
 #[inline]
-fn encode_destack_fs_munmap_result(
+fn encode_destack_fs_mmap_munmap_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -2673,7 +2617,7 @@ fn decode_destack_fs_mmap_file_args(
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::FileHandle(handle_inner);
     let offset_value = arg_value(args, 1, "offset", "FileOffset")?;
-    let offset_inner = decode_uint64(offset_value, "offset_inner", "FileOffset")?;
+    let offset_inner = decode_int64(offset_value, "offset_inner", "FileOffset")?;
     let offset = FileOffset(offset_inner);
     let length_value = arg_value(args, 2, "length", "FileSize")?;
     let length_inner = decode_uint64(length_value, "length_inner", "FileSize")?;
@@ -2698,7 +2642,7 @@ fn encode_destack_fs_mmap_file_result(
 
 /// Decode arguments for destack.fs.path.copyfile.
 #[inline]
-fn decode_destack_fs_copyfile_args(
+fn decode_destack_fs_path_copyfile_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, OsPathVm, CopyFlags)> {
@@ -2712,10 +2656,10 @@ fn decode_destack_fs_copyfile_args(
         let slots = context
             .aggregate_slots(from_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "from",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -2731,16 +2675,12 @@ fn decode_destack_fs_copyfile_args(
                 .boxed());
             }
         };
-        let from_bytes_inner = decode_array::<u8>(context, slots[1], "from_bytes_inner", "bytes")?;
-        let from_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(from_bytes_inner);
-        let from_utf16_inner = decode_array::<u16>(context, slots[2], "from_utf16_inner", "utf16")?;
-        let from_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(from_utf16_inner);
+        let from_data_inner = decode_array::<u8>(context, slots[1], "from_data_inner", "data")?;
+        let from_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(from_data_inner);
         OsPathVm {
             encoding: from_encoding,
-            bytes: from_bytes,
-            utf16: from_utf16,
+            data: from_data,
         }
     };
     let to_value = arg_value(args, 1, "to", "OsPath")?;
@@ -2753,10 +2693,10 @@ fn decode_destack_fs_copyfile_args(
         let slots = context
             .aggregate_slots(to_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "to",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -2772,16 +2712,12 @@ fn decode_destack_fs_copyfile_args(
                 .boxed());
             }
         };
-        let to_bytes_inner = decode_array::<u8>(context, slots[1], "to_bytes_inner", "bytes")?;
-        let to_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(to_bytes_inner);
-        let to_utf16_inner = decode_array::<u16>(context, slots[2], "to_utf16_inner", "utf16")?;
-        let to_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(to_utf16_inner);
+        let to_data_inner = decode_array::<u8>(context, slots[1], "to_data_inner", "data")?;
+        let to_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(to_data_inner);
         OsPathVm {
             encoding: to_encoding,
-            bytes: to_bytes,
-            utf16: to_utf16,
+            data: to_data,
         }
     };
     let flags_value = arg_value(args, 2, "flags", "CopyFlags")?;
@@ -2792,7 +2728,7 @@ fn decode_destack_fs_copyfile_args(
 
 /// Encode the result for destack.fs.path.copyfile.
 #[inline]
-fn encode_destack_fs_copyfile_result(
+fn encode_destack_fs_path_copyfile_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -2804,7 +2740,7 @@ fn encode_destack_fs_copyfile_result(
 
 /// Decode arguments for destack.fs.path.link.
 #[inline]
-fn decode_destack_fs_link_args(
+fn decode_destack_fs_path_link_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, OsPathVm)> {
@@ -2820,10 +2756,10 @@ fn decode_destack_fs_link_args(
         let slots = context
             .aggregate_slots(existingpath_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "existingpath",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -2840,20 +2776,14 @@ fn decode_destack_fs_link_args(
                 .boxed());
             }
         };
-        let existingpath_bytes_inner =
-            decode_array::<u8>(context, slots[1], "existingpath_bytes_inner", "bytes")?;
-        let existingpath_bytes = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(
-            existingpath_bytes_inner,
-        );
-        let existingpath_utf16_inner =
-            decode_array::<u16>(context, slots[2], "existingpath_utf16_inner", "utf16")?;
-        let existingpath_utf16 = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(
-            existingpath_utf16_inner,
+        let existingpath_data_inner =
+            decode_array::<u8>(context, slots[1], "existingpath_data_inner", "data")?;
+        let existingpath_data = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(
+            existingpath_data_inner,
         );
         OsPathVm {
             encoding: existingpath_encoding,
-            bytes: existingpath_bytes,
-            utf16: existingpath_utf16,
+            data: existingpath_data,
         }
     };
     let newpath_value = arg_value(args, 1, "newpath", "OsPath")?;
@@ -2867,10 +2797,10 @@ fn decode_destack_fs_link_args(
         let slots = context
             .aggregate_slots(newpath_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "newpath",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -2886,18 +2816,13 @@ fn decode_destack_fs_link_args(
                 .boxed());
             }
         };
-        let newpath_bytes_inner =
-            decode_array::<u8>(context, slots[1], "newpath_bytes_inner", "bytes")?;
-        let newpath_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(newpath_bytes_inner);
-        let newpath_utf16_inner =
-            decode_array::<u16>(context, slots[2], "newpath_utf16_inner", "utf16")?;
-        let newpath_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(newpath_utf16_inner);
+        let newpath_data_inner =
+            decode_array::<u8>(context, slots[1], "newpath_data_inner", "data")?;
+        let newpath_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(newpath_data_inner);
         OsPathVm {
             encoding: newpath_encoding,
-            bytes: newpath_bytes,
-            utf16: newpath_utf16,
+            data: newpath_data,
         }
     };
     Ok((existingpath, newpath))
@@ -2905,7 +2830,7 @@ fn decode_destack_fs_link_args(
 
 /// Encode the result for destack.fs.path.link.
 #[inline]
-fn encode_destack_fs_link_result(
+fn encode_destack_fs_path_link_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -2917,7 +2842,7 @@ fn encode_destack_fs_link_result(
 
 /// Decode arguments for destack.fs.path.linkat.
 #[inline]
-fn decode_destack_fs_linkat_args(
+fn decode_destack_fs_path_linkat_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
@@ -2947,10 +2872,10 @@ fn decode_destack_fs_linkat_args(
         let slots = context
             .aggregate_slots(existingpath_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "existingpath",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -2967,20 +2892,14 @@ fn decode_destack_fs_linkat_args(
                 .boxed());
             }
         };
-        let existingpath_bytes_inner =
-            decode_array::<u8>(context, slots[1], "existingpath_bytes_inner", "bytes")?;
-        let existingpath_bytes = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(
-            existingpath_bytes_inner,
-        );
-        let existingpath_utf16_inner =
-            decode_array::<u16>(context, slots[2], "existingpath_utf16_inner", "utf16")?;
-        let existingpath_utf16 = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(
-            existingpath_utf16_inner,
+        let existingpath_data_inner =
+            decode_array::<u8>(context, slots[1], "existingpath_data_inner", "data")?;
+        let existingpath_data = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(
+            existingpath_data_inner,
         );
         OsPathVm {
             encoding: existingpath_encoding,
-            bytes: existingpath_bytes,
-            utf16: existingpath_utf16,
+            data: existingpath_data,
         }
     };
     let newdir_value = arg_value(args, 2, "newdir", "DirectoryHandle")?;
@@ -2998,10 +2917,10 @@ fn decode_destack_fs_linkat_args(
         let slots = context
             .aggregate_slots(newpath_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "newpath",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -3017,18 +2936,13 @@ fn decode_destack_fs_linkat_args(
                 .boxed());
             }
         };
-        let newpath_bytes_inner =
-            decode_array::<u8>(context, slots[1], "newpath_bytes_inner", "bytes")?;
-        let newpath_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(newpath_bytes_inner);
-        let newpath_utf16_inner =
-            decode_array::<u16>(context, slots[2], "newpath_utf16_inner", "utf16")?;
-        let newpath_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(newpath_utf16_inner);
+        let newpath_data_inner =
+            decode_array::<u8>(context, slots[1], "newpath_data_inner", "data")?;
+        let newpath_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(newpath_data_inner);
         OsPathVm {
             encoding: newpath_encoding,
-            bytes: newpath_bytes,
-            utf16: newpath_utf16,
+            data: newpath_data,
         }
     };
     let flags_value = arg_value(args, 4, "flags", "AtFlags")?;
@@ -3039,7 +2953,7 @@ fn decode_destack_fs_linkat_args(
 
 /// Encode the result for destack.fs.path.linkat.
 #[inline]
-fn encode_destack_fs_linkat_result(
+fn encode_destack_fs_path_linkat_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -3051,7 +2965,7 @@ fn encode_destack_fs_linkat_result(
 
 /// Decode arguments for destack.fs.path.mkfifo.
 #[inline]
-fn decode_destack_fs_mkfifo_args(
+fn decode_destack_fs_path_mkfifo_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, FileMode)> {
@@ -3065,10 +2979,10 @@ fn decode_destack_fs_mkfifo_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -3084,16 +2998,12 @@ fn decode_destack_fs_mkfifo_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     let mode_value = arg_value(args, 1, "mode", "FileMode")?;
@@ -3104,7 +3014,7 @@ fn decode_destack_fs_mkfifo_args(
 
 /// Encode the result for destack.fs.path.mkfifo.
 #[inline]
-fn encode_destack_fs_mkfifo_result(
+fn encode_destack_fs_path_mkfifo_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -3116,7 +3026,7 @@ fn encode_destack_fs_mkfifo_result(
 
 /// Decode arguments for destack.fs.path.mkfifoat.
 #[inline]
-fn decode_destack_fs_mkfifoat_args(
+fn decode_destack_fs_path_mkfifoat_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DirectoryHandle, OsPathVm, FileMode)> {
@@ -3134,10 +3044,10 @@ fn decode_destack_fs_mkfifoat_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -3153,16 +3063,12 @@ fn decode_destack_fs_mkfifoat_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     let mode_value = arg_value(args, 2, "mode", "FileMode")?;
@@ -3173,7 +3079,7 @@ fn decode_destack_fs_mkfifoat_args(
 
 /// Encode the result for destack.fs.path.mkfifoat.
 #[inline]
-fn encode_destack_fs_mkfifoat_result(
+fn encode_destack_fs_path_mkfifoat_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -3185,7 +3091,7 @@ fn encode_destack_fs_mkfifoat_result(
 
 /// Decode arguments for destack.fs.path.mknod.
 #[inline]
-fn decode_destack_fs_mknod_args(
+fn decode_destack_fs_path_mknod_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, FileMode, NodeDevice)> {
@@ -3199,10 +3105,10 @@ fn decode_destack_fs_mknod_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -3218,16 +3124,12 @@ fn decode_destack_fs_mknod_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     let mode_value = arg_value(args, 1, "mode", "FileMode")?;
@@ -3241,7 +3143,7 @@ fn decode_destack_fs_mknod_args(
 
 /// Encode the result for destack.fs.path.mknod.
 #[inline]
-fn encode_destack_fs_mknod_result(
+fn encode_destack_fs_path_mknod_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -3253,7 +3155,7 @@ fn encode_destack_fs_mknod_result(
 
 /// Decode arguments for destack.fs.path.mknodat.
 #[inline]
-fn decode_destack_fs_mknodat_args(
+fn decode_destack_fs_path_mknodat_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DirectoryHandle, OsPathVm, FileMode, NodeDevice)> {
@@ -3271,10 +3173,10 @@ fn decode_destack_fs_mknodat_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -3290,16 +3192,12 @@ fn decode_destack_fs_mknodat_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     let mode_value = arg_value(args, 2, "mode", "FileMode")?;
@@ -3313,7 +3211,7 @@ fn decode_destack_fs_mknodat_args(
 
 /// Encode the result for destack.fs.path.mknodat.
 #[inline]
-fn encode_destack_fs_mknodat_result(
+fn encode_destack_fs_path_mknodat_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -3325,7 +3223,7 @@ fn encode_destack_fs_mknodat_result(
 
 /// Decode arguments for destack.fs.path.readlink.
 #[inline]
-fn decode_destack_fs_readlink_args(
+fn decode_destack_fs_path_readlink_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm,)> {
@@ -3339,10 +3237,10 @@ fn decode_destack_fs_readlink_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -3358,16 +3256,12 @@ fn decode_destack_fs_readlink_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     Ok((path,))
@@ -3375,21 +3269,20 @@ fn decode_destack_fs_readlink_args(
 
 /// Encode the result for destack.fs.path.readlink.
 #[inline]
-fn encode_destack_fs_readlink_result(
+fn encode_destack_fs_path_readlink_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<OsPathVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
         let field_0 = vm::Value::uint(value.encoding as u8 as u64, 8);
-        let field_1 = value.bytes.0.to_value(context);
-        let field_2 = value.utf16.0.to_value(context);
-        context.allocate_aggregate(vec![field_0, field_1, field_2])
+        let field_1 = value.data.0.to_value(context);
+        context.allocate_aggregate(vec![field_0, field_1])
     })
 }
 
 /// Decode arguments for destack.fs.path.readlinkat.
 #[inline]
-fn decode_destack_fs_readlinkat_args(
+fn decode_destack_fs_path_readlinkat_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DirectoryHandle, OsPathVm)> {
@@ -3407,10 +3300,10 @@ fn decode_destack_fs_readlinkat_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -3426,16 +3319,12 @@ fn decode_destack_fs_readlinkat_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     Ok((dir, path))
@@ -3443,21 +3332,20 @@ fn decode_destack_fs_readlinkat_args(
 
 /// Encode the result for destack.fs.path.readlinkat.
 #[inline]
-fn encode_destack_fs_readlinkat_result(
+fn encode_destack_fs_path_readlinkat_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<OsPathVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
         let field_0 = vm::Value::uint(value.encoding as u8 as u64, 8);
-        let field_1 = value.bytes.0.to_value(context);
-        let field_2 = value.utf16.0.to_value(context);
-        context.allocate_aggregate(vec![field_0, field_1, field_2])
+        let field_1 = value.data.0.to_value(context);
+        context.allocate_aggregate(vec![field_0, field_1])
     })
 }
 
 /// Decode arguments for destack.fs.path.realpath.
 #[inline]
-fn decode_destack_fs_realpath_args(
+fn decode_destack_fs_path_realpath_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm,)> {
@@ -3471,10 +3359,10 @@ fn decode_destack_fs_realpath_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -3490,16 +3378,12 @@ fn decode_destack_fs_realpath_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     Ok((path,))
@@ -3507,21 +3391,20 @@ fn decode_destack_fs_realpath_args(
 
 /// Encode the result for destack.fs.path.realpath.
 #[inline]
-fn encode_destack_fs_realpath_result(
+fn encode_destack_fs_path_realpath_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<OsPathVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
         let field_0 = vm::Value::uint(value.encoding as u8 as u64, 8);
-        let field_1 = value.bytes.0.to_value(context);
-        let field_2 = value.utf16.0.to_value(context);
-        context.allocate_aggregate(vec![field_0, field_1, field_2])
+        let field_1 = value.data.0.to_value(context);
+        context.allocate_aggregate(vec![field_0, field_1])
     })
 }
 
 /// Decode arguments for destack.fs.path.rename.
 #[inline]
-fn decode_destack_fs_rename_args(
+fn decode_destack_fs_path_rename_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, OsPathVm)> {
@@ -3535,10 +3418,10 @@ fn decode_destack_fs_rename_args(
         let slots = context
             .aggregate_slots(from_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "from",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -3554,16 +3437,12 @@ fn decode_destack_fs_rename_args(
                 .boxed());
             }
         };
-        let from_bytes_inner = decode_array::<u8>(context, slots[1], "from_bytes_inner", "bytes")?;
-        let from_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(from_bytes_inner);
-        let from_utf16_inner = decode_array::<u16>(context, slots[2], "from_utf16_inner", "utf16")?;
-        let from_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(from_utf16_inner);
+        let from_data_inner = decode_array::<u8>(context, slots[1], "from_data_inner", "data")?;
+        let from_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(from_data_inner);
         OsPathVm {
             encoding: from_encoding,
-            bytes: from_bytes,
-            utf16: from_utf16,
+            data: from_data,
         }
     };
     let to_value = arg_value(args, 1, "to", "OsPath")?;
@@ -3576,10 +3455,10 @@ fn decode_destack_fs_rename_args(
         let slots = context
             .aggregate_slots(to_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "to",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -3595,16 +3474,12 @@ fn decode_destack_fs_rename_args(
                 .boxed());
             }
         };
-        let to_bytes_inner = decode_array::<u8>(context, slots[1], "to_bytes_inner", "bytes")?;
-        let to_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(to_bytes_inner);
-        let to_utf16_inner = decode_array::<u16>(context, slots[2], "to_utf16_inner", "utf16")?;
-        let to_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(to_utf16_inner);
+        let to_data_inner = decode_array::<u8>(context, slots[1], "to_data_inner", "data")?;
+        let to_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(to_data_inner);
         OsPathVm {
             encoding: to_encoding,
-            bytes: to_bytes,
-            utf16: to_utf16,
+            data: to_data,
         }
     };
     Ok((from, to))
@@ -3612,7 +3487,7 @@ fn decode_destack_fs_rename_args(
 
 /// Encode the result for destack.fs.path.rename.
 #[inline]
-fn encode_destack_fs_rename_result(
+fn encode_destack_fs_path_rename_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -3624,7 +3499,7 @@ fn encode_destack_fs_rename_result(
 
 /// Decode arguments for destack.fs.path.renameat.
 #[inline]
-fn decode_destack_fs_renameat_args(
+fn decode_destack_fs_path_renameat_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
@@ -3648,10 +3523,10 @@ fn decode_destack_fs_renameat_args(
         let slots = context
             .aggregate_slots(from_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "from",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -3667,16 +3542,12 @@ fn decode_destack_fs_renameat_args(
                 .boxed());
             }
         };
-        let from_bytes_inner = decode_array::<u8>(context, slots[1], "from_bytes_inner", "bytes")?;
-        let from_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(from_bytes_inner);
-        let from_utf16_inner = decode_array::<u16>(context, slots[2], "from_utf16_inner", "utf16")?;
-        let from_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(from_utf16_inner);
+        let from_data_inner = decode_array::<u8>(context, slots[1], "from_data_inner", "data")?;
+        let from_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(from_data_inner);
         OsPathVm {
             encoding: from_encoding,
-            bytes: from_bytes,
-            utf16: from_utf16,
+            data: from_data,
         }
     };
     let todir_value = arg_value(args, 2, "todir", "DirectoryHandle")?;
@@ -3693,10 +3564,10 @@ fn decode_destack_fs_renameat_args(
         let slots = context
             .aggregate_slots(to_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "to",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -3712,16 +3583,12 @@ fn decode_destack_fs_renameat_args(
                 .boxed());
             }
         };
-        let to_bytes_inner = decode_array::<u8>(context, slots[1], "to_bytes_inner", "bytes")?;
-        let to_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(to_bytes_inner);
-        let to_utf16_inner = decode_array::<u16>(context, slots[2], "to_utf16_inner", "utf16")?;
-        let to_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(to_utf16_inner);
+        let to_data_inner = decode_array::<u8>(context, slots[1], "to_data_inner", "data")?;
+        let to_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(to_data_inner);
         OsPathVm {
             encoding: to_encoding,
-            bytes: to_bytes,
-            utf16: to_utf16,
+            data: to_data,
         }
     };
     Ok((fromdir, from, todir, to))
@@ -3729,7 +3596,7 @@ fn decode_destack_fs_renameat_args(
 
 /// Encode the result for destack.fs.path.renameat.
 #[inline]
-fn encode_destack_fs_renameat_result(
+fn encode_destack_fs_path_renameat_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -3741,7 +3608,7 @@ fn encode_destack_fs_renameat_result(
 
 /// Decode arguments for destack.fs.path.renameat2.
 #[inline]
-fn decode_destack_fs_renameat2_args(
+fn decode_destack_fs_path_renameat2_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
@@ -3766,10 +3633,10 @@ fn decode_destack_fs_renameat2_args(
         let slots = context
             .aggregate_slots(from_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "from",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -3785,16 +3652,12 @@ fn decode_destack_fs_renameat2_args(
                 .boxed());
             }
         };
-        let from_bytes_inner = decode_array::<u8>(context, slots[1], "from_bytes_inner", "bytes")?;
-        let from_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(from_bytes_inner);
-        let from_utf16_inner = decode_array::<u16>(context, slots[2], "from_utf16_inner", "utf16")?;
-        let from_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(from_utf16_inner);
+        let from_data_inner = decode_array::<u8>(context, slots[1], "from_data_inner", "data")?;
+        let from_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(from_data_inner);
         OsPathVm {
             encoding: from_encoding,
-            bytes: from_bytes,
-            utf16: from_utf16,
+            data: from_data,
         }
     };
     let todir_value = arg_value(args, 2, "todir", "DirectoryHandle")?;
@@ -3811,10 +3674,10 @@ fn decode_destack_fs_renameat2_args(
         let slots = context
             .aggregate_slots(to_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "to",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -3830,16 +3693,12 @@ fn decode_destack_fs_renameat2_args(
                 .boxed());
             }
         };
-        let to_bytes_inner = decode_array::<u8>(context, slots[1], "to_bytes_inner", "bytes")?;
-        let to_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(to_bytes_inner);
-        let to_utf16_inner = decode_array::<u16>(context, slots[2], "to_utf16_inner", "utf16")?;
-        let to_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(to_utf16_inner);
+        let to_data_inner = decode_array::<u8>(context, slots[1], "to_data_inner", "data")?;
+        let to_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(to_data_inner);
         OsPathVm {
             encoding: to_encoding,
-            bytes: to_bytes,
-            utf16: to_utf16,
+            data: to_data,
         }
     };
     let flags_value = arg_value(args, 4, "flags", "RenameFlags")?;
@@ -3850,7 +3709,7 @@ fn decode_destack_fs_renameat2_args(
 
 /// Encode the result for destack.fs.path.renameat2.
 #[inline]
-fn encode_destack_fs_renameat2_result(
+fn encode_destack_fs_path_renameat2_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -3862,7 +3721,7 @@ fn encode_destack_fs_renameat2_result(
 
 /// Decode arguments for destack.fs.path.symlink.
 #[inline]
-fn decode_destack_fs_symlink_args(
+fn decode_destack_fs_path_symlink_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, OsPathVm, SymlinkType)> {
@@ -3877,10 +3736,10 @@ fn decode_destack_fs_symlink_args(
         let slots = context
             .aggregate_slots(target_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "target",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -3896,18 +3755,12 @@ fn decode_destack_fs_symlink_args(
                 .boxed());
             }
         };
-        let target_bytes_inner =
-            decode_array::<u8>(context, slots[1], "target_bytes_inner", "bytes")?;
-        let target_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(target_bytes_inner);
-        let target_utf16_inner =
-            decode_array::<u16>(context, slots[2], "target_utf16_inner", "utf16")?;
-        let target_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(target_utf16_inner);
+        let target_data_inner = decode_array::<u8>(context, slots[1], "target_data_inner", "data")?;
+        let target_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(target_data_inner);
         OsPathVm {
             encoding: target_encoding,
-            bytes: target_bytes,
-            utf16: target_utf16,
+            data: target_data,
         }
     };
     let path_value = arg_value(args, 1, "path", "OsPath")?;
@@ -3920,10 +3773,10 @@ fn decode_destack_fs_symlink_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -3939,16 +3792,12 @@ fn decode_destack_fs_symlink_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     let kind_value = arg_value(args, 2, "kind", "SymlinkType")?;
@@ -3970,7 +3819,7 @@ fn decode_destack_fs_symlink_args(
 
 /// Encode the result for destack.fs.path.symlink.
 #[inline]
-fn encode_destack_fs_symlink_result(
+fn encode_destack_fs_path_symlink_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -3982,7 +3831,7 @@ fn encode_destack_fs_symlink_result(
 
 /// Decode arguments for destack.fs.path.symlinkat.
 #[inline]
-fn decode_destack_fs_symlinkat_args(
+fn decode_destack_fs_path_symlinkat_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, resource::DirectoryHandle, OsPathVm, SymlinkType)> {
@@ -3997,10 +3846,10 @@ fn decode_destack_fs_symlinkat_args(
         let slots = context
             .aggregate_slots(target_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "target",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -4016,18 +3865,12 @@ fn decode_destack_fs_symlinkat_args(
                 .boxed());
             }
         };
-        let target_bytes_inner =
-            decode_array::<u8>(context, slots[1], "target_bytes_inner", "bytes")?;
-        let target_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(target_bytes_inner);
-        let target_utf16_inner =
-            decode_array::<u16>(context, slots[2], "target_utf16_inner", "utf16")?;
-        let target_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(target_utf16_inner);
+        let target_data_inner = decode_array::<u8>(context, slots[1], "target_data_inner", "data")?;
+        let target_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(target_data_inner);
         OsPathVm {
             encoding: target_encoding,
-            bytes: target_bytes,
-            utf16: target_utf16,
+            data: target_data,
         }
     };
     let dir_value = arg_value(args, 1, "dir", "DirectoryHandle")?;
@@ -4044,10 +3887,10 @@ fn decode_destack_fs_symlinkat_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -4063,16 +3906,12 @@ fn decode_destack_fs_symlinkat_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     let kind_value = arg_value(args, 3, "kind", "SymlinkType")?;
@@ -4094,7 +3933,7 @@ fn decode_destack_fs_symlinkat_args(
 
 /// Encode the result for destack.fs.path.symlinkat.
 #[inline]
-fn encode_destack_fs_symlinkat_result(
+fn encode_destack_fs_path_symlinkat_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -4106,7 +3945,7 @@ fn encode_destack_fs_symlinkat_result(
 
 /// Decode arguments for destack.fs.path.unlink.
 #[inline]
-fn decode_destack_fs_unlink_args(
+fn decode_destack_fs_path_unlink_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm,)> {
@@ -4120,10 +3959,10 @@ fn decode_destack_fs_unlink_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -4139,16 +3978,12 @@ fn decode_destack_fs_unlink_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     Ok((path,))
@@ -4156,7 +3991,7 @@ fn decode_destack_fs_unlink_args(
 
 /// Encode the result for destack.fs.path.unlink.
 #[inline]
-fn encode_destack_fs_unlink_result(
+fn encode_destack_fs_path_unlink_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -4168,7 +4003,7 @@ fn encode_destack_fs_unlink_result(
 
 /// Decode arguments for destack.fs.path.unlinkat.
 #[inline]
-fn decode_destack_fs_unlinkat_args(
+fn decode_destack_fs_path_unlinkat_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DirectoryHandle, OsPathVm, AtFlags)> {
@@ -4186,10 +4021,10 @@ fn decode_destack_fs_unlinkat_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -4205,16 +4040,12 @@ fn decode_destack_fs_unlinkat_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     let flags_value = arg_value(args, 2, "flags", "AtFlags")?;
@@ -4225,7 +4056,7 @@ fn decode_destack_fs_unlinkat_args(
 
 /// Encode the result for destack.fs.path.unlinkat.
 #[inline]
-fn encode_destack_fs_unlinkat_result(
+fn encode_destack_fs_path_unlinkat_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -4237,7 +4068,7 @@ fn encode_destack_fs_unlinkat_result(
 
 /// Decode arguments for destack.fs.stat.fstat.
 #[inline]
-fn decode_destack_fs_fstat_args(
+fn decode_destack_fs_stat_fstat_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle,)> {
@@ -4253,7 +4084,7 @@ fn decode_destack_fs_fstat_args(
 
 /// Encode the result for destack.fs.stat.fstat.
 #[inline]
-fn encode_destack_fs_fstat_result(
+fn encode_destack_fs_stat_fstat_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<StatVm>,
 ) -> RuntimeResult<vm::Value> {
@@ -4281,7 +4112,7 @@ fn encode_destack_fs_fstat_result(
 
 /// Decode arguments for destack.fs.stat.fstatfs.
 #[inline]
-fn decode_destack_fs_fstatfs_args(
+fn decode_destack_fs_stat_fstatfs_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle,)> {
@@ -4297,7 +4128,7 @@ fn decode_destack_fs_fstatfs_args(
 
 /// Encode the result for destack.fs.stat.fstatfs.
 #[inline]
-fn encode_destack_fs_fstatfs_result(
+fn encode_destack_fs_stat_fstatfs_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<StatFsVm>,
 ) -> RuntimeResult<vm::Value> {
@@ -4321,7 +4152,7 @@ fn encode_destack_fs_fstatfs_result(
 
 /// Decode arguments for destack.fs.stat.lstat.
 #[inline]
-fn decode_destack_fs_lstat_args(
+fn decode_destack_fs_stat_lstat_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm,)> {
@@ -4335,10 +4166,10 @@ fn decode_destack_fs_lstat_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -4354,16 +4185,12 @@ fn decode_destack_fs_lstat_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     Ok((path,))
@@ -4371,7 +4198,7 @@ fn decode_destack_fs_lstat_args(
 
 /// Encode the result for destack.fs.stat.lstat.
 #[inline]
-fn encode_destack_fs_lstat_result(
+fn encode_destack_fs_stat_lstat_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<StatVm>,
 ) -> RuntimeResult<vm::Value> {
@@ -4399,7 +4226,7 @@ fn encode_destack_fs_lstat_result(
 
 /// Decode arguments for destack.fs.stat.stat.
 #[inline]
-fn decode_destack_fs_stat_args(
+fn decode_destack_fs_stat_stat_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm,)> {
@@ -4413,10 +4240,10 @@ fn decode_destack_fs_stat_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -4432,16 +4259,12 @@ fn decode_destack_fs_stat_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     Ok((path,))
@@ -4449,7 +4272,7 @@ fn decode_destack_fs_stat_args(
 
 /// Encode the result for destack.fs.stat.stat.
 #[inline]
-fn encode_destack_fs_stat_result(
+fn encode_destack_fs_stat_stat_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<StatVm>,
 ) -> RuntimeResult<vm::Value> {
@@ -4477,7 +4300,7 @@ fn encode_destack_fs_stat_result(
 
 /// Decode arguments for destack.fs.stat.statat.
 #[inline]
-fn decode_destack_fs_statat_args(
+fn decode_destack_fs_stat_statat_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DirectoryHandle, OsPathVm, AtFlags)> {
@@ -4495,10 +4318,10 @@ fn decode_destack_fs_statat_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -4514,16 +4337,12 @@ fn decode_destack_fs_statat_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     let flags_value = arg_value(args, 2, "flags", "AtFlags")?;
@@ -4534,7 +4353,7 @@ fn decode_destack_fs_statat_args(
 
 /// Encode the result for destack.fs.stat.statat.
 #[inline]
-fn encode_destack_fs_statat_result(
+fn encode_destack_fs_stat_statat_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<StatVm>,
 ) -> RuntimeResult<vm::Value> {
@@ -4562,7 +4381,7 @@ fn encode_destack_fs_statat_result(
 
 /// Decode arguments for destack.fs.stat.statfs.
 #[inline]
-fn decode_destack_fs_statfs_args(
+fn decode_destack_fs_stat_statfs_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm,)> {
@@ -4576,10 +4395,10 @@ fn decode_destack_fs_statfs_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -4595,16 +4414,12 @@ fn decode_destack_fs_statfs_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     Ok((path,))
@@ -4612,7 +4427,7 @@ fn decode_destack_fs_statfs_args(
 
 /// Encode the result for destack.fs.stat.statfs.
 #[inline]
-fn encode_destack_fs_statfs_result(
+fn encode_destack_fs_stat_statfs_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<StatFsVm>,
 ) -> RuntimeResult<vm::Value> {
@@ -4636,7 +4451,7 @@ fn encode_destack_fs_statfs_result(
 
 /// Decode arguments for destack.fs.stat.statx.
 #[inline]
-fn decode_destack_fs_statx_args(
+fn decode_destack_fs_stat_statx_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DirectoryHandle, OsPathVm, StatxFlags, StatxMask)> {
@@ -4654,10 +4469,10 @@ fn decode_destack_fs_statx_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -4673,16 +4488,12 @@ fn decode_destack_fs_statx_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     let flags_value = arg_value(args, 2, "flags", "StatxFlags")?;
@@ -4696,7 +4507,7 @@ fn decode_destack_fs_statx_args(
 
 /// Encode the result for destack.fs.stat.statx.
 #[inline]
-fn encode_destack_fs_statx_result(
+fn encode_destack_fs_stat_statx_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<StatxVm>,
 ) -> RuntimeResult<vm::Value> {
@@ -4743,10 +4554,10 @@ fn decode_destack_fs_watch_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -4762,16 +4573,12 @@ fn decode_destack_fs_watch_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     let options_value = arg_value(args, 1, "options", "WatchOptions")?;
@@ -4897,10 +4704,10 @@ fn decode_destack_fs_watchat_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -4916,16 +4723,12 @@ fn decode_destack_fs_watchat_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     let options_value = arg_value(args, 2, "options", "WatchOptions")?;
@@ -4975,7 +4778,7 @@ fn encode_destack_fs_watchat_result(
 
 /// Decode arguments for destack.fs.xattr.fgetxattr.
 #[inline]
-fn decode_destack_fs_fgetxattr_args(
+fn decode_destack_fs_xattr_fgetxattr_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, vm::StringHandle)> {
@@ -4993,7 +4796,31 @@ fn decode_destack_fs_fgetxattr_args(
 
 /// Encode the result for destack.fs.xattr.fgetxattr.
 #[inline]
-fn encode_destack_fs_fgetxattr_result(
+fn encode_destack_fs_xattr_fgetxattr_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<VmArray<u8>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.fs.xattr.fgetxattrBytes.
+#[inline]
+fn decode_destack_fs_xattr_fgetxattr_bytes_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::FileHandle, VmSlice<u8>)> {
+    let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::FileHandle(handle_inner);
+    let name_value = arg_value(args, 1, "name", "Slice<uint8>")?;
+    let name = decode_slice::<u8>(context, name_value, "name", "Slice<uint8>")?;
+    Ok((handle, name))
+}
+
+/// Encode the result for destack.fs.xattr.fgetxattrBytes.
+#[inline]
+fn encode_destack_fs_xattr_fgetxattr_bytes_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<VmArray<u8>>,
 ) -> RuntimeResult<vm::Value> {
@@ -5002,7 +4829,7 @@ fn encode_destack_fs_fgetxattr_result(
 
 /// Decode arguments for destack.fs.xattr.flistxattr.
 #[inline]
-fn decode_destack_fs_flistxattr_args(
+fn decode_destack_fs_xattr_flistxattr_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle,)> {
@@ -5018,16 +4845,41 @@ fn decode_destack_fs_flistxattr_args(
 
 /// Encode the result for destack.fs.xattr.flistxattr.
 #[inline]
-fn encode_destack_fs_flistxattr_result(
+fn encode_destack_fs_xattr_flistxattr_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<VmArray<vm::StringHandle>>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| value.to_value(context))
 }
 
+/// Decode arguments for destack.fs.xattr.flistxattrBytes.
+#[inline]
+fn decode_destack_fs_xattr_flistxattr_bytes_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::FileHandle,)> {
+    // ignore unused context
+    let _ = context;
+
+    let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::FileHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.fs.xattr.flistxattrBytes.
+#[inline]
+fn encode_destack_fs_xattr_flistxattr_bytes_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<VmArray<VmArray<u8>>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
 /// Decode arguments for destack.fs.xattr.fremovexattr.
 #[inline]
-fn decode_destack_fs_fremovexattr_args(
+fn decode_destack_fs_xattr_fremovexattr_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, vm::StringHandle)> {
@@ -5045,7 +4897,34 @@ fn decode_destack_fs_fremovexattr_args(
 
 /// Encode the result for destack.fs.xattr.fremovexattr.
 #[inline]
-fn encode_destack_fs_fremovexattr_result(
+fn encode_destack_fs_xattr_fremovexattr_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.fs.xattr.fremovexattrBytes.
+#[inline]
+fn decode_destack_fs_xattr_fremovexattr_bytes_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::FileHandle, VmSlice<u8>)> {
+    let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::FileHandle(handle_inner);
+    let name_value = arg_value(args, 1, "name", "Slice<uint8>")?;
+    let name = decode_slice::<u8>(context, name_value, "name", "Slice<uint8>")?;
+    Ok((handle, name))
+}
+
+/// Encode the result for destack.fs.xattr.fremovexattrBytes.
+#[inline]
+fn encode_destack_fs_xattr_fremovexattr_bytes_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -5057,7 +4936,7 @@ fn encode_destack_fs_fremovexattr_result(
 
 /// Decode arguments for destack.fs.xattr.fsetxattr.
 #[inline]
-fn decode_destack_fs_fsetxattr_args(
+fn decode_destack_fs_xattr_fsetxattr_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
@@ -5082,7 +4961,39 @@ fn decode_destack_fs_fsetxattr_args(
 
 /// Encode the result for destack.fs.xattr.fsetxattr.
 #[inline]
-fn encode_destack_fs_fsetxattr_result(
+fn encode_destack_fs_xattr_fsetxattr_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.fs.xattr.fsetxattrBytes.
+#[inline]
+fn decode_destack_fs_xattr_fsetxattr_bytes_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::FileHandle, VmSlice<u8>, VmSlice<u8>, XattrFlags)> {
+    let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::FileHandle(handle_inner);
+    let name_value = arg_value(args, 1, "name", "Slice<uint8>")?;
+    let name = decode_slice::<u8>(context, name_value, "name", "Slice<uint8>")?;
+    let value_value = arg_value(args, 2, "value", "Slice<uint8>")?;
+    let value = decode_slice::<u8>(context, value_value, "value", "Slice<uint8>")?;
+    let flags_value = arg_value(args, 3, "flags", "XattrFlags")?;
+    let flags_inner = decode_uint32(flags_value, "flags_inner", "XattrFlags")?;
+    let flags = XattrFlags(flags_inner);
+    Ok((handle, name, value, flags))
+}
+
+/// Encode the result for destack.fs.xattr.fsetxattrBytes.
+#[inline]
+fn encode_destack_fs_xattr_fsetxattr_bytes_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -5094,7 +5005,7 @@ fn encode_destack_fs_fsetxattr_result(
 
 /// Decode arguments for destack.fs.xattr.getxattr.
 #[inline]
-fn decode_destack_fs_getxattr_args(
+fn decode_destack_fs_xattr_getxattr_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, vm::StringHandle)> {
@@ -5108,10 +5019,10 @@ fn decode_destack_fs_getxattr_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -5127,16 +5038,12 @@ fn decode_destack_fs_getxattr_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     let name_value = arg_value(args, 1, "name", "string")?;
@@ -5146,19 +5053,19 @@ fn decode_destack_fs_getxattr_args(
 
 /// Encode the result for destack.fs.xattr.getxattr.
 #[inline]
-fn encode_destack_fs_getxattr_result(
+fn encode_destack_fs_xattr_getxattr_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<VmArray<u8>>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| value.to_value(context))
 }
 
-/// Decode arguments for destack.fs.xattr.lgetxattr.
+/// Decode arguments for destack.fs.xattr.getxattrBytes.
 #[inline]
-fn decode_destack_fs_lgetxattr_args(
+fn decode_destack_fs_xattr_getxattr_bytes_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(OsPathVm, vm::StringHandle)> {
+) -> RuntimeResult<(OsPathVm, VmSlice<u8>)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
     let path = {
         if path_value.tag() != vm::ValueTag::Aggregate {
@@ -5169,10 +5076,10 @@ fn decode_destack_fs_lgetxattr_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -5188,16 +5095,69 @@ fn decode_destack_fs_lgetxattr_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
+        }
+    };
+    let name_value = arg_value(args, 1, "name", "Slice<uint8>")?;
+    let name = decode_slice::<u8>(context, name_value, "name", "Slice<uint8>")?;
+    Ok((path, name))
+}
+
+/// Encode the result for destack.fs.xattr.getxattrBytes.
+#[inline]
+fn encode_destack_fs_xattr_getxattr_bytes_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<VmArray<u8>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.fs.xattr.lgetxattr.
+#[inline]
+fn decode_destack_fs_xattr_lgetxattr_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(OsPathVm, vm::StringHandle)> {
+    let path_value = arg_value(args, 0, "path", "OsPath")?;
+    let path = {
+        if path_value.tag() != vm::ValueTag::Aggregate {
+            return Err(
+                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
+            );
+        }
+        let slots = context
+            .aggregate_slots(path_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "path",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
+        let path_encoding = match path_encoding_raw {
+            1u8 => PathEncoding::Bytes,
+            2u8 => PathEncoding::Utf16,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "path_encoding",
+                    "unknown PathEncoding value",
+                ))
+                .boxed());
+            }
+        };
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
+        OsPathVm {
+            encoding: path_encoding,
+            data: path_data,
         }
     };
     let name_value = arg_value(args, 1, "name", "string")?;
@@ -5207,7 +5167,64 @@ fn decode_destack_fs_lgetxattr_args(
 
 /// Encode the result for destack.fs.xattr.lgetxattr.
 #[inline]
-fn encode_destack_fs_lgetxattr_result(
+fn encode_destack_fs_xattr_lgetxattr_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<VmArray<u8>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.fs.xattr.lgetxattrBytes.
+#[inline]
+fn decode_destack_fs_xattr_lgetxattr_bytes_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(OsPathVm, VmSlice<u8>)> {
+    let path_value = arg_value(args, 0, "path", "OsPath")?;
+    let path = {
+        if path_value.tag() != vm::ValueTag::Aggregate {
+            return Err(
+                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
+            );
+        }
+        let slots = context
+            .aggregate_slots(path_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "path",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
+        let path_encoding = match path_encoding_raw {
+            1u8 => PathEncoding::Bytes,
+            2u8 => PathEncoding::Utf16,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "path_encoding",
+                    "unknown PathEncoding value",
+                ))
+                .boxed());
+            }
+        };
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
+        OsPathVm {
+            encoding: path_encoding,
+            data: path_data,
+        }
+    };
+    let name_value = arg_value(args, 1, "name", "Slice<uint8>")?;
+    let name = decode_slice::<u8>(context, name_value, "name", "Slice<uint8>")?;
+    Ok((path, name))
+}
+
+/// Encode the result for destack.fs.xattr.lgetxattrBytes.
+#[inline]
+fn encode_destack_fs_xattr_lgetxattr_bytes_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<VmArray<u8>>,
 ) -> RuntimeResult<vm::Value> {
@@ -5216,7 +5233,7 @@ fn encode_destack_fs_lgetxattr_result(
 
 /// Decode arguments for destack.fs.xattr.listxattr.
 #[inline]
-fn decode_destack_fs_listxattr_args(
+fn decode_destack_fs_xattr_listxattr_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm,)> {
@@ -5230,10 +5247,10 @@ fn decode_destack_fs_listxattr_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -5249,16 +5266,12 @@ fn decode_destack_fs_listxattr_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     Ok((path,))
@@ -5266,16 +5279,16 @@ fn decode_destack_fs_listxattr_args(
 
 /// Encode the result for destack.fs.xattr.listxattr.
 #[inline]
-fn encode_destack_fs_listxattr_result(
+fn encode_destack_fs_xattr_listxattr_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<VmArray<vm::StringHandle>>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| value.to_value(context))
 }
 
-/// Decode arguments for destack.fs.xattr.llistxattr.
+/// Decode arguments for destack.fs.xattr.listxattrBytes.
 #[inline]
-fn decode_destack_fs_llistxattr_args(
+fn decode_destack_fs_xattr_listxattr_bytes_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm,)> {
@@ -5289,10 +5302,10 @@ fn decode_destack_fs_llistxattr_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -5308,16 +5321,67 @@ fn decode_destack_fs_llistxattr_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
+        }
+    };
+    Ok((path,))
+}
+
+/// Encode the result for destack.fs.xattr.listxattrBytes.
+#[inline]
+fn encode_destack_fs_xattr_listxattr_bytes_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<VmArray<VmArray<u8>>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.fs.xattr.llistxattr.
+#[inline]
+fn decode_destack_fs_xattr_llistxattr_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(OsPathVm,)> {
+    let path_value = arg_value(args, 0, "path", "OsPath")?;
+    let path = {
+        if path_value.tag() != vm::ValueTag::Aggregate {
+            return Err(
+                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
+            );
+        }
+        let slots = context
+            .aggregate_slots(path_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "path",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
+        let path_encoding = match path_encoding_raw {
+            1u8 => PathEncoding::Bytes,
+            2u8 => PathEncoding::Utf16,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "path_encoding",
+                    "unknown PathEncoding value",
+                ))
+                .boxed());
+            }
+        };
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
+        OsPathVm {
+            encoding: path_encoding,
+            data: path_data,
         }
     };
     Ok((path,))
@@ -5325,16 +5389,71 @@ fn decode_destack_fs_llistxattr_args(
 
 /// Encode the result for destack.fs.xattr.llistxattr.
 #[inline]
-fn encode_destack_fs_llistxattr_result(
+fn encode_destack_fs_xattr_llistxattr_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<VmArray<vm::StringHandle>>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| value.to_value(context))
 }
 
+/// Decode arguments for destack.fs.xattr.llistxattrBytes.
+#[inline]
+fn decode_destack_fs_xattr_llistxattr_bytes_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(OsPathVm,)> {
+    let path_value = arg_value(args, 0, "path", "OsPath")?;
+    let path = {
+        if path_value.tag() != vm::ValueTag::Aggregate {
+            return Err(
+                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
+            );
+        }
+        let slots = context
+            .aggregate_slots(path_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "path",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
+        let path_encoding = match path_encoding_raw {
+            1u8 => PathEncoding::Bytes,
+            2u8 => PathEncoding::Utf16,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "path_encoding",
+                    "unknown PathEncoding value",
+                ))
+                .boxed());
+            }
+        };
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
+        OsPathVm {
+            encoding: path_encoding,
+            data: path_data,
+        }
+    };
+    Ok((path,))
+}
+
+/// Encode the result for destack.fs.xattr.llistxattrBytes.
+#[inline]
+fn encode_destack_fs_xattr_llistxattr_bytes_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<VmArray<VmArray<u8>>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
 /// Decode arguments for destack.fs.xattr.lremovexattr.
 #[inline]
-fn decode_destack_fs_lremovexattr_args(
+fn decode_destack_fs_xattr_lremovexattr_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, vm::StringHandle)> {
@@ -5348,10 +5467,10 @@ fn decode_destack_fs_lremovexattr_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -5367,16 +5486,12 @@ fn decode_destack_fs_lremovexattr_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     let name_value = arg_value(args, 1, "name", "string")?;
@@ -5386,7 +5501,67 @@ fn decode_destack_fs_lremovexattr_args(
 
 /// Encode the result for destack.fs.xattr.lremovexattr.
 #[inline]
-fn encode_destack_fs_lremovexattr_result(
+fn encode_destack_fs_xattr_lremovexattr_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.fs.xattr.lremovexattrBytes.
+#[inline]
+fn decode_destack_fs_xattr_lremovexattr_bytes_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(OsPathVm, VmSlice<u8>)> {
+    let path_value = arg_value(args, 0, "path", "OsPath")?;
+    let path = {
+        if path_value.tag() != vm::ValueTag::Aggregate {
+            return Err(
+                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
+            );
+        }
+        let slots = context
+            .aggregate_slots(path_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "path",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
+        let path_encoding = match path_encoding_raw {
+            1u8 => PathEncoding::Bytes,
+            2u8 => PathEncoding::Utf16,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "path_encoding",
+                    "unknown PathEncoding value",
+                ))
+                .boxed());
+            }
+        };
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
+        OsPathVm {
+            encoding: path_encoding,
+            data: path_data,
+        }
+    };
+    let name_value = arg_value(args, 1, "name", "Slice<uint8>")?;
+    let name = decode_slice::<u8>(context, name_value, "name", "Slice<uint8>")?;
+    Ok((path, name))
+}
+
+/// Encode the result for destack.fs.xattr.lremovexattrBytes.
+#[inline]
+fn encode_destack_fs_xattr_lremovexattr_bytes_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -5398,7 +5573,7 @@ fn encode_destack_fs_lremovexattr_result(
 
 /// Decode arguments for destack.fs.xattr.lsetxattr.
 #[inline]
-fn decode_destack_fs_lsetxattr_args(
+fn decode_destack_fs_xattr_lsetxattr_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, vm::StringHandle, VmSlice<u8>, XattrFlags)> {
@@ -5412,10 +5587,10 @@ fn decode_destack_fs_lsetxattr_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -5431,16 +5606,12 @@ fn decode_destack_fs_lsetxattr_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     let name_value = arg_value(args, 1, "name", "string")?;
@@ -5455,7 +5626,72 @@ fn decode_destack_fs_lsetxattr_args(
 
 /// Encode the result for destack.fs.xattr.lsetxattr.
 #[inline]
-fn encode_destack_fs_lsetxattr_result(
+fn encode_destack_fs_xattr_lsetxattr_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.fs.xattr.lsetxattrBytes.
+#[inline]
+fn decode_destack_fs_xattr_lsetxattr_bytes_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(OsPathVm, VmSlice<u8>, VmSlice<u8>, XattrFlags)> {
+    let path_value = arg_value(args, 0, "path", "OsPath")?;
+    let path = {
+        if path_value.tag() != vm::ValueTag::Aggregate {
+            return Err(
+                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
+            );
+        }
+        let slots = context
+            .aggregate_slots(path_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "path",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
+        let path_encoding = match path_encoding_raw {
+            1u8 => PathEncoding::Bytes,
+            2u8 => PathEncoding::Utf16,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "path_encoding",
+                    "unknown PathEncoding value",
+                ))
+                .boxed());
+            }
+        };
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
+        OsPathVm {
+            encoding: path_encoding,
+            data: path_data,
+        }
+    };
+    let name_value = arg_value(args, 1, "name", "Slice<uint8>")?;
+    let name = decode_slice::<u8>(context, name_value, "name", "Slice<uint8>")?;
+    let value_value = arg_value(args, 2, "value", "Slice<uint8>")?;
+    let value = decode_slice::<u8>(context, value_value, "value", "Slice<uint8>")?;
+    let flags_value = arg_value(args, 3, "flags", "XattrFlags")?;
+    let flags_inner = decode_uint32(flags_value, "flags_inner", "XattrFlags")?;
+    let flags = XattrFlags(flags_inner);
+    Ok((path, name, value, flags))
+}
+
+/// Encode the result for destack.fs.xattr.lsetxattrBytes.
+#[inline]
+fn encode_destack_fs_xattr_lsetxattr_bytes_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -5467,7 +5703,7 @@ fn encode_destack_fs_lsetxattr_result(
 
 /// Decode arguments for destack.fs.xattr.removexattr.
 #[inline]
-fn decode_destack_fs_removexattr_args(
+fn decode_destack_fs_xattr_removexattr_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, vm::StringHandle)> {
@@ -5481,10 +5717,10 @@ fn decode_destack_fs_removexattr_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -5500,16 +5736,12 @@ fn decode_destack_fs_removexattr_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     let name_value = arg_value(args, 1, "name", "string")?;
@@ -5519,7 +5751,67 @@ fn decode_destack_fs_removexattr_args(
 
 /// Encode the result for destack.fs.xattr.removexattr.
 #[inline]
-fn encode_destack_fs_removexattr_result(
+fn encode_destack_fs_xattr_removexattr_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.fs.xattr.removexattrBytes.
+#[inline]
+fn decode_destack_fs_xattr_removexattr_bytes_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(OsPathVm, VmSlice<u8>)> {
+    let path_value = arg_value(args, 0, "path", "OsPath")?;
+    let path = {
+        if path_value.tag() != vm::ValueTag::Aggregate {
+            return Err(
+                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
+            );
+        }
+        let slots = context
+            .aggregate_slots(path_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "path",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
+        let path_encoding = match path_encoding_raw {
+            1u8 => PathEncoding::Bytes,
+            2u8 => PathEncoding::Utf16,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "path_encoding",
+                    "unknown PathEncoding value",
+                ))
+                .boxed());
+            }
+        };
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
+        OsPathVm {
+            encoding: path_encoding,
+            data: path_data,
+        }
+    };
+    let name_value = arg_value(args, 1, "name", "Slice<uint8>")?;
+    let name = decode_slice::<u8>(context, name_value, "name", "Slice<uint8>")?;
+    Ok((path, name))
+}
+
+/// Encode the result for destack.fs.xattr.removexattrBytes.
+#[inline]
+fn encode_destack_fs_xattr_removexattr_bytes_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -5531,7 +5823,7 @@ fn encode_destack_fs_removexattr_result(
 
 /// Decode arguments for destack.fs.xattr.setxattr.
 #[inline]
-fn decode_destack_fs_setxattr_args(
+fn decode_destack_fs_xattr_setxattr_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, vm::StringHandle, VmSlice<u8>, XattrFlags)> {
@@ -5545,10 +5837,10 @@ fn decode_destack_fs_setxattr_args(
         let slots = context
             .aggregate_slots(path_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "path",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
@@ -5564,16 +5856,12 @@ fn decode_destack_fs_setxattr_args(
                 .boxed());
             }
         };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes =
-            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 =
-            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_utf16_inner);
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
         OsPathVm {
             encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
+            data: path_data,
         }
     };
     let name_value = arg_value(args, 1, "name", "string")?;
@@ -5588,7 +5876,72 @@ fn decode_destack_fs_setxattr_args(
 
 /// Encode the result for destack.fs.xattr.setxattr.
 #[inline]
-fn encode_destack_fs_setxattr_result(
+fn encode_destack_fs_xattr_setxattr_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.fs.xattr.setxattrBytes.
+#[inline]
+fn decode_destack_fs_xattr_setxattr_bytes_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(OsPathVm, VmSlice<u8>, VmSlice<u8>, XattrFlags)> {
+    let path_value = arg_value(args, 0, "path", "OsPath")?;
+    let path = {
+        if path_value.tag() != vm::ValueTag::Aggregate {
+            return Err(
+                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
+            );
+        }
+        let slots = context
+            .aggregate_slots(path_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "path",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
+        let path_encoding = match path_encoding_raw {
+            1u8 => PathEncoding::Bytes,
+            2u8 => PathEncoding::Utf16,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "path_encoding",
+                    "unknown PathEncoding value",
+                ))
+                .boxed());
+            }
+        };
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
+        OsPathVm {
+            encoding: path_encoding,
+            data: path_data,
+        }
+    };
+    let name_value = arg_value(args, 1, "name", "Slice<uint8>")?;
+    let name = decode_slice::<u8>(context, name_value, "name", "Slice<uint8>")?;
+    let value_value = arg_value(args, 2, "value", "Slice<uint8>")?;
+    let value = decode_slice::<u8>(context, value_value, "value", "Slice<uint8>")?;
+    let flags_value = arg_value(args, 3, "flags", "XattrFlags")?;
+    let flags_inner = decode_uint32(flags_value, "flags_inner", "XattrFlags")?;
+    let flags = XattrFlags(flags_inner);
+    Ok((path, name, value, flags))
+}
+
+/// Encode the result for destack.fs.xattr.setxattrBytes.
+#[inline]
+fn encode_destack_fs_xattr_setxattr_bytes_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -5600,842 +5953,939 @@ fn encode_destack_fs_setxattr_result(
 
 /// Replay payload for destack.fs.attrs.access.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct AccessReplay {
+struct FsAttrsAccessReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.attrs.accessat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct AccessatReplay {
+struct FsAttrsAccessatReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.attrs.chmod.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct ChmodReplay {
+struct FsAttrsChmodReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.attrs.chown.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct ChownReplay {
+struct FsAttrsChownReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.attrs.fchmod.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct FchmodReplay {
+struct FsAttrsFchmodReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.attrs.fchmodat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct FchmodatReplay {
+struct FsAttrsFchmodatReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.attrs.fchown.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct FchownReplay {
+struct FsAttrsFchownReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.attrs.fchownat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct FchownatReplay {
+struct FsAttrsFchownatReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.attrs.futimes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct FutimesReplay {
+struct FsAttrsFutimesReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.attrs.lutimes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct LutimesReplay {
+struct FsAttrsLutimesReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.attrs.utimensat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct UtimensatReplay {
+struct FsAttrsUtimensatReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.attrs.utimes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct UtimesReplay {
+struct FsAttrsUtimesReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.dir.closedir.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct ClosedirReplay {
+struct FsDirClosedirReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.dir.dirfd.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct DirfdReplay {
+struct FsDirDirfdReplay {
     /// Replay result payload.
     pub result: Result<resource::FileHandle, PlatformError>,
 }
 
 /// Replay payload for destack.fs.dir.mkdir.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct MkdirReplay {
+struct FsDirMkdirReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.dir.mkdirat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct MkdiratReplay {
+struct FsDirMkdiratReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.dir.mkdtemp.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct MkdtempReplay {
+struct FsDirMkdtempReplay {
     /// Replay result payload.
     pub result: Result<OsPathReplay, PlatformError>,
 }
 
 /// Replay payload for destack.fs.dir.opendir.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct OpendirReplay {
+struct FsDirOpendirReplay {
     /// Replay result payload.
     pub result: Result<resource::DirectoryHandle, PlatformError>,
 }
 
 /// Replay payload for destack.fs.dir.readdir.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct ReaddirReplay {
+struct FsDirReaddirReplay {
     /// Replay result payload.
     pub result: Result<Vec<DirentReplay>, PlatformError>,
 }
 
 /// Replay payload for destack.fs.dir.readdirNext.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct ReaddirNextReplay {
+struct FsDirReaddirNextReplay {
     /// Replay result payload.
     pub result: Result<DirentNextReplay, PlatformError>,
 }
 
 /// Replay payload for destack.fs.dir.rewinddir.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct RewinddirReplay {
+struct FsDirRewinddirReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.dir.rmdir.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct RmdirReplay {
+struct FsDirRmdirReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.file.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct CloseReplay {
+struct FsFileCloseReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.file.copyFileRange.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct CopyFileRangeReplay {
+struct FsFileCopyFileRangeReplay {
     /// Replay result payload.
     pub result: Result<u64, PlatformError>,
 }
 
 /// Replay payload for destack.fs.file.dup.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct DupReplay {
+struct FsFileDupReplay {
     /// Replay result payload.
     pub result: Result<resource::FileHandle, PlatformError>,
 }
 
 /// Replay payload for destack.fs.file.dup2.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct Dup2Replay {
+struct FsFileDup2Replay {
     /// Replay result payload.
     pub result: Result<resource::FileHandle, PlatformError>,
 }
 
 /// Replay payload for destack.fs.file.dup3.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct Dup3Replay {
+struct FsFileDup3Replay {
     /// Replay result payload.
     pub result: Result<resource::FileHandle, PlatformError>,
 }
 
 /// Replay payload for destack.fs.file.fadvise.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct FadviseReplay {
+struct FsFileFadviseReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.file.fallocate.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct FallocateReplay {
+struct FsFileFallocateReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.file.fdatasync.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct FdatasyncReplay {
+struct FsFileFdatasyncReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.file.fsync.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct FsyncReplay {
+struct FsFileFsyncReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.file.ftruncate.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct FtruncateReplay {
+struct FsFileFtruncateReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.file.getFdFlags.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct GetFdFlagsReplay {
+struct FsFileGetFdFlagsReplay {
     /// Replay result payload.
     pub result: Result<FdFlags, PlatformError>,
 }
 
 /// Replay payload for destack.fs.file.getStatusFlags.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct GetStatusFlagsReplay {
+struct FsFileGetStatusFlagsReplay {
     /// Replay result payload.
     pub result: Result<StatusFlags, PlatformError>,
 }
 
 /// Replay payload for destack.fs.file.lock.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct LockReplay {
+struct FsFileLockReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.file.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct OpenReplay {
+struct FsFileOpenReplay {
     /// Replay result payload.
     pub result: Result<resource::FileHandle, PlatformError>,
 }
 
 /// Replay payload for destack.fs.file.openat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct OpenatReplay {
+struct FsFileOpenatReplay {
     /// Replay result payload.
     pub result: Result<resource::FileHandle, PlatformError>,
 }
 
 /// Replay payload for destack.fs.file.openat2.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct Openat2Replay {
+struct FsFileOpenat2Replay {
     /// Replay result payload.
     pub result: Result<resource::FileHandle, PlatformError>,
 }
 
 /// Replay payload for destack.fs.file.pread.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct PreadReplay {
+struct FsFilePreadReplay {
     /// Replay result payload.
     pub result: Result<u64, PlatformError>,
 }
 
 /// Replay payload for destack.fs.file.preadv.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct PreadvReplay {
+struct FsFilePreadvReplay {
     /// Replay result payload.
     pub result: Result<u64, PlatformError>,
 }
 
 /// Replay payload for destack.fs.file.pwrite.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct PwriteReplay {
+struct FsFilePwriteReplay {
     /// Replay result payload.
     pub result: Result<u64, PlatformError>,
 }
 
 /// Replay payload for destack.fs.file.pwritev.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct PwritevReplay {
+struct FsFilePwritevReplay {
     /// Replay result payload.
     pub result: Result<u64, PlatformError>,
 }
 
 /// Replay payload for destack.fs.file.read.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct ReadReplay {
+struct FsFileReadReplay {
     /// Replay result payload.
     pub result: Result<u64, PlatformError>,
 }
 
 /// Replay payload for destack.fs.file.readv.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct ReadvReplay {
+struct FsFileReadvReplay {
     /// Replay result payload.
     pub result: Result<u64, PlatformError>,
 }
 
 /// Replay payload for destack.fs.file.seek.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct SeekReplay {
+struct FsFileSeekReplay {
     /// Replay result payload.
     pub result: Result<FileOffset, PlatformError>,
 }
 
 /// Replay payload for destack.fs.file.sendfile.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct SendfileReplay {
+struct FsFileSendfileReplay {
     /// Replay result payload.
     pub result: Result<u64, PlatformError>,
 }
 
 /// Replay payload for destack.fs.file.setFdFlags.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct SetFdFlagsReplay {
+struct FsFileSetFdFlagsReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.file.setStatusFlags.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct SetStatusFlagsReplay {
+struct FsFileSetStatusFlagsReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.file.syncFileRange.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct SyncFileRangeReplay {
+struct FsFileSyncFileRangeReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.file.syncfs.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct SyncfsReplay {
+struct FsFileSyncfsReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.file.truncate.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct TruncateReplay {
+struct FsFileTruncateReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.file.write.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct WriteReplay {
+struct FsFileWriteReplay {
     /// Replay result payload.
     pub result: Result<u64, PlatformError>,
 }
 
 /// Replay payload for destack.fs.file.writev.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct WritevReplay {
+struct FsFileWritevReplay {
     /// Replay result payload.
     pub result: Result<u64, PlatformError>,
 }
 
 /// Replay payload for destack.fs.mmap.madvise.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct MadviseReplay {
+struct FsMmapMadviseReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.mmap.mprotect.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct MprotectReplay {
+struct FsMmapMprotectReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.mmap.msync.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct MsyncReplay {
+struct FsMmapMsyncReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.mmap.munmap.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct MunmapReplay {
+struct FsMmapMunmapReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.mmapAnonymous.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct MmapAnonymousReplay {
+struct FsMmapAnonymousReplay {
     /// Replay result payload.
     pub result: Result<Vec<u8>, PlatformError>,
 }
 
 /// Replay payload for destack.fs.mmapFile.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct MmapFileReplay {
+struct FsMmapFileReplay {
     /// Replay result payload.
     pub result: Result<Vec<u8>, PlatformError>,
 }
 
 /// Replay payload for destack.fs.path.copyfile.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct CopyfileReplay {
+struct FsPathCopyfileReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.path.link.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct LinkReplay {
+struct FsPathLinkReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.path.linkat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct LinkatReplay {
+struct FsPathLinkatReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.path.mkfifo.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct MkfifoReplay {
+struct FsPathMkfifoReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.path.mkfifoat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct MkfifoatReplay {
+struct FsPathMkfifoatReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.path.mknod.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct MknodReplay {
+struct FsPathMknodReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.path.mknodat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct MknodatReplay {
+struct FsPathMknodatReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.path.readlink.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct ReadlinkReplay {
+struct FsPathReadlinkReplay {
     /// Replay result payload.
     pub result: Result<OsPathReplay, PlatformError>,
 }
 
 /// Replay payload for destack.fs.path.readlinkat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct ReadlinkatReplay {
+struct FsPathReadlinkatReplay {
     /// Replay result payload.
     pub result: Result<OsPathReplay, PlatformError>,
 }
 
 /// Replay payload for destack.fs.path.realpath.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct RealpathReplay {
+struct FsPathRealpathReplay {
     /// Replay result payload.
     pub result: Result<OsPathReplay, PlatformError>,
 }
 
 /// Replay payload for destack.fs.path.rename.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct RenameReplay {
+struct FsPathRenameReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.path.renameat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct RenameatReplay {
+struct FsPathRenameatReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.path.renameat2.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct Renameat2Replay {
+struct FsPathRenameat2Replay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.path.symlink.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct SymlinkReplay {
+struct FsPathSymlinkReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.path.symlinkat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct SymlinkatReplay {
+struct FsPathSymlinkatReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.path.unlink.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct UnlinkReplay {
+struct FsPathUnlinkReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.path.unlinkat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct UnlinkatReplay {
+struct FsPathUnlinkatReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.stat.fstat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct FstatReplay {
+struct FsStatFstatReplay {
     /// Replay result payload.
     pub result: Result<Stat, PlatformError>,
 }
 
 /// Replay payload for destack.fs.stat.fstatfs.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct FstatfsReplay {
+struct FsStatFstatfsReplay {
     /// Replay result payload.
     pub result: Result<StatFs, PlatformError>,
 }
 
 /// Replay payload for destack.fs.stat.lstat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct LstatReplay {
+struct FsStatLstatReplay {
     /// Replay result payload.
     pub result: Result<Stat, PlatformError>,
 }
 
 /// Replay payload for destack.fs.stat.stat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct StatReplay {
+struct FsStatStatReplay {
     /// Replay result payload.
     pub result: Result<Stat, PlatformError>,
 }
 
 /// Replay payload for destack.fs.stat.statat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct StatatReplay {
+struct FsStatStatatReplay {
     /// Replay result payload.
     pub result: Result<Stat, PlatformError>,
 }
 
 /// Replay payload for destack.fs.stat.statfs.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct StatfsReplay {
+struct FsStatStatfsReplay {
     /// Replay result payload.
     pub result: Result<StatFs, PlatformError>,
 }
 
 /// Replay payload for destack.fs.stat.statx.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct StatxReplay {
+struct FsStatStatxReplay {
     /// Replay result payload.
     pub result: Result<Statx, PlatformError>,
 }
 
 /// Replay payload for destack.fs.watch.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct WatchReplay {
+struct FsWatchReplay {
     /// Replay result payload.
     pub result: Result<resource::WatchHandle, PlatformError>,
 }
 
 /// Replay payload for destack.fs.watchClose.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct WatchCloseReplay {
+struct FsWatchCloseReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.watchRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct WatchReadReplay {
+struct FsWatchReadReplay {
     /// Replay result payload.
     pub result: Result<WatchBatchReplay, PlatformError>,
 }
 
 /// Replay payload for destack.fs.watchat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct WatchatReplay {
+struct FsWatchatReplay {
     /// Replay result payload.
     pub result: Result<resource::WatchHandle, PlatformError>,
 }
 
 /// Replay payload for destack.fs.xattr.fgetxattr.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct FgetxattrReplay {
+struct FsXattrFgetxattrReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<u8>, PlatformError>,
+}
+
+/// Replay payload for destack.fs.xattr.fgetxattrBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct FsXattrFgetxattrBytesReplay {
     /// Replay result payload.
     pub result: Result<Vec<u8>, PlatformError>,
 }
 
 /// Replay payload for destack.fs.xattr.flistxattr.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct FlistxattrReplay {
+struct FsXattrFlistxattrReplay {
     /// Replay result payload.
     pub result: Result<Vec<String>, PlatformError>,
 }
 
+/// Replay payload for destack.fs.xattr.flistxattrBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct FsXattrFlistxattrBytesReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<Vec<u8>>, PlatformError>,
+}
+
 /// Replay payload for destack.fs.xattr.fremovexattr.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct FremovexattrReplay {
+struct FsXattrFremovexattrReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.fs.xattr.fremovexattrBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct FsXattrFremovexattrBytesReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.xattr.fsetxattr.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct FsetxattrReplay {
+struct FsXattrFsetxattrReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.fs.xattr.fsetxattrBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct FsXattrFsetxattrBytesReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.xattr.getxattr.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct GetxattrReplay {
+struct FsXattrGetxattrReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<u8>, PlatformError>,
+}
+
+/// Replay payload for destack.fs.xattr.getxattrBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct FsXattrGetxattrBytesReplay {
     /// Replay result payload.
     pub result: Result<Vec<u8>, PlatformError>,
 }
 
 /// Replay payload for destack.fs.xattr.lgetxattr.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct LgetxattrReplay {
+struct FsXattrLgetxattrReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<u8>, PlatformError>,
+}
+
+/// Replay payload for destack.fs.xattr.lgetxattrBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct FsXattrLgetxattrBytesReplay {
     /// Replay result payload.
     pub result: Result<Vec<u8>, PlatformError>,
 }
 
 /// Replay payload for destack.fs.xattr.listxattr.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct ListxattrReplay {
+struct FsXattrListxattrReplay {
     /// Replay result payload.
     pub result: Result<Vec<String>, PlatformError>,
+}
+
+/// Replay payload for destack.fs.xattr.listxattrBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct FsXattrListxattrBytesReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<Vec<u8>>, PlatformError>,
 }
 
 /// Replay payload for destack.fs.xattr.llistxattr.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct LlistxattrReplay {
+struct FsXattrLlistxattrReplay {
     /// Replay result payload.
     pub result: Result<Vec<String>, PlatformError>,
 }
 
+/// Replay payload for destack.fs.xattr.llistxattrBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct FsXattrLlistxattrBytesReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<Vec<u8>>, PlatformError>,
+}
+
 /// Replay payload for destack.fs.xattr.lremovexattr.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct LremovexattrReplay {
+struct FsXattrLremovexattrReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.fs.xattr.lremovexattrBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct FsXattrLremovexattrBytesReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.xattr.lsetxattr.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct LsetxattrReplay {
+struct FsXattrLsetxattrReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.fs.xattr.lsetxattrBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct FsXattrLsetxattrBytesReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.xattr.removexattr.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct RemovexattrReplay {
+struct FsXattrRemovexattrReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.fs.xattr.removexattrBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct FsXattrRemovexattrBytesReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.fs.xattr.setxattr.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct SetxattrReplay {
+struct FsXattrSetxattrReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.fs.xattr.setxattrBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct FsXattrSetxattrBytesReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
 /// Binding descriptor for destack.fs.attrs.access.
-pub const ACCESS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.attrs.access",
-    "export function access(path: OsPath, mode: AccessMode): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.metadata"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_ATTRS_ACCESS: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.attrs.access",
+        "export function access(path: OsPath, mode: AccessMode): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.metadata"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.attrs.accessat.
-pub const ACCESSAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.attrs.accessat",
-    "export function accessat(dir: DirectoryHandle, path: OsPath, mode: AccessMode, flags: AtFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.metadata"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_ATTRS_ACCESSAT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.attrs.accessat",
+        "export function accessat(dir: DirectoryHandle, path: OsPath, mode: AccessMode, flags: AtFlags): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.metadata"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.attrs.chmod.
-pub const CHMOD: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.attrs.chmod",
-    "export function chmod(path: OsPath, mode: FileMode): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.chmod"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_ATTRS_CHMOD: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.attrs.chmod",
+        "export function chmod(path: OsPath, mode: FileMode): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.chmod"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.attrs.chown.
-pub const CHOWN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.attrs.chown",
-    "export function chown(path: OsPath, uid: uint32, gid: uint32): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.chown"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_ATTRS_CHOWN: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.attrs.chown",
+        "export function chown(path: OsPath, uid: uint32, gid: uint32): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.chown"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.attrs.fchmod.
-pub const FCHMOD: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.attrs.fchmod",
-    "export function fchmod(handle: FileHandle, mode: FileMode): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.chmod"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_ATTRS_FCHMOD: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.attrs.fchmod",
+        "export function fchmod(handle: FileHandle, mode: FileMode): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.chmod"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.attrs.fchmodat.
-pub const FCHMODAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.attrs.fchmodat",
-    "export function fchmodat(dir: DirectoryHandle, path: OsPath, mode: FileMode, flags: AtFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.chmod"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_ATTRS_FCHMODAT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.attrs.fchmodat",
+        "export function fchmodat(dir: DirectoryHandle, path: OsPath, mode: FileMode, flags: AtFlags): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.chmod"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.attrs.fchown.
-pub const FCHOWN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.attrs.fchown",
-    "export function fchown(handle: FileHandle, uid: uint32, gid: uint32): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.chown"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_ATTRS_FCHOWN: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.attrs.fchown",
+        "export function fchown(handle: FileHandle, uid: uint32, gid: uint32): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.chown"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.attrs.fchownat.
-pub const FCHOWNAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.attrs.fchownat",
-    "export function fchownat(dir: DirectoryHandle, path: OsPath, uid: uint32, gid: uint32, flags: AtFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.chown"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_ATTRS_FCHOWNAT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.attrs.fchownat",
+        "export function fchownat(dir: DirectoryHandle, path: OsPath, uid: uint32, gid: uint32, flags: AtFlags): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.chown"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.attrs.futimes.
-pub const FUTIMES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.attrs.futimes",
-    "export function futimes(handle: FileHandle, atimeNs: uint64, mtimeNs: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.metadata"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_ATTRS_FUTIMES: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.attrs.futimes",
+        "export function futimes(handle: FileHandle, atimeNs: uint64, mtimeNs: uint64): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.metadata"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.attrs.lutimes.
-pub const LUTIMES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.attrs.lutimes",
-    "export function lutimes(path: OsPath, atimeNs: uint64, mtimeNs: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.metadata"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_ATTRS_LUTIMES: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.attrs.lutimes",
+        "export function lutimes(path: OsPath, atimeNs: uint64, mtimeNs: uint64): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.metadata"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.attrs.utimensat.
-pub const UTIMENSAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.attrs.utimensat",
-    "export function utimensat(dir: DirectoryHandle, path: OsPath, atimeNs: uint64, mtimeNs: uint64, flags: AtFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.metadata"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_ATTRS_UTIMENSAT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.attrs.utimensat",
+        "export function utimensat(dir: DirectoryHandle, path: OsPath, atimeNs: uint64, mtimeNs: uint64, flags: AtFlags): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.metadata"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.attrs.utimes.
-pub const UTIMES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.attrs.utimes",
-    "export function utimes(path: OsPath, atimeNs: uint64, mtimeNs: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.metadata"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_ATTRS_UTIMES: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.attrs.utimes",
+        "export function utimes(path: OsPath, atimeNs: uint64, mtimeNs: uint64): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.metadata"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.dir.closedir.
-pub const CLOSEDIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.dir.closedir",
-    "export function closedir(handle: DirectoryHandle): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.handle"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_DIR_CLOSEDIR: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.dir.closedir",
+        "export function closedir(handle: DirectoryHandle): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.handle"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.dir.dirfd.
-pub const DIRFD: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub const FS_DIR_DIRFD: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.dir.dirfd",
     "export function dirfd(handle: DirectoryHandle): Result<FileHandle, PlatformError>",
     ReplayPolicy::Recordable,
@@ -6446,7 +6896,7 @@ pub const DIRFD: BindingDescriptor = BindingDescriptor::external_with_requires_a
 );
 
 /// Binding descriptor for destack.fs.dir.mkdir.
-pub const MKDIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub const FS_DIR_MKDIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.dir.mkdir",
     "export function mkdir(path: OsPath, mode: FileMode): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
@@ -6457,73 +6907,79 @@ pub const MKDIR: BindingDescriptor = BindingDescriptor::external_with_requires_a
 );
 
 /// Binding descriptor for destack.fs.dir.mkdirat.
-pub const MKDIRAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.dir.mkdirat",
-    "export function mkdirat(dir: DirectoryHandle, path: OsPath, mode: FileMode): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.write"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_DIR_MKDIRAT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.dir.mkdirat",
+        "export function mkdirat(dir: DirectoryHandle, path: OsPath, mode: FileMode): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.write"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.dir.mkdtemp.
-pub const MKDTEMP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.dir.mkdtemp",
-    "export function mkdtemp(template: OsPath): Result<OsPath, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.temp"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_DIR_MKDTEMP: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.dir.mkdtemp",
+        "export function mkdtemp(template: OsPath): Result<OsPath, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.temp"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.dir.opendir.
-pub const OPENDIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.dir.opendir",
-    "export function opendir(path: OsPath): Result<DirectoryHandle, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.read"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_DIR_OPENDIR: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.dir.opendir",
+        "export function opendir(path: OsPath): Result<DirectoryHandle, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.read"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.dir.readdir.
-pub const READDIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.dir.readdir",
-    "export function readdir(handle: DirectoryHandle): Result<Dirent[], PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.read"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_DIR_READDIR: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.dir.readdir",
+        "export function readdir(handle: DirectoryHandle): Result<Dirent[], PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.read"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.dir.readdirNext.
-pub const READDIR_NEXT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.dir.readdirNext",
-    "export function readdirNext(handle: DirectoryHandle): Result<DirentNext, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.read"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_DIR_READDIR_NEXT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.dir.readdirNext",
+        "export function readdirNext(handle: DirectoryHandle): Result<DirentNext, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.read"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.dir.rewinddir.
-pub const REWINDDIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.dir.rewinddir",
-    "export function rewinddir(handle: DirectoryHandle): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.read"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_DIR_REWINDDIR: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.dir.rewinddir",
+        "export function rewinddir(handle: DirectoryHandle): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.read"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.dir.rmdir.
-pub const RMDIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub const FS_DIR_RMDIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.dir.rmdir",
     "export function rmdir(path: OsPath): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
@@ -6534,7 +6990,7 @@ pub const RMDIR: BindingDescriptor = BindingDescriptor::external_with_requires_a
 );
 
 /// Binding descriptor for destack.fs.file.close.
-pub const CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub const FS_FILE_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.close",
     "export function close(handle: FileHandle): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
@@ -6545,7 +7001,7 @@ pub const CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_a
 );
 
 /// Binding descriptor for destack.fs.file.copyFileRange.
-pub const COPY_FILE_RANGE: BindingDescriptor =
+pub const FS_FILE_COPY_FILE_RANGE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.file.copyFileRange",
         "export function copyFileRange(src: FileHandle, srcOffset: FileOffset, dst: FileHandle, dstOffset: FileOffset, length: FileSize): Result<uint64, PlatformError>",
@@ -6557,7 +7013,7 @@ pub const COPY_FILE_RANGE: BindingDescriptor =
     );
 
 /// Binding descriptor for destack.fs.file.dup.
-pub const DUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub const FS_FILE_DUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.dup",
     "export function dup(handle: FileHandle): Result<FileHandle, PlatformError>",
     ReplayPolicy::Recordable,
@@ -6568,7 +7024,7 @@ pub const DUP: BindingDescriptor = BindingDescriptor::external_with_requires_and
 );
 
 /// Binding descriptor for destack.fs.file.dup2.
-pub const DUP2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub const FS_FILE_DUP2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.dup2",
     "export function dup2(handle: FileHandle, target: FileHandle): Result<FileHandle, PlatformError>",
     ReplayPolicy::Recordable,
@@ -6579,7 +7035,7 @@ pub const DUP2: BindingDescriptor = BindingDescriptor::external_with_requires_an
 );
 
 /// Binding descriptor for destack.fs.file.dup3.
-pub const DUP3: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub const FS_FILE_DUP3: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.dup3",
     "export function dup3(handle: FileHandle, target: FileHandle, flags: OpenFlags): Result<FileHandle, PlatformError>",
     ReplayPolicy::Recordable,
@@ -6590,40 +7046,43 @@ pub const DUP3: BindingDescriptor = BindingDescriptor::external_with_requires_an
 );
 
 /// Binding descriptor for destack.fs.file.fadvise.
-pub const FADVISE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.file.fadvise",
-    "export function fadvise(handle: FileHandle, offset: FileOffset, length: FileSize, advice: FileAdvice): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.metadata"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_FILE_FADVISE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.file.fadvise",
+        "export function fadvise(handle: FileHandle, offset: FileOffset, length: FileSize, advice: FileAdvice): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.metadata"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.file.fallocate.
-pub const FALLOCATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.file.fallocate",
-    "export function fallocate(handle: FileHandle, offset: FileOffset, length: FileSize, flags: AllocFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.write"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_FILE_FALLOCATE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.file.fallocate",
+        "export function fallocate(handle: FileHandle, offset: FileOffset, length: FileSize, flags: AllocFlags): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.write"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.file.fdatasync.
-pub const FDATASYNC: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.file.fdatasync",
-    "export function fdatasync(handle: FileHandle): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.sync"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_FILE_FDATASYNC: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.file.fdatasync",
+        "export function fdatasync(handle: FileHandle): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.sync"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.file.fsync.
-pub const FSYNC: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub const FS_FILE_FSYNC: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.fsync",
     "export function fsync(handle: FileHandle): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
@@ -6634,29 +7093,31 @@ pub const FSYNC: BindingDescriptor = BindingDescriptor::external_with_requires_a
 );
 
 /// Binding descriptor for destack.fs.file.ftruncate.
-pub const FTRUNCATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.file.ftruncate",
-    "export function ftruncate(handle: FileHandle, size: FileOffset): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.write"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_FILE_FTRUNCATE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.file.ftruncate",
+        "export function ftruncate(handle: FileHandle, size: FileOffset): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.write"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.file.getFdFlags.
-pub const GET_FD_FLAGS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.file.getFdFlags",
-    "export function getFdFlags(handle: FileHandle): Result<FdFlags, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.handle"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_FILE_GET_FD_FLAGS: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.file.getFdFlags",
+        "export function getFdFlags(handle: FileHandle): Result<FdFlags, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.handle"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.file.getStatusFlags.
-pub const GET_STATUS_FLAGS: BindingDescriptor =
+pub const FS_FILE_GET_STATUS_FLAGS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.file.getStatusFlags",
         "export function getStatusFlags(handle: FileHandle): Result<StatusFlags, PlatformError>",
@@ -6668,7 +7129,7 @@ pub const GET_STATUS_FLAGS: BindingDescriptor =
     );
 
 /// Binding descriptor for destack.fs.file.lock.
-pub const LOCK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub const FS_FILE_LOCK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.lock",
     "export function lock(handle: FileHandle, flags: FileLockFlags): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
@@ -6679,7 +7140,7 @@ pub const LOCK: BindingDescriptor = BindingDescriptor::external_with_requires_an
 );
 
 /// Binding descriptor for destack.fs.file.open.
-pub const OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub const FS_FILE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.open",
     "export function open(path: OsPath, flags: OpenFlags, mode: FileMode): Result<FileHandle, PlatformError>",
     ReplayPolicy::Recordable,
@@ -6690,29 +7151,31 @@ pub const OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_an
 );
 
 /// Binding descriptor for destack.fs.file.openat.
-pub const OPENAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.file.openat",
-    "export function openat(dir: DirectoryHandle, path: OsPath, flags: OpenFlags, mode: FileMode): Result<FileHandle, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.read", "fs.write"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_FILE_OPENAT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.file.openat",
+        "export function openat(dir: DirectoryHandle, path: OsPath, flags: OpenFlags, mode: FileMode): Result<FileHandle, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.read", "fs.write"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.file.openat2.
-pub const OPENAT2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.file.openat2",
-    "export function openat2(dir: DirectoryHandle, path: OsPath, how: OpenOptions): Result<FileHandle, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.read", "fs.write"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_FILE_OPENAT2: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.file.openat2",
+        "export function openat2(dir: DirectoryHandle, path: OsPath, how: OpenOptions): Result<FileHandle, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.read", "fs.write"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.file.pread.
-pub const PREAD: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub const FS_FILE_PREAD: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.pread",
     "export function pread(handle: FileHandle, buffer: Slice<uint8>, offset: FileOffset): Result<uint64, PlatformError>",
     ReplayPolicy::Recordable,
@@ -6723,40 +7186,43 @@ pub const PREAD: BindingDescriptor = BindingDescriptor::external_with_requires_a
 );
 
 /// Binding descriptor for destack.fs.file.preadv.
-pub const PREADV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.file.preadv",
-    "export function preadv(handle: FileHandle, buffers: Slice<Slice<uint8>>, offset: FileOffset): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.read"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_FILE_PREADV: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.file.preadv",
+        "export function preadv(handle: FileHandle, buffers: Slice<Slice<uint8>>, offset: FileOffset): Result<uint64, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.read"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.file.pwrite.
-pub const PWRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.file.pwrite",
-    "export function pwrite(handle: FileHandle, buffer: Slice<uint8>, offset: FileOffset): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.write"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_FILE_PWRITE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.file.pwrite",
+        "export function pwrite(handle: FileHandle, buffer: Slice<uint8>, offset: FileOffset): Result<uint64, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.write"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.file.pwritev.
-pub const PWRITEV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.file.pwritev",
-    "export function pwritev(handle: FileHandle, buffers: Slice<Slice<uint8>>, offset: FileOffset): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.write"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_FILE_PWRITEV: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.file.pwritev",
+        "export function pwritev(handle: FileHandle, buffers: Slice<Slice<uint8>>, offset: FileOffset): Result<uint64, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.write"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.file.read.
-pub const READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub const FS_FILE_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.read",
     "export function read(handle: FileHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
     ReplayPolicy::Recordable,
@@ -6767,7 +7233,7 @@ pub const READ: BindingDescriptor = BindingDescriptor::external_with_requires_an
 );
 
 /// Binding descriptor for destack.fs.file.readv.
-pub const READV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub const FS_FILE_READV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.readv",
     "export function readv(handle: FileHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>",
     ReplayPolicy::Recordable,
@@ -6778,7 +7244,7 @@ pub const READV: BindingDescriptor = BindingDescriptor::external_with_requires_a
 );
 
 /// Binding descriptor for destack.fs.file.seek.
-pub const SEEK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub const FS_FILE_SEEK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.seek",
     "export function seek(handle: FileHandle, offset: FileOffset, whence: SeekWhence): Result<FileOffset, PlatformError>",
     ReplayPolicy::Recordable,
@@ -6789,29 +7255,31 @@ pub const SEEK: BindingDescriptor = BindingDescriptor::external_with_requires_an
 );
 
 /// Binding descriptor for destack.fs.file.sendfile.
-pub const SENDFILE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.file.sendfile",
-    "export function sendfile(socket: SocketHandle, file: FileHandle, offset: FileOffset, length: FileSize): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.read", "fs.write"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_FILE_SENDFILE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.file.sendfile",
+        "export function sendfile(socket: SocketHandle, file: FileHandle, offset: FileOffset, length: FileSize): Result<uint64, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.read", "fs.write"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.file.setFdFlags.
-pub const SET_FD_FLAGS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.file.setFdFlags",
-    "export function setFdFlags(handle: FileHandle, flags: FdFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.handle"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_FILE_SET_FD_FLAGS: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.file.setFdFlags",
+        "export function setFdFlags(handle: FileHandle, flags: FdFlags): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.handle"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.file.setStatusFlags.
-pub const SET_STATUS_FLAGS: BindingDescriptor =
+pub const FS_FILE_SET_STATUS_FLAGS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.file.setStatusFlags",
         "export function setStatusFlags(handle: FileHandle, flags: StatusFlags): Result<void, PlatformError>",
@@ -6823,7 +7291,7 @@ pub const SET_STATUS_FLAGS: BindingDescriptor =
     );
 
 /// Binding descriptor for destack.fs.file.syncFileRange.
-pub const SYNC_FILE_RANGE: BindingDescriptor =
+pub const FS_FILE_SYNC_FILE_RANGE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.file.syncFileRange",
         "export function syncFileRange(handle: FileHandle, offset: FileOffset, length: FileSize, flags: SyncFlags): Result<void, PlatformError>",
@@ -6835,29 +7303,31 @@ pub const SYNC_FILE_RANGE: BindingDescriptor =
     );
 
 /// Binding descriptor for destack.fs.file.syncfs.
-pub const SYNCFS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.file.syncfs",
-    "export function syncfs(handle: FileHandle): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.sync"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_FILE_SYNCFS: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.file.syncfs",
+        "export function syncfs(handle: FileHandle): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.sync"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.file.truncate.
-pub const TRUNCATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.file.truncate",
-    "export function truncate(path: OsPath, size: FileOffset): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.write"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_FILE_TRUNCATE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.file.truncate",
+        "export function truncate(path: OsPath, size: FileOffset): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.write"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.file.write.
-pub const WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub const FS_FILE_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.write",
     "export function write(handle: FileHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
     ReplayPolicy::Recordable,
@@ -6868,40 +7338,43 @@ pub const WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_a
 );
 
 /// Binding descriptor for destack.fs.file.writev.
-pub const WRITEV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.file.writev",
-    "export function writev(handle: FileHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.write"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_FILE_WRITEV: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.file.writev",
+        "export function writev(handle: FileHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.write"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.mmap.madvise.
-pub const MADVISE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.mmap.madvise",
-    "export function madvise(mapping: Slice<uint8>, advice: MmapAdvice): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.mmap"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_MMAP_MADVISE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.mmap.madvise",
+        "export function madvise(mapping: Slice<uint8>, advice: MmapAdvice): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.mmap"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.mmap.mprotect.
-pub const MPROTECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.mmap.mprotect",
-    "export function mprotect(mapping: Slice<uint8>, prot: MmapProt): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.mmap"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_MMAP_MPROTECT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.mmap.mprotect",
+        "export function mprotect(mapping: Slice<uint8>, prot: MmapProt): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.mmap"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.mmap.msync.
-pub const MSYNC: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub const FS_MMAP_MSYNC: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.mmap.msync",
     "export function msync(mapping: Slice<uint8>, flags: MmapSyncFlags): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
@@ -6912,18 +7385,19 @@ pub const MSYNC: BindingDescriptor = BindingDescriptor::external_with_requires_a
 );
 
 /// Binding descriptor for destack.fs.mmap.munmap.
-pub const MUNMAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.mmap.munmap",
-    "export function munmap(mapping: Slice<uint8>): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.mmap"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_MMAP_MUNMAP: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.mmap.munmap",
+        "export function munmap(mapping: Slice<uint8>): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.mmap"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.mmapAnonymous.
-pub const MMAP_ANONYMOUS: BindingDescriptor =
+pub const FS_MMAP_ANONYMOUS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.mmapAnonymous",
         "export function mmapAnonymous(length: FileSize, prot: MmapProt, flags: MmapFlags): Result<Slice<uint8>, PlatformError>",
@@ -6935,7 +7409,7 @@ pub const MMAP_ANONYMOUS: BindingDescriptor =
     );
 
 /// Binding descriptor for destack.fs.mmapFile.
-pub const MMAP_FILE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub const FS_MMAP_FILE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.mmapFile",
     "export function mmapFile(handle: FileHandle, offset: FileOffset, length: FileSize, prot: MmapProt, flags: MmapFlags): Result<Slice<uint8>, PlatformError>",
     ReplayPolicy::Recordable,
@@ -6946,18 +7420,19 @@ pub const MMAP_FILE: BindingDescriptor = BindingDescriptor::external_with_requir
 );
 
 /// Binding descriptor for destack.fs.path.copyfile.
-pub const COPYFILE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.path.copyfile",
-    "export function copyfile(from: OsPath, to: OsPath, flags: CopyFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.read", "fs.write"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_PATH_COPYFILE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.path.copyfile",
+        "export function copyfile(from: OsPath, to: OsPath, flags: CopyFlags): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.read", "fs.write"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.path.link.
-pub const LINK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub const FS_PATH_LINK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.path.link",
     "export function link(existingPath: OsPath, newPath: OsPath): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
@@ -6968,40 +7443,43 @@ pub const LINK: BindingDescriptor = BindingDescriptor::external_with_requires_an
 );
 
 /// Binding descriptor for destack.fs.path.linkat.
-pub const LINKAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.path.linkat",
-    "export function linkat(existingDir: DirectoryHandle, existingPath: OsPath, newDir: DirectoryHandle, newPath: OsPath, flags: AtFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.link"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_PATH_LINKAT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.path.linkat",
+        "export function linkat(existingDir: DirectoryHandle, existingPath: OsPath, newDir: DirectoryHandle, newPath: OsPath, flags: AtFlags): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.link"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.path.mkfifo.
-pub const MKFIFO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.path.mkfifo",
-    "export function mkfifo(path: OsPath, mode: FileMode): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.special"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_PATH_MKFIFO: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.path.mkfifo",
+        "export function mkfifo(path: OsPath, mode: FileMode): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.special"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.path.mkfifoat.
-pub const MKFIFOAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.path.mkfifoat",
-    "export function mkfifoat(dir: DirectoryHandle, path: OsPath, mode: FileMode): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.special"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_PATH_MKFIFOAT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.path.mkfifoat",
+        "export function mkfifoat(dir: DirectoryHandle, path: OsPath, mode: FileMode): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.special"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.path.mknod.
-pub const MKNOD: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub const FS_PATH_MKNOD: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.path.mknod",
     "export function mknod(path: OsPath, mode: FileMode, device: NodeDevice): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
@@ -7012,128 +7490,139 @@ pub const MKNOD: BindingDescriptor = BindingDescriptor::external_with_requires_a
 );
 
 /// Binding descriptor for destack.fs.path.mknodat.
-pub const MKNODAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.path.mknodat",
-    "export function mknodat(dir: DirectoryHandle, path: OsPath, mode: FileMode, device: NodeDevice): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.special"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_PATH_MKNODAT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.path.mknodat",
+        "export function mknodat(dir: DirectoryHandle, path: OsPath, mode: FileMode, device: NodeDevice): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.special"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.path.readlink.
-pub const READLINK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.path.readlink",
-    "export function readlink(path: OsPath): Result<OsPath, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.read"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_PATH_READLINK: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.path.readlink",
+        "export function readlink(path: OsPath): Result<OsPath, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.read"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.path.readlinkat.
-pub const READLINKAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.path.readlinkat",
-    "export function readlinkat(dir: DirectoryHandle, path: OsPath): Result<OsPath, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.read"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_PATH_READLINKAT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.path.readlinkat",
+        "export function readlinkat(dir: DirectoryHandle, path: OsPath): Result<OsPath, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.read"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.path.realpath.
-pub const REALPATH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.path.realpath",
-    "export function realpath(path: OsPath): Result<OsPath, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.metadata"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_PATH_REALPATH: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.path.realpath",
+        "export function realpath(path: OsPath): Result<OsPath, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.metadata"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.path.rename.
-pub const RENAME: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.path.rename",
-    "export function rename(from: OsPath, to: OsPath): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.write"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_PATH_RENAME: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.path.rename",
+        "export function rename(from: OsPath, to: OsPath): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.write"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.path.renameat.
-pub const RENAMEAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.path.renameat",
-    "export function renameat(fromDir: DirectoryHandle, from: OsPath, toDir: DirectoryHandle, to: OsPath): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.write"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_PATH_RENAMEAT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.path.renameat",
+        "export function renameat(fromDir: DirectoryHandle, from: OsPath, toDir: DirectoryHandle, to: OsPath): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.write"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.path.renameat2.
-pub const RENAMEAT2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.path.renameat2",
-    "export function renameat2(fromDir: DirectoryHandle, from: OsPath, toDir: DirectoryHandle, to: OsPath, flags: RenameFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.write"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_PATH_RENAMEAT2: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.path.renameat2",
+        "export function renameat2(fromDir: DirectoryHandle, from: OsPath, toDir: DirectoryHandle, to: OsPath, flags: RenameFlags): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.write"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.path.symlink.
-pub const SYMLINK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.path.symlink",
-    "export function symlink(target: OsPath, path: OsPath, kind: SymlinkType): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.link"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_PATH_SYMLINK: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.path.symlink",
+        "export function symlink(target: OsPath, path: OsPath, kind: SymlinkType): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.link"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.path.symlinkat.
-pub const SYMLINKAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.path.symlinkat",
-    "export function symlinkat(target: OsPath, dir: DirectoryHandle, path: OsPath, kind: SymlinkType): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.link"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_PATH_SYMLINKAT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.path.symlinkat",
+        "export function symlinkat(target: OsPath, dir: DirectoryHandle, path: OsPath, kind: SymlinkType): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.link"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.path.unlink.
-pub const UNLINK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.path.unlink",
-    "export function unlink(path: OsPath): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.write"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_PATH_UNLINK: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.path.unlink",
+        "export function unlink(path: OsPath): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.write"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.path.unlinkat.
-pub const UNLINKAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.path.unlinkat",
-    "export function unlinkat(dir: DirectoryHandle, path: OsPath, flags: AtFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.write"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_PATH_UNLINKAT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.path.unlinkat",
+        "export function unlinkat(dir: DirectoryHandle, path: OsPath, flags: AtFlags): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.write"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.stat.fstat.
-pub const FSTAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub const FS_STAT_FSTAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.stat.fstat",
     "export function fstat(handle: FileHandle): Result<Stat, PlatformError>",
     ReplayPolicy::Recordable,
@@ -7144,18 +7633,19 @@ pub const FSTAT: BindingDescriptor = BindingDescriptor::external_with_requires_a
 );
 
 /// Binding descriptor for destack.fs.stat.fstatfs.
-pub const FSTATFS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.stat.fstatfs",
-    "export function fstatfs(handle: FileHandle): Result<StatFs, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.metadata"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_STAT_FSTATFS: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.stat.fstatfs",
+        "export function fstatfs(handle: FileHandle): Result<StatFs, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.metadata"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.stat.lstat.
-pub const LSTAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub const FS_STAT_LSTAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.stat.lstat",
     "export function lstat(path: OsPath): Result<Stat, PlatformError>",
     ReplayPolicy::Recordable,
@@ -7166,7 +7656,7 @@ pub const LSTAT: BindingDescriptor = BindingDescriptor::external_with_requires_a
 );
 
 /// Binding descriptor for destack.fs.stat.stat.
-pub const STAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub const FS_STAT_STAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.stat.stat",
     "export function stat(path: OsPath): Result<Stat, PlatformError>",
     ReplayPolicy::Recordable,
@@ -7177,29 +7667,31 @@ pub const STAT: BindingDescriptor = BindingDescriptor::external_with_requires_an
 );
 
 /// Binding descriptor for destack.fs.stat.statat.
-pub const STATAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.stat.statat",
-    "export function statat(dir: DirectoryHandle, path: OsPath, flags: AtFlags): Result<Stat, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.metadata"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_STAT_STATAT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.stat.statat",
+        "export function statat(dir: DirectoryHandle, path: OsPath, flags: AtFlags): Result<Stat, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.metadata"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.stat.statfs.
-pub const STATFS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.stat.statfs",
-    "export function statfs(path: OsPath): Result<StatFs, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.metadata"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_STAT_STATFS: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.stat.statfs",
+        "export function statfs(path: OsPath): Result<StatFs, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.metadata"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.stat.statx.
-pub const STATX: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub const FS_STAT_STATX: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.stat.statx",
     "export function statx(dir: DirectoryHandle, path: OsPath, flags: StatxFlags, mask: StatxMask): Result<Statx, PlatformError>",
     ReplayPolicy::Recordable,
@@ -7210,7 +7702,7 @@ pub const STATX: BindingDescriptor = BindingDescriptor::external_with_requires_a
 );
 
 /// Binding descriptor for destack.fs.watch.
-pub const WATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub const FS_WATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.watch",
     "export function watch(path: OsPath, options: WatchOptions): Result<WatchHandle, PlatformError>",
     ReplayPolicy::Recordable,
@@ -7221,18 +7713,19 @@ pub const WATCH: BindingDescriptor = BindingDescriptor::external_with_requires_a
 );
 
 /// Binding descriptor for destack.fs.watchClose.
-pub const WATCH_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.watchClose",
-    "export function watchClose(handle: WatchHandle): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.watch"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_WATCH_CLOSE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.watchClose",
+        "export function watchClose(handle: WatchHandle): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.watch"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.watchRead.
-pub const WATCH_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub const FS_WATCH_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.watchRead",
     "export function watchRead(handle: WatchHandle): Result<WatchBatch, PlatformError>",
     ReplayPolicy::Recordable,
@@ -7243,7 +7736,7 @@ pub const WATCH_READ: BindingDescriptor = BindingDescriptor::external_with_requi
 );
 
 /// Binding descriptor for destack.fs.watchat.
-pub const WATCHAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub const FS_WATCHAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.watchat",
     "export function watchat(directory: DirectoryHandle, path: OsPath, options: WatchOptions): Result<WatchHandle, PlatformError>",
     ReplayPolicy::Recordable,
@@ -7254,238 +7747,406 @@ pub const WATCHAT: BindingDescriptor = BindingDescriptor::external_with_requires
 );
 
 /// Binding descriptor for destack.fs.xattr.fgetxattr.
-pub const FGETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.xattr.fgetxattr",
-    "export function fgetxattr(handle: FileHandle, name: string): Result<uint8[], PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.xattr"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_XATTR_FGETXATTR: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.xattr.fgetxattr",
+        "export function fgetxattr(handle: FileHandle, name: string): Result<uint8[], PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.xattr"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.fs.xattr.fgetxattrBytes.
+pub const FS_XATTR_FGETXATTR_BYTES: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.xattr.fgetxattrBytes",
+        "export function fgetxattrBytes(handle: FileHandle, name: Slice<uint8>): Result<uint8[], PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.xattr"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.xattr.flistxattr.
-pub const FLISTXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.xattr.flistxattr",
-    "export function flistxattr(handle: FileHandle): Result<string[], PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.xattr"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_XATTR_FLISTXATTR: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.xattr.flistxattr",
+        "export function flistxattr(handle: FileHandle): Result<string[], PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.xattr"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.fs.xattr.flistxattrBytes.
+pub const FS_XATTR_FLISTXATTR_BYTES: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.xattr.flistxattrBytes",
+        "export function flistxattrBytes(handle: FileHandle): Result<uint8[][], PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.xattr"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.xattr.fremovexattr.
-pub const FREMOVEXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.xattr.fremovexattr",
-    "export function fremovexattr(handle: FileHandle, name: string): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.xattr"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_XATTR_FREMOVEXATTR: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.xattr.fremovexattr",
+        "export function fremovexattr(handle: FileHandle, name: string): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.xattr"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.fs.xattr.fremovexattrBytes.
+pub const FS_XATTR_FREMOVEXATTR_BYTES: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.xattr.fremovexattrBytes",
+        "export function fremovexattrBytes(handle: FileHandle, name: Slice<uint8>): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.xattr"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.xattr.fsetxattr.
-pub const FSETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.xattr.fsetxattr",
-    "export function fsetxattr(handle: FileHandle, name: string, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.xattr"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_XATTR_FSETXATTR: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.xattr.fsetxattr",
+        "export function fsetxattr(handle: FileHandle, name: string, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.xattr"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.fs.xattr.fsetxattrBytes.
+pub const FS_XATTR_FSETXATTR_BYTES: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.xattr.fsetxattrBytes",
+        "export function fsetxattrBytes(handle: FileHandle, name: Slice<uint8>, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.xattr"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.xattr.getxattr.
-pub const GETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.xattr.getxattr",
-    "export function getxattr(path: OsPath, name: string): Result<uint8[], PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.xattr"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_XATTR_GETXATTR: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.xattr.getxattr",
+        "export function getxattr(path: OsPath, name: string): Result<uint8[], PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.xattr"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.fs.xattr.getxattrBytes.
+pub const FS_XATTR_GETXATTR_BYTES: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.xattr.getxattrBytes",
+        "export function getxattrBytes(path: OsPath, name: Slice<uint8>): Result<uint8[], PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.xattr"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.xattr.lgetxattr.
-pub const LGETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.xattr.lgetxattr",
-    "export function lgetxattr(path: OsPath, name: string): Result<uint8[], PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.xattr"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_XATTR_LGETXATTR: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.xattr.lgetxattr",
+        "export function lgetxattr(path: OsPath, name: string): Result<uint8[], PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.xattr"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.fs.xattr.lgetxattrBytes.
+pub const FS_XATTR_LGETXATTR_BYTES: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.xattr.lgetxattrBytes",
+        "export function lgetxattrBytes(path: OsPath, name: Slice<uint8>): Result<uint8[], PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.xattr"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.xattr.listxattr.
-pub const LISTXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.xattr.listxattr",
-    "export function listxattr(path: OsPath): Result<string[], PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.xattr"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_XATTR_LISTXATTR: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.xattr.listxattr",
+        "export function listxattr(path: OsPath): Result<string[], PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.xattr"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.fs.xattr.listxattrBytes.
+pub const FS_XATTR_LISTXATTR_BYTES: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.xattr.listxattrBytes",
+        "export function listxattrBytes(path: OsPath): Result<uint8[][], PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.xattr"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.xattr.llistxattr.
-pub const LLISTXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.xattr.llistxattr",
-    "export function llistxattr(path: OsPath): Result<string[], PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.xattr"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_XATTR_LLISTXATTR: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.xattr.llistxattr",
+        "export function llistxattr(path: OsPath): Result<string[], PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.xattr"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.fs.xattr.llistxattrBytes.
+pub const FS_XATTR_LLISTXATTR_BYTES: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.xattr.llistxattrBytes",
+        "export function llistxattrBytes(path: OsPath): Result<uint8[][], PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.xattr"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.xattr.lremovexattr.
-pub const LREMOVEXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.xattr.lremovexattr",
-    "export function lremovexattr(path: OsPath, name: string): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.xattr"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_XATTR_LREMOVEXATTR: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.xattr.lremovexattr",
+        "export function lremovexattr(path: OsPath, name: string): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.xattr"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.fs.xattr.lremovexattrBytes.
+pub const FS_XATTR_LREMOVEXATTR_BYTES: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.xattr.lremovexattrBytes",
+        "export function lremovexattrBytes(path: OsPath, name: Slice<uint8>): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.xattr"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.xattr.lsetxattr.
-pub const LSETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.xattr.lsetxattr",
-    "export function lsetxattr(path: OsPath, name: string, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.xattr"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_XATTR_LSETXATTR: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.xattr.lsetxattr",
+        "export function lsetxattr(path: OsPath, name: string, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.xattr"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.fs.xattr.lsetxattrBytes.
+pub const FS_XATTR_LSETXATTR_BYTES: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.xattr.lsetxattrBytes",
+        "export function lsetxattrBytes(path: OsPath, name: Slice<uint8>, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.xattr"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.xattr.removexattr.
-pub const REMOVEXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.xattr.removexattr",
-    "export function removexattr(path: OsPath, name: string): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.xattr"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_XATTR_REMOVEXATTR: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.xattr.removexattr",
+        "export function removexattr(path: OsPath, name: string): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.xattr"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.fs.xattr.removexattrBytes.
+pub const FS_XATTR_REMOVEXATTR_BYTES: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.xattr.removexattrBytes",
+        "export function removexattrBytes(path: OsPath, name: Slice<uint8>): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.xattr"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptor for destack.fs.xattr.setxattr.
-pub const SETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.xattr.setxattr",
-    "export function setxattr(path: OsPath, name: string, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.xattr"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_XATTR_SETXATTR: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.xattr.setxattr",
+        "export function setxattr(path: OsPath, name: string, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.xattr"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.fs.xattr.setxattrBytes.
+pub const FS_XATTR_SETXATTR_BYTES: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.xattr.setxattrBytes",
+        "export function setxattrBytes(path: OsPath, name: Slice<uint8>, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.xattr"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptors for fs.
 pub const BINDINGS: &[BindingDescriptor] = &[
-    ACCESS,
-    ACCESSAT,
-    CHMOD,
-    CHOWN,
-    FCHMOD,
-    FCHMODAT,
-    FCHOWN,
-    FCHOWNAT,
-    FUTIMES,
-    LUTIMES,
-    UTIMENSAT,
-    UTIMES,
-    CLOSEDIR,
-    DIRFD,
-    MKDIR,
-    MKDIRAT,
-    MKDTEMP,
-    OPENDIR,
-    READDIR,
-    READDIR_NEXT,
-    REWINDDIR,
-    RMDIR,
-    CLOSE,
-    COPY_FILE_RANGE,
-    DUP,
-    DUP2,
-    DUP3,
-    FADVISE,
-    FALLOCATE,
-    FDATASYNC,
-    FSYNC,
-    FTRUNCATE,
-    GET_FD_FLAGS,
-    GET_STATUS_FLAGS,
-    LOCK,
-    OPEN,
-    OPENAT,
-    OPENAT2,
-    PREAD,
-    PREADV,
-    PWRITE,
-    PWRITEV,
-    READ,
-    READV,
-    SEEK,
-    SENDFILE,
-    SET_FD_FLAGS,
-    SET_STATUS_FLAGS,
-    SYNC_FILE_RANGE,
-    SYNCFS,
-    TRUNCATE,
-    WRITE,
-    WRITEV,
-    MADVISE,
-    MPROTECT,
-    MSYNC,
-    MUNMAP,
-    MMAP_ANONYMOUS,
-    MMAP_FILE,
-    COPYFILE,
-    LINK,
-    LINKAT,
-    MKFIFO,
-    MKFIFOAT,
-    MKNOD,
-    MKNODAT,
-    READLINK,
-    READLINKAT,
-    REALPATH,
-    RENAME,
-    RENAMEAT,
-    RENAMEAT2,
-    SYMLINK,
-    SYMLINKAT,
-    UNLINK,
-    UNLINKAT,
-    FSTAT,
-    FSTATFS,
-    LSTAT,
-    STAT,
-    STATAT,
-    STATFS,
-    STATX,
-    WATCH,
-    WATCH_CLOSE,
-    WATCH_READ,
-    WATCHAT,
-    FGETXATTR,
-    FLISTXATTR,
-    FREMOVEXATTR,
-    FSETXATTR,
-    GETXATTR,
-    LGETXATTR,
-    LISTXATTR,
-    LLISTXATTR,
-    LREMOVEXATTR,
-    LSETXATTR,
-    REMOVEXATTR,
-    SETXATTR,
+    FS_ATTRS_ACCESS,
+    FS_ATTRS_ACCESSAT,
+    FS_ATTRS_CHMOD,
+    FS_ATTRS_CHOWN,
+    FS_ATTRS_FCHMOD,
+    FS_ATTRS_FCHMODAT,
+    FS_ATTRS_FCHOWN,
+    FS_ATTRS_FCHOWNAT,
+    FS_ATTRS_FUTIMES,
+    FS_ATTRS_LUTIMES,
+    FS_ATTRS_UTIMENSAT,
+    FS_ATTRS_UTIMES,
+    FS_DIR_CLOSEDIR,
+    FS_DIR_DIRFD,
+    FS_DIR_MKDIR,
+    FS_DIR_MKDIRAT,
+    FS_DIR_MKDTEMP,
+    FS_DIR_OPENDIR,
+    FS_DIR_READDIR,
+    FS_DIR_READDIR_NEXT,
+    FS_DIR_REWINDDIR,
+    FS_DIR_RMDIR,
+    FS_FILE_CLOSE,
+    FS_FILE_COPY_FILE_RANGE,
+    FS_FILE_DUP,
+    FS_FILE_DUP2,
+    FS_FILE_DUP3,
+    FS_FILE_FADVISE,
+    FS_FILE_FALLOCATE,
+    FS_FILE_FDATASYNC,
+    FS_FILE_FSYNC,
+    FS_FILE_FTRUNCATE,
+    FS_FILE_GET_FD_FLAGS,
+    FS_FILE_GET_STATUS_FLAGS,
+    FS_FILE_LOCK,
+    FS_FILE_OPEN,
+    FS_FILE_OPENAT,
+    FS_FILE_OPENAT2,
+    FS_FILE_PREAD,
+    FS_FILE_PREADV,
+    FS_FILE_PWRITE,
+    FS_FILE_PWRITEV,
+    FS_FILE_READ,
+    FS_FILE_READV,
+    FS_FILE_SEEK,
+    FS_FILE_SENDFILE,
+    FS_FILE_SET_FD_FLAGS,
+    FS_FILE_SET_STATUS_FLAGS,
+    FS_FILE_SYNC_FILE_RANGE,
+    FS_FILE_SYNCFS,
+    FS_FILE_TRUNCATE,
+    FS_FILE_WRITE,
+    FS_FILE_WRITEV,
+    FS_MMAP_MADVISE,
+    FS_MMAP_MPROTECT,
+    FS_MMAP_MSYNC,
+    FS_MMAP_MUNMAP,
+    FS_MMAP_ANONYMOUS,
+    FS_MMAP_FILE,
+    FS_PATH_COPYFILE,
+    FS_PATH_LINK,
+    FS_PATH_LINKAT,
+    FS_PATH_MKFIFO,
+    FS_PATH_MKFIFOAT,
+    FS_PATH_MKNOD,
+    FS_PATH_MKNODAT,
+    FS_PATH_READLINK,
+    FS_PATH_READLINKAT,
+    FS_PATH_REALPATH,
+    FS_PATH_RENAME,
+    FS_PATH_RENAMEAT,
+    FS_PATH_RENAMEAT2,
+    FS_PATH_SYMLINK,
+    FS_PATH_SYMLINKAT,
+    FS_PATH_UNLINK,
+    FS_PATH_UNLINKAT,
+    FS_STAT_FSTAT,
+    FS_STAT_FSTATFS,
+    FS_STAT_LSTAT,
+    FS_STAT_STAT,
+    FS_STAT_STATAT,
+    FS_STAT_STATFS,
+    FS_STAT_STATX,
+    FS_WATCH,
+    FS_WATCH_CLOSE,
+    FS_WATCH_READ,
+    FS_WATCHAT,
+    FS_XATTR_FGETXATTR,
+    FS_XATTR_FGETXATTR_BYTES,
+    FS_XATTR_FLISTXATTR,
+    FS_XATTR_FLISTXATTR_BYTES,
+    FS_XATTR_FREMOVEXATTR,
+    FS_XATTR_FREMOVEXATTR_BYTES,
+    FS_XATTR_FSETXATTR,
+    FS_XATTR_FSETXATTR_BYTES,
+    FS_XATTR_GETXATTR,
+    FS_XATTR_GETXATTR_BYTES,
+    FS_XATTR_LGETXATTR,
+    FS_XATTR_LGETXATTR_BYTES,
+    FS_XATTR_LISTXATTR,
+    FS_XATTR_LISTXATTR_BYTES,
+    FS_XATTR_LLISTXATTR,
+    FS_XATTR_LLISTXATTR_BYTES,
+    FS_XATTR_LREMOVEXATTR,
+    FS_XATTR_LREMOVEXATTR_BYTES,
+    FS_XATTR_LSETXATTR,
+    FS_XATTR_LSETXATTR_BYTES,
+    FS_XATTR_REMOVEXATTR,
+    FS_XATTR_REMOVEXATTR_BYTES,
+    FS_XATTR_SETXATTR,
+    FS_XATTR_SETXATTR_BYTES,
 ];
 
 /// Native binding set for fs.
@@ -7493,454 +8154,562 @@ pub const FS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "fs",
     bindings: &[
         NativeBinding::new(
-            ACCESS,
+            FS_ATTRS_ACCESS,
             "destack.fs.attrs.access",
-            destack_fs_access as *const (),
+            destack_fs_attrs_access as *const (),
         ),
         NativeBinding::new(
-            ACCESSAT,
+            FS_ATTRS_ACCESSAT,
             "destack.fs.attrs.accessat",
-            destack_fs_accessat as *const (),
+            destack_fs_attrs_accessat as *const (),
         ),
         NativeBinding::new(
-            CHMOD,
+            FS_ATTRS_CHMOD,
             "destack.fs.attrs.chmod",
-            destack_fs_chmod as *const (),
+            destack_fs_attrs_chmod as *const (),
         ),
         NativeBinding::new(
-            CHOWN,
+            FS_ATTRS_CHOWN,
             "destack.fs.attrs.chown",
-            destack_fs_chown as *const (),
+            destack_fs_attrs_chown as *const (),
         ),
         NativeBinding::new(
-            FCHMOD,
+            FS_ATTRS_FCHMOD,
             "destack.fs.attrs.fchmod",
-            destack_fs_fchmod as *const (),
+            destack_fs_attrs_fchmod as *const (),
         ),
         NativeBinding::new(
-            FCHMODAT,
+            FS_ATTRS_FCHMODAT,
             "destack.fs.attrs.fchmodat",
-            destack_fs_fchmodat as *const (),
+            destack_fs_attrs_fchmodat as *const (),
         ),
         NativeBinding::new(
-            FCHOWN,
+            FS_ATTRS_FCHOWN,
             "destack.fs.attrs.fchown",
-            destack_fs_fchown as *const (),
+            destack_fs_attrs_fchown as *const (),
         ),
         NativeBinding::new(
-            FCHOWNAT,
+            FS_ATTRS_FCHOWNAT,
             "destack.fs.attrs.fchownat",
-            destack_fs_fchownat as *const (),
+            destack_fs_attrs_fchownat as *const (),
         ),
         NativeBinding::new(
-            FUTIMES,
+            FS_ATTRS_FUTIMES,
             "destack.fs.attrs.futimes",
-            destack_fs_futimes as *const (),
+            destack_fs_attrs_futimes as *const (),
         ),
         NativeBinding::new(
-            LUTIMES,
+            FS_ATTRS_LUTIMES,
             "destack.fs.attrs.lutimes",
-            destack_fs_lutimes as *const (),
+            destack_fs_attrs_lutimes as *const (),
         ),
         NativeBinding::new(
-            UTIMENSAT,
+            FS_ATTRS_UTIMENSAT,
             "destack.fs.attrs.utimensat",
-            destack_fs_utimensat as *const (),
+            destack_fs_attrs_utimensat as *const (),
         ),
         NativeBinding::new(
-            UTIMES,
+            FS_ATTRS_UTIMES,
             "destack.fs.attrs.utimes",
-            destack_fs_utimes as *const (),
+            destack_fs_attrs_utimes as *const (),
         ),
         NativeBinding::new(
-            CLOSEDIR,
+            FS_DIR_CLOSEDIR,
             "destack.fs.dir.closedir",
-            destack_fs_closedir as *const (),
+            destack_fs_dir_closedir as *const (),
         ),
-        NativeBinding::new(DIRFD, "destack.fs.dir.dirfd", destack_fs_dirfd as *const ()),
-        NativeBinding::new(MKDIR, "destack.fs.dir.mkdir", destack_fs_mkdir as *const ()),
         NativeBinding::new(
-            MKDIRAT,
+            FS_DIR_DIRFD,
+            "destack.fs.dir.dirfd",
+            destack_fs_dir_dirfd as *const (),
+        ),
+        NativeBinding::new(
+            FS_DIR_MKDIR,
+            "destack.fs.dir.mkdir",
+            destack_fs_dir_mkdir as *const (),
+        ),
+        NativeBinding::new(
+            FS_DIR_MKDIRAT,
             "destack.fs.dir.mkdirat",
-            destack_fs_mkdirat as *const (),
+            destack_fs_dir_mkdirat as *const (),
         ),
         NativeBinding::new(
-            MKDTEMP,
+            FS_DIR_MKDTEMP,
             "destack.fs.dir.mkdtemp",
-            destack_fs_mkdtemp as *const (),
+            destack_fs_dir_mkdtemp as *const (),
         ),
         NativeBinding::new(
-            OPENDIR,
+            FS_DIR_OPENDIR,
             "destack.fs.dir.opendir",
-            destack_fs_opendir as *const (),
+            destack_fs_dir_opendir as *const (),
         ),
         NativeBinding::new(
-            READDIR,
+            FS_DIR_READDIR,
             "destack.fs.dir.readdir",
-            destack_fs_readdir as *const (),
+            destack_fs_dir_readdir as *const (),
         ),
         NativeBinding::new(
-            READDIR_NEXT,
+            FS_DIR_READDIR_NEXT,
             "destack.fs.dir.readdirNext",
-            destack_fs_readdir_next as *const (),
+            destack_fs_dir_readdir_next as *const (),
         ),
         NativeBinding::new(
-            REWINDDIR,
+            FS_DIR_REWINDDIR,
             "destack.fs.dir.rewinddir",
-            destack_fs_rewinddir as *const (),
+            destack_fs_dir_rewinddir as *const (),
         ),
-        NativeBinding::new(RMDIR, "destack.fs.dir.rmdir", destack_fs_rmdir as *const ()),
         NativeBinding::new(
-            CLOSE,
+            FS_DIR_RMDIR,
+            "destack.fs.dir.rmdir",
+            destack_fs_dir_rmdir as *const (),
+        ),
+        NativeBinding::new(
+            FS_FILE_CLOSE,
             "destack.fs.file.close",
-            destack_fs_close as *const (),
+            destack_fs_file_close as *const (),
         ),
         NativeBinding::new(
-            COPY_FILE_RANGE,
+            FS_FILE_COPY_FILE_RANGE,
             "destack.fs.file.copyFileRange",
-            destack_fs_copy_file_range as *const (),
+            destack_fs_file_copy_file_range as *const (),
         ),
-        NativeBinding::new(DUP, "destack.fs.file.dup", destack_fs_dup as *const ()),
-        NativeBinding::new(DUP2, "destack.fs.file.dup2", destack_fs_dup2 as *const ()),
-        NativeBinding::new(DUP3, "destack.fs.file.dup3", destack_fs_dup3 as *const ()),
         NativeBinding::new(
-            FADVISE,
+            FS_FILE_DUP,
+            "destack.fs.file.dup",
+            destack_fs_file_dup as *const (),
+        ),
+        NativeBinding::new(
+            FS_FILE_DUP2,
+            "destack.fs.file.dup2",
+            destack_fs_file_dup2 as *const (),
+        ),
+        NativeBinding::new(
+            FS_FILE_DUP3,
+            "destack.fs.file.dup3",
+            destack_fs_file_dup3 as *const (),
+        ),
+        NativeBinding::new(
+            FS_FILE_FADVISE,
             "destack.fs.file.fadvise",
-            destack_fs_fadvise as *const (),
+            destack_fs_file_fadvise as *const (),
         ),
         NativeBinding::new(
-            FALLOCATE,
+            FS_FILE_FALLOCATE,
             "destack.fs.file.fallocate",
-            destack_fs_fallocate as *const (),
+            destack_fs_file_fallocate as *const (),
         ),
         NativeBinding::new(
-            FDATASYNC,
+            FS_FILE_FDATASYNC,
             "destack.fs.file.fdatasync",
-            destack_fs_fdatasync as *const (),
+            destack_fs_file_fdatasync as *const (),
         ),
         NativeBinding::new(
-            FSYNC,
+            FS_FILE_FSYNC,
             "destack.fs.file.fsync",
-            destack_fs_fsync as *const (),
+            destack_fs_file_fsync as *const (),
         ),
         NativeBinding::new(
-            FTRUNCATE,
+            FS_FILE_FTRUNCATE,
             "destack.fs.file.ftruncate",
-            destack_fs_ftruncate as *const (),
+            destack_fs_file_ftruncate as *const (),
         ),
         NativeBinding::new(
-            GET_FD_FLAGS,
+            FS_FILE_GET_FD_FLAGS,
             "destack.fs.file.getFdFlags",
-            destack_fs_get_fd_flags as *const (),
+            destack_fs_file_get_fd_flags as *const (),
         ),
         NativeBinding::new(
-            GET_STATUS_FLAGS,
+            FS_FILE_GET_STATUS_FLAGS,
             "destack.fs.file.getStatusFlags",
-            destack_fs_get_status_flags as *const (),
+            destack_fs_file_get_status_flags as *const (),
         ),
-        NativeBinding::new(LOCK, "destack.fs.file.lock", destack_fs_lock as *const ()),
-        NativeBinding::new(OPEN, "destack.fs.file.open", destack_fs_open as *const ()),
         NativeBinding::new(
-            OPENAT,
+            FS_FILE_LOCK,
+            "destack.fs.file.lock",
+            destack_fs_file_lock as *const (),
+        ),
+        NativeBinding::new(
+            FS_FILE_OPEN,
+            "destack.fs.file.open",
+            destack_fs_file_open as *const (),
+        ),
+        NativeBinding::new(
+            FS_FILE_OPENAT,
             "destack.fs.file.openat",
-            destack_fs_openat as *const (),
+            destack_fs_file_openat as *const (),
         ),
         NativeBinding::new(
-            OPENAT2,
+            FS_FILE_OPENAT2,
             "destack.fs.file.openat2",
-            destack_fs_openat2 as *const (),
+            destack_fs_file_openat2 as *const (),
         ),
         NativeBinding::new(
-            PREAD,
+            FS_FILE_PREAD,
             "destack.fs.file.pread",
-            destack_fs_pread as *const (),
+            destack_fs_file_pread as *const (),
         ),
         NativeBinding::new(
-            PREADV,
+            FS_FILE_PREADV,
             "destack.fs.file.preadv",
-            destack_fs_preadv as *const (),
+            destack_fs_file_preadv as *const (),
         ),
         NativeBinding::new(
-            PWRITE,
+            FS_FILE_PWRITE,
             "destack.fs.file.pwrite",
-            destack_fs_pwrite as *const (),
+            destack_fs_file_pwrite as *const (),
         ),
         NativeBinding::new(
-            PWRITEV,
+            FS_FILE_PWRITEV,
             "destack.fs.file.pwritev",
-            destack_fs_pwritev as *const (),
+            destack_fs_file_pwritev as *const (),
         ),
-        NativeBinding::new(READ, "destack.fs.file.read", destack_fs_read as *const ()),
         NativeBinding::new(
-            READV,
+            FS_FILE_READ,
+            "destack.fs.file.read",
+            destack_fs_file_read as *const (),
+        ),
+        NativeBinding::new(
+            FS_FILE_READV,
             "destack.fs.file.readv",
-            destack_fs_readv as *const (),
+            destack_fs_file_readv as *const (),
         ),
-        NativeBinding::new(SEEK, "destack.fs.file.seek", destack_fs_seek as *const ()),
         NativeBinding::new(
-            SENDFILE,
+            FS_FILE_SEEK,
+            "destack.fs.file.seek",
+            destack_fs_file_seek as *const (),
+        ),
+        NativeBinding::new(
+            FS_FILE_SENDFILE,
             "destack.fs.file.sendfile",
-            destack_fs_sendfile as *const (),
+            destack_fs_file_sendfile as *const (),
         ),
         NativeBinding::new(
-            SET_FD_FLAGS,
+            FS_FILE_SET_FD_FLAGS,
             "destack.fs.file.setFdFlags",
-            destack_fs_set_fd_flags as *const (),
+            destack_fs_file_set_fd_flags as *const (),
         ),
         NativeBinding::new(
-            SET_STATUS_FLAGS,
+            FS_FILE_SET_STATUS_FLAGS,
             "destack.fs.file.setStatusFlags",
-            destack_fs_set_status_flags as *const (),
+            destack_fs_file_set_status_flags as *const (),
         ),
         NativeBinding::new(
-            SYNC_FILE_RANGE,
+            FS_FILE_SYNC_FILE_RANGE,
             "destack.fs.file.syncFileRange",
-            destack_fs_sync_file_range as *const (),
+            destack_fs_file_sync_file_range as *const (),
         ),
         NativeBinding::new(
-            SYNCFS,
+            FS_FILE_SYNCFS,
             "destack.fs.file.syncfs",
-            destack_fs_syncfs as *const (),
+            destack_fs_file_syncfs as *const (),
         ),
         NativeBinding::new(
-            TRUNCATE,
+            FS_FILE_TRUNCATE,
             "destack.fs.file.truncate",
-            destack_fs_truncate as *const (),
+            destack_fs_file_truncate as *const (),
         ),
         NativeBinding::new(
-            WRITE,
+            FS_FILE_WRITE,
             "destack.fs.file.write",
-            destack_fs_write as *const (),
+            destack_fs_file_write as *const (),
         ),
         NativeBinding::new(
-            WRITEV,
+            FS_FILE_WRITEV,
             "destack.fs.file.writev",
-            destack_fs_writev as *const (),
+            destack_fs_file_writev as *const (),
         ),
         NativeBinding::new(
-            MADVISE,
+            FS_MMAP_MADVISE,
             "destack.fs.mmap.madvise",
-            destack_fs_madvise as *const (),
+            destack_fs_mmap_madvise as *const (),
         ),
         NativeBinding::new(
-            MPROTECT,
+            FS_MMAP_MPROTECT,
             "destack.fs.mmap.mprotect",
-            destack_fs_mprotect as *const (),
+            destack_fs_mmap_mprotect as *const (),
         ),
         NativeBinding::new(
-            MSYNC,
+            FS_MMAP_MSYNC,
             "destack.fs.mmap.msync",
-            destack_fs_msync as *const (),
+            destack_fs_mmap_msync as *const (),
         ),
         NativeBinding::new(
-            MUNMAP,
+            FS_MMAP_MUNMAP,
             "destack.fs.mmap.munmap",
-            destack_fs_munmap as *const (),
+            destack_fs_mmap_munmap as *const (),
         ),
         NativeBinding::new(
-            MMAP_ANONYMOUS,
+            FS_MMAP_ANONYMOUS,
             "destack.fs.mmapAnonymous",
             destack_fs_mmap_anonymous as *const (),
         ),
         NativeBinding::new(
-            MMAP_FILE,
+            FS_MMAP_FILE,
             "destack.fs.mmapFile",
             destack_fs_mmap_file as *const (),
         ),
         NativeBinding::new(
-            COPYFILE,
+            FS_PATH_COPYFILE,
             "destack.fs.path.copyfile",
-            destack_fs_copyfile as *const (),
+            destack_fs_path_copyfile as *const (),
         ),
-        NativeBinding::new(LINK, "destack.fs.path.link", destack_fs_link as *const ()),
         NativeBinding::new(
-            LINKAT,
+            FS_PATH_LINK,
+            "destack.fs.path.link",
+            destack_fs_path_link as *const (),
+        ),
+        NativeBinding::new(
+            FS_PATH_LINKAT,
             "destack.fs.path.linkat",
-            destack_fs_linkat as *const (),
+            destack_fs_path_linkat as *const (),
         ),
         NativeBinding::new(
-            MKFIFO,
+            FS_PATH_MKFIFO,
             "destack.fs.path.mkfifo",
-            destack_fs_mkfifo as *const (),
+            destack_fs_path_mkfifo as *const (),
         ),
         NativeBinding::new(
-            MKFIFOAT,
+            FS_PATH_MKFIFOAT,
             "destack.fs.path.mkfifoat",
-            destack_fs_mkfifoat as *const (),
+            destack_fs_path_mkfifoat as *const (),
         ),
         NativeBinding::new(
-            MKNOD,
+            FS_PATH_MKNOD,
             "destack.fs.path.mknod",
-            destack_fs_mknod as *const (),
+            destack_fs_path_mknod as *const (),
         ),
         NativeBinding::new(
-            MKNODAT,
+            FS_PATH_MKNODAT,
             "destack.fs.path.mknodat",
-            destack_fs_mknodat as *const (),
+            destack_fs_path_mknodat as *const (),
         ),
         NativeBinding::new(
-            READLINK,
+            FS_PATH_READLINK,
             "destack.fs.path.readlink",
-            destack_fs_readlink as *const (),
+            destack_fs_path_readlink as *const (),
         ),
         NativeBinding::new(
-            READLINKAT,
+            FS_PATH_READLINKAT,
             "destack.fs.path.readlinkat",
-            destack_fs_readlinkat as *const (),
+            destack_fs_path_readlinkat as *const (),
         ),
         NativeBinding::new(
-            REALPATH,
+            FS_PATH_REALPATH,
             "destack.fs.path.realpath",
-            destack_fs_realpath as *const (),
+            destack_fs_path_realpath as *const (),
         ),
         NativeBinding::new(
-            RENAME,
+            FS_PATH_RENAME,
             "destack.fs.path.rename",
-            destack_fs_rename as *const (),
+            destack_fs_path_rename as *const (),
         ),
         NativeBinding::new(
-            RENAMEAT,
+            FS_PATH_RENAMEAT,
             "destack.fs.path.renameat",
-            destack_fs_renameat as *const (),
+            destack_fs_path_renameat as *const (),
         ),
         NativeBinding::new(
-            RENAMEAT2,
+            FS_PATH_RENAMEAT2,
             "destack.fs.path.renameat2",
-            destack_fs_renameat2 as *const (),
+            destack_fs_path_renameat2 as *const (),
         ),
         NativeBinding::new(
-            SYMLINK,
+            FS_PATH_SYMLINK,
             "destack.fs.path.symlink",
-            destack_fs_symlink as *const (),
+            destack_fs_path_symlink as *const (),
         ),
         NativeBinding::new(
-            SYMLINKAT,
+            FS_PATH_SYMLINKAT,
             "destack.fs.path.symlinkat",
-            destack_fs_symlinkat as *const (),
+            destack_fs_path_symlinkat as *const (),
         ),
         NativeBinding::new(
-            UNLINK,
+            FS_PATH_UNLINK,
             "destack.fs.path.unlink",
-            destack_fs_unlink as *const (),
+            destack_fs_path_unlink as *const (),
         ),
         NativeBinding::new(
-            UNLINKAT,
+            FS_PATH_UNLINKAT,
             "destack.fs.path.unlinkat",
-            destack_fs_unlinkat as *const (),
+            destack_fs_path_unlinkat as *const (),
         ),
         NativeBinding::new(
-            FSTAT,
+            FS_STAT_FSTAT,
             "destack.fs.stat.fstat",
-            destack_fs_fstat as *const (),
+            destack_fs_stat_fstat as *const (),
         ),
         NativeBinding::new(
-            FSTATFS,
+            FS_STAT_FSTATFS,
             "destack.fs.stat.fstatfs",
-            destack_fs_fstatfs as *const (),
+            destack_fs_stat_fstatfs as *const (),
         ),
         NativeBinding::new(
-            LSTAT,
+            FS_STAT_LSTAT,
             "destack.fs.stat.lstat",
-            destack_fs_lstat as *const (),
+            destack_fs_stat_lstat as *const (),
         ),
-        NativeBinding::new(STAT, "destack.fs.stat.stat", destack_fs_stat as *const ()),
         NativeBinding::new(
-            STATAT,
+            FS_STAT_STAT,
+            "destack.fs.stat.stat",
+            destack_fs_stat_stat as *const (),
+        ),
+        NativeBinding::new(
+            FS_STAT_STATAT,
             "destack.fs.stat.statat",
-            destack_fs_statat as *const (),
+            destack_fs_stat_statat as *const (),
         ),
         NativeBinding::new(
-            STATFS,
+            FS_STAT_STATFS,
             "destack.fs.stat.statfs",
-            destack_fs_statfs as *const (),
+            destack_fs_stat_statfs as *const (),
         ),
         NativeBinding::new(
-            STATX,
+            FS_STAT_STATX,
             "destack.fs.stat.statx",
-            destack_fs_statx as *const (),
+            destack_fs_stat_statx as *const (),
         ),
-        NativeBinding::new(WATCH, "destack.fs.watch", destack_fs_watch as *const ()),
+        NativeBinding::new(FS_WATCH, "destack.fs.watch", destack_fs_watch as *const ()),
         NativeBinding::new(
-            WATCH_CLOSE,
+            FS_WATCH_CLOSE,
             "destack.fs.watchClose",
             destack_fs_watch_close as *const (),
         ),
         NativeBinding::new(
-            WATCH_READ,
+            FS_WATCH_READ,
             "destack.fs.watchRead",
             destack_fs_watch_read as *const (),
         ),
         NativeBinding::new(
-            WATCHAT,
+            FS_WATCHAT,
             "destack.fs.watchat",
             destack_fs_watchat as *const (),
         ),
         NativeBinding::new(
-            FGETXATTR,
+            FS_XATTR_FGETXATTR,
             "destack.fs.xattr.fgetxattr",
-            destack_fs_fgetxattr as *const (),
+            destack_fs_xattr_fgetxattr as *const (),
         ),
         NativeBinding::new(
-            FLISTXATTR,
+            FS_XATTR_FGETXATTR_BYTES,
+            "destack.fs.xattr.fgetxattrBytes",
+            destack_fs_xattr_fgetxattr_bytes as *const (),
+        ),
+        NativeBinding::new(
+            FS_XATTR_FLISTXATTR,
             "destack.fs.xattr.flistxattr",
-            destack_fs_flistxattr as *const (),
+            destack_fs_xattr_flistxattr as *const (),
         ),
         NativeBinding::new(
-            FREMOVEXATTR,
+            FS_XATTR_FLISTXATTR_BYTES,
+            "destack.fs.xattr.flistxattrBytes",
+            destack_fs_xattr_flistxattr_bytes as *const (),
+        ),
+        NativeBinding::new(
+            FS_XATTR_FREMOVEXATTR,
             "destack.fs.xattr.fremovexattr",
-            destack_fs_fremovexattr as *const (),
+            destack_fs_xattr_fremovexattr as *const (),
         ),
         NativeBinding::new(
-            FSETXATTR,
+            FS_XATTR_FREMOVEXATTR_BYTES,
+            "destack.fs.xattr.fremovexattrBytes",
+            destack_fs_xattr_fremovexattr_bytes as *const (),
+        ),
+        NativeBinding::new(
+            FS_XATTR_FSETXATTR,
             "destack.fs.xattr.fsetxattr",
-            destack_fs_fsetxattr as *const (),
+            destack_fs_xattr_fsetxattr as *const (),
         ),
         NativeBinding::new(
-            GETXATTR,
+            FS_XATTR_FSETXATTR_BYTES,
+            "destack.fs.xattr.fsetxattrBytes",
+            destack_fs_xattr_fsetxattr_bytes as *const (),
+        ),
+        NativeBinding::new(
+            FS_XATTR_GETXATTR,
             "destack.fs.xattr.getxattr",
-            destack_fs_getxattr as *const (),
+            destack_fs_xattr_getxattr as *const (),
         ),
         NativeBinding::new(
-            LGETXATTR,
+            FS_XATTR_GETXATTR_BYTES,
+            "destack.fs.xattr.getxattrBytes",
+            destack_fs_xattr_getxattr_bytes as *const (),
+        ),
+        NativeBinding::new(
+            FS_XATTR_LGETXATTR,
             "destack.fs.xattr.lgetxattr",
-            destack_fs_lgetxattr as *const (),
+            destack_fs_xattr_lgetxattr as *const (),
         ),
         NativeBinding::new(
-            LISTXATTR,
+            FS_XATTR_LGETXATTR_BYTES,
+            "destack.fs.xattr.lgetxattrBytes",
+            destack_fs_xattr_lgetxattr_bytes as *const (),
+        ),
+        NativeBinding::new(
+            FS_XATTR_LISTXATTR,
             "destack.fs.xattr.listxattr",
-            destack_fs_listxattr as *const (),
+            destack_fs_xattr_listxattr as *const (),
         ),
         NativeBinding::new(
-            LLISTXATTR,
+            FS_XATTR_LISTXATTR_BYTES,
+            "destack.fs.xattr.listxattrBytes",
+            destack_fs_xattr_listxattr_bytes as *const (),
+        ),
+        NativeBinding::new(
+            FS_XATTR_LLISTXATTR,
             "destack.fs.xattr.llistxattr",
-            destack_fs_llistxattr as *const (),
+            destack_fs_xattr_llistxattr as *const (),
         ),
         NativeBinding::new(
-            LREMOVEXATTR,
+            FS_XATTR_LLISTXATTR_BYTES,
+            "destack.fs.xattr.llistxattrBytes",
+            destack_fs_xattr_llistxattr_bytes as *const (),
+        ),
+        NativeBinding::new(
+            FS_XATTR_LREMOVEXATTR,
             "destack.fs.xattr.lremovexattr",
-            destack_fs_lremovexattr as *const (),
+            destack_fs_xattr_lremovexattr as *const (),
         ),
         NativeBinding::new(
-            LSETXATTR,
+            FS_XATTR_LREMOVEXATTR_BYTES,
+            "destack.fs.xattr.lremovexattrBytes",
+            destack_fs_xattr_lremovexattr_bytes as *const (),
+        ),
+        NativeBinding::new(
+            FS_XATTR_LSETXATTR,
             "destack.fs.xattr.lsetxattr",
-            destack_fs_lsetxattr as *const (),
+            destack_fs_xattr_lsetxattr as *const (),
         ),
         NativeBinding::new(
-            REMOVEXATTR,
+            FS_XATTR_LSETXATTR_BYTES,
+            "destack.fs.xattr.lsetxattrBytes",
+            destack_fs_xattr_lsetxattr_bytes as *const (),
+        ),
+        NativeBinding::new(
+            FS_XATTR_REMOVEXATTR,
             "destack.fs.xattr.removexattr",
-            destack_fs_removexattr as *const (),
+            destack_fs_xattr_removexattr as *const (),
         ),
         NativeBinding::new(
-            SETXATTR,
+            FS_XATTR_REMOVEXATTR_BYTES,
+            "destack.fs.xattr.removexattrBytes",
+            destack_fs_xattr_removexattr_bytes as *const (),
+        ),
+        NativeBinding::new(
+            FS_XATTR_SETXATTR,
             "destack.fs.xattr.setxattr",
-            destack_fs_setxattr as *const (),
+            destack_fs_xattr_setxattr as *const (),
+        ),
+        NativeBinding::new(
+            FS_XATTR_SETXATTR_BYTES,
+            "destack.fs.xattr.setxattrBytes",
+            destack_fs_xattr_setxattr_bytes as *const (),
         ),
     ],
 };
 
 /// Native replay implementations for fs bindings.
 #[inline]
-fn destack_fs_access_replay(
+fn destack_fs_attrs_access_replay(
     context: &RuntimeCallContext,
     path: OsPath,
     mode: AccessMode,
@@ -7948,12 +8717,12 @@ fn destack_fs_access_replay(
     let _ = (&path, &mode);
 
     context.replay().run_binding(
-        ACCESS,
+        FS_ATTRS_ACCESS,
         || unsafe { platform_native::destack_fs_access(context, path, mode) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = AccessReplay {
+                let payload = FsAttrsAccessReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -7962,7 +8731,7 @@ fn destack_fs_access_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    AccessReplay { result }
+                    FsAttrsAccessReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -7980,7 +8749,7 @@ fn destack_fs_access_replay(
 }
 
 #[inline]
-fn destack_fs_accessat_replay(
+fn destack_fs_attrs_accessat_replay(
     context: &RuntimeCallContext,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -7990,12 +8759,12 @@ fn destack_fs_accessat_replay(
     let _ = (&dir, &path, &mode, &flags);
 
     context.replay().run_binding(
-        ACCESSAT,
+        FS_ATTRS_ACCESSAT,
         || unsafe { platform_native::destack_fs_accessat(context, dir, path, mode, flags) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = AccessatReplay {
+                let payload = FsAttrsAccessatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -8004,7 +8773,7 @@ fn destack_fs_accessat_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    AccessatReplay { result }
+                    FsAttrsAccessatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -8022,7 +8791,7 @@ fn destack_fs_accessat_replay(
 }
 
 #[inline]
-fn destack_fs_chmod_replay(
+fn destack_fs_attrs_chmod_replay(
     context: &RuntimeCallContext,
     path: OsPath,
     mode: FileMode,
@@ -8030,12 +8799,12 @@ fn destack_fs_chmod_replay(
     let _ = (&path, &mode);
 
     context.replay().run_binding(
-        CHMOD,
+        FS_ATTRS_CHMOD,
         || unsafe { platform_native::destack_fs_chmod(context, path, mode) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = ChmodReplay {
+                let payload = FsAttrsChmodReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -8044,7 +8813,7 @@ fn destack_fs_chmod_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ChmodReplay { result }
+                    FsAttrsChmodReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -8062,7 +8831,7 @@ fn destack_fs_chmod_replay(
 }
 
 #[inline]
-fn destack_fs_chown_replay(
+fn destack_fs_attrs_chown_replay(
     context: &RuntimeCallContext,
     path: OsPath,
     uid: u32,
@@ -8071,12 +8840,12 @@ fn destack_fs_chown_replay(
     let _ = (&path, &uid, &gid);
 
     context.replay().run_binding(
-        CHOWN,
+        FS_ATTRS_CHOWN,
         || unsafe { platform_native::destack_fs_chown(context, path, uid, gid) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = ChownReplay {
+                let payload = FsAttrsChownReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -8085,7 +8854,7 @@ fn destack_fs_chown_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ChownReplay { result }
+                    FsAttrsChownReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -8103,7 +8872,7 @@ fn destack_fs_chown_replay(
 }
 
 #[inline]
-fn destack_fs_fchmod_replay(
+fn destack_fs_attrs_fchmod_replay(
     context: &RuntimeCallContext,
     handle: resource::FileHandle,
     mode: FileMode,
@@ -8111,12 +8880,12 @@ fn destack_fs_fchmod_replay(
     let _ = (&handle, &mode);
 
     context.replay().run_binding(
-        FCHMOD,
+        FS_ATTRS_FCHMOD,
         || unsafe { platform_native::destack_fs_fchmod(context, handle, mode) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = FchmodReplay {
+                let payload = FsAttrsFchmodReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -8125,7 +8894,7 @@ fn destack_fs_fchmod_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FchmodReplay { result }
+                    FsAttrsFchmodReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -8143,7 +8912,7 @@ fn destack_fs_fchmod_replay(
 }
 
 #[inline]
-fn destack_fs_fchmodat_replay(
+fn destack_fs_attrs_fchmodat_replay(
     context: &RuntimeCallContext,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -8153,12 +8922,12 @@ fn destack_fs_fchmodat_replay(
     let _ = (&dir, &path, &mode, &flags);
 
     context.replay().run_binding(
-        FCHMODAT,
+        FS_ATTRS_FCHMODAT,
         || unsafe { platform_native::destack_fs_fchmodat(context, dir, path, mode, flags) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = FchmodatReplay {
+                let payload = FsAttrsFchmodatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -8167,7 +8936,7 @@ fn destack_fs_fchmodat_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FchmodatReplay { result }
+                    FsAttrsFchmodatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -8185,7 +8954,7 @@ fn destack_fs_fchmodat_replay(
 }
 
 #[inline]
-fn destack_fs_fchown_replay(
+fn destack_fs_attrs_fchown_replay(
     context: &RuntimeCallContext,
     handle: resource::FileHandle,
     uid: u32,
@@ -8194,12 +8963,12 @@ fn destack_fs_fchown_replay(
     let _ = (&handle, &uid, &gid);
 
     context.replay().run_binding(
-        FCHOWN,
+        FS_ATTRS_FCHOWN,
         || unsafe { platform_native::destack_fs_fchown(context, handle, uid, gid) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = FchownReplay {
+                let payload = FsAttrsFchownReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -8208,7 +8977,7 @@ fn destack_fs_fchown_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FchownReplay { result }
+                    FsAttrsFchownReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -8226,7 +8995,7 @@ fn destack_fs_fchown_replay(
 }
 
 #[inline]
-fn destack_fs_fchownat_replay(
+fn destack_fs_attrs_fchownat_replay(
     context: &RuntimeCallContext,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -8237,12 +9006,12 @@ fn destack_fs_fchownat_replay(
     let _ = (&dir, &path, &uid, &gid, &flags);
 
     context.replay().run_binding(
-        FCHOWNAT,
+        FS_ATTRS_FCHOWNAT,
         || unsafe { platform_native::destack_fs_fchownat(context, dir, path, uid, gid, flags) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = FchownatReplay {
+                let payload = FsAttrsFchownatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -8251,7 +9020,7 @@ fn destack_fs_fchownat_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FchownatReplay { result }
+                    FsAttrsFchownatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -8269,7 +9038,7 @@ fn destack_fs_fchownat_replay(
 }
 
 #[inline]
-fn destack_fs_futimes_replay(
+fn destack_fs_attrs_futimes_replay(
     context: &RuntimeCallContext,
     handle: resource::FileHandle,
     atimens: u64,
@@ -8278,12 +9047,12 @@ fn destack_fs_futimes_replay(
     let _ = (&handle, &atimens, &mtimens);
 
     context.replay().run_binding(
-        FUTIMES,
+        FS_ATTRS_FUTIMES,
         || unsafe { platform_native::destack_fs_futimes(context, handle, atimens, mtimens) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = FutimesReplay {
+                let payload = FsAttrsFutimesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -8292,7 +9061,7 @@ fn destack_fs_futimes_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FutimesReplay { result }
+                    FsAttrsFutimesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -8310,7 +9079,7 @@ fn destack_fs_futimes_replay(
 }
 
 #[inline]
-fn destack_fs_lutimes_replay(
+fn destack_fs_attrs_lutimes_replay(
     context: &RuntimeCallContext,
     path: OsPath,
     atimens: u64,
@@ -8319,12 +9088,12 @@ fn destack_fs_lutimes_replay(
     let _ = (&path, &atimens, &mtimens);
 
     context.replay().run_binding(
-        LUTIMES,
+        FS_ATTRS_LUTIMES,
         || unsafe { platform_native::destack_fs_lutimes(context, path, atimens, mtimens) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = LutimesReplay {
+                let payload = FsAttrsLutimesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -8333,7 +9102,7 @@ fn destack_fs_lutimes_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    LutimesReplay { result }
+                    FsAttrsLutimesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -8351,7 +9120,7 @@ fn destack_fs_lutimes_replay(
 }
 
 #[inline]
-fn destack_fs_utimensat_replay(
+fn destack_fs_attrs_utimensat_replay(
     context: &RuntimeCallContext,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -8362,14 +9131,14 @@ fn destack_fs_utimensat_replay(
     let _ = (&dir, &path, &atimens, &mtimens, &flags);
 
     context.replay().run_binding(
-        UTIMENSAT,
+        FS_ATTRS_UTIMENSAT,
         || unsafe {
             platform_native::destack_fs_utimensat(context, dir, path, atimens, mtimens, flags)
         },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = UtimensatReplay {
+                let payload = FsAttrsUtimensatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -8378,7 +9147,7 @@ fn destack_fs_utimensat_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    UtimensatReplay { result }
+                    FsAttrsUtimensatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -8396,7 +9165,7 @@ fn destack_fs_utimensat_replay(
 }
 
 #[inline]
-fn destack_fs_utimes_replay(
+fn destack_fs_attrs_utimes_replay(
     context: &RuntimeCallContext,
     path: OsPath,
     atimens: u64,
@@ -8405,12 +9174,12 @@ fn destack_fs_utimes_replay(
     let _ = (&path, &atimens, &mtimens);
 
     context.replay().run_binding(
-        UTIMES,
+        FS_ATTRS_UTIMES,
         || unsafe { platform_native::destack_fs_utimes(context, path, atimens, mtimens) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = UtimesReplay {
+                let payload = FsAttrsUtimesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -8419,7 +9188,7 @@ fn destack_fs_utimes_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    UtimesReplay { result }
+                    FsAttrsUtimesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -8437,19 +9206,19 @@ fn destack_fs_utimes_replay(
 }
 
 #[inline]
-fn destack_fs_closedir_replay(
+fn destack_fs_dir_closedir_replay(
     context: &RuntimeCallContext,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
     context.replay().run_binding(
-        CLOSEDIR,
+        FS_DIR_CLOSEDIR,
         || unsafe { platform_native::destack_fs_closedir(context, handle) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = ClosedirReplay {
+                let payload = FsDirClosedirReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -8458,7 +9227,7 @@ fn destack_fs_closedir_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ClosedirReplay { result }
+                    FsDirClosedirReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -8476,7 +9245,7 @@ fn destack_fs_closedir_replay(
 }
 
 #[inline]
-fn destack_fs_dirfd_replay(
+fn destack_fs_dir_dirfd_replay(
     context: &RuntimeCallContext,
     out: *mut resource::FileHandle,
     handle: resource::DirectoryHandle,
@@ -8484,7 +9253,7 @@ fn destack_fs_dirfd_replay(
     let _ = &handle;
 
     context.replay().run_binding(
-        DIRFD,
+        FS_DIR_DIRFD,
         || unsafe { platform_native::destack_fs_dirfd(context, out, handle) },
         |result| {
             if let Ok(()) = result {
@@ -8495,7 +9264,7 @@ fn destack_fs_dirfd_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = DirfdReplay {
+                let payload = FsDirDirfdReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -8504,7 +9273,7 @@ fn destack_fs_dirfd_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    DirfdReplay { result }
+                    FsDirDirfdReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -8528,7 +9297,7 @@ fn destack_fs_dirfd_replay(
 }
 
 #[inline]
-fn destack_fs_mkdir_replay(
+fn destack_fs_dir_mkdir_replay(
     context: &RuntimeCallContext,
     path: OsPath,
     mode: FileMode,
@@ -8536,12 +9305,12 @@ fn destack_fs_mkdir_replay(
     let _ = (&path, &mode);
 
     context.replay().run_binding(
-        MKDIR,
+        FS_DIR_MKDIR,
         || unsafe { platform_native::destack_fs_mkdir(context, path, mode) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = MkdirReplay {
+                let payload = FsDirMkdirReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -8550,7 +9319,7 @@ fn destack_fs_mkdir_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MkdirReplay { result }
+                    FsDirMkdirReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -8568,7 +9337,7 @@ fn destack_fs_mkdir_replay(
 }
 
 #[inline]
-fn destack_fs_mkdirat_replay(
+fn destack_fs_dir_mkdirat_replay(
     context: &RuntimeCallContext,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -8577,12 +9346,12 @@ fn destack_fs_mkdirat_replay(
     let _ = (&dir, &path, &mode);
 
     context.replay().run_binding(
-        MKDIRAT,
+        FS_DIR_MKDIRAT,
         || unsafe { platform_native::destack_fs_mkdirat(context, dir, path, mode) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = MkdiratReplay {
+                let payload = FsDirMkdiratReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -8591,7 +9360,7 @@ fn destack_fs_mkdirat_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MkdiratReplay { result }
+                    FsDirMkdiratReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -8609,7 +9378,7 @@ fn destack_fs_mkdirat_replay(
 }
 
 #[inline]
-fn destack_fs_mkdtemp_replay(
+fn destack_fs_dir_mkdtemp_replay(
     context: &RuntimeCallContext,
     out: *mut OsPath,
     template: OsPath,
@@ -8617,7 +9386,7 @@ fn destack_fs_mkdtemp_replay(
     let _ = &template;
 
     context.replay().run_binding(
-        MKDTEMP,
+        FS_DIR_MKDTEMP,
         || unsafe { platform_native::destack_fs_mkdtemp(context, out, template) },
         |result| {
             if let Ok(()) = result {
@@ -8628,26 +9397,18 @@ fn destack_fs_mkdtemp_replay(
                     *out
                 };
                 let result_replay_encoding = result_value.encoding;
-                let result_replay_bytes_raw = unsafe { result_value.bytes.0.as_slice()? };
-                let mut result_replay_bytes = Vec::with_capacity(result_replay_bytes_raw.len());
-                for result_replay_bytes_item_value in result_replay_bytes_raw {
-                    let result_replay_bytes_item = *result_replay_bytes_item_value;
-                    let result_replay_bytes_item_replay = result_replay_bytes_item;
-                    result_replay_bytes.push(result_replay_bytes_item_replay);
-                }
-                let result_replay_utf16_raw = unsafe { result_value.utf16.0.as_slice()? };
-                let mut result_replay_utf16 = Vec::with_capacity(result_replay_utf16_raw.len());
-                for result_replay_utf16_item_value in result_replay_utf16_raw {
-                    let result_replay_utf16_item = *result_replay_utf16_item_value;
-                    let result_replay_utf16_item_replay = result_replay_utf16_item;
-                    result_replay_utf16.push(result_replay_utf16_item_replay);
+                let result_replay_data_raw = unsafe { result_value.data.0.as_slice()? };
+                let mut result_replay_data = Vec::with_capacity(result_replay_data_raw.len());
+                for result_replay_data_item_value in result_replay_data_raw {
+                    let result_replay_data_item = *result_replay_data_item_value;
+                    let result_replay_data_item_replay = result_replay_data_item;
+                    result_replay_data.push(result_replay_data_item_replay);
                 }
                 let result_replay = OsPathReplay {
                     encoding: result_replay_encoding,
-                    bytes: result_replay_bytes,
-                    utf16: result_replay_utf16,
+                    data: result_replay_data,
                 };
-                let payload = MkdtempReplay {
+                let payload = FsDirMkdtempReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -8656,7 +9417,7 @@ fn destack_fs_mkdtemp_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MkdtempReplay { result }
+                    FsDirMkdtempReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -8668,30 +9429,19 @@ fn destack_fs_mkdtemp_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native_encoding = value.encoding;
-                    let mut value_native_bytes_inner_values = Vec::with_capacity(value.bytes.len());
-                    for value_native_bytes_inner_item in value.bytes {
-                        let value_native_bytes_inner_item_native = value_native_bytes_inner_item;
-                        value_native_bytes_inner_values.push(value_native_bytes_inner_item_native);
+                    let mut value_native_data_inner_values = Vec::with_capacity(value.data.len());
+                    for value_native_data_inner_item in value.data {
+                        let value_native_data_inner_item_native = value_native_data_inner_item;
+                        value_native_data_inner_values.push(value_native_data_inner_item_native);
                     }
-                    let value_native_bytes_inner =
-                        context.store_array(value_native_bytes_inner_values);
-                    let value_native_bytes = crate::platform::fs::PathBytesAbi::<
+                    let value_native_data_inner =
+                        context.store_array(value_native_data_inner_values);
+                    let value_native_data = crate::platform::fs::PathBytesAbi::<
                         crate::platform::abi::NativeAbi,
-                    >(value_native_bytes_inner);
-                    let mut value_native_utf16_inner_values = Vec::with_capacity(value.utf16.len());
-                    for value_native_utf16_inner_item in value.utf16 {
-                        let value_native_utf16_inner_item_native = value_native_utf16_inner_item;
-                        value_native_utf16_inner_values.push(value_native_utf16_inner_item_native);
-                    }
-                    let value_native_utf16_inner =
-                        context.store_array(value_native_utf16_inner_values);
-                    let value_native_utf16 = crate::platform::fs::PathUtf16Abi::<
-                        crate::platform::abi::NativeAbi,
-                    >(value_native_utf16_inner);
+                    >(value_native_data_inner);
                     let value_native = OsPath {
                         encoding: value_native_encoding,
-                        bytes: value_native_bytes,
-                        utf16: value_native_utf16,
+                        data: value_native_data,
                     };
                     unsafe {
                         std::ptr::write(out, value_native);
@@ -8705,7 +9455,7 @@ fn destack_fs_mkdtemp_replay(
 }
 
 #[inline]
-fn destack_fs_opendir_replay(
+fn destack_fs_dir_opendir_replay(
     context: &RuntimeCallContext,
     out: *mut resource::DirectoryHandle,
     path: OsPath,
@@ -8713,7 +9463,7 @@ fn destack_fs_opendir_replay(
     let _ = &path;
 
     context.replay().run_binding(
-        OPENDIR,
+        FS_DIR_OPENDIR,
         || unsafe { platform_native::destack_fs_opendir(context, out, path) },
         |result| {
             if let Ok(()) = result {
@@ -8724,7 +9474,7 @@ fn destack_fs_opendir_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = OpendirReplay {
+                let payload = FsDirOpendirReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -8733,7 +9483,7 @@ fn destack_fs_opendir_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    OpendirReplay { result }
+                    FsDirOpendirReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -8757,7 +9507,7 @@ fn destack_fs_opendir_replay(
 }
 
 #[inline]
-fn destack_fs_readdir_replay(
+fn destack_fs_dir_readdir_replay(
     context: &RuntimeCallContext,
     out: *mut NativeArray<Dirent>,
     handle: resource::DirectoryHandle,
@@ -8765,7 +9515,7 @@ fn destack_fs_readdir_replay(
     let _ = &handle;
 
     context.replay().run_binding(
-        READDIR,
+        FS_DIR_READDIR,
         || unsafe { platform_native::destack_fs_readdir(context, out, handle) },
         |result| {
             if let Ok(()) = result {
@@ -8780,38 +9530,23 @@ fn destack_fs_readdir_replay(
                 for result_replay_item_value in result_replay_raw {
                     let result_replay_item = *result_replay_item_value;
                     let result_replay_item_replay_name_encoding = result_replay_item.name.encoding;
-                    let result_replay_item_replay_name_bytes_raw =
-                        unsafe { result_replay_item.name.bytes.0.as_slice()? };
-                    let mut result_replay_item_replay_name_bytes =
-                        Vec::with_capacity(result_replay_item_replay_name_bytes_raw.len());
-                    for result_replay_item_replay_name_bytes_item_value in
-                        result_replay_item_replay_name_bytes_raw
+                    let result_replay_item_replay_name_data_raw =
+                        unsafe { result_replay_item.name.data.0.as_slice()? };
+                    let mut result_replay_item_replay_name_data =
+                        Vec::with_capacity(result_replay_item_replay_name_data_raw.len());
+                    for result_replay_item_replay_name_data_item_value in
+                        result_replay_item_replay_name_data_raw
                     {
-                        let result_replay_item_replay_name_bytes_item =
-                            *result_replay_item_replay_name_bytes_item_value;
-                        let result_replay_item_replay_name_bytes_item_replay =
-                            result_replay_item_replay_name_bytes_item;
-                        result_replay_item_replay_name_bytes
-                            .push(result_replay_item_replay_name_bytes_item_replay);
-                    }
-                    let result_replay_item_replay_name_utf16_raw =
-                        unsafe { result_replay_item.name.utf16.0.as_slice()? };
-                    let mut result_replay_item_replay_name_utf16 =
-                        Vec::with_capacity(result_replay_item_replay_name_utf16_raw.len());
-                    for result_replay_item_replay_name_utf16_item_value in
-                        result_replay_item_replay_name_utf16_raw
-                    {
-                        let result_replay_item_replay_name_utf16_item =
-                            *result_replay_item_replay_name_utf16_item_value;
-                        let result_replay_item_replay_name_utf16_item_replay =
-                            result_replay_item_replay_name_utf16_item;
-                        result_replay_item_replay_name_utf16
-                            .push(result_replay_item_replay_name_utf16_item_replay);
+                        let result_replay_item_replay_name_data_item =
+                            *result_replay_item_replay_name_data_item_value;
+                        let result_replay_item_replay_name_data_item_replay =
+                            result_replay_item_replay_name_data_item;
+                        result_replay_item_replay_name_data
+                            .push(result_replay_item_replay_name_data_item_replay);
                     }
                     let result_replay_item_replay_name = OsPathReplay {
                         encoding: result_replay_item_replay_name_encoding,
-                        bytes: result_replay_item_replay_name_bytes,
-                        utf16: result_replay_item_replay_name_utf16,
+                        data: result_replay_item_replay_name_data,
                     };
                     let result_replay_item_replay_kind = result_replay_item.kind;
                     let result_replay_item_replay = DirentReplay {
@@ -8820,7 +9555,7 @@ fn destack_fs_readdir_replay(
                     };
                     result_replay.push(result_replay_item_replay);
                 }
-                let payload = ReaddirReplay {
+                let payload = FsDirReaddirReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -8829,7 +9564,7 @@ fn destack_fs_readdir_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ReaddirReplay { result }
+                    FsDirReaddirReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -8844,42 +9579,25 @@ fn destack_fs_readdir_replay(
                     for value_native_item in value {
                         let value_native_item_native_name_encoding =
                             value_native_item.name.encoding;
-                        let mut value_native_item_native_name_bytes_inner_values =
-                            Vec::with_capacity(value_native_item.name.bytes.len());
-                        for value_native_item_native_name_bytes_inner_item in
-                            value_native_item.name.bytes
+                        let mut value_native_item_native_name_data_inner_values =
+                            Vec::with_capacity(value_native_item.name.data.len());
+                        for value_native_item_native_name_data_inner_item in
+                            value_native_item.name.data
                         {
-                            let value_native_item_native_name_bytes_inner_item_native =
-                                value_native_item_native_name_bytes_inner_item;
-                            value_native_item_native_name_bytes_inner_values
-                                .push(value_native_item_native_name_bytes_inner_item_native);
+                            let value_native_item_native_name_data_inner_item_native =
+                                value_native_item_native_name_data_inner_item;
+                            value_native_item_native_name_data_inner_values
+                                .push(value_native_item_native_name_data_inner_item_native);
                         }
-                        let value_native_item_native_name_bytes_inner =
-                            context.store_array(value_native_item_native_name_bytes_inner_values);
-                        let value_native_item_native_name_bytes =
+                        let value_native_item_native_name_data_inner =
+                            context.store_array(value_native_item_native_name_data_inner_values);
+                        let value_native_item_native_name_data =
                             crate::platform::fs::PathBytesAbi::<crate::platform::abi::NativeAbi>(
-                                value_native_item_native_name_bytes_inner,
-                            );
-                        let mut value_native_item_native_name_utf16_inner_values =
-                            Vec::with_capacity(value_native_item.name.utf16.len());
-                        for value_native_item_native_name_utf16_inner_item in
-                            value_native_item.name.utf16
-                        {
-                            let value_native_item_native_name_utf16_inner_item_native =
-                                value_native_item_native_name_utf16_inner_item;
-                            value_native_item_native_name_utf16_inner_values
-                                .push(value_native_item_native_name_utf16_inner_item_native);
-                        }
-                        let value_native_item_native_name_utf16_inner =
-                            context.store_array(value_native_item_native_name_utf16_inner_values);
-                        let value_native_item_native_name_utf16 =
-                            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::NativeAbi>(
-                                value_native_item_native_name_utf16_inner,
+                                value_native_item_native_name_data_inner,
                             );
                         let value_native_item_native_name = OsPath {
                             encoding: value_native_item_native_name_encoding,
-                            bytes: value_native_item_native_name_bytes,
-                            utf16: value_native_item_native_name_utf16,
+                            data: value_native_item_native_name_data,
                         };
                         let value_native_item_native_kind = value_native_item.kind;
                         let value_native_item_native = Dirent {
@@ -8901,7 +9619,7 @@ fn destack_fs_readdir_replay(
 }
 
 #[inline]
-fn destack_fs_readdir_next_replay(
+fn destack_fs_dir_readdir_next_replay(
     context: &RuntimeCallContext,
     out: *mut DirentNext,
     handle: resource::DirectoryHandle,
@@ -8909,7 +9627,7 @@ fn destack_fs_readdir_next_replay(
     let _ = &handle;
 
     context.replay().run_binding(
-        READDIR_NEXT,
+        FS_DIR_READDIR_NEXT,
         || unsafe { platform_native::destack_fs_readdir_next(context, out, handle) },
         |result| {
             if let Ok(()) = result {
@@ -8921,34 +9639,20 @@ fn destack_fs_readdir_next_replay(
                 };
                 let result_replay_has_entry = result_value.has_entry;
                 let result_replay_entry_name_encoding = result_value.entry.name.encoding;
-                let result_replay_entry_name_bytes_raw =
-                    unsafe { result_value.entry.name.bytes.0.as_slice()? };
-                let mut result_replay_entry_name_bytes =
-                    Vec::with_capacity(result_replay_entry_name_bytes_raw.len());
-                for result_replay_entry_name_bytes_item_value in result_replay_entry_name_bytes_raw
-                {
-                    let result_replay_entry_name_bytes_item =
-                        *result_replay_entry_name_bytes_item_value;
-                    let result_replay_entry_name_bytes_item_replay =
-                        result_replay_entry_name_bytes_item;
-                    result_replay_entry_name_bytes.push(result_replay_entry_name_bytes_item_replay);
-                }
-                let result_replay_entry_name_utf16_raw =
-                    unsafe { result_value.entry.name.utf16.0.as_slice()? };
-                let mut result_replay_entry_name_utf16 =
-                    Vec::with_capacity(result_replay_entry_name_utf16_raw.len());
-                for result_replay_entry_name_utf16_item_value in result_replay_entry_name_utf16_raw
-                {
-                    let result_replay_entry_name_utf16_item =
-                        *result_replay_entry_name_utf16_item_value;
-                    let result_replay_entry_name_utf16_item_replay =
-                        result_replay_entry_name_utf16_item;
-                    result_replay_entry_name_utf16.push(result_replay_entry_name_utf16_item_replay);
+                let result_replay_entry_name_data_raw =
+                    unsafe { result_value.entry.name.data.0.as_slice()? };
+                let mut result_replay_entry_name_data =
+                    Vec::with_capacity(result_replay_entry_name_data_raw.len());
+                for result_replay_entry_name_data_item_value in result_replay_entry_name_data_raw {
+                    let result_replay_entry_name_data_item =
+                        *result_replay_entry_name_data_item_value;
+                    let result_replay_entry_name_data_item_replay =
+                        result_replay_entry_name_data_item;
+                    result_replay_entry_name_data.push(result_replay_entry_name_data_item_replay);
                 }
                 let result_replay_entry_name = OsPathReplay {
                     encoding: result_replay_entry_name_encoding,
-                    bytes: result_replay_entry_name_bytes,
-                    utf16: result_replay_entry_name_utf16,
+                    data: result_replay_entry_name_data,
                 };
                 let result_replay_entry_kind = result_value.entry.kind;
                 let result_replay_entry = DirentReplay {
@@ -8959,7 +9663,7 @@ fn destack_fs_readdir_next_replay(
                     has_entry: result_replay_has_entry,
                     entry: result_replay_entry,
                 };
-                let payload = ReaddirNextReplay {
+                let payload = FsDirReaddirNextReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -8968,7 +9672,7 @@ fn destack_fs_readdir_next_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ReaddirNextReplay { result }
+                    FsDirReaddirNextReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -8981,38 +9685,23 @@ fn destack_fs_readdir_next_replay(
                 Ok(value) => {
                     let value_native_has_entry = value.has_entry;
                     let value_native_entry_name_encoding = value.entry.name.encoding;
-                    let mut value_native_entry_name_bytes_inner_values =
-                        Vec::with_capacity(value.entry.name.bytes.len());
-                    for value_native_entry_name_bytes_inner_item in value.entry.name.bytes {
-                        let value_native_entry_name_bytes_inner_item_native =
-                            value_native_entry_name_bytes_inner_item;
-                        value_native_entry_name_bytes_inner_values
-                            .push(value_native_entry_name_bytes_inner_item_native);
+                    let mut value_native_entry_name_data_inner_values =
+                        Vec::with_capacity(value.entry.name.data.len());
+                    for value_native_entry_name_data_inner_item in value.entry.name.data {
+                        let value_native_entry_name_data_inner_item_native =
+                            value_native_entry_name_data_inner_item;
+                        value_native_entry_name_data_inner_values
+                            .push(value_native_entry_name_data_inner_item_native);
                     }
-                    let value_native_entry_name_bytes_inner =
-                        context.store_array(value_native_entry_name_bytes_inner_values);
-                    let value_native_entry_name_bytes =
+                    let value_native_entry_name_data_inner =
+                        context.store_array(value_native_entry_name_data_inner_values);
+                    let value_native_entry_name_data =
                         crate::platform::fs::PathBytesAbi::<crate::platform::abi::NativeAbi>(
-                            value_native_entry_name_bytes_inner,
-                        );
-                    let mut value_native_entry_name_utf16_inner_values =
-                        Vec::with_capacity(value.entry.name.utf16.len());
-                    for value_native_entry_name_utf16_inner_item in value.entry.name.utf16 {
-                        let value_native_entry_name_utf16_inner_item_native =
-                            value_native_entry_name_utf16_inner_item;
-                        value_native_entry_name_utf16_inner_values
-                            .push(value_native_entry_name_utf16_inner_item_native);
-                    }
-                    let value_native_entry_name_utf16_inner =
-                        context.store_array(value_native_entry_name_utf16_inner_values);
-                    let value_native_entry_name_utf16 =
-                        crate::platform::fs::PathUtf16Abi::<crate::platform::abi::NativeAbi>(
-                            value_native_entry_name_utf16_inner,
+                            value_native_entry_name_data_inner,
                         );
                     let value_native_entry_name = OsPath {
                         encoding: value_native_entry_name_encoding,
-                        bytes: value_native_entry_name_bytes,
-                        utf16: value_native_entry_name_utf16,
+                        data: value_native_entry_name_data,
                     };
                     let value_native_entry_kind = value.entry.kind;
                     let value_native_entry = Dirent {
@@ -9035,19 +9724,19 @@ fn destack_fs_readdir_next_replay(
 }
 
 #[inline]
-fn destack_fs_rewinddir_replay(
+fn destack_fs_dir_rewinddir_replay(
     context: &RuntimeCallContext,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
     context.replay().run_binding(
-        REWINDDIR,
+        FS_DIR_REWINDDIR,
         || unsafe { platform_native::destack_fs_rewinddir(context, handle) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = RewinddirReplay {
+                let payload = FsDirRewinddirReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -9056,7 +9745,7 @@ fn destack_fs_rewinddir_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    RewinddirReplay { result }
+                    FsDirRewinddirReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -9074,16 +9763,16 @@ fn destack_fs_rewinddir_replay(
 }
 
 #[inline]
-fn destack_fs_rmdir_replay(context: &RuntimeCallContext, path: OsPath) -> RuntimeResult<()> {
+fn destack_fs_dir_rmdir_replay(context: &RuntimeCallContext, path: OsPath) -> RuntimeResult<()> {
     let _ = &path;
 
     context.replay().run_binding(
-        RMDIR,
+        FS_DIR_RMDIR,
         || unsafe { platform_native::destack_fs_rmdir(context, path) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = RmdirReplay {
+                let payload = FsDirRmdirReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -9092,7 +9781,7 @@ fn destack_fs_rmdir_replay(context: &RuntimeCallContext, path: OsPath) -> Runtim
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    RmdirReplay { result }
+                    FsDirRmdirReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -9110,19 +9799,19 @@ fn destack_fs_rmdir_replay(context: &RuntimeCallContext, path: OsPath) -> Runtim
 }
 
 #[inline]
-fn destack_fs_close_replay(
+fn destack_fs_file_close_replay(
     context: &RuntimeCallContext,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
     context.replay().run_binding(
-        CLOSE,
+        FS_FILE_CLOSE,
         || unsafe { platform_native::destack_fs_close(context, handle) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = CloseReplay {
+                let payload = FsFileCloseReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -9131,7 +9820,7 @@ fn destack_fs_close_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    CloseReplay { result }
+                    FsFileCloseReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -9149,7 +9838,7 @@ fn destack_fs_close_replay(
 }
 
 #[inline]
-fn destack_fs_copy_file_range_replay(
+fn destack_fs_file_copy_file_range_replay(
     context: &RuntimeCallContext,
     out: *mut u64,
     src: resource::FileHandle,
@@ -9161,7 +9850,7 @@ fn destack_fs_copy_file_range_replay(
     let _ = (&src, &srcoffset, &dst, &dstoffset, &length);
 
     context.replay().run_binding(
-        COPY_FILE_RANGE,
+        FS_FILE_COPY_FILE_RANGE,
         || unsafe {
             platform_native::destack_fs_copy_file_range(
                 context, out, src, srcoffset, dst, dstoffset, length,
@@ -9176,7 +9865,7 @@ fn destack_fs_copy_file_range_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = CopyFileRangeReplay {
+                let payload = FsFileCopyFileRangeReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -9185,7 +9874,7 @@ fn destack_fs_copy_file_range_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    CopyFileRangeReplay { result }
+                    FsFileCopyFileRangeReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -9209,7 +9898,7 @@ fn destack_fs_copy_file_range_replay(
 }
 
 #[inline]
-fn destack_fs_dup_replay(
+fn destack_fs_file_dup_replay(
     context: &RuntimeCallContext,
     out: *mut resource::FileHandle,
     handle: resource::FileHandle,
@@ -9217,7 +9906,7 @@ fn destack_fs_dup_replay(
     let _ = &handle;
 
     context.replay().run_binding(
-        DUP,
+        FS_FILE_DUP,
         || unsafe { platform_native::destack_fs_dup(context, out, handle) },
         |result| {
             if let Ok(()) = result {
@@ -9228,7 +9917,7 @@ fn destack_fs_dup_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = DupReplay {
+                let payload = FsFileDupReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -9237,7 +9926,7 @@ fn destack_fs_dup_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    DupReplay { result }
+                    FsFileDupReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -9261,7 +9950,7 @@ fn destack_fs_dup_replay(
 }
 
 #[inline]
-fn destack_fs_dup2_replay(
+fn destack_fs_file_dup2_replay(
     context: &RuntimeCallContext,
     out: *mut resource::FileHandle,
     handle: resource::FileHandle,
@@ -9270,7 +9959,7 @@ fn destack_fs_dup2_replay(
     let _ = (&handle, &target);
 
     context.replay().run_binding(
-        DUP2,
+        FS_FILE_DUP2,
         || unsafe { platform_native::destack_fs_dup2(context, out, handle, target) },
         |result| {
             if let Ok(()) = result {
@@ -9281,7 +9970,7 @@ fn destack_fs_dup2_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = Dup2Replay {
+                let payload = FsFileDup2Replay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -9290,7 +9979,7 @@ fn destack_fs_dup2_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    Dup2Replay { result }
+                    FsFileDup2Replay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -9314,7 +10003,7 @@ fn destack_fs_dup2_replay(
 }
 
 #[inline]
-fn destack_fs_dup3_replay(
+fn destack_fs_file_dup3_replay(
     context: &RuntimeCallContext,
     out: *mut resource::FileHandle,
     handle: resource::FileHandle,
@@ -9324,7 +10013,7 @@ fn destack_fs_dup3_replay(
     let _ = (&handle, &target, &flags);
 
     context.replay().run_binding(
-        DUP3,
+        FS_FILE_DUP3,
         || unsafe { platform_native::destack_fs_dup3(context, out, handle, target, flags) },
         |result| {
             if let Ok(()) = result {
@@ -9335,7 +10024,7 @@ fn destack_fs_dup3_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = Dup3Replay {
+                let payload = FsFileDup3Replay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -9344,7 +10033,7 @@ fn destack_fs_dup3_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    Dup3Replay { result }
+                    FsFileDup3Replay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -9368,7 +10057,7 @@ fn destack_fs_dup3_replay(
 }
 
 #[inline]
-fn destack_fs_fadvise_replay(
+fn destack_fs_file_fadvise_replay(
     context: &RuntimeCallContext,
     handle: resource::FileHandle,
     offset: FileOffset,
@@ -9378,12 +10067,12 @@ fn destack_fs_fadvise_replay(
     let _ = (&handle, &offset, &length, &advice);
 
     context.replay().run_binding(
-        FADVISE,
+        FS_FILE_FADVISE,
         || unsafe { platform_native::destack_fs_fadvise(context, handle, offset, length, advice) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = FadviseReplay {
+                let payload = FsFileFadviseReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -9392,7 +10081,7 @@ fn destack_fs_fadvise_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FadviseReplay { result }
+                    FsFileFadviseReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -9410,7 +10099,7 @@ fn destack_fs_fadvise_replay(
 }
 
 #[inline]
-fn destack_fs_fallocate_replay(
+fn destack_fs_file_fallocate_replay(
     context: &RuntimeCallContext,
     handle: resource::FileHandle,
     offset: FileOffset,
@@ -9420,12 +10109,12 @@ fn destack_fs_fallocate_replay(
     let _ = (&handle, &offset, &length, &flags);
 
     context.replay().run_binding(
-        FALLOCATE,
+        FS_FILE_FALLOCATE,
         || unsafe { platform_native::destack_fs_fallocate(context, handle, offset, length, flags) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = FallocateReplay {
+                let payload = FsFileFallocateReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -9434,7 +10123,7 @@ fn destack_fs_fallocate_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FallocateReplay { result }
+                    FsFileFallocateReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -9452,19 +10141,19 @@ fn destack_fs_fallocate_replay(
 }
 
 #[inline]
-fn destack_fs_fdatasync_replay(
+fn destack_fs_file_fdatasync_replay(
     context: &RuntimeCallContext,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
     context.replay().run_binding(
-        FDATASYNC,
+        FS_FILE_FDATASYNC,
         || unsafe { platform_native::destack_fs_fdatasync(context, handle) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = FdatasyncReplay {
+                let payload = FsFileFdatasyncReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -9473,7 +10162,7 @@ fn destack_fs_fdatasync_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FdatasyncReplay { result }
+                    FsFileFdatasyncReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -9491,19 +10180,19 @@ fn destack_fs_fdatasync_replay(
 }
 
 #[inline]
-fn destack_fs_fsync_replay(
+fn destack_fs_file_fsync_replay(
     context: &RuntimeCallContext,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
     context.replay().run_binding(
-        FSYNC,
+        FS_FILE_FSYNC,
         || unsafe { platform_native::destack_fs_fsync(context, handle) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = FsyncReplay {
+                let payload = FsFileFsyncReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -9512,7 +10201,7 @@ fn destack_fs_fsync_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FsyncReplay { result }
+                    FsFileFsyncReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -9530,7 +10219,7 @@ fn destack_fs_fsync_replay(
 }
 
 #[inline]
-fn destack_fs_ftruncate_replay(
+fn destack_fs_file_ftruncate_replay(
     context: &RuntimeCallContext,
     handle: resource::FileHandle,
     size: FileOffset,
@@ -9538,12 +10227,12 @@ fn destack_fs_ftruncate_replay(
     let _ = (&handle, &size);
 
     context.replay().run_binding(
-        FTRUNCATE,
+        FS_FILE_FTRUNCATE,
         || unsafe { platform_native::destack_fs_ftruncate(context, handle, size) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = FtruncateReplay {
+                let payload = FsFileFtruncateReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -9552,7 +10241,7 @@ fn destack_fs_ftruncate_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FtruncateReplay { result }
+                    FsFileFtruncateReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -9570,7 +10259,7 @@ fn destack_fs_ftruncate_replay(
 }
 
 #[inline]
-fn destack_fs_get_fd_flags_replay(
+fn destack_fs_file_get_fd_flags_replay(
     context: &RuntimeCallContext,
     out: *mut FdFlags,
     handle: resource::FileHandle,
@@ -9578,7 +10267,7 @@ fn destack_fs_get_fd_flags_replay(
     let _ = &handle;
 
     context.replay().run_binding(
-        GET_FD_FLAGS,
+        FS_FILE_GET_FD_FLAGS,
         || unsafe { platform_native::destack_fs_get_fd_flags(context, out, handle) },
         |result| {
             if let Ok(()) = result {
@@ -9589,7 +10278,7 @@ fn destack_fs_get_fd_flags_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = GetFdFlagsReplay {
+                let payload = FsFileGetFdFlagsReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -9598,7 +10287,7 @@ fn destack_fs_get_fd_flags_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    GetFdFlagsReplay { result }
+                    FsFileGetFdFlagsReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -9622,7 +10311,7 @@ fn destack_fs_get_fd_flags_replay(
 }
 
 #[inline]
-fn destack_fs_get_status_flags_replay(
+fn destack_fs_file_get_status_flags_replay(
     context: &RuntimeCallContext,
     out: *mut StatusFlags,
     handle: resource::FileHandle,
@@ -9630,7 +10319,7 @@ fn destack_fs_get_status_flags_replay(
     let _ = &handle;
 
     context.replay().run_binding(
-        GET_STATUS_FLAGS,
+        FS_FILE_GET_STATUS_FLAGS,
         || unsafe { platform_native::destack_fs_get_status_flags(context, out, handle) },
         |result| {
             if let Ok(()) = result {
@@ -9641,7 +10330,7 @@ fn destack_fs_get_status_flags_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = GetStatusFlagsReplay {
+                let payload = FsFileGetStatusFlagsReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -9650,7 +10339,7 @@ fn destack_fs_get_status_flags_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    GetStatusFlagsReplay { result }
+                    FsFileGetStatusFlagsReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -9674,7 +10363,7 @@ fn destack_fs_get_status_flags_replay(
 }
 
 #[inline]
-fn destack_fs_lock_replay(
+fn destack_fs_file_lock_replay(
     context: &RuntimeCallContext,
     handle: resource::FileHandle,
     flags: FileLockFlags,
@@ -9682,12 +10371,12 @@ fn destack_fs_lock_replay(
     let _ = (&handle, &flags);
 
     context.replay().run_binding(
-        LOCK,
+        FS_FILE_LOCK,
         || unsafe { platform_native::destack_fs_lock(context, handle, flags) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = LockReplay {
+                let payload = FsFileLockReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -9696,7 +10385,7 @@ fn destack_fs_lock_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    LockReplay { result }
+                    FsFileLockReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -9714,7 +10403,7 @@ fn destack_fs_lock_replay(
 }
 
 #[inline]
-fn destack_fs_open_replay(
+fn destack_fs_file_open_replay(
     context: &RuntimeCallContext,
     out: *mut resource::FileHandle,
     path: OsPath,
@@ -9724,7 +10413,7 @@ fn destack_fs_open_replay(
     let _ = (&path, &flags, &mode);
 
     context.replay().run_binding(
-        OPEN,
+        FS_FILE_OPEN,
         || unsafe { platform_native::destack_fs_open(context, out, path, flags, mode) },
         |result| {
             if let Ok(()) = result {
@@ -9735,7 +10424,7 @@ fn destack_fs_open_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = OpenReplay {
+                let payload = FsFileOpenReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -9744,7 +10433,7 @@ fn destack_fs_open_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    OpenReplay { result }
+                    FsFileOpenReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -9768,7 +10457,7 @@ fn destack_fs_open_replay(
 }
 
 #[inline]
-fn destack_fs_openat_replay(
+fn destack_fs_file_openat_replay(
     context: &RuntimeCallContext,
     out: *mut resource::FileHandle,
     dir: resource::DirectoryHandle,
@@ -9779,7 +10468,7 @@ fn destack_fs_openat_replay(
     let _ = (&dir, &path, &flags, &mode);
 
     context.replay().run_binding(
-        OPENAT,
+        FS_FILE_OPENAT,
         || unsafe { platform_native::destack_fs_openat(context, out, dir, path, flags, mode) },
         |result| {
             if let Ok(()) = result {
@@ -9790,7 +10479,7 @@ fn destack_fs_openat_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = OpenatReplay {
+                let payload = FsFileOpenatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -9799,7 +10488,7 @@ fn destack_fs_openat_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    OpenatReplay { result }
+                    FsFileOpenatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -9823,7 +10512,7 @@ fn destack_fs_openat_replay(
 }
 
 #[inline]
-fn destack_fs_openat2_replay(
+fn destack_fs_file_openat2_replay(
     context: &RuntimeCallContext,
     out: *mut resource::FileHandle,
     dir: resource::DirectoryHandle,
@@ -9833,7 +10522,7 @@ fn destack_fs_openat2_replay(
     let _ = (&dir, &path, &how);
 
     context.replay().run_binding(
-        OPENAT2,
+        FS_FILE_OPENAT2,
         || unsafe { platform_native::destack_fs_openat2(context, out, dir, path, how) },
         |result| {
             if let Ok(()) = result {
@@ -9844,7 +10533,7 @@ fn destack_fs_openat2_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = Openat2Replay {
+                let payload = FsFileOpenat2Replay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -9853,7 +10542,7 @@ fn destack_fs_openat2_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    Openat2Replay { result }
+                    FsFileOpenat2Replay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -9877,7 +10566,7 @@ fn destack_fs_openat2_replay(
 }
 
 #[inline]
-fn destack_fs_pread_replay(
+fn destack_fs_file_pread_replay(
     context: &RuntimeCallContext,
     out: *mut u64,
     handle: resource::FileHandle,
@@ -9887,7 +10576,7 @@ fn destack_fs_pread_replay(
     let _ = (&handle, &buffer, &offset);
 
     context.replay().run_binding(
-        PREAD,
+        FS_FILE_PREAD,
         || unsafe { platform_native::destack_fs_pread(context, out, handle, buffer, offset) },
         |result| {
             if let Ok(()) = result {
@@ -9898,7 +10587,7 @@ fn destack_fs_pread_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = PreadReplay {
+                let payload = FsFilePreadReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -9907,7 +10596,7 @@ fn destack_fs_pread_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    PreadReplay { result }
+                    FsFilePreadReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -9931,7 +10620,7 @@ fn destack_fs_pread_replay(
 }
 
 #[inline]
-fn destack_fs_preadv_replay(
+fn destack_fs_file_preadv_replay(
     context: &RuntimeCallContext,
     out: *mut u64,
     handle: resource::FileHandle,
@@ -9941,7 +10630,7 @@ fn destack_fs_preadv_replay(
     let _ = (&handle, &buffers, &offset);
 
     context.replay().run_binding(
-        PREADV,
+        FS_FILE_PREADV,
         || unsafe { platform_native::destack_fs_preadv(context, out, handle, buffers, offset) },
         |result| {
             if let Ok(()) = result {
@@ -9952,7 +10641,7 @@ fn destack_fs_preadv_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = PreadvReplay {
+                let payload = FsFilePreadvReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -9961,7 +10650,7 @@ fn destack_fs_preadv_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    PreadvReplay { result }
+                    FsFilePreadvReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -9985,7 +10674,7 @@ fn destack_fs_preadv_replay(
 }
 
 #[inline]
-fn destack_fs_pwrite_replay(
+fn destack_fs_file_pwrite_replay(
     context: &RuntimeCallContext,
     out: *mut u64,
     handle: resource::FileHandle,
@@ -9995,7 +10684,7 @@ fn destack_fs_pwrite_replay(
     let _ = (&handle, &buffer, &offset);
 
     context.replay().run_binding(
-        PWRITE,
+        FS_FILE_PWRITE,
         || unsafe { platform_native::destack_fs_pwrite(context, out, handle, buffer, offset) },
         |result| {
             if let Ok(()) = result {
@@ -10006,7 +10695,7 @@ fn destack_fs_pwrite_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = PwriteReplay {
+                let payload = FsFilePwriteReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -10015,7 +10704,7 @@ fn destack_fs_pwrite_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    PwriteReplay { result }
+                    FsFilePwriteReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -10039,7 +10728,7 @@ fn destack_fs_pwrite_replay(
 }
 
 #[inline]
-fn destack_fs_pwritev_replay(
+fn destack_fs_file_pwritev_replay(
     context: &RuntimeCallContext,
     out: *mut u64,
     handle: resource::FileHandle,
@@ -10049,7 +10738,7 @@ fn destack_fs_pwritev_replay(
     let _ = (&handle, &buffers, &offset);
 
     context.replay().run_binding(
-        PWRITEV,
+        FS_FILE_PWRITEV,
         || unsafe { platform_native::destack_fs_pwritev(context, out, handle, buffers, offset) },
         |result| {
             if let Ok(()) = result {
@@ -10060,7 +10749,7 @@ fn destack_fs_pwritev_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = PwritevReplay {
+                let payload = FsFilePwritevReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -10069,7 +10758,7 @@ fn destack_fs_pwritev_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    PwritevReplay { result }
+                    FsFilePwritevReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -10093,7 +10782,7 @@ fn destack_fs_pwritev_replay(
 }
 
 #[inline]
-fn destack_fs_read_replay(
+fn destack_fs_file_read_replay(
     context: &RuntimeCallContext,
     out: *mut u64,
     handle: resource::FileHandle,
@@ -10102,7 +10791,7 @@ fn destack_fs_read_replay(
     let _ = (&handle, &buffer);
 
     context.replay().run_binding(
-        READ,
+        FS_FILE_READ,
         || unsafe { platform_native::destack_fs_read(context, out, handle, buffer) },
         |result| {
             if let Ok(()) = result {
@@ -10113,7 +10802,7 @@ fn destack_fs_read_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = ReadReplay {
+                let payload = FsFileReadReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -10122,7 +10811,7 @@ fn destack_fs_read_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ReadReplay { result }
+                    FsFileReadReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -10146,7 +10835,7 @@ fn destack_fs_read_replay(
 }
 
 #[inline]
-fn destack_fs_readv_replay(
+fn destack_fs_file_readv_replay(
     context: &RuntimeCallContext,
     out: *mut u64,
     handle: resource::FileHandle,
@@ -10155,7 +10844,7 @@ fn destack_fs_readv_replay(
     let _ = (&handle, &buffers);
 
     context.replay().run_binding(
-        READV,
+        FS_FILE_READV,
         || unsafe { platform_native::destack_fs_readv(context, out, handle, buffers) },
         |result| {
             if let Ok(()) = result {
@@ -10166,7 +10855,7 @@ fn destack_fs_readv_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = ReadvReplay {
+                let payload = FsFileReadvReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -10175,7 +10864,7 @@ fn destack_fs_readv_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ReadvReplay { result }
+                    FsFileReadvReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -10199,7 +10888,7 @@ fn destack_fs_readv_replay(
 }
 
 #[inline]
-fn destack_fs_seek_replay(
+fn destack_fs_file_seek_replay(
     context: &RuntimeCallContext,
     out: *mut FileOffset,
     handle: resource::FileHandle,
@@ -10209,7 +10898,7 @@ fn destack_fs_seek_replay(
     let _ = (&handle, &offset, &whence);
 
     context.replay().run_binding(
-        SEEK,
+        FS_FILE_SEEK,
         || unsafe { platform_native::destack_fs_seek(context, out, handle, offset, whence) },
         |result| {
             if let Ok(()) = result {
@@ -10220,7 +10909,7 @@ fn destack_fs_seek_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = SeekReplay {
+                let payload = FsFileSeekReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -10229,7 +10918,7 @@ fn destack_fs_seek_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    SeekReplay { result }
+                    FsFileSeekReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -10253,7 +10942,7 @@ fn destack_fs_seek_replay(
 }
 
 #[inline]
-fn destack_fs_sendfile_replay(
+fn destack_fs_file_sendfile_replay(
     context: &RuntimeCallContext,
     out: *mut u64,
     socket: resource::SocketHandle,
@@ -10264,7 +10953,7 @@ fn destack_fs_sendfile_replay(
     let _ = (&socket, &file, &offset, &length);
 
     context.replay().run_binding(
-        SENDFILE,
+        FS_FILE_SENDFILE,
         || unsafe {
             platform_native::destack_fs_sendfile(context, out, socket, file, offset, length)
         },
@@ -10277,7 +10966,7 @@ fn destack_fs_sendfile_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = SendfileReplay {
+                let payload = FsFileSendfileReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -10286,7 +10975,7 @@ fn destack_fs_sendfile_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    SendfileReplay { result }
+                    FsFileSendfileReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -10310,7 +10999,7 @@ fn destack_fs_sendfile_replay(
 }
 
 #[inline]
-fn destack_fs_set_fd_flags_replay(
+fn destack_fs_file_set_fd_flags_replay(
     context: &RuntimeCallContext,
     handle: resource::FileHandle,
     flags: FdFlags,
@@ -10318,12 +11007,12 @@ fn destack_fs_set_fd_flags_replay(
     let _ = (&handle, &flags);
 
     context.replay().run_binding(
-        SET_FD_FLAGS,
+        FS_FILE_SET_FD_FLAGS,
         || unsafe { platform_native::destack_fs_set_fd_flags(context, handle, flags) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = SetFdFlagsReplay {
+                let payload = FsFileSetFdFlagsReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -10332,7 +11021,7 @@ fn destack_fs_set_fd_flags_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    SetFdFlagsReplay { result }
+                    FsFileSetFdFlagsReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -10350,7 +11039,7 @@ fn destack_fs_set_fd_flags_replay(
 }
 
 #[inline]
-fn destack_fs_set_status_flags_replay(
+fn destack_fs_file_set_status_flags_replay(
     context: &RuntimeCallContext,
     handle: resource::FileHandle,
     flags: StatusFlags,
@@ -10358,12 +11047,12 @@ fn destack_fs_set_status_flags_replay(
     let _ = (&handle, &flags);
 
     context.replay().run_binding(
-        SET_STATUS_FLAGS,
+        FS_FILE_SET_STATUS_FLAGS,
         || unsafe { platform_native::destack_fs_set_status_flags(context, handle, flags) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = SetStatusFlagsReplay {
+                let payload = FsFileSetStatusFlagsReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -10372,7 +11061,7 @@ fn destack_fs_set_status_flags_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    SetStatusFlagsReplay { result }
+                    FsFileSetStatusFlagsReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -10390,7 +11079,7 @@ fn destack_fs_set_status_flags_replay(
 }
 
 #[inline]
-fn destack_fs_sync_file_range_replay(
+fn destack_fs_file_sync_file_range_replay(
     context: &RuntimeCallContext,
     handle: resource::FileHandle,
     offset: FileOffset,
@@ -10400,14 +11089,14 @@ fn destack_fs_sync_file_range_replay(
     let _ = (&handle, &offset, &length, &flags);
 
     context.replay().run_binding(
-        SYNC_FILE_RANGE,
+        FS_FILE_SYNC_FILE_RANGE,
         || unsafe {
             platform_native::destack_fs_sync_file_range(context, handle, offset, length, flags)
         },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = SyncFileRangeReplay {
+                let payload = FsFileSyncFileRangeReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -10416,7 +11105,7 @@ fn destack_fs_sync_file_range_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    SyncFileRangeReplay { result }
+                    FsFileSyncFileRangeReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -10434,19 +11123,19 @@ fn destack_fs_sync_file_range_replay(
 }
 
 #[inline]
-fn destack_fs_syncfs_replay(
+fn destack_fs_file_syncfs_replay(
     context: &RuntimeCallContext,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
     context.replay().run_binding(
-        SYNCFS,
+        FS_FILE_SYNCFS,
         || unsafe { platform_native::destack_fs_syncfs(context, handle) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = SyncfsReplay {
+                let payload = FsFileSyncfsReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -10455,7 +11144,7 @@ fn destack_fs_syncfs_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    SyncfsReplay { result }
+                    FsFileSyncfsReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -10473,7 +11162,7 @@ fn destack_fs_syncfs_replay(
 }
 
 #[inline]
-fn destack_fs_truncate_replay(
+fn destack_fs_file_truncate_replay(
     context: &RuntimeCallContext,
     path: OsPath,
     size: FileOffset,
@@ -10481,12 +11170,12 @@ fn destack_fs_truncate_replay(
     let _ = (&path, &size);
 
     context.replay().run_binding(
-        TRUNCATE,
+        FS_FILE_TRUNCATE,
         || unsafe { platform_native::destack_fs_truncate(context, path, size) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = TruncateReplay {
+                let payload = FsFileTruncateReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -10495,7 +11184,7 @@ fn destack_fs_truncate_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    TruncateReplay { result }
+                    FsFileTruncateReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -10513,7 +11202,7 @@ fn destack_fs_truncate_replay(
 }
 
 #[inline]
-fn destack_fs_write_replay(
+fn destack_fs_file_write_replay(
     context: &RuntimeCallContext,
     out: *mut u64,
     handle: resource::FileHandle,
@@ -10522,7 +11211,7 @@ fn destack_fs_write_replay(
     let _ = (&handle, &buffer);
 
     context.replay().run_binding(
-        WRITE,
+        FS_FILE_WRITE,
         || unsafe { platform_native::destack_fs_write(context, out, handle, buffer) },
         |result| {
             if let Ok(()) = result {
@@ -10533,7 +11222,7 @@ fn destack_fs_write_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = WriteReplay {
+                let payload = FsFileWriteReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -10542,7 +11231,7 @@ fn destack_fs_write_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    WriteReplay { result }
+                    FsFileWriteReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -10566,7 +11255,7 @@ fn destack_fs_write_replay(
 }
 
 #[inline]
-fn destack_fs_writev_replay(
+fn destack_fs_file_writev_replay(
     context: &RuntimeCallContext,
     out: *mut u64,
     handle: resource::FileHandle,
@@ -10575,7 +11264,7 @@ fn destack_fs_writev_replay(
     let _ = (&handle, &buffers);
 
     context.replay().run_binding(
-        WRITEV,
+        FS_FILE_WRITEV,
         || unsafe { platform_native::destack_fs_writev(context, out, handle, buffers) },
         |result| {
             if let Ok(()) = result {
@@ -10586,7 +11275,7 @@ fn destack_fs_writev_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = WritevReplay {
+                let payload = FsFileWritevReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -10595,7 +11284,7 @@ fn destack_fs_writev_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    WritevReplay { result }
+                    FsFileWritevReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -10619,7 +11308,7 @@ fn destack_fs_writev_replay(
 }
 
 #[inline]
-fn destack_fs_madvise_replay(
+fn destack_fs_mmap_madvise_replay(
     context: &RuntimeCallContext,
     mapping: NativeSlice<u8>,
     advice: MmapAdvice,
@@ -10627,12 +11316,12 @@ fn destack_fs_madvise_replay(
     let _ = (&mapping, &advice);
 
     context.replay().run_binding(
-        MADVISE,
+        FS_MMAP_MADVISE,
         || unsafe { platform_native::destack_fs_madvise(context, mapping, advice) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = MadviseReplay {
+                let payload = FsMmapMadviseReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -10641,7 +11330,7 @@ fn destack_fs_madvise_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MadviseReplay { result }
+                    FsMmapMadviseReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -10659,7 +11348,7 @@ fn destack_fs_madvise_replay(
 }
 
 #[inline]
-fn destack_fs_mprotect_replay(
+fn destack_fs_mmap_mprotect_replay(
     context: &RuntimeCallContext,
     mapping: NativeSlice<u8>,
     prot: MmapProt,
@@ -10667,12 +11356,12 @@ fn destack_fs_mprotect_replay(
     let _ = (&mapping, &prot);
 
     context.replay().run_binding(
-        MPROTECT,
+        FS_MMAP_MPROTECT,
         || unsafe { platform_native::destack_fs_mprotect(context, mapping, prot) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = MprotectReplay {
+                let payload = FsMmapMprotectReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -10681,7 +11370,7 @@ fn destack_fs_mprotect_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MprotectReplay { result }
+                    FsMmapMprotectReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -10699,7 +11388,7 @@ fn destack_fs_mprotect_replay(
 }
 
 #[inline]
-fn destack_fs_msync_replay(
+fn destack_fs_mmap_msync_replay(
     context: &RuntimeCallContext,
     mapping: NativeSlice<u8>,
     flags: MmapSyncFlags,
@@ -10707,12 +11396,12 @@ fn destack_fs_msync_replay(
     let _ = (&mapping, &flags);
 
     context.replay().run_binding(
-        MSYNC,
+        FS_MMAP_MSYNC,
         || unsafe { platform_native::destack_fs_msync(context, mapping, flags) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = MsyncReplay {
+                let payload = FsMmapMsyncReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -10721,7 +11410,7 @@ fn destack_fs_msync_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MsyncReplay { result }
+                    FsMmapMsyncReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -10739,19 +11428,19 @@ fn destack_fs_msync_replay(
 }
 
 #[inline]
-fn destack_fs_munmap_replay(
+fn destack_fs_mmap_munmap_replay(
     context: &RuntimeCallContext,
     mapping: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = &mapping;
 
     context.replay().run_binding(
-        MUNMAP,
+        FS_MMAP_MUNMAP,
         || unsafe { platform_native::destack_fs_munmap(context, mapping) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = MunmapReplay {
+                let payload = FsMmapMunmapReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -10760,7 +11449,7 @@ fn destack_fs_munmap_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MunmapReplay { result }
+                    FsMmapMunmapReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -10788,7 +11477,7 @@ fn destack_fs_mmap_anonymous_replay(
     let _ = (&length, &prot, &flags);
 
     context.replay().run_binding(
-        MMAP_ANONYMOUS,
+        FS_MMAP_ANONYMOUS,
         || unsafe { platform_native::destack_fs_mmap_anonymous(context, out, length, prot, flags) },
         |result| {
             if let Ok(()) = result {
@@ -10805,7 +11494,7 @@ fn destack_fs_mmap_anonymous_replay(
                     let result_replay_item_replay = result_replay_item;
                     result_replay.push(result_replay_item_replay);
                 }
-                let payload = MmapAnonymousReplay {
+                let payload = FsMmapAnonymousReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -10814,7 +11503,7 @@ fn destack_fs_mmap_anonymous_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MmapAnonymousReplay { result }
+                    FsMmapAnonymousReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -10855,7 +11544,7 @@ fn destack_fs_mmap_file_replay(
     let _ = (&handle, &offset, &length, &prot, &flags);
 
     context.replay().run_binding(
-        MMAP_FILE,
+        FS_MMAP_FILE,
         || unsafe {
             platform_native::destack_fs_mmap_file(context, out, handle, offset, length, prot, flags)
         },
@@ -10874,7 +11563,7 @@ fn destack_fs_mmap_file_replay(
                     let result_replay_item_replay = result_replay_item;
                     result_replay.push(result_replay_item_replay);
                 }
-                let payload = MmapFileReplay {
+                let payload = FsMmapFileReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -10883,7 +11572,7 @@ fn destack_fs_mmap_file_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MmapFileReplay { result }
+                    FsMmapFileReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -10912,7 +11601,7 @@ fn destack_fs_mmap_file_replay(
 }
 
 #[inline]
-fn destack_fs_copyfile_replay(
+fn destack_fs_path_copyfile_replay(
     context: &RuntimeCallContext,
     from: OsPath,
     to: OsPath,
@@ -10921,12 +11610,12 @@ fn destack_fs_copyfile_replay(
     let _ = (&from, &to, &flags);
 
     context.replay().run_binding(
-        COPYFILE,
+        FS_PATH_COPYFILE,
         || unsafe { platform_native::destack_fs_copyfile(context, from, to, flags) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = CopyfileReplay {
+                let payload = FsPathCopyfileReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -10935,7 +11624,7 @@ fn destack_fs_copyfile_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    CopyfileReplay { result }
+                    FsPathCopyfileReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -10953,7 +11642,7 @@ fn destack_fs_copyfile_replay(
 }
 
 #[inline]
-fn destack_fs_link_replay(
+fn destack_fs_path_link_replay(
     context: &RuntimeCallContext,
     existingpath: OsPath,
     newpath: OsPath,
@@ -10961,12 +11650,12 @@ fn destack_fs_link_replay(
     let _ = (&existingpath, &newpath);
 
     context.replay().run_binding(
-        LINK,
+        FS_PATH_LINK,
         || unsafe { platform_native::destack_fs_link(context, existingpath, newpath) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = LinkReplay {
+                let payload = FsPathLinkReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -10975,7 +11664,7 @@ fn destack_fs_link_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    LinkReplay { result }
+                    FsPathLinkReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -10993,7 +11682,7 @@ fn destack_fs_link_replay(
 }
 
 #[inline]
-fn destack_fs_linkat_replay(
+fn destack_fs_path_linkat_replay(
     context: &RuntimeCallContext,
     existingdir: resource::DirectoryHandle,
     existingpath: OsPath,
@@ -11004,7 +11693,7 @@ fn destack_fs_linkat_replay(
     let _ = (&existingdir, &existingpath, &newdir, &newpath, &flags);
 
     context.replay().run_binding(
-        LINKAT,
+        FS_PATH_LINKAT,
         || unsafe {
             platform_native::destack_fs_linkat(
                 context,
@@ -11018,7 +11707,7 @@ fn destack_fs_linkat_replay(
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = LinkatReplay {
+                let payload = FsPathLinkatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -11027,7 +11716,7 @@ fn destack_fs_linkat_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    LinkatReplay { result }
+                    FsPathLinkatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -11045,7 +11734,7 @@ fn destack_fs_linkat_replay(
 }
 
 #[inline]
-fn destack_fs_mkfifo_replay(
+fn destack_fs_path_mkfifo_replay(
     context: &RuntimeCallContext,
     path: OsPath,
     mode: FileMode,
@@ -11053,12 +11742,12 @@ fn destack_fs_mkfifo_replay(
     let _ = (&path, &mode);
 
     context.replay().run_binding(
-        MKFIFO,
+        FS_PATH_MKFIFO,
         || unsafe { platform_native::destack_fs_mkfifo(context, path, mode) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = MkfifoReplay {
+                let payload = FsPathMkfifoReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -11067,7 +11756,7 @@ fn destack_fs_mkfifo_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MkfifoReplay { result }
+                    FsPathMkfifoReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -11085,7 +11774,7 @@ fn destack_fs_mkfifo_replay(
 }
 
 #[inline]
-fn destack_fs_mkfifoat_replay(
+fn destack_fs_path_mkfifoat_replay(
     context: &RuntimeCallContext,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -11094,12 +11783,12 @@ fn destack_fs_mkfifoat_replay(
     let _ = (&dir, &path, &mode);
 
     context.replay().run_binding(
-        MKFIFOAT,
+        FS_PATH_MKFIFOAT,
         || unsafe { platform_native::destack_fs_mkfifoat(context, dir, path, mode) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = MkfifoatReplay {
+                let payload = FsPathMkfifoatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -11108,7 +11797,7 @@ fn destack_fs_mkfifoat_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MkfifoatReplay { result }
+                    FsPathMkfifoatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -11126,7 +11815,7 @@ fn destack_fs_mkfifoat_replay(
 }
 
 #[inline]
-fn destack_fs_mknod_replay(
+fn destack_fs_path_mknod_replay(
     context: &RuntimeCallContext,
     path: OsPath,
     mode: FileMode,
@@ -11135,12 +11824,12 @@ fn destack_fs_mknod_replay(
     let _ = (&path, &mode, &device);
 
     context.replay().run_binding(
-        MKNOD,
+        FS_PATH_MKNOD,
         || unsafe { platform_native::destack_fs_mknod(context, path, mode, device) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = MknodReplay {
+                let payload = FsPathMknodReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -11149,7 +11838,7 @@ fn destack_fs_mknod_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MknodReplay { result }
+                    FsPathMknodReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -11167,7 +11856,7 @@ fn destack_fs_mknod_replay(
 }
 
 #[inline]
-fn destack_fs_mknodat_replay(
+fn destack_fs_path_mknodat_replay(
     context: &RuntimeCallContext,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -11177,12 +11866,12 @@ fn destack_fs_mknodat_replay(
     let _ = (&dir, &path, &mode, &device);
 
     context.replay().run_binding(
-        MKNODAT,
+        FS_PATH_MKNODAT,
         || unsafe { platform_native::destack_fs_mknodat(context, dir, path, mode, device) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = MknodatReplay {
+                let payload = FsPathMknodatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -11191,7 +11880,7 @@ fn destack_fs_mknodat_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MknodatReplay { result }
+                    FsPathMknodatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -11209,7 +11898,7 @@ fn destack_fs_mknodat_replay(
 }
 
 #[inline]
-fn destack_fs_readlink_replay(
+fn destack_fs_path_readlink_replay(
     context: &RuntimeCallContext,
     out: *mut OsPath,
     path: OsPath,
@@ -11217,7 +11906,7 @@ fn destack_fs_readlink_replay(
     let _ = &path;
 
     context.replay().run_binding(
-        READLINK,
+        FS_PATH_READLINK,
         || unsafe { platform_native::destack_fs_readlink(context, out, path) },
         |result| {
             if let Ok(()) = result {
@@ -11228,26 +11917,18 @@ fn destack_fs_readlink_replay(
                     *out
                 };
                 let result_replay_encoding = result_value.encoding;
-                let result_replay_bytes_raw = unsafe { result_value.bytes.0.as_slice()? };
-                let mut result_replay_bytes = Vec::with_capacity(result_replay_bytes_raw.len());
-                for result_replay_bytes_item_value in result_replay_bytes_raw {
-                    let result_replay_bytes_item = *result_replay_bytes_item_value;
-                    let result_replay_bytes_item_replay = result_replay_bytes_item;
-                    result_replay_bytes.push(result_replay_bytes_item_replay);
-                }
-                let result_replay_utf16_raw = unsafe { result_value.utf16.0.as_slice()? };
-                let mut result_replay_utf16 = Vec::with_capacity(result_replay_utf16_raw.len());
-                for result_replay_utf16_item_value in result_replay_utf16_raw {
-                    let result_replay_utf16_item = *result_replay_utf16_item_value;
-                    let result_replay_utf16_item_replay = result_replay_utf16_item;
-                    result_replay_utf16.push(result_replay_utf16_item_replay);
+                let result_replay_data_raw = unsafe { result_value.data.0.as_slice()? };
+                let mut result_replay_data = Vec::with_capacity(result_replay_data_raw.len());
+                for result_replay_data_item_value in result_replay_data_raw {
+                    let result_replay_data_item = *result_replay_data_item_value;
+                    let result_replay_data_item_replay = result_replay_data_item;
+                    result_replay_data.push(result_replay_data_item_replay);
                 }
                 let result_replay = OsPathReplay {
                     encoding: result_replay_encoding,
-                    bytes: result_replay_bytes,
-                    utf16: result_replay_utf16,
+                    data: result_replay_data,
                 };
-                let payload = ReadlinkReplay {
+                let payload = FsPathReadlinkReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -11256,7 +11937,7 @@ fn destack_fs_readlink_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ReadlinkReplay { result }
+                    FsPathReadlinkReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -11268,30 +11949,19 @@ fn destack_fs_readlink_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native_encoding = value.encoding;
-                    let mut value_native_bytes_inner_values = Vec::with_capacity(value.bytes.len());
-                    for value_native_bytes_inner_item in value.bytes {
-                        let value_native_bytes_inner_item_native = value_native_bytes_inner_item;
-                        value_native_bytes_inner_values.push(value_native_bytes_inner_item_native);
+                    let mut value_native_data_inner_values = Vec::with_capacity(value.data.len());
+                    for value_native_data_inner_item in value.data {
+                        let value_native_data_inner_item_native = value_native_data_inner_item;
+                        value_native_data_inner_values.push(value_native_data_inner_item_native);
                     }
-                    let value_native_bytes_inner =
-                        context.store_array(value_native_bytes_inner_values);
-                    let value_native_bytes = crate::platform::fs::PathBytesAbi::<
+                    let value_native_data_inner =
+                        context.store_array(value_native_data_inner_values);
+                    let value_native_data = crate::platform::fs::PathBytesAbi::<
                         crate::platform::abi::NativeAbi,
-                    >(value_native_bytes_inner);
-                    let mut value_native_utf16_inner_values = Vec::with_capacity(value.utf16.len());
-                    for value_native_utf16_inner_item in value.utf16 {
-                        let value_native_utf16_inner_item_native = value_native_utf16_inner_item;
-                        value_native_utf16_inner_values.push(value_native_utf16_inner_item_native);
-                    }
-                    let value_native_utf16_inner =
-                        context.store_array(value_native_utf16_inner_values);
-                    let value_native_utf16 = crate::platform::fs::PathUtf16Abi::<
-                        crate::platform::abi::NativeAbi,
-                    >(value_native_utf16_inner);
+                    >(value_native_data_inner);
                     let value_native = OsPath {
                         encoding: value_native_encoding,
-                        bytes: value_native_bytes,
-                        utf16: value_native_utf16,
+                        data: value_native_data,
                     };
                     unsafe {
                         std::ptr::write(out, value_native);
@@ -11305,7 +11975,7 @@ fn destack_fs_readlink_replay(
 }
 
 #[inline]
-fn destack_fs_readlinkat_replay(
+fn destack_fs_path_readlinkat_replay(
     context: &RuntimeCallContext,
     out: *mut OsPath,
     dir: resource::DirectoryHandle,
@@ -11314,7 +11984,7 @@ fn destack_fs_readlinkat_replay(
     let _ = (&dir, &path);
 
     context.replay().run_binding(
-        READLINKAT,
+        FS_PATH_READLINKAT,
         || unsafe { platform_native::destack_fs_readlinkat(context, out, dir, path) },
         |result| {
             if let Ok(()) = result {
@@ -11325,26 +11995,18 @@ fn destack_fs_readlinkat_replay(
                     *out
                 };
                 let result_replay_encoding = result_value.encoding;
-                let result_replay_bytes_raw = unsafe { result_value.bytes.0.as_slice()? };
-                let mut result_replay_bytes = Vec::with_capacity(result_replay_bytes_raw.len());
-                for result_replay_bytes_item_value in result_replay_bytes_raw {
-                    let result_replay_bytes_item = *result_replay_bytes_item_value;
-                    let result_replay_bytes_item_replay = result_replay_bytes_item;
-                    result_replay_bytes.push(result_replay_bytes_item_replay);
-                }
-                let result_replay_utf16_raw = unsafe { result_value.utf16.0.as_slice()? };
-                let mut result_replay_utf16 = Vec::with_capacity(result_replay_utf16_raw.len());
-                for result_replay_utf16_item_value in result_replay_utf16_raw {
-                    let result_replay_utf16_item = *result_replay_utf16_item_value;
-                    let result_replay_utf16_item_replay = result_replay_utf16_item;
-                    result_replay_utf16.push(result_replay_utf16_item_replay);
+                let result_replay_data_raw = unsafe { result_value.data.0.as_slice()? };
+                let mut result_replay_data = Vec::with_capacity(result_replay_data_raw.len());
+                for result_replay_data_item_value in result_replay_data_raw {
+                    let result_replay_data_item = *result_replay_data_item_value;
+                    let result_replay_data_item_replay = result_replay_data_item;
+                    result_replay_data.push(result_replay_data_item_replay);
                 }
                 let result_replay = OsPathReplay {
                     encoding: result_replay_encoding,
-                    bytes: result_replay_bytes,
-                    utf16: result_replay_utf16,
+                    data: result_replay_data,
                 };
-                let payload = ReadlinkatReplay {
+                let payload = FsPathReadlinkatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -11353,7 +12015,7 @@ fn destack_fs_readlinkat_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ReadlinkatReplay { result }
+                    FsPathReadlinkatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -11365,30 +12027,19 @@ fn destack_fs_readlinkat_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native_encoding = value.encoding;
-                    let mut value_native_bytes_inner_values = Vec::with_capacity(value.bytes.len());
-                    for value_native_bytes_inner_item in value.bytes {
-                        let value_native_bytes_inner_item_native = value_native_bytes_inner_item;
-                        value_native_bytes_inner_values.push(value_native_bytes_inner_item_native);
+                    let mut value_native_data_inner_values = Vec::with_capacity(value.data.len());
+                    for value_native_data_inner_item in value.data {
+                        let value_native_data_inner_item_native = value_native_data_inner_item;
+                        value_native_data_inner_values.push(value_native_data_inner_item_native);
                     }
-                    let value_native_bytes_inner =
-                        context.store_array(value_native_bytes_inner_values);
-                    let value_native_bytes = crate::platform::fs::PathBytesAbi::<
+                    let value_native_data_inner =
+                        context.store_array(value_native_data_inner_values);
+                    let value_native_data = crate::platform::fs::PathBytesAbi::<
                         crate::platform::abi::NativeAbi,
-                    >(value_native_bytes_inner);
-                    let mut value_native_utf16_inner_values = Vec::with_capacity(value.utf16.len());
-                    for value_native_utf16_inner_item in value.utf16 {
-                        let value_native_utf16_inner_item_native = value_native_utf16_inner_item;
-                        value_native_utf16_inner_values.push(value_native_utf16_inner_item_native);
-                    }
-                    let value_native_utf16_inner =
-                        context.store_array(value_native_utf16_inner_values);
-                    let value_native_utf16 = crate::platform::fs::PathUtf16Abi::<
-                        crate::platform::abi::NativeAbi,
-                    >(value_native_utf16_inner);
+                    >(value_native_data_inner);
                     let value_native = OsPath {
                         encoding: value_native_encoding,
-                        bytes: value_native_bytes,
-                        utf16: value_native_utf16,
+                        data: value_native_data,
                     };
                     unsafe {
                         std::ptr::write(out, value_native);
@@ -11402,7 +12053,7 @@ fn destack_fs_readlinkat_replay(
 }
 
 #[inline]
-fn destack_fs_realpath_replay(
+fn destack_fs_path_realpath_replay(
     context: &RuntimeCallContext,
     out: *mut OsPath,
     path: OsPath,
@@ -11410,7 +12061,7 @@ fn destack_fs_realpath_replay(
     let _ = &path;
 
     context.replay().run_binding(
-        REALPATH,
+        FS_PATH_REALPATH,
         || unsafe { platform_native::destack_fs_realpath(context, out, path) },
         |result| {
             if let Ok(()) = result {
@@ -11421,26 +12072,18 @@ fn destack_fs_realpath_replay(
                     *out
                 };
                 let result_replay_encoding = result_value.encoding;
-                let result_replay_bytes_raw = unsafe { result_value.bytes.0.as_slice()? };
-                let mut result_replay_bytes = Vec::with_capacity(result_replay_bytes_raw.len());
-                for result_replay_bytes_item_value in result_replay_bytes_raw {
-                    let result_replay_bytes_item = *result_replay_bytes_item_value;
-                    let result_replay_bytes_item_replay = result_replay_bytes_item;
-                    result_replay_bytes.push(result_replay_bytes_item_replay);
-                }
-                let result_replay_utf16_raw = unsafe { result_value.utf16.0.as_slice()? };
-                let mut result_replay_utf16 = Vec::with_capacity(result_replay_utf16_raw.len());
-                for result_replay_utf16_item_value in result_replay_utf16_raw {
-                    let result_replay_utf16_item = *result_replay_utf16_item_value;
-                    let result_replay_utf16_item_replay = result_replay_utf16_item;
-                    result_replay_utf16.push(result_replay_utf16_item_replay);
+                let result_replay_data_raw = unsafe { result_value.data.0.as_slice()? };
+                let mut result_replay_data = Vec::with_capacity(result_replay_data_raw.len());
+                for result_replay_data_item_value in result_replay_data_raw {
+                    let result_replay_data_item = *result_replay_data_item_value;
+                    let result_replay_data_item_replay = result_replay_data_item;
+                    result_replay_data.push(result_replay_data_item_replay);
                 }
                 let result_replay = OsPathReplay {
                     encoding: result_replay_encoding,
-                    bytes: result_replay_bytes,
-                    utf16: result_replay_utf16,
+                    data: result_replay_data,
                 };
-                let payload = RealpathReplay {
+                let payload = FsPathRealpathReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -11449,7 +12092,7 @@ fn destack_fs_realpath_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    RealpathReplay { result }
+                    FsPathRealpathReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -11461,30 +12104,19 @@ fn destack_fs_realpath_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native_encoding = value.encoding;
-                    let mut value_native_bytes_inner_values = Vec::with_capacity(value.bytes.len());
-                    for value_native_bytes_inner_item in value.bytes {
-                        let value_native_bytes_inner_item_native = value_native_bytes_inner_item;
-                        value_native_bytes_inner_values.push(value_native_bytes_inner_item_native);
+                    let mut value_native_data_inner_values = Vec::with_capacity(value.data.len());
+                    for value_native_data_inner_item in value.data {
+                        let value_native_data_inner_item_native = value_native_data_inner_item;
+                        value_native_data_inner_values.push(value_native_data_inner_item_native);
                     }
-                    let value_native_bytes_inner =
-                        context.store_array(value_native_bytes_inner_values);
-                    let value_native_bytes = crate::platform::fs::PathBytesAbi::<
+                    let value_native_data_inner =
+                        context.store_array(value_native_data_inner_values);
+                    let value_native_data = crate::platform::fs::PathBytesAbi::<
                         crate::platform::abi::NativeAbi,
-                    >(value_native_bytes_inner);
-                    let mut value_native_utf16_inner_values = Vec::with_capacity(value.utf16.len());
-                    for value_native_utf16_inner_item in value.utf16 {
-                        let value_native_utf16_inner_item_native = value_native_utf16_inner_item;
-                        value_native_utf16_inner_values.push(value_native_utf16_inner_item_native);
-                    }
-                    let value_native_utf16_inner =
-                        context.store_array(value_native_utf16_inner_values);
-                    let value_native_utf16 = crate::platform::fs::PathUtf16Abi::<
-                        crate::platform::abi::NativeAbi,
-                    >(value_native_utf16_inner);
+                    >(value_native_data_inner);
                     let value_native = OsPath {
                         encoding: value_native_encoding,
-                        bytes: value_native_bytes,
-                        utf16: value_native_utf16,
+                        data: value_native_data,
                     };
                     unsafe {
                         std::ptr::write(out, value_native);
@@ -11498,7 +12130,7 @@ fn destack_fs_realpath_replay(
 }
 
 #[inline]
-fn destack_fs_rename_replay(
+fn destack_fs_path_rename_replay(
     context: &RuntimeCallContext,
     from: OsPath,
     to: OsPath,
@@ -11506,12 +12138,12 @@ fn destack_fs_rename_replay(
     let _ = (&from, &to);
 
     context.replay().run_binding(
-        RENAME,
+        FS_PATH_RENAME,
         || unsafe { platform_native::destack_fs_rename(context, from, to) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = RenameReplay {
+                let payload = FsPathRenameReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -11520,7 +12152,7 @@ fn destack_fs_rename_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    RenameReplay { result }
+                    FsPathRenameReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -11538,7 +12170,7 @@ fn destack_fs_rename_replay(
 }
 
 #[inline]
-fn destack_fs_renameat_replay(
+fn destack_fs_path_renameat_replay(
     context: &RuntimeCallContext,
     fromdir: resource::DirectoryHandle,
     from: OsPath,
@@ -11548,12 +12180,12 @@ fn destack_fs_renameat_replay(
     let _ = (&fromdir, &from, &todir, &to);
 
     context.replay().run_binding(
-        RENAMEAT,
+        FS_PATH_RENAMEAT,
         || unsafe { platform_native::destack_fs_renameat(context, fromdir, from, todir, to) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = RenameatReplay {
+                let payload = FsPathRenameatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -11562,7 +12194,7 @@ fn destack_fs_renameat_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    RenameatReplay { result }
+                    FsPathRenameatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -11580,7 +12212,7 @@ fn destack_fs_renameat_replay(
 }
 
 #[inline]
-fn destack_fs_renameat2_replay(
+fn destack_fs_path_renameat2_replay(
     context: &RuntimeCallContext,
     fromdir: resource::DirectoryHandle,
     from: OsPath,
@@ -11591,14 +12223,14 @@ fn destack_fs_renameat2_replay(
     let _ = (&fromdir, &from, &todir, &to, &flags);
 
     context.replay().run_binding(
-        RENAMEAT2,
+        FS_PATH_RENAMEAT2,
         || unsafe {
             platform_native::destack_fs_renameat2(context, fromdir, from, todir, to, flags)
         },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = Renameat2Replay {
+                let payload = FsPathRenameat2Replay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -11607,7 +12239,7 @@ fn destack_fs_renameat2_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    Renameat2Replay { result }
+                    FsPathRenameat2Replay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -11625,7 +12257,7 @@ fn destack_fs_renameat2_replay(
 }
 
 #[inline]
-fn destack_fs_symlink_replay(
+fn destack_fs_path_symlink_replay(
     context: &RuntimeCallContext,
     target: OsPath,
     path: OsPath,
@@ -11634,12 +12266,12 @@ fn destack_fs_symlink_replay(
     let _ = (&target, &path, &kind);
 
     context.replay().run_binding(
-        SYMLINK,
+        FS_PATH_SYMLINK,
         || unsafe { platform_native::destack_fs_symlink(context, target, path, kind) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = SymlinkReplay {
+                let payload = FsPathSymlinkReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -11648,7 +12280,7 @@ fn destack_fs_symlink_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    SymlinkReplay { result }
+                    FsPathSymlinkReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -11666,7 +12298,7 @@ fn destack_fs_symlink_replay(
 }
 
 #[inline]
-fn destack_fs_symlinkat_replay(
+fn destack_fs_path_symlinkat_replay(
     context: &RuntimeCallContext,
     target: OsPath,
     dir: resource::DirectoryHandle,
@@ -11676,12 +12308,12 @@ fn destack_fs_symlinkat_replay(
     let _ = (&target, &dir, &path, &kind);
 
     context.replay().run_binding(
-        SYMLINKAT,
+        FS_PATH_SYMLINKAT,
         || unsafe { platform_native::destack_fs_symlinkat(context, target, dir, path, kind) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = SymlinkatReplay {
+                let payload = FsPathSymlinkatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -11690,7 +12322,7 @@ fn destack_fs_symlinkat_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    SymlinkatReplay { result }
+                    FsPathSymlinkatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -11708,16 +12340,16 @@ fn destack_fs_symlinkat_replay(
 }
 
 #[inline]
-fn destack_fs_unlink_replay(context: &RuntimeCallContext, path: OsPath) -> RuntimeResult<()> {
+fn destack_fs_path_unlink_replay(context: &RuntimeCallContext, path: OsPath) -> RuntimeResult<()> {
     let _ = &path;
 
     context.replay().run_binding(
-        UNLINK,
+        FS_PATH_UNLINK,
         || unsafe { platform_native::destack_fs_unlink(context, path) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = UnlinkReplay {
+                let payload = FsPathUnlinkReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -11726,7 +12358,7 @@ fn destack_fs_unlink_replay(context: &RuntimeCallContext, path: OsPath) -> Runti
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    UnlinkReplay { result }
+                    FsPathUnlinkReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -11744,7 +12376,7 @@ fn destack_fs_unlink_replay(context: &RuntimeCallContext, path: OsPath) -> Runti
 }
 
 #[inline]
-fn destack_fs_unlinkat_replay(
+fn destack_fs_path_unlinkat_replay(
     context: &RuntimeCallContext,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -11753,12 +12385,12 @@ fn destack_fs_unlinkat_replay(
     let _ = (&dir, &path, &flags);
 
     context.replay().run_binding(
-        UNLINKAT,
+        FS_PATH_UNLINKAT,
         || unsafe { platform_native::destack_fs_unlinkat(context, dir, path, flags) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = UnlinkatReplay {
+                let payload = FsPathUnlinkatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -11767,7 +12399,7 @@ fn destack_fs_unlinkat_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    UnlinkatReplay { result }
+                    FsPathUnlinkatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -11785,7 +12417,7 @@ fn destack_fs_unlinkat_replay(
 }
 
 #[inline]
-fn destack_fs_fstat_replay(
+fn destack_fs_stat_fstat_replay(
     context: &RuntimeCallContext,
     out: *mut Stat,
     handle: resource::FileHandle,
@@ -11793,7 +12425,7 @@ fn destack_fs_fstat_replay(
     let _ = &handle;
 
     context.replay().run_binding(
-        FSTAT,
+        FS_STAT_FSTAT,
         || unsafe { platform_native::destack_fs_fstat(context, out, handle) },
         |result| {
             if let Ok(()) = result {
@@ -11833,7 +12465,7 @@ fn destack_fs_fstat_replay(
                     ctime_ns: result_replay_ctime_ns,
                     birthtime_ns: result_replay_birthtime_ns,
                 };
-                let payload = FstatReplay {
+                let payload = FsStatFstatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -11842,7 +12474,7 @@ fn destack_fs_fstat_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FstatReplay { result }
+                    FsStatFstatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -11895,7 +12527,7 @@ fn destack_fs_fstat_replay(
 }
 
 #[inline]
-fn destack_fs_fstatfs_replay(
+fn destack_fs_stat_fstatfs_replay(
     context: &RuntimeCallContext,
     out: *mut StatFs,
     handle: resource::FileHandle,
@@ -11903,7 +12535,7 @@ fn destack_fs_fstatfs_replay(
     let _ = &handle;
 
     context.replay().run_binding(
-        FSTATFS,
+        FS_STAT_FSTATFS,
         || unsafe { platform_native::destack_fs_fstatfs(context, out, handle) },
         |result| {
             if let Ok(()) = result {
@@ -11935,7 +12567,7 @@ fn destack_fs_fstatfs_replay(
                     flags: result_replay_flags,
                     namelen: result_replay_namelen,
                 };
-                let payload = FstatfsReplay {
+                let payload = FsStatFstatfsReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -11944,7 +12576,7 @@ fn destack_fs_fstatfs_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FstatfsReplay { result }
+                    FsStatFstatfsReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -11989,7 +12621,7 @@ fn destack_fs_fstatfs_replay(
 }
 
 #[inline]
-fn destack_fs_lstat_replay(
+fn destack_fs_stat_lstat_replay(
     context: &RuntimeCallContext,
     out: *mut Stat,
     path: OsPath,
@@ -11997,7 +12629,7 @@ fn destack_fs_lstat_replay(
     let _ = &path;
 
     context.replay().run_binding(
-        LSTAT,
+        FS_STAT_LSTAT,
         || unsafe { platform_native::destack_fs_lstat(context, out, path) },
         |result| {
             if let Ok(()) = result {
@@ -12037,7 +12669,7 @@ fn destack_fs_lstat_replay(
                     ctime_ns: result_replay_ctime_ns,
                     birthtime_ns: result_replay_birthtime_ns,
                 };
-                let payload = LstatReplay {
+                let payload = FsStatLstatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -12046,7 +12678,7 @@ fn destack_fs_lstat_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    LstatReplay { result }
+                    FsStatLstatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -12099,7 +12731,7 @@ fn destack_fs_lstat_replay(
 }
 
 #[inline]
-fn destack_fs_stat_replay(
+fn destack_fs_stat_stat_replay(
     context: &RuntimeCallContext,
     out: *mut Stat,
     path: OsPath,
@@ -12107,7 +12739,7 @@ fn destack_fs_stat_replay(
     let _ = &path;
 
     context.replay().run_binding(
-        STAT,
+        FS_STAT_STAT,
         || unsafe { platform_native::destack_fs_stat(context, out, path) },
         |result| {
             if let Ok(()) = result {
@@ -12147,7 +12779,7 @@ fn destack_fs_stat_replay(
                     ctime_ns: result_replay_ctime_ns,
                     birthtime_ns: result_replay_birthtime_ns,
                 };
-                let payload = StatReplay {
+                let payload = FsStatStatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -12156,7 +12788,7 @@ fn destack_fs_stat_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    StatReplay { result }
+                    FsStatStatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -12209,7 +12841,7 @@ fn destack_fs_stat_replay(
 }
 
 #[inline]
-fn destack_fs_statat_replay(
+fn destack_fs_stat_statat_replay(
     context: &RuntimeCallContext,
     out: *mut Stat,
     dir: resource::DirectoryHandle,
@@ -12219,7 +12851,7 @@ fn destack_fs_statat_replay(
     let _ = (&dir, &path, &flags);
 
     context.replay().run_binding(
-        STATAT,
+        FS_STAT_STATAT,
         || unsafe { platform_native::destack_fs_statat(context, out, dir, path, flags) },
         |result| {
             if let Ok(()) = result {
@@ -12259,7 +12891,7 @@ fn destack_fs_statat_replay(
                     ctime_ns: result_replay_ctime_ns,
                     birthtime_ns: result_replay_birthtime_ns,
                 };
-                let payload = StatatReplay {
+                let payload = FsStatStatatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -12268,7 +12900,7 @@ fn destack_fs_statat_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    StatatReplay { result }
+                    FsStatStatatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -12321,7 +12953,7 @@ fn destack_fs_statat_replay(
 }
 
 #[inline]
-fn destack_fs_statfs_replay(
+fn destack_fs_stat_statfs_replay(
     context: &RuntimeCallContext,
     out: *mut StatFs,
     path: OsPath,
@@ -12329,7 +12961,7 @@ fn destack_fs_statfs_replay(
     let _ = &path;
 
     context.replay().run_binding(
-        STATFS,
+        FS_STAT_STATFS,
         || unsafe { platform_native::destack_fs_statfs(context, out, path) },
         |result| {
             if let Ok(()) = result {
@@ -12361,7 +12993,7 @@ fn destack_fs_statfs_replay(
                     flags: result_replay_flags,
                     namelen: result_replay_namelen,
                 };
-                let payload = StatfsReplay {
+                let payload = FsStatStatfsReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -12370,7 +13002,7 @@ fn destack_fs_statfs_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    StatfsReplay { result }
+                    FsStatStatfsReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -12415,7 +13047,7 @@ fn destack_fs_statfs_replay(
 }
 
 #[inline]
-fn destack_fs_statx_replay(
+fn destack_fs_stat_statx_replay(
     context: &RuntimeCallContext,
     out: *mut Statx,
     dir: resource::DirectoryHandle,
@@ -12426,7 +13058,7 @@ fn destack_fs_statx_replay(
     let _ = (&dir, &path, &flags, &mask);
 
     context.replay().run_binding(
-        STATX,
+        FS_STAT_STATX,
         || unsafe { platform_native::destack_fs_statx(context, out, dir, path, flags, mask) },
         |result| {
             if let Ok(()) = result {
@@ -12474,7 +13106,7 @@ fn destack_fs_statx_replay(
                     ctime_ns: result_replay_ctime_ns,
                     mtime_ns: result_replay_mtime_ns,
                 };
-                let payload = StatxReplay {
+                let payload = FsStatStatxReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -12483,7 +13115,7 @@ fn destack_fs_statx_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    StatxReplay { result }
+                    FsStatStatxReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -12553,7 +13185,7 @@ fn destack_fs_watch_replay(
     let _ = (&path, &options);
 
     context.replay().run_binding(
-        WATCH,
+        FS_WATCH,
         || unsafe { platform_native::destack_fs_watch(context, out, path, options) },
         |result| {
             if let Ok(()) = result {
@@ -12564,7 +13196,7 @@ fn destack_fs_watch_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = WatchReplay {
+                let payload = FsWatchReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -12573,7 +13205,7 @@ fn destack_fs_watch_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    WatchReplay { result }
+                    FsWatchReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -12604,12 +13236,12 @@ fn destack_fs_watch_close_replay(
     let _ = &handle;
 
     context.replay().run_binding(
-        WATCH_CLOSE,
+        FS_WATCH_CLOSE,
         || unsafe { platform_native::destack_fs_watch_close(context, handle) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = WatchCloseReplay {
+                let payload = FsWatchCloseReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -12618,7 +13250,7 @@ fn destack_fs_watch_close_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    WatchCloseReplay { result }
+                    FsWatchCloseReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -12644,7 +13276,7 @@ fn destack_fs_watch_read_replay(
     let _ = &handle;
 
     context.replay().run_binding(
-        WATCH_READ,
+        FS_WATCH_READ,
         || unsafe { platform_native::destack_fs_watch_read(context, out, handle) },
         |result| {
             if let Ok(()) = result {
@@ -12658,44 +13290,28 @@ fn destack_fs_watch_read_replay(
                     let result_replay_events_item = *result_replay_events_item_value;
                     let result_replay_events_item_replay_kind = result_replay_events_item.kind;
                     let result_replay_events_item_replay_path_encoding = result_replay_events_item.path.encoding;
-                    let result_replay_events_item_replay_path_bytes_raw = unsafe { result_replay_events_item.path.bytes.0.as_slice()? };
-                    let mut result_replay_events_item_replay_path_bytes = Vec::with_capacity(result_replay_events_item_replay_path_bytes_raw.len());
-                    for result_replay_events_item_replay_path_bytes_item_value in result_replay_events_item_replay_path_bytes_raw {
-                        let result_replay_events_item_replay_path_bytes_item = *result_replay_events_item_replay_path_bytes_item_value;
-                        let result_replay_events_item_replay_path_bytes_item_replay = result_replay_events_item_replay_path_bytes_item;
-                        result_replay_events_item_replay_path_bytes.push(result_replay_events_item_replay_path_bytes_item_replay);
-                    }
-                    let result_replay_events_item_replay_path_utf16_raw = unsafe { result_replay_events_item.path.utf16.0.as_slice()? };
-                    let mut result_replay_events_item_replay_path_utf16 = Vec::with_capacity(result_replay_events_item_replay_path_utf16_raw.len());
-                    for result_replay_events_item_replay_path_utf16_item_value in result_replay_events_item_replay_path_utf16_raw {
-                        let result_replay_events_item_replay_path_utf16_item = *result_replay_events_item_replay_path_utf16_item_value;
-                        let result_replay_events_item_replay_path_utf16_item_replay = result_replay_events_item_replay_path_utf16_item;
-                        result_replay_events_item_replay_path_utf16.push(result_replay_events_item_replay_path_utf16_item_replay);
+                    let result_replay_events_item_replay_path_data_raw = unsafe { result_replay_events_item.path.data.0.as_slice()? };
+                    let mut result_replay_events_item_replay_path_data = Vec::with_capacity(result_replay_events_item_replay_path_data_raw.len());
+                    for result_replay_events_item_replay_path_data_item_value in result_replay_events_item_replay_path_data_raw {
+                        let result_replay_events_item_replay_path_data_item = *result_replay_events_item_replay_path_data_item_value;
+                        let result_replay_events_item_replay_path_data_item_replay = result_replay_events_item_replay_path_data_item;
+                        result_replay_events_item_replay_path_data.push(result_replay_events_item_replay_path_data_item_replay);
                     }
                     let result_replay_events_item_replay_path = OsPathReplay {
                         encoding: result_replay_events_item_replay_path_encoding,
-                        bytes: result_replay_events_item_replay_path_bytes,
-                        utf16: result_replay_events_item_replay_path_utf16,
+                        data: result_replay_events_item_replay_path_data,
                     };
                     let result_replay_events_item_replay_related_path_encoding = result_replay_events_item.related_path.encoding;
-                    let result_replay_events_item_replay_related_path_bytes_raw = unsafe { result_replay_events_item.related_path.bytes.0.as_slice()? };
-                    let mut result_replay_events_item_replay_related_path_bytes = Vec::with_capacity(result_replay_events_item_replay_related_path_bytes_raw.len());
-                    for result_replay_events_item_replay_related_path_bytes_item_value in result_replay_events_item_replay_related_path_bytes_raw {
-                        let result_replay_events_item_replay_related_path_bytes_item = *result_replay_events_item_replay_related_path_bytes_item_value;
-                        let result_replay_events_item_replay_related_path_bytes_item_replay = result_replay_events_item_replay_related_path_bytes_item;
-                        result_replay_events_item_replay_related_path_bytes.push(result_replay_events_item_replay_related_path_bytes_item_replay);
-                    }
-                    let result_replay_events_item_replay_related_path_utf16_raw = unsafe { result_replay_events_item.related_path.utf16.0.as_slice()? };
-                    let mut result_replay_events_item_replay_related_path_utf16 = Vec::with_capacity(result_replay_events_item_replay_related_path_utf16_raw.len());
-                    for result_replay_events_item_replay_related_path_utf16_item_value in result_replay_events_item_replay_related_path_utf16_raw {
-                        let result_replay_events_item_replay_related_path_utf16_item = *result_replay_events_item_replay_related_path_utf16_item_value;
-                        let result_replay_events_item_replay_related_path_utf16_item_replay = result_replay_events_item_replay_related_path_utf16_item;
-                        result_replay_events_item_replay_related_path_utf16.push(result_replay_events_item_replay_related_path_utf16_item_replay);
+                    let result_replay_events_item_replay_related_path_data_raw = unsafe { result_replay_events_item.related_path.data.0.as_slice()? };
+                    let mut result_replay_events_item_replay_related_path_data = Vec::with_capacity(result_replay_events_item_replay_related_path_data_raw.len());
+                    for result_replay_events_item_replay_related_path_data_item_value in result_replay_events_item_replay_related_path_data_raw {
+                        let result_replay_events_item_replay_related_path_data_item = *result_replay_events_item_replay_related_path_data_item_value;
+                        let result_replay_events_item_replay_related_path_data_item_replay = result_replay_events_item_replay_related_path_data_item;
+                        result_replay_events_item_replay_related_path_data.push(result_replay_events_item_replay_related_path_data_item_replay);
                     }
                     let result_replay_events_item_replay_related_path = OsPathReplay {
                         encoding: result_replay_events_item_replay_related_path_encoding,
-                        bytes: result_replay_events_item_replay_related_path_bytes,
-                        utf16: result_replay_events_item_replay_related_path_utf16,
+                        data: result_replay_events_item_replay_related_path_data,
                     };
                     let result_replay_events_item_replay_cookie = result_replay_events_item.cookie;
                     let result_replay_events_item_replay = WatchEventReplay {
@@ -12711,7 +13327,7 @@ fn destack_fs_watch_read_replay(
                     events: result_replay_events,
                     overflowed: result_replay_overflowed,
                 };
-                let payload = WatchReadReplay {
+                let payload = FsWatchReadReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -12720,7 +13336,7 @@ fn destack_fs_watch_read_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    WatchReadReplay {
+                    FsWatchReadReplay {
                         result,
                     }
                 };
@@ -12737,44 +13353,28 @@ fn destack_fs_watch_read_replay(
                     for value_native_events_item in value.events {
                         let value_native_events_item_native_kind = value_native_events_item.kind;
                         let value_native_events_item_native_path_encoding = value_native_events_item.path.encoding;
-                        let mut value_native_events_item_native_path_bytes_inner_values = Vec::with_capacity(value_native_events_item.path.bytes.len());
-                        for value_native_events_item_native_path_bytes_inner_item in value_native_events_item.path.bytes {
-                            let value_native_events_item_native_path_bytes_inner_item_native = value_native_events_item_native_path_bytes_inner_item;
-                            value_native_events_item_native_path_bytes_inner_values.push(value_native_events_item_native_path_bytes_inner_item_native);
+                        let mut value_native_events_item_native_path_data_inner_values = Vec::with_capacity(value_native_events_item.path.data.len());
+                        for value_native_events_item_native_path_data_inner_item in value_native_events_item.path.data {
+                            let value_native_events_item_native_path_data_inner_item_native = value_native_events_item_native_path_data_inner_item;
+                            value_native_events_item_native_path_data_inner_values.push(value_native_events_item_native_path_data_inner_item_native);
                         }
-                        let value_native_events_item_native_path_bytes_inner = context.store_array(value_native_events_item_native_path_bytes_inner_values);
-                        let value_native_events_item_native_path_bytes = crate::platform::fs::PathBytesAbi::<crate::platform::abi::NativeAbi>(value_native_events_item_native_path_bytes_inner);
-                        let mut value_native_events_item_native_path_utf16_inner_values = Vec::with_capacity(value_native_events_item.path.utf16.len());
-                        for value_native_events_item_native_path_utf16_inner_item in value_native_events_item.path.utf16 {
-                            let value_native_events_item_native_path_utf16_inner_item_native = value_native_events_item_native_path_utf16_inner_item;
-                            value_native_events_item_native_path_utf16_inner_values.push(value_native_events_item_native_path_utf16_inner_item_native);
-                        }
-                        let value_native_events_item_native_path_utf16_inner = context.store_array(value_native_events_item_native_path_utf16_inner_values);
-                        let value_native_events_item_native_path_utf16 = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::NativeAbi>(value_native_events_item_native_path_utf16_inner);
+                        let value_native_events_item_native_path_data_inner = context.store_array(value_native_events_item_native_path_data_inner_values);
+                        let value_native_events_item_native_path_data = crate::platform::fs::PathBytesAbi::<crate::platform::abi::NativeAbi>(value_native_events_item_native_path_data_inner);
                         let value_native_events_item_native_path = OsPath {
                             encoding: value_native_events_item_native_path_encoding,
-                            bytes: value_native_events_item_native_path_bytes,
-                            utf16: value_native_events_item_native_path_utf16,
+                            data: value_native_events_item_native_path_data,
                         };
                         let value_native_events_item_native_related_path_encoding = value_native_events_item.related_path.encoding;
-                        let mut value_native_events_item_native_related_path_bytes_inner_values = Vec::with_capacity(value_native_events_item.related_path.bytes.len());
-                        for value_native_events_item_native_related_path_bytes_inner_item in value_native_events_item.related_path.bytes {
-                            let value_native_events_item_native_related_path_bytes_inner_item_native = value_native_events_item_native_related_path_bytes_inner_item;
-                            value_native_events_item_native_related_path_bytes_inner_values.push(value_native_events_item_native_related_path_bytes_inner_item_native);
+                        let mut value_native_events_item_native_related_path_data_inner_values = Vec::with_capacity(value_native_events_item.related_path.data.len());
+                        for value_native_events_item_native_related_path_data_inner_item in value_native_events_item.related_path.data {
+                            let value_native_events_item_native_related_path_data_inner_item_native = value_native_events_item_native_related_path_data_inner_item;
+                            value_native_events_item_native_related_path_data_inner_values.push(value_native_events_item_native_related_path_data_inner_item_native);
                         }
-                        let value_native_events_item_native_related_path_bytes_inner = context.store_array(value_native_events_item_native_related_path_bytes_inner_values);
-                        let value_native_events_item_native_related_path_bytes = crate::platform::fs::PathBytesAbi::<crate::platform::abi::NativeAbi>(value_native_events_item_native_related_path_bytes_inner);
-                        let mut value_native_events_item_native_related_path_utf16_inner_values = Vec::with_capacity(value_native_events_item.related_path.utf16.len());
-                        for value_native_events_item_native_related_path_utf16_inner_item in value_native_events_item.related_path.utf16 {
-                            let value_native_events_item_native_related_path_utf16_inner_item_native = value_native_events_item_native_related_path_utf16_inner_item;
-                            value_native_events_item_native_related_path_utf16_inner_values.push(value_native_events_item_native_related_path_utf16_inner_item_native);
-                        }
-                        let value_native_events_item_native_related_path_utf16_inner = context.store_array(value_native_events_item_native_related_path_utf16_inner_values);
-                        let value_native_events_item_native_related_path_utf16 = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::NativeAbi>(value_native_events_item_native_related_path_utf16_inner);
+                        let value_native_events_item_native_related_path_data_inner = context.store_array(value_native_events_item_native_related_path_data_inner_values);
+                        let value_native_events_item_native_related_path_data = crate::platform::fs::PathBytesAbi::<crate::platform::abi::NativeAbi>(value_native_events_item_native_related_path_data_inner);
                         let value_native_events_item_native_related_path = OsPath {
                             encoding: value_native_events_item_native_related_path_encoding,
-                            bytes: value_native_events_item_native_related_path_bytes,
-                            utf16: value_native_events_item_native_related_path_utf16,
+                            data: value_native_events_item_native_related_path_data,
                         };
                         let value_native_events_item_native_cookie = value_native_events_item.cookie;
                         let value_native_events_item_native = WatchEvent {
@@ -12811,7 +13411,7 @@ fn destack_fs_watchat_replay(
     let _ = (&directory, &path, &options);
 
     context.replay().run_binding(
-        WATCHAT,
+        FS_WATCHAT,
         || unsafe { platform_native::destack_fs_watchat(context, out, directory, path, options) },
         |result| {
             if let Ok(()) = result {
@@ -12822,7 +13422,7 @@ fn destack_fs_watchat_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = WatchatReplay {
+                let payload = FsWatchatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -12831,7 +13431,7 @@ fn destack_fs_watchat_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    WatchatReplay { result }
+                    FsWatchatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -12855,7 +13455,7 @@ fn destack_fs_watchat_replay(
 }
 
 #[inline]
-fn destack_fs_fgetxattr_replay(
+fn destack_fs_xattr_fgetxattr_replay(
     context: &RuntimeCallContext,
     out: *mut NativeArray<u8>,
     handle: resource::FileHandle,
@@ -12864,7 +13464,7 @@ fn destack_fs_fgetxattr_replay(
     let _ = (&handle, &name);
 
     context.replay().run_binding(
-        FGETXATTR,
+        FS_XATTR_FGETXATTR,
         || unsafe { platform_native::destack_fs_fgetxattr(context, out, handle, name) },
         |result| {
             if let Ok(()) = result {
@@ -12881,7 +13481,7 @@ fn destack_fs_fgetxattr_replay(
                     let result_replay_item_replay = result_replay_item;
                     result_replay.push(result_replay_item_replay);
                 }
-                let payload = FgetxattrReplay {
+                let payload = FsXattrFgetxattrReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -12890,7 +13490,7 @@ fn destack_fs_fgetxattr_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FgetxattrReplay { result }
+                    FsXattrFgetxattrReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -12919,7 +13519,71 @@ fn destack_fs_fgetxattr_replay(
 }
 
 #[inline]
-fn destack_fs_flistxattr_replay(
+fn destack_fs_xattr_fgetxattr_bytes_replay(
+    context: &RuntimeCallContext,
+    out: *mut NativeArray<u8>,
+    handle: resource::FileHandle,
+    name: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &name);
+
+    context.replay().run_binding(
+        FS_XATTR_FGETXATTR_BYTES,
+        || unsafe { platform_native::destack_fs_fgetxattr_bytes(context, out, handle, name) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay_raw = unsafe { result_value.as_slice()? };
+                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
+                for result_replay_item_value in result_replay_raw {
+                    let result_replay_item = *result_replay_item_value;
+                    let result_replay_item_replay = result_replay_item;
+                    result_replay.push(result_replay_item_replay);
+                }
+                let payload = FsXattrFgetxattrBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrFgetxattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native = value_native_item;
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_array(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_xattr_flistxattr_replay(
     context: &RuntimeCallContext,
     out: *mut NativeArray<NativeStringRef>,
     handle: resource::FileHandle,
@@ -12927,7 +13591,7 @@ fn destack_fs_flistxattr_replay(
     let _ = &handle;
 
     context.replay().run_binding(
-        FLISTXATTR,
+        FS_XATTR_FLISTXATTR,
         || unsafe { platform_native::destack_fs_flistxattr(context, out, handle) },
         |result| {
             if let Ok(()) = result {
@@ -12945,7 +13609,7 @@ fn destack_fs_flistxattr_replay(
                         unsafe { result_replay_item.as_str()? }.to_string();
                     result_replay.push(result_replay_item_replay);
                 }
-                let payload = FlistxattrReplay {
+                let payload = FsXattrFlistxattrReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -12954,7 +13618,7 @@ fn destack_fs_flistxattr_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FlistxattrReplay { result }
+                    FsXattrFlistxattrReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -12983,20 +13647,39 @@ fn destack_fs_flistxattr_replay(
 }
 
 #[inline]
-fn destack_fs_fremovexattr_replay(
+fn destack_fs_xattr_flistxattr_bytes_replay(
     context: &RuntimeCallContext,
+    out: *mut NativeArray<NativeArray<u8>>,
     handle: resource::FileHandle,
-    name: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let _ = (&handle, &name);
+    let _ = &handle;
 
     context.replay().run_binding(
-        FREMOVEXATTR,
-        || unsafe { platform_native::destack_fs_fremovexattr(context, handle, name) },
+        FS_XATTR_FLISTXATTR_BYTES,
+        || unsafe { platform_native::destack_fs_flistxattr_bytes(context, out, handle) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
-                let payload = FremovexattrReplay {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay_raw = unsafe { result_value.as_slice()? };
+                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
+                for result_replay_item_value in result_replay_raw {
+                    let result_replay_item = *result_replay_item_value;
+                    let result_replay_item_replay_raw = unsafe { result_replay_item.as_slice()? };
+                    let mut result_replay_item_replay =
+                        Vec::with_capacity(result_replay_item_replay_raw.len());
+                    for result_replay_item_replay_item_value in result_replay_item_replay_raw {
+                        let result_replay_item_replay_item = *result_replay_item_replay_item_value;
+                        let result_replay_item_replay_item_replay = result_replay_item_replay_item;
+                        result_replay_item_replay.push(result_replay_item_replay_item_replay);
+                    }
+                    result_replay.push(result_replay_item_replay);
+                }
+                let payload = FsXattrFlistxattrBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -13005,7 +13688,67 @@ fn destack_fs_fremovexattr_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FremovexattrReplay { result }
+                    FsXattrFlistxattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let mut value_native_item_native_values =
+                            Vec::with_capacity(value_native_item.len());
+                        for value_native_item_native_item in value_native_item {
+                            let value_native_item_native_item_native =
+                                value_native_item_native_item;
+                            value_native_item_native_values
+                                .push(value_native_item_native_item_native);
+                        }
+                        let value_native_item_native =
+                            context.store_array(value_native_item_native_values);
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_array(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_xattr_fremovexattr_replay(
+    context: &RuntimeCallContext,
+    handle: resource::FileHandle,
+    name: NativeStringRef,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &name);
+
+    context.replay().run_binding(
+        FS_XATTR_FREMOVEXATTR,
+        || unsafe { platform_native::destack_fs_fremovexattr(context, handle, name) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = FsXattrFremovexattrReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrFremovexattrReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -13023,7 +13766,47 @@ fn destack_fs_fremovexattr_replay(
 }
 
 #[inline]
-fn destack_fs_fsetxattr_replay(
+fn destack_fs_xattr_fremovexattr_bytes_replay(
+    context: &RuntimeCallContext,
+    handle: resource::FileHandle,
+    name: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &name);
+
+    context.replay().run_binding(
+        FS_XATTR_FREMOVEXATTR_BYTES,
+        || unsafe { platform_native::destack_fs_fremovexattr_bytes(context, handle, name) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = FsXattrFremovexattrBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrFremovexattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_xattr_fsetxattr_replay(
     context: &RuntimeCallContext,
     handle: resource::FileHandle,
     name: NativeStringRef,
@@ -13033,12 +13816,12 @@ fn destack_fs_fsetxattr_replay(
     let _ = (&handle, &name, &value, &flags);
 
     context.replay().run_binding(
-        FSETXATTR,
+        FS_XATTR_FSETXATTR,
         || unsafe { platform_native::destack_fs_fsetxattr(context, handle, name, value, flags) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = FsetxattrReplay {
+                let payload = FsXattrFsetxattrReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -13047,7 +13830,7 @@ fn destack_fs_fsetxattr_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FsetxattrReplay { result }
+                    FsXattrFsetxattrReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -13065,7 +13848,51 @@ fn destack_fs_fsetxattr_replay(
 }
 
 #[inline]
-fn destack_fs_getxattr_replay(
+fn destack_fs_xattr_fsetxattr_bytes_replay(
+    context: &RuntimeCallContext,
+    handle: resource::FileHandle,
+    name: NativeSlice<u8>,
+    value: NativeSlice<u8>,
+    flags: XattrFlags,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &name, &value, &flags);
+
+    context.replay().run_binding(
+        FS_XATTR_FSETXATTR_BYTES,
+        || unsafe {
+            platform_native::destack_fs_fsetxattr_bytes(context, handle, name, value, flags)
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = FsXattrFsetxattrBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrFsetxattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_xattr_getxattr_replay(
     context: &RuntimeCallContext,
     out: *mut NativeArray<u8>,
     path: OsPath,
@@ -13074,7 +13901,7 @@ fn destack_fs_getxattr_replay(
     let _ = (&path, &name);
 
     context.replay().run_binding(
-        GETXATTR,
+        FS_XATTR_GETXATTR,
         || unsafe { platform_native::destack_fs_getxattr(context, out, path, name) },
         |result| {
             if let Ok(()) = result {
@@ -13091,7 +13918,7 @@ fn destack_fs_getxattr_replay(
                     let result_replay_item_replay = result_replay_item;
                     result_replay.push(result_replay_item_replay);
                 }
-                let payload = GetxattrReplay {
+                let payload = FsXattrGetxattrReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -13100,7 +13927,7 @@ fn destack_fs_getxattr_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    GetxattrReplay { result }
+                    FsXattrGetxattrReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -13129,7 +13956,71 @@ fn destack_fs_getxattr_replay(
 }
 
 #[inline]
-fn destack_fs_lgetxattr_replay(
+fn destack_fs_xattr_getxattr_bytes_replay(
+    context: &RuntimeCallContext,
+    out: *mut NativeArray<u8>,
+    path: OsPath,
+    name: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    let _ = (&path, &name);
+
+    context.replay().run_binding(
+        FS_XATTR_GETXATTR_BYTES,
+        || unsafe { platform_native::destack_fs_getxattr_bytes(context, out, path, name) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay_raw = unsafe { result_value.as_slice()? };
+                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
+                for result_replay_item_value in result_replay_raw {
+                    let result_replay_item = *result_replay_item_value;
+                    let result_replay_item_replay = result_replay_item;
+                    result_replay.push(result_replay_item_replay);
+                }
+                let payload = FsXattrGetxattrBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrGetxattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native = value_native_item;
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_array(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_xattr_lgetxattr_replay(
     context: &RuntimeCallContext,
     out: *mut NativeArray<u8>,
     path: OsPath,
@@ -13138,7 +14029,7 @@ fn destack_fs_lgetxattr_replay(
     let _ = (&path, &name);
 
     context.replay().run_binding(
-        LGETXATTR,
+        FS_XATTR_LGETXATTR,
         || unsafe { platform_native::destack_fs_lgetxattr(context, out, path, name) },
         |result| {
             if let Ok(()) = result {
@@ -13155,7 +14046,7 @@ fn destack_fs_lgetxattr_replay(
                     let result_replay_item_replay = result_replay_item;
                     result_replay.push(result_replay_item_replay);
                 }
-                let payload = LgetxattrReplay {
+                let payload = FsXattrLgetxattrReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -13164,7 +14055,7 @@ fn destack_fs_lgetxattr_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    LgetxattrReplay { result }
+                    FsXattrLgetxattrReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -13193,7 +14084,71 @@ fn destack_fs_lgetxattr_replay(
 }
 
 #[inline]
-fn destack_fs_listxattr_replay(
+fn destack_fs_xattr_lgetxattr_bytes_replay(
+    context: &RuntimeCallContext,
+    out: *mut NativeArray<u8>,
+    path: OsPath,
+    name: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    let _ = (&path, &name);
+
+    context.replay().run_binding(
+        FS_XATTR_LGETXATTR_BYTES,
+        || unsafe { platform_native::destack_fs_lgetxattr_bytes(context, out, path, name) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay_raw = unsafe { result_value.as_slice()? };
+                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
+                for result_replay_item_value in result_replay_raw {
+                    let result_replay_item = *result_replay_item_value;
+                    let result_replay_item_replay = result_replay_item;
+                    result_replay.push(result_replay_item_replay);
+                }
+                let payload = FsXattrLgetxattrBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrLgetxattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native = value_native_item;
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_array(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_xattr_listxattr_replay(
     context: &RuntimeCallContext,
     out: *mut NativeArray<NativeStringRef>,
     path: OsPath,
@@ -13201,7 +14156,7 @@ fn destack_fs_listxattr_replay(
     let _ = &path;
 
     context.replay().run_binding(
-        LISTXATTR,
+        FS_XATTR_LISTXATTR,
         || unsafe { platform_native::destack_fs_listxattr(context, out, path) },
         |result| {
             if let Ok(()) = result {
@@ -13219,7 +14174,7 @@ fn destack_fs_listxattr_replay(
                         unsafe { result_replay_item.as_str()? }.to_string();
                     result_replay.push(result_replay_item_replay);
                 }
-                let payload = ListxattrReplay {
+                let payload = FsXattrListxattrReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -13228,7 +14183,7 @@ fn destack_fs_listxattr_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ListxattrReplay { result }
+                    FsXattrListxattrReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -13257,7 +14212,86 @@ fn destack_fs_listxattr_replay(
 }
 
 #[inline]
-fn destack_fs_llistxattr_replay(
+fn destack_fs_xattr_listxattr_bytes_replay(
+    context: &RuntimeCallContext,
+    out: *mut NativeArray<NativeArray<u8>>,
+    path: OsPath,
+) -> RuntimeResult<()> {
+    let _ = &path;
+
+    context.replay().run_binding(
+        FS_XATTR_LISTXATTR_BYTES,
+        || unsafe { platform_native::destack_fs_listxattr_bytes(context, out, path) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay_raw = unsafe { result_value.as_slice()? };
+                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
+                for result_replay_item_value in result_replay_raw {
+                    let result_replay_item = *result_replay_item_value;
+                    let result_replay_item_replay_raw = unsafe { result_replay_item.as_slice()? };
+                    let mut result_replay_item_replay =
+                        Vec::with_capacity(result_replay_item_replay_raw.len());
+                    for result_replay_item_replay_item_value in result_replay_item_replay_raw {
+                        let result_replay_item_replay_item = *result_replay_item_replay_item_value;
+                        let result_replay_item_replay_item_replay = result_replay_item_replay_item;
+                        result_replay_item_replay.push(result_replay_item_replay_item_replay);
+                    }
+                    result_replay.push(result_replay_item_replay);
+                }
+                let payload = FsXattrListxattrBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrListxattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let mut value_native_item_native_values =
+                            Vec::with_capacity(value_native_item.len());
+                        for value_native_item_native_item in value_native_item {
+                            let value_native_item_native_item_native =
+                                value_native_item_native_item;
+                            value_native_item_native_values
+                                .push(value_native_item_native_item_native);
+                        }
+                        let value_native_item_native =
+                            context.store_array(value_native_item_native_values);
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_array(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_xattr_llistxattr_replay(
     context: &RuntimeCallContext,
     out: *mut NativeArray<NativeStringRef>,
     path: OsPath,
@@ -13265,7 +14299,7 @@ fn destack_fs_llistxattr_replay(
     let _ = &path;
 
     context.replay().run_binding(
-        LLISTXATTR,
+        FS_XATTR_LLISTXATTR,
         || unsafe { platform_native::destack_fs_llistxattr(context, out, path) },
         |result| {
             if let Ok(()) = result {
@@ -13283,7 +14317,7 @@ fn destack_fs_llistxattr_replay(
                         unsafe { result_replay_item.as_str()? }.to_string();
                     result_replay.push(result_replay_item_replay);
                 }
-                let payload = LlistxattrReplay {
+                let payload = FsXattrLlistxattrReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -13292,7 +14326,7 @@ fn destack_fs_llistxattr_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    LlistxattrReplay { result }
+                    FsXattrLlistxattrReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -13321,7 +14355,86 @@ fn destack_fs_llistxattr_replay(
 }
 
 #[inline]
-fn destack_fs_lremovexattr_replay(
+fn destack_fs_xattr_llistxattr_bytes_replay(
+    context: &RuntimeCallContext,
+    out: *mut NativeArray<NativeArray<u8>>,
+    path: OsPath,
+) -> RuntimeResult<()> {
+    let _ = &path;
+
+    context.replay().run_binding(
+        FS_XATTR_LLISTXATTR_BYTES,
+        || unsafe { platform_native::destack_fs_llistxattr_bytes(context, out, path) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay_raw = unsafe { result_value.as_slice()? };
+                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
+                for result_replay_item_value in result_replay_raw {
+                    let result_replay_item = *result_replay_item_value;
+                    let result_replay_item_replay_raw = unsafe { result_replay_item.as_slice()? };
+                    let mut result_replay_item_replay =
+                        Vec::with_capacity(result_replay_item_replay_raw.len());
+                    for result_replay_item_replay_item_value in result_replay_item_replay_raw {
+                        let result_replay_item_replay_item = *result_replay_item_replay_item_value;
+                        let result_replay_item_replay_item_replay = result_replay_item_replay_item;
+                        result_replay_item_replay.push(result_replay_item_replay_item_replay);
+                    }
+                    result_replay.push(result_replay_item_replay);
+                }
+                let payload = FsXattrLlistxattrBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrLlistxattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let mut value_native_item_native_values =
+                            Vec::with_capacity(value_native_item.len());
+                        for value_native_item_native_item in value_native_item {
+                            let value_native_item_native_item_native =
+                                value_native_item_native_item;
+                            value_native_item_native_values
+                                .push(value_native_item_native_item_native);
+                        }
+                        let value_native_item_native =
+                            context.store_array(value_native_item_native_values);
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_array(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_xattr_lremovexattr_replay(
     context: &RuntimeCallContext,
     path: OsPath,
     name: NativeStringRef,
@@ -13329,12 +14442,12 @@ fn destack_fs_lremovexattr_replay(
     let _ = (&path, &name);
 
     context.replay().run_binding(
-        LREMOVEXATTR,
+        FS_XATTR_LREMOVEXATTR,
         || unsafe { platform_native::destack_fs_lremovexattr(context, path, name) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = LremovexattrReplay {
+                let payload = FsXattrLremovexattrReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -13343,7 +14456,7 @@ fn destack_fs_lremovexattr_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    LremovexattrReplay { result }
+                    FsXattrLremovexattrReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -13361,7 +14474,47 @@ fn destack_fs_lremovexattr_replay(
 }
 
 #[inline]
-fn destack_fs_lsetxattr_replay(
+fn destack_fs_xattr_lremovexattr_bytes_replay(
+    context: &RuntimeCallContext,
+    path: OsPath,
+    name: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    let _ = (&path, &name);
+
+    context.replay().run_binding(
+        FS_XATTR_LREMOVEXATTR_BYTES,
+        || unsafe { platform_native::destack_fs_lremovexattr_bytes(context, path, name) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = FsXattrLremovexattrBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrLremovexattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_xattr_lsetxattr_replay(
     context: &RuntimeCallContext,
     path: OsPath,
     name: NativeStringRef,
@@ -13371,12 +14524,12 @@ fn destack_fs_lsetxattr_replay(
     let _ = (&path, &name, &value, &flags);
 
     context.replay().run_binding(
-        LSETXATTR,
+        FS_XATTR_LSETXATTR,
         || unsafe { platform_native::destack_fs_lsetxattr(context, path, name, value, flags) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = LsetxattrReplay {
+                let payload = FsXattrLsetxattrReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -13385,7 +14538,7 @@ fn destack_fs_lsetxattr_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    LsetxattrReplay { result }
+                    FsXattrLsetxattrReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -13403,7 +14556,51 @@ fn destack_fs_lsetxattr_replay(
 }
 
 #[inline]
-fn destack_fs_removexattr_replay(
+fn destack_fs_xattr_lsetxattr_bytes_replay(
+    context: &RuntimeCallContext,
+    path: OsPath,
+    name: NativeSlice<u8>,
+    value: NativeSlice<u8>,
+    flags: XattrFlags,
+) -> RuntimeResult<()> {
+    let _ = (&path, &name, &value, &flags);
+
+    context.replay().run_binding(
+        FS_XATTR_LSETXATTR_BYTES,
+        || unsafe {
+            platform_native::destack_fs_lsetxattr_bytes(context, path, name, value, flags)
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = FsXattrLsetxattrBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrLsetxattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_xattr_removexattr_replay(
     context: &RuntimeCallContext,
     path: OsPath,
     name: NativeStringRef,
@@ -13411,12 +14608,12 @@ fn destack_fs_removexattr_replay(
     let _ = (&path, &name);
 
     context.replay().run_binding(
-        REMOVEXATTR,
+        FS_XATTR_REMOVEXATTR,
         || unsafe { platform_native::destack_fs_removexattr(context, path, name) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = RemovexattrReplay {
+                let payload = FsXattrRemovexattrReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -13425,7 +14622,7 @@ fn destack_fs_removexattr_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    RemovexattrReplay { result }
+                    FsXattrRemovexattrReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -13443,7 +14640,47 @@ fn destack_fs_removexattr_replay(
 }
 
 #[inline]
-fn destack_fs_setxattr_replay(
+fn destack_fs_xattr_removexattr_bytes_replay(
+    context: &RuntimeCallContext,
+    path: OsPath,
+    name: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    let _ = (&path, &name);
+
+    context.replay().run_binding(
+        FS_XATTR_REMOVEXATTR_BYTES,
+        || unsafe { platform_native::destack_fs_removexattr_bytes(context, path, name) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = FsXattrRemovexattrBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrRemovexattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_xattr_setxattr_replay(
     context: &RuntimeCallContext,
     path: OsPath,
     name: NativeStringRef,
@@ -13453,12 +14690,12 @@ fn destack_fs_setxattr_replay(
     let _ = (&path, &name, &value, &flags);
 
     context.replay().run_binding(
-        SETXATTR,
+        FS_XATTR_SETXATTR,
         || unsafe { platform_native::destack_fs_setxattr(context, path, name, value, flags) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = SetxattrReplay {
+                let payload = FsXattrSetxattrReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -13467,7 +14704,49 @@ fn destack_fs_setxattr_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    SetxattrReplay { result }
+                    FsXattrSetxattrReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_xattr_setxattr_bytes_replay(
+    context: &RuntimeCallContext,
+    path: OsPath,
+    name: NativeSlice<u8>,
+    value: NativeSlice<u8>,
+    flags: XattrFlags,
+) -> RuntimeResult<()> {
+    let _ = (&path, &name, &value, &flags);
+
+    context.replay().run_binding(
+        FS_XATTR_SETXATTR_BYTES,
+        || unsafe { platform_native::destack_fs_setxattr_bytes(context, path, name, value, flags) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = FsXattrSetxattrBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrSetxattrBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -13486,94 +14765,94 @@ fn destack_fs_setxattr_replay(
 
 /// Native export wrappers for fs bindings.
 #[unsafe(export_name = "destack.fs.attrs.access")]
-pub unsafe extern "C" fn destack_fs_access(path: OsPath, mode: AccessMode) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_attrs_access(path: OsPath, mode: AccessMode) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(ACCESS)?;
+        context.check_policy(FS_ATTRS_ACCESS)?;
         let _ = (&path, &mode);
 
-        destack_fs_access_replay(context, path, mode)
+        destack_fs_attrs_access_replay(context, path, mode)
     })
 }
 
 #[unsafe(export_name = "destack.fs.attrs.accessat")]
-pub unsafe extern "C" fn destack_fs_accessat(
+pub unsafe extern "C" fn destack_fs_attrs_accessat(
     dir: resource::DirectoryHandle,
     path: OsPath,
     mode: AccessMode,
     flags: AtFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(ACCESSAT)?;
+        context.check_policy(FS_ATTRS_ACCESSAT)?;
         let _ = (&dir, &path, &mode, &flags);
 
-        destack_fs_accessat_replay(context, dir, path, mode, flags)
+        destack_fs_attrs_accessat_replay(context, dir, path, mode, flags)
     })
 }
 
 #[unsafe(export_name = "destack.fs.attrs.chmod")]
-pub unsafe extern "C" fn destack_fs_chmod(path: OsPath, mode: FileMode) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_attrs_chmod(path: OsPath, mode: FileMode) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(CHMOD)?;
+        context.check_policy(FS_ATTRS_CHMOD)?;
         let _ = (&path, &mode);
 
-        destack_fs_chmod_replay(context, path, mode)
+        destack_fs_attrs_chmod_replay(context, path, mode)
     })
 }
 
 #[unsafe(export_name = "destack.fs.attrs.chown")]
-pub unsafe extern "C" fn destack_fs_chown(path: OsPath, uid: u32, gid: u32) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_attrs_chown(path: OsPath, uid: u32, gid: u32) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(CHOWN)?;
+        context.check_policy(FS_ATTRS_CHOWN)?;
         let _ = (&path, &uid, &gid);
 
-        destack_fs_chown_replay(context, path, uid, gid)
+        destack_fs_attrs_chown_replay(context, path, uid, gid)
     })
 }
 
 #[unsafe(export_name = "destack.fs.attrs.fchmod")]
-pub unsafe extern "C" fn destack_fs_fchmod(
+pub unsafe extern "C" fn destack_fs_attrs_fchmod(
     handle: resource::FileHandle,
     mode: FileMode,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(FCHMOD)?;
+        context.check_policy(FS_ATTRS_FCHMOD)?;
         let _ = (&handle, &mode);
 
-        destack_fs_fchmod_replay(context, handle, mode)
+        destack_fs_attrs_fchmod_replay(context, handle, mode)
     })
 }
 
 #[unsafe(export_name = "destack.fs.attrs.fchmodat")]
-pub unsafe extern "C" fn destack_fs_fchmodat(
+pub unsafe extern "C" fn destack_fs_attrs_fchmodat(
     dir: resource::DirectoryHandle,
     path: OsPath,
     mode: FileMode,
     flags: AtFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(FCHMODAT)?;
+        context.check_policy(FS_ATTRS_FCHMODAT)?;
         let _ = (&dir, &path, &mode, &flags);
 
-        destack_fs_fchmodat_replay(context, dir, path, mode, flags)
+        destack_fs_attrs_fchmodat_replay(context, dir, path, mode, flags)
     })
 }
 
 #[unsafe(export_name = "destack.fs.attrs.fchown")]
-pub unsafe extern "C" fn destack_fs_fchown(
+pub unsafe extern "C" fn destack_fs_attrs_fchown(
     handle: resource::FileHandle,
     uid: u32,
     gid: u32,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(FCHOWN)?;
+        context.check_policy(FS_ATTRS_FCHOWN)?;
         let _ = (&handle, &uid, &gid);
 
-        destack_fs_fchown_replay(context, handle, uid, gid)
+        destack_fs_attrs_fchown_replay(context, handle, uid, gid)
     })
 }
 
 #[unsafe(export_name = "destack.fs.attrs.fchownat")]
-pub unsafe extern "C" fn destack_fs_fchownat(
+pub unsafe extern "C" fn destack_fs_attrs_fchownat(
     dir: resource::DirectoryHandle,
     path: OsPath,
     uid: u32,
@@ -13581,43 +14860,43 @@ pub unsafe extern "C" fn destack_fs_fchownat(
     flags: AtFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(FCHOWNAT)?;
+        context.check_policy(FS_ATTRS_FCHOWNAT)?;
         let _ = (&dir, &path, &uid, &gid, &flags);
 
-        destack_fs_fchownat_replay(context, dir, path, uid, gid, flags)
+        destack_fs_attrs_fchownat_replay(context, dir, path, uid, gid, flags)
     })
 }
 
 #[unsafe(export_name = "destack.fs.attrs.futimes")]
-pub unsafe extern "C" fn destack_fs_futimes(
+pub unsafe extern "C" fn destack_fs_attrs_futimes(
     handle: resource::FileHandle,
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(FUTIMES)?;
+        context.check_policy(FS_ATTRS_FUTIMES)?;
         let _ = (&handle, &atimens, &mtimens);
 
-        destack_fs_futimes_replay(context, handle, atimens, mtimens)
+        destack_fs_attrs_futimes_replay(context, handle, atimens, mtimens)
     })
 }
 
 #[unsafe(export_name = "destack.fs.attrs.lutimes")]
-pub unsafe extern "C" fn destack_fs_lutimes(
+pub unsafe extern "C" fn destack_fs_attrs_lutimes(
     path: OsPath,
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(LUTIMES)?;
+        context.check_policy(FS_ATTRS_LUTIMES)?;
         let _ = (&path, &atimens, &mtimens);
 
-        destack_fs_lutimes_replay(context, path, atimens, mtimens)
+        destack_fs_attrs_lutimes_replay(context, path, atimens, mtimens)
     })
 }
 
 #[unsafe(export_name = "destack.fs.attrs.utimensat")]
-pub unsafe extern "C" fn destack_fs_utimensat(
+pub unsafe extern "C" fn destack_fs_attrs_utimensat(
     dir: resource::DirectoryHandle,
     path: OsPath,
     atimens: u64,
@@ -13625,170 +14904,177 @@ pub unsafe extern "C" fn destack_fs_utimensat(
     flags: AtFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(UTIMENSAT)?;
+        context.check_policy(FS_ATTRS_UTIMENSAT)?;
         let _ = (&dir, &path, &atimens, &mtimens, &flags);
 
-        destack_fs_utimensat_replay(context, dir, path, atimens, mtimens, flags)
+        destack_fs_attrs_utimensat_replay(context, dir, path, atimens, mtimens, flags)
     })
 }
 
 #[unsafe(export_name = "destack.fs.attrs.utimes")]
-pub unsafe extern "C" fn destack_fs_utimes(
+pub unsafe extern "C" fn destack_fs_attrs_utimes(
     path: OsPath,
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(UTIMES)?;
+        context.check_policy(FS_ATTRS_UTIMES)?;
         let _ = (&path, &atimens, &mtimens);
 
-        destack_fs_utimes_replay(context, path, atimens, mtimens)
+        destack_fs_attrs_utimes_replay(context, path, atimens, mtimens)
     })
 }
 
 #[unsafe(export_name = "destack.fs.dir.closedir")]
-pub unsafe extern "C" fn destack_fs_closedir(handle: resource::DirectoryHandle) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_dir_closedir(
+    handle: resource::DirectoryHandle,
+) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(CLOSEDIR)?;
+        context.check_policy(FS_DIR_CLOSEDIR)?;
         let _ = &handle;
 
-        destack_fs_closedir_replay(context, handle)
+        destack_fs_dir_closedir_replay(context, handle)
     })
 }
 
 #[unsafe(export_name = "destack.fs.dir.dirfd")]
-pub unsafe extern "C" fn destack_fs_dirfd(
+pub unsafe extern "C" fn destack_fs_dir_dirfd(
     out: *mut resource::FileHandle,
     handle: resource::DirectoryHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(DIRFD)?;
+        context.check_policy(FS_DIR_DIRFD)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &handle);
 
-        destack_fs_dirfd_replay(context, out, handle)
+        destack_fs_dir_dirfd_replay(context, out, handle)
     })
 }
 
 #[unsafe(export_name = "destack.fs.dir.mkdir")]
-pub unsafe extern "C" fn destack_fs_mkdir(path: OsPath, mode: FileMode) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_dir_mkdir(path: OsPath, mode: FileMode) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(MKDIR)?;
+        context.check_policy(FS_DIR_MKDIR)?;
         let _ = (&path, &mode);
 
-        destack_fs_mkdir_replay(context, path, mode)
+        destack_fs_dir_mkdir_replay(context, path, mode)
     })
 }
 
 #[unsafe(export_name = "destack.fs.dir.mkdirat")]
-pub unsafe extern "C" fn destack_fs_mkdirat(
+pub unsafe extern "C" fn destack_fs_dir_mkdirat(
     dir: resource::DirectoryHandle,
     path: OsPath,
     mode: FileMode,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(MKDIRAT)?;
+        context.check_policy(FS_DIR_MKDIRAT)?;
         let _ = (&dir, &path, &mode);
 
-        destack_fs_mkdirat_replay(context, dir, path, mode)
+        destack_fs_dir_mkdirat_replay(context, dir, path, mode)
     })
 }
 
 #[unsafe(export_name = "destack.fs.dir.mkdtemp")]
-pub unsafe extern "C" fn destack_fs_mkdtemp(out: *mut OsPath, template: OsPath) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_dir_mkdtemp(
+    out: *mut OsPath,
+    template: OsPath,
+) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(MKDTEMP)?;
+        context.check_policy(FS_DIR_MKDTEMP)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &template);
 
-        destack_fs_mkdtemp_replay(context, out, template)
+        destack_fs_dir_mkdtemp_replay(context, out, template)
     })
 }
 
 #[unsafe(export_name = "destack.fs.dir.opendir")]
-pub unsafe extern "C" fn destack_fs_opendir(
+pub unsafe extern "C" fn destack_fs_dir_opendir(
     out: *mut resource::DirectoryHandle,
     path: OsPath,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(OPENDIR)?;
+        context.check_policy(FS_DIR_OPENDIR)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &path);
 
-        destack_fs_opendir_replay(context, out, path)
+        destack_fs_dir_opendir_replay(context, out, path)
     })
 }
 
 #[unsafe(export_name = "destack.fs.dir.readdir")]
-pub unsafe extern "C" fn destack_fs_readdir(
+pub unsafe extern "C" fn destack_fs_dir_readdir(
     out: *mut NativeArray<Dirent>,
     handle: resource::DirectoryHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(READDIR)?;
+        context.check_policy(FS_DIR_READDIR)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &handle);
 
-        destack_fs_readdir_replay(context, out, handle)
+        destack_fs_dir_readdir_replay(context, out, handle)
     })
 }
 
 #[unsafe(export_name = "destack.fs.dir.readdirNext")]
-pub unsafe extern "C" fn destack_fs_readdir_next(
+pub unsafe extern "C" fn destack_fs_dir_readdir_next(
     out: *mut DirentNext,
     handle: resource::DirectoryHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(READDIR_NEXT)?;
+        context.check_policy(FS_DIR_READDIR_NEXT)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &handle);
 
-        destack_fs_readdir_next_replay(context, out, handle)
+        destack_fs_dir_readdir_next_replay(context, out, handle)
     })
 }
 
 #[unsafe(export_name = "destack.fs.dir.rewinddir")]
-pub unsafe extern "C" fn destack_fs_rewinddir(handle: resource::DirectoryHandle) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_dir_rewinddir(
+    handle: resource::DirectoryHandle,
+) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(REWINDDIR)?;
+        context.check_policy(FS_DIR_REWINDDIR)?;
         let _ = &handle;
 
-        destack_fs_rewinddir_replay(context, handle)
+        destack_fs_dir_rewinddir_replay(context, handle)
     })
 }
 
 #[unsafe(export_name = "destack.fs.dir.rmdir")]
-pub unsafe extern "C" fn destack_fs_rmdir(path: OsPath) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_dir_rmdir(path: OsPath) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(RMDIR)?;
+        context.check_policy(FS_DIR_RMDIR)?;
         let _ = &path;
 
-        destack_fs_rmdir_replay(context, path)
+        destack_fs_dir_rmdir_replay(context, path)
     })
 }
 
 #[unsafe(export_name = "destack.fs.file.close")]
-pub unsafe extern "C" fn destack_fs_close(handle: resource::FileHandle) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_file_close(handle: resource::FileHandle) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(CLOSE)?;
+        context.check_policy(FS_FILE_CLOSE)?;
         let _ = &handle;
 
-        destack_fs_close_replay(context, handle)
+        destack_fs_file_close_replay(context, handle)
     })
 }
 
 #[unsafe(export_name = "destack.fs.file.copyFileRange")]
-pub unsafe extern "C" fn destack_fs_copy_file_range(
+pub unsafe extern "C" fn destack_fs_file_copy_file_range(
     out: *mut u64,
     src: resource::FileHandle,
     srcoffset: FileOffset,
@@ -13797,195 +15083,195 @@ pub unsafe extern "C" fn destack_fs_copy_file_range(
     length: FileSize,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(COPY_FILE_RANGE)?;
+        context.check_policy(FS_FILE_COPY_FILE_RANGE)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &src, &srcoffset, &dst, &dstoffset, &length);
 
-        destack_fs_copy_file_range_replay(context, out, src, srcoffset, dst, dstoffset, length)
+        destack_fs_file_copy_file_range_replay(context, out, src, srcoffset, dst, dstoffset, length)
     })
 }
 
 #[unsafe(export_name = "destack.fs.file.dup")]
-pub unsafe extern "C" fn destack_fs_dup(
+pub unsafe extern "C" fn destack_fs_file_dup(
     out: *mut resource::FileHandle,
     handle: resource::FileHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(DUP)?;
+        context.check_policy(FS_FILE_DUP)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &handle);
 
-        destack_fs_dup_replay(context, out, handle)
+        destack_fs_file_dup_replay(context, out, handle)
     })
 }
 
 #[unsafe(export_name = "destack.fs.file.dup2")]
-pub unsafe extern "C" fn destack_fs_dup2(
+pub unsafe extern "C" fn destack_fs_file_dup2(
     out: *mut resource::FileHandle,
     handle: resource::FileHandle,
     target: resource::FileHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(DUP2)?;
+        context.check_policy(FS_FILE_DUP2)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &handle, &target);
 
-        destack_fs_dup2_replay(context, out, handle, target)
+        destack_fs_file_dup2_replay(context, out, handle, target)
     })
 }
 
 #[unsafe(export_name = "destack.fs.file.dup3")]
-pub unsafe extern "C" fn destack_fs_dup3(
+pub unsafe extern "C" fn destack_fs_file_dup3(
     out: *mut resource::FileHandle,
     handle: resource::FileHandle,
     target: resource::FileHandle,
     flags: OpenFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(DUP3)?;
+        context.check_policy(FS_FILE_DUP3)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &handle, &target, &flags);
 
-        destack_fs_dup3_replay(context, out, handle, target, flags)
+        destack_fs_file_dup3_replay(context, out, handle, target, flags)
     })
 }
 
 #[unsafe(export_name = "destack.fs.file.fadvise")]
-pub unsafe extern "C" fn destack_fs_fadvise(
+pub unsafe extern "C" fn destack_fs_file_fadvise(
     handle: resource::FileHandle,
     offset: FileOffset,
     length: FileSize,
     advice: FileAdvice,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(FADVISE)?;
+        context.check_policy(FS_FILE_FADVISE)?;
         let _ = (&handle, &offset, &length, &advice);
 
-        destack_fs_fadvise_replay(context, handle, offset, length, advice)
+        destack_fs_file_fadvise_replay(context, handle, offset, length, advice)
     })
 }
 
 #[unsafe(export_name = "destack.fs.file.fallocate")]
-pub unsafe extern "C" fn destack_fs_fallocate(
+pub unsafe extern "C" fn destack_fs_file_fallocate(
     handle: resource::FileHandle,
     offset: FileOffset,
     length: FileSize,
     flags: AllocFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(FALLOCATE)?;
+        context.check_policy(FS_FILE_FALLOCATE)?;
         let _ = (&handle, &offset, &length, &flags);
 
-        destack_fs_fallocate_replay(context, handle, offset, length, flags)
+        destack_fs_file_fallocate_replay(context, handle, offset, length, flags)
     })
 }
 
 #[unsafe(export_name = "destack.fs.file.fdatasync")]
-pub unsafe extern "C" fn destack_fs_fdatasync(handle: resource::FileHandle) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_file_fdatasync(handle: resource::FileHandle) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(FDATASYNC)?;
+        context.check_policy(FS_FILE_FDATASYNC)?;
         let _ = &handle;
 
-        destack_fs_fdatasync_replay(context, handle)
+        destack_fs_file_fdatasync_replay(context, handle)
     })
 }
 
 #[unsafe(export_name = "destack.fs.file.fsync")]
-pub unsafe extern "C" fn destack_fs_fsync(handle: resource::FileHandle) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_file_fsync(handle: resource::FileHandle) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(FSYNC)?;
+        context.check_policy(FS_FILE_FSYNC)?;
         let _ = &handle;
 
-        destack_fs_fsync_replay(context, handle)
+        destack_fs_file_fsync_replay(context, handle)
     })
 }
 
 #[unsafe(export_name = "destack.fs.file.ftruncate")]
-pub unsafe extern "C" fn destack_fs_ftruncate(
+pub unsafe extern "C" fn destack_fs_file_ftruncate(
     handle: resource::FileHandle,
     size: FileOffset,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(FTRUNCATE)?;
+        context.check_policy(FS_FILE_FTRUNCATE)?;
         let _ = (&handle, &size);
 
-        destack_fs_ftruncate_replay(context, handle, size)
+        destack_fs_file_ftruncate_replay(context, handle, size)
     })
 }
 
 #[unsafe(export_name = "destack.fs.file.getFdFlags")]
-pub unsafe extern "C" fn destack_fs_get_fd_flags(
+pub unsafe extern "C" fn destack_fs_file_get_fd_flags(
     out: *mut FdFlags,
     handle: resource::FileHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(GET_FD_FLAGS)?;
+        context.check_policy(FS_FILE_GET_FD_FLAGS)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &handle);
 
-        destack_fs_get_fd_flags_replay(context, out, handle)
+        destack_fs_file_get_fd_flags_replay(context, out, handle)
     })
 }
 
 #[unsafe(export_name = "destack.fs.file.getStatusFlags")]
-pub unsafe extern "C" fn destack_fs_get_status_flags(
+pub unsafe extern "C" fn destack_fs_file_get_status_flags(
     out: *mut StatusFlags,
     handle: resource::FileHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(GET_STATUS_FLAGS)?;
+        context.check_policy(FS_FILE_GET_STATUS_FLAGS)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &handle);
 
-        destack_fs_get_status_flags_replay(context, out, handle)
+        destack_fs_file_get_status_flags_replay(context, out, handle)
     })
 }
 
 #[unsafe(export_name = "destack.fs.file.lock")]
-pub unsafe extern "C" fn destack_fs_lock(
+pub unsafe extern "C" fn destack_fs_file_lock(
     handle: resource::FileHandle,
     flags: FileLockFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(LOCK)?;
+        context.check_policy(FS_FILE_LOCK)?;
         let _ = (&handle, &flags);
 
-        destack_fs_lock_replay(context, handle, flags)
+        destack_fs_file_lock_replay(context, handle, flags)
     })
 }
 
 #[unsafe(export_name = "destack.fs.file.open")]
-pub unsafe extern "C" fn destack_fs_open(
+pub unsafe extern "C" fn destack_fs_file_open(
     out: *mut resource::FileHandle,
     path: OsPath,
     flags: OpenFlags,
     mode: FileMode,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(OPEN)?;
+        context.check_policy(FS_FILE_OPEN)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &path, &flags, &mode);
 
-        destack_fs_open_replay(context, out, path, flags, mode)
+        destack_fs_file_open_replay(context, out, path, flags, mode)
     })
 }
 
 #[unsafe(export_name = "destack.fs.file.openat")]
-pub unsafe extern "C" fn destack_fs_openat(
+pub unsafe extern "C" fn destack_fs_file_openat(
     out: *mut resource::FileHandle,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -13993,160 +15279,160 @@ pub unsafe extern "C" fn destack_fs_openat(
     mode: FileMode,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(OPENAT)?;
+        context.check_policy(FS_FILE_OPENAT)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &dir, &path, &flags, &mode);
 
-        destack_fs_openat_replay(context, out, dir, path, flags, mode)
+        destack_fs_file_openat_replay(context, out, dir, path, flags, mode)
     })
 }
 
 #[unsafe(export_name = "destack.fs.file.openat2")]
-pub unsafe extern "C" fn destack_fs_openat2(
+pub unsafe extern "C" fn destack_fs_file_openat2(
     out: *mut resource::FileHandle,
     dir: resource::DirectoryHandle,
     path: OsPath,
     how: OpenOptions,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(OPENAT2)?;
+        context.check_policy(FS_FILE_OPENAT2)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &dir, &path, &how);
 
-        destack_fs_openat2_replay(context, out, dir, path, how)
+        destack_fs_file_openat2_replay(context, out, dir, path, how)
     })
 }
 
 #[unsafe(export_name = "destack.fs.file.pread")]
-pub unsafe extern "C" fn destack_fs_pread(
+pub unsafe extern "C" fn destack_fs_file_pread(
     out: *mut u64,
     handle: resource::FileHandle,
     buffer: NativeSlice<u8>,
     offset: FileOffset,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(PREAD)?;
+        context.check_policy(FS_FILE_PREAD)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &handle, &buffer, &offset);
 
-        destack_fs_pread_replay(context, out, handle, buffer, offset)
+        destack_fs_file_pread_replay(context, out, handle, buffer, offset)
     })
 }
 
 #[unsafe(export_name = "destack.fs.file.preadv")]
-pub unsafe extern "C" fn destack_fs_preadv(
+pub unsafe extern "C" fn destack_fs_file_preadv(
     out: *mut u64,
     handle: resource::FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
     offset: FileOffset,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(PREADV)?;
+        context.check_policy(FS_FILE_PREADV)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &handle, &buffers, &offset);
 
-        destack_fs_preadv_replay(context, out, handle, buffers, offset)
+        destack_fs_file_preadv_replay(context, out, handle, buffers, offset)
     })
 }
 
 #[unsafe(export_name = "destack.fs.file.pwrite")]
-pub unsafe extern "C" fn destack_fs_pwrite(
+pub unsafe extern "C" fn destack_fs_file_pwrite(
     out: *mut u64,
     handle: resource::FileHandle,
     buffer: NativeSlice<u8>,
     offset: FileOffset,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(PWRITE)?;
+        context.check_policy(FS_FILE_PWRITE)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &handle, &buffer, &offset);
 
-        destack_fs_pwrite_replay(context, out, handle, buffer, offset)
+        destack_fs_file_pwrite_replay(context, out, handle, buffer, offset)
     })
 }
 
 #[unsafe(export_name = "destack.fs.file.pwritev")]
-pub unsafe extern "C" fn destack_fs_pwritev(
+pub unsafe extern "C" fn destack_fs_file_pwritev(
     out: *mut u64,
     handle: resource::FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
     offset: FileOffset,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(PWRITEV)?;
+        context.check_policy(FS_FILE_PWRITEV)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &handle, &buffers, &offset);
 
-        destack_fs_pwritev_replay(context, out, handle, buffers, offset)
+        destack_fs_file_pwritev_replay(context, out, handle, buffers, offset)
     })
 }
 
 #[unsafe(export_name = "destack.fs.file.read")]
-pub unsafe extern "C" fn destack_fs_read(
+pub unsafe extern "C" fn destack_fs_file_read(
     out: *mut u64,
     handle: resource::FileHandle,
     buffer: NativeSlice<u8>,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(READ)?;
+        context.check_policy(FS_FILE_READ)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &handle, &buffer);
 
-        destack_fs_read_replay(context, out, handle, buffer)
+        destack_fs_file_read_replay(context, out, handle, buffer)
     })
 }
 
 #[unsafe(export_name = "destack.fs.file.readv")]
-pub unsafe extern "C" fn destack_fs_readv(
+pub unsafe extern "C" fn destack_fs_file_readv(
     out: *mut u64,
     handle: resource::FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(READV)?;
+        context.check_policy(FS_FILE_READV)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &handle, &buffers);
 
-        destack_fs_readv_replay(context, out, handle, buffers)
+        destack_fs_file_readv_replay(context, out, handle, buffers)
     })
 }
 
 #[unsafe(export_name = "destack.fs.file.seek")]
-pub unsafe extern "C" fn destack_fs_seek(
+pub unsafe extern "C" fn destack_fs_file_seek(
     out: *mut FileOffset,
     handle: resource::FileHandle,
     offset: FileOffset,
     whence: SeekWhence,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(SEEK)?;
+        context.check_policy(FS_FILE_SEEK)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &handle, &offset, &whence);
 
-        destack_fs_seek_replay(context, out, handle, offset, whence)
+        destack_fs_file_seek_replay(context, out, handle, offset, whence)
     })
 }
 
 #[unsafe(export_name = "destack.fs.file.sendfile")]
-pub unsafe extern "C" fn destack_fs_sendfile(
+pub unsafe extern "C" fn destack_fs_file_sendfile(
     out: *mut u64,
     socket: resource::SocketHandle,
     file: resource::FileHandle,
@@ -14154,157 +15440,157 @@ pub unsafe extern "C" fn destack_fs_sendfile(
     length: FileSize,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(SENDFILE)?;
+        context.check_policy(FS_FILE_SENDFILE)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &socket, &file, &offset, &length);
 
-        destack_fs_sendfile_replay(context, out, socket, file, offset, length)
+        destack_fs_file_sendfile_replay(context, out, socket, file, offset, length)
     })
 }
 
 #[unsafe(export_name = "destack.fs.file.setFdFlags")]
-pub unsafe extern "C" fn destack_fs_set_fd_flags(
+pub unsafe extern "C" fn destack_fs_file_set_fd_flags(
     handle: resource::FileHandle,
     flags: FdFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(SET_FD_FLAGS)?;
+        context.check_policy(FS_FILE_SET_FD_FLAGS)?;
         let _ = (&handle, &flags);
 
-        destack_fs_set_fd_flags_replay(context, handle, flags)
+        destack_fs_file_set_fd_flags_replay(context, handle, flags)
     })
 }
 
 #[unsafe(export_name = "destack.fs.file.setStatusFlags")]
-pub unsafe extern "C" fn destack_fs_set_status_flags(
+pub unsafe extern "C" fn destack_fs_file_set_status_flags(
     handle: resource::FileHandle,
     flags: StatusFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(SET_STATUS_FLAGS)?;
+        context.check_policy(FS_FILE_SET_STATUS_FLAGS)?;
         let _ = (&handle, &flags);
 
-        destack_fs_set_status_flags_replay(context, handle, flags)
+        destack_fs_file_set_status_flags_replay(context, handle, flags)
     })
 }
 
 #[unsafe(export_name = "destack.fs.file.syncFileRange")]
-pub unsafe extern "C" fn destack_fs_sync_file_range(
+pub unsafe extern "C" fn destack_fs_file_sync_file_range(
     handle: resource::FileHandle,
     offset: FileOffset,
     length: FileSize,
     flags: SyncFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(SYNC_FILE_RANGE)?;
+        context.check_policy(FS_FILE_SYNC_FILE_RANGE)?;
         let _ = (&handle, &offset, &length, &flags);
 
-        destack_fs_sync_file_range_replay(context, handle, offset, length, flags)
+        destack_fs_file_sync_file_range_replay(context, handle, offset, length, flags)
     })
 }
 
 #[unsafe(export_name = "destack.fs.file.syncfs")]
-pub unsafe extern "C" fn destack_fs_syncfs(handle: resource::FileHandle) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_file_syncfs(handle: resource::FileHandle) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(SYNCFS)?;
+        context.check_policy(FS_FILE_SYNCFS)?;
         let _ = &handle;
 
-        destack_fs_syncfs_replay(context, handle)
+        destack_fs_file_syncfs_replay(context, handle)
     })
 }
 
 #[unsafe(export_name = "destack.fs.file.truncate")]
-pub unsafe extern "C" fn destack_fs_truncate(path: OsPath, size: FileOffset) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_file_truncate(path: OsPath, size: FileOffset) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(TRUNCATE)?;
+        context.check_policy(FS_FILE_TRUNCATE)?;
         let _ = (&path, &size);
 
-        destack_fs_truncate_replay(context, path, size)
+        destack_fs_file_truncate_replay(context, path, size)
     })
 }
 
 #[unsafe(export_name = "destack.fs.file.write")]
-pub unsafe extern "C" fn destack_fs_write(
+pub unsafe extern "C" fn destack_fs_file_write(
     out: *mut u64,
     handle: resource::FileHandle,
     buffer: NativeSlice<u8>,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(WRITE)?;
+        context.check_policy(FS_FILE_WRITE)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &handle, &buffer);
 
-        destack_fs_write_replay(context, out, handle, buffer)
+        destack_fs_file_write_replay(context, out, handle, buffer)
     })
 }
 
 #[unsafe(export_name = "destack.fs.file.writev")]
-pub unsafe extern "C" fn destack_fs_writev(
+pub unsafe extern "C" fn destack_fs_file_writev(
     out: *mut u64,
     handle: resource::FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(WRITEV)?;
+        context.check_policy(FS_FILE_WRITEV)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &handle, &buffers);
 
-        destack_fs_writev_replay(context, out, handle, buffers)
+        destack_fs_file_writev_replay(context, out, handle, buffers)
     })
 }
 
 #[unsafe(export_name = "destack.fs.mmap.madvise")]
-pub unsafe extern "C" fn destack_fs_madvise(
+pub unsafe extern "C" fn destack_fs_mmap_madvise(
     mapping: NativeSlice<u8>,
     advice: MmapAdvice,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(MADVISE)?;
+        context.check_policy(FS_MMAP_MADVISE)?;
         let _ = (&mapping, &advice);
 
-        destack_fs_madvise_replay(context, mapping, advice)
+        destack_fs_mmap_madvise_replay(context, mapping, advice)
     })
 }
 
 #[unsafe(export_name = "destack.fs.mmap.mprotect")]
-pub unsafe extern "C" fn destack_fs_mprotect(
+pub unsafe extern "C" fn destack_fs_mmap_mprotect(
     mapping: NativeSlice<u8>,
     prot: MmapProt,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(MPROTECT)?;
+        context.check_policy(FS_MMAP_MPROTECT)?;
         let _ = (&mapping, &prot);
 
-        destack_fs_mprotect_replay(context, mapping, prot)
+        destack_fs_mmap_mprotect_replay(context, mapping, prot)
     })
 }
 
 #[unsafe(export_name = "destack.fs.mmap.msync")]
-pub unsafe extern "C" fn destack_fs_msync(
+pub unsafe extern "C" fn destack_fs_mmap_msync(
     mapping: NativeSlice<u8>,
     flags: MmapSyncFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(MSYNC)?;
+        context.check_policy(FS_MMAP_MSYNC)?;
         let _ = (&mapping, &flags);
 
-        destack_fs_msync_replay(context, mapping, flags)
+        destack_fs_mmap_msync_replay(context, mapping, flags)
     })
 }
 
 #[unsafe(export_name = "destack.fs.mmap.munmap")]
-pub unsafe extern "C" fn destack_fs_munmap(mapping: NativeSlice<u8>) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_mmap_munmap(mapping: NativeSlice<u8>) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(MUNMAP)?;
+        context.check_policy(FS_MMAP_MUNMAP)?;
         let _ = &mapping;
 
-        destack_fs_munmap_replay(context, mapping)
+        destack_fs_mmap_munmap_replay(context, mapping)
     })
 }
 
@@ -14316,7 +15602,7 @@ pub unsafe extern "C" fn destack_fs_mmap_anonymous(
     flags: MmapFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(MMAP_ANONYMOUS)?;
+        context.check_policy(FS_MMAP_ANONYMOUS)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
@@ -14336,7 +15622,7 @@ pub unsafe extern "C" fn destack_fs_mmap_file(
     flags: MmapFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(MMAP_FILE)?;
+        context.check_policy(FS_MMAP_FILE)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
@@ -14347,31 +15633,34 @@ pub unsafe extern "C" fn destack_fs_mmap_file(
 }
 
 #[unsafe(export_name = "destack.fs.path.copyfile")]
-pub unsafe extern "C" fn destack_fs_copyfile(
+pub unsafe extern "C" fn destack_fs_path_copyfile(
     from: OsPath,
     to: OsPath,
     flags: CopyFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(COPYFILE)?;
+        context.check_policy(FS_PATH_COPYFILE)?;
         let _ = (&from, &to, &flags);
 
-        destack_fs_copyfile_replay(context, from, to, flags)
+        destack_fs_path_copyfile_replay(context, from, to, flags)
     })
 }
 
 #[unsafe(export_name = "destack.fs.path.link")]
-pub unsafe extern "C" fn destack_fs_link(existingpath: OsPath, newpath: OsPath) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_path_link(
+    existingpath: OsPath,
+    newpath: OsPath,
+) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(LINK)?;
+        context.check_policy(FS_PATH_LINK)?;
         let _ = (&existingpath, &newpath);
 
-        destack_fs_link_replay(context, existingpath, newpath)
+        destack_fs_path_link_replay(context, existingpath, newpath)
     })
 }
 
 #[unsafe(export_name = "destack.fs.path.linkat")]
-pub unsafe extern "C" fn destack_fs_linkat(
+pub unsafe extern "C" fn destack_fs_path_linkat(
     existingdir: resource::DirectoryHandle,
     existingpath: OsPath,
     newdir: resource::DirectoryHandle,
@@ -14379,136 +15668,136 @@ pub unsafe extern "C" fn destack_fs_linkat(
     flags: AtFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(LINKAT)?;
+        context.check_policy(FS_PATH_LINKAT)?;
         let _ = (&existingdir, &existingpath, &newdir, &newpath, &flags);
 
-        destack_fs_linkat_replay(context, existingdir, existingpath, newdir, newpath, flags)
+        destack_fs_path_linkat_replay(context, existingdir, existingpath, newdir, newpath, flags)
     })
 }
 
 #[unsafe(export_name = "destack.fs.path.mkfifo")]
-pub unsafe extern "C" fn destack_fs_mkfifo(path: OsPath, mode: FileMode) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_path_mkfifo(path: OsPath, mode: FileMode) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(MKFIFO)?;
+        context.check_policy(FS_PATH_MKFIFO)?;
         let _ = (&path, &mode);
 
-        destack_fs_mkfifo_replay(context, path, mode)
+        destack_fs_path_mkfifo_replay(context, path, mode)
     })
 }
 
 #[unsafe(export_name = "destack.fs.path.mkfifoat")]
-pub unsafe extern "C" fn destack_fs_mkfifoat(
+pub unsafe extern "C" fn destack_fs_path_mkfifoat(
     dir: resource::DirectoryHandle,
     path: OsPath,
     mode: FileMode,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(MKFIFOAT)?;
+        context.check_policy(FS_PATH_MKFIFOAT)?;
         let _ = (&dir, &path, &mode);
 
-        destack_fs_mkfifoat_replay(context, dir, path, mode)
+        destack_fs_path_mkfifoat_replay(context, dir, path, mode)
     })
 }
 
 #[unsafe(export_name = "destack.fs.path.mknod")]
-pub unsafe extern "C" fn destack_fs_mknod(
+pub unsafe extern "C" fn destack_fs_path_mknod(
     path: OsPath,
     mode: FileMode,
     device: NodeDevice,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(MKNOD)?;
+        context.check_policy(FS_PATH_MKNOD)?;
         let _ = (&path, &mode, &device);
 
-        destack_fs_mknod_replay(context, path, mode, device)
+        destack_fs_path_mknod_replay(context, path, mode, device)
     })
 }
 
 #[unsafe(export_name = "destack.fs.path.mknodat")]
-pub unsafe extern "C" fn destack_fs_mknodat(
+pub unsafe extern "C" fn destack_fs_path_mknodat(
     dir: resource::DirectoryHandle,
     path: OsPath,
     mode: FileMode,
     device: NodeDevice,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(MKNODAT)?;
+        context.check_policy(FS_PATH_MKNODAT)?;
         let _ = (&dir, &path, &mode, &device);
 
-        destack_fs_mknodat_replay(context, dir, path, mode, device)
+        destack_fs_path_mknodat_replay(context, dir, path, mode, device)
     })
 }
 
 #[unsafe(export_name = "destack.fs.path.readlink")]
-pub unsafe extern "C" fn destack_fs_readlink(out: *mut OsPath, path: OsPath) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_path_readlink(out: *mut OsPath, path: OsPath) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(READLINK)?;
+        context.check_policy(FS_PATH_READLINK)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &path);
 
-        destack_fs_readlink_replay(context, out, path)
+        destack_fs_path_readlink_replay(context, out, path)
     })
 }
 
 #[unsafe(export_name = "destack.fs.path.readlinkat")]
-pub unsafe extern "C" fn destack_fs_readlinkat(
+pub unsafe extern "C" fn destack_fs_path_readlinkat(
     out: *mut OsPath,
     dir: resource::DirectoryHandle,
     path: OsPath,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(READLINKAT)?;
+        context.check_policy(FS_PATH_READLINKAT)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &dir, &path);
 
-        destack_fs_readlinkat_replay(context, out, dir, path)
+        destack_fs_path_readlinkat_replay(context, out, dir, path)
     })
 }
 
 #[unsafe(export_name = "destack.fs.path.realpath")]
-pub unsafe extern "C" fn destack_fs_realpath(out: *mut OsPath, path: OsPath) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_path_realpath(out: *mut OsPath, path: OsPath) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(REALPATH)?;
+        context.check_policy(FS_PATH_REALPATH)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &path);
 
-        destack_fs_realpath_replay(context, out, path)
+        destack_fs_path_realpath_replay(context, out, path)
     })
 }
 
 #[unsafe(export_name = "destack.fs.path.rename")]
-pub unsafe extern "C" fn destack_fs_rename(from: OsPath, to: OsPath) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_path_rename(from: OsPath, to: OsPath) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(RENAME)?;
+        context.check_policy(FS_PATH_RENAME)?;
         let _ = (&from, &to);
 
-        destack_fs_rename_replay(context, from, to)
+        destack_fs_path_rename_replay(context, from, to)
     })
 }
 
 #[unsafe(export_name = "destack.fs.path.renameat")]
-pub unsafe extern "C" fn destack_fs_renameat(
+pub unsafe extern "C" fn destack_fs_path_renameat(
     fromdir: resource::DirectoryHandle,
     from: OsPath,
     todir: resource::DirectoryHandle,
     to: OsPath,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(RENAMEAT)?;
+        context.check_policy(FS_PATH_RENAMEAT)?;
         let _ = (&fromdir, &from, &todir, &to);
 
-        destack_fs_renameat_replay(context, fromdir, from, todir, to)
+        destack_fs_path_renameat_replay(context, fromdir, from, todir, to)
     })
 }
 
 #[unsafe(export_name = "destack.fs.path.renameat2")]
-pub unsafe extern "C" fn destack_fs_renameat2(
+pub unsafe extern "C" fn destack_fs_path_renameat2(
     fromdir: resource::DirectoryHandle,
     from: OsPath,
     todir: resource::DirectoryHandle,
@@ -14516,157 +15805,157 @@ pub unsafe extern "C" fn destack_fs_renameat2(
     flags: RenameFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(RENAMEAT2)?;
+        context.check_policy(FS_PATH_RENAMEAT2)?;
         let _ = (&fromdir, &from, &todir, &to, &flags);
 
-        destack_fs_renameat2_replay(context, fromdir, from, todir, to, flags)
+        destack_fs_path_renameat2_replay(context, fromdir, from, todir, to, flags)
     })
 }
 
 #[unsafe(export_name = "destack.fs.path.symlink")]
-pub unsafe extern "C" fn destack_fs_symlink(
+pub unsafe extern "C" fn destack_fs_path_symlink(
     target: OsPath,
     path: OsPath,
     kind: SymlinkType,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(SYMLINK)?;
+        context.check_policy(FS_PATH_SYMLINK)?;
         let _ = (&target, &path, &kind);
 
-        destack_fs_symlink_replay(context, target, path, kind)
+        destack_fs_path_symlink_replay(context, target, path, kind)
     })
 }
 
 #[unsafe(export_name = "destack.fs.path.symlinkat")]
-pub unsafe extern "C" fn destack_fs_symlinkat(
+pub unsafe extern "C" fn destack_fs_path_symlinkat(
     target: OsPath,
     dir: resource::DirectoryHandle,
     path: OsPath,
     kind: SymlinkType,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(SYMLINKAT)?;
+        context.check_policy(FS_PATH_SYMLINKAT)?;
         let _ = (&target, &dir, &path, &kind);
 
-        destack_fs_symlinkat_replay(context, target, dir, path, kind)
+        destack_fs_path_symlinkat_replay(context, target, dir, path, kind)
     })
 }
 
 #[unsafe(export_name = "destack.fs.path.unlink")]
-pub unsafe extern "C" fn destack_fs_unlink(path: OsPath) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_path_unlink(path: OsPath) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(UNLINK)?;
+        context.check_policy(FS_PATH_UNLINK)?;
         let _ = &path;
 
-        destack_fs_unlink_replay(context, path)
+        destack_fs_path_unlink_replay(context, path)
     })
 }
 
 #[unsafe(export_name = "destack.fs.path.unlinkat")]
-pub unsafe extern "C" fn destack_fs_unlinkat(
+pub unsafe extern "C" fn destack_fs_path_unlinkat(
     dir: resource::DirectoryHandle,
     path: OsPath,
     flags: AtFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(UNLINKAT)?;
+        context.check_policy(FS_PATH_UNLINKAT)?;
         let _ = (&dir, &path, &flags);
 
-        destack_fs_unlinkat_replay(context, dir, path, flags)
+        destack_fs_path_unlinkat_replay(context, dir, path, flags)
     })
 }
 
 #[unsafe(export_name = "destack.fs.stat.fstat")]
-pub unsafe extern "C" fn destack_fs_fstat(
+pub unsafe extern "C" fn destack_fs_stat_fstat(
     out: *mut Stat,
     handle: resource::FileHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(FSTAT)?;
+        context.check_policy(FS_STAT_FSTAT)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &handle);
 
-        destack_fs_fstat_replay(context, out, handle)
+        destack_fs_stat_fstat_replay(context, out, handle)
     })
 }
 
 #[unsafe(export_name = "destack.fs.stat.fstatfs")]
-pub unsafe extern "C" fn destack_fs_fstatfs(
+pub unsafe extern "C" fn destack_fs_stat_fstatfs(
     out: *mut StatFs,
     handle: resource::FileHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(FSTATFS)?;
+        context.check_policy(FS_STAT_FSTATFS)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &handle);
 
-        destack_fs_fstatfs_replay(context, out, handle)
+        destack_fs_stat_fstatfs_replay(context, out, handle)
     })
 }
 
 #[unsafe(export_name = "destack.fs.stat.lstat")]
-pub unsafe extern "C" fn destack_fs_lstat(out: *mut Stat, path: OsPath) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_stat_lstat(out: *mut Stat, path: OsPath) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(LSTAT)?;
+        context.check_policy(FS_STAT_LSTAT)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &path);
 
-        destack_fs_lstat_replay(context, out, path)
+        destack_fs_stat_lstat_replay(context, out, path)
     })
 }
 
 #[unsafe(export_name = "destack.fs.stat.stat")]
-pub unsafe extern "C" fn destack_fs_stat(out: *mut Stat, path: OsPath) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_stat_stat(out: *mut Stat, path: OsPath) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(STAT)?;
+        context.check_policy(FS_STAT_STAT)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &path);
 
-        destack_fs_stat_replay(context, out, path)
+        destack_fs_stat_stat_replay(context, out, path)
     })
 }
 
 #[unsafe(export_name = "destack.fs.stat.statat")]
-pub unsafe extern "C" fn destack_fs_statat(
+pub unsafe extern "C" fn destack_fs_stat_statat(
     out: *mut Stat,
     dir: resource::DirectoryHandle,
     path: OsPath,
     flags: AtFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(STATAT)?;
+        context.check_policy(FS_STAT_STATAT)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &dir, &path, &flags);
 
-        destack_fs_statat_replay(context, out, dir, path, flags)
+        destack_fs_stat_statat_replay(context, out, dir, path, flags)
     })
 }
 
 #[unsafe(export_name = "destack.fs.stat.statfs")]
-pub unsafe extern "C" fn destack_fs_statfs(out: *mut StatFs, path: OsPath) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_stat_statfs(out: *mut StatFs, path: OsPath) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(STATFS)?;
+        context.check_policy(FS_STAT_STATFS)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &path);
 
-        destack_fs_statfs_replay(context, out, path)
+        destack_fs_stat_statfs_replay(context, out, path)
     })
 }
 
 #[unsafe(export_name = "destack.fs.stat.statx")]
-pub unsafe extern "C" fn destack_fs_statx(
+pub unsafe extern "C" fn destack_fs_stat_statx(
     out: *mut Statx,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -14674,13 +15963,13 @@ pub unsafe extern "C" fn destack_fs_statx(
     mask: StatxMask,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(STATX)?;
+        context.check_policy(FS_STAT_STATX)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &dir, &path, &flags, &mask);
 
-        destack_fs_statx_replay(context, out, dir, path, flags, mask)
+        destack_fs_stat_statx_replay(context, out, dir, path, flags, mask)
     })
 }
 
@@ -14691,7 +15980,7 @@ pub unsafe extern "C" fn destack_fs_watch(
     options: WatchOptions,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(WATCH)?;
+        context.check_policy(FS_WATCH)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
@@ -14704,7 +15993,7 @@ pub unsafe extern "C" fn destack_fs_watch(
 #[unsafe(export_name = "destack.fs.watchClose")]
 pub unsafe extern "C" fn destack_fs_watch_close(handle: resource::WatchHandle) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(WATCH_CLOSE)?;
+        context.check_policy(FS_WATCH_CLOSE)?;
         let _ = &handle;
 
         destack_fs_watch_close_replay(context, handle)
@@ -14717,7 +16006,7 @@ pub unsafe extern "C" fn destack_fs_watch_read(
     handle: resource::WatchHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(WATCH_READ)?;
+        context.check_policy(FS_WATCH_READ)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
@@ -14735,7 +16024,7 @@ pub unsafe extern "C" fn destack_fs_watchat(
     options: WatchOptions,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(WATCHAT)?;
+        context.check_policy(FS_WATCHAT)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
@@ -14746,205 +16035,388 @@ pub unsafe extern "C" fn destack_fs_watchat(
 }
 
 #[unsafe(export_name = "destack.fs.xattr.fgetxattr")]
-pub unsafe extern "C" fn destack_fs_fgetxattr(
+pub unsafe extern "C" fn destack_fs_xattr_fgetxattr(
     out: *mut NativeArray<u8>,
     handle: resource::FileHandle,
     name: NativeStringRef,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(FGETXATTR)?;
+        context.check_policy(FS_XATTR_FGETXATTR)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &handle, &name);
 
-        destack_fs_fgetxattr_replay(context, out, handle, name)
+        destack_fs_xattr_fgetxattr_replay(context, out, handle, name)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.xattr.fgetxattrBytes")]
+pub unsafe extern "C" fn destack_fs_xattr_fgetxattr_bytes(
+    out: *mut NativeArray<u8>,
+    handle: resource::FileHandle,
+    name: NativeSlice<u8>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(FS_XATTR_FGETXATTR_BYTES)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &name);
+
+        destack_fs_xattr_fgetxattr_bytes_replay(context, out, handle, name)
     })
 }
 
 #[unsafe(export_name = "destack.fs.xattr.flistxattr")]
-pub unsafe extern "C" fn destack_fs_flistxattr(
+pub unsafe extern "C" fn destack_fs_xattr_flistxattr(
     out: *mut NativeArray<NativeStringRef>,
     handle: resource::FileHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(FLISTXATTR)?;
+        context.check_policy(FS_XATTR_FLISTXATTR)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &handle);
 
-        destack_fs_flistxattr_replay(context, out, handle)
+        destack_fs_xattr_flistxattr_replay(context, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.xattr.flistxattrBytes")]
+pub unsafe extern "C" fn destack_fs_xattr_flistxattr_bytes(
+    out: *mut NativeArray<NativeArray<u8>>,
+    handle: resource::FileHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(FS_XATTR_FLISTXATTR_BYTES)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        destack_fs_xattr_flistxattr_bytes_replay(context, out, handle)
     })
 }
 
 #[unsafe(export_name = "destack.fs.xattr.fremovexattr")]
-pub unsafe extern "C" fn destack_fs_fremovexattr(
+pub unsafe extern "C" fn destack_fs_xattr_fremovexattr(
     handle: resource::FileHandle,
     name: NativeStringRef,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(FREMOVEXATTR)?;
+        context.check_policy(FS_XATTR_FREMOVEXATTR)?;
         let _ = (&handle, &name);
 
-        destack_fs_fremovexattr_replay(context, handle, name)
+        destack_fs_xattr_fremovexattr_replay(context, handle, name)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.xattr.fremovexattrBytes")]
+pub unsafe extern "C" fn destack_fs_xattr_fremovexattr_bytes(
+    handle: resource::FileHandle,
+    name: NativeSlice<u8>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(FS_XATTR_FREMOVEXATTR_BYTES)?;
+        let _ = (&handle, &name);
+
+        destack_fs_xattr_fremovexattr_bytes_replay(context, handle, name)
     })
 }
 
 #[unsafe(export_name = "destack.fs.xattr.fsetxattr")]
-pub unsafe extern "C" fn destack_fs_fsetxattr(
+pub unsafe extern "C" fn destack_fs_xattr_fsetxattr(
     handle: resource::FileHandle,
     name: NativeStringRef,
     value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(FSETXATTR)?;
+        context.check_policy(FS_XATTR_FSETXATTR)?;
         let _ = (&handle, &name, &value, &flags);
 
-        destack_fs_fsetxattr_replay(context, handle, name, value, flags)
+        destack_fs_xattr_fsetxattr_replay(context, handle, name, value, flags)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.xattr.fsetxattrBytes")]
+pub unsafe extern "C" fn destack_fs_xattr_fsetxattr_bytes(
+    handle: resource::FileHandle,
+    name: NativeSlice<u8>,
+    value: NativeSlice<u8>,
+    flags: XattrFlags,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(FS_XATTR_FSETXATTR_BYTES)?;
+        let _ = (&handle, &name, &value, &flags);
+
+        destack_fs_xattr_fsetxattr_bytes_replay(context, handle, name, value, flags)
     })
 }
 
 #[unsafe(export_name = "destack.fs.xattr.getxattr")]
-pub unsafe extern "C" fn destack_fs_getxattr(
+pub unsafe extern "C" fn destack_fs_xattr_getxattr(
     out: *mut NativeArray<u8>,
     path: OsPath,
     name: NativeStringRef,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(GETXATTR)?;
+        context.check_policy(FS_XATTR_GETXATTR)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &path, &name);
 
-        destack_fs_getxattr_replay(context, out, path, name)
+        destack_fs_xattr_getxattr_replay(context, out, path, name)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.xattr.getxattrBytes")]
+pub unsafe extern "C" fn destack_fs_xattr_getxattr_bytes(
+    out: *mut NativeArray<u8>,
+    path: OsPath,
+    name: NativeSlice<u8>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(FS_XATTR_GETXATTR_BYTES)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &path, &name);
+
+        destack_fs_xattr_getxattr_bytes_replay(context, out, path, name)
     })
 }
 
 #[unsafe(export_name = "destack.fs.xattr.lgetxattr")]
-pub unsafe extern "C" fn destack_fs_lgetxattr(
+pub unsafe extern "C" fn destack_fs_xattr_lgetxattr(
     out: *mut NativeArray<u8>,
     path: OsPath,
     name: NativeStringRef,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(LGETXATTR)?;
+        context.check_policy(FS_XATTR_LGETXATTR)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &path, &name);
 
-        destack_fs_lgetxattr_replay(context, out, path, name)
+        destack_fs_xattr_lgetxattr_replay(context, out, path, name)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.xattr.lgetxattrBytes")]
+pub unsafe extern "C" fn destack_fs_xattr_lgetxattr_bytes(
+    out: *mut NativeArray<u8>,
+    path: OsPath,
+    name: NativeSlice<u8>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(FS_XATTR_LGETXATTR_BYTES)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &path, &name);
+
+        destack_fs_xattr_lgetxattr_bytes_replay(context, out, path, name)
     })
 }
 
 #[unsafe(export_name = "destack.fs.xattr.listxattr")]
-pub unsafe extern "C" fn destack_fs_listxattr(
+pub unsafe extern "C" fn destack_fs_xattr_listxattr(
     out: *mut NativeArray<NativeStringRef>,
     path: OsPath,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(LISTXATTR)?;
+        context.check_policy(FS_XATTR_LISTXATTR)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &path);
 
-        destack_fs_listxattr_replay(context, out, path)
+        destack_fs_xattr_listxattr_replay(context, out, path)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.xattr.listxattrBytes")]
+pub unsafe extern "C" fn destack_fs_xattr_listxattr_bytes(
+    out: *mut NativeArray<NativeArray<u8>>,
+    path: OsPath,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(FS_XATTR_LISTXATTR_BYTES)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &path);
+
+        destack_fs_xattr_listxattr_bytes_replay(context, out, path)
     })
 }
 
 #[unsafe(export_name = "destack.fs.xattr.llistxattr")]
-pub unsafe extern "C" fn destack_fs_llistxattr(
+pub unsafe extern "C" fn destack_fs_xattr_llistxattr(
     out: *mut NativeArray<NativeStringRef>,
     path: OsPath,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(LLISTXATTR)?;
+        context.check_policy(FS_XATTR_LLISTXATTR)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &path);
 
-        destack_fs_llistxattr_replay(context, out, path)
+        destack_fs_xattr_llistxattr_replay(context, out, path)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.xattr.llistxattrBytes")]
+pub unsafe extern "C" fn destack_fs_xattr_llistxattr_bytes(
+    out: *mut NativeArray<NativeArray<u8>>,
+    path: OsPath,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(FS_XATTR_LLISTXATTR_BYTES)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &path);
+
+        destack_fs_xattr_llistxattr_bytes_replay(context, out, path)
     })
 }
 
 #[unsafe(export_name = "destack.fs.xattr.lremovexattr")]
-pub unsafe extern "C" fn destack_fs_lremovexattr(
+pub unsafe extern "C" fn destack_fs_xattr_lremovexattr(
     path: OsPath,
     name: NativeStringRef,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(LREMOVEXATTR)?;
+        context.check_policy(FS_XATTR_LREMOVEXATTR)?;
         let _ = (&path, &name);
 
-        destack_fs_lremovexattr_replay(context, path, name)
+        destack_fs_xattr_lremovexattr_replay(context, path, name)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.xattr.lremovexattrBytes")]
+pub unsafe extern "C" fn destack_fs_xattr_lremovexattr_bytes(
+    path: OsPath,
+    name: NativeSlice<u8>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(FS_XATTR_LREMOVEXATTR_BYTES)?;
+        let _ = (&path, &name);
+
+        destack_fs_xattr_lremovexattr_bytes_replay(context, path, name)
     })
 }
 
 #[unsafe(export_name = "destack.fs.xattr.lsetxattr")]
-pub unsafe extern "C" fn destack_fs_lsetxattr(
+pub unsafe extern "C" fn destack_fs_xattr_lsetxattr(
     path: OsPath,
     name: NativeStringRef,
     value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(LSETXATTR)?;
+        context.check_policy(FS_XATTR_LSETXATTR)?;
         let _ = (&path, &name, &value, &flags);
 
-        destack_fs_lsetxattr_replay(context, path, name, value, flags)
+        destack_fs_xattr_lsetxattr_replay(context, path, name, value, flags)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.xattr.lsetxattrBytes")]
+pub unsafe extern "C" fn destack_fs_xattr_lsetxattr_bytes(
+    path: OsPath,
+    name: NativeSlice<u8>,
+    value: NativeSlice<u8>,
+    flags: XattrFlags,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(FS_XATTR_LSETXATTR_BYTES)?;
+        let _ = (&path, &name, &value, &flags);
+
+        destack_fs_xattr_lsetxattr_bytes_replay(context, path, name, value, flags)
     })
 }
 
 #[unsafe(export_name = "destack.fs.xattr.removexattr")]
-pub unsafe extern "C" fn destack_fs_removexattr(
+pub unsafe extern "C" fn destack_fs_xattr_removexattr(
     path: OsPath,
     name: NativeStringRef,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(REMOVEXATTR)?;
+        context.check_policy(FS_XATTR_REMOVEXATTR)?;
         let _ = (&path, &name);
 
-        destack_fs_removexattr_replay(context, path, name)
+        destack_fs_xattr_removexattr_replay(context, path, name)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.xattr.removexattrBytes")]
+pub unsafe extern "C" fn destack_fs_xattr_removexattr_bytes(
+    path: OsPath,
+    name: NativeSlice<u8>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(FS_XATTR_REMOVEXATTR_BYTES)?;
+        let _ = (&path, &name);
+
+        destack_fs_xattr_removexattr_bytes_replay(context, path, name)
     })
 }
 
 #[unsafe(export_name = "destack.fs.xattr.setxattr")]
-pub unsafe extern "C" fn destack_fs_setxattr(
+pub unsafe extern "C" fn destack_fs_xattr_setxattr(
     path: OsPath,
     name: NativeStringRef,
     value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(SETXATTR)?;
+        context.check_policy(FS_XATTR_SETXATTR)?;
         let _ = (&path, &name, &value, &flags);
 
-        destack_fs_setxattr_replay(context, path, name, value, flags)
+        destack_fs_xattr_setxattr_replay(context, path, name, value, flags)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.xattr.setxattrBytes")]
+pub unsafe extern "C" fn destack_fs_xattr_setxattr_bytes(
+    path: OsPath,
+    name: NativeSlice<u8>,
+    value: NativeSlice<u8>,
+    flags: XattrFlags,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(FS_XATTR_SETXATTR_BYTES)?;
+        let _ = (&path, &name, &value, &flags);
+
+        destack_fs_xattr_setxattr_bytes_replay(context, path, name, value, flags)
     })
 }
 
 /// VM replay implementations for fs bindings.
 #[inline]
-fn destack_fs_access_vm_replay(
+fn destack_fs_attrs_access_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     path: OsPathVm,
     mode: AccessMode,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        ACCESS,
+        FS_ATTRS_ACCESS,
         context,
         |context| platform_vm::destack_fs_access(runtime, context, path, mode),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = AccessReplay {
+                let payload = FsAttrsAccessReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -14953,7 +16425,7 @@ fn destack_fs_access_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    AccessReplay { result }
+                    FsAttrsAccessReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -14969,12 +16441,12 @@ fn destack_fs_access_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_access_result(context, result)?;
+    let result = encode_destack_fs_attrs_access_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_accessat_vm_replay(
+fn destack_fs_attrs_accessat_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     dir: resource::DirectoryHandle,
@@ -14983,14 +16455,14 @@ fn destack_fs_accessat_vm_replay(
     flags: AtFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        ACCESSAT,
+        FS_ATTRS_ACCESSAT,
         context,
         |context| platform_vm::destack_fs_accessat(runtime, context, dir, path, mode, flags),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = AccessatReplay {
+                let payload = FsAttrsAccessatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -14999,7 +16471,7 @@ fn destack_fs_accessat_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    AccessatReplay { result }
+                    FsAttrsAccessatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -15015,26 +16487,26 @@ fn destack_fs_accessat_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_accessat_result(context, result)?;
+    let result = encode_destack_fs_attrs_accessat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_chmod_vm_replay(
+fn destack_fs_attrs_chmod_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     path: OsPathVm,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        CHMOD,
+        FS_ATTRS_CHMOD,
         context,
         |context| platform_vm::destack_fs_chmod(runtime, context, path, mode),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = ChmodReplay {
+                let payload = FsAttrsChmodReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -15043,7 +16515,7 @@ fn destack_fs_chmod_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ChmodReplay { result }
+                    FsAttrsChmodReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -15059,12 +16531,12 @@ fn destack_fs_chmod_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_chmod_result(context, result)?;
+    let result = encode_destack_fs_attrs_chmod_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_chown_vm_replay(
+fn destack_fs_attrs_chown_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     path: OsPathVm,
@@ -15072,14 +16544,14 @@ fn destack_fs_chown_vm_replay(
     gid: u32,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        CHOWN,
+        FS_ATTRS_CHOWN,
         context,
         |context| platform_vm::destack_fs_chown(runtime, context, path, uid, gid),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = ChownReplay {
+                let payload = FsAttrsChownReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -15088,7 +16560,7 @@ fn destack_fs_chown_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ChownReplay { result }
+                    FsAttrsChownReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -15104,26 +16576,26 @@ fn destack_fs_chown_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_chown_result(context, result)?;
+    let result = encode_destack_fs_attrs_chown_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_fchmod_vm_replay(
+fn destack_fs_attrs_fchmod_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        FCHMOD,
+        FS_ATTRS_FCHMOD,
         context,
         |context| platform_vm::destack_fs_fchmod(runtime, context, handle, mode),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = FchmodReplay {
+                let payload = FsAttrsFchmodReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -15132,7 +16604,7 @@ fn destack_fs_fchmod_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FchmodReplay { result }
+                    FsAttrsFchmodReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -15148,12 +16620,12 @@ fn destack_fs_fchmod_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_fchmod_result(context, result)?;
+    let result = encode_destack_fs_attrs_fchmod_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_fchmodat_vm_replay(
+fn destack_fs_attrs_fchmodat_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     dir: resource::DirectoryHandle,
@@ -15162,14 +16634,14 @@ fn destack_fs_fchmodat_vm_replay(
     flags: AtFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        FCHMODAT,
+        FS_ATTRS_FCHMODAT,
         context,
         |context| platform_vm::destack_fs_fchmodat(runtime, context, dir, path, mode, flags),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = FchmodatReplay {
+                let payload = FsAttrsFchmodatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -15178,7 +16650,7 @@ fn destack_fs_fchmodat_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FchmodatReplay { result }
+                    FsAttrsFchmodatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -15194,12 +16666,12 @@ fn destack_fs_fchmodat_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_fchmodat_result(context, result)?;
+    let result = encode_destack_fs_attrs_fchmodat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_fchown_vm_replay(
+fn destack_fs_attrs_fchown_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
@@ -15207,14 +16679,14 @@ fn destack_fs_fchown_vm_replay(
     gid: u32,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        FCHOWN,
+        FS_ATTRS_FCHOWN,
         context,
         |context| platform_vm::destack_fs_fchown(runtime, context, handle, uid, gid),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = FchownReplay {
+                let payload = FsAttrsFchownReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -15223,7 +16695,7 @@ fn destack_fs_fchown_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FchownReplay { result }
+                    FsAttrsFchownReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -15239,12 +16711,12 @@ fn destack_fs_fchown_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_fchown_result(context, result)?;
+    let result = encode_destack_fs_attrs_fchown_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_fchownat_vm_replay(
+fn destack_fs_attrs_fchownat_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     dir: resource::DirectoryHandle,
@@ -15254,14 +16726,14 @@ fn destack_fs_fchownat_vm_replay(
     flags: AtFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        FCHOWNAT,
+        FS_ATTRS_FCHOWNAT,
         context,
         |context| platform_vm::destack_fs_fchownat(runtime, context, dir, path, uid, gid, flags),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = FchownatReplay {
+                let payload = FsAttrsFchownatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -15270,7 +16742,7 @@ fn destack_fs_fchownat_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FchownatReplay { result }
+                    FsAttrsFchownatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -15286,12 +16758,12 @@ fn destack_fs_fchownat_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_fchownat_result(context, result)?;
+    let result = encode_destack_fs_attrs_fchownat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_futimes_vm_replay(
+fn destack_fs_attrs_futimes_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
@@ -15299,14 +16771,14 @@ fn destack_fs_futimes_vm_replay(
     mtimens: u64,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        FUTIMES,
+        FS_ATTRS_FUTIMES,
         context,
         |context| platform_vm::destack_fs_futimes(runtime, context, handle, atimens, mtimens),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = FutimesReplay {
+                let payload = FsAttrsFutimesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -15315,7 +16787,7 @@ fn destack_fs_futimes_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FutimesReplay { result }
+                    FsAttrsFutimesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -15331,12 +16803,12 @@ fn destack_fs_futimes_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_futimes_result(context, result)?;
+    let result = encode_destack_fs_attrs_futimes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_lutimes_vm_replay(
+fn destack_fs_attrs_lutimes_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     path: OsPathVm,
@@ -15344,14 +16816,14 @@ fn destack_fs_lutimes_vm_replay(
     mtimens: u64,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        LUTIMES,
+        FS_ATTRS_LUTIMES,
         context,
         |context| platform_vm::destack_fs_lutimes(runtime, context, path, atimens, mtimens),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = LutimesReplay {
+                let payload = FsAttrsLutimesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -15360,7 +16832,7 @@ fn destack_fs_lutimes_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    LutimesReplay { result }
+                    FsAttrsLutimesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -15376,12 +16848,12 @@ fn destack_fs_lutimes_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_lutimes_result(context, result)?;
+    let result = encode_destack_fs_attrs_lutimes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_utimensat_vm_replay(
+fn destack_fs_attrs_utimensat_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     dir: resource::DirectoryHandle,
@@ -15391,7 +16863,7 @@ fn destack_fs_utimensat_vm_replay(
     flags: AtFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        UTIMENSAT,
+        FS_ATTRS_UTIMENSAT,
         context,
         |context| {
             platform_vm::destack_fs_utimensat(runtime, context, dir, path, atimens, mtimens, flags)
@@ -15400,7 +16872,7 @@ fn destack_fs_utimensat_vm_replay(
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = UtimensatReplay {
+                let payload = FsAttrsUtimensatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -15409,7 +16881,7 @@ fn destack_fs_utimensat_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    UtimensatReplay { result }
+                    FsAttrsUtimensatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -15425,12 +16897,12 @@ fn destack_fs_utimensat_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_utimensat_result(context, result)?;
+    let result = encode_destack_fs_attrs_utimensat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_utimes_vm_replay(
+fn destack_fs_attrs_utimes_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     path: OsPathVm,
@@ -15438,14 +16910,14 @@ fn destack_fs_utimes_vm_replay(
     mtimens: u64,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        UTIMES,
+        FS_ATTRS_UTIMES,
         context,
         |context| platform_vm::destack_fs_utimes(runtime, context, path, atimens, mtimens),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = UtimesReplay {
+                let payload = FsAttrsUtimesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -15454,7 +16926,7 @@ fn destack_fs_utimes_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    UtimesReplay { result }
+                    FsAttrsUtimesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -15470,25 +16942,25 @@ fn destack_fs_utimes_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_utimes_result(context, result)?;
+    let result = encode_destack_fs_attrs_utimes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_closedir_vm_replay(
+fn destack_fs_dir_closedir_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        CLOSEDIR,
+        FS_DIR_CLOSEDIR,
         context,
         |context| platform_vm::destack_fs_closedir(runtime, context, handle),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = ClosedirReplay {
+                let payload = FsDirClosedirReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -15497,7 +16969,7 @@ fn destack_fs_closedir_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ClosedirReplay { result }
+                    FsDirClosedirReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -15513,18 +16985,18 @@ fn destack_fs_closedir_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_closedir_result(context, result)?;
+    let result = encode_destack_fs_dir_closedir_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_dirfd_vm_replay(
+fn destack_fs_dir_dirfd_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        DIRFD,
+        FS_DIR_DIRFD,
         context,
         |context| platform_vm::destack_fs_dirfd(runtime, context, handle),
         |context, result| {
@@ -15532,7 +17004,7 @@ fn destack_fs_dirfd_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = DirfdReplay {
+                let payload = FsDirDirfdReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -15541,7 +17013,7 @@ fn destack_fs_dirfd_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    DirfdReplay { result }
+                    FsDirDirfdReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -15560,26 +17032,26 @@ fn destack_fs_dirfd_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_dirfd_result(context, result)?;
+    let result = encode_destack_fs_dir_dirfd_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_mkdir_vm_replay(
+fn destack_fs_dir_mkdir_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     path: OsPathVm,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        MKDIR,
+        FS_DIR_MKDIR,
         context,
         |context| platform_vm::destack_fs_mkdir(runtime, context, path, mode),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = MkdirReplay {
+                let payload = FsDirMkdirReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -15588,7 +17060,7 @@ fn destack_fs_mkdir_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MkdirReplay { result }
+                    FsDirMkdirReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -15604,12 +17076,12 @@ fn destack_fs_mkdir_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_mkdir_result(context, result)?;
+    let result = encode_destack_fs_dir_mkdir_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_mkdirat_vm_replay(
+fn destack_fs_dir_mkdirat_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     dir: resource::DirectoryHandle,
@@ -15617,14 +17089,14 @@ fn destack_fs_mkdirat_vm_replay(
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        MKDIRAT,
+        FS_DIR_MKDIRAT,
         context,
         |context| platform_vm::destack_fs_mkdirat(runtime, context, dir, path, mode),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = MkdiratReplay {
+                let payload = FsDirMkdiratReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -15633,7 +17105,7 @@ fn destack_fs_mkdirat_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MkdiratReplay { result }
+                    FsDirMkdiratReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -15649,18 +17121,18 @@ fn destack_fs_mkdirat_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_mkdirat_result(context, result)?;
+    let result = encode_destack_fs_dir_mkdirat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_mkdtemp_vm_replay(
+fn destack_fs_dir_mkdtemp_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     template: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        MKDTEMP,
+        FS_DIR_MKDTEMP,
         context,
         |context| platform_vm::destack_fs_mkdtemp(runtime, context, template),
         |context, result| {
@@ -15668,27 +17140,13 @@ fn destack_fs_mkdtemp_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay_encoding = result_value.encoding;
-                let result_replay_bytes_inner = result_value.bytes.0.read_bytes(context)?;
-                let result_replay_bytes = result_replay_bytes_inner;
-                let result_replay_utf16_inner_raw = result_value.utf16.0.raw_values(context)?;
-                let mut result_replay_utf16_inner =
-                    Vec::with_capacity(result_replay_utf16_inner_raw.len());
-                for result_replay_utf16_inner_item_value in result_replay_utf16_inner_raw {
-                    let result_replay_utf16_inner_item = decode_uint16(
-                        result_replay_utf16_inner_item_value,
-                        "result_replay_utf16_inner_item",
-                        "item",
-                    )?;
-                    let result_replay_utf16_inner_item_replay = result_replay_utf16_inner_item;
-                    result_replay_utf16_inner.push(result_replay_utf16_inner_item_replay);
-                }
-                let result_replay_utf16 = result_replay_utf16_inner;
+                let result_replay_data_inner = result_value.data.0.read_bytes(context)?;
+                let result_replay_data = result_replay_data_inner;
                 let result_replay = OsPathReplay {
                     encoding: result_replay_encoding,
-                    bytes: result_replay_bytes,
-                    utf16: result_replay_utf16,
+                    data: result_replay_data,
                 };
-                let payload = MkdtempReplay {
+                let payload = FsDirMkdtempReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -15697,7 +17155,7 @@ fn destack_fs_mkdtemp_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MkdtempReplay { result }
+                    FsDirMkdtempReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -15710,26 +17168,13 @@ fn destack_fs_mkdtemp_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result_encoding = value.encoding;
-                    let vm_result_bytes_inner =
-                        VmArray::from_bytes(context, value.bytes.as_slice());
-                    let vm_result_bytes = crate::platform::fs::PathBytesAbi::<
+                    let vm_result_data_inner = VmArray::from_bytes(context, value.data.as_slice());
+                    let vm_result_data = crate::platform::fs::PathBytesAbi::<
                         crate::platform::abi::VmAbi,
-                    >(vm_result_bytes_inner);
-                    let mut vm_result_utf16_inner_values = Vec::with_capacity(value.utf16.len());
-                    for vm_result_utf16_inner_item in value.utf16.iter() {
-                        let vm_result_utf16_inner_item = *vm_result_utf16_inner_item;
-                        let vm_result_utf16_inner_item_value = vm_result_utf16_inner_item;
-                        vm_result_utf16_inner_values.push(vm_result_utf16_inner_item_value);
-                    }
-                    let vm_result_utf16_inner =
-                        VmArray::from_values(context, &vm_result_utf16_inner_values)?;
-                    let vm_result_utf16 = crate::platform::fs::PathUtf16Abi::<
-                        crate::platform::abi::VmAbi,
-                    >(vm_result_utf16_inner);
+                    >(vm_result_data_inner);
                     let vm_result = OsPathVm {
                         encoding: vm_result_encoding,
-                        bytes: vm_result_bytes,
-                        utf16: vm_result_utf16,
+                        data: vm_result_data,
                     };
                     Ok(vm_result)
                 }
@@ -15737,18 +17182,18 @@ fn destack_fs_mkdtemp_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_mkdtemp_result(context, result)?;
+    let result = encode_destack_fs_dir_mkdtemp_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_opendir_vm_replay(
+fn destack_fs_dir_opendir_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        OPENDIR,
+        FS_DIR_OPENDIR,
         context,
         |context| platform_vm::destack_fs_opendir(runtime, context, path),
         |context, result| {
@@ -15756,7 +17201,7 @@ fn destack_fs_opendir_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = OpendirReplay {
+                let payload = FsDirOpendirReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -15765,7 +17210,7 @@ fn destack_fs_opendir_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    OpendirReplay { result }
+                    FsDirOpendirReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -15784,18 +17229,18 @@ fn destack_fs_opendir_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_opendir_result(context, result)?;
+    let result = encode_destack_fs_dir_opendir_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_readdir_vm_replay(
+fn destack_fs_dir_readdir_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        READDIR,
+        FS_DIR_READDIR,
         context,
         |context| platform_vm::destack_fs_readdir(runtime, context, handle),
         |context, result| {
@@ -15836,11 +17281,11 @@ fn destack_fs_readdir_vm_replay(
                             let slots = context
                                 .aggregate_slots(slots[0])
                                 .map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 3 {
+                            if slots.len() != 2 {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
                                         "result_replay_item_name",
-                                        "expected 3 fields",
+                                        "expected 2 fields",
                                     ),
                                 )
                                 .boxed());
@@ -15864,30 +17309,19 @@ fn destack_fs_readdir_vm_replay(
                                         .boxed());
                                     }
                                 };
-                            let result_replay_item_name_bytes_inner = decode_array::<u8>(
+                            let result_replay_item_name_data_inner = decode_array::<u8>(
                                 context,
                                 slots[1],
-                                "result_replay_item_name_bytes_inner",
-                                "bytes",
+                                "result_replay_item_name_data_inner",
+                                "data",
                             )?;
-                            let result_replay_item_name_bytes =
+                            let result_replay_item_name_data =
                                 crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(
-                                    result_replay_item_name_bytes_inner,
-                                );
-                            let result_replay_item_name_utf16_inner = decode_array::<u16>(
-                                context,
-                                slots[2],
-                                "result_replay_item_name_utf16_inner",
-                                "utf16",
-                            )?;
-                            let result_replay_item_name_utf16 =
-                                crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(
-                                    result_replay_item_name_utf16_inner,
+                                    result_replay_item_name_data_inner,
                                 );
                             OsPathVm {
                                 encoding: result_replay_item_name_encoding,
-                                bytes: result_replay_item_name_bytes,
-                                utf16: result_replay_item_name_utf16,
+                                data: result_replay_item_name_data,
                             }
                         };
                         let result_replay_item_kind_raw =
@@ -15917,33 +17351,13 @@ fn destack_fs_readdir_vm_replay(
                         }
                     };
                     let result_replay_item_replay_name_encoding = result_replay_item.name.encoding;
-                    let result_replay_item_replay_name_bytes_inner =
-                        result_replay_item.name.bytes.0.read_bytes(context)?;
-                    let result_replay_item_replay_name_bytes =
-                        result_replay_item_replay_name_bytes_inner;
-                    let result_replay_item_replay_name_utf16_inner_raw =
-                        result_replay_item.name.utf16.0.raw_values(context)?;
-                    let mut result_replay_item_replay_name_utf16_inner =
-                        Vec::with_capacity(result_replay_item_replay_name_utf16_inner_raw.len());
-                    for result_replay_item_replay_name_utf16_inner_item_value in
-                        result_replay_item_replay_name_utf16_inner_raw
-                    {
-                        let result_replay_item_replay_name_utf16_inner_item = decode_uint16(
-                            result_replay_item_replay_name_utf16_inner_item_value,
-                            "result_replay_item_replay_name_utf16_inner_item",
-                            "item",
-                        )?;
-                        let result_replay_item_replay_name_utf16_inner_item_replay =
-                            result_replay_item_replay_name_utf16_inner_item;
-                        result_replay_item_replay_name_utf16_inner
-                            .push(result_replay_item_replay_name_utf16_inner_item_replay);
-                    }
-                    let result_replay_item_replay_name_utf16 =
-                        result_replay_item_replay_name_utf16_inner;
+                    let result_replay_item_replay_name_data_inner =
+                        result_replay_item.name.data.0.read_bytes(context)?;
+                    let result_replay_item_replay_name_data =
+                        result_replay_item_replay_name_data_inner;
                     let result_replay_item_replay_name = OsPathReplay {
                         encoding: result_replay_item_replay_name_encoding,
-                        bytes: result_replay_item_replay_name_bytes,
-                        utf16: result_replay_item_replay_name_utf16,
+                        data: result_replay_item_replay_name_data,
                     };
                     let result_replay_item_replay_kind = result_replay_item.kind;
                     let result_replay_item_replay = DirentReplay {
@@ -15952,7 +17366,7 @@ fn destack_fs_readdir_vm_replay(
                     };
                     result_replay.push(result_replay_item_replay);
                 }
-                let payload = ReaddirReplay {
+                let payload = FsDirReaddirReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -15961,7 +17375,7 @@ fn destack_fs_readdir_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ReaddirReplay { result }
+                    FsDirReaddirReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -15977,36 +17391,15 @@ fn destack_fs_readdir_vm_replay(
                     for vm_result_item in value.iter() {
                         let vm_result_item = vm_result_item.clone();
                         let vm_result_item_value_name_encoding = vm_result_item.name.encoding;
-                        let vm_result_item_value_name_bytes_inner =
-                            VmArray::from_bytes(context, vm_result_item.name.bytes.as_slice());
-                        let vm_result_item_value_name_bytes =
+                        let vm_result_item_value_name_data_inner =
+                            VmArray::from_bytes(context, vm_result_item.name.data.as_slice());
+                        let vm_result_item_value_name_data =
                             crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(
-                                vm_result_item_value_name_bytes_inner,
-                            );
-                        let mut vm_result_item_value_name_utf16_inner_values =
-                            Vec::with_capacity(vm_result_item.name.utf16.len());
-                        for vm_result_item_value_name_utf16_inner_item in
-                            vm_result_item.name.utf16.iter()
-                        {
-                            let vm_result_item_value_name_utf16_inner_item =
-                                *vm_result_item_value_name_utf16_inner_item;
-                            let vm_result_item_value_name_utf16_inner_item_value =
-                                vm_result_item_value_name_utf16_inner_item;
-                            vm_result_item_value_name_utf16_inner_values
-                                .push(vm_result_item_value_name_utf16_inner_item_value);
-                        }
-                        let vm_result_item_value_name_utf16_inner = VmArray::from_values(
-                            context,
-                            &vm_result_item_value_name_utf16_inner_values,
-                        )?;
-                        let vm_result_item_value_name_utf16 =
-                            crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(
-                                vm_result_item_value_name_utf16_inner,
+                                vm_result_item_value_name_data_inner,
                             );
                         let vm_result_item_value_name = OsPathVm {
                             encoding: vm_result_item_value_name_encoding,
-                            bytes: vm_result_item_value_name_bytes,
-                            utf16: vm_result_item_value_name_utf16,
+                            data: vm_result_item_value_name_data,
                         };
                         let vm_result_item_value_kind = vm_result_item.kind;
                         let vm_result_item_value = DirentVm {
@@ -16019,9 +17412,8 @@ fn destack_fs_readdir_vm_replay(
                                     vm_result_item_value.name.encoding as u8 as u64,
                                     8,
                                 );
-                                let field_1 = vm_result_item_value.name.bytes.0.to_value(context);
-                                let field_2 = vm_result_item_value.name.utf16.0.to_value(context);
-                                context.allocate_aggregate(vec![field_0, field_1, field_2])
+                                let field_1 = vm_result_item_value.name.data.0.to_value(context);
+                                context.allocate_aggregate(vec![field_0, field_1])
                             };
                             let field_1 =
                                 vm::Value::uint(vm_result_item_value.kind as u8 as u64, 8);
@@ -16042,18 +17434,18 @@ fn destack_fs_readdir_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_readdir_result(context, result)?;
+    let result = encode_destack_fs_dir_readdir_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_readdir_next_vm_replay(
+fn destack_fs_dir_readdir_next_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        READDIR_NEXT,
+        FS_DIR_READDIR_NEXT,
         context,
         |context| platform_vm::destack_fs_readdir_next(runtime, context, handle),
         |context, result| {
@@ -16062,31 +17454,12 @@ fn destack_fs_readdir_next_vm_replay(
                 let result_value = *value;
                 let result_replay_has_entry = result_value.has_entry;
                 let result_replay_entry_name_encoding = result_value.entry.name.encoding;
-                let result_replay_entry_name_bytes_inner =
-                    result_value.entry.name.bytes.0.read_bytes(context)?;
-                let result_replay_entry_name_bytes = result_replay_entry_name_bytes_inner;
-                let result_replay_entry_name_utf16_inner_raw =
-                    result_value.entry.name.utf16.0.raw_values(context)?;
-                let mut result_replay_entry_name_utf16_inner =
-                    Vec::with_capacity(result_replay_entry_name_utf16_inner_raw.len());
-                for result_replay_entry_name_utf16_inner_item_value in
-                    result_replay_entry_name_utf16_inner_raw
-                {
-                    let result_replay_entry_name_utf16_inner_item = decode_uint16(
-                        result_replay_entry_name_utf16_inner_item_value,
-                        "result_replay_entry_name_utf16_inner_item",
-                        "item",
-                    )?;
-                    let result_replay_entry_name_utf16_inner_item_replay =
-                        result_replay_entry_name_utf16_inner_item;
-                    result_replay_entry_name_utf16_inner
-                        .push(result_replay_entry_name_utf16_inner_item_replay);
-                }
-                let result_replay_entry_name_utf16 = result_replay_entry_name_utf16_inner;
+                let result_replay_entry_name_data_inner =
+                    result_value.entry.name.data.0.read_bytes(context)?;
+                let result_replay_entry_name_data = result_replay_entry_name_data_inner;
                 let result_replay_entry_name = OsPathReplay {
                     encoding: result_replay_entry_name_encoding,
-                    bytes: result_replay_entry_name_bytes,
-                    utf16: result_replay_entry_name_utf16,
+                    data: result_replay_entry_name_data,
                 };
                 let result_replay_entry_kind = result_value.entry.kind;
                 let result_replay_entry = DirentReplay {
@@ -16097,7 +17470,7 @@ fn destack_fs_readdir_next_vm_replay(
                     has_entry: result_replay_has_entry,
                     entry: result_replay_entry,
                 };
-                let payload = ReaddirNextReplay {
+                let payload = FsDirReaddirNextReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -16106,7 +17479,7 @@ fn destack_fs_readdir_next_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ReaddirNextReplay { result }
+                    FsDirReaddirNextReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -16120,32 +17493,15 @@ fn destack_fs_readdir_next_vm_replay(
                 Ok(value) => {
                     let vm_result_has_entry = value.has_entry;
                     let vm_result_entry_name_encoding = value.entry.name.encoding;
-                    let vm_result_entry_name_bytes_inner =
-                        VmArray::from_bytes(context, value.entry.name.bytes.as_slice());
-                    let vm_result_entry_name_bytes =
+                    let vm_result_entry_name_data_inner =
+                        VmArray::from_bytes(context, value.entry.name.data.as_slice());
+                    let vm_result_entry_name_data =
                         crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(
-                            vm_result_entry_name_bytes_inner,
-                        );
-                    let mut vm_result_entry_name_utf16_inner_values =
-                        Vec::with_capacity(value.entry.name.utf16.len());
-                    for vm_result_entry_name_utf16_inner_item in value.entry.name.utf16.iter() {
-                        let vm_result_entry_name_utf16_inner_item =
-                            *vm_result_entry_name_utf16_inner_item;
-                        let vm_result_entry_name_utf16_inner_item_value =
-                            vm_result_entry_name_utf16_inner_item;
-                        vm_result_entry_name_utf16_inner_values
-                            .push(vm_result_entry_name_utf16_inner_item_value);
-                    }
-                    let vm_result_entry_name_utf16_inner =
-                        VmArray::from_values(context, &vm_result_entry_name_utf16_inner_values)?;
-                    let vm_result_entry_name_utf16 =
-                        crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(
-                            vm_result_entry_name_utf16_inner,
+                            vm_result_entry_name_data_inner,
                         );
                     let vm_result_entry_name = OsPathVm {
                         encoding: vm_result_entry_name_encoding,
-                        bytes: vm_result_entry_name_bytes,
-                        utf16: vm_result_entry_name_utf16,
+                        data: vm_result_entry_name_data,
                     };
                     let vm_result_entry_kind = value.entry.kind;
                     let vm_result_entry = DirentVm {
@@ -16162,25 +17518,25 @@ fn destack_fs_readdir_next_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_readdir_next_result(context, result)?;
+    let result = encode_destack_fs_dir_readdir_next_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_rewinddir_vm_replay(
+fn destack_fs_dir_rewinddir_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        REWINDDIR,
+        FS_DIR_REWINDDIR,
         context,
         |context| platform_vm::destack_fs_rewinddir(runtime, context, handle),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = RewinddirReplay {
+                let payload = FsDirRewinddirReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -16189,7 +17545,7 @@ fn destack_fs_rewinddir_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    RewinddirReplay { result }
+                    FsDirRewinddirReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -16205,25 +17561,25 @@ fn destack_fs_rewinddir_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_rewinddir_result(context, result)?;
+    let result = encode_destack_fs_dir_rewinddir_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_rmdir_vm_replay(
+fn destack_fs_dir_rmdir_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        RMDIR,
+        FS_DIR_RMDIR,
         context,
         |context| platform_vm::destack_fs_rmdir(runtime, context, path),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = RmdirReplay {
+                let payload = FsDirRmdirReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -16232,7 +17588,7 @@ fn destack_fs_rmdir_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    RmdirReplay { result }
+                    FsDirRmdirReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -16248,25 +17604,25 @@ fn destack_fs_rmdir_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_rmdir_result(context, result)?;
+    let result = encode_destack_fs_dir_rmdir_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_close_vm_replay(
+fn destack_fs_file_close_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        CLOSE,
+        FS_FILE_CLOSE,
         context,
         |context| platform_vm::destack_fs_close(runtime, context, handle),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = CloseReplay {
+                let payload = FsFileCloseReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -16275,7 +17631,7 @@ fn destack_fs_close_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    CloseReplay { result }
+                    FsFileCloseReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -16291,12 +17647,12 @@ fn destack_fs_close_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_close_result(context, result)?;
+    let result = encode_destack_fs_file_close_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_copy_file_range_vm_replay(
+fn destack_fs_file_copy_file_range_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     src: resource::FileHandle,
@@ -16306,7 +17662,7 @@ fn destack_fs_copy_file_range_vm_replay(
     length: FileSize,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        COPY_FILE_RANGE,
+        FS_FILE_COPY_FILE_RANGE,
         context,
         |context| {
             platform_vm::destack_fs_copy_file_range(
@@ -16318,7 +17674,7 @@ fn destack_fs_copy_file_range_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = CopyFileRangeReplay {
+                let payload = FsFileCopyFileRangeReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -16327,7 +17683,7 @@ fn destack_fs_copy_file_range_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    CopyFileRangeReplay { result }
+                    FsFileCopyFileRangeReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -16346,18 +17702,18 @@ fn destack_fs_copy_file_range_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_copy_file_range_result(context, result)?;
+    let result = encode_destack_fs_file_copy_file_range_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_dup_vm_replay(
+fn destack_fs_file_dup_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        DUP,
+        FS_FILE_DUP,
         context,
         |context| platform_vm::destack_fs_dup(runtime, context, handle),
         |context, result| {
@@ -16365,7 +17721,7 @@ fn destack_fs_dup_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = DupReplay {
+                let payload = FsFileDupReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -16374,7 +17730,7 @@ fn destack_fs_dup_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    DupReplay { result }
+                    FsFileDupReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -16393,19 +17749,19 @@ fn destack_fs_dup_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_dup_result(context, result)?;
+    let result = encode_destack_fs_file_dup_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_dup2_vm_replay(
+fn destack_fs_file_dup2_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
     target: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        DUP2,
+        FS_FILE_DUP2,
         context,
         |context| platform_vm::destack_fs_dup2(runtime, context, handle, target),
         |context, result| {
@@ -16413,7 +17769,7 @@ fn destack_fs_dup2_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = Dup2Replay {
+                let payload = FsFileDup2Replay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -16422,7 +17778,7 @@ fn destack_fs_dup2_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    Dup2Replay { result }
+                    FsFileDup2Replay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -16441,12 +17797,12 @@ fn destack_fs_dup2_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_dup2_result(context, result)?;
+    let result = encode_destack_fs_file_dup2_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_dup3_vm_replay(
+fn destack_fs_file_dup3_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
@@ -16454,7 +17810,7 @@ fn destack_fs_dup3_vm_replay(
     flags: OpenFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        DUP3,
+        FS_FILE_DUP3,
         context,
         |context| platform_vm::destack_fs_dup3(runtime, context, handle, target, flags),
         |context, result| {
@@ -16462,7 +17818,7 @@ fn destack_fs_dup3_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = Dup3Replay {
+                let payload = FsFileDup3Replay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -16471,7 +17827,7 @@ fn destack_fs_dup3_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    Dup3Replay { result }
+                    FsFileDup3Replay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -16490,12 +17846,12 @@ fn destack_fs_dup3_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_dup3_result(context, result)?;
+    let result = encode_destack_fs_file_dup3_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_fadvise_vm_replay(
+fn destack_fs_file_fadvise_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
@@ -16504,14 +17860,14 @@ fn destack_fs_fadvise_vm_replay(
     advice: FileAdvice,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        FADVISE,
+        FS_FILE_FADVISE,
         context,
         |context| platform_vm::destack_fs_fadvise(runtime, context, handle, offset, length, advice),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = FadviseReplay {
+                let payload = FsFileFadviseReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -16520,7 +17876,7 @@ fn destack_fs_fadvise_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FadviseReplay { result }
+                    FsFileFadviseReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -16536,12 +17892,12 @@ fn destack_fs_fadvise_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_fadvise_result(context, result)?;
+    let result = encode_destack_fs_file_fadvise_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_fallocate_vm_replay(
+fn destack_fs_file_fallocate_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
@@ -16550,7 +17906,7 @@ fn destack_fs_fallocate_vm_replay(
     flags: AllocFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        FALLOCATE,
+        FS_FILE_FALLOCATE,
         context,
         |context| {
             platform_vm::destack_fs_fallocate(runtime, context, handle, offset, length, flags)
@@ -16559,7 +17915,7 @@ fn destack_fs_fallocate_vm_replay(
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = FallocateReplay {
+                let payload = FsFileFallocateReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -16568,7 +17924,7 @@ fn destack_fs_fallocate_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FallocateReplay { result }
+                    FsFileFallocateReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -16584,25 +17940,25 @@ fn destack_fs_fallocate_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_fallocate_result(context, result)?;
+    let result = encode_destack_fs_file_fallocate_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_fdatasync_vm_replay(
+fn destack_fs_file_fdatasync_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        FDATASYNC,
+        FS_FILE_FDATASYNC,
         context,
         |context| platform_vm::destack_fs_fdatasync(runtime, context, handle),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = FdatasyncReplay {
+                let payload = FsFileFdatasyncReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -16611,7 +17967,7 @@ fn destack_fs_fdatasync_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FdatasyncReplay { result }
+                    FsFileFdatasyncReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -16627,25 +17983,25 @@ fn destack_fs_fdatasync_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_fdatasync_result(context, result)?;
+    let result = encode_destack_fs_file_fdatasync_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_fsync_vm_replay(
+fn destack_fs_file_fsync_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        FSYNC,
+        FS_FILE_FSYNC,
         context,
         |context| platform_vm::destack_fs_fsync(runtime, context, handle),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = FsyncReplay {
+                let payload = FsFileFsyncReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -16654,7 +18010,7 @@ fn destack_fs_fsync_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FsyncReplay { result }
+                    FsFileFsyncReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -16670,26 +18026,26 @@ fn destack_fs_fsync_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_fsync_result(context, result)?;
+    let result = encode_destack_fs_file_fsync_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_ftruncate_vm_replay(
+fn destack_fs_file_ftruncate_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
     size: FileOffset,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        FTRUNCATE,
+        FS_FILE_FTRUNCATE,
         context,
         |context| platform_vm::destack_fs_ftruncate(runtime, context, handle, size),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = FtruncateReplay {
+                let payload = FsFileFtruncateReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -16698,7 +18054,7 @@ fn destack_fs_ftruncate_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FtruncateReplay { result }
+                    FsFileFtruncateReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -16714,18 +18070,18 @@ fn destack_fs_ftruncate_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_ftruncate_result(context, result)?;
+    let result = encode_destack_fs_file_ftruncate_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_get_fd_flags_vm_replay(
+fn destack_fs_file_get_fd_flags_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        GET_FD_FLAGS,
+        FS_FILE_GET_FD_FLAGS,
         context,
         |context| platform_vm::destack_fs_get_fd_flags(runtime, context, handle),
         |context, result| {
@@ -16733,7 +18089,7 @@ fn destack_fs_get_fd_flags_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = GetFdFlagsReplay {
+                let payload = FsFileGetFdFlagsReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -16742,7 +18098,7 @@ fn destack_fs_get_fd_flags_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    GetFdFlagsReplay { result }
+                    FsFileGetFdFlagsReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -16761,18 +18117,18 @@ fn destack_fs_get_fd_flags_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_get_fd_flags_result(context, result)?;
+    let result = encode_destack_fs_file_get_fd_flags_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_get_status_flags_vm_replay(
+fn destack_fs_file_get_status_flags_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        GET_STATUS_FLAGS,
+        FS_FILE_GET_STATUS_FLAGS,
         context,
         |context| platform_vm::destack_fs_get_status_flags(runtime, context, handle),
         |context, result| {
@@ -16780,7 +18136,7 @@ fn destack_fs_get_status_flags_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = GetStatusFlagsReplay {
+                let payload = FsFileGetStatusFlagsReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -16789,7 +18145,7 @@ fn destack_fs_get_status_flags_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    GetStatusFlagsReplay { result }
+                    FsFileGetStatusFlagsReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -16808,26 +18164,26 @@ fn destack_fs_get_status_flags_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_get_status_flags_result(context, result)?;
+    let result = encode_destack_fs_file_get_status_flags_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_lock_vm_replay(
+fn destack_fs_file_lock_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
     flags: FileLockFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        LOCK,
+        FS_FILE_LOCK,
         context,
         |context| platform_vm::destack_fs_lock(runtime, context, handle, flags),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = LockReplay {
+                let payload = FsFileLockReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -16836,7 +18192,7 @@ fn destack_fs_lock_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    LockReplay { result }
+                    FsFileLockReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -16852,12 +18208,12 @@ fn destack_fs_lock_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_lock_result(context, result)?;
+    let result = encode_destack_fs_file_lock_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_open_vm_replay(
+fn destack_fs_file_open_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     path: OsPathVm,
@@ -16865,7 +18221,7 @@ fn destack_fs_open_vm_replay(
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        OPEN,
+        FS_FILE_OPEN,
         context,
         |context| platform_vm::destack_fs_open(runtime, context, path, flags, mode),
         |context, result| {
@@ -16873,7 +18229,7 @@ fn destack_fs_open_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = OpenReplay {
+                let payload = FsFileOpenReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -16882,7 +18238,7 @@ fn destack_fs_open_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    OpenReplay { result }
+                    FsFileOpenReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -16901,12 +18257,12 @@ fn destack_fs_open_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_open_result(context, result)?;
+    let result = encode_destack_fs_file_open_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_openat_vm_replay(
+fn destack_fs_file_openat_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     dir: resource::DirectoryHandle,
@@ -16915,7 +18271,7 @@ fn destack_fs_openat_vm_replay(
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        OPENAT,
+        FS_FILE_OPENAT,
         context,
         |context| platform_vm::destack_fs_openat(runtime, context, dir, path, flags, mode),
         |context, result| {
@@ -16923,7 +18279,7 @@ fn destack_fs_openat_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = OpenatReplay {
+                let payload = FsFileOpenatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -16932,7 +18288,7 @@ fn destack_fs_openat_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    OpenatReplay { result }
+                    FsFileOpenatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -16951,12 +18307,12 @@ fn destack_fs_openat_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_openat_result(context, result)?;
+    let result = encode_destack_fs_file_openat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_openat2_vm_replay(
+fn destack_fs_file_openat2_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     dir: resource::DirectoryHandle,
@@ -16964,7 +18320,7 @@ fn destack_fs_openat2_vm_replay(
     how: OpenOptionsVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        OPENAT2,
+        FS_FILE_OPENAT2,
         context,
         |context| platform_vm::destack_fs_openat2(runtime, context, dir, path, how),
         |context, result| {
@@ -16972,7 +18328,7 @@ fn destack_fs_openat2_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = Openat2Replay {
+                let payload = FsFileOpenat2Replay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -16981,7 +18337,7 @@ fn destack_fs_openat2_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    Openat2Replay { result }
+                    FsFileOpenat2Replay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -17000,12 +18356,12 @@ fn destack_fs_openat2_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_openat2_result(context, result)?;
+    let result = encode_destack_fs_file_openat2_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_pread_vm_replay(
+fn destack_fs_file_pread_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
@@ -17013,7 +18369,7 @@ fn destack_fs_pread_vm_replay(
     offset: FileOffset,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        PREAD,
+        FS_FILE_PREAD,
         context,
         |context| platform_vm::destack_fs_pread(runtime, context, handle, buffer, offset),
         |context, result| {
@@ -17021,7 +18377,7 @@ fn destack_fs_pread_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = PreadReplay {
+                let payload = FsFilePreadReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -17030,7 +18386,7 @@ fn destack_fs_pread_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    PreadReplay { result }
+                    FsFilePreadReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -17049,12 +18405,12 @@ fn destack_fs_pread_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_pread_result(context, result)?;
+    let result = encode_destack_fs_file_pread_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_preadv_vm_replay(
+fn destack_fs_file_preadv_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
@@ -17062,7 +18418,7 @@ fn destack_fs_preadv_vm_replay(
     offset: FileOffset,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        PREADV,
+        FS_FILE_PREADV,
         context,
         |context| platform_vm::destack_fs_preadv(runtime, context, handle, buffers, offset),
         |context, result| {
@@ -17070,7 +18426,7 @@ fn destack_fs_preadv_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = PreadvReplay {
+                let payload = FsFilePreadvReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -17079,7 +18435,7 @@ fn destack_fs_preadv_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    PreadvReplay { result }
+                    FsFilePreadvReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -17098,12 +18454,12 @@ fn destack_fs_preadv_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_preadv_result(context, result)?;
+    let result = encode_destack_fs_file_preadv_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_pwrite_vm_replay(
+fn destack_fs_file_pwrite_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
@@ -17111,7 +18467,7 @@ fn destack_fs_pwrite_vm_replay(
     offset: FileOffset,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        PWRITE,
+        FS_FILE_PWRITE,
         context,
         |context| platform_vm::destack_fs_pwrite(runtime, context, handle, buffer, offset),
         |context, result| {
@@ -17119,7 +18475,7 @@ fn destack_fs_pwrite_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = PwriteReplay {
+                let payload = FsFilePwriteReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -17128,7 +18484,7 @@ fn destack_fs_pwrite_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    PwriteReplay { result }
+                    FsFilePwriteReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -17147,12 +18503,12 @@ fn destack_fs_pwrite_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_pwrite_result(context, result)?;
+    let result = encode_destack_fs_file_pwrite_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_pwritev_vm_replay(
+fn destack_fs_file_pwritev_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
@@ -17160,7 +18516,7 @@ fn destack_fs_pwritev_vm_replay(
     offset: FileOffset,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        PWRITEV,
+        FS_FILE_PWRITEV,
         context,
         |context| platform_vm::destack_fs_pwritev(runtime, context, handle, buffers, offset),
         |context, result| {
@@ -17168,7 +18524,7 @@ fn destack_fs_pwritev_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = PwritevReplay {
+                let payload = FsFilePwritevReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -17177,7 +18533,7 @@ fn destack_fs_pwritev_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    PwritevReplay { result }
+                    FsFilePwritevReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -17196,19 +18552,19 @@ fn destack_fs_pwritev_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_pwritev_result(context, result)?;
+    let result = encode_destack_fs_file_pwritev_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_read_vm_replay(
+fn destack_fs_file_read_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        READ,
+        FS_FILE_READ,
         context,
         |context| platform_vm::destack_fs_read(runtime, context, handle, buffer),
         |context, result| {
@@ -17216,7 +18572,7 @@ fn destack_fs_read_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = ReadReplay {
+                let payload = FsFileReadReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -17225,7 +18581,7 @@ fn destack_fs_read_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ReadReplay { result }
+                    FsFileReadReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -17244,19 +18600,19 @@ fn destack_fs_read_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_read_result(context, result)?;
+    let result = encode_destack_fs_file_read_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_readv_vm_replay(
+fn destack_fs_file_readv_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        READV,
+        FS_FILE_READV,
         context,
         |context| platform_vm::destack_fs_readv(runtime, context, handle, buffers),
         |context, result| {
@@ -17264,7 +18620,7 @@ fn destack_fs_readv_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = ReadvReplay {
+                let payload = FsFileReadvReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -17273,7 +18629,7 @@ fn destack_fs_readv_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ReadvReplay { result }
+                    FsFileReadvReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -17292,12 +18648,12 @@ fn destack_fs_readv_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_readv_result(context, result)?;
+    let result = encode_destack_fs_file_readv_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_seek_vm_replay(
+fn destack_fs_file_seek_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
@@ -17305,7 +18661,7 @@ fn destack_fs_seek_vm_replay(
     whence: SeekWhence,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        SEEK,
+        FS_FILE_SEEK,
         context,
         |context| platform_vm::destack_fs_seek(runtime, context, handle, offset, whence),
         |context, result| {
@@ -17313,7 +18669,7 @@ fn destack_fs_seek_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = SeekReplay {
+                let payload = FsFileSeekReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -17322,7 +18678,7 @@ fn destack_fs_seek_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    SeekReplay { result }
+                    FsFileSeekReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -17341,12 +18697,12 @@ fn destack_fs_seek_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_seek_result(context, result)?;
+    let result = encode_destack_fs_file_seek_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_sendfile_vm_replay(
+fn destack_fs_file_sendfile_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     socket: resource::SocketHandle,
@@ -17355,7 +18711,7 @@ fn destack_fs_sendfile_vm_replay(
     length: FileSize,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        SENDFILE,
+        FS_FILE_SENDFILE,
         context,
         |context| platform_vm::destack_fs_sendfile(runtime, context, socket, file, offset, length),
         |context, result| {
@@ -17363,7 +18719,7 @@ fn destack_fs_sendfile_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = SendfileReplay {
+                let payload = FsFileSendfileReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -17372,7 +18728,7 @@ fn destack_fs_sendfile_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    SendfileReplay { result }
+                    FsFileSendfileReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -17391,26 +18747,26 @@ fn destack_fs_sendfile_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_sendfile_result(context, result)?;
+    let result = encode_destack_fs_file_sendfile_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_set_fd_flags_vm_replay(
+fn destack_fs_file_set_fd_flags_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
     flags: FdFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        SET_FD_FLAGS,
+        FS_FILE_SET_FD_FLAGS,
         context,
         |context| platform_vm::destack_fs_set_fd_flags(runtime, context, handle, flags),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = SetFdFlagsReplay {
+                let payload = FsFileSetFdFlagsReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -17419,7 +18775,7 @@ fn destack_fs_set_fd_flags_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    SetFdFlagsReplay { result }
+                    FsFileSetFdFlagsReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -17435,26 +18791,26 @@ fn destack_fs_set_fd_flags_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_set_fd_flags_result(context, result)?;
+    let result = encode_destack_fs_file_set_fd_flags_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_set_status_flags_vm_replay(
+fn destack_fs_file_set_status_flags_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
     flags: StatusFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        SET_STATUS_FLAGS,
+        FS_FILE_SET_STATUS_FLAGS,
         context,
         |context| platform_vm::destack_fs_set_status_flags(runtime, context, handle, flags),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = SetStatusFlagsReplay {
+                let payload = FsFileSetStatusFlagsReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -17463,7 +18819,7 @@ fn destack_fs_set_status_flags_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    SetStatusFlagsReplay { result }
+                    FsFileSetStatusFlagsReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -17479,12 +18835,12 @@ fn destack_fs_set_status_flags_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_set_status_flags_result(context, result)?;
+    let result = encode_destack_fs_file_set_status_flags_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_sync_file_range_vm_replay(
+fn destack_fs_file_sync_file_range_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
@@ -17493,7 +18849,7 @@ fn destack_fs_sync_file_range_vm_replay(
     flags: SyncFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        SYNC_FILE_RANGE,
+        FS_FILE_SYNC_FILE_RANGE,
         context,
         |context| {
             platform_vm::destack_fs_sync_file_range(runtime, context, handle, offset, length, flags)
@@ -17502,7 +18858,7 @@ fn destack_fs_sync_file_range_vm_replay(
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = SyncFileRangeReplay {
+                let payload = FsFileSyncFileRangeReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -17511,7 +18867,7 @@ fn destack_fs_sync_file_range_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    SyncFileRangeReplay { result }
+                    FsFileSyncFileRangeReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -17527,25 +18883,25 @@ fn destack_fs_sync_file_range_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_sync_file_range_result(context, result)?;
+    let result = encode_destack_fs_file_sync_file_range_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_syncfs_vm_replay(
+fn destack_fs_file_syncfs_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        SYNCFS,
+        FS_FILE_SYNCFS,
         context,
         |context| platform_vm::destack_fs_syncfs(runtime, context, handle),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = SyncfsReplay {
+                let payload = FsFileSyncfsReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -17554,7 +18910,7 @@ fn destack_fs_syncfs_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    SyncfsReplay { result }
+                    FsFileSyncfsReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -17570,26 +18926,26 @@ fn destack_fs_syncfs_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_syncfs_result(context, result)?;
+    let result = encode_destack_fs_file_syncfs_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_truncate_vm_replay(
+fn destack_fs_file_truncate_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     path: OsPathVm,
     size: FileOffset,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        TRUNCATE,
+        FS_FILE_TRUNCATE,
         context,
         |context| platform_vm::destack_fs_truncate(runtime, context, path, size),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = TruncateReplay {
+                let payload = FsFileTruncateReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -17598,7 +18954,7 @@ fn destack_fs_truncate_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    TruncateReplay { result }
+                    FsFileTruncateReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -17614,19 +18970,19 @@ fn destack_fs_truncate_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_truncate_result(context, result)?;
+    let result = encode_destack_fs_file_truncate_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_write_vm_replay(
+fn destack_fs_file_write_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        WRITE,
+        FS_FILE_WRITE,
         context,
         |context| platform_vm::destack_fs_write(runtime, context, handle, buffer),
         |context, result| {
@@ -17634,7 +18990,7 @@ fn destack_fs_write_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = WriteReplay {
+                let payload = FsFileWriteReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -17643,7 +18999,7 @@ fn destack_fs_write_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    WriteReplay { result }
+                    FsFileWriteReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -17662,19 +19018,19 @@ fn destack_fs_write_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_write_result(context, result)?;
+    let result = encode_destack_fs_file_write_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_writev_vm_replay(
+fn destack_fs_file_writev_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        WRITEV,
+        FS_FILE_WRITEV,
         context,
         |context| platform_vm::destack_fs_writev(runtime, context, handle, buffers),
         |context, result| {
@@ -17682,7 +19038,7 @@ fn destack_fs_writev_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = WritevReplay {
+                let payload = FsFileWritevReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -17691,7 +19047,7 @@ fn destack_fs_writev_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    WritevReplay { result }
+                    FsFileWritevReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -17710,26 +19066,26 @@ fn destack_fs_writev_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_writev_result(context, result)?;
+    let result = encode_destack_fs_file_writev_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_madvise_vm_replay(
+fn destack_fs_mmap_madvise_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     mapping: VmSlice<u8>,
     advice: MmapAdvice,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        MADVISE,
+        FS_MMAP_MADVISE,
         context,
         |context| platform_vm::destack_fs_madvise(runtime, context, mapping, advice),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = MadviseReplay {
+                let payload = FsMmapMadviseReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -17738,7 +19094,7 @@ fn destack_fs_madvise_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MadviseReplay { result }
+                    FsMmapMadviseReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -17754,26 +19110,26 @@ fn destack_fs_madvise_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_madvise_result(context, result)?;
+    let result = encode_destack_fs_mmap_madvise_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_mprotect_vm_replay(
+fn destack_fs_mmap_mprotect_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     mapping: VmSlice<u8>,
     prot: MmapProt,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        MPROTECT,
+        FS_MMAP_MPROTECT,
         context,
         |context| platform_vm::destack_fs_mprotect(runtime, context, mapping, prot),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = MprotectReplay {
+                let payload = FsMmapMprotectReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -17782,7 +19138,7 @@ fn destack_fs_mprotect_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MprotectReplay { result }
+                    FsMmapMprotectReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -17798,26 +19154,26 @@ fn destack_fs_mprotect_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_mprotect_result(context, result)?;
+    let result = encode_destack_fs_mmap_mprotect_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_msync_vm_replay(
+fn destack_fs_mmap_msync_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     mapping: VmSlice<u8>,
     flags: MmapSyncFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        MSYNC,
+        FS_MMAP_MSYNC,
         context,
         |context| platform_vm::destack_fs_msync(runtime, context, mapping, flags),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = MsyncReplay {
+                let payload = FsMmapMsyncReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -17826,7 +19182,7 @@ fn destack_fs_msync_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MsyncReplay { result }
+                    FsMmapMsyncReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -17842,25 +19198,25 @@ fn destack_fs_msync_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_msync_result(context, result)?;
+    let result = encode_destack_fs_mmap_msync_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_munmap_vm_replay(
+fn destack_fs_mmap_munmap_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     mapping: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        MUNMAP,
+        FS_MMAP_MUNMAP,
         context,
         |context| platform_vm::destack_fs_munmap(runtime, context, mapping),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = MunmapReplay {
+                let payload = FsMmapMunmapReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -17869,7 +19225,7 @@ fn destack_fs_munmap_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MunmapReplay { result }
+                    FsMmapMunmapReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -17885,7 +19241,7 @@ fn destack_fs_munmap_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_munmap_result(context, result)?;
+    let result = encode_destack_fs_mmap_munmap_result(context, result)?;
     Ok(result)
 }
 
@@ -17898,7 +19254,7 @@ fn destack_fs_mmap_anonymous_vm_replay(
     flags: MmapFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        MMAP_ANONYMOUS,
+        FS_MMAP_ANONYMOUS,
         context,
         |context| platform_vm::destack_fs_mmap_anonymous(runtime, context, length, prot, flags),
         |context, result| {
@@ -17906,7 +19262,7 @@ fn destack_fs_mmap_anonymous_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value.read_bytes(context)?;
-                let payload = MmapAnonymousReplay {
+                let payload = FsMmapAnonymousReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -17915,7 +19271,7 @@ fn destack_fs_mmap_anonymous_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MmapAnonymousReplay { result }
+                    FsMmapAnonymousReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -17949,7 +19305,7 @@ fn destack_fs_mmap_file_vm_replay(
     flags: MmapFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        MMAP_FILE,
+        FS_MMAP_FILE,
         context,
         |context| {
             platform_vm::destack_fs_mmap_file(runtime, context, handle, offset, length, prot, flags)
@@ -17959,7 +19315,7 @@ fn destack_fs_mmap_file_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value.read_bytes(context)?;
-                let payload = MmapFileReplay {
+                let payload = FsMmapFileReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -17968,7 +19324,7 @@ fn destack_fs_mmap_file_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MmapFileReplay { result }
+                    FsMmapFileReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -17992,7 +19348,7 @@ fn destack_fs_mmap_file_vm_replay(
 }
 
 #[inline]
-fn destack_fs_copyfile_vm_replay(
+fn destack_fs_path_copyfile_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     from: OsPathVm,
@@ -18000,14 +19356,14 @@ fn destack_fs_copyfile_vm_replay(
     flags: CopyFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        COPYFILE,
+        FS_PATH_COPYFILE,
         context,
         |context| platform_vm::destack_fs_copyfile(runtime, context, from, to, flags),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = CopyfileReplay {
+                let payload = FsPathCopyfileReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -18016,7 +19372,7 @@ fn destack_fs_copyfile_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    CopyfileReplay { result }
+                    FsPathCopyfileReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -18032,26 +19388,26 @@ fn destack_fs_copyfile_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_copyfile_result(context, result)?;
+    let result = encode_destack_fs_path_copyfile_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_link_vm_replay(
+fn destack_fs_path_link_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     existingpath: OsPathVm,
     newpath: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        LINK,
+        FS_PATH_LINK,
         context,
         |context| platform_vm::destack_fs_link(runtime, context, existingpath, newpath),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = LinkReplay {
+                let payload = FsPathLinkReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -18060,7 +19416,7 @@ fn destack_fs_link_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    LinkReplay { result }
+                    FsPathLinkReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -18076,12 +19432,12 @@ fn destack_fs_link_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_link_result(context, result)?;
+    let result = encode_destack_fs_path_link_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_linkat_vm_replay(
+fn destack_fs_path_linkat_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     existingdir: resource::DirectoryHandle,
@@ -18091,7 +19447,7 @@ fn destack_fs_linkat_vm_replay(
     flags: AtFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        LINKAT,
+        FS_PATH_LINKAT,
         context,
         |context| {
             platform_vm::destack_fs_linkat(
@@ -18108,7 +19464,7 @@ fn destack_fs_linkat_vm_replay(
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = LinkatReplay {
+                let payload = FsPathLinkatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -18117,7 +19473,7 @@ fn destack_fs_linkat_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    LinkatReplay { result }
+                    FsPathLinkatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -18133,26 +19489,26 @@ fn destack_fs_linkat_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_linkat_result(context, result)?;
+    let result = encode_destack_fs_path_linkat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_mkfifo_vm_replay(
+fn destack_fs_path_mkfifo_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     path: OsPathVm,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        MKFIFO,
+        FS_PATH_MKFIFO,
         context,
         |context| platform_vm::destack_fs_mkfifo(runtime, context, path, mode),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = MkfifoReplay {
+                let payload = FsPathMkfifoReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -18161,7 +19517,7 @@ fn destack_fs_mkfifo_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MkfifoReplay { result }
+                    FsPathMkfifoReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -18177,12 +19533,12 @@ fn destack_fs_mkfifo_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_mkfifo_result(context, result)?;
+    let result = encode_destack_fs_path_mkfifo_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_mkfifoat_vm_replay(
+fn destack_fs_path_mkfifoat_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     dir: resource::DirectoryHandle,
@@ -18190,14 +19546,14 @@ fn destack_fs_mkfifoat_vm_replay(
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        MKFIFOAT,
+        FS_PATH_MKFIFOAT,
         context,
         |context| platform_vm::destack_fs_mkfifoat(runtime, context, dir, path, mode),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = MkfifoatReplay {
+                let payload = FsPathMkfifoatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -18206,7 +19562,7 @@ fn destack_fs_mkfifoat_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MkfifoatReplay { result }
+                    FsPathMkfifoatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -18222,12 +19578,12 @@ fn destack_fs_mkfifoat_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_mkfifoat_result(context, result)?;
+    let result = encode_destack_fs_path_mkfifoat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_mknod_vm_replay(
+fn destack_fs_path_mknod_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     path: OsPathVm,
@@ -18235,14 +19591,14 @@ fn destack_fs_mknod_vm_replay(
     device: NodeDevice,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        MKNOD,
+        FS_PATH_MKNOD,
         context,
         |context| platform_vm::destack_fs_mknod(runtime, context, path, mode, device),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = MknodReplay {
+                let payload = FsPathMknodReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -18251,7 +19607,7 @@ fn destack_fs_mknod_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MknodReplay { result }
+                    FsPathMknodReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -18267,12 +19623,12 @@ fn destack_fs_mknod_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_mknod_result(context, result)?;
+    let result = encode_destack_fs_path_mknod_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_mknodat_vm_replay(
+fn destack_fs_path_mknodat_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     dir: resource::DirectoryHandle,
@@ -18281,14 +19637,14 @@ fn destack_fs_mknodat_vm_replay(
     device: NodeDevice,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        MKNODAT,
+        FS_PATH_MKNODAT,
         context,
         |context| platform_vm::destack_fs_mknodat(runtime, context, dir, path, mode, device),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = MknodatReplay {
+                let payload = FsPathMknodatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -18297,7 +19653,7 @@ fn destack_fs_mknodat_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MknodatReplay { result }
+                    FsPathMknodatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -18313,18 +19669,18 @@ fn destack_fs_mknodat_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_mknodat_result(context, result)?;
+    let result = encode_destack_fs_path_mknodat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_readlink_vm_replay(
+fn destack_fs_path_readlink_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        READLINK,
+        FS_PATH_READLINK,
         context,
         |context| platform_vm::destack_fs_readlink(runtime, context, path),
         |context, result| {
@@ -18332,27 +19688,13 @@ fn destack_fs_readlink_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay_encoding = result_value.encoding;
-                let result_replay_bytes_inner = result_value.bytes.0.read_bytes(context)?;
-                let result_replay_bytes = result_replay_bytes_inner;
-                let result_replay_utf16_inner_raw = result_value.utf16.0.raw_values(context)?;
-                let mut result_replay_utf16_inner =
-                    Vec::with_capacity(result_replay_utf16_inner_raw.len());
-                for result_replay_utf16_inner_item_value in result_replay_utf16_inner_raw {
-                    let result_replay_utf16_inner_item = decode_uint16(
-                        result_replay_utf16_inner_item_value,
-                        "result_replay_utf16_inner_item",
-                        "item",
-                    )?;
-                    let result_replay_utf16_inner_item_replay = result_replay_utf16_inner_item;
-                    result_replay_utf16_inner.push(result_replay_utf16_inner_item_replay);
-                }
-                let result_replay_utf16 = result_replay_utf16_inner;
+                let result_replay_data_inner = result_value.data.0.read_bytes(context)?;
+                let result_replay_data = result_replay_data_inner;
                 let result_replay = OsPathReplay {
                     encoding: result_replay_encoding,
-                    bytes: result_replay_bytes,
-                    utf16: result_replay_utf16,
+                    data: result_replay_data,
                 };
-                let payload = ReadlinkReplay {
+                let payload = FsPathReadlinkReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -18361,7 +19703,7 @@ fn destack_fs_readlink_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ReadlinkReplay { result }
+                    FsPathReadlinkReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -18374,26 +19716,13 @@ fn destack_fs_readlink_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result_encoding = value.encoding;
-                    let vm_result_bytes_inner =
-                        VmArray::from_bytes(context, value.bytes.as_slice());
-                    let vm_result_bytes = crate::platform::fs::PathBytesAbi::<
+                    let vm_result_data_inner = VmArray::from_bytes(context, value.data.as_slice());
+                    let vm_result_data = crate::platform::fs::PathBytesAbi::<
                         crate::platform::abi::VmAbi,
-                    >(vm_result_bytes_inner);
-                    let mut vm_result_utf16_inner_values = Vec::with_capacity(value.utf16.len());
-                    for vm_result_utf16_inner_item in value.utf16.iter() {
-                        let vm_result_utf16_inner_item = *vm_result_utf16_inner_item;
-                        let vm_result_utf16_inner_item_value = vm_result_utf16_inner_item;
-                        vm_result_utf16_inner_values.push(vm_result_utf16_inner_item_value);
-                    }
-                    let vm_result_utf16_inner =
-                        VmArray::from_values(context, &vm_result_utf16_inner_values)?;
-                    let vm_result_utf16 = crate::platform::fs::PathUtf16Abi::<
-                        crate::platform::abi::VmAbi,
-                    >(vm_result_utf16_inner);
+                    >(vm_result_data_inner);
                     let vm_result = OsPathVm {
                         encoding: vm_result_encoding,
-                        bytes: vm_result_bytes,
-                        utf16: vm_result_utf16,
+                        data: vm_result_data,
                     };
                     Ok(vm_result)
                 }
@@ -18401,19 +19730,19 @@ fn destack_fs_readlink_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_readlink_result(context, result)?;
+    let result = encode_destack_fs_path_readlink_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_readlinkat_vm_replay(
+fn destack_fs_path_readlinkat_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     dir: resource::DirectoryHandle,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        READLINKAT,
+        FS_PATH_READLINKAT,
         context,
         |context| platform_vm::destack_fs_readlinkat(runtime, context, dir, path),
         |context, result| {
@@ -18421,27 +19750,13 @@ fn destack_fs_readlinkat_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay_encoding = result_value.encoding;
-                let result_replay_bytes_inner = result_value.bytes.0.read_bytes(context)?;
-                let result_replay_bytes = result_replay_bytes_inner;
-                let result_replay_utf16_inner_raw = result_value.utf16.0.raw_values(context)?;
-                let mut result_replay_utf16_inner =
-                    Vec::with_capacity(result_replay_utf16_inner_raw.len());
-                for result_replay_utf16_inner_item_value in result_replay_utf16_inner_raw {
-                    let result_replay_utf16_inner_item = decode_uint16(
-                        result_replay_utf16_inner_item_value,
-                        "result_replay_utf16_inner_item",
-                        "item",
-                    )?;
-                    let result_replay_utf16_inner_item_replay = result_replay_utf16_inner_item;
-                    result_replay_utf16_inner.push(result_replay_utf16_inner_item_replay);
-                }
-                let result_replay_utf16 = result_replay_utf16_inner;
+                let result_replay_data_inner = result_value.data.0.read_bytes(context)?;
+                let result_replay_data = result_replay_data_inner;
                 let result_replay = OsPathReplay {
                     encoding: result_replay_encoding,
-                    bytes: result_replay_bytes,
-                    utf16: result_replay_utf16,
+                    data: result_replay_data,
                 };
-                let payload = ReadlinkatReplay {
+                let payload = FsPathReadlinkatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -18450,7 +19765,7 @@ fn destack_fs_readlinkat_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ReadlinkatReplay { result }
+                    FsPathReadlinkatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -18463,26 +19778,13 @@ fn destack_fs_readlinkat_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result_encoding = value.encoding;
-                    let vm_result_bytes_inner =
-                        VmArray::from_bytes(context, value.bytes.as_slice());
-                    let vm_result_bytes = crate::platform::fs::PathBytesAbi::<
+                    let vm_result_data_inner = VmArray::from_bytes(context, value.data.as_slice());
+                    let vm_result_data = crate::platform::fs::PathBytesAbi::<
                         crate::platform::abi::VmAbi,
-                    >(vm_result_bytes_inner);
-                    let mut vm_result_utf16_inner_values = Vec::with_capacity(value.utf16.len());
-                    for vm_result_utf16_inner_item in value.utf16.iter() {
-                        let vm_result_utf16_inner_item = *vm_result_utf16_inner_item;
-                        let vm_result_utf16_inner_item_value = vm_result_utf16_inner_item;
-                        vm_result_utf16_inner_values.push(vm_result_utf16_inner_item_value);
-                    }
-                    let vm_result_utf16_inner =
-                        VmArray::from_values(context, &vm_result_utf16_inner_values)?;
-                    let vm_result_utf16 = crate::platform::fs::PathUtf16Abi::<
-                        crate::platform::abi::VmAbi,
-                    >(vm_result_utf16_inner);
+                    >(vm_result_data_inner);
                     let vm_result = OsPathVm {
                         encoding: vm_result_encoding,
-                        bytes: vm_result_bytes,
-                        utf16: vm_result_utf16,
+                        data: vm_result_data,
                     };
                     Ok(vm_result)
                 }
@@ -18490,18 +19792,18 @@ fn destack_fs_readlinkat_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_readlinkat_result(context, result)?;
+    let result = encode_destack_fs_path_readlinkat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_realpath_vm_replay(
+fn destack_fs_path_realpath_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        REALPATH,
+        FS_PATH_REALPATH,
         context,
         |context| platform_vm::destack_fs_realpath(runtime, context, path),
         |context, result| {
@@ -18509,27 +19811,13 @@ fn destack_fs_realpath_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay_encoding = result_value.encoding;
-                let result_replay_bytes_inner = result_value.bytes.0.read_bytes(context)?;
-                let result_replay_bytes = result_replay_bytes_inner;
-                let result_replay_utf16_inner_raw = result_value.utf16.0.raw_values(context)?;
-                let mut result_replay_utf16_inner =
-                    Vec::with_capacity(result_replay_utf16_inner_raw.len());
-                for result_replay_utf16_inner_item_value in result_replay_utf16_inner_raw {
-                    let result_replay_utf16_inner_item = decode_uint16(
-                        result_replay_utf16_inner_item_value,
-                        "result_replay_utf16_inner_item",
-                        "item",
-                    )?;
-                    let result_replay_utf16_inner_item_replay = result_replay_utf16_inner_item;
-                    result_replay_utf16_inner.push(result_replay_utf16_inner_item_replay);
-                }
-                let result_replay_utf16 = result_replay_utf16_inner;
+                let result_replay_data_inner = result_value.data.0.read_bytes(context)?;
+                let result_replay_data = result_replay_data_inner;
                 let result_replay = OsPathReplay {
                     encoding: result_replay_encoding,
-                    bytes: result_replay_bytes,
-                    utf16: result_replay_utf16,
+                    data: result_replay_data,
                 };
-                let payload = RealpathReplay {
+                let payload = FsPathRealpathReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -18538,7 +19826,7 @@ fn destack_fs_realpath_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    RealpathReplay { result }
+                    FsPathRealpathReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -18551,26 +19839,13 @@ fn destack_fs_realpath_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result_encoding = value.encoding;
-                    let vm_result_bytes_inner =
-                        VmArray::from_bytes(context, value.bytes.as_slice());
-                    let vm_result_bytes = crate::platform::fs::PathBytesAbi::<
+                    let vm_result_data_inner = VmArray::from_bytes(context, value.data.as_slice());
+                    let vm_result_data = crate::platform::fs::PathBytesAbi::<
                         crate::platform::abi::VmAbi,
-                    >(vm_result_bytes_inner);
-                    let mut vm_result_utf16_inner_values = Vec::with_capacity(value.utf16.len());
-                    for vm_result_utf16_inner_item in value.utf16.iter() {
-                        let vm_result_utf16_inner_item = *vm_result_utf16_inner_item;
-                        let vm_result_utf16_inner_item_value = vm_result_utf16_inner_item;
-                        vm_result_utf16_inner_values.push(vm_result_utf16_inner_item_value);
-                    }
-                    let vm_result_utf16_inner =
-                        VmArray::from_values(context, &vm_result_utf16_inner_values)?;
-                    let vm_result_utf16 = crate::platform::fs::PathUtf16Abi::<
-                        crate::platform::abi::VmAbi,
-                    >(vm_result_utf16_inner);
+                    >(vm_result_data_inner);
                     let vm_result = OsPathVm {
                         encoding: vm_result_encoding,
-                        bytes: vm_result_bytes,
-                        utf16: vm_result_utf16,
+                        data: vm_result_data,
                     };
                     Ok(vm_result)
                 }
@@ -18578,26 +19853,26 @@ fn destack_fs_realpath_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_realpath_result(context, result)?;
+    let result = encode_destack_fs_path_realpath_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_rename_vm_replay(
+fn destack_fs_path_rename_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     from: OsPathVm,
     to: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        RENAME,
+        FS_PATH_RENAME,
         context,
         |context| platform_vm::destack_fs_rename(runtime, context, from, to),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = RenameReplay {
+                let payload = FsPathRenameReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -18606,7 +19881,7 @@ fn destack_fs_rename_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    RenameReplay { result }
+                    FsPathRenameReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -18622,12 +19897,12 @@ fn destack_fs_rename_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_rename_result(context, result)?;
+    let result = encode_destack_fs_path_rename_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_renameat_vm_replay(
+fn destack_fs_path_renameat_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     fromdir: resource::DirectoryHandle,
@@ -18636,14 +19911,14 @@ fn destack_fs_renameat_vm_replay(
     to: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        RENAMEAT,
+        FS_PATH_RENAMEAT,
         context,
         |context| platform_vm::destack_fs_renameat(runtime, context, fromdir, from, todir, to),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = RenameatReplay {
+                let payload = FsPathRenameatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -18652,7 +19927,7 @@ fn destack_fs_renameat_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    RenameatReplay { result }
+                    FsPathRenameatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -18668,12 +19943,12 @@ fn destack_fs_renameat_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_renameat_result(context, result)?;
+    let result = encode_destack_fs_path_renameat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_renameat2_vm_replay(
+fn destack_fs_path_renameat2_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     fromdir: resource::DirectoryHandle,
@@ -18683,7 +19958,7 @@ fn destack_fs_renameat2_vm_replay(
     flags: RenameFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        RENAMEAT2,
+        FS_PATH_RENAMEAT2,
         context,
         |context| {
             platform_vm::destack_fs_renameat2(runtime, context, fromdir, from, todir, to, flags)
@@ -18692,7 +19967,7 @@ fn destack_fs_renameat2_vm_replay(
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = Renameat2Replay {
+                let payload = FsPathRenameat2Replay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -18701,7 +19976,7 @@ fn destack_fs_renameat2_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    Renameat2Replay { result }
+                    FsPathRenameat2Replay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -18717,12 +19992,12 @@ fn destack_fs_renameat2_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_renameat2_result(context, result)?;
+    let result = encode_destack_fs_path_renameat2_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_symlink_vm_replay(
+fn destack_fs_path_symlink_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     target: OsPathVm,
@@ -18730,14 +20005,14 @@ fn destack_fs_symlink_vm_replay(
     kind: SymlinkType,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        SYMLINK,
+        FS_PATH_SYMLINK,
         context,
         |context| platform_vm::destack_fs_symlink(runtime, context, target, path, kind),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = SymlinkReplay {
+                let payload = FsPathSymlinkReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -18746,7 +20021,7 @@ fn destack_fs_symlink_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    SymlinkReplay { result }
+                    FsPathSymlinkReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -18762,12 +20037,12 @@ fn destack_fs_symlink_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_symlink_result(context, result)?;
+    let result = encode_destack_fs_path_symlink_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_symlinkat_vm_replay(
+fn destack_fs_path_symlinkat_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     target: OsPathVm,
@@ -18776,14 +20051,14 @@ fn destack_fs_symlinkat_vm_replay(
     kind: SymlinkType,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        SYMLINKAT,
+        FS_PATH_SYMLINKAT,
         context,
         |context| platform_vm::destack_fs_symlinkat(runtime, context, target, dir, path, kind),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = SymlinkatReplay {
+                let payload = FsPathSymlinkatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -18792,7 +20067,7 @@ fn destack_fs_symlinkat_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    SymlinkatReplay { result }
+                    FsPathSymlinkatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -18808,25 +20083,25 @@ fn destack_fs_symlinkat_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_symlinkat_result(context, result)?;
+    let result = encode_destack_fs_path_symlinkat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_unlink_vm_replay(
+fn destack_fs_path_unlink_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        UNLINK,
+        FS_PATH_UNLINK,
         context,
         |context| platform_vm::destack_fs_unlink(runtime, context, path),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = UnlinkReplay {
+                let payload = FsPathUnlinkReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -18835,7 +20110,7 @@ fn destack_fs_unlink_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    UnlinkReplay { result }
+                    FsPathUnlinkReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -18851,12 +20126,12 @@ fn destack_fs_unlink_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_unlink_result(context, result)?;
+    let result = encode_destack_fs_path_unlink_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_unlinkat_vm_replay(
+fn destack_fs_path_unlinkat_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     dir: resource::DirectoryHandle,
@@ -18864,14 +20139,14 @@ fn destack_fs_unlinkat_vm_replay(
     flags: AtFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        UNLINKAT,
+        FS_PATH_UNLINKAT,
         context,
         |context| platform_vm::destack_fs_unlinkat(runtime, context, dir, path, flags),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = UnlinkatReplay {
+                let payload = FsPathUnlinkatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -18880,7 +20155,7 @@ fn destack_fs_unlinkat_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    UnlinkatReplay { result }
+                    FsPathUnlinkatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -18896,18 +20171,18 @@ fn destack_fs_unlinkat_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_unlinkat_result(context, result)?;
+    let result = encode_destack_fs_path_unlinkat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_fstat_vm_replay(
+fn destack_fs_stat_fstat_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        FSTAT,
+        FS_STAT_FSTAT,
         context,
         |context| platform_vm::destack_fs_fstat(runtime, context, handle),
         |context, result| {
@@ -18944,7 +20219,7 @@ fn destack_fs_fstat_vm_replay(
                     ctime_ns: result_replay_ctime_ns,
                     birthtime_ns: result_replay_birthtime_ns,
                 };
-                let payload = FstatReplay {
+                let payload = FsStatFstatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -18953,7 +20228,7 @@ fn destack_fs_fstat_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FstatReplay { result }
+                    FsStatFstatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -19001,18 +20276,18 @@ fn destack_fs_fstat_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_fstat_result(context, result)?;
+    let result = encode_destack_fs_stat_fstat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_fstatfs_vm_replay(
+fn destack_fs_stat_fstatfs_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        FSTATFS,
+        FS_STAT_FSTATFS,
         context,
         |context| platform_vm::destack_fs_fstatfs(runtime, context, handle),
         |context, result| {
@@ -19041,7 +20316,7 @@ fn destack_fs_fstatfs_vm_replay(
                     flags: result_replay_flags,
                     namelen: result_replay_namelen,
                 };
-                let payload = FstatfsReplay {
+                let payload = FsStatFstatfsReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -19050,7 +20325,7 @@ fn destack_fs_fstatfs_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FstatfsReplay { result }
+                    FsStatFstatfsReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -19090,18 +20365,18 @@ fn destack_fs_fstatfs_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_fstatfs_result(context, result)?;
+    let result = encode_destack_fs_stat_fstatfs_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_lstat_vm_replay(
+fn destack_fs_stat_lstat_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        LSTAT,
+        FS_STAT_LSTAT,
         context,
         |context| platform_vm::destack_fs_lstat(runtime, context, path),
         |context, result| {
@@ -19138,7 +20413,7 @@ fn destack_fs_lstat_vm_replay(
                     ctime_ns: result_replay_ctime_ns,
                     birthtime_ns: result_replay_birthtime_ns,
                 };
-                let payload = LstatReplay {
+                let payload = FsStatLstatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -19147,7 +20422,7 @@ fn destack_fs_lstat_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    LstatReplay { result }
+                    FsStatLstatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -19195,18 +20470,18 @@ fn destack_fs_lstat_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_lstat_result(context, result)?;
+    let result = encode_destack_fs_stat_lstat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_stat_vm_replay(
+fn destack_fs_stat_stat_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        STAT,
+        FS_STAT_STAT,
         context,
         |context| platform_vm::destack_fs_stat(runtime, context, path),
         |context, result| {
@@ -19243,7 +20518,7 @@ fn destack_fs_stat_vm_replay(
                     ctime_ns: result_replay_ctime_ns,
                     birthtime_ns: result_replay_birthtime_ns,
                 };
-                let payload = StatReplay {
+                let payload = FsStatStatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -19252,7 +20527,7 @@ fn destack_fs_stat_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    StatReplay { result }
+                    FsStatStatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -19300,12 +20575,12 @@ fn destack_fs_stat_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_stat_result(context, result)?;
+    let result = encode_destack_fs_stat_stat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_statat_vm_replay(
+fn destack_fs_stat_statat_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     dir: resource::DirectoryHandle,
@@ -19313,7 +20588,7 @@ fn destack_fs_statat_vm_replay(
     flags: AtFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        STATAT,
+        FS_STAT_STATAT,
         context,
         |context| platform_vm::destack_fs_statat(runtime, context, dir, path, flags),
         |context, result| {
@@ -19350,7 +20625,7 @@ fn destack_fs_statat_vm_replay(
                     ctime_ns: result_replay_ctime_ns,
                     birthtime_ns: result_replay_birthtime_ns,
                 };
-                let payload = StatatReplay {
+                let payload = FsStatStatatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -19359,7 +20634,7 @@ fn destack_fs_statat_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    StatatReplay { result }
+                    FsStatStatatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -19407,18 +20682,18 @@ fn destack_fs_statat_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_statat_result(context, result)?;
+    let result = encode_destack_fs_stat_statat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_statfs_vm_replay(
+fn destack_fs_stat_statfs_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        STATFS,
+        FS_STAT_STATFS,
         context,
         |context| platform_vm::destack_fs_statfs(runtime, context, path),
         |context, result| {
@@ -19447,7 +20722,7 @@ fn destack_fs_statfs_vm_replay(
                     flags: result_replay_flags,
                     namelen: result_replay_namelen,
                 };
-                let payload = StatfsReplay {
+                let payload = FsStatStatfsReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -19456,7 +20731,7 @@ fn destack_fs_statfs_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    StatfsReplay { result }
+                    FsStatStatfsReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -19496,12 +20771,12 @@ fn destack_fs_statfs_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_statfs_result(context, result)?;
+    let result = encode_destack_fs_stat_statfs_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_statx_vm_replay(
+fn destack_fs_stat_statx_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     dir: resource::DirectoryHandle,
@@ -19510,7 +20785,7 @@ fn destack_fs_statx_vm_replay(
     mask: StatxMask,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        STATX,
+        FS_STAT_STATX,
         context,
         |context| platform_vm::destack_fs_statx(runtime, context, dir, path, flags, mask),
         |context, result| {
@@ -19555,7 +20830,7 @@ fn destack_fs_statx_vm_replay(
                     ctime_ns: result_replay_ctime_ns,
                     mtime_ns: result_replay_mtime_ns,
                 };
-                let payload = StatxReplay {
+                let payload = FsStatStatxReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -19564,7 +20839,7 @@ fn destack_fs_statx_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    StatxReplay { result }
+                    FsStatStatxReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -19620,7 +20895,7 @@ fn destack_fs_statx_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_statx_result(context, result)?;
+    let result = encode_destack_fs_stat_statx_result(context, result)?;
     Ok(result)
 }
 
@@ -19632,7 +20907,7 @@ fn destack_fs_watch_vm_replay(
     options: WatchOptionsVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        WATCH,
+        FS_WATCH,
         context,
         |context| platform_vm::destack_fs_watch(runtime, context, path, options),
         |context, result| {
@@ -19640,7 +20915,7 @@ fn destack_fs_watch_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = WatchReplay {
+                let payload = FsWatchReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -19649,7 +20924,7 @@ fn destack_fs_watch_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    WatchReplay { result }
+                    FsWatchReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -19679,14 +20954,14 @@ fn destack_fs_watch_close_vm_replay(
     handle: resource::WatchHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        WATCH_CLOSE,
+        FS_WATCH_CLOSE,
         context,
         |context| platform_vm::destack_fs_watch_close(runtime, context, handle),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = WatchCloseReplay {
+                let payload = FsWatchCloseReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -19695,7 +20970,7 @@ fn destack_fs_watch_close_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    WatchCloseReplay { result }
+                    FsWatchCloseReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -19722,7 +20997,7 @@ fn destack_fs_watch_read_vm_replay(
     handle: resource::WatchHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        WATCH_READ,
+        FS_WATCH_READ,
         context,
         |context| platform_vm::destack_fs_watch_read(runtime, context, handle),
         |context, result| {
@@ -19733,44 +21008,158 @@ fn destack_fs_watch_read_vm_replay(
                 let mut result_replay_events = Vec::with_capacity(result_replay_events_raw.len());
                 for result_replay_events_item_value in result_replay_events_raw {
                     let result_replay_events_item = {
-                        if result_replay_events_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_replay_events_item", "item")).boxed()); }
-                        let slots = context.aggregate_slots(result_replay_events_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 4 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_replay_events_item", "expected 4 fields")).boxed()); }
-                        let result_replay_events_item_kind_raw = decode_uint8(slots[0], "result_replay_events_item_kind_raw", "kind")?;
-                        let result_replay_events_item_kind = match result_replay_events_item_kind_raw { 1u8 => WatchEventKind::Create, 2u8 => WatchEventKind::Remove, 3u8 => WatchEventKind::Modify, 4u8 => WatchEventKind::Rename, 5u8 => WatchEventKind::Metadata, 6u8 => WatchEventKind::Overflow , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_replay_events_item_kind", "unknown WatchEventKind value")).boxed()), };
+                        if result_replay_events_item_value.tag() != vm::ValueTag::Aggregate {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                                "result_replay_events_item",
+                                "item",
+                            ))
+                            .boxed());
+                        }
+                        let slots = context
+                            .aggregate_slots(result_replay_events_item_value)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 4 {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                                "result_replay_events_item",
+                                "expected 4 fields",
+                            ))
+                            .boxed());
+                        }
+                        let result_replay_events_item_kind_raw =
+                            decode_uint8(slots[0], "result_replay_events_item_kind_raw", "kind")?;
+                        let result_replay_events_item_kind =
+                            match result_replay_events_item_kind_raw {
+                                1u8 => WatchEventKind::Create,
+                                2u8 => WatchEventKind::Remove,
+                                3u8 => WatchEventKind::Modify,
+                                4u8 => WatchEventKind::Rename,
+                                5u8 => WatchEventKind::Metadata,
+                                6u8 => WatchEventKind::Overflow,
+                                _ => {
+                                    return Err(RuntimeError::from(
+                                        PlatformError::invalid_argument_value(
+                                            "result_replay_events_item_kind",
+                                            "unknown WatchEventKind value",
+                                        ),
+                                    )
+                                    .boxed());
+                                }
+                            };
                         let result_replay_events_item_path = {
-                            if slots[1].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_replay_events_item_path", "path")).boxed()); }
-                            let slots = context.aggregate_slots(slots[1]).map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 3 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_replay_events_item_path", "expected 3 fields")).boxed()); }
-                            let result_replay_events_item_path_encoding_raw = decode_uint8(slots[0], "result_replay_events_item_path_encoding_raw", "encoding")?;
-                            let result_replay_events_item_path_encoding = match result_replay_events_item_path_encoding_raw { 1u8 => PathEncoding::Bytes, 2u8 => PathEncoding::Utf16 , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_replay_events_item_path_encoding", "unknown PathEncoding value")).boxed()), };
-                            let result_replay_events_item_path_bytes_inner = decode_array::<u8>(context, slots[1], "result_replay_events_item_path_bytes_inner", "bytes")?;
-                            let result_replay_events_item_path_bytes = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(result_replay_events_item_path_bytes_inner);
-                            let result_replay_events_item_path_utf16_inner = decode_array::<u16>(context, slots[2], "result_replay_events_item_path_utf16_inner", "utf16")?;
-                            let result_replay_events_item_path_utf16 = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(result_replay_events_item_path_utf16_inner);
+                            if slots[1].tag() != vm::ValueTag::Aggregate {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_type(
+                                        "result_replay_events_item_path",
+                                        "path",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                            let slots = context
+                                .aggregate_slots(slots[1])
+                                .map_err(|error| RuntimeError::from(error).boxed())?;
+                            if slots.len() != 2 {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_value(
+                                        "result_replay_events_item_path",
+                                        "expected 2 fields",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                            let result_replay_events_item_path_encoding_raw = decode_uint8(
+                                slots[0],
+                                "result_replay_events_item_path_encoding_raw",
+                                "encoding",
+                            )?;
+                            let result_replay_events_item_path_encoding =
+                                match result_replay_events_item_path_encoding_raw {
+                                    1u8 => PathEncoding::Bytes,
+                                    2u8 => PathEncoding::Utf16,
+                                    _ => {
+                                        return Err(RuntimeError::from(
+                                            PlatformError::invalid_argument_value(
+                                                "result_replay_events_item_path_encoding",
+                                                "unknown PathEncoding value",
+                                            ),
+                                        )
+                                        .boxed());
+                                    }
+                                };
+                            let result_replay_events_item_path_data_inner = decode_array::<u8>(
+                                context,
+                                slots[1],
+                                "result_replay_events_item_path_data_inner",
+                                "data",
+                            )?;
+                            let result_replay_events_item_path_data =
+                                crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(
+                                    result_replay_events_item_path_data_inner,
+                                );
                             OsPathVm {
                                 encoding: result_replay_events_item_path_encoding,
-                                bytes: result_replay_events_item_path_bytes,
-                                utf16: result_replay_events_item_path_utf16,
+                                data: result_replay_events_item_path_data,
                             }
                         };
                         let result_replay_events_item_related_path = {
-                            if slots[2].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_replay_events_item_related_path", "relatedPath")).boxed()); }
-                            let slots = context.aggregate_slots(slots[2]).map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 3 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_replay_events_item_related_path", "expected 3 fields")).boxed()); }
-                            let result_replay_events_item_related_path_encoding_raw = decode_uint8(slots[0], "result_replay_events_item_related_path_encoding_raw", "encoding")?;
-                            let result_replay_events_item_related_path_encoding = match result_replay_events_item_related_path_encoding_raw { 1u8 => PathEncoding::Bytes, 2u8 => PathEncoding::Utf16 , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_replay_events_item_related_path_encoding", "unknown PathEncoding value")).boxed()), };
-                            let result_replay_events_item_related_path_bytes_inner = decode_array::<u8>(context, slots[1], "result_replay_events_item_related_path_bytes_inner", "bytes")?;
-                            let result_replay_events_item_related_path_bytes = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(result_replay_events_item_related_path_bytes_inner);
-                            let result_replay_events_item_related_path_utf16_inner = decode_array::<u16>(context, slots[2], "result_replay_events_item_related_path_utf16_inner", "utf16")?;
-                            let result_replay_events_item_related_path_utf16 = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(result_replay_events_item_related_path_utf16_inner);
+                            if slots[2].tag() != vm::ValueTag::Aggregate {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_type(
+                                        "result_replay_events_item_related_path",
+                                        "relatedPath",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                            let slots = context
+                                .aggregate_slots(slots[2])
+                                .map_err(|error| RuntimeError::from(error).boxed())?;
+                            if slots.len() != 2 {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_value(
+                                        "result_replay_events_item_related_path",
+                                        "expected 2 fields",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                            let result_replay_events_item_related_path_encoding_raw = decode_uint8(
+                                slots[0],
+                                "result_replay_events_item_related_path_encoding_raw",
+                                "encoding",
+                            )?;
+                            let result_replay_events_item_related_path_encoding =
+                                match result_replay_events_item_related_path_encoding_raw {
+                                    1u8 => PathEncoding::Bytes,
+                                    2u8 => PathEncoding::Utf16,
+                                    _ => {
+                                        return Err(RuntimeError::from(
+                                            PlatformError::invalid_argument_value(
+                                                "result_replay_events_item_related_path_encoding",
+                                                "unknown PathEncoding value",
+                                            ),
+                                        )
+                                        .boxed());
+                                    }
+                                };
+                            let result_replay_events_item_related_path_data_inner =
+                                decode_array::<u8>(
+                                    context,
+                                    slots[1],
+                                    "result_replay_events_item_related_path_data_inner",
+                                    "data",
+                                )?;
+                            let result_replay_events_item_related_path_data =
+                                crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(
+                                    result_replay_events_item_related_path_data_inner,
+                                );
                             OsPathVm {
                                 encoding: result_replay_events_item_related_path_encoding,
-                                bytes: result_replay_events_item_related_path_bytes,
-                                utf16: result_replay_events_item_related_path_utf16,
+                                data: result_replay_events_item_related_path_data,
                             }
                         };
-                        let result_replay_events_item_cookie = decode_uint64(slots[3], "result_replay_events_item_cookie", "cookie")?;
+                        let result_replay_events_item_cookie =
+                            decode_uint64(slots[3], "result_replay_events_item_cookie", "cookie")?;
                         WatchEventVm {
                             kind: result_replay_events_item_kind,
                             path: result_replay_events_item_path,
@@ -19779,37 +21168,29 @@ fn destack_fs_watch_read_vm_replay(
                         }
                     };
                     let result_replay_events_item_replay_kind = result_replay_events_item.kind;
-                    let result_replay_events_item_replay_path_encoding = result_replay_events_item.path.encoding;
-                    let result_replay_events_item_replay_path_bytes_inner = result_replay_events_item.path.bytes.0.read_bytes(context)?;
-                    let result_replay_events_item_replay_path_bytes = result_replay_events_item_replay_path_bytes_inner;
-                    let result_replay_events_item_replay_path_utf16_inner_raw = result_replay_events_item.path.utf16.0.raw_values(context)?;
-                    let mut result_replay_events_item_replay_path_utf16_inner = Vec::with_capacity(result_replay_events_item_replay_path_utf16_inner_raw.len());
-                    for result_replay_events_item_replay_path_utf16_inner_item_value in result_replay_events_item_replay_path_utf16_inner_raw {
-                        let result_replay_events_item_replay_path_utf16_inner_item = decode_uint16(result_replay_events_item_replay_path_utf16_inner_item_value, "result_replay_events_item_replay_path_utf16_inner_item", "item")?;
-                        let result_replay_events_item_replay_path_utf16_inner_item_replay = result_replay_events_item_replay_path_utf16_inner_item;
-                        result_replay_events_item_replay_path_utf16_inner.push(result_replay_events_item_replay_path_utf16_inner_item_replay);
-                    }
-                    let result_replay_events_item_replay_path_utf16 = result_replay_events_item_replay_path_utf16_inner;
+                    let result_replay_events_item_replay_path_encoding =
+                        result_replay_events_item.path.encoding;
+                    let result_replay_events_item_replay_path_data_inner =
+                        result_replay_events_item.path.data.0.read_bytes(context)?;
+                    let result_replay_events_item_replay_path_data =
+                        result_replay_events_item_replay_path_data_inner;
                     let result_replay_events_item_replay_path = OsPathReplay {
                         encoding: result_replay_events_item_replay_path_encoding,
-                        bytes: result_replay_events_item_replay_path_bytes,
-                        utf16: result_replay_events_item_replay_path_utf16,
+                        data: result_replay_events_item_replay_path_data,
                     };
-                    let result_replay_events_item_replay_related_path_encoding = result_replay_events_item.related_path.encoding;
-                    let result_replay_events_item_replay_related_path_bytes_inner = result_replay_events_item.related_path.bytes.0.read_bytes(context)?;
-                    let result_replay_events_item_replay_related_path_bytes = result_replay_events_item_replay_related_path_bytes_inner;
-                    let result_replay_events_item_replay_related_path_utf16_inner_raw = result_replay_events_item.related_path.utf16.0.raw_values(context)?;
-                    let mut result_replay_events_item_replay_related_path_utf16_inner = Vec::with_capacity(result_replay_events_item_replay_related_path_utf16_inner_raw.len());
-                    for result_replay_events_item_replay_related_path_utf16_inner_item_value in result_replay_events_item_replay_related_path_utf16_inner_raw {
-                        let result_replay_events_item_replay_related_path_utf16_inner_item = decode_uint16(result_replay_events_item_replay_related_path_utf16_inner_item_value, "result_replay_events_item_replay_related_path_utf16_inner_item", "item")?;
-                        let result_replay_events_item_replay_related_path_utf16_inner_item_replay = result_replay_events_item_replay_related_path_utf16_inner_item;
-                        result_replay_events_item_replay_related_path_utf16_inner.push(result_replay_events_item_replay_related_path_utf16_inner_item_replay);
-                    }
-                    let result_replay_events_item_replay_related_path_utf16 = result_replay_events_item_replay_related_path_utf16_inner;
+                    let result_replay_events_item_replay_related_path_encoding =
+                        result_replay_events_item.related_path.encoding;
+                    let result_replay_events_item_replay_related_path_data_inner =
+                        result_replay_events_item
+                            .related_path
+                            .data
+                            .0
+                            .read_bytes(context)?;
+                    let result_replay_events_item_replay_related_path_data =
+                        result_replay_events_item_replay_related_path_data_inner;
                     let result_replay_events_item_replay_related_path = OsPathReplay {
                         encoding: result_replay_events_item_replay_related_path_encoding,
-                        bytes: result_replay_events_item_replay_related_path_bytes,
-                        utf16: result_replay_events_item_replay_related_path_utf16,
+                        data: result_replay_events_item_replay_related_path_data,
                     };
                     let result_replay_events_item_replay_cookie = result_replay_events_item.cookie;
                     let result_replay_events_item_replay = WatchEventReplay {
@@ -19825,7 +21206,7 @@ fn destack_fs_watch_read_vm_replay(
                     events: result_replay_events,
                     overflowed: result_replay_overflowed,
                 };
-                let payload = WatchReadReplay {
+                let payload = FsWatchReadReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -19834,9 +21215,7 @@ fn destack_fs_watch_read_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    WatchReadReplay {
-                        result,
-                    }
+                    FsWatchReadReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -19852,37 +21231,34 @@ fn destack_fs_watch_read_vm_replay(
                     for vm_result_events_item in value.events.iter() {
                         let vm_result_events_item = vm_result_events_item.clone();
                         let vm_result_events_item_value_kind = vm_result_events_item.kind;
-                        let vm_result_events_item_value_path_encoding = vm_result_events_item.path.encoding;
-                        let vm_result_events_item_value_path_bytes_inner = VmArray::from_bytes(context, vm_result_events_item.path.bytes.as_slice());
-                        let vm_result_events_item_value_path_bytes = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(vm_result_events_item_value_path_bytes_inner);
-                        let mut vm_result_events_item_value_path_utf16_inner_values = Vec::with_capacity(vm_result_events_item.path.utf16.len());
-                        for vm_result_events_item_value_path_utf16_inner_item in vm_result_events_item.path.utf16.iter() {
-                            let vm_result_events_item_value_path_utf16_inner_item = *vm_result_events_item_value_path_utf16_inner_item;
-                            let vm_result_events_item_value_path_utf16_inner_item_value = vm_result_events_item_value_path_utf16_inner_item;
-                            vm_result_events_item_value_path_utf16_inner_values.push(vm_result_events_item_value_path_utf16_inner_item_value);
-                        }
-                        let vm_result_events_item_value_path_utf16_inner = VmArray::from_values(context, &vm_result_events_item_value_path_utf16_inner_values)?;
-                        let vm_result_events_item_value_path_utf16 = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(vm_result_events_item_value_path_utf16_inner);
+                        let vm_result_events_item_value_path_encoding =
+                            vm_result_events_item.path.encoding;
+                        let vm_result_events_item_value_path_data_inner = VmArray::from_bytes(
+                            context,
+                            vm_result_events_item.path.data.as_slice(),
+                        );
+                        let vm_result_events_item_value_path_data =
+                            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(
+                                vm_result_events_item_value_path_data_inner,
+                            );
                         let vm_result_events_item_value_path = OsPathVm {
                             encoding: vm_result_events_item_value_path_encoding,
-                            bytes: vm_result_events_item_value_path_bytes,
-                            utf16: vm_result_events_item_value_path_utf16,
+                            data: vm_result_events_item_value_path_data,
                         };
-                        let vm_result_events_item_value_related_path_encoding = vm_result_events_item.related_path.encoding;
-                        let vm_result_events_item_value_related_path_bytes_inner = VmArray::from_bytes(context, vm_result_events_item.related_path.bytes.as_slice());
-                        let vm_result_events_item_value_related_path_bytes = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(vm_result_events_item_value_related_path_bytes_inner);
-                        let mut vm_result_events_item_value_related_path_utf16_inner_values = Vec::with_capacity(vm_result_events_item.related_path.utf16.len());
-                        for vm_result_events_item_value_related_path_utf16_inner_item in vm_result_events_item.related_path.utf16.iter() {
-                            let vm_result_events_item_value_related_path_utf16_inner_item = *vm_result_events_item_value_related_path_utf16_inner_item;
-                            let vm_result_events_item_value_related_path_utf16_inner_item_value = vm_result_events_item_value_related_path_utf16_inner_item;
-                            vm_result_events_item_value_related_path_utf16_inner_values.push(vm_result_events_item_value_related_path_utf16_inner_item_value);
-                        }
-                        let vm_result_events_item_value_related_path_utf16_inner = VmArray::from_values(context, &vm_result_events_item_value_related_path_utf16_inner_values)?;
-                        let vm_result_events_item_value_related_path_utf16 = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(vm_result_events_item_value_related_path_utf16_inner);
+                        let vm_result_events_item_value_related_path_encoding =
+                            vm_result_events_item.related_path.encoding;
+                        let vm_result_events_item_value_related_path_data_inner =
+                            VmArray::from_bytes(
+                                context,
+                                vm_result_events_item.related_path.data.as_slice(),
+                            );
+                        let vm_result_events_item_value_related_path_data =
+                            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(
+                                vm_result_events_item_value_related_path_data_inner,
+                            );
                         let vm_result_events_item_value_related_path = OsPathVm {
                             encoding: vm_result_events_item_value_related_path_encoding,
-                            bytes: vm_result_events_item_value_related_path_bytes,
-                            utf16: vm_result_events_item_value_related_path_utf16,
+                            data: vm_result_events_item_value_related_path_data,
                         };
                         let vm_result_events_item_value_cookie = vm_result_events_item.cookie;
                         let vm_result_events_item_value = WatchEventVm {
@@ -19891,11 +21267,43 @@ fn destack_fs_watch_read_vm_replay(
                             related_path: vm_result_events_item_value_related_path,
                             cookie: vm_result_events_item_value_cookie,
                         };
-                        let vm_result_events_item_value_encoded = { let field_0 = vm::Value::uint(vm_result_events_item_value.kind as u8 as u64, 8); let field_1 = { let field_0 = vm::Value::uint(vm_result_events_item_value.path.encoding as u8 as u64, 8); let field_1 = vm_result_events_item_value.path.bytes.0.to_value(context); let field_2 = vm_result_events_item_value.path.utf16.0.to_value(context); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = vm::Value::uint(vm_result_events_item_value.related_path.encoding as u8 as u64, 8); let field_1 = vm_result_events_item_value.related_path.bytes.0.to_value(context); let field_2 = vm_result_events_item_value.related_path.utf16.0.to_value(context); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_3 = vm::Value::uint(vm_result_events_item_value.cookie, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) };
+                        let vm_result_events_item_value_encoded = {
+                            let field_0 =
+                                vm::Value::uint(vm_result_events_item_value.kind as u8 as u64, 8);
+                            let field_1 = {
+                                let field_0 = vm::Value::uint(
+                                    vm_result_events_item_value.path.encoding as u8 as u64,
+                                    8,
+                                );
+                                let field_1 =
+                                    vm_result_events_item_value.path.data.0.to_value(context);
+                                context.allocate_aggregate(vec![field_0, field_1])
+                            };
+                            let field_2 = {
+                                let field_0 = vm::Value::uint(
+                                    vm_result_events_item_value.related_path.encoding as u8 as u64,
+                                    8,
+                                );
+                                let field_1 = vm_result_events_item_value
+                                    .related_path
+                                    .data
+                                    .0
+                                    .to_value(context);
+                                context.allocate_aggregate(vec![field_0, field_1])
+                            };
+                            let field_3 = vm::Value::uint(vm_result_events_item_value.cookie, 64);
+                            context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+                        };
                         vm_result_events_values.push(vm_result_events_item_value_encoded);
                     }
-                    let vm_result_events_data = context.allocate_raw_values(vm_result_events_values);
-                    let vm_result_events: VmArray<WatchEventVm> = VmArray { data: vm_result_events_data, len: value.events.len() as u32, capacity: value.events.len() as u32, _marker: std::marker::PhantomData };
+                    let vm_result_events_data =
+                        context.allocate_raw_values(vm_result_events_values);
+                    let vm_result_events: VmArray<WatchEventVm> = VmArray {
+                        data: vm_result_events_data,
+                        len: value.events.len() as u32,
+                        capacity: value.events.len() as u32,
+                        _marker: std::marker::PhantomData,
+                    };
                     let vm_result_overflowed = value.overflowed;
                     let vm_result = WatchBatchVm {
                         events: vm_result_events,
@@ -19920,7 +21328,7 @@ fn destack_fs_watchat_vm_replay(
     options: WatchOptionsVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        WATCHAT,
+        FS_WATCHAT,
         context,
         |context| platform_vm::destack_fs_watchat(runtime, context, directory, path, options),
         |context, result| {
@@ -19928,7 +21336,7 @@ fn destack_fs_watchat_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = WatchatReplay {
+                let payload = FsWatchatReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -19937,7 +21345,7 @@ fn destack_fs_watchat_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    WatchatReplay { result }
+                    FsWatchatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -19961,14 +21369,14 @@ fn destack_fs_watchat_vm_replay(
 }
 
 #[inline]
-fn destack_fs_fgetxattr_vm_replay(
+fn destack_fs_xattr_fgetxattr_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        FGETXATTR,
+        FS_XATTR_FGETXATTR,
         context,
         |context| platform_vm::destack_fs_fgetxattr(runtime, context, handle, name),
         |context, result| {
@@ -19976,7 +21384,7 @@ fn destack_fs_fgetxattr_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value.read_bytes(context)?;
-                let payload = FgetxattrReplay {
+                let payload = FsXattrFgetxattrReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -19985,7 +21393,7 @@ fn destack_fs_fgetxattr_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FgetxattrReplay { result }
+                    FsXattrFgetxattrReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -20004,18 +21412,66 @@ fn destack_fs_fgetxattr_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_fgetxattr_result(context, result)?;
+    let result = encode_destack_fs_xattr_fgetxattr_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_flistxattr_vm_replay(
+fn destack_fs_xattr_fgetxattr_bytes_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    handle: resource::FileHandle,
+    name: VmSlice<u8>,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        FS_XATTR_FGETXATTR_BYTES,
+        context,
+        |context| platform_vm::destack_fs_fgetxattr_bytes(runtime, context, handle, name),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay = result_value.read_bytes(context)?;
+                let payload = FsXattrFgetxattrBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrFgetxattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = VmArray::from_bytes(context, value.as_slice());
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_xattr_fgetxattr_bytes_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_xattr_flistxattr_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        FLISTXATTR,
+        FS_XATTR_FLISTXATTR,
         context,
         |context| platform_vm::destack_fs_flistxattr(runtime, context, handle),
         |context, result| {
@@ -20035,7 +21491,7 @@ fn destack_fs_flistxattr_vm_replay(
                     };
                     result_replay.push(result_replay_item_replay);
                 }
-                let payload = FlistxattrReplay {
+                let payload = FsXattrFlistxattrReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -20044,7 +21500,7 @@ fn destack_fs_flistxattr_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FlistxattrReplay { result }
+                    FsXattrFlistxattrReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -20071,26 +21527,37 @@ fn destack_fs_flistxattr_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_flistxattr_result(context, result)?;
+    let result = encode_destack_fs_xattr_flistxattr_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_fremovexattr_vm_replay(
+fn destack_fs_xattr_flistxattr_bytes_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
-    name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        FREMOVEXATTR,
+        FS_XATTR_FLISTXATTR_BYTES,
         context,
-        |context| platform_vm::destack_fs_fremovexattr(runtime, context, handle, name),
+        |context| platform_vm::destack_fs_flistxattr_bytes(runtime, context, handle),
         |context, result| {
             let _ = &context;
-            if let Ok(()) = result {
-                let result_replay = ();
-                let payload = FremovexattrReplay {
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay_raw = result_value.raw_values(context)?;
+                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
+                for result_replay_item_value in result_replay_raw {
+                    let result_replay_item = decode_array::<u8>(
+                        context,
+                        result_replay_item_value,
+                        "result_replay_item",
+                        "item",
+                    )?;
+                    let result_replay_item_replay = result_replay_item.read_bytes(context)?;
+                    result_replay.push(result_replay_item_replay);
+                }
+                let payload = FsXattrFlistxattrBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -20099,7 +21566,68 @@ fn destack_fs_fremovexattr_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FremovexattrReplay { result }
+                    FsXattrFlistxattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = vm_result_item.clone();
+                        let vm_result_item_value =
+                            VmArray::from_bytes(context, vm_result_item.as_slice());
+                        let vm_result_item_value_encoded = vm_result_item_value.to_value(context);
+                        vm_result_values.push(vm_result_item_value_encoded);
+                    }
+                    let vm_result_data = context.allocate_raw_values(vm_result_values);
+                    let vm_result: VmArray<VmArray<u8>> = VmArray {
+                        data: vm_result_data,
+                        len: value.len() as u32,
+                        capacity: value.len() as u32,
+                        _marker: std::marker::PhantomData,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_xattr_flistxattr_bytes_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_xattr_fremovexattr_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    handle: resource::FileHandle,
+    name: vm::StringHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        FS_XATTR_FREMOVEXATTR,
+        context,
+        |context| platform_vm::destack_fs_fremovexattr(runtime, context, handle, name),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = FsXattrFremovexattrReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrFremovexattrReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -20115,12 +21643,56 @@ fn destack_fs_fremovexattr_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_fremovexattr_result(context, result)?;
+    let result = encode_destack_fs_xattr_fremovexattr_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_fsetxattr_vm_replay(
+fn destack_fs_xattr_fremovexattr_bytes_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    handle: resource::FileHandle,
+    name: VmSlice<u8>,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        FS_XATTR_FREMOVEXATTR_BYTES,
+        context,
+        |context| platform_vm::destack_fs_fremovexattr_bytes(runtime, context, handle, name),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = FsXattrFremovexattrBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrFremovexattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_xattr_fremovexattr_bytes_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_xattr_fsetxattr_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     handle: resource::FileHandle,
@@ -20129,14 +21701,14 @@ fn destack_fs_fsetxattr_vm_replay(
     flags: XattrFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        FSETXATTR,
+        FS_XATTR_FSETXATTR,
         context,
         |context| platform_vm::destack_fs_fsetxattr(runtime, context, handle, name, value, flags),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = FsetxattrReplay {
+                let payload = FsXattrFsetxattrReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -20145,7 +21717,7 @@ fn destack_fs_fsetxattr_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FsetxattrReplay { result }
+                    FsXattrFsetxattrReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -20161,19 +21733,67 @@ fn destack_fs_fsetxattr_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_fsetxattr_result(context, result)?;
+    let result = encode_destack_fs_xattr_fsetxattr_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_getxattr_vm_replay(
+fn destack_fs_xattr_fsetxattr_bytes_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    handle: resource::FileHandle,
+    name: VmSlice<u8>,
+    value: VmSlice<u8>,
+    flags: XattrFlags,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        FS_XATTR_FSETXATTR_BYTES,
+        context,
+        |context| {
+            platform_vm::destack_fs_fsetxattr_bytes(runtime, context, handle, name, value, flags)
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = FsXattrFsetxattrBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrFsetxattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_xattr_fsetxattr_bytes_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_xattr_getxattr_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     path: OsPathVm,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        GETXATTR,
+        FS_XATTR_GETXATTR,
         context,
         |context| platform_vm::destack_fs_getxattr(runtime, context, path, name),
         |context, result| {
@@ -20181,7 +21801,7 @@ fn destack_fs_getxattr_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value.read_bytes(context)?;
-                let payload = GetxattrReplay {
+                let payload = FsXattrGetxattrReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -20190,7 +21810,7 @@ fn destack_fs_getxattr_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    GetxattrReplay { result }
+                    FsXattrGetxattrReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -20209,19 +21829,67 @@ fn destack_fs_getxattr_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_getxattr_result(context, result)?;
+    let result = encode_destack_fs_xattr_getxattr_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_lgetxattr_vm_replay(
+fn destack_fs_xattr_getxattr_bytes_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    path: OsPathVm,
+    name: VmSlice<u8>,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        FS_XATTR_GETXATTR_BYTES,
+        context,
+        |context| platform_vm::destack_fs_getxattr_bytes(runtime, context, path, name),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay = result_value.read_bytes(context)?;
+                let payload = FsXattrGetxattrBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrGetxattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = VmArray::from_bytes(context, value.as_slice());
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_xattr_getxattr_bytes_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_xattr_lgetxattr_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     path: OsPathVm,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        LGETXATTR,
+        FS_XATTR_LGETXATTR,
         context,
         |context| platform_vm::destack_fs_lgetxattr(runtime, context, path, name),
         |context, result| {
@@ -20229,7 +21897,7 @@ fn destack_fs_lgetxattr_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value.read_bytes(context)?;
-                let payload = LgetxattrReplay {
+                let payload = FsXattrLgetxattrReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -20238,7 +21906,7 @@ fn destack_fs_lgetxattr_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    LgetxattrReplay { result }
+                    FsXattrLgetxattrReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -20257,18 +21925,66 @@ fn destack_fs_lgetxattr_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_lgetxattr_result(context, result)?;
+    let result = encode_destack_fs_xattr_lgetxattr_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_listxattr_vm_replay(
+fn destack_fs_xattr_lgetxattr_bytes_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    path: OsPathVm,
+    name: VmSlice<u8>,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        FS_XATTR_LGETXATTR_BYTES,
+        context,
+        |context| platform_vm::destack_fs_lgetxattr_bytes(runtime, context, path, name),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay = result_value.read_bytes(context)?;
+                let payload = FsXattrLgetxattrBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrLgetxattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = VmArray::from_bytes(context, value.as_slice());
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_xattr_lgetxattr_bytes_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_xattr_listxattr_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        LISTXATTR,
+        FS_XATTR_LISTXATTR,
         context,
         |context| platform_vm::destack_fs_listxattr(runtime, context, path),
         |context, result| {
@@ -20288,7 +22004,7 @@ fn destack_fs_listxattr_vm_replay(
                     };
                     result_replay.push(result_replay_item_replay);
                 }
-                let payload = ListxattrReplay {
+                let payload = FsXattrListxattrReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -20297,7 +22013,7 @@ fn destack_fs_listxattr_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ListxattrReplay { result }
+                    FsXattrListxattrReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -20324,18 +22040,90 @@ fn destack_fs_listxattr_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_listxattr_result(context, result)?;
+    let result = encode_destack_fs_xattr_listxattr_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_llistxattr_vm_replay(
+fn destack_fs_xattr_listxattr_bytes_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        LLISTXATTR,
+        FS_XATTR_LISTXATTR_BYTES,
+        context,
+        |context| platform_vm::destack_fs_listxattr_bytes(runtime, context, path),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay_raw = result_value.raw_values(context)?;
+                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
+                for result_replay_item_value in result_replay_raw {
+                    let result_replay_item = decode_array::<u8>(
+                        context,
+                        result_replay_item_value,
+                        "result_replay_item",
+                        "item",
+                    )?;
+                    let result_replay_item_replay = result_replay_item.read_bytes(context)?;
+                    result_replay.push(result_replay_item_replay);
+                }
+                let payload = FsXattrListxattrBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrListxattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = vm_result_item.clone();
+                        let vm_result_item_value =
+                            VmArray::from_bytes(context, vm_result_item.as_slice());
+                        let vm_result_item_value_encoded = vm_result_item_value.to_value(context);
+                        vm_result_values.push(vm_result_item_value_encoded);
+                    }
+                    let vm_result_data = context.allocate_raw_values(vm_result_values);
+                    let vm_result: VmArray<VmArray<u8>> = VmArray {
+                        data: vm_result_data,
+                        len: value.len() as u32,
+                        capacity: value.len() as u32,
+                        _marker: std::marker::PhantomData,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_xattr_listxattr_bytes_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_xattr_llistxattr_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    path: OsPathVm,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        FS_XATTR_LLISTXATTR,
         context,
         |context| platform_vm::destack_fs_llistxattr(runtime, context, path),
         |context, result| {
@@ -20355,7 +22143,7 @@ fn destack_fs_llistxattr_vm_replay(
                     };
                     result_replay.push(result_replay_item_replay);
                 }
-                let payload = LlistxattrReplay {
+                let payload = FsXattrLlistxattrReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -20364,7 +22152,7 @@ fn destack_fs_llistxattr_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    LlistxattrReplay { result }
+                    FsXattrLlistxattrReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -20391,26 +22179,98 @@ fn destack_fs_llistxattr_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_llistxattr_result(context, result)?;
+    let result = encode_destack_fs_xattr_llistxattr_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_lremovexattr_vm_replay(
+fn destack_fs_xattr_llistxattr_bytes_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    path: OsPathVm,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        FS_XATTR_LLISTXATTR_BYTES,
+        context,
+        |context| platform_vm::destack_fs_llistxattr_bytes(runtime, context, path),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay_raw = result_value.raw_values(context)?;
+                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
+                for result_replay_item_value in result_replay_raw {
+                    let result_replay_item = decode_array::<u8>(
+                        context,
+                        result_replay_item_value,
+                        "result_replay_item",
+                        "item",
+                    )?;
+                    let result_replay_item_replay = result_replay_item.read_bytes(context)?;
+                    result_replay.push(result_replay_item_replay);
+                }
+                let payload = FsXattrLlistxattrBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrLlistxattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = vm_result_item.clone();
+                        let vm_result_item_value =
+                            VmArray::from_bytes(context, vm_result_item.as_slice());
+                        let vm_result_item_value_encoded = vm_result_item_value.to_value(context);
+                        vm_result_values.push(vm_result_item_value_encoded);
+                    }
+                    let vm_result_data = context.allocate_raw_values(vm_result_values);
+                    let vm_result: VmArray<VmArray<u8>> = VmArray {
+                        data: vm_result_data,
+                        len: value.len() as u32,
+                        capacity: value.len() as u32,
+                        _marker: std::marker::PhantomData,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_xattr_llistxattr_bytes_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_xattr_lremovexattr_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     path: OsPathVm,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        LREMOVEXATTR,
+        FS_XATTR_LREMOVEXATTR,
         context,
         |context| platform_vm::destack_fs_lremovexattr(runtime, context, path, name),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = LremovexattrReplay {
+                let payload = FsXattrLremovexattrReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -20419,7 +22279,7 @@ fn destack_fs_lremovexattr_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    LremovexattrReplay { result }
+                    FsXattrLremovexattrReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -20435,12 +22295,56 @@ fn destack_fs_lremovexattr_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_lremovexattr_result(context, result)?;
+    let result = encode_destack_fs_xattr_lremovexattr_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_lsetxattr_vm_replay(
+fn destack_fs_xattr_lremovexattr_bytes_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    path: OsPathVm,
+    name: VmSlice<u8>,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        FS_XATTR_LREMOVEXATTR_BYTES,
+        context,
+        |context| platform_vm::destack_fs_lremovexattr_bytes(runtime, context, path, name),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = FsXattrLremovexattrBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrLremovexattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_xattr_lremovexattr_bytes_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_xattr_lsetxattr_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     path: OsPathVm,
@@ -20449,14 +22353,14 @@ fn destack_fs_lsetxattr_vm_replay(
     flags: XattrFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        LSETXATTR,
+        FS_XATTR_LSETXATTR,
         context,
         |context| platform_vm::destack_fs_lsetxattr(runtime, context, path, name, value, flags),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = LsetxattrReplay {
+                let payload = FsXattrLsetxattrReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -20465,7 +22369,7 @@ fn destack_fs_lsetxattr_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    LsetxattrReplay { result }
+                    FsXattrLsetxattrReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -20481,26 +22385,74 @@ fn destack_fs_lsetxattr_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_lsetxattr_result(context, result)?;
+    let result = encode_destack_fs_xattr_lsetxattr_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_removexattr_vm_replay(
+fn destack_fs_xattr_lsetxattr_bytes_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    path: OsPathVm,
+    name: VmSlice<u8>,
+    value: VmSlice<u8>,
+    flags: XattrFlags,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        FS_XATTR_LSETXATTR_BYTES,
+        context,
+        |context| {
+            platform_vm::destack_fs_lsetxattr_bytes(runtime, context, path, name, value, flags)
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = FsXattrLsetxattrBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrLsetxattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_xattr_lsetxattr_bytes_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_xattr_removexattr_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     path: OsPathVm,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        REMOVEXATTR,
+        FS_XATTR_REMOVEXATTR,
         context,
         |context| platform_vm::destack_fs_removexattr(runtime, context, path, name),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = RemovexattrReplay {
+                let payload = FsXattrRemovexattrReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -20509,7 +22461,7 @@ fn destack_fs_removexattr_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    RemovexattrReplay { result }
+                    FsXattrRemovexattrReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -20525,12 +22477,56 @@ fn destack_fs_removexattr_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_removexattr_result(context, result)?;
+    let result = encode_destack_fs_xattr_removexattr_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_setxattr_vm_replay(
+fn destack_fs_xattr_removexattr_bytes_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    path: OsPathVm,
+    name: VmSlice<u8>,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        FS_XATTR_REMOVEXATTR_BYTES,
+        context,
+        |context| platform_vm::destack_fs_removexattr_bytes(runtime, context, path, name),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = FsXattrRemovexattrBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrRemovexattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_xattr_removexattr_bytes_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_xattr_setxattr_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     path: OsPathVm,
@@ -20539,14 +22535,14 @@ fn destack_fs_setxattr_vm_replay(
     flags: XattrFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        SETXATTR,
+        FS_XATTR_SETXATTR,
         context,
         |context| platform_vm::destack_fs_setxattr(runtime, context, path, name, value, flags),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = SetxattrReplay {
+                let payload = FsXattrSetxattrReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -20555,7 +22551,7 @@ fn destack_fs_setxattr_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    SetxattrReplay { result }
+                    FsXattrSetxattrReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -20571,897 +22567,1032 @@ fn destack_fs_setxattr_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_setxattr_result(context, result)?;
+    let result = encode_destack_fs_xattr_setxattr_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_xattr_setxattr_bytes_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    path: OsPathVm,
+    name: VmSlice<u8>,
+    value: VmSlice<u8>,
+    flags: XattrFlags,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        FS_XATTR_SETXATTR_BYTES,
+        context,
+        |context| {
+            platform_vm::destack_fs_setxattr_bytes(runtime, context, path, name, value, flags)
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = FsXattrSetxattrBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrSetxattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_xattr_setxattr_bytes_result(context, result)?;
     Ok(result)
 }
 
 /// Register VM bindings for fs.
 pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
-        binding!(registry, isolate, ACCESS, move |context, args| {
+        binding!(registry, isolate, FS_ATTRS_ACCESS, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(ACCESS)?;
+                runtime.check_policy(FS_ATTRS_ACCESS)?;
 
                 // decode args
-                let (path, mode) = decode_destack_fs_access_args(context, args)?;
+                let (path, mode) = decode_destack_fs_attrs_access_args(context, args)?;
 
                 // execute binding
-                destack_fs_access_vm_replay(runtime, context, path, mode)
+                destack_fs_attrs_access_vm_replay(runtime, context, path, mode)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, ACCESSAT, move |context, args| {
+        binding!(
+            registry,
+            isolate,
+            FS_ATTRS_ACCESSAT,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_ATTRS_ACCESSAT)?;
+
+                    // decode args
+                    let (dir, path, mode, flags) =
+                        decode_destack_fs_attrs_accessat_args(context, args)?;
+
+                    // execute binding
+                    destack_fs_attrs_accessat_vm_replay(runtime, context, dir, path, mode, flags)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, FS_ATTRS_CHMOD, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(ACCESSAT)?;
+                runtime.check_policy(FS_ATTRS_CHMOD)?;
 
                 // decode args
-                let (dir, path, mode, flags) = decode_destack_fs_accessat_args(context, args)?;
+                let (path, mode) = decode_destack_fs_attrs_chmod_args(context, args)?;
 
                 // execute binding
-                destack_fs_accessat_vm_replay(runtime, context, dir, path, mode, flags)
+                destack_fs_attrs_chmod_vm_replay(runtime, context, path, mode)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, CHMOD, move |context, args| {
+        binding!(registry, isolate, FS_ATTRS_CHOWN, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(CHMOD)?;
+                runtime.check_policy(FS_ATTRS_CHOWN)?;
 
                 // decode args
-                let (path, mode) = decode_destack_fs_chmod_args(context, args)?;
+                let (path, uid, gid) = decode_destack_fs_attrs_chown_args(context, args)?;
 
                 // execute binding
-                destack_fs_chmod_vm_replay(runtime, context, path, mode)
+                destack_fs_attrs_chown_vm_replay(runtime, context, path, uid, gid)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, CHOWN, move |context, args| {
+        binding!(registry, isolate, FS_ATTRS_FCHMOD, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(CHOWN)?;
+                runtime.check_policy(FS_ATTRS_FCHMOD)?;
 
                 // decode args
-                let (path, uid, gid) = decode_destack_fs_chown_args(context, args)?;
+                let (handle, mode) = decode_destack_fs_attrs_fchmod_args(context, args)?;
 
                 // execute binding
-                destack_fs_chown_vm_replay(runtime, context, path, uid, gid)
+                destack_fs_attrs_fchmod_vm_replay(runtime, context, handle, mode)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, FCHMOD, move |context, args| {
+        binding!(
+            registry,
+            isolate,
+            FS_ATTRS_FCHMODAT,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_ATTRS_FCHMODAT)?;
+
+                    // decode args
+                    let (dir, path, mode, flags) =
+                        decode_destack_fs_attrs_fchmodat_args(context, args)?;
+
+                    // execute binding
+                    destack_fs_attrs_fchmodat_vm_replay(runtime, context, dir, path, mode, flags)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, FS_ATTRS_FCHOWN, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(FCHMOD)?;
+                runtime.check_policy(FS_ATTRS_FCHOWN)?;
 
                 // decode args
-                let (handle, mode) = decode_destack_fs_fchmod_args(context, args)?;
+                let (handle, uid, gid) = decode_destack_fs_attrs_fchown_args(context, args)?;
 
                 // execute binding
-                destack_fs_fchmod_vm_replay(runtime, context, handle, mode)
+                destack_fs_attrs_fchown_vm_replay(runtime, context, handle, uid, gid)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, FCHMODAT, move |context, args| {
+        binding!(
+            registry,
+            isolate,
+            FS_ATTRS_FCHOWNAT,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_ATTRS_FCHOWNAT)?;
+
+                    // decode args
+                    let (dir, path, uid, gid, flags) =
+                        decode_destack_fs_attrs_fchownat_args(context, args)?;
+
+                    // execute binding
+                    destack_fs_attrs_fchownat_vm_replay(
+                        runtime, context, dir, path, uid, gid, flags,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, FS_ATTRS_FUTIMES, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(FCHMODAT)?;
+                runtime.check_policy(FS_ATTRS_FUTIMES)?;
 
                 // decode args
-                let (dir, path, mode, flags) = decode_destack_fs_fchmodat_args(context, args)?;
+                let (handle, atimens, mtimens) =
+                    decode_destack_fs_attrs_futimes_args(context, args)?;
 
                 // execute binding
-                destack_fs_fchmodat_vm_replay(runtime, context, dir, path, mode, flags)
+                destack_fs_attrs_futimes_vm_replay(runtime, context, handle, atimens, mtimens)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, FCHOWN, move |context, args| {
+        binding!(registry, isolate, FS_ATTRS_LUTIMES, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(FCHOWN)?;
+                runtime.check_policy(FS_ATTRS_LUTIMES)?;
 
                 // decode args
-                let (handle, uid, gid) = decode_destack_fs_fchown_args(context, args)?;
+                let (path, atimens, mtimens) = decode_destack_fs_attrs_lutimes_args(context, args)?;
 
                 // execute binding
-                destack_fs_fchown_vm_replay(runtime, context, handle, uid, gid)
+                destack_fs_attrs_lutimes_vm_replay(runtime, context, path, atimens, mtimens)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, FCHOWNAT, move |context, args| {
+        binding!(
+            registry,
+            isolate,
+            FS_ATTRS_UTIMENSAT,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_ATTRS_UTIMENSAT)?;
+
+                    // decode args
+                    let (dir, path, atimens, mtimens, flags) =
+                        decode_destack_fs_attrs_utimensat_args(context, args)?;
+
+                    // execute binding
+                    destack_fs_attrs_utimensat_vm_replay(
+                        runtime, context, dir, path, atimens, mtimens, flags,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, FS_ATTRS_UTIMES, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(FCHOWNAT)?;
+                runtime.check_policy(FS_ATTRS_UTIMES)?;
 
                 // decode args
-                let (dir, path, uid, gid, flags) = decode_destack_fs_fchownat_args(context, args)?;
+                let (path, atimens, mtimens) = decode_destack_fs_attrs_utimes_args(context, args)?;
 
                 // execute binding
-                destack_fs_fchownat_vm_replay(runtime, context, dir, path, uid, gid, flags)
+                destack_fs_attrs_utimes_vm_replay(runtime, context, path, atimens, mtimens)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, FUTIMES, move |context, args| {
+        binding!(registry, isolate, FS_DIR_CLOSEDIR, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(FUTIMES)?;
+                runtime.check_policy(FS_DIR_CLOSEDIR)?;
 
                 // decode args
-                let (handle, atimens, mtimens) = decode_destack_fs_futimes_args(context, args)?;
+                let (handle,) = decode_destack_fs_dir_closedir_args(context, args)?;
 
                 // execute binding
-                destack_fs_futimes_vm_replay(runtime, context, handle, atimens, mtimens)
+                destack_fs_dir_closedir_vm_replay(runtime, context, handle)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, LUTIMES, move |context, args| {
+        binding!(registry, isolate, FS_DIR_DIRFD, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(LUTIMES)?;
+                runtime.check_policy(FS_DIR_DIRFD)?;
 
                 // decode args
-                let (path, atimens, mtimens) = decode_destack_fs_lutimes_args(context, args)?;
+                let (handle,) = decode_destack_fs_dir_dirfd_args(context, args)?;
 
                 // execute binding
-                destack_fs_lutimes_vm_replay(runtime, context, path, atimens, mtimens)
+                destack_fs_dir_dirfd_vm_replay(runtime, context, handle)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, UTIMENSAT, move |context, args| {
+        binding!(registry, isolate, FS_DIR_MKDIR, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(UTIMENSAT)?;
+                runtime.check_policy(FS_DIR_MKDIR)?;
 
                 // decode args
-                let (dir, path, atimens, mtimens, flags) =
-                    decode_destack_fs_utimensat_args(context, args)?;
+                let (path, mode) = decode_destack_fs_dir_mkdir_args(context, args)?;
 
                 // execute binding
-                destack_fs_utimensat_vm_replay(runtime, context, dir, path, atimens, mtimens, flags)
+                destack_fs_dir_mkdir_vm_replay(runtime, context, path, mode)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, UTIMES, move |context, args| {
+        binding!(registry, isolate, FS_DIR_MKDIRAT, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(UTIMES)?;
+                runtime.check_policy(FS_DIR_MKDIRAT)?;
 
                 // decode args
-                let (path, atimens, mtimens) = decode_destack_fs_utimes_args(context, args)?;
+                let (dir, path, mode) = decode_destack_fs_dir_mkdirat_args(context, args)?;
 
                 // execute binding
-                destack_fs_utimes_vm_replay(runtime, context, path, atimens, mtimens)
+                destack_fs_dir_mkdirat_vm_replay(runtime, context, dir, path, mode)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, CLOSEDIR, move |context, args| {
+        binding!(registry, isolate, FS_DIR_MKDTEMP, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(CLOSEDIR)?;
+                runtime.check_policy(FS_DIR_MKDTEMP)?;
 
                 // decode args
-                let (handle,) = decode_destack_fs_closedir_args(context, args)?;
+                let (template,) = decode_destack_fs_dir_mkdtemp_args(context, args)?;
 
                 // execute binding
-                destack_fs_closedir_vm_replay(runtime, context, handle)
+                destack_fs_dir_mkdtemp_vm_replay(runtime, context, template)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, DIRFD, move |context, args| {
+        binding!(registry, isolate, FS_DIR_OPENDIR, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(DIRFD)?;
+                runtime.check_policy(FS_DIR_OPENDIR)?;
 
                 // decode args
-                let (handle,) = decode_destack_fs_dirfd_args(context, args)?;
+                let (path,) = decode_destack_fs_dir_opendir_args(context, args)?;
 
                 // execute binding
-                destack_fs_dirfd_vm_replay(runtime, context, handle)
+                destack_fs_dir_opendir_vm_replay(runtime, context, path)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, MKDIR, move |context, args| {
+        binding!(registry, isolate, FS_DIR_READDIR, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(MKDIR)?;
+                runtime.check_policy(FS_DIR_READDIR)?;
 
                 // decode args
-                let (path, mode) = decode_destack_fs_mkdir_args(context, args)?;
+                let (handle,) = decode_destack_fs_dir_readdir_args(context, args)?;
 
                 // execute binding
-                destack_fs_mkdir_vm_replay(runtime, context, path, mode)
+                destack_fs_dir_readdir_vm_replay(runtime, context, handle)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, MKDIRAT, move |context, args| {
+        binding!(
+            registry,
+            isolate,
+            FS_DIR_READDIR_NEXT,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_DIR_READDIR_NEXT)?;
+
+                    // decode args
+                    let (handle,) = decode_destack_fs_dir_readdir_next_args(context, args)?;
+
+                    // execute binding
+                    destack_fs_dir_readdir_next_vm_replay(runtime, context, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, FS_DIR_REWINDDIR, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(MKDIRAT)?;
+                runtime.check_policy(FS_DIR_REWINDDIR)?;
 
                 // decode args
-                let (dir, path, mode) = decode_destack_fs_mkdirat_args(context, args)?;
+                let (handle,) = decode_destack_fs_dir_rewinddir_args(context, args)?;
 
                 // execute binding
-                destack_fs_mkdirat_vm_replay(runtime, context, dir, path, mode)
+                destack_fs_dir_rewinddir_vm_replay(runtime, context, handle)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, MKDTEMP, move |context, args| {
+        binding!(registry, isolate, FS_DIR_RMDIR, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(MKDTEMP)?;
+                runtime.check_policy(FS_DIR_RMDIR)?;
 
                 // decode args
-                let (template,) = decode_destack_fs_mkdtemp_args(context, args)?;
+                let (path,) = decode_destack_fs_dir_rmdir_args(context, args)?;
 
                 // execute binding
-                destack_fs_mkdtemp_vm_replay(runtime, context, template)
+                destack_fs_dir_rmdir_vm_replay(runtime, context, path)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, OPENDIR, move |context, args| {
+        binding!(registry, isolate, FS_FILE_CLOSE, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(OPENDIR)?;
+                runtime.check_policy(FS_FILE_CLOSE)?;
 
                 // decode args
-                let (path,) = decode_destack_fs_opendir_args(context, args)?;
+                let (handle,) = decode_destack_fs_file_close_args(context, args)?;
 
                 // execute binding
-                destack_fs_opendir_vm_replay(runtime, context, path)
+                destack_fs_file_close_vm_replay(runtime, context, handle)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, READDIR, move |context, args| {
+        binding!(
+            registry,
+            isolate,
+            FS_FILE_COPY_FILE_RANGE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_FILE_COPY_FILE_RANGE)?;
+
+                    // decode args
+                    let (src, srcoffset, dst, dstoffset, length) =
+                        decode_destack_fs_file_copy_file_range_args(context, args)?;
+
+                    // execute binding
+                    destack_fs_file_copy_file_range_vm_replay(
+                        runtime, context, src, srcoffset, dst, dstoffset, length,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, FS_FILE_DUP, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(READDIR)?;
+                runtime.check_policy(FS_FILE_DUP)?;
 
                 // decode args
-                let (handle,) = decode_destack_fs_readdir_args(context, args)?;
+                let (handle,) = decode_destack_fs_file_dup_args(context, args)?;
 
                 // execute binding
-                destack_fs_readdir_vm_replay(runtime, context, handle)
+                destack_fs_file_dup_vm_replay(runtime, context, handle)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, READDIR_NEXT, move |context, args| {
+        binding!(registry, isolate, FS_FILE_DUP2, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(READDIR_NEXT)?;
+                runtime.check_policy(FS_FILE_DUP2)?;
 
                 // decode args
-                let (handle,) = decode_destack_fs_readdir_next_args(context, args)?;
+                let (handle, target) = decode_destack_fs_file_dup2_args(context, args)?;
 
                 // execute binding
-                destack_fs_readdir_next_vm_replay(runtime, context, handle)
+                destack_fs_file_dup2_vm_replay(runtime, context, handle, target)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, REWINDDIR, move |context, args| {
+        binding!(registry, isolate, FS_FILE_DUP3, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(REWINDDIR)?;
+                runtime.check_policy(FS_FILE_DUP3)?;
 
                 // decode args
-                let (handle,) = decode_destack_fs_rewinddir_args(context, args)?;
+                let (handle, target, flags) = decode_destack_fs_file_dup3_args(context, args)?;
 
                 // execute binding
-                destack_fs_rewinddir_vm_replay(runtime, context, handle)
+                destack_fs_file_dup3_vm_replay(runtime, context, handle, target, flags)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, RMDIR, move |context, args| {
+        binding!(registry, isolate, FS_FILE_FADVISE, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(RMDIR)?;
-
-                // decode args
-                let (path,) = decode_destack_fs_rmdir_args(context, args)?;
-
-                // execute binding
-                destack_fs_rmdir_vm_replay(runtime, context, path)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, CLOSE, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(CLOSE)?;
-
-                // decode args
-                let (handle,) = decode_destack_fs_close_args(context, args)?;
-
-                // execute binding
-                destack_fs_close_vm_replay(runtime, context, handle)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, COPY_FILE_RANGE, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(COPY_FILE_RANGE)?;
-
-                // decode args
-                let (src, srcoffset, dst, dstoffset, length) =
-                    decode_destack_fs_copy_file_range_args(context, args)?;
-
-                // execute binding
-                destack_fs_copy_file_range_vm_replay(
-                    runtime, context, src, srcoffset, dst, dstoffset, length,
-                )
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, DUP, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(DUP)?;
-
-                // decode args
-                let (handle,) = decode_destack_fs_dup_args(context, args)?;
-
-                // execute binding
-                destack_fs_dup_vm_replay(runtime, context, handle)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, DUP2, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(DUP2)?;
-
-                // decode args
-                let (handle, target) = decode_destack_fs_dup2_args(context, args)?;
-
-                // execute binding
-                destack_fs_dup2_vm_replay(runtime, context, handle, target)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, DUP3, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(DUP3)?;
-
-                // decode args
-                let (handle, target, flags) = decode_destack_fs_dup3_args(context, args)?;
-
-                // execute binding
-                destack_fs_dup3_vm_replay(runtime, context, handle, target, flags)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, FADVISE, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(FADVISE)?;
+                runtime.check_policy(FS_FILE_FADVISE)?;
 
                 // decode args
                 let (handle, offset, length, advice) =
-                    decode_destack_fs_fadvise_args(context, args)?;
+                    decode_destack_fs_file_fadvise_args(context, args)?;
 
                 // execute binding
-                destack_fs_fadvise_vm_replay(runtime, context, handle, offset, length, advice)
+                destack_fs_file_fadvise_vm_replay(runtime, context, handle, offset, length, advice)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, FALLOCATE, move |context, args| {
+        binding!(
+            registry,
+            isolate,
+            FS_FILE_FALLOCATE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_FILE_FALLOCATE)?;
+
+                    // decode args
+                    let (handle, offset, length, flags) =
+                        decode_destack_fs_file_fallocate_args(context, args)?;
+
+                    // execute binding
+                    destack_fs_file_fallocate_vm_replay(
+                        runtime, context, handle, offset, length, flags,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            FS_FILE_FDATASYNC,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_FILE_FDATASYNC)?;
+
+                    // decode args
+                    let (handle,) = decode_destack_fs_file_fdatasync_args(context, args)?;
+
+                    // execute binding
+                    destack_fs_file_fdatasync_vm_replay(runtime, context, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, FS_FILE_FSYNC, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(FALLOCATE)?;
+                runtime.check_policy(FS_FILE_FSYNC)?;
 
                 // decode args
-                let (handle, offset, length, flags) =
-                    decode_destack_fs_fallocate_args(context, args)?;
+                let (handle,) = decode_destack_fs_file_fsync_args(context, args)?;
 
                 // execute binding
-                destack_fs_fallocate_vm_replay(runtime, context, handle, offset, length, flags)
+                destack_fs_file_fsync_vm_replay(runtime, context, handle)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, FDATASYNC, move |context, args| {
+        binding!(
+            registry,
+            isolate,
+            FS_FILE_FTRUNCATE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_FILE_FTRUNCATE)?;
+
+                    // decode args
+                    let (handle, size) = decode_destack_fs_file_ftruncate_args(context, args)?;
+
+                    // execute binding
+                    destack_fs_file_ftruncate_vm_replay(runtime, context, handle, size)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            FS_FILE_GET_FD_FLAGS,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_FILE_GET_FD_FLAGS)?;
+
+                    // decode args
+                    let (handle,) = decode_destack_fs_file_get_fd_flags_args(context, args)?;
+
+                    // execute binding
+                    destack_fs_file_get_fd_flags_vm_replay(runtime, context, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            FS_FILE_GET_STATUS_FLAGS,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_FILE_GET_STATUS_FLAGS)?;
+
+                    // decode args
+                    let (handle,) = decode_destack_fs_file_get_status_flags_args(context, args)?;
+
+                    // execute binding
+                    destack_fs_file_get_status_flags_vm_replay(runtime, context, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, FS_FILE_LOCK, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(FDATASYNC)?;
+                runtime.check_policy(FS_FILE_LOCK)?;
 
                 // decode args
-                let (handle,) = decode_destack_fs_fdatasync_args(context, args)?;
+                let (handle, flags) = decode_destack_fs_file_lock_args(context, args)?;
 
                 // execute binding
-                destack_fs_fdatasync_vm_replay(runtime, context, handle)
+                destack_fs_file_lock_vm_replay(runtime, context, handle, flags)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, FSYNC, move |context, args| {
+        binding!(registry, isolate, FS_FILE_OPEN, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(FSYNC)?;
+                runtime.check_policy(FS_FILE_OPEN)?;
 
                 // decode args
-                let (handle,) = decode_destack_fs_fsync_args(context, args)?;
+                let (path, flags, mode) = decode_destack_fs_file_open_args(context, args)?;
 
                 // execute binding
-                destack_fs_fsync_vm_replay(runtime, context, handle)
+                destack_fs_file_open_vm_replay(runtime, context, path, flags, mode)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, FTRUNCATE, move |context, args| {
+        binding!(registry, isolate, FS_FILE_OPENAT, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(FTRUNCATE)?;
+                runtime.check_policy(FS_FILE_OPENAT)?;
 
                 // decode args
-                let (handle, size) = decode_destack_fs_ftruncate_args(context, args)?;
+                let (dir, path, flags, mode) = decode_destack_fs_file_openat_args(context, args)?;
 
                 // execute binding
-                destack_fs_ftruncate_vm_replay(runtime, context, handle, size)
+                destack_fs_file_openat_vm_replay(runtime, context, dir, path, flags, mode)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, GET_FD_FLAGS, move |context, args| {
+        binding!(registry, isolate, FS_FILE_OPENAT2, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(GET_FD_FLAGS)?;
+                runtime.check_policy(FS_FILE_OPENAT2)?;
 
                 // decode args
-                let (handle,) = decode_destack_fs_get_fd_flags_args(context, args)?;
+                let (dir, path, how) = decode_destack_fs_file_openat2_args(context, args)?;
 
                 // execute binding
-                destack_fs_get_fd_flags_vm_replay(runtime, context, handle)
+                destack_fs_file_openat2_vm_replay(runtime, context, dir, path, how)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, GET_STATUS_FLAGS, move |context, args| {
+        binding!(registry, isolate, FS_FILE_PREAD, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(GET_STATUS_FLAGS)?;
+                runtime.check_policy(FS_FILE_PREAD)?;
 
                 // decode args
-                let (handle,) = decode_destack_fs_get_status_flags_args(context, args)?;
+                let (handle, buffer, offset) = decode_destack_fs_file_pread_args(context, args)?;
 
                 // execute binding
-                destack_fs_get_status_flags_vm_replay(runtime, context, handle)
+                destack_fs_file_pread_vm_replay(runtime, context, handle, buffer, offset)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, LOCK, move |context, args| {
+        binding!(registry, isolate, FS_FILE_PREADV, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(LOCK)?;
+                runtime.check_policy(FS_FILE_PREADV)?;
 
                 // decode args
-                let (handle, flags) = decode_destack_fs_lock_args(context, args)?;
+                let (handle, buffers, offset) = decode_destack_fs_file_preadv_args(context, args)?;
 
                 // execute binding
-                destack_fs_lock_vm_replay(runtime, context, handle, flags)
+                destack_fs_file_preadv_vm_replay(runtime, context, handle, buffers, offset)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, OPEN, move |context, args| {
+        binding!(registry, isolate, FS_FILE_PWRITE, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(OPEN)?;
+                runtime.check_policy(FS_FILE_PWRITE)?;
 
                 // decode args
-                let (path, flags, mode) = decode_destack_fs_open_args(context, args)?;
+                let (handle, buffer, offset) = decode_destack_fs_file_pwrite_args(context, args)?;
 
                 // execute binding
-                destack_fs_open_vm_replay(runtime, context, path, flags, mode)
+                destack_fs_file_pwrite_vm_replay(runtime, context, handle, buffer, offset)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, OPENAT, move |context, args| {
+        binding!(registry, isolate, FS_FILE_PWRITEV, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(OPENAT)?;
+                runtime.check_policy(FS_FILE_PWRITEV)?;
 
                 // decode args
-                let (dir, path, flags, mode) = decode_destack_fs_openat_args(context, args)?;
+                let (handle, buffers, offset) = decode_destack_fs_file_pwritev_args(context, args)?;
 
                 // execute binding
-                destack_fs_openat_vm_replay(runtime, context, dir, path, flags, mode)
+                destack_fs_file_pwritev_vm_replay(runtime, context, handle, buffers, offset)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, OPENAT2, move |context, args| {
+        binding!(registry, isolate, FS_FILE_READ, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(OPENAT2)?;
+                runtime.check_policy(FS_FILE_READ)?;
 
                 // decode args
-                let (dir, path, how) = decode_destack_fs_openat2_args(context, args)?;
+                let (handle, buffer) = decode_destack_fs_file_read_args(context, args)?;
 
                 // execute binding
-                destack_fs_openat2_vm_replay(runtime, context, dir, path, how)
+                destack_fs_file_read_vm_replay(runtime, context, handle, buffer)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, PREAD, move |context, args| {
+        binding!(registry, isolate, FS_FILE_READV, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(PREAD)?;
+                runtime.check_policy(FS_FILE_READV)?;
 
                 // decode args
-                let (handle, buffer, offset) = decode_destack_fs_pread_args(context, args)?;
+                let (handle, buffers) = decode_destack_fs_file_readv_args(context, args)?;
 
                 // execute binding
-                destack_fs_pread_vm_replay(runtime, context, handle, buffer, offset)
+                destack_fs_file_readv_vm_replay(runtime, context, handle, buffers)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, PREADV, move |context, args| {
+        binding!(registry, isolate, FS_FILE_SEEK, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(PREADV)?;
+                runtime.check_policy(FS_FILE_SEEK)?;
 
                 // decode args
-                let (handle, buffers, offset) = decode_destack_fs_preadv_args(context, args)?;
+                let (handle, offset, whence) = decode_destack_fs_file_seek_args(context, args)?;
 
                 // execute binding
-                destack_fs_preadv_vm_replay(runtime, context, handle, buffers, offset)
+                destack_fs_file_seek_vm_replay(runtime, context, handle, offset, whence)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, PWRITE, move |context, args| {
+        binding!(registry, isolate, FS_FILE_SENDFILE, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(PWRITE)?;
-
-                // decode args
-                let (handle, buffer, offset) = decode_destack_fs_pwrite_args(context, args)?;
-
-                // execute binding
-                destack_fs_pwrite_vm_replay(runtime, context, handle, buffer, offset)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, PWRITEV, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(PWRITEV)?;
-
-                // decode args
-                let (handle, buffers, offset) = decode_destack_fs_pwritev_args(context, args)?;
-
-                // execute binding
-                destack_fs_pwritev_vm_replay(runtime, context, handle, buffers, offset)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, READ, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(READ)?;
-
-                // decode args
-                let (handle, buffer) = decode_destack_fs_read_args(context, args)?;
-
-                // execute binding
-                destack_fs_read_vm_replay(runtime, context, handle, buffer)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, READV, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(READV)?;
-
-                // decode args
-                let (handle, buffers) = decode_destack_fs_readv_args(context, args)?;
-
-                // execute binding
-                destack_fs_readv_vm_replay(runtime, context, handle, buffers)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, SEEK, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(SEEK)?;
-
-                // decode args
-                let (handle, offset, whence) = decode_destack_fs_seek_args(context, args)?;
-
-                // execute binding
-                destack_fs_seek_vm_replay(runtime, context, handle, offset, whence)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, SENDFILE, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(SENDFILE)?;
+                runtime.check_policy(FS_FILE_SENDFILE)?;
 
                 // decode args
                 let (socket, file, offset, length) =
-                    decode_destack_fs_sendfile_args(context, args)?;
+                    decode_destack_fs_file_sendfile_args(context, args)?;
 
                 // execute binding
-                destack_fs_sendfile_vm_replay(runtime, context, socket, file, offset, length)
+                destack_fs_file_sendfile_vm_replay(runtime, context, socket, file, offset, length)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, SET_FD_FLAGS, move |context, args| {
+        binding!(
+            registry,
+            isolate,
+            FS_FILE_SET_FD_FLAGS,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_FILE_SET_FD_FLAGS)?;
+
+                    // decode args
+                    let (handle, flags) = decode_destack_fs_file_set_fd_flags_args(context, args)?;
+
+                    // execute binding
+                    destack_fs_file_set_fd_flags_vm_replay(runtime, context, handle, flags)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            FS_FILE_SET_STATUS_FLAGS,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_FILE_SET_STATUS_FLAGS)?;
+
+                    // decode args
+                    let (handle, flags) =
+                        decode_destack_fs_file_set_status_flags_args(context, args)?;
+
+                    // execute binding
+                    destack_fs_file_set_status_flags_vm_replay(runtime, context, handle, flags)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            FS_FILE_SYNC_FILE_RANGE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_FILE_SYNC_FILE_RANGE)?;
+
+                    // decode args
+                    let (handle, offset, length, flags) =
+                        decode_destack_fs_file_sync_file_range_args(context, args)?;
+
+                    // execute binding
+                    destack_fs_file_sync_file_range_vm_replay(
+                        runtime, context, handle, offset, length, flags,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, FS_FILE_SYNCFS, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(SET_FD_FLAGS)?;
+                runtime.check_policy(FS_FILE_SYNCFS)?;
 
                 // decode args
-                let (handle, flags) = decode_destack_fs_set_fd_flags_args(context, args)?;
+                let (handle,) = decode_destack_fs_file_syncfs_args(context, args)?;
 
                 // execute binding
-                destack_fs_set_fd_flags_vm_replay(runtime, context, handle, flags)
+                destack_fs_file_syncfs_vm_replay(runtime, context, handle)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, SET_STATUS_FLAGS, move |context, args| {
+        binding!(registry, isolate, FS_FILE_TRUNCATE, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(SET_STATUS_FLAGS)?;
+                runtime.check_policy(FS_FILE_TRUNCATE)?;
 
                 // decode args
-                let (handle, flags) = decode_destack_fs_set_status_flags_args(context, args)?;
+                let (path, size) = decode_destack_fs_file_truncate_args(context, args)?;
 
                 // execute binding
-                destack_fs_set_status_flags_vm_replay(runtime, context, handle, flags)
+                destack_fs_file_truncate_vm_replay(runtime, context, path, size)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, SYNC_FILE_RANGE, move |context, args| {
+        binding!(registry, isolate, FS_FILE_WRITE, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(SYNC_FILE_RANGE)?;
+                runtime.check_policy(FS_FILE_WRITE)?;
 
                 // decode args
-                let (handle, offset, length, flags) =
-                    decode_destack_fs_sync_file_range_args(context, args)?;
+                let (handle, buffer) = decode_destack_fs_file_write_args(context, args)?;
 
                 // execute binding
-                destack_fs_sync_file_range_vm_replay(
-                    runtime, context, handle, offset, length, flags,
-                )
+                destack_fs_file_write_vm_replay(runtime, context, handle, buffer)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, SYNCFS, move |context, args| {
+        binding!(registry, isolate, FS_FILE_WRITEV, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(SYNCFS)?;
+                runtime.check_policy(FS_FILE_WRITEV)?;
 
                 // decode args
-                let (handle,) = decode_destack_fs_syncfs_args(context, args)?;
+                let (handle, buffers) = decode_destack_fs_file_writev_args(context, args)?;
 
                 // execute binding
-                destack_fs_syncfs_vm_replay(runtime, context, handle)
+                destack_fs_file_writev_vm_replay(runtime, context, handle, buffers)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, TRUNCATE, move |context, args| {
+        binding!(registry, isolate, FS_MMAP_MADVISE, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(TRUNCATE)?;
+                runtime.check_policy(FS_MMAP_MADVISE)?;
 
                 // decode args
-                let (path, size) = decode_destack_fs_truncate_args(context, args)?;
+                let (mapping, advice) = decode_destack_fs_mmap_madvise_args(context, args)?;
 
                 // execute binding
-                destack_fs_truncate_vm_replay(runtime, context, path, size)
+                destack_fs_mmap_madvise_vm_replay(runtime, context, mapping, advice)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, WRITE, move |context, args| {
+        binding!(registry, isolate, FS_MMAP_MPROTECT, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(WRITE)?;
+                runtime.check_policy(FS_MMAP_MPROTECT)?;
 
                 // decode args
-                let (handle, buffer) = decode_destack_fs_write_args(context, args)?;
+                let (mapping, prot) = decode_destack_fs_mmap_mprotect_args(context, args)?;
 
                 // execute binding
-                destack_fs_write_vm_replay(runtime, context, handle, buffer)
+                destack_fs_mmap_mprotect_vm_replay(runtime, context, mapping, prot)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, WRITEV, move |context, args| {
+        binding!(registry, isolate, FS_MMAP_MSYNC, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(WRITEV)?;
+                runtime.check_policy(FS_MMAP_MSYNC)?;
 
                 // decode args
-                let (handle, buffers) = decode_destack_fs_writev_args(context, args)?;
+                let (mapping, flags) = decode_destack_fs_mmap_msync_args(context, args)?;
 
                 // execute binding
-                destack_fs_writev_vm_replay(runtime, context, handle, buffers)
+                destack_fs_mmap_msync_vm_replay(runtime, context, mapping, flags)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, MADVISE, move |context, args| {
+        binding!(registry, isolate, FS_MMAP_MUNMAP, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(MADVISE)?;
+                runtime.check_policy(FS_MMAP_MUNMAP)?;
 
                 // decode args
-                let (mapping, advice) = decode_destack_fs_madvise_args(context, args)?;
+                let (mapping,) = decode_destack_fs_mmap_munmap_args(context, args)?;
 
                 // execute binding
-                destack_fs_madvise_vm_replay(runtime, context, mapping, advice)
+                destack_fs_mmap_munmap_vm_replay(runtime, context, mapping)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, MPROTECT, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(MPROTECT)?;
+        binding!(
+            registry,
+            isolate,
+            FS_MMAP_ANONYMOUS,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_MMAP_ANONYMOUS)?;
 
-                // decode args
-                let (mapping, prot) = decode_destack_fs_mprotect_args(context, args)?;
+                    // decode args
+                    let (length, prot, flags) =
+                        decode_destack_fs_mmap_anonymous_args(context, args)?;
 
-                // execute binding
-                destack_fs_mprotect_vm_replay(runtime, context, mapping, prot)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    destack_fs_mmap_anonymous_vm_replay(runtime, context, length, prot, flags)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, MSYNC, move |context, args| {
+        binding!(registry, isolate, FS_MMAP_FILE, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(MSYNC)?;
-
-                // decode args
-                let (mapping, flags) = decode_destack_fs_msync_args(context, args)?;
-
-                // execute binding
-                destack_fs_msync_vm_replay(runtime, context, mapping, flags)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, MUNMAP, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(MUNMAP)?;
-
-                // decode args
-                let (mapping,) = decode_destack_fs_munmap_args(context, args)?;
-
-                // execute binding
-                destack_fs_munmap_vm_replay(runtime, context, mapping)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, MMAP_ANONYMOUS, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(MMAP_ANONYMOUS)?;
-
-                // decode args
-                let (length, prot, flags) = decode_destack_fs_mmap_anonymous_args(context, args)?;
-
-                // execute binding
-                destack_fs_mmap_anonymous_vm_replay(runtime, context, length, prot, flags)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, MMAP_FILE, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(MMAP_FILE)?;
+                runtime.check_policy(FS_MMAP_FILE)?;
 
                 // decode args
                 let (handle, offset, length, prot, flags) =
@@ -21476,47 +23607,47 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         });
     }
     {
-        binding!(registry, isolate, COPYFILE, move |context, args| {
+        binding!(registry, isolate, FS_PATH_COPYFILE, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(COPYFILE)?;
+                runtime.check_policy(FS_PATH_COPYFILE)?;
 
                 // decode args
-                let (from, to, flags) = decode_destack_fs_copyfile_args(context, args)?;
+                let (from, to, flags) = decode_destack_fs_path_copyfile_args(context, args)?;
 
                 // execute binding
-                destack_fs_copyfile_vm_replay(runtime, context, from, to, flags)
+                destack_fs_path_copyfile_vm_replay(runtime, context, from, to, flags)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, LINK, move |context, args| {
+        binding!(registry, isolate, FS_PATH_LINK, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(LINK)?;
+                runtime.check_policy(FS_PATH_LINK)?;
 
                 // decode args
-                let (existingpath, newpath) = decode_destack_fs_link_args(context, args)?;
+                let (existingpath, newpath) = decode_destack_fs_path_link_args(context, args)?;
 
                 // execute binding
-                destack_fs_link_vm_replay(runtime, context, existingpath, newpath)
+                destack_fs_path_link_vm_replay(runtime, context, existingpath, newpath)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, LINKAT, move |context, args| {
+        binding!(registry, isolate, FS_PATH_LINKAT, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(LINKAT)?;
+                runtime.check_policy(FS_PATH_LINKAT)?;
 
                 // decode args
                 let (existingdir, existingpath, newdir, newpath, flags) =
-                    decode_destack_fs_linkat_args(context, args)?;
+                    decode_destack_fs_path_linkat_args(context, args)?;
 
                 // execute binding
-                destack_fs_linkat_vm_replay(
+                destack_fs_path_linkat_vm_replay(
                     runtime,
                     context,
                     existingdir,
@@ -21530,326 +23661,345 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         });
     }
     {
-        binding!(registry, isolate, MKFIFO, move |context, args| {
+        binding!(registry, isolate, FS_PATH_MKFIFO, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(MKFIFO)?;
+                runtime.check_policy(FS_PATH_MKFIFO)?;
 
                 // decode args
-                let (path, mode) = decode_destack_fs_mkfifo_args(context, args)?;
+                let (path, mode) = decode_destack_fs_path_mkfifo_args(context, args)?;
 
                 // execute binding
-                destack_fs_mkfifo_vm_replay(runtime, context, path, mode)
+                destack_fs_path_mkfifo_vm_replay(runtime, context, path, mode)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, MKFIFOAT, move |context, args| {
+        binding!(registry, isolate, FS_PATH_MKFIFOAT, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(MKFIFOAT)?;
+                runtime.check_policy(FS_PATH_MKFIFOAT)?;
 
                 // decode args
-                let (dir, path, mode) = decode_destack_fs_mkfifoat_args(context, args)?;
+                let (dir, path, mode) = decode_destack_fs_path_mkfifoat_args(context, args)?;
 
                 // execute binding
-                destack_fs_mkfifoat_vm_replay(runtime, context, dir, path, mode)
+                destack_fs_path_mkfifoat_vm_replay(runtime, context, dir, path, mode)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, MKNOD, move |context, args| {
+        binding!(registry, isolate, FS_PATH_MKNOD, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(MKNOD)?;
+                runtime.check_policy(FS_PATH_MKNOD)?;
 
                 // decode args
-                let (path, mode, device) = decode_destack_fs_mknod_args(context, args)?;
+                let (path, mode, device) = decode_destack_fs_path_mknod_args(context, args)?;
 
                 // execute binding
-                destack_fs_mknod_vm_replay(runtime, context, path, mode, device)
+                destack_fs_path_mknod_vm_replay(runtime, context, path, mode, device)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, MKNODAT, move |context, args| {
+        binding!(registry, isolate, FS_PATH_MKNODAT, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(MKNODAT)?;
+                runtime.check_policy(FS_PATH_MKNODAT)?;
 
                 // decode args
-                let (dir, path, mode, device) = decode_destack_fs_mknodat_args(context, args)?;
+                let (dir, path, mode, device) = decode_destack_fs_path_mknodat_args(context, args)?;
 
                 // execute binding
-                destack_fs_mknodat_vm_replay(runtime, context, dir, path, mode, device)
+                destack_fs_path_mknodat_vm_replay(runtime, context, dir, path, mode, device)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, READLINK, move |context, args| {
+        binding!(registry, isolate, FS_PATH_READLINK, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(READLINK)?;
+                runtime.check_policy(FS_PATH_READLINK)?;
 
                 // decode args
-                let (path,) = decode_destack_fs_readlink_args(context, args)?;
+                let (path,) = decode_destack_fs_path_readlink_args(context, args)?;
 
                 // execute binding
-                destack_fs_readlink_vm_replay(runtime, context, path)
+                destack_fs_path_readlink_vm_replay(runtime, context, path)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, READLINKAT, move |context, args| {
+        binding!(
+            registry,
+            isolate,
+            FS_PATH_READLINKAT,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_PATH_READLINKAT)?;
+
+                    // decode args
+                    let (dir, path) = decode_destack_fs_path_readlinkat_args(context, args)?;
+
+                    // execute binding
+                    destack_fs_path_readlinkat_vm_replay(runtime, context, dir, path)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, FS_PATH_REALPATH, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(READLINKAT)?;
+                runtime.check_policy(FS_PATH_REALPATH)?;
 
                 // decode args
-                let (dir, path) = decode_destack_fs_readlinkat_args(context, args)?;
+                let (path,) = decode_destack_fs_path_realpath_args(context, args)?;
 
                 // execute binding
-                destack_fs_readlinkat_vm_replay(runtime, context, dir, path)
+                destack_fs_path_realpath_vm_replay(runtime, context, path)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, REALPATH, move |context, args| {
+        binding!(registry, isolate, FS_PATH_RENAME, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(REALPATH)?;
+                runtime.check_policy(FS_PATH_RENAME)?;
 
                 // decode args
-                let (path,) = decode_destack_fs_realpath_args(context, args)?;
+                let (from, to) = decode_destack_fs_path_rename_args(context, args)?;
 
                 // execute binding
-                destack_fs_realpath_vm_replay(runtime, context, path)
+                destack_fs_path_rename_vm_replay(runtime, context, from, to)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, RENAME, move |context, args| {
+        binding!(registry, isolate, FS_PATH_RENAMEAT, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(RENAME)?;
+                runtime.check_policy(FS_PATH_RENAMEAT)?;
 
                 // decode args
-                let (from, to) = decode_destack_fs_rename_args(context, args)?;
+                let (fromdir, from, todir, to) =
+                    decode_destack_fs_path_renameat_args(context, args)?;
 
                 // execute binding
-                destack_fs_rename_vm_replay(runtime, context, from, to)
+                destack_fs_path_renameat_vm_replay(runtime, context, fromdir, from, todir, to)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, RENAMEAT, move |context, args| {
+        binding!(
+            registry,
+            isolate,
+            FS_PATH_RENAMEAT2,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_PATH_RENAMEAT2)?;
+
+                    // decode args
+                    let (fromdir, from, todir, to, flags) =
+                        decode_destack_fs_path_renameat2_args(context, args)?;
+
+                    // execute binding
+                    destack_fs_path_renameat2_vm_replay(
+                        runtime, context, fromdir, from, todir, to, flags,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, FS_PATH_SYMLINK, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(RENAMEAT)?;
+                runtime.check_policy(FS_PATH_SYMLINK)?;
 
                 // decode args
-                let (fromdir, from, todir, to) = decode_destack_fs_renameat_args(context, args)?;
+                let (target, path, kind) = decode_destack_fs_path_symlink_args(context, args)?;
 
                 // execute binding
-                destack_fs_renameat_vm_replay(runtime, context, fromdir, from, todir, to)
+                destack_fs_path_symlink_vm_replay(runtime, context, target, path, kind)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, RENAMEAT2, move |context, args| {
+        binding!(
+            registry,
+            isolate,
+            FS_PATH_SYMLINKAT,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_PATH_SYMLINKAT)?;
+
+                    // decode args
+                    let (target, dir, path, kind) =
+                        decode_destack_fs_path_symlinkat_args(context, args)?;
+
+                    // execute binding
+                    destack_fs_path_symlinkat_vm_replay(runtime, context, target, dir, path, kind)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, FS_PATH_UNLINK, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(RENAMEAT2)?;
+                runtime.check_policy(FS_PATH_UNLINK)?;
 
                 // decode args
-                let (fromdir, from, todir, to, flags) =
-                    decode_destack_fs_renameat2_args(context, args)?;
+                let (path,) = decode_destack_fs_path_unlink_args(context, args)?;
 
                 // execute binding
-                destack_fs_renameat2_vm_replay(runtime, context, fromdir, from, todir, to, flags)
+                destack_fs_path_unlink_vm_replay(runtime, context, path)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, SYMLINK, move |context, args| {
+        binding!(registry, isolate, FS_PATH_UNLINKAT, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(SYMLINK)?;
+                runtime.check_policy(FS_PATH_UNLINKAT)?;
 
                 // decode args
-                let (target, path, kind) = decode_destack_fs_symlink_args(context, args)?;
+                let (dir, path, flags) = decode_destack_fs_path_unlinkat_args(context, args)?;
 
                 // execute binding
-                destack_fs_symlink_vm_replay(runtime, context, target, path, kind)
+                destack_fs_path_unlinkat_vm_replay(runtime, context, dir, path, flags)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, SYMLINKAT, move |context, args| {
+        binding!(registry, isolate, FS_STAT_FSTAT, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(SYMLINKAT)?;
+                runtime.check_policy(FS_STAT_FSTAT)?;
 
                 // decode args
-                let (target, dir, path, kind) = decode_destack_fs_symlinkat_args(context, args)?;
+                let (handle,) = decode_destack_fs_stat_fstat_args(context, args)?;
 
                 // execute binding
-                destack_fs_symlinkat_vm_replay(runtime, context, target, dir, path, kind)
+                destack_fs_stat_fstat_vm_replay(runtime, context, handle)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, UNLINK, move |context, args| {
+        binding!(registry, isolate, FS_STAT_FSTATFS, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(UNLINK)?;
+                runtime.check_policy(FS_STAT_FSTATFS)?;
 
                 // decode args
-                let (path,) = decode_destack_fs_unlink_args(context, args)?;
+                let (handle,) = decode_destack_fs_stat_fstatfs_args(context, args)?;
 
                 // execute binding
-                destack_fs_unlink_vm_replay(runtime, context, path)
+                destack_fs_stat_fstatfs_vm_replay(runtime, context, handle)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, UNLINKAT, move |context, args| {
+        binding!(registry, isolate, FS_STAT_LSTAT, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(UNLINKAT)?;
+                runtime.check_policy(FS_STAT_LSTAT)?;
 
                 // decode args
-                let (dir, path, flags) = decode_destack_fs_unlinkat_args(context, args)?;
+                let (path,) = decode_destack_fs_stat_lstat_args(context, args)?;
 
                 // execute binding
-                destack_fs_unlinkat_vm_replay(runtime, context, dir, path, flags)
+                destack_fs_stat_lstat_vm_replay(runtime, context, path)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, FSTAT, move |context, args| {
+        binding!(registry, isolate, FS_STAT_STAT, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(FSTAT)?;
+                runtime.check_policy(FS_STAT_STAT)?;
 
                 // decode args
-                let (handle,) = decode_destack_fs_fstat_args(context, args)?;
+                let (path,) = decode_destack_fs_stat_stat_args(context, args)?;
 
                 // execute binding
-                destack_fs_fstat_vm_replay(runtime, context, handle)
+                destack_fs_stat_stat_vm_replay(runtime, context, path)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, FSTATFS, move |context, args| {
+        binding!(registry, isolate, FS_STAT_STATAT, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(FSTATFS)?;
+                runtime.check_policy(FS_STAT_STATAT)?;
 
                 // decode args
-                let (handle,) = decode_destack_fs_fstatfs_args(context, args)?;
+                let (dir, path, flags) = decode_destack_fs_stat_statat_args(context, args)?;
 
                 // execute binding
-                destack_fs_fstatfs_vm_replay(runtime, context, handle)
+                destack_fs_stat_statat_vm_replay(runtime, context, dir, path, flags)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, LSTAT, move |context, args| {
+        binding!(registry, isolate, FS_STAT_STATFS, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(LSTAT)?;
+                runtime.check_policy(FS_STAT_STATFS)?;
 
                 // decode args
-                let (path,) = decode_destack_fs_lstat_args(context, args)?;
+                let (path,) = decode_destack_fs_stat_statfs_args(context, args)?;
 
                 // execute binding
-                destack_fs_lstat_vm_replay(runtime, context, path)
+                destack_fs_stat_statfs_vm_replay(runtime, context, path)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, STAT, move |context, args| {
+        binding!(registry, isolate, FS_STAT_STATX, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(STAT)?;
+                runtime.check_policy(FS_STAT_STATX)?;
 
                 // decode args
-                let (path,) = decode_destack_fs_stat_args(context, args)?;
+                let (dir, path, flags, mask) = decode_destack_fs_stat_statx_args(context, args)?;
 
                 // execute binding
-                destack_fs_stat_vm_replay(runtime, context, path)
+                destack_fs_stat_statx_vm_replay(runtime, context, dir, path, flags, mask)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, STATAT, move |context, args| {
+        binding!(registry, isolate, FS_WATCH, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(STATAT)?;
-
-                // decode args
-                let (dir, path, flags) = decode_destack_fs_statat_args(context, args)?;
-
-                // execute binding
-                destack_fs_statat_vm_replay(runtime, context, dir, path, flags)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, STATFS, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(STATFS)?;
-
-                // decode args
-                let (path,) = decode_destack_fs_statfs_args(context, args)?;
-
-                // execute binding
-                destack_fs_statfs_vm_replay(runtime, context, path)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, STATX, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(STATX)?;
-
-                // decode args
-                let (dir, path, flags, mask) = decode_destack_fs_statx_args(context, args)?;
-
-                // execute binding
-                destack_fs_statx_vm_replay(runtime, context, dir, path, flags, mask)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, WATCH, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(WATCH)?;
+                runtime.check_policy(FS_WATCH)?;
 
                 // decode args
                 let (path, options) = decode_destack_fs_watch_args(context, args)?;
@@ -21861,10 +24011,10 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         });
     }
     {
-        binding!(registry, isolate, WATCH_CLOSE, move |context, args| {
+        binding!(registry, isolate, FS_WATCH_CLOSE, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(WATCH_CLOSE)?;
+                runtime.check_policy(FS_WATCH_CLOSE)?;
 
                 // decode args
                 let (handle,) = decode_destack_fs_watch_close_args(context, args)?;
@@ -21876,10 +24026,10 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         });
     }
     {
-        binding!(registry, isolate, WATCH_READ, move |context, args| {
+        binding!(registry, isolate, FS_WATCH_READ, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(WATCH_READ)?;
+                runtime.check_policy(FS_WATCH_READ)?;
 
                 // decode args
                 let (handle,) = decode_destack_fs_watch_read_args(context, args)?;
@@ -21891,10 +24041,10 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         });
     }
     {
-        binding!(registry, isolate, WATCHAT, move |context, args| {
+        binding!(registry, isolate, FS_WATCHAT, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(WATCHAT)?;
+                runtime.check_policy(FS_WATCHAT)?;
 
                 // decode args
                 let (directory, path, options) = decode_destack_fs_watchat_args(context, args)?;
@@ -21906,184 +24056,502 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         });
     }
     {
-        binding!(registry, isolate, FGETXATTR, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(FGETXATTR)?;
+        binding!(
+            registry,
+            isolate,
+            FS_XATTR_FGETXATTR,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_XATTR_FGETXATTR)?;
 
-                // decode args
-                let (handle, name) = decode_destack_fs_fgetxattr_args(context, args)?;
+                    // decode args
+                    let (handle, name) = decode_destack_fs_xattr_fgetxattr_args(context, args)?;
 
-                // execute binding
-                destack_fs_fgetxattr_vm_replay(runtime, context, handle, name)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    destack_fs_xattr_fgetxattr_vm_replay(runtime, context, handle, name)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, FLISTXATTR, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(FLISTXATTR)?;
+        binding!(
+            registry,
+            isolate,
+            FS_XATTR_FGETXATTR_BYTES,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_XATTR_FGETXATTR_BYTES)?;
 
-                // decode args
-                let (handle,) = decode_destack_fs_flistxattr_args(context, args)?;
+                    // decode args
+                    let (handle, name) =
+                        decode_destack_fs_xattr_fgetxattr_bytes_args(context, args)?;
 
-                // execute binding
-                destack_fs_flistxattr_vm_replay(runtime, context, handle)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    destack_fs_xattr_fgetxattr_bytes_vm_replay(runtime, context, handle, name)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, FREMOVEXATTR, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(FREMOVEXATTR)?;
+        binding!(
+            registry,
+            isolate,
+            FS_XATTR_FLISTXATTR,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_XATTR_FLISTXATTR)?;
 
-                // decode args
-                let (handle, name) = decode_destack_fs_fremovexattr_args(context, args)?;
+                    // decode args
+                    let (handle,) = decode_destack_fs_xattr_flistxattr_args(context, args)?;
 
-                // execute binding
-                destack_fs_fremovexattr_vm_replay(runtime, context, handle, name)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    destack_fs_xattr_flistxattr_vm_replay(runtime, context, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, FSETXATTR, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(FSETXATTR)?;
+        binding!(
+            registry,
+            isolate,
+            FS_XATTR_FLISTXATTR_BYTES,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_XATTR_FLISTXATTR_BYTES)?;
 
-                // decode args
-                let (handle, name, value, flags) = decode_destack_fs_fsetxattr_args(context, args)?;
+                    // decode args
+                    let (handle,) = decode_destack_fs_xattr_flistxattr_bytes_args(context, args)?;
 
-                // execute binding
-                destack_fs_fsetxattr_vm_replay(runtime, context, handle, name, value, flags)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    destack_fs_xattr_flistxattr_bytes_vm_replay(runtime, context, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, GETXATTR, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(GETXATTR)?;
+        binding!(
+            registry,
+            isolate,
+            FS_XATTR_FREMOVEXATTR,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_XATTR_FREMOVEXATTR)?;
 
-                // decode args
-                let (path, name) = decode_destack_fs_getxattr_args(context, args)?;
+                    // decode args
+                    let (handle, name) = decode_destack_fs_xattr_fremovexattr_args(context, args)?;
 
-                // execute binding
-                destack_fs_getxattr_vm_replay(runtime, context, path, name)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    destack_fs_xattr_fremovexattr_vm_replay(runtime, context, handle, name)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, LGETXATTR, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(LGETXATTR)?;
+        binding!(
+            registry,
+            isolate,
+            FS_XATTR_FREMOVEXATTR_BYTES,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_XATTR_FREMOVEXATTR_BYTES)?;
 
-                // decode args
-                let (path, name) = decode_destack_fs_lgetxattr_args(context, args)?;
+                    // decode args
+                    let (handle, name) =
+                        decode_destack_fs_xattr_fremovexattr_bytes_args(context, args)?;
 
-                // execute binding
-                destack_fs_lgetxattr_vm_replay(runtime, context, path, name)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    destack_fs_xattr_fremovexattr_bytes_vm_replay(runtime, context, handle, name)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, LISTXATTR, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(LISTXATTR)?;
+        binding!(
+            registry,
+            isolate,
+            FS_XATTR_FSETXATTR,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_XATTR_FSETXATTR)?;
 
-                // decode args
-                let (path,) = decode_destack_fs_listxattr_args(context, args)?;
+                    // decode args
+                    let (handle, name, value, flags) =
+                        decode_destack_fs_xattr_fsetxattr_args(context, args)?;
 
-                // execute binding
-                destack_fs_listxattr_vm_replay(runtime, context, path)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    destack_fs_xattr_fsetxattr_vm_replay(
+                        runtime, context, handle, name, value, flags,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, LLISTXATTR, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(LLISTXATTR)?;
+        binding!(
+            registry,
+            isolate,
+            FS_XATTR_FSETXATTR_BYTES,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_XATTR_FSETXATTR_BYTES)?;
 
-                // decode args
-                let (path,) = decode_destack_fs_llistxattr_args(context, args)?;
+                    // decode args
+                    let (handle, name, value, flags) =
+                        decode_destack_fs_xattr_fsetxattr_bytes_args(context, args)?;
 
-                // execute binding
-                destack_fs_llistxattr_vm_replay(runtime, context, path)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    destack_fs_xattr_fsetxattr_bytes_vm_replay(
+                        runtime, context, handle, name, value, flags,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, LREMOVEXATTR, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(LREMOVEXATTR)?;
+        binding!(
+            registry,
+            isolate,
+            FS_XATTR_GETXATTR,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_XATTR_GETXATTR)?;
 
-                // decode args
-                let (path, name) = decode_destack_fs_lremovexattr_args(context, args)?;
+                    // decode args
+                    let (path, name) = decode_destack_fs_xattr_getxattr_args(context, args)?;
 
-                // execute binding
-                destack_fs_lremovexattr_vm_replay(runtime, context, path, name)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    destack_fs_xattr_getxattr_vm_replay(runtime, context, path, name)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, LSETXATTR, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(LSETXATTR)?;
+        binding!(
+            registry,
+            isolate,
+            FS_XATTR_GETXATTR_BYTES,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_XATTR_GETXATTR_BYTES)?;
 
-                // decode args
-                let (path, name, value, flags) = decode_destack_fs_lsetxattr_args(context, args)?;
+                    // decode args
+                    let (path, name) = decode_destack_fs_xattr_getxattr_bytes_args(context, args)?;
 
-                // execute binding
-                destack_fs_lsetxattr_vm_replay(runtime, context, path, name, value, flags)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    destack_fs_xattr_getxattr_bytes_vm_replay(runtime, context, path, name)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, REMOVEXATTR, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(REMOVEXATTR)?;
+        binding!(
+            registry,
+            isolate,
+            FS_XATTR_LGETXATTR,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_XATTR_LGETXATTR)?;
 
-                // decode args
-                let (path, name) = decode_destack_fs_removexattr_args(context, args)?;
+                    // decode args
+                    let (path, name) = decode_destack_fs_xattr_lgetxattr_args(context, args)?;
 
-                // execute binding
-                destack_fs_removexattr_vm_replay(runtime, context, path, name)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    destack_fs_xattr_lgetxattr_vm_replay(runtime, context, path, name)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, SETXATTR, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(SETXATTR)?;
+        binding!(
+            registry,
+            isolate,
+            FS_XATTR_LGETXATTR_BYTES,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_XATTR_LGETXATTR_BYTES)?;
 
-                // decode args
-                let (path, name, value, flags) = decode_destack_fs_setxattr_args(context, args)?;
+                    // decode args
+                    let (path, name) = decode_destack_fs_xattr_lgetxattr_bytes_args(context, args)?;
 
-                // execute binding
-                destack_fs_setxattr_vm_replay(runtime, context, path, name, value, flags)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    destack_fs_xattr_lgetxattr_bytes_vm_replay(runtime, context, path, name)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            FS_XATTR_LISTXATTR,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_XATTR_LISTXATTR)?;
+
+                    // decode args
+                    let (path,) = decode_destack_fs_xattr_listxattr_args(context, args)?;
+
+                    // execute binding
+                    destack_fs_xattr_listxattr_vm_replay(runtime, context, path)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            FS_XATTR_LISTXATTR_BYTES,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_XATTR_LISTXATTR_BYTES)?;
+
+                    // decode args
+                    let (path,) = decode_destack_fs_xattr_listxattr_bytes_args(context, args)?;
+
+                    // execute binding
+                    destack_fs_xattr_listxattr_bytes_vm_replay(runtime, context, path)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            FS_XATTR_LLISTXATTR,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_XATTR_LLISTXATTR)?;
+
+                    // decode args
+                    let (path,) = decode_destack_fs_xattr_llistxattr_args(context, args)?;
+
+                    // execute binding
+                    destack_fs_xattr_llistxattr_vm_replay(runtime, context, path)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            FS_XATTR_LLISTXATTR_BYTES,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_XATTR_LLISTXATTR_BYTES)?;
+
+                    // decode args
+                    let (path,) = decode_destack_fs_xattr_llistxattr_bytes_args(context, args)?;
+
+                    // execute binding
+                    destack_fs_xattr_llistxattr_bytes_vm_replay(runtime, context, path)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            FS_XATTR_LREMOVEXATTR,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_XATTR_LREMOVEXATTR)?;
+
+                    // decode args
+                    let (path, name) = decode_destack_fs_xattr_lremovexattr_args(context, args)?;
+
+                    // execute binding
+                    destack_fs_xattr_lremovexattr_vm_replay(runtime, context, path, name)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            FS_XATTR_LREMOVEXATTR_BYTES,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_XATTR_LREMOVEXATTR_BYTES)?;
+
+                    // decode args
+                    let (path, name) =
+                        decode_destack_fs_xattr_lremovexattr_bytes_args(context, args)?;
+
+                    // execute binding
+                    destack_fs_xattr_lremovexattr_bytes_vm_replay(runtime, context, path, name)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            FS_XATTR_LSETXATTR,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_XATTR_LSETXATTR)?;
+
+                    // decode args
+                    let (path, name, value, flags) =
+                        decode_destack_fs_xattr_lsetxattr_args(context, args)?;
+
+                    // execute binding
+                    destack_fs_xattr_lsetxattr_vm_replay(runtime, context, path, name, value, flags)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            FS_XATTR_LSETXATTR_BYTES,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_XATTR_LSETXATTR_BYTES)?;
+
+                    // decode args
+                    let (path, name, value, flags) =
+                        decode_destack_fs_xattr_lsetxattr_bytes_args(context, args)?;
+
+                    // execute binding
+                    destack_fs_xattr_lsetxattr_bytes_vm_replay(
+                        runtime, context, path, name, value, flags,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            FS_XATTR_REMOVEXATTR,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_XATTR_REMOVEXATTR)?;
+
+                    // decode args
+                    let (path, name) = decode_destack_fs_xattr_removexattr_args(context, args)?;
+
+                    // execute binding
+                    destack_fs_xattr_removexattr_vm_replay(runtime, context, path, name)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            FS_XATTR_REMOVEXATTR_BYTES,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_XATTR_REMOVEXATTR_BYTES)?;
+
+                    // decode args
+                    let (path, name) =
+                        decode_destack_fs_xattr_removexattr_bytes_args(context, args)?;
+
+                    // execute binding
+                    destack_fs_xattr_removexattr_bytes_vm_replay(runtime, context, path, name)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            FS_XATTR_SETXATTR,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_XATTR_SETXATTR)?;
+
+                    // decode args
+                    let (path, name, value, flags) =
+                        decode_destack_fs_xattr_setxattr_args(context, args)?;
+
+                    // execute binding
+                    destack_fs_xattr_setxattr_vm_replay(runtime, context, path, name, value, flags)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            FS_XATTR_SETXATTR_BYTES,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(FS_XATTR_SETXATTR_BYTES)?;
+
+                    // decode args
+                    let (path, name, value, flags) =
+                        decode_destack_fs_xattr_setxattr_bytes_args(context, args)?;
+
+                    // execute binding
+                    destack_fs_xattr_setxattr_bytes_vm_replay(
+                        runtime, context, path, name, value, flags,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
     }
 }
 

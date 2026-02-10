@@ -5,12 +5,12 @@ use crate::platform::abi::NativeAbi;
 use crate::platform::fs::{
     AccessMode, AllocFlags, AtFlags, CopyFlags, Dirent, DirentKind, FileAdvice, FileLockFlags,
     FileMode, FileOffset, FileSize, MmapAdvice, MmapFlags, MmapProt, MmapSyncFlags, OpenFlags,
-    OpenOptions, PathBytes, PathBytesAbi, PathUtf16, ReadWriteFlags, RenameFlags, SeekWhence,
-    SpliceCursor, SpliceFlags, Stat, StatFs, SymlinkType, SyncFlags, XattrFlags, core as core_fs,
+    OpenOptions, PathBytes, PathBytesAbi, PathUtf16, RenameFlags, SeekWhence, Stat, StatFs,
+    SymlinkType, SyncFlags, XattrFlags, core as core_fs,
 };
 use crate::platform::resource::{
-    DirectoryHandle, FileHandle, PipeHandle, ResourceEntry, ResourceFinalizer, ResourceId,
-    ResourceKind, SocketHandle,
+    DirectoryHandle, FileHandle, ResourceEntry, ResourceFinalizer, ResourceId, ResourceKind,
+    SocketHandle,
 };
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, PlatformError, core as core_platform,
@@ -125,8 +125,20 @@ fn resolve_path_bytes_cstring(path: PathBytes, name: &str) -> RuntimeResult<CStr
 
 /// Resolve a UTF-16 path into a CString by decoding to UTF-8.
 fn resolve_path_utf16_cstring(path: PathUtf16, name: &str) -> RuntimeResult<CString> {
-    let utf16 = unsafe { path.0.as_slice()? };
-    let decoded = String::from_utf16(utf16).map_err(|_| {
+    let bytes = unsafe { path.0.as_slice()? };
+    if bytes.len() % 2 != 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            name,
+            "path contains odd utf16 byte length",
+        ))
+        .boxed());
+    }
+
+    let utf16_units: Vec<u16> = bytes
+        .chunks_exact(2)
+        .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
+        .collect();
+    let decoded = String::from_utf16(&utf16_units).map_err(|_| {
         RuntimeError::from(PlatformError::invalid_argument_value(
             name,
             "path contains invalid utf16",
@@ -1872,21 +1884,6 @@ pub(crate) unsafe fn destack_fs_preadv(
     Ok(())
 }
 
-/// Stub for destack.fs.preadv2.
-pub(crate) unsafe fn destack_fs_preadv2(
-    context: &RuntimeCallContext,
-    out: *mut u64,
-    handle: FileHandle,
-    buffers: NativeSlice<NativeSlice<u8>>,
-    offset: FileOffset,
-    flags: ReadWriteFlags,
-) -> RuntimeResult<()> {
-    // NOTE #Incomplete: honor read flags for preadv2
-    let _ = flags;
-
-    unsafe { destack_fs_preadv(context, out, handle, buffers, offset) }
-}
-
 /// Stub for destack.fs.realpath.
 /// Stub for destack.fs.realpathBytes.
 pub(crate) unsafe fn destack_fs_realpath_bytes(
@@ -2434,21 +2431,6 @@ pub(crate) unsafe fn destack_fs_pwritev(
     }
 
     Ok(())
-}
-
-/// Stub for destack.fs.pwritev2.
-pub(crate) unsafe fn destack_fs_pwritev2(
-    context: &RuntimeCallContext,
-    out: *mut u64,
-    handle: FileHandle,
-    buffers: NativeSlice<NativeSlice<u8>>,
-    offset: FileOffset,
-    flags: ReadWriteFlags,
-) -> RuntimeResult<()> {
-    // NOTE #Incomplete: honor write flags for pwritev2
-    let _ = flags;
-
-    unsafe { destack_fs_pwritev(context, out, handle, buffers, offset) }
 }
 
 /// Stub for destack.fs.openat.
@@ -3235,54 +3217,6 @@ pub(crate) unsafe fn destack_fs_sendfile(
     }
 
     Ok(())
-}
-
-/// Stub for destack.fs.splice.
-pub(crate) unsafe fn destack_fs_splice(
-    context: &RuntimeCallContext,
-    _out: *mut u64,
-    source: ResourceId,
-    sourcecursor: SpliceCursor,
-    target: ResourceId,
-    targetcursor: SpliceCursor,
-    length: FileSize,
-    flags: SpliceFlags,
-) -> RuntimeResult<()> {
-    let _ = (
-        context,
-        source,
-        sourcecursor,
-        target,
-        targetcursor,
-        length,
-        flags,
-    );
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.splice")).boxed())
-}
-
-/// Stub for destack.fs.tee.
-pub(crate) unsafe fn destack_fs_tee(
-    context: &RuntimeCallContext,
-    _out: *mut u64,
-    sourcepipe: PipeHandle,
-    targetpipe: PipeHandle,
-    length: FileSize,
-    flags: SpliceFlags,
-) -> RuntimeResult<()> {
-    let _ = (context, sourcepipe, targetpipe, length, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.tee")).boxed())
-}
-
-/// Stub for destack.fs.vmsplice.
-pub(crate) unsafe fn destack_fs_vmsplice(
-    context: &RuntimeCallContext,
-    _out: *mut u64,
-    pipe: PipeHandle,
-    buffers: NativeSlice<NativeSlice<u8>>,
-    flags: SpliceFlags,
-) -> RuntimeResult<()> {
-    let _ = (context, pipe, buffers, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.vmsplice")).boxed())
 }
 
 #[cfg(any(target_os = "macos", target_os = "ios"))]

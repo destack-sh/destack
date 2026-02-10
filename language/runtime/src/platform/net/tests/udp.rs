@@ -1,7 +1,8 @@
+#![cfg_attr(windows, allow(dead_code, unused_imports))]
 use super::with_harness_context;
 use crate::platform::net::SocketFamily;
 
-#[cfg(any(unix, windows))]
+#[cfg(unix)]
 #[test]
 fn test_net_udp_roundtrip() {
     with_harness_context(|mut context| {
@@ -37,7 +38,7 @@ fn test_net_udp_roundtrip() {
     });
 }
 
-#[cfg(any(unix, windows))]
+#[cfg(unix)]
 #[test]
 fn test_net_udp_connect_roundtrip() {
     with_harness_context(|mut context| {

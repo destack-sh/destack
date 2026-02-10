@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::mem;
 use windows_sys::Win32::Networking::WinSock::{
     LPFN_WSARECVMSG, MSG_CTRUNC, MSG_TRUNC, SIO_GET_EXTENSION_FUNCTION_POINTER, SOCKET_ERROR,
@@ -7,7 +9,8 @@ use windows_sys::Win32::Networking::WinSock::{
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::net::{
-    SocketCredentials, SocketHandle, SocketMessageFlags, SocketRecvMessage, SocketSendMessage,
+    SocketAddress, SocketControlBufferAbi, SocketCredentials, SocketHandle, SocketMessageFlags,
+    SocketRecvMessage, SocketSendMessage,
 };
 use crate::platform::resource::TransferredHandle;
 use crate::platform::{NativeArray, NativeSlice, PlatformError, core as core_platform};
@@ -198,6 +201,7 @@ pub(crate) unsafe fn destack_net_recv_msg(
     recv_flags: SocketMessageFlags,
     max_fds: u32,
     want_credentials: bool,
+    max_control_bytes: u32,
 ) -> RuntimeResult<()> {
     // ensure the output pointer is valid
     if out.is_null() {
@@ -210,6 +214,9 @@ pub(crate) unsafe fn destack_net_recv_msg(
             RuntimeError::from(PlatformError::not_supported("destack.net.recvMsg")).boxed(),
         );
     }
+
+    // reserve explicit control size support for future winsock paths
+    let _ = max_control_bytes;
 
     // resolve the socket descriptor
     let socket = socket_descriptor(context, handle)?;
@@ -267,6 +274,12 @@ pub(crate) unsafe fn destack_net_recv_msg(
     }
 
     // build an empty ancillary payload
+    let address = SocketAddress {
+        family: 0,
+        length: 0,
+        bytes: context.store_array(Vec::new()),
+    };
+    let control = context.store_array(Vec::new());
     let fds: Vec<TransferredHandle> = Vec::new();
     let fds = context.store_array(fds);
 
@@ -281,9 +294,12 @@ pub(crate) unsafe fn destack_net_recv_msg(
     unsafe {
         *out = SocketRecvMessage {
             bytes: bytes_received as u64,
+            has_address: false,
+            address,
             recv_flags,
             payload_truncated,
             control_truncated,
+            control: SocketControlBufferAbi(control),
             fds,
             has_credentials: false,
             credentials: SocketCredentials {

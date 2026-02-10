@@ -2,11 +2,21 @@
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::bindings::{
-    BindingDescriptor, BindingRegistry, BindingReplayKind, NativeBinding, NativeBindingSet,
-    ReplayPolicy, native_call,
+    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingScope,
+    NativeBinding, NativeBindingSet, ReplayPolicy, native_call,
 };
-use crate::platform::process::{GroupId, ProcessId, Signal, UserId};
-use crate::platform::{NativeStringRef, NativeStringSlice, PlatformError, RuntimeStatus, VmSlice};
+use crate::platform::process::{
+    ExecAtFlags, GroupId, ProcessCpuSet, ProcessCpuSetReplay, ProcessCpuSetVm, ProcessFdAction,
+    ProcessFdActionVm, ProcessFdFlags, ProcessFdSignalFlags, ProcessId, ProcessLimit,
+    ProcessLimitResource, ProcessLimitVm, ProcessNamespaceKind, ProcessSpawnOptions,
+    ProcessSpawnOptionsVm, ProcessStdio, ProcessStdioVm, ProcessUnshareFlags, ProcessWaitFlags,
+    ProcessWaitStatus, ProcessWaitStatusVm, Signal, SignalEvent, SignalEventVm, SignalFdFlags,
+    SignalMaskHow, SyscallFilterFlags, UserId,
+};
+use crate::platform::{
+    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError, RuntimeStatus,
+    VmArray, VmSlice,
+};
 #[cfg(feature = "replay")]
 use crate::vm_binding_set;
 use destack_vm as vm;
@@ -18,6 +28,7 @@ use crate::runtime::{RuntimeCallContext, with_runtime_call_context};
 use serde::{Deserialize, Serialize};
 
 use crate::platform::process::{native as platform_native, vm as platform_vm};
+use crate::platform::{fs, resource};
 
 /// Read a positional argument value.
 fn arg_value(
@@ -31,6 +42,37 @@ fn arg_value(
     })?;
 
     Ok(value)
+}
+
+/// Decode a boolean argument.
+#[allow(dead_code)]
+fn decode_bool(
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+) -> RuntimeResult<bool> {
+    value.as_bool().ok_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
+    })
+}
+
+/// Decode a signed integer argument with an explicit width.
+fn decode_int(
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+    bits: u8,
+) -> RuntimeResult<i64> {
+    let (raw, width) = value.as_int_with_width().ok_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
+    })?;
+    if width != bits {
+        return Err(
+            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
+        );
+    }
+
+    Ok(raw)
 }
 
 /// Decode an unsigned integer argument with an explicit width.
@@ -52,6 +94,20 @@ fn decode_uint(
     Ok(raw)
 }
 
+/// Decode an i32 argument.
+fn decode_int32(
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+) -> RuntimeResult<i32> {
+    Ok(decode_int(value, name, expected, 32)? as i32)
+}
+
+/// Decode a u8 argument.
+fn decode_uint8(value: vm::Value, name: &'static str, expected: &'static str) -> RuntimeResult<u8> {
+    Ok(decode_uint(value, name, expected, 8)? as u8)
+}
+
 /// Decode a u32 argument.
 fn decode_uint32(
     value: vm::Value,
@@ -61,7 +117,17 @@ fn decode_uint32(
     Ok(decode_uint(value, name, expected, 32)? as u32)
 }
 
+/// Decode a u64 argument.
+fn decode_uint64(
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+) -> RuntimeResult<u64> {
+    decode_uint(value, name, expected, 64)
+}
+
 /// Decode a string argument.
+#[allow(dead_code)]
 fn decode_string(
     value: vm::Value,
     name: &'static str,
@@ -76,32 +142,84 @@ fn decode_string(
     Ok(vm::StringHandle::new(value))
 }
 
-/// Encode the result for destack.process.args.
+/// Decode a slice argument.
+fn decode_slice<T>(
+    context: &mut vm::RuntimeContext<'_>,
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+) -> RuntimeResult<VmSlice<T>> {
+    VmSlice::<T>::from_value(context, value, name, expected)
+}
+
+/// Decode an array argument.
+fn decode_array<T>(
+    context: &mut vm::RuntimeContext<'_>,
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+) -> RuntimeResult<VmArray<T>> {
+    VmArray::<T>::from_value(context, value, name, expected)
+}
+
+/// Encode the result for destack.process.args.args.
 #[inline]
-fn encode_destack_process_args_result(
+fn encode_destack_process_args_args_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<VmSlice<vm::StringHandle>>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| value.to_value(context))
 }
 
-/// Decode arguments for destack.process.chdir.
+/// Decode arguments for destack.process.cwd.chdir.
 #[inline]
-fn decode_destack_process_chdir_args(
+fn decode_destack_process_cwd_chdir_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(vm::StringHandle,)> {
-    // ignore unused context
-    let _ = context;
-
-    let path_value = arg_value(args, 0, "path", "string")?;
-    let path = decode_string(path_value, "path", "string")?;
+) -> RuntimeResult<(fs::OsPathVm,)> {
+    let path_value = arg_value(args, 0, "path", "OsPath")?;
+    let path = {
+        if path_value.tag() != vm::ValueTag::Aggregate {
+            return Err(
+                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
+            );
+        }
+        let slots = context
+            .aggregate_slots(path_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "path",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
+        let path_encoding = match path_encoding_raw {
+            1u8 => fs::PathEncoding::Bytes,
+            2u8 => fs::PathEncoding::Utf16,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "path_encoding",
+                    "unknown fs::PathEncoding value",
+                ))
+                .boxed());
+            }
+        };
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
+        fs::OsPathVm {
+            encoding: path_encoding,
+            data: path_data,
+        }
+    };
     Ok((path,))
 }
 
-/// Encode the result for destack.process.chdir.
+/// Encode the result for destack.process.cwd.chdir.
 #[inline]
-fn encode_destack_process_chdir_result(
+fn encode_destack_process_cwd_chdir_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -111,19 +229,20 @@ fn encode_destack_process_chdir_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Encode the result for destack.process.cwd.
+/// Encode the result for destack.process.cwd.cwd.
 #[inline]
-fn encode_destack_process_cwd_result(
+fn encode_destack_process_cwd_cwd_result(
     context: &mut vm::RuntimeContext<'_>,
-    result: RuntimeResult<vm::StringHandle>,
+    result: RuntimeResult<fs::OsPathVm>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
-    result.map(|value| value.value())
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.encoding as u8 as u64, 8);
+        let field_1 = value.data.0.to_value(context);
+        context.allocate_aggregate(vec![field_0, field_1])
+    })
 }
 
-/// Decode arguments for destack.process.envDelete.
+/// Decode arguments for destack.process.env.delete.
 #[inline]
 fn decode_destack_process_env_delete_args(
     context: &mut vm::RuntimeContext<'_>,
@@ -137,7 +256,7 @@ fn decode_destack_process_env_delete_args(
     Ok((name,))
 }
 
-/// Encode the result for destack.process.envDelete.
+/// Encode the result for destack.process.env.delete.
 #[inline]
 fn encode_destack_process_env_delete_result(
     context: &mut vm::RuntimeContext<'_>,
@@ -149,7 +268,30 @@ fn encode_destack_process_env_delete_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.process.envGet.
+/// Decode arguments for destack.process.env.deleteBytes.
+#[inline]
+fn decode_destack_process_env_delete_bytes_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(VmSlice<u8>,)> {
+    let name_value = arg_value(args, 0, "name", "Slice<uint8>")?;
+    let name = decode_slice::<u8>(context, name_value, "name", "Slice<uint8>")?;
+    Ok((name,))
+}
+
+/// Encode the result for destack.process.env.deleteBytes.
+#[inline]
+fn encode_destack_process_env_delete_bytes_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.process.env.get.
 #[inline]
 fn decode_destack_process_env_get_args(
     context: &mut vm::RuntimeContext<'_>,
@@ -163,7 +305,7 @@ fn decode_destack_process_env_get_args(
     Ok((name,))
 }
 
-/// Encode the result for destack.process.envGet.
+/// Encode the result for destack.process.env.get.
 #[inline]
 fn encode_destack_process_env_get_result(
     context: &mut vm::RuntimeContext<'_>,
@@ -175,7 +317,27 @@ fn encode_destack_process_env_get_result(
     result.map(|value| value.value())
 }
 
-/// Decode arguments for destack.process.envSet.
+/// Decode arguments for destack.process.env.getBytes.
+#[inline]
+fn decode_destack_process_env_get_bytes_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(VmSlice<u8>,)> {
+    let name_value = arg_value(args, 0, "name", "Slice<uint8>")?;
+    let name = decode_slice::<u8>(context, name_value, "name", "Slice<uint8>")?;
+    Ok((name,))
+}
+
+/// Encode the result for destack.process.env.getBytes.
+#[inline]
+fn encode_destack_process_env_get_bytes_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<VmArray<u8>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.process.env.set.
 #[inline]
 fn decode_destack_process_env_set_args(
     context: &mut vm::RuntimeContext<'_>,
@@ -191,7 +353,7 @@ fn decode_destack_process_env_set_args(
     Ok((name, value))
 }
 
-/// Encode the result for destack.process.envSet.
+/// Encode the result for destack.process.env.set.
 #[inline]
 fn encode_destack_process_env_set_result(
     context: &mut vm::RuntimeContext<'_>,
@@ -203,9 +365,231 @@ fn encode_destack_process_env_set_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.process.exit.
+/// Decode arguments for destack.process.env.setBytes.
 #[inline]
-fn decode_destack_process_exit_args(
+fn decode_destack_process_env_set_bytes_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(VmSlice<u8>, VmSlice<u8>)> {
+    let name_value = arg_value(args, 0, "name", "Slice<uint8>")?;
+    let name = decode_slice::<u8>(context, name_value, "name", "Slice<uint8>")?;
+    let value_value = arg_value(args, 1, "value", "Slice<uint8>")?;
+    let value = decode_slice::<u8>(context, value_value, "value", "Slice<uint8>")?;
+    Ok((name, value))
+}
+
+/// Encode the result for destack.process.env.setBytes.
+#[inline]
+fn encode_destack_process_env_set_bytes_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.process.exec.exec.
+#[inline]
+fn decode_destack_process_exec_exec_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(
+    fs::OsPathVm,
+    VmSlice<vm::StringHandle>,
+    VmSlice<vm::StringHandle>,
+)> {
+    let command_value = arg_value(args, 0, "command", "OsPath")?;
+    let command = {
+        if command_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "command", "OsPath",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(command_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "command",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let command_encoding_raw = decode_uint8(slots[0], "command_encoding_raw", "encoding")?;
+        let command_encoding = match command_encoding_raw {
+            1u8 => fs::PathEncoding::Bytes,
+            2u8 => fs::PathEncoding::Utf16,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "command_encoding",
+                    "unknown fs::PathEncoding value",
+                ))
+                .boxed());
+            }
+        };
+        let command_data_inner =
+            decode_array::<u8>(context, slots[1], "command_data_inner", "data")?;
+        let command_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(command_data_inner);
+        fs::OsPathVm {
+            encoding: command_encoding,
+            data: command_data,
+        }
+    };
+    let arguments_value = arg_value(args, 1, "arguments", "Slice<string>")?;
+    let arguments =
+        decode_slice::<vm::StringHandle>(context, arguments_value, "arguments", "Slice<string>")?;
+    let environment_value = arg_value(args, 2, "environment", "Slice<string>")?;
+    let environment = decode_slice::<vm::StringHandle>(
+        context,
+        environment_value,
+        "environment",
+        "Slice<string>",
+    )?;
+    Ok((command, arguments, environment))
+}
+
+/// Encode the result for destack.process.exec.exec.
+#[inline]
+fn encode_destack_process_exec_exec_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.process.exec.execat.
+#[inline]
+#[allow(clippy::type_complexity)]
+fn decode_destack_process_exec_execat_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(
+    resource::DirectoryHandle,
+    fs::OsPathVm,
+    VmSlice<vm::StringHandle>,
+    VmSlice<vm::StringHandle>,
+    ExecAtFlags,
+)> {
+    let directory_value = arg_value(args, 0, "directory", "DirectoryHandle")?;
+    let directory_inner_inner =
+        decode_uint64(directory_value, "directory_inner_inner", "DirectoryHandle")?;
+    let directory_inner = resource::ResourceId(directory_inner_inner);
+    let directory = resource::DirectoryHandle(directory_inner);
+    let path_value = arg_value(args, 1, "path", "OsPath")?;
+    let path = {
+        if path_value.tag() != vm::ValueTag::Aggregate {
+            return Err(
+                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
+            );
+        }
+        let slots = context
+            .aggregate_slots(path_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "path",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
+        let path_encoding = match path_encoding_raw {
+            1u8 => fs::PathEncoding::Bytes,
+            2u8 => fs::PathEncoding::Utf16,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "path_encoding",
+                    "unknown fs::PathEncoding value",
+                ))
+                .boxed());
+            }
+        };
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
+        fs::OsPathVm {
+            encoding: path_encoding,
+            data: path_data,
+        }
+    };
+    let arguments_value = arg_value(args, 2, "arguments", "Slice<string>")?;
+    let arguments =
+        decode_slice::<vm::StringHandle>(context, arguments_value, "arguments", "Slice<string>")?;
+    let environment_value = arg_value(args, 3, "environment", "Slice<string>")?;
+    let environment = decode_slice::<vm::StringHandle>(
+        context,
+        environment_value,
+        "environment",
+        "Slice<string>",
+    )?;
+    let flags_value = arg_value(args, 4, "flags", "ExecAtFlags")?;
+    let flags_inner = decode_uint32(flags_value, "flags_inner", "ExecAtFlags")?;
+    let flags = ExecAtFlags(flags_inner);
+    Ok((directory, path, arguments, environment, flags))
+}
+
+/// Encode the result for destack.process.exec.execat.
+#[inline]
+fn encode_destack_process_exec_execat_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.process.exec.fexec.
+#[inline]
+fn decode_destack_process_exec_fexec_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(
+    resource::FileHandle,
+    VmSlice<vm::StringHandle>,
+    VmSlice<vm::StringHandle>,
+)> {
+    let executable_value = arg_value(args, 0, "executable", "FileHandle")?;
+    let executable_inner_inner =
+        decode_uint64(executable_value, "executable_inner_inner", "FileHandle")?;
+    let executable_inner = resource::ResourceId(executable_inner_inner);
+    let executable = resource::FileHandle(executable_inner);
+    let arguments_value = arg_value(args, 1, "arguments", "Slice<string>")?;
+    let arguments =
+        decode_slice::<vm::StringHandle>(context, arguments_value, "arguments", "Slice<string>")?;
+    let environment_value = arg_value(args, 2, "environment", "Slice<string>")?;
+    let environment = decode_slice::<vm::StringHandle>(
+        context,
+        environment_value,
+        "environment",
+        "Slice<string>",
+    )?;
+    Ok((executable, arguments, environment))
+}
+
+/// Encode the result for destack.process.exec.fexec.
+#[inline]
+fn encode_destack_process_exec_fexec_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.process.exit.exit.
+#[inline]
+fn decode_destack_process_exit_exit_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u32,)> {
@@ -217,9 +601,9 @@ fn decode_destack_process_exit_args(
     Ok((code,))
 }
 
-/// Encode the result for destack.process.exit.
+/// Encode the result for destack.process.exit.exit.
 #[inline]
-fn encode_destack_process_exit_result(
+fn encode_destack_process_exit_exit_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -229,9 +613,491 @@ fn encode_destack_process_exit_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Encode the result for destack.process.gid.
+/// Decode arguments for destack.process.fd.processFdClose.
 #[inline]
-fn encode_destack_process_gid_result(
+fn decode_destack_process_fd_process_fd_close_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::ProcessFdHandle,)> {
+    // ignore unused context
+    let _ = context;
+
+    let handle_value = arg_value(args, 0, "handle", "ProcessFdHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "ProcessFdHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::ProcessFdHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.process.fd.processFdClose.
+#[inline]
+fn encode_destack_process_fd_process_fd_close_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.process.fd.processFdOpen.
+#[inline]
+fn decode_destack_process_fd_process_fd_open_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(ProcessId, ProcessFdFlags)> {
+    // ignore unused context
+    let _ = context;
+
+    let pid_value = arg_value(args, 0, "pid", "ProcessId")?;
+    let pid_inner = decode_uint32(pid_value, "pid_inner", "ProcessId")?;
+    let pid = ProcessId(pid_inner);
+    let flags_value = arg_value(args, 1, "flags", "ProcessFdFlags")?;
+    let flags_inner = decode_uint32(flags_value, "flags_inner", "ProcessFdFlags")?;
+    let flags = ProcessFdFlags(flags_inner);
+    Ok((pid, flags))
+}
+
+/// Encode the result for destack.process.fd.processFdOpen.
+#[inline]
+fn encode_destack_process_fd_process_fd_open_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<resource::ProcessFdHandle>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|value| vm::Value::uint(value.0.0, 64))
+}
+
+/// Decode arguments for destack.process.fd.processFdSendSignal.
+#[inline]
+fn decode_destack_process_fd_process_fd_send_signal_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::ProcessFdHandle, Signal, ProcessFdSignalFlags)> {
+    // ignore unused context
+    let _ = context;
+
+    let handle_value = arg_value(args, 0, "handle", "ProcessFdHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "ProcessFdHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::ProcessFdHandle(handle_inner);
+    let signal_value = arg_value(args, 1, "signal", "Signal")?;
+    let signal_inner = decode_uint32(signal_value, "signal_inner", "Signal")?;
+    let signal = Signal(signal_inner);
+    let flags_value = arg_value(args, 2, "flags", "ProcessFdSignalFlags")?;
+    let flags_inner = decode_uint32(flags_value, "flags_inner", "ProcessFdSignalFlags")?;
+    let flags = ProcessFdSignalFlags(flags_inner);
+    Ok((handle, signal, flags))
+}
+
+/// Encode the result for destack.process.fd.processFdSendSignal.
+#[inline]
+fn encode_destack_process_fd_process_fd_send_signal_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.process.fd.processFdTryWait.
+#[inline]
+fn decode_destack_process_fd_process_fd_try_wait_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::ProcessFdHandle,)> {
+    // ignore unused context
+    let _ = context;
+
+    let handle_value = arg_value(args, 0, "handle", "ProcessFdHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "ProcessFdHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::ProcessFdHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.process.fd.processFdTryWait.
+#[inline]
+fn encode_destack_process_fd_process_fd_try_wait_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<ProcessWaitStatusVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.pid.0 as u64, 32);
+        let field_1 = vm::Value::uint(value.kind as u8 as u64, 8);
+        let field_2 = vm::Value::int(value.exit_code as i64, 32);
+        let field_3 = vm::Value::uint(value.signal.0 as u64, 32);
+        let field_4 = vm::Value::bool(value.core_dumped);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+    })
+}
+
+/// Decode arguments for destack.process.fd.processFdWait.
+#[inline]
+fn decode_destack_process_fd_process_fd_wait_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::ProcessFdHandle, u64)> {
+    // ignore unused context
+    let _ = context;
+
+    let handle_value = arg_value(args, 0, "handle", "ProcessFdHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "ProcessFdHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::ProcessFdHandle(handle_inner);
+    let timeoutns_value = arg_value(args, 1, "timeoutns", "uint64")?;
+    let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
+    Ok((handle, timeoutns))
+}
+
+/// Encode the result for destack.process.fd.processFdWait.
+#[inline]
+fn encode_destack_process_fd_process_fd_wait_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<ProcessWaitStatusVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.pid.0 as u64, 32);
+        let field_1 = vm::Value::uint(value.kind as u8 as u64, 8);
+        let field_2 = vm::Value::int(value.exit_code as i64, 32);
+        let field_3 = vm::Value::uint(value.signal.0 as u64, 32);
+        let field_4 = vm::Value::bool(value.core_dumped);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+    })
+}
+
+/// Decode arguments for destack.process.fd.signalFdClose.
+#[inline]
+fn decode_destack_process_fd_signal_fd_close_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::SignalFdHandle,)> {
+    // ignore unused context
+    let _ = context;
+
+    let handle_value = arg_value(args, 0, "handle", "SignalFdHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SignalFdHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::SignalFdHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.process.fd.signalFdClose.
+#[inline]
+fn encode_destack_process_fd_signal_fd_close_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.process.fd.signalFdOpen.
+#[inline]
+fn decode_destack_process_fd_signal_fd_open_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(VmSlice<Signal>, SignalFdFlags)> {
+    let signals_value = arg_value(args, 0, "signals", "Slice<Signal>")?;
+    let signals = decode_slice::<Signal>(context, signals_value, "signals", "Slice<Signal>")?;
+    let flags_value = arg_value(args, 1, "flags", "SignalFdFlags")?;
+    let flags_inner = decode_uint32(flags_value, "flags_inner", "SignalFdFlags")?;
+    let flags = SignalFdFlags(flags_inner);
+    Ok((signals, flags))
+}
+
+/// Encode the result for destack.process.fd.signalFdOpen.
+#[inline]
+fn encode_destack_process_fd_signal_fd_open_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<resource::SignalFdHandle>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|value| vm::Value::uint(value.0.0, 64))
+}
+
+/// Decode arguments for destack.process.fd.signalFdRead.
+#[inline]
+fn decode_destack_process_fd_signal_fd_read_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::SignalFdHandle,)> {
+    // ignore unused context
+    let _ = context;
+
+    let handle_value = arg_value(args, 0, "handle", "SignalFdHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SignalFdHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::SignalFdHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.process.fd.signalFdRead.
+#[inline]
+fn encode_destack_process_fd_signal_fd_read_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<SignalEventVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.signal.0 as u64, 32);
+        let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+        context.allocate_aggregate(vec![field_0, field_1])
+    })
+}
+
+/// Decode arguments for destack.process.fd.signalFdSetMask.
+#[inline]
+fn decode_destack_process_fd_signal_fd_set_mask_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::SignalFdHandle, VmSlice<Signal>)> {
+    let handle_value = arg_value(args, 0, "handle", "SignalFdHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SignalFdHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::SignalFdHandle(handle_inner);
+    let signals_value = arg_value(args, 1, "signals", "Slice<Signal>")?;
+    let signals = decode_slice::<Signal>(context, signals_value, "signals", "Slice<Signal>")?;
+    Ok((handle, signals))
+}
+
+/// Encode the result for destack.process.fd.signalFdSetMask.
+#[inline]
+fn encode_destack_process_fd_signal_fd_set_mask_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.process.fd.signalFdTryRead.
+#[inline]
+fn decode_destack_process_fd_signal_fd_try_read_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::SignalFdHandle,)> {
+    // ignore unused context
+    let _ = context;
+
+    let handle_value = arg_value(args, 0, "handle", "SignalFdHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SignalFdHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::SignalFdHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.process.fd.signalFdTryRead.
+#[inline]
+fn encode_destack_process_fd_signal_fd_try_read_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<SignalEventVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.signal.0 as u64, 32);
+        let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+        context.allocate_aggregate(vec![field_0, field_1])
+    })
+}
+
+/// Decode arguments for destack.process.group.cgroupGetLimit.
+#[inline]
+fn decode_destack_process_group_cgroup_get_limit_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(vm::StringHandle, ProcessLimitResource)> {
+    // ignore unused context
+    let _ = context;
+
+    let path_value = arg_value(args, 0, "path", "string")?;
+    let path = decode_string(path_value, "path", "string")?;
+    let resource_value = arg_value(args, 1, "resource", "ProcessLimitResource")?;
+    let resource_inner = decode_uint32(resource_value, "resource_inner", "ProcessLimitResource")?;
+    let resource = ProcessLimitResource(resource_inner);
+    Ok((path, resource))
+}
+
+/// Encode the result for destack.process.group.cgroupGetLimit.
+#[inline]
+fn encode_destack_process_group_cgroup_get_limit_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<ProcessLimitVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.soft, 64);
+        let field_1 = vm::Value::uint(value.hard, 64);
+        context.allocate_aggregate(vec![field_0, field_1])
+    })
+}
+
+/// Decode arguments for destack.process.group.cgroupJoin.
+#[inline]
+fn decode_destack_process_group_cgroup_join_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(vm::StringHandle,)> {
+    // ignore unused context
+    let _ = context;
+
+    let path_value = arg_value(args, 0, "path", "string")?;
+    let path = decode_string(path_value, "path", "string")?;
+    Ok((path,))
+}
+
+/// Encode the result for destack.process.group.cgroupJoin.
+#[inline]
+fn encode_destack_process_group_cgroup_join_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.process.group.cgroupSetLimit.
+#[inline]
+fn decode_destack_process_group_cgroup_set_limit_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(vm::StringHandle, ProcessLimitResource, ProcessLimitVm)> {
+    let path_value = arg_value(args, 0, "path", "string")?;
+    let path = decode_string(path_value, "path", "string")?;
+    let resource_value = arg_value(args, 1, "resource", "ProcessLimitResource")?;
+    let resource_inner = decode_uint32(resource_value, "resource_inner", "ProcessLimitResource")?;
+    let resource = ProcessLimitResource(resource_inner);
+    let limit_value = arg_value(args, 2, "limit", "ProcessLimit")?;
+    let limit = {
+        if limit_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "limit",
+                "ProcessLimit",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(limit_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "limit",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let limit_soft = decode_uint64(slots[0], "limit_soft", "soft")?;
+        let limit_hard = decode_uint64(slots[1], "limit_hard", "hard")?;
+        ProcessLimitVm {
+            soft: limit_soft,
+            hard: limit_hard,
+        }
+    };
+    Ok((path, resource, limit))
+}
+
+/// Encode the result for destack.process.group.cgroupSetLimit.
+#[inline]
+fn encode_destack_process_group_cgroup_set_limit_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.process.group.jobAssign.
+#[inline]
+fn decode_destack_process_group_job_assign_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(vm::StringHandle, VmSlice<ProcessId>)> {
+    let name_value = arg_value(args, 0, "name", "string")?;
+    let name = decode_string(name_value, "name", "string")?;
+    let pids_value = arg_value(args, 1, "pids", "Slice<ProcessId>")?;
+    let pids = decode_slice::<ProcessId>(context, pids_value, "pids", "Slice<ProcessId>")?;
+    Ok((name, pids))
+}
+
+/// Encode the result for destack.process.group.jobAssign.
+#[inline]
+fn encode_destack_process_group_job_assign_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.process.group.jobSetLimit.
+#[inline]
+fn decode_destack_process_group_job_set_limit_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(vm::StringHandle, ProcessLimitResource, ProcessLimitVm)> {
+    let name_value = arg_value(args, 0, "name", "string")?;
+    let name = decode_string(name_value, "name", "string")?;
+    let resource_value = arg_value(args, 1, "resource", "ProcessLimitResource")?;
+    let resource_inner = decode_uint32(resource_value, "resource_inner", "ProcessLimitResource")?;
+    let resource = ProcessLimitResource(resource_inner);
+    let limit_value = arg_value(args, 2, "limit", "ProcessLimit")?;
+    let limit = {
+        if limit_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "limit",
+                "ProcessLimit",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(limit_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "limit",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let limit_soft = decode_uint64(slots[0], "limit_soft", "soft")?;
+        let limit_hard = decode_uint64(slots[1], "limit_hard", "hard")?;
+        ProcessLimitVm {
+            soft: limit_soft,
+            hard: limit_hard,
+        }
+    };
+    Ok((name, resource, limit))
+}
+
+/// Encode the result for destack.process.group.jobSetLimit.
+#[inline]
+fn encode_destack_process_group_job_set_limit_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Encode the result for destack.process.ids.gid.
+#[inline]
+fn encode_destack_process_ids_gid_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<GroupId>,
 ) -> RuntimeResult<vm::Value> {
@@ -241,9 +1107,639 @@ fn encode_destack_process_gid_result(
     result.map(|value| vm::Value::uint(value.0 as u64, 32))
 }
 
-/// Decode arguments for destack.process.kill.
+/// Encode the result for destack.process.ids.pid.
 #[inline]
-fn decode_destack_process_kill_args(
+fn encode_destack_process_ids_pid_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<ProcessId>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|value| vm::Value::uint(value.0 as u64, 32))
+}
+
+/// Encode the result for destack.process.ids.ppid.
+#[inline]
+fn encode_destack_process_ids_ppid_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<ProcessId>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|value| vm::Value::uint(value.0 as u64, 32))
+}
+
+/// Decode arguments for destack.process.ids.setGid.
+#[inline]
+fn decode_destack_process_ids_set_gid_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(GroupId,)> {
+    // ignore unused context
+    let _ = context;
+
+    let groupid_value = arg_value(args, 0, "groupid", "GroupId")?;
+    let groupid_inner = decode_uint32(groupid_value, "groupid_inner", "GroupId")?;
+    let groupid = GroupId(groupid_inner);
+    Ok((groupid,))
+}
+
+/// Encode the result for destack.process.ids.setGid.
+#[inline]
+fn encode_destack_process_ids_set_gid_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.process.ids.setGroups.
+#[inline]
+fn decode_destack_process_ids_set_groups_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(VmSlice<GroupId>,)> {
+    let groups_value = arg_value(args, 0, "groups", "Slice<GroupId>")?;
+    let groups = decode_slice::<GroupId>(context, groups_value, "groups", "Slice<GroupId>")?;
+    Ok((groups,))
+}
+
+/// Encode the result for destack.process.ids.setGroups.
+#[inline]
+fn encode_destack_process_ids_set_groups_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.process.ids.setUid.
+#[inline]
+fn decode_destack_process_ids_set_uid_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(UserId,)> {
+    // ignore unused context
+    let _ = context;
+
+    let userid_value = arg_value(args, 0, "userid", "UserId")?;
+    let userid_inner = decode_uint32(userid_value, "userid_inner", "UserId")?;
+    let userid = UserId(userid_inner);
+    Ok((userid,))
+}
+
+/// Encode the result for destack.process.ids.setUid.
+#[inline]
+fn encode_destack_process_ids_set_uid_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Encode the result for destack.process.ids.uid.
+#[inline]
+fn encode_destack_process_ids_uid_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<UserId>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|value| vm::Value::uint(value.0 as u64, 32))
+}
+
+/// Decode arguments for destack.process.isolation.chroot.
+#[inline]
+fn decode_destack_process_isolation_chroot_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(fs::OsPathVm,)> {
+    let path_value = arg_value(args, 0, "path", "OsPath")?;
+    let path = {
+        if path_value.tag() != vm::ValueTag::Aggregate {
+            return Err(
+                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
+            );
+        }
+        let slots = context
+            .aggregate_slots(path_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "path",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
+        let path_encoding = match path_encoding_raw {
+            1u8 => fs::PathEncoding::Bytes,
+            2u8 => fs::PathEncoding::Utf16,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "path_encoding",
+                    "unknown fs::PathEncoding value",
+                ))
+                .boxed());
+            }
+        };
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
+        fs::OsPathVm {
+            encoding: path_encoding,
+            data: path_data,
+        }
+    };
+    Ok((path,))
+}
+
+/// Encode the result for destack.process.isolation.chroot.
+#[inline]
+fn encode_destack_process_isolation_chroot_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.process.isolation.installSyscallFilter.
+#[inline]
+fn decode_destack_process_isolation_install_syscall_filter_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(VmArray<u8>, SyscallFilterFlags)> {
+    let program_value = arg_value(args, 0, "program", "uint8[]")?;
+    let program = decode_array::<u8>(context, program_value, "program", "uint8[]")?;
+    let flags_value = arg_value(args, 1, "flags", "SyscallFilterFlags")?;
+    let flags_inner = decode_uint32(flags_value, "flags_inner", "SyscallFilterFlags")?;
+    let flags = SyscallFilterFlags(flags_inner);
+    Ok((program, flags))
+}
+
+/// Encode the result for destack.process.isolation.installSyscallFilter.
+#[inline]
+fn encode_destack_process_isolation_install_syscall_filter_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.process.isolation.setHostName.
+#[inline]
+fn decode_destack_process_isolation_set_host_name_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(vm::StringHandle,)> {
+    // ignore unused context
+    let _ = context;
+
+    let name_value = arg_value(args, 0, "name", "string")?;
+    let name = decode_string(name_value, "name", "string")?;
+    Ok((name,))
+}
+
+/// Encode the result for destack.process.isolation.setHostName.
+#[inline]
+fn encode_destack_process_isolation_set_host_name_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.process.isolation.setNetworkNamespace.
+#[inline]
+fn decode_destack_process_isolation_set_network_namespace_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(fs::OsPathVm,)> {
+    let path_value = arg_value(args, 0, "path", "OsPath")?;
+    let path = {
+        if path_value.tag() != vm::ValueTag::Aggregate {
+            return Err(
+                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
+            );
+        }
+        let slots = context
+            .aggregate_slots(path_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "path",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
+        let path_encoding = match path_encoding_raw {
+            1u8 => fs::PathEncoding::Bytes,
+            2u8 => fs::PathEncoding::Utf16,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "path_encoding",
+                    "unknown fs::PathEncoding value",
+                ))
+                .boxed());
+            }
+        };
+        let path_data_inner = decode_array::<u8>(context, slots[1], "path_data_inner", "data")?;
+        let path_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_data_inner);
+        fs::OsPathVm {
+            encoding: path_encoding,
+            data: path_data,
+        }
+    };
+    Ok((path,))
+}
+
+/// Encode the result for destack.process.isolation.setNetworkNamespace.
+#[inline]
+fn encode_destack_process_isolation_set_network_namespace_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.process.isolation.setns.
+#[inline]
+fn decode_destack_process_isolation_setns_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(ProcessId, ProcessNamespaceKind)> {
+    // ignore unused context
+    let _ = context;
+
+    let pid_value = arg_value(args, 0, "pid", "ProcessId")?;
+    let pid_inner = decode_uint32(pid_value, "pid_inner", "ProcessId")?;
+    let pid = ProcessId(pid_inner);
+    let namespace_value = arg_value(args, 1, "namespace", "ProcessNamespaceKind")?;
+    let namespace_raw = decode_uint8(namespace_value, "namespace_raw", "ProcessNamespaceKind")?;
+    let namespace = match namespace_raw {
+        1u8 => ProcessNamespaceKind::Mount,
+        2u8 => ProcessNamespaceKind::User,
+        3u8 => ProcessNamespaceKind::Pid,
+        4u8 => ProcessNamespaceKind::Network,
+        5u8 => ProcessNamespaceKind::Ipc,
+        6u8 => ProcessNamespaceKind::Uts,
+        7u8 => ProcessNamespaceKind::Cgroup,
+        8u8 => ProcessNamespaceKind::Time,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "namespace",
+                "unknown ProcessNamespaceKind value",
+            ))
+            .boxed());
+        }
+    };
+    Ok((pid, namespace))
+}
+
+/// Encode the result for destack.process.isolation.setns.
+#[inline]
+fn encode_destack_process_isolation_setns_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.process.isolation.unshare.
+#[inline]
+fn decode_destack_process_isolation_unshare_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(ProcessUnshareFlags,)> {
+    // ignore unused context
+    let _ = context;
+
+    let flags_value = arg_value(args, 0, "flags", "ProcessUnshareFlags")?;
+    let flags_inner = decode_uint64(flags_value, "flags_inner", "ProcessUnshareFlags")?;
+    let flags = ProcessUnshareFlags(flags_inner);
+    Ok((flags,))
+}
+
+/// Encode the result for destack.process.isolation.unshare.
+#[inline]
+fn encode_destack_process_isolation_unshare_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.process.limits.getLimit.
+#[inline]
+fn decode_destack_process_limits_get_limit_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(ProcessLimitResource,)> {
+    // ignore unused context
+    let _ = context;
+
+    let resource_value = arg_value(args, 0, "resource", "ProcessLimitResource")?;
+    let resource_inner = decode_uint32(resource_value, "resource_inner", "ProcessLimitResource")?;
+    let resource = ProcessLimitResource(resource_inner);
+    Ok((resource,))
+}
+
+/// Encode the result for destack.process.limits.getLimit.
+#[inline]
+fn encode_destack_process_limits_get_limit_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<ProcessLimitVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.soft, 64);
+        let field_1 = vm::Value::uint(value.hard, 64);
+        context.allocate_aggregate(vec![field_0, field_1])
+    })
+}
+
+/// Decode arguments for destack.process.limits.setLimit.
+#[inline]
+fn decode_destack_process_limits_set_limit_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(ProcessLimitResource, ProcessLimitVm)> {
+    let resource_value = arg_value(args, 0, "resource", "ProcessLimitResource")?;
+    let resource_inner = decode_uint32(resource_value, "resource_inner", "ProcessLimitResource")?;
+    let resource = ProcessLimitResource(resource_inner);
+    let limit_value = arg_value(args, 1, "limit", "ProcessLimit")?;
+    let limit = {
+        if limit_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "limit",
+                "ProcessLimit",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(limit_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "limit",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let limit_soft = decode_uint64(slots[0], "limit_soft", "soft")?;
+        let limit_hard = decode_uint64(slots[1], "limit_hard", "hard")?;
+        ProcessLimitVm {
+            soft: limit_soft,
+            hard: limit_hard,
+        }
+    };
+    Ok((resource, limit))
+}
+
+/// Encode the result for destack.process.limits.setLimit.
+#[inline]
+fn encode_destack_process_limits_set_limit_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.process.sched.getAffinity.
+#[inline]
+fn decode_destack_process_sched_get_affinity_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(ProcessId,)> {
+    // ignore unused context
+    let _ = context;
+
+    let pid_value = arg_value(args, 0, "pid", "ProcessId")?;
+    let pid_inner = decode_uint32(pid_value, "pid_inner", "ProcessId")?;
+    let pid = ProcessId(pid_inner);
+    Ok((pid,))
+}
+
+/// Encode the result for destack.process.sched.getAffinity.
+#[inline]
+fn encode_destack_process_sched_get_affinity_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<ProcessCpuSetVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = value.cpus.to_value(context);
+        context.allocate_aggregate(vec![field_0])
+    })
+}
+
+/// Decode arguments for destack.process.sched.getPriority.
+#[inline]
+fn decode_destack_process_sched_get_priority_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(ProcessId,)> {
+    // ignore unused context
+    let _ = context;
+
+    let pid_value = arg_value(args, 0, "pid", "ProcessId")?;
+    let pid_inner = decode_uint32(pid_value, "pid_inner", "ProcessId")?;
+    let pid = ProcessId(pid_inner);
+    Ok((pid,))
+}
+
+/// Encode the result for destack.process.sched.getPriority.
+#[inline]
+fn encode_destack_process_sched_get_priority_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<i32>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|value| vm::Value::int(value as i64, 32))
+}
+
+/// Decode arguments for destack.process.sched.setAffinity.
+#[inline]
+fn decode_destack_process_sched_set_affinity_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(ProcessId, ProcessCpuSetVm)> {
+    let pid_value = arg_value(args, 0, "pid", "ProcessId")?;
+    let pid_inner = decode_uint32(pid_value, "pid_inner", "ProcessId")?;
+    let pid = ProcessId(pid_inner);
+    let cpus_value = arg_value(args, 1, "cpus", "ProcessCpuSet")?;
+    let cpus = {
+        if cpus_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "cpus",
+                "ProcessCpuSet",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(cpus_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 1 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "cpus",
+                "expected 1 fields",
+            ))
+            .boxed());
+        }
+        let cpus_cpus = decode_array::<u32>(context, slots[0], "cpus_cpus", "cpus")?;
+        ProcessCpuSetVm { cpus: cpus_cpus }
+    };
+    Ok((pid, cpus))
+}
+
+/// Encode the result for destack.process.sched.setAffinity.
+#[inline]
+fn encode_destack_process_sched_set_affinity_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.process.sched.setPriority.
+#[inline]
+fn decode_destack_process_sched_set_priority_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(ProcessId, i32)> {
+    // ignore unused context
+    let _ = context;
+
+    let pid_value = arg_value(args, 0, "pid", "ProcessId")?;
+    let pid_inner = decode_uint32(pid_value, "pid_inner", "ProcessId")?;
+    let pid = ProcessId(pid_inner);
+    let priority_value = arg_value(args, 1, "priority", "int32")?;
+    let priority = decode_int32(priority_value, "priority", "int32")?;
+    Ok((pid, priority))
+}
+
+/// Encode the result for destack.process.sched.setPriority.
+#[inline]
+fn encode_destack_process_sched_set_priority_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.process.session.getpgid.
+#[inline]
+fn decode_destack_process_session_getpgid_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(ProcessId,)> {
+    // ignore unused context
+    let _ = context;
+
+    let pid_value = arg_value(args, 0, "pid", "ProcessId")?;
+    let pid_inner = decode_uint32(pid_value, "pid_inner", "ProcessId")?;
+    let pid = ProcessId(pid_inner);
+    Ok((pid,))
+}
+
+/// Encode the result for destack.process.session.getpgid.
+#[inline]
+fn encode_destack_process_session_getpgid_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<ProcessId>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|value| vm::Value::uint(value.0 as u64, 32))
+}
+
+/// Decode arguments for destack.process.session.setpgid.
+#[inline]
+fn decode_destack_process_session_setpgid_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(ProcessId, ProcessId)> {
+    // ignore unused context
+    let _ = context;
+
+    let pid_value = arg_value(args, 0, "pid", "ProcessId")?;
+    let pid_inner = decode_uint32(pid_value, "pid_inner", "ProcessId")?;
+    let pid = ProcessId(pid_inner);
+    let pgid_value = arg_value(args, 1, "pgid", "ProcessId")?;
+    let pgid_inner = decode_uint32(pgid_value, "pgid_inner", "ProcessId")?;
+    let pgid = ProcessId(pgid_inner);
+    Ok((pid, pgid))
+}
+
+/// Encode the result for destack.process.session.setpgid.
+#[inline]
+fn encode_destack_process_session_setpgid_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Encode the result for destack.process.session.setsid.
+#[inline]
+fn encode_destack_process_session_setsid_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<ProcessId>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|value| vm::Value::uint(value.0 as u64, 32))
+}
+
+/// Decode arguments for destack.process.signals.kill.
+#[inline]
+fn decode_destack_process_signals_kill_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProcessId, Signal)> {
@@ -259,9 +1755,9 @@ fn decode_destack_process_kill_args(
     Ok((pid, signal))
 }
 
-/// Encode the result for destack.process.kill.
+/// Encode the result for destack.process.signals.kill.
 #[inline]
-fn encode_destack_process_kill_result(
+fn encode_destack_process_signals_kill_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -271,45 +1767,521 @@ fn encode_destack_process_kill_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Encode the result for destack.process.pid.
+/// Encode the result for destack.process.signals.signalMaskRead.
 #[inline]
-fn encode_destack_process_pid_result(
+fn encode_destack_process_signals_signal_mask_read_result(
     context: &mut vm::RuntimeContext<'_>,
-    result: RuntimeResult<ProcessId>,
+    result: RuntimeResult<VmArray<Signal>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.process.signals.signalMaskUpdate.
+#[inline]
+fn decode_destack_process_signals_signal_mask_update_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(SignalMaskHow, VmSlice<Signal>)> {
+    let how_value = arg_value(args, 0, "how", "SignalMaskHow")?;
+    let how_raw = decode_uint8(how_value, "how_raw", "SignalMaskHow")?;
+    let how = match how_raw {
+        0u8 => SignalMaskHow::Set,
+        1u8 => SignalMaskHow::Block,
+        2u8 => SignalMaskHow::Unblock,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "how",
+                "unknown SignalMaskHow value",
+            ))
+            .boxed());
+        }
+    };
+    let signals_value = arg_value(args, 1, "signals", "Slice<Signal>")?;
+    let signals = decode_slice::<Signal>(context, signals_value, "signals", "Slice<Signal>")?;
+    Ok((how, signals))
+}
+
+/// Encode the result for destack.process.signals.signalMaskUpdate.
+#[inline]
+fn encode_destack_process_signals_signal_mask_update_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
     let _ = context;
 
-    result.map(|value| vm::Value::uint(value.0 as u64, 32))
+    result.map(|_| vm::Value::VOID)
 }
 
-/// Encode the result for destack.process.ppid.
+/// Decode arguments for destack.process.signals.signalReceive.
 #[inline]
-fn encode_destack_process_ppid_result(
+fn decode_destack_process_signals_signal_receive_args(
     context: &mut vm::RuntimeContext<'_>,
-    result: RuntimeResult<ProcessId>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::SignalHandle,)> {
+    // ignore unused context
+    let _ = context;
+
+    let handle_value = arg_value(args, 0, "handle", "SignalHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SignalHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::SignalHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.process.signals.signalReceive.
+#[inline]
+fn encode_destack_process_signals_signal_receive_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<SignalEventVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.signal.0 as u64, 32);
+        let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+        context.allocate_aggregate(vec![field_0, field_1])
+    })
+}
+
+/// Decode arguments for destack.process.signals.signalSubscribe.
+#[inline]
+fn decode_destack_process_signals_signal_subscribe_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(Signal,)> {
+    // ignore unused context
+    let _ = context;
+
+    let signal_value = arg_value(args, 0, "signal", "Signal")?;
+    let signal_inner = decode_uint32(signal_value, "signal_inner", "Signal")?;
+    let signal = Signal(signal_inner);
+    Ok((signal,))
+}
+
+/// Encode the result for destack.process.signals.signalSubscribe.
+#[inline]
+fn encode_destack_process_signals_signal_subscribe_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<resource::SignalHandle>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
     let _ = context;
 
-    result.map(|value| vm::Value::uint(value.0 as u64, 32))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
-/// Encode the result for destack.process.uid.
+/// Decode arguments for destack.process.signals.signalTryReceive.
 #[inline]
-fn encode_destack_process_uid_result(
+fn decode_destack_process_signals_signal_try_receive_args(
     context: &mut vm::RuntimeContext<'_>,
-    result: RuntimeResult<UserId>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::SignalHandle,)> {
+    // ignore unused context
+    let _ = context;
+
+    let handle_value = arg_value(args, 0, "handle", "SignalHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SignalHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::SignalHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.process.signals.signalTryReceive.
+#[inline]
+fn encode_destack_process_signals_signal_try_receive_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<SignalEventVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.signal.0 as u64, 32);
+        let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+        context.allocate_aggregate(vec![field_0, field_1])
+    })
+}
+
+/// Decode arguments for destack.process.signals.signalTryWait.
+#[inline]
+fn decode_destack_process_signals_signal_try_wait_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(VmSlice<Signal>,)> {
+    let signals_value = arg_value(args, 0, "signals", "Slice<Signal>")?;
+    let signals = decode_slice::<Signal>(context, signals_value, "signals", "Slice<Signal>")?;
+    Ok((signals,))
+}
+
+/// Encode the result for destack.process.signals.signalTryWait.
+#[inline]
+fn encode_destack_process_signals_signal_try_wait_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<SignalEventVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.signal.0 as u64, 32);
+        let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+        context.allocate_aggregate(vec![field_0, field_1])
+    })
+}
+
+/// Decode arguments for destack.process.signals.signalUnsubscribe.
+#[inline]
+fn decode_destack_process_signals_signal_unsubscribe_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::SignalHandle,)> {
+    // ignore unused context
+    let _ = context;
+
+    let handle_value = arg_value(args, 0, "handle", "SignalHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SignalHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::SignalHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.process.signals.signalUnsubscribe.
+#[inline]
+fn encode_destack_process_signals_signal_unsubscribe_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     // ignore unused context
     let _ = context;
 
-    result.map(|value| vm::Value::uint(value.0 as u64, 32))
+    result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.process.umask.
+/// Decode arguments for destack.process.signals.signalWait.
 #[inline]
-fn decode_destack_process_umask_args(
+fn decode_destack_process_signals_signal_wait_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(VmSlice<Signal>,)> {
+    let signals_value = arg_value(args, 0, "signals", "Slice<Signal>")?;
+    let signals = decode_slice::<Signal>(context, signals_value, "signals", "Slice<Signal>")?;
+    Ok((signals,))
+}
+
+/// Encode the result for destack.process.signals.signalWait.
+#[inline]
+fn encode_destack_process_signals_signal_wait_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<SignalEventVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.signal.0 as u64, 32);
+        let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+        context.allocate_aggregate(vec![field_0, field_1])
+    })
+}
+
+/// Decode arguments for destack.process.spawn.spawn.
+#[inline]
+fn decode_destack_process_spawn_spawn_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(
+    fs::OsPathVm,
+    VmSlice<vm::StringHandle>,
+    VmSlice<vm::StringHandle>,
+    ProcessSpawnOptionsVm,
+)> {
+    let command_value = arg_value(args, 0, "command", "OsPath")?;
+    let command = {
+        if command_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "command", "OsPath",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(command_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "command",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let command_encoding_raw = decode_uint8(slots[0], "command_encoding_raw", "encoding")?;
+        let command_encoding = match command_encoding_raw {
+            1u8 => fs::PathEncoding::Bytes,
+            2u8 => fs::PathEncoding::Utf16,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "command_encoding",
+                    "unknown fs::PathEncoding value",
+                ))
+                .boxed());
+            }
+        };
+        let command_data_inner =
+            decode_array::<u8>(context, slots[1], "command_data_inner", "data")?;
+        let command_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(command_data_inner);
+        fs::OsPathVm {
+            encoding: command_encoding,
+            data: command_data,
+        }
+    };
+    let arguments_value = arg_value(args, 1, "arguments", "Slice<string>")?;
+    let arguments =
+        decode_slice::<vm::StringHandle>(context, arguments_value, "arguments", "Slice<string>")?;
+    let environment_value = arg_value(args, 2, "environment", "Slice<string>")?;
+    let environment = decode_slice::<vm::StringHandle>(
+        context,
+        environment_value,
+        "environment",
+        "Slice<string>",
+    )?;
+    let options_value = arg_value(args, 3, "options", "ProcessSpawnOptions")?;
+    let options = {
+        if options_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "options",
+                "ProcessSpawnOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(options_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "options",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let options_cwd = {
+            if slots[0].tag() != vm::ValueTag::Aggregate {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                    "options_cwd",
+                    "cwd",
+                ))
+                .boxed());
+            }
+            let slots = context
+                .aggregate_slots(slots[0])
+                .map_err(|error| RuntimeError::from(error).boxed())?;
+            if slots.len() != 2 {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "options_cwd",
+                    "expected 2 fields",
+                ))
+                .boxed());
+            }
+            let options_cwd_encoding_raw =
+                decode_uint8(slots[0], "options_cwd_encoding_raw", "encoding")?;
+            let options_cwd_encoding = match options_cwd_encoding_raw {
+                1u8 => fs::PathEncoding::Bytes,
+                2u8 => fs::PathEncoding::Utf16,
+                _ => {
+                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                        "options_cwd_encoding",
+                        "unknown fs::PathEncoding value",
+                    ))
+                    .boxed());
+                }
+            };
+            let options_cwd_data_inner =
+                decode_array::<u8>(context, slots[1], "options_cwd_data_inner", "data")?;
+            let options_cwd_data = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(
+                options_cwd_data_inner,
+            );
+            fs::OsPathVm {
+                encoding: options_cwd_encoding,
+                data: options_cwd_data,
+            }
+        };
+        let options_detached = decode_bool(slots[1], "options_detached", "detached")?;
+        let options_reset_signals = decode_bool(slots[2], "options_reset_signals", "resetSignals")?;
+        let options_new_process_group =
+            decode_bool(slots[3], "options_new_process_group", "newProcessGroup")?;
+        ProcessSpawnOptionsVm {
+            cwd: options_cwd,
+            detached: options_detached,
+            reset_signals: options_reset_signals,
+            new_process_group: options_new_process_group,
+        }
+    };
+    Ok((command, arguments, environment, options))
+}
+
+/// Encode the result for destack.process.spawn.spawn.
+#[inline]
+fn encode_destack_process_spawn_spawn_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<resource::ProcessHandle>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|value| vm::Value::uint(value.0.0, 64))
+}
+
+/// Decode arguments for destack.process.spawn.withActions.
+#[inline]
+#[allow(clippy::type_complexity)]
+fn decode_destack_process_spawn_with_actions_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(
+    fs::OsPathVm,
+    VmSlice<vm::StringHandle>,
+    VmSlice<vm::StringHandle>,
+    ProcessSpawnOptionsVm,
+    VmSlice<ProcessStdioVm>,
+    VmSlice<ProcessFdActionVm>,
+)> {
+    let command_value = arg_value(args, 0, "command", "OsPath")?;
+    let command = {
+        if command_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "command", "OsPath",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(command_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "command",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let command_encoding_raw = decode_uint8(slots[0], "command_encoding_raw", "encoding")?;
+        let command_encoding = match command_encoding_raw {
+            1u8 => fs::PathEncoding::Bytes,
+            2u8 => fs::PathEncoding::Utf16,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "command_encoding",
+                    "unknown fs::PathEncoding value",
+                ))
+                .boxed());
+            }
+        };
+        let command_data_inner =
+            decode_array::<u8>(context, slots[1], "command_data_inner", "data")?;
+        let command_data =
+            crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(command_data_inner);
+        fs::OsPathVm {
+            encoding: command_encoding,
+            data: command_data,
+        }
+    };
+    let arguments_value = arg_value(args, 1, "arguments", "Slice<string>")?;
+    let arguments =
+        decode_slice::<vm::StringHandle>(context, arguments_value, "arguments", "Slice<string>")?;
+    let environment_value = arg_value(args, 2, "environment", "Slice<string>")?;
+    let environment = decode_slice::<vm::StringHandle>(
+        context,
+        environment_value,
+        "environment",
+        "Slice<string>",
+    )?;
+    let options_value = arg_value(args, 3, "options", "ProcessSpawnOptions")?;
+    let options = {
+        if options_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "options",
+                "ProcessSpawnOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(options_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "options",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let options_cwd = {
+            if slots[0].tag() != vm::ValueTag::Aggregate {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                    "options_cwd",
+                    "cwd",
+                ))
+                .boxed());
+            }
+            let slots = context
+                .aggregate_slots(slots[0])
+                .map_err(|error| RuntimeError::from(error).boxed())?;
+            if slots.len() != 2 {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "options_cwd",
+                    "expected 2 fields",
+                ))
+                .boxed());
+            }
+            let options_cwd_encoding_raw =
+                decode_uint8(slots[0], "options_cwd_encoding_raw", "encoding")?;
+            let options_cwd_encoding = match options_cwd_encoding_raw {
+                1u8 => fs::PathEncoding::Bytes,
+                2u8 => fs::PathEncoding::Utf16,
+                _ => {
+                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                        "options_cwd_encoding",
+                        "unknown fs::PathEncoding value",
+                    ))
+                    .boxed());
+                }
+            };
+            let options_cwd_data_inner =
+                decode_array::<u8>(context, slots[1], "options_cwd_data_inner", "data")?;
+            let options_cwd_data = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(
+                options_cwd_data_inner,
+            );
+            fs::OsPathVm {
+                encoding: options_cwd_encoding,
+                data: options_cwd_data,
+            }
+        };
+        let options_detached = decode_bool(slots[1], "options_detached", "detached")?;
+        let options_reset_signals = decode_bool(slots[2], "options_reset_signals", "resetSignals")?;
+        let options_new_process_group =
+            decode_bool(slots[3], "options_new_process_group", "newProcessGroup")?;
+        ProcessSpawnOptionsVm {
+            cwd: options_cwd,
+            detached: options_detached,
+            reset_signals: options_reset_signals,
+            new_process_group: options_new_process_group,
+        }
+    };
+    let stdio_value = arg_value(args, 4, "stdio", "Slice<ProcessStdio>")?;
+    let stdio =
+        decode_slice::<ProcessStdioVm>(context, stdio_value, "stdio", "Slice<ProcessStdio>")?;
+    let actions_value = arg_value(args, 5, "actions", "Slice<ProcessFdAction>")?;
+    let actions = decode_slice::<ProcessFdActionVm>(
+        context,
+        actions_value,
+        "actions",
+        "Slice<ProcessFdAction>",
+    )?;
+    Ok((command, arguments, environment, options, stdio, actions))
+}
+
+/// Encode the result for destack.process.spawn.withActions.
+#[inline]
+fn encode_destack_process_spawn_with_actions_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<resource::ProcessHandle>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|value| vm::Value::uint(value.0.0, 64))
+}
+
+/// Decode arguments for destack.process.umask.umask.
+#[inline]
+fn decode_destack_process_umask_umask_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u32,)> {
@@ -321,9 +2293,9 @@ fn decode_destack_process_umask_args(
     Ok((mask,))
 }
 
-/// Encode the result for destack.process.umask.
+/// Encode the result for destack.process.umask.umask.
 #[inline]
-fn encode_destack_process_umask_result(
+fn encode_destack_process_umask_umask_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
@@ -333,217 +2305,1332 @@ fn encode_destack_process_umask_result(
     result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
-/// Replay payload for destack.process.args.
+/// Decode arguments for destack.process.wait.pid.
+#[inline]
+fn decode_destack_process_wait_pid_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(ProcessId, ProcessWaitFlags)> {
+    // ignore unused context
+    let _ = context;
+
+    let pid_value = arg_value(args, 0, "pid", "ProcessId")?;
+    let pid_inner = decode_uint32(pid_value, "pid_inner", "ProcessId")?;
+    let pid = ProcessId(pid_inner);
+    let flags_value = arg_value(args, 1, "flags", "ProcessWaitFlags")?;
+    let flags_inner = decode_uint32(flags_value, "flags_inner", "ProcessWaitFlags")?;
+    let flags = ProcessWaitFlags(flags_inner);
+    Ok((pid, flags))
+}
+
+/// Encode the result for destack.process.wait.pid.
+#[inline]
+fn encode_destack_process_wait_pid_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<ProcessWaitStatusVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.pid.0 as u64, 32);
+        let field_1 = vm::Value::uint(value.kind as u8 as u64, 8);
+        let field_2 = vm::Value::int(value.exit_code as i64, 32);
+        let field_3 = vm::Value::uint(value.signal.0 as u64, 32);
+        let field_4 = vm::Value::bool(value.core_dumped);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+    })
+}
+
+/// Decode arguments for destack.process.wait.tryWait.
+#[inline]
+fn decode_destack_process_wait_try_wait_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::ProcessHandle,)> {
+    // ignore unused context
+    let _ = context;
+
+    let handle_value = arg_value(args, 0, "handle", "ProcessHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "ProcessHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::ProcessHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.process.wait.tryWait.
+#[inline]
+fn encode_destack_process_wait_try_wait_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<ProcessWaitStatusVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.pid.0 as u64, 32);
+        let field_1 = vm::Value::uint(value.kind as u8 as u64, 8);
+        let field_2 = vm::Value::int(value.exit_code as i64, 32);
+        let field_3 = vm::Value::uint(value.signal.0 as u64, 32);
+        let field_4 = vm::Value::bool(value.core_dumped);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+    })
+}
+
+/// Decode arguments for destack.process.wait.wait.
+#[inline]
+fn decode_destack_process_wait_wait_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::ProcessHandle, ProcessWaitFlags)> {
+    // ignore unused context
+    let _ = context;
+
+    let handle_value = arg_value(args, 0, "handle", "ProcessHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "ProcessHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::ProcessHandle(handle_inner);
+    let flags_value = arg_value(args, 1, "flags", "ProcessWaitFlags")?;
+    let flags_inner = decode_uint32(flags_value, "flags_inner", "ProcessWaitFlags")?;
+    let flags = ProcessWaitFlags(flags_inner);
+    Ok((handle, flags))
+}
+
+/// Encode the result for destack.process.wait.wait.
+#[inline]
+fn encode_destack_process_wait_wait_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<ProcessWaitStatusVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.pid.0 as u64, 32);
+        let field_1 = vm::Value::uint(value.kind as u8 as u64, 8);
+        let field_2 = vm::Value::int(value.exit_code as i64, 32);
+        let field_3 = vm::Value::uint(value.signal.0 as u64, 32);
+        let field_4 = vm::Value::bool(value.core_dumped);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+    })
+}
+
+/// Replay payload for destack.process.args.args.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct ArgsReplay {
+struct ProcessArgsArgsReplay {
     /// Replay result payload.
     pub result: Result<Vec<String>, PlatformError>,
 }
 
-/// Replay payload for destack.process.chdir.
+/// Replay payload for destack.process.cwd.chdir.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct ChdirReplay {
+struct ProcessCwdChdirReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.process.cwd.
+/// Replay payload for destack.process.cwd.cwd.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct CwdReplay {
+struct ProcessCwdCwdReplay {
+    /// Replay result payload.
+    pub result: Result<fs::OsPathReplay, PlatformError>,
+}
+
+/// Replay payload for destack.process.env.delete.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessEnvDeleteReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.process.env.deleteBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessEnvDeleteBytesReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.process.env.get.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessEnvGetReplay {
     /// Replay result payload.
     pub result: Result<String, PlatformError>,
 }
 
-/// Replay payload for destack.process.envDelete.
+/// Replay payload for destack.process.env.getBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct EnvDeleteReplay {
+struct ProcessEnvGetBytesReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<u8>, PlatformError>,
+}
+
+/// Replay payload for destack.process.env.set.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessEnvSetReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.process.envGet.
+/// Replay payload for destack.process.env.setBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct EnvGetReplay {
-    /// Replay result payload.
-    pub result: Result<String, PlatformError>,
-}
-
-/// Replay payload for destack.process.envSet.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct EnvSetReplay {
+struct ProcessEnvSetBytesReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.process.exit.
+/// Replay payload for destack.process.exec.exec.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct ExitReplay {
+struct ProcessExecExecReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.process.gid.
+/// Replay payload for destack.process.exec.execat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct GidReplay {
+struct ProcessExecExecatReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.process.exec.fexec.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessExecFexecReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.process.exit.exit.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessExitExitReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.process.fd.processFdClose.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessFdProcessFdCloseReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.process.fd.processFdOpen.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessFdProcessFdOpenReplay {
+    /// Replay result payload.
+    pub result: Result<resource::ProcessFdHandle, PlatformError>,
+}
+
+/// Replay payload for destack.process.fd.processFdSendSignal.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessFdProcessFdSendSignalReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.process.fd.processFdTryWait.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessFdProcessFdTryWaitReplay {
+    /// Replay result payload.
+    pub result: Result<ProcessWaitStatus, PlatformError>,
+}
+
+/// Replay payload for destack.process.fd.processFdWait.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessFdProcessFdWaitReplay {
+    /// Replay result payload.
+    pub result: Result<ProcessWaitStatus, PlatformError>,
+}
+
+/// Replay payload for destack.process.fd.signalFdClose.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessFdSignalFdCloseReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.process.fd.signalFdOpen.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessFdSignalFdOpenReplay {
+    /// Replay result payload.
+    pub result: Result<resource::SignalFdHandle, PlatformError>,
+}
+
+/// Replay payload for destack.process.fd.signalFdRead.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessFdSignalFdReadReplay {
+    /// Replay result payload.
+    pub result: Result<SignalEvent, PlatformError>,
+}
+
+/// Replay payload for destack.process.fd.signalFdSetMask.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessFdSignalFdSetMaskReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.process.fd.signalFdTryRead.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessFdSignalFdTryReadReplay {
+    /// Replay result payload.
+    pub result: Result<SignalEvent, PlatformError>,
+}
+
+/// Replay payload for destack.process.ids.gid.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessIdsGidReplay {
     /// Replay result payload.
     pub result: Result<GroupId, PlatformError>,
 }
 
-/// Replay payload for destack.process.kill.
+/// Replay payload for destack.process.ids.pid.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct KillReplay {
+struct ProcessIdsPidReplay {
+    /// Replay result payload.
+    pub result: Result<ProcessId, PlatformError>,
+}
+
+/// Replay payload for destack.process.ids.ppid.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessIdsPpidReplay {
+    /// Replay result payload.
+    pub result: Result<ProcessId, PlatformError>,
+}
+
+/// Replay payload for destack.process.ids.setGid.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessIdsSetGidReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.process.pid.
+/// Replay payload for destack.process.ids.setGroups.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct PidReplay {
+struct ProcessIdsSetGroupsReplay {
     /// Replay result payload.
-    pub result: Result<ProcessId, PlatformError>,
+    pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.process.ppid.
+/// Replay payload for destack.process.ids.setUid.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct PpidReplay {
+struct ProcessIdsSetUidReplay {
     /// Replay result payload.
-    pub result: Result<ProcessId, PlatformError>,
+    pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.process.uid.
+/// Replay payload for destack.process.ids.uid.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct UidReplay {
+struct ProcessIdsUidReplay {
     /// Replay result payload.
     pub result: Result<UserId, PlatformError>,
 }
 
-/// Replay payload for destack.process.umask.
+/// Replay payload for destack.process.limits.getLimit.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct UmaskReplay {
+struct ProcessLimitsGetLimitReplay {
+    /// Replay result payload.
+    pub result: Result<ProcessLimit, PlatformError>,
+}
+
+/// Replay payload for destack.process.limits.setLimit.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessLimitsSetLimitReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.process.sched.getAffinity.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessSchedGetAffinityReplay {
+    /// Replay result payload.
+    pub result: Result<ProcessCpuSetReplay, PlatformError>,
+}
+
+/// Replay payload for destack.process.sched.getPriority.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessSchedGetPriorityReplay {
+    /// Replay result payload.
+    pub result: Result<i32, PlatformError>,
+}
+
+/// Replay payload for destack.process.sched.setAffinity.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessSchedSetAffinityReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.process.sched.setPriority.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessSchedSetPriorityReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.process.session.getpgid.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessSessionGetpgidReplay {
+    /// Replay result payload.
+    pub result: Result<ProcessId, PlatformError>,
+}
+
+/// Replay payload for destack.process.session.setpgid.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessSessionSetpgidReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.process.session.setsid.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessSessionSetsidReplay {
+    /// Replay result payload.
+    pub result: Result<ProcessId, PlatformError>,
+}
+
+/// Replay payload for destack.process.signals.kill.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessSignalsKillReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.process.signals.signalMaskRead.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessSignalsSignalMaskReadReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<Signal>, PlatformError>,
+}
+
+/// Replay payload for destack.process.signals.signalMaskUpdate.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessSignalsSignalMaskUpdateReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.process.signals.signalReceive.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessSignalsSignalReceiveReplay {
+    /// Replay result payload.
+    pub result: Result<SignalEvent, PlatformError>,
+}
+
+/// Replay payload for destack.process.signals.signalSubscribe.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessSignalsSignalSubscribeReplay {
+    /// Replay result payload.
+    pub result: Result<resource::SignalHandle, PlatformError>,
+}
+
+/// Replay payload for destack.process.signals.signalTryReceive.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessSignalsSignalTryReceiveReplay {
+    /// Replay result payload.
+    pub result: Result<SignalEvent, PlatformError>,
+}
+
+/// Replay payload for destack.process.signals.signalTryWait.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessSignalsSignalTryWaitReplay {
+    /// Replay result payload.
+    pub result: Result<SignalEvent, PlatformError>,
+}
+
+/// Replay payload for destack.process.signals.signalUnsubscribe.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessSignalsSignalUnsubscribeReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.process.signals.signalWait.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessSignalsSignalWaitReplay {
+    /// Replay result payload.
+    pub result: Result<SignalEvent, PlatformError>,
+}
+
+/// Replay payload for destack.process.spawn.spawn.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessSpawnSpawnReplay {
+    /// Replay result payload.
+    pub result: Result<resource::ProcessHandle, PlatformError>,
+}
+
+/// Replay payload for destack.process.spawn.withActions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessSpawnWithActionsReplay {
+    /// Replay result payload.
+    pub result: Result<resource::ProcessHandle, PlatformError>,
+}
+
+/// Replay payload for destack.process.umask.umask.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessUmaskUmaskReplay {
     /// Replay result payload.
     pub result: Result<u32, PlatformError>,
 }
 
-/// Binding descriptor for destack.process.args.
-pub const ARGS: BindingDescriptor = BindingDescriptor::external_with_requires(
-    "destack.process.args",
-    "export function args(): Result<Slice<string>, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["process.run"],
-);
+/// Replay payload for destack.process.wait.pid.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessWaitPidReplay {
+    /// Replay result payload.
+    pub result: Result<ProcessWaitStatus, PlatformError>,
+}
 
-/// Binding descriptor for destack.process.chdir.
-pub const CHDIR: BindingDescriptor = BindingDescriptor::external_with_requires(
-    "destack.process.chdir",
-    "export function chdir(path: string): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["process.workdir.write"],
-);
+/// Replay payload for destack.process.wait.tryWait.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessWaitTryWaitReplay {
+    /// Replay result payload.
+    pub result: Result<ProcessWaitStatus, PlatformError>,
+}
 
-/// Binding descriptor for destack.process.cwd.
-pub const CWD: BindingDescriptor = BindingDescriptor::external_with_requires(
-    "destack.process.cwd",
-    "export function cwd(): Result<string, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["process.workdir.read"],
-);
+/// Replay payload for destack.process.wait.wait.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessWaitWaitReplay {
+    /// Replay result payload.
+    pub result: Result<ProcessWaitStatus, PlatformError>,
+}
 
-/// Binding descriptor for destack.process.envDelete.
-pub const ENV_DELETE: BindingDescriptor = BindingDescriptor::external_with_requires(
-    "destack.process.envDelete",
-    "export function envDelete(name: string): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["env.write"],
-);
+/// Binding descriptor for destack.process.args.args.
+pub const PROCESS_ARGS_ARGS: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.args.args",
+        "export function args(): Result<Slice<string>, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.run"],
+        BindingScope::Runtime,
+        BindingBlocking::Never,
+    );
 
-/// Binding descriptor for destack.process.envGet.
-pub const ENV_GET: BindingDescriptor = BindingDescriptor::external_with_requires(
-    "destack.process.envGet",
-    "export function envGet(name: string): Result<string, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["env.read"],
-);
+/// Binding descriptor for destack.process.cwd.chdir.
+pub const PROCESS_CWD_CHDIR: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.cwd.chdir",
+        "export function chdir(path: OsPath): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.workdir.write"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
-/// Binding descriptor for destack.process.envSet.
-pub const ENV_SET: BindingDescriptor = BindingDescriptor::external_with_requires(
-    "destack.process.envSet",
-    "export function envSet(name: string, value: string): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["env.write"],
-);
+/// Binding descriptor for destack.process.cwd.cwd.
+pub const PROCESS_CWD_CWD: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.cwd.cwd",
+        "export function cwd(): Result<OsPath, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.workdir.read"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
-/// Binding descriptor for destack.process.exit.
-pub const EXIT: BindingDescriptor = BindingDescriptor::external_with_requires(
-    "destack.process.exit",
-    "export function exit(code: uint32): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["process.run"],
-);
+/// Binding descriptor for destack.process.env.delete.
+pub const PROCESS_ENV_DELETE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.env.delete",
+        "export function envDelete(name: string): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["env.write"],
+        BindingScope::Runtime,
+        BindingBlocking::Never,
+    );
 
-/// Binding descriptor for destack.process.gid.
-pub const GID: BindingDescriptor = BindingDescriptor::external_with_requires(
-    "destack.process.gid",
-    "export function gid(): Result<GroupId, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["process.identity.read"],
-);
+/// Binding descriptor for destack.process.env.deleteBytes.
+pub const PROCESS_ENV_DELETE_BYTES: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.env.deleteBytes",
+        "export function envDeleteBytes(name: Slice<uint8>): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["env.write"],
+        BindingScope::Runtime,
+        BindingBlocking::Never,
+    );
 
-/// Binding descriptor for destack.process.kill.
-pub const KILL: BindingDescriptor = BindingDescriptor::external_with_requires(
-    "destack.process.kill",
-    "export function kill(pid: ProcessId, signal: Signal): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["process.signal.send"],
-);
+/// Binding descriptor for destack.process.env.get.
+pub const PROCESS_ENV_GET: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.env.get",
+        "export function envGet(name: string): Result<string, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["env.read"],
+        BindingScope::Runtime,
+        BindingBlocking::Never,
+    );
 
-/// Binding descriptor for destack.process.pid.
-pub const PID: BindingDescriptor = BindingDescriptor::external_with_requires(
-    "destack.process.pid",
-    "export function pid(): Result<ProcessId, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["process.identity.read"],
-);
+/// Binding descriptor for destack.process.env.getBytes.
+pub const PROCESS_ENV_GET_BYTES: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.env.getBytes",
+        "export function envGetBytes(name: Slice<uint8>): Result<uint8[], PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["env.read"],
+        BindingScope::Runtime,
+        BindingBlocking::Never,
+    );
 
-/// Binding descriptor for destack.process.ppid.
-pub const PPID: BindingDescriptor = BindingDescriptor::external_with_requires(
-    "destack.process.ppid",
-    "export function ppid(): Result<ProcessId, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["process.identity.read"],
-);
+/// Binding descriptor for destack.process.env.set.
+pub const PROCESS_ENV_SET: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.env.set",
+        "export function envSet(name: string, value: string): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["env.write"],
+        BindingScope::Runtime,
+        BindingBlocking::Never,
+    );
 
-/// Binding descriptor for destack.process.uid.
-pub const UID: BindingDescriptor = BindingDescriptor::external_with_requires(
-    "destack.process.uid",
-    "export function uid(): Result<UserId, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["process.identity.read"],
-);
+/// Binding descriptor for destack.process.env.setBytes.
+pub const PROCESS_ENV_SET_BYTES: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.env.setBytes",
+        "export function envSetBytes(name: Slice<uint8>, value: Slice<uint8>): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["env.write"],
+        BindingScope::Runtime,
+        BindingBlocking::Never,
+    );
 
-/// Binding descriptor for destack.process.umask.
-pub const UMASK: BindingDescriptor = BindingDescriptor::external_with_requires(
-    "destack.process.umask",
-    "export function umask(mask: uint32): Result<uint32, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["process.identity.write"],
-);
+/// Binding descriptor for destack.process.exec.exec.
+pub const PROCESS_EXEC_EXEC: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.exec.exec",
+        "export function exec(command: OsPath, arguments: Slice<string>, environment: Slice<string>): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.exec"],
+        BindingScope::Os,
+        BindingBlocking::Never,
+    );
+
+/// Binding descriptor for destack.process.exec.execat.
+pub const PROCESS_EXEC_EXECAT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.exec.execat",
+        "export function execat(directory: DirectoryHandle, path: OsPath, arguments: Slice<string>, environment: Slice<string>, flags: ExecAtFlags): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.exec"],
+        BindingScope::Os,
+        BindingBlocking::Never,
+    );
+
+/// Binding descriptor for destack.process.exec.fexec.
+pub const PROCESS_EXEC_FEXEC: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.exec.fexec",
+        "export function fexec(executable: FileHandle, arguments: Slice<string>, environment: Slice<string>): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.exec"],
+        BindingScope::Os,
+        BindingBlocking::Never,
+    );
+
+/// Binding descriptor for destack.process.exit.exit.
+pub const PROCESS_EXIT_EXIT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.exit.exit",
+        "export function exit(code: uint32): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.run"],
+        BindingScope::Os,
+        BindingBlocking::Never,
+    );
+
+/// Binding descriptor for destack.process.fd.processFdClose.
+pub const PROCESS_FD_PROCESS_FD_CLOSE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.fd.processFdClose",
+        "export function processFdClose(handle: ProcessFdHandle): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.handle"],
+        BindingScope::Os,
+        BindingBlocking::Never,
+    );
+
+/// Binding descriptor for destack.process.fd.processFdOpen.
+pub const PROCESS_FD_PROCESS_FD_OPEN: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.fd.processFdOpen",
+        "export function processFdOpen(pid: ProcessId, flags: ProcessFdFlags): Result<ProcessFdHandle, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.handle"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.process.fd.processFdSendSignal.
+pub const PROCESS_FD_PROCESS_FD_SEND_SIGNAL: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.fd.processFdSendSignal",
+        "export function processFdSendSignal(handle: ProcessFdHandle, signal: Signal, flags: ProcessFdSignalFlags): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.signal.send"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.process.fd.processFdTryWait.
+pub const PROCESS_FD_PROCESS_FD_TRY_WAIT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.fd.processFdTryWait",
+        "export function processFdTryWait(handle: ProcessFdHandle): Result<ProcessWaitStatus, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.wait"],
+        BindingScope::Os,
+        BindingBlocking::Never,
+    );
+
+/// Binding descriptor for destack.process.fd.processFdWait.
+pub const PROCESS_FD_PROCESS_FD_WAIT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.fd.processFdWait",
+        "export function processFdWait(handle: ProcessFdHandle, timeoutNs: uint64): Result<ProcessWaitStatus, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.wait"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.process.fd.signalFdClose.
+pub const PROCESS_FD_SIGNAL_FD_CLOSE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.fd.signalFdClose",
+        "export function signalFdClose(handle: SignalFdHandle): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.signal.receive"],
+        BindingScope::Hybrid,
+        BindingBlocking::Never,
+    );
+
+/// Binding descriptor for destack.process.fd.signalFdOpen.
+pub const PROCESS_FD_SIGNAL_FD_OPEN: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.fd.signalFdOpen",
+        "export function signalFdOpen(signals: Slice<Signal>, flags: SignalFdFlags): Result<SignalFdHandle, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.signal.receive"],
+        BindingScope::Hybrid,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.process.fd.signalFdRead.
+pub const PROCESS_FD_SIGNAL_FD_READ: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.fd.signalFdRead",
+        "export function signalFdRead(handle: SignalFdHandle): Result<SignalEvent, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.signal.receive"],
+        BindingScope::Hybrid,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.process.fd.signalFdSetMask.
+pub const PROCESS_FD_SIGNAL_FD_SET_MASK: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.fd.signalFdSetMask",
+        "export function signalFdSetMask(handle: SignalFdHandle, signals: Slice<Signal>): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.signal.receive"],
+        BindingScope::Hybrid,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.process.fd.signalFdTryRead.
+pub const PROCESS_FD_SIGNAL_FD_TRY_READ: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.fd.signalFdTryRead",
+        "export function signalFdTryRead(handle: SignalFdHandle): Result<SignalEvent, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.signal.receive"],
+        BindingScope::Hybrid,
+        BindingBlocking::Never,
+    );
+
+/// Binding descriptor for destack.process.group.cgroupGetLimit.
+pub const PROCESS_GROUP_CGROUP_GET_LIMIT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.group.cgroupGetLimit",
+        "export function cgroupGetLimit(path: string, resource: ProcessLimitResource): Result<ProcessLimit, PlatformError>",
+        ReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["process.cgroup"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.process.group.cgroupJoin.
+pub const PROCESS_GROUP_CGROUP_JOIN: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.group.cgroupJoin",
+        "export function cgroupJoin(path: string): Result<void, PlatformError>",
+        ReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["process.cgroup"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.process.group.cgroupSetLimit.
+pub const PROCESS_GROUP_CGROUP_SET_LIMIT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.group.cgroupSetLimit",
+        "export function cgroupSetLimit(path: string, resource: ProcessLimitResource, limit: ProcessLimit): Result<void, PlatformError>",
+        ReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["process.cgroup"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.process.group.jobAssign.
+pub const PROCESS_GROUP_JOB_ASSIGN: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.group.jobAssign",
+        "export function jobAssign(name: string, pids: Slice<ProcessId>): Result<void, PlatformError>",
+        ReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["process.cgroup"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.process.group.jobSetLimit.
+pub const PROCESS_GROUP_JOB_SET_LIMIT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.group.jobSetLimit",
+        "export function jobSetLimit(name: string, resource: ProcessLimitResource, limit: ProcessLimit): Result<void, PlatformError>",
+        ReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["process.cgroup"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.process.ids.gid.
+pub const PROCESS_IDS_GID: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.ids.gid",
+        "export function gid(): Result<GroupId, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.identity.read"],
+        BindingScope::Os,
+        BindingBlocking::Never,
+    );
+
+/// Binding descriptor for destack.process.ids.pid.
+pub const PROCESS_IDS_PID: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.ids.pid",
+        "export function pid(): Result<ProcessId, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.identity.read"],
+        BindingScope::Os,
+        BindingBlocking::Never,
+    );
+
+/// Binding descriptor for destack.process.ids.ppid.
+pub const PROCESS_IDS_PPID: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.ids.ppid",
+        "export function ppid(): Result<ProcessId, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.identity.read"],
+        BindingScope::Os,
+        BindingBlocking::Never,
+    );
+
+/// Binding descriptor for destack.process.ids.setGid.
+pub const PROCESS_IDS_SET_GID: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.ids.setGid",
+        "export function setGid(groupId: GroupId): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.identity.write"],
+        BindingScope::Os,
+        BindingBlocking::Never,
+    );
+
+/// Binding descriptor for destack.process.ids.setGroups.
+pub const PROCESS_IDS_SET_GROUPS: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.ids.setGroups",
+        "export function setGroups(groups: Slice<GroupId>): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.identity.write"],
+        BindingScope::Os,
+        BindingBlocking::Never,
+    );
+
+/// Binding descriptor for destack.process.ids.setUid.
+pub const PROCESS_IDS_SET_UID: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.ids.setUid",
+        "export function setUid(userId: UserId): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.identity.write"],
+        BindingScope::Os,
+        BindingBlocking::Never,
+    );
+
+/// Binding descriptor for destack.process.ids.uid.
+pub const PROCESS_IDS_UID: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.ids.uid",
+        "export function uid(): Result<UserId, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.identity.read"],
+        BindingScope::Os,
+        BindingBlocking::Never,
+    );
+
+/// Binding descriptor for destack.process.isolation.chroot.
+pub const PROCESS_ISOLATION_CHROOT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.isolation.chroot",
+        "export function chroot(path: OsPath): Result<void, PlatformError>",
+        ReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["security.restrict"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.process.isolation.installSyscallFilter.
+pub const PROCESS_ISOLATION_INSTALL_SYSCALL_FILTER: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.isolation.installSyscallFilter",
+        "export function installSyscallFilter(program: uint8[], flags: SyscallFilterFlags): Result<void, PlatformError>",
+        ReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["security.filter"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.process.isolation.setHostName.
+pub const PROCESS_ISOLATION_SET_HOST_NAME: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.isolation.setHostName",
+        "export function setHostName(name: string): Result<void, PlatformError>",
+        ReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["process.namespace"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.process.isolation.setNetworkNamespace.
+pub const PROCESS_ISOLATION_SET_NETWORK_NAMESPACE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.isolation.setNetworkNamespace",
+        "export function setNetworkNamespace(path: OsPath): Result<void, PlatformError>",
+        ReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["process.namespace"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.process.isolation.setns.
+pub const PROCESS_ISOLATION_SETNS: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.isolation.setns",
+        "export function setns(pid: ProcessId, namespace: ProcessNamespaceKind): Result<void, PlatformError>",
+        ReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["process.namespace"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.process.isolation.unshare.
+pub const PROCESS_ISOLATION_UNSHARE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.isolation.unshare",
+        "export function unshare(flags: ProcessUnshareFlags): Result<void, PlatformError>",
+        ReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["process.namespace"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.process.limits.getLimit.
+pub const PROCESS_LIMITS_GET_LIMIT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.limits.getLimit",
+        "export function getLimit(resource: ProcessLimitResource): Result<ProcessLimit, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.run"],
+        BindingScope::Os,
+        BindingBlocking::Never,
+    );
+
+/// Binding descriptor for destack.process.limits.setLimit.
+pub const PROCESS_LIMITS_SET_LIMIT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.limits.setLimit",
+        "export function setLimit(resource: ProcessLimitResource, limit: ProcessLimit): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.run"],
+        BindingScope::Os,
+        BindingBlocking::Never,
+    );
+
+/// Binding descriptor for destack.process.sched.getAffinity.
+pub const PROCESS_SCHED_GET_AFFINITY: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.sched.getAffinity",
+        "export function getAffinity(pid: ProcessId): Result<ProcessCpuSet, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.affinity"],
+        BindingScope::Os,
+        BindingBlocking::Never,
+    );
+
+/// Binding descriptor for destack.process.sched.getPriority.
+pub const PROCESS_SCHED_GET_PRIORITY: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.sched.getPriority",
+        "export function getPriority(pid: ProcessId): Result<int32, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.priority"],
+        BindingScope::Os,
+        BindingBlocking::Never,
+    );
+
+/// Binding descriptor for destack.process.sched.setAffinity.
+pub const PROCESS_SCHED_SET_AFFINITY: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.sched.setAffinity",
+        "export function setAffinity(pid: ProcessId, cpus: ProcessCpuSet): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.affinity"],
+        BindingScope::Os,
+        BindingBlocking::Never,
+    );
+
+/// Binding descriptor for destack.process.sched.setPriority.
+pub const PROCESS_SCHED_SET_PRIORITY: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.sched.setPriority",
+        "export function setPriority(pid: ProcessId, priority: int32): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.priority"],
+        BindingScope::Os,
+        BindingBlocking::Never,
+    );
+
+/// Binding descriptor for destack.process.session.getpgid.
+pub const PROCESS_SESSION_GETPGID: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.session.getpgid",
+        "export function getpgid(pid: ProcessId): Result<ProcessId, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.session"],
+        BindingScope::Os,
+        BindingBlocking::Never,
+    );
+
+/// Binding descriptor for destack.process.session.setpgid.
+pub const PROCESS_SESSION_SETPGID: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.session.setpgid",
+        "export function setpgid(pid: ProcessId, pgid: ProcessId): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.session"],
+        BindingScope::Os,
+        BindingBlocking::Never,
+    );
+
+/// Binding descriptor for destack.process.session.setsid.
+pub const PROCESS_SESSION_SETSID: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.session.setsid",
+        "export function setsid(): Result<ProcessId, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.session"],
+        BindingScope::Os,
+        BindingBlocking::Never,
+    );
+
+/// Binding descriptor for destack.process.signals.kill.
+pub const PROCESS_SIGNALS_KILL: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.signals.kill",
+        "export function kill(pid: ProcessId, signal: Signal): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.signal.send"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.process.signals.signalMaskRead.
+pub const PROCESS_SIGNALS_SIGNAL_MASK_READ: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.signals.signalMaskRead",
+        "export function signalMaskRead(): Result<Signal[], PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.signal.receive"],
+        BindingScope::Hybrid,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.process.signals.signalMaskUpdate.
+pub const PROCESS_SIGNALS_SIGNAL_MASK_UPDATE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.signals.signalMaskUpdate",
+        "export function signalMaskUpdate(how: SignalMaskHow, signals: Slice<Signal>): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.signal.receive"],
+        BindingScope::Hybrid,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.process.signals.signalReceive.
+pub const PROCESS_SIGNALS_SIGNAL_RECEIVE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.signals.signalReceive",
+        "export function signalReceive(handle: SignalHandle): Result<SignalEvent, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.signal.receive"],
+        BindingScope::Hybrid,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.process.signals.signalSubscribe.
+pub const PROCESS_SIGNALS_SIGNAL_SUBSCRIBE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.signals.signalSubscribe",
+        "export function signalSubscribe(signal: Signal): Result<SignalHandle, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.signal.receive"],
+        BindingScope::Hybrid,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.process.signals.signalTryReceive.
+pub const PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.signals.signalTryReceive",
+        "export function signalTryReceive(handle: SignalHandle): Result<SignalEvent, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.signal.receive"],
+        BindingScope::Hybrid,
+        BindingBlocking::Never,
+    );
+
+/// Binding descriptor for destack.process.signals.signalTryWait.
+pub const PROCESS_SIGNALS_SIGNAL_TRY_WAIT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.signals.signalTryWait",
+        "export function signalTryWait(signals: Slice<Signal>): Result<SignalEvent, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.signal.receive"],
+        BindingScope::Hybrid,
+        BindingBlocking::Never,
+    );
+
+/// Binding descriptor for destack.process.signals.signalUnsubscribe.
+pub const PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.signals.signalUnsubscribe",
+        "export function signalUnsubscribe(handle: SignalHandle): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.signal.receive"],
+        BindingScope::Hybrid,
+        BindingBlocking::Never,
+    );
+
+/// Binding descriptor for destack.process.signals.signalWait.
+pub const PROCESS_SIGNALS_SIGNAL_WAIT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.signals.signalWait",
+        "export function signalWait(signals: Slice<Signal>): Result<SignalEvent, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.signal.receive"],
+        BindingScope::Hybrid,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.process.spawn.spawn.
+pub const PROCESS_SPAWN_SPAWN: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.spawn.spawn",
+        "export function spawn(command: OsPath, arguments: Slice<string>, environment: Slice<string>, options: ProcessSpawnOptions): Result<ProcessHandle, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.spawn"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.process.spawn.withActions.
+pub const PROCESS_SPAWN_WITH_ACTIONS: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.spawn.withActions",
+        "export function spawnWithActions(command: OsPath, arguments: Slice<string>, environment: Slice<string>, options: ProcessSpawnOptions, stdio: Slice<ProcessStdio>, actions: Slice<ProcessFdAction>): Result<ProcessHandle, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.spawn"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.process.umask.umask.
+pub const PROCESS_UMASK_UMASK: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.umask.umask",
+        "export function umask(mask: uint32): Result<uint32, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.identity.write"],
+        BindingScope::Os,
+        BindingBlocking::Never,
+    );
+
+/// Binding descriptor for destack.process.wait.pid.
+pub const PROCESS_WAIT_PID: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.wait.pid",
+        "export function waitPid(pid: ProcessId, flags: ProcessWaitFlags): Result<ProcessWaitStatus, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.wait"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.process.wait.tryWait.
+pub const PROCESS_WAIT_TRY_WAIT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.wait.tryWait",
+        "export function tryWait(handle: ProcessHandle): Result<ProcessWaitStatus, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.wait"],
+        BindingScope::Os,
+        BindingBlocking::Never,
+    );
+
+/// Binding descriptor for destack.process.wait.wait.
+pub const PROCESS_WAIT_WAIT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.wait.wait",
+        "export function wait(handle: ProcessHandle, flags: ProcessWaitFlags): Result<ProcessWaitStatus, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.wait"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptors for process.
 pub const BINDINGS: &[BindingDescriptor] = &[
-    ARGS, CHDIR, CWD, ENV_DELETE, ENV_GET, ENV_SET, EXIT, GID, KILL, PID, PPID, UID, UMASK,
+    PROCESS_ARGS_ARGS,
+    PROCESS_CWD_CHDIR,
+    PROCESS_CWD_CWD,
+    PROCESS_ENV_DELETE,
+    PROCESS_ENV_DELETE_BYTES,
+    PROCESS_ENV_GET,
+    PROCESS_ENV_GET_BYTES,
+    PROCESS_ENV_SET,
+    PROCESS_ENV_SET_BYTES,
+    PROCESS_EXEC_EXEC,
+    PROCESS_EXEC_EXECAT,
+    PROCESS_EXEC_FEXEC,
+    PROCESS_EXIT_EXIT,
+    PROCESS_FD_PROCESS_FD_CLOSE,
+    PROCESS_FD_PROCESS_FD_OPEN,
+    PROCESS_FD_PROCESS_FD_SEND_SIGNAL,
+    PROCESS_FD_PROCESS_FD_TRY_WAIT,
+    PROCESS_FD_PROCESS_FD_WAIT,
+    PROCESS_FD_SIGNAL_FD_CLOSE,
+    PROCESS_FD_SIGNAL_FD_OPEN,
+    PROCESS_FD_SIGNAL_FD_READ,
+    PROCESS_FD_SIGNAL_FD_SET_MASK,
+    PROCESS_FD_SIGNAL_FD_TRY_READ,
+    PROCESS_GROUP_CGROUP_GET_LIMIT,
+    PROCESS_GROUP_CGROUP_JOIN,
+    PROCESS_GROUP_CGROUP_SET_LIMIT,
+    PROCESS_GROUP_JOB_ASSIGN,
+    PROCESS_GROUP_JOB_SET_LIMIT,
+    PROCESS_IDS_GID,
+    PROCESS_IDS_PID,
+    PROCESS_IDS_PPID,
+    PROCESS_IDS_SET_GID,
+    PROCESS_IDS_SET_GROUPS,
+    PROCESS_IDS_SET_UID,
+    PROCESS_IDS_UID,
+    PROCESS_ISOLATION_CHROOT,
+    PROCESS_ISOLATION_INSTALL_SYSCALL_FILTER,
+    PROCESS_ISOLATION_SET_HOST_NAME,
+    PROCESS_ISOLATION_SET_NETWORK_NAMESPACE,
+    PROCESS_ISOLATION_SETNS,
+    PROCESS_ISOLATION_UNSHARE,
+    PROCESS_LIMITS_GET_LIMIT,
+    PROCESS_LIMITS_SET_LIMIT,
+    PROCESS_SCHED_GET_AFFINITY,
+    PROCESS_SCHED_GET_PRIORITY,
+    PROCESS_SCHED_SET_AFFINITY,
+    PROCESS_SCHED_SET_PRIORITY,
+    PROCESS_SESSION_GETPGID,
+    PROCESS_SESSION_SETPGID,
+    PROCESS_SESSION_SETSID,
+    PROCESS_SIGNALS_KILL,
+    PROCESS_SIGNALS_SIGNAL_MASK_READ,
+    PROCESS_SIGNALS_SIGNAL_MASK_UPDATE,
+    PROCESS_SIGNALS_SIGNAL_RECEIVE,
+    PROCESS_SIGNALS_SIGNAL_SUBSCRIBE,
+    PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE,
+    PROCESS_SIGNALS_SIGNAL_TRY_WAIT,
+    PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE,
+    PROCESS_SIGNALS_SIGNAL_WAIT,
+    PROCESS_SPAWN_SPAWN,
+    PROCESS_SPAWN_WITH_ACTIONS,
+    PROCESS_UMASK_UMASK,
+    PROCESS_WAIT_PID,
+    PROCESS_WAIT_TRY_WAIT,
+    PROCESS_WAIT_WAIT,
 ];
 
 /// Native binding set for process.
@@ -551,65 +3638,341 @@ pub const PROCESS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "process",
     bindings: &[
         NativeBinding::new(
-            ARGS,
-            "destack.process.args",
-            destack_process_args as *const (),
+            PROCESS_ARGS_ARGS,
+            "destack.process.args.args",
+            destack_process_args_args as *const (),
         ),
         NativeBinding::new(
-            CHDIR,
-            "destack.process.chdir",
-            destack_process_chdir as *const (),
+            PROCESS_CWD_CHDIR,
+            "destack.process.cwd.chdir",
+            destack_process_cwd_chdir as *const (),
         ),
-        NativeBinding::new(CWD, "destack.process.cwd", destack_process_cwd as *const ()),
         NativeBinding::new(
-            ENV_DELETE,
-            "destack.process.envDelete",
+            PROCESS_CWD_CWD,
+            "destack.process.cwd.cwd",
+            destack_process_cwd_cwd as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_ENV_DELETE,
+            "destack.process.env.delete",
             destack_process_env_delete as *const (),
         ),
         NativeBinding::new(
-            ENV_GET,
-            "destack.process.envGet",
+            PROCESS_ENV_DELETE_BYTES,
+            "destack.process.env.deleteBytes",
+            destack_process_env_delete_bytes as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_ENV_GET,
+            "destack.process.env.get",
             destack_process_env_get as *const (),
         ),
         NativeBinding::new(
-            ENV_SET,
-            "destack.process.envSet",
+            PROCESS_ENV_GET_BYTES,
+            "destack.process.env.getBytes",
+            destack_process_env_get_bytes as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_ENV_SET,
+            "destack.process.env.set",
             destack_process_env_set as *const (),
         ),
         NativeBinding::new(
-            EXIT,
-            "destack.process.exit",
-            destack_process_exit as *const (),
+            PROCESS_ENV_SET_BYTES,
+            "destack.process.env.setBytes",
+            destack_process_env_set_bytes as *const (),
         ),
-        NativeBinding::new(GID, "destack.process.gid", destack_process_gid as *const ()),
         NativeBinding::new(
-            KILL,
-            "destack.process.kill",
-            destack_process_kill as *const (),
+            PROCESS_EXEC_EXEC,
+            "destack.process.exec.exec",
+            destack_process_exec_exec as *const (),
         ),
-        NativeBinding::new(PID, "destack.process.pid", destack_process_pid as *const ()),
         NativeBinding::new(
-            PPID,
-            "destack.process.ppid",
-            destack_process_ppid as *const (),
+            PROCESS_EXEC_EXECAT,
+            "destack.process.exec.execat",
+            destack_process_exec_execat as *const (),
         ),
-        NativeBinding::new(UID, "destack.process.uid", destack_process_uid as *const ()),
         NativeBinding::new(
-            UMASK,
-            "destack.process.umask",
-            destack_process_umask as *const (),
+            PROCESS_EXEC_FEXEC,
+            "destack.process.exec.fexec",
+            destack_process_exec_fexec as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_EXIT_EXIT,
+            "destack.process.exit.exit",
+            destack_process_exit_exit as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_FD_PROCESS_FD_CLOSE,
+            "destack.process.fd.processFdClose",
+            destack_process_fd_process_fd_close as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_FD_PROCESS_FD_OPEN,
+            "destack.process.fd.processFdOpen",
+            destack_process_fd_process_fd_open as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_FD_PROCESS_FD_SEND_SIGNAL,
+            "destack.process.fd.processFdSendSignal",
+            destack_process_fd_process_fd_send_signal as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_FD_PROCESS_FD_TRY_WAIT,
+            "destack.process.fd.processFdTryWait",
+            destack_process_fd_process_fd_try_wait as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_FD_PROCESS_FD_WAIT,
+            "destack.process.fd.processFdWait",
+            destack_process_fd_process_fd_wait as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_FD_SIGNAL_FD_CLOSE,
+            "destack.process.fd.signalFdClose",
+            destack_process_fd_signal_fd_close as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_FD_SIGNAL_FD_OPEN,
+            "destack.process.fd.signalFdOpen",
+            destack_process_fd_signal_fd_open as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_FD_SIGNAL_FD_READ,
+            "destack.process.fd.signalFdRead",
+            destack_process_fd_signal_fd_read as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_FD_SIGNAL_FD_SET_MASK,
+            "destack.process.fd.signalFdSetMask",
+            destack_process_fd_signal_fd_set_mask as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_FD_SIGNAL_FD_TRY_READ,
+            "destack.process.fd.signalFdTryRead",
+            destack_process_fd_signal_fd_try_read as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_GROUP_CGROUP_GET_LIMIT,
+            "destack.process.group.cgroupGetLimit",
+            destack_process_group_cgroup_get_limit as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_GROUP_CGROUP_JOIN,
+            "destack.process.group.cgroupJoin",
+            destack_process_group_cgroup_join as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_GROUP_CGROUP_SET_LIMIT,
+            "destack.process.group.cgroupSetLimit",
+            destack_process_group_cgroup_set_limit as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_GROUP_JOB_ASSIGN,
+            "destack.process.group.jobAssign",
+            destack_process_group_job_assign as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_GROUP_JOB_SET_LIMIT,
+            "destack.process.group.jobSetLimit",
+            destack_process_group_job_set_limit as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_IDS_GID,
+            "destack.process.ids.gid",
+            destack_process_ids_gid as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_IDS_PID,
+            "destack.process.ids.pid",
+            destack_process_ids_pid as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_IDS_PPID,
+            "destack.process.ids.ppid",
+            destack_process_ids_ppid as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_IDS_SET_GID,
+            "destack.process.ids.setGid",
+            destack_process_ids_set_gid as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_IDS_SET_GROUPS,
+            "destack.process.ids.setGroups",
+            destack_process_ids_set_groups as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_IDS_SET_UID,
+            "destack.process.ids.setUid",
+            destack_process_ids_set_uid as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_IDS_UID,
+            "destack.process.ids.uid",
+            destack_process_ids_uid as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_ISOLATION_CHROOT,
+            "destack.process.isolation.chroot",
+            destack_process_isolation_chroot as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_ISOLATION_INSTALL_SYSCALL_FILTER,
+            "destack.process.isolation.installSyscallFilter",
+            destack_process_isolation_install_syscall_filter as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_ISOLATION_SET_HOST_NAME,
+            "destack.process.isolation.setHostName",
+            destack_process_isolation_set_host_name as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_ISOLATION_SET_NETWORK_NAMESPACE,
+            "destack.process.isolation.setNetworkNamespace",
+            destack_process_isolation_set_network_namespace as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_ISOLATION_SETNS,
+            "destack.process.isolation.setns",
+            destack_process_isolation_setns as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_ISOLATION_UNSHARE,
+            "destack.process.isolation.unshare",
+            destack_process_isolation_unshare as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_LIMITS_GET_LIMIT,
+            "destack.process.limits.getLimit",
+            destack_process_limits_get_limit as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_LIMITS_SET_LIMIT,
+            "destack.process.limits.setLimit",
+            destack_process_limits_set_limit as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_SCHED_GET_AFFINITY,
+            "destack.process.sched.getAffinity",
+            destack_process_sched_get_affinity as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_SCHED_GET_PRIORITY,
+            "destack.process.sched.getPriority",
+            destack_process_sched_get_priority as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_SCHED_SET_AFFINITY,
+            "destack.process.sched.setAffinity",
+            destack_process_sched_set_affinity as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_SCHED_SET_PRIORITY,
+            "destack.process.sched.setPriority",
+            destack_process_sched_set_priority as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_SESSION_GETPGID,
+            "destack.process.session.getpgid",
+            destack_process_session_getpgid as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_SESSION_SETPGID,
+            "destack.process.session.setpgid",
+            destack_process_session_setpgid as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_SESSION_SETSID,
+            "destack.process.session.setsid",
+            destack_process_session_setsid as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_SIGNALS_KILL,
+            "destack.process.signals.kill",
+            destack_process_signals_kill as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_SIGNALS_SIGNAL_MASK_READ,
+            "destack.process.signals.signalMaskRead",
+            destack_process_signals_signal_mask_read as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_SIGNALS_SIGNAL_MASK_UPDATE,
+            "destack.process.signals.signalMaskUpdate",
+            destack_process_signals_signal_mask_update as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_SIGNALS_SIGNAL_RECEIVE,
+            "destack.process.signals.signalReceive",
+            destack_process_signals_signal_receive as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_SIGNALS_SIGNAL_SUBSCRIBE,
+            "destack.process.signals.signalSubscribe",
+            destack_process_signals_signal_subscribe as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE,
+            "destack.process.signals.signalTryReceive",
+            destack_process_signals_signal_try_receive as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_SIGNALS_SIGNAL_TRY_WAIT,
+            "destack.process.signals.signalTryWait",
+            destack_process_signals_signal_try_wait as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE,
+            "destack.process.signals.signalUnsubscribe",
+            destack_process_signals_signal_unsubscribe as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_SIGNALS_SIGNAL_WAIT,
+            "destack.process.signals.signalWait",
+            destack_process_signals_signal_wait as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_SPAWN_SPAWN,
+            "destack.process.spawn.spawn",
+            destack_process_spawn_spawn as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_SPAWN_WITH_ACTIONS,
+            "destack.process.spawn.withActions",
+            destack_process_spawn_with_actions as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_UMASK_UMASK,
+            "destack.process.umask.umask",
+            destack_process_umask_umask as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_WAIT_PID,
+            "destack.process.wait.pid",
+            destack_process_wait_pid as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_WAIT_TRY_WAIT,
+            "destack.process.wait.tryWait",
+            destack_process_wait_try_wait as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_WAIT_WAIT,
+            "destack.process.wait.wait",
+            destack_process_wait_wait as *const (),
         ),
     ],
 };
 
 /// Native replay implementations for process bindings.
 #[inline]
-fn destack_process_args_replay(
+fn destack_process_args_args_replay(
     context: &RuntimeCallContext,
     out: *mut NativeStringSlice,
 ) -> RuntimeResult<()> {
     context.replay().run_binding(
-        ARGS,
+        PROCESS_ARGS_ARGS,
         || unsafe { platform_native::destack_process_args(context, out) },
         |result| {
             if let Ok(()) = result {
@@ -626,7 +3989,7 @@ fn destack_process_args_replay(
                         unsafe { result_replay_item.as_str()? }.to_string();
                     result_replay.push(result_replay_item_replay);
                 }
-                let payload = ArgsReplay {
+                let payload = ProcessArgsArgsReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -635,7 +3998,7 @@ fn destack_process_args_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ArgsReplay { result }
+                    ProcessArgsArgsReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -664,19 +4027,19 @@ fn destack_process_args_replay(
 }
 
 #[inline]
-fn destack_process_chdir_replay(
+fn destack_process_cwd_chdir_replay(
     context: &RuntimeCallContext,
-    path: NativeStringRef,
+    path: fs::OsPath,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
     context.replay().run_binding(
-        CHDIR,
+        PROCESS_CWD_CHDIR,
         || unsafe { platform_native::destack_process_chdir(context, path) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = ChdirReplay {
+                let payload = ProcessCwdChdirReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -685,7 +4048,7 @@ fn destack_process_chdir_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ChdirReplay { result }
+                    ProcessCwdChdirReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -703,12 +4066,12 @@ fn destack_process_chdir_replay(
 }
 
 #[inline]
-fn destack_process_cwd_replay(
+fn destack_process_cwd_cwd_replay(
     context: &RuntimeCallContext,
-    out: *mut NativeStringRef,
+    out: *mut fs::OsPath,
 ) -> RuntimeResult<()> {
     context.replay().run_binding(
-        CWD,
+        PROCESS_CWD_CWD,
         || unsafe { platform_native::destack_process_cwd(context, out) },
         |result| {
             if let Ok(()) = result {
@@ -718,8 +4081,19 @@ fn destack_process_cwd_replay(
                     }
                     *out
                 };
-                let result_replay = unsafe { result_value.as_str()? }.to_string();
-                let payload = CwdReplay {
+                let result_replay_encoding = result_value.encoding;
+                let result_replay_data_raw = unsafe { result_value.data.0.as_slice()? };
+                let mut result_replay_data = Vec::with_capacity(result_replay_data_raw.len());
+                for result_replay_data_item_value in result_replay_data_raw {
+                    let result_replay_data_item = *result_replay_data_item_value;
+                    let result_replay_data_item_replay = result_replay_data_item;
+                    result_replay_data.push(result_replay_data_item_replay);
+                }
+                let result_replay = fs::OsPathReplay {
+                    encoding: result_replay_encoding,
+                    data: result_replay_data,
+                };
+                let payload = ProcessCwdCwdReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -728,7 +4102,7 @@ fn destack_process_cwd_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    CwdReplay { result }
+                    ProcessCwdCwdReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -739,7 +4113,21 @@ fn destack_process_cwd_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native = context.store_string(&value);
+                    let value_native_encoding = value.encoding;
+                    let mut value_native_data_inner_values = Vec::with_capacity(value.data.len());
+                    for value_native_data_inner_item in value.data {
+                        let value_native_data_inner_item_native = value_native_data_inner_item;
+                        value_native_data_inner_values.push(value_native_data_inner_item_native);
+                    }
+                    let value_native_data_inner =
+                        context.store_array(value_native_data_inner_values);
+                    let value_native_data = crate::platform::fs::PathBytesAbi::<
+                        crate::platform::abi::NativeAbi,
+                    >(value_native_data_inner);
+                    let value_native = fs::OsPath {
+                        encoding: value_native_encoding,
+                        data: value_native_data,
+                    };
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -759,12 +4147,12 @@ fn destack_process_env_delete_replay(
     let _ = &name;
 
     context.replay().run_binding(
-        ENV_DELETE,
+        PROCESS_ENV_DELETE,
         || unsafe { platform_native::destack_process_env_delete(context, name) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = EnvDeleteReplay {
+                let payload = ProcessEnvDeleteReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -773,7 +4161,46 @@ fn destack_process_env_delete_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    EnvDeleteReplay { result }
+                    ProcessEnvDeleteReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_env_delete_bytes_replay(
+    context: &RuntimeCallContext,
+    name: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    let _ = &name;
+
+    context.replay().run_binding(
+        PROCESS_ENV_DELETE_BYTES,
+        || unsafe { platform_native::destack_process_env_delete_bytes(context, name) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessEnvDeleteBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessEnvDeleteBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -799,7 +4226,7 @@ fn destack_process_env_get_replay(
     let _ = &name;
 
     context.replay().run_binding(
-        ENV_GET,
+        PROCESS_ENV_GET,
         || unsafe { platform_native::destack_process_env_get(context, out, name) },
         |result| {
             if let Ok(()) = result {
@@ -810,7 +4237,7 @@ fn destack_process_env_get_replay(
                     *out
                 };
                 let result_replay = unsafe { result_value.as_str()? }.to_string();
-                let payload = EnvGetReplay {
+                let payload = ProcessEnvGetReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -819,7 +4246,7 @@ fn destack_process_env_get_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    EnvGetReplay { result }
+                    ProcessEnvGetReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -843,6 +4270,69 @@ fn destack_process_env_get_replay(
 }
 
 #[inline]
+fn destack_process_env_get_bytes_replay(
+    context: &RuntimeCallContext,
+    out: *mut NativeArray<u8>,
+    name: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    let _ = &name;
+
+    context.replay().run_binding(
+        PROCESS_ENV_GET_BYTES,
+        || unsafe { platform_native::destack_process_env_get_bytes(context, out, name) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay_raw = unsafe { result_value.as_slice()? };
+                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
+                for result_replay_item_value in result_replay_raw {
+                    let result_replay_item = *result_replay_item_value;
+                    let result_replay_item_replay = result_replay_item;
+                    result_replay.push(result_replay_item_replay);
+                }
+                let payload = ProcessEnvGetBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessEnvGetBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native = value_native_item;
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_array(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
 fn destack_process_env_set_replay(
     context: &RuntimeCallContext,
     name: NativeStringRef,
@@ -851,12 +4341,12 @@ fn destack_process_env_set_replay(
     let _ = (&name, &value);
 
     context.replay().run_binding(
-        ENV_SET,
+        PROCESS_ENV_SET,
         || unsafe { platform_native::destack_process_env_set(context, name, value) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = EnvSetReplay {
+                let payload = ProcessEnvSetReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -865,7 +4355,7 @@ fn destack_process_env_set_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    EnvSetReplay { result }
+                    ProcessEnvSetReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -883,16 +4373,194 @@ fn destack_process_env_set_replay(
 }
 
 #[inline]
-fn destack_process_exit_replay(context: &RuntimeCallContext, code: u32) -> RuntimeResult<()> {
+fn destack_process_env_set_bytes_replay(
+    context: &RuntimeCallContext,
+    name: NativeSlice<u8>,
+    value: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    let _ = (&name, &value);
+
+    context.replay().run_binding(
+        PROCESS_ENV_SET_BYTES,
+        || unsafe { platform_native::destack_process_env_set_bytes(context, name, value) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessEnvSetBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessEnvSetBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_exec_exec_replay(
+    context: &RuntimeCallContext,
+    command: fs::OsPath,
+    arguments: NativeStringSlice,
+    environment: NativeStringSlice,
+) -> RuntimeResult<()> {
+    let _ = (&command, &arguments, &environment);
+
+    context.replay().run_binding(
+        PROCESS_EXEC_EXEC,
+        || unsafe {
+            platform_native::destack_process_exec(context, command, arguments, environment)
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessExecExecReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessExecExecReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_exec_execat_replay(
+    context: &RuntimeCallContext,
+    directory: resource::DirectoryHandle,
+    path: fs::OsPath,
+    arguments: NativeStringSlice,
+    environment: NativeStringSlice,
+    flags: ExecAtFlags,
+) -> RuntimeResult<()> {
+    let _ = (&directory, &path, &arguments, &environment, &flags);
+
+    context.replay().run_binding(
+        PROCESS_EXEC_EXECAT,
+        || unsafe {
+            platform_native::destack_process_execat(
+                context,
+                directory,
+                path,
+                arguments,
+                environment,
+                flags,
+            )
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessExecExecatReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessExecExecatReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_exec_fexec_replay(
+    context: &RuntimeCallContext,
+    executable: resource::FileHandle,
+    arguments: NativeStringSlice,
+    environment: NativeStringSlice,
+) -> RuntimeResult<()> {
+    let _ = (&executable, &arguments, &environment);
+
+    context.replay().run_binding(
+        PROCESS_EXEC_FEXEC,
+        || unsafe {
+            platform_native::destack_process_fexec(context, executable, arguments, environment)
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessExecFexecReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessExecFexecReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_exit_exit_replay(context: &RuntimeCallContext, code: u32) -> RuntimeResult<()> {
     let _ = &code;
 
     context.replay().run_binding(
-        EXIT,
+        PROCESS_EXIT_EXIT,
         || unsafe { platform_native::destack_process_exit(context, code) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = ExitReplay {
+                let payload = ProcessExitExitReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -901,7 +4569,7 @@ fn destack_process_exit_replay(context: &RuntimeCallContext, code: u32) -> Runti
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ExitReplay { result }
+                    ProcessExitExitReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -919,12 +4587,554 @@ fn destack_process_exit_replay(context: &RuntimeCallContext, code: u32) -> Runti
 }
 
 #[inline]
-fn destack_process_gid_replay(
+fn destack_process_fd_process_fd_close_replay(
+    context: &RuntimeCallContext,
+    handle: resource::ProcessFdHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding(
+        PROCESS_FD_PROCESS_FD_CLOSE,
+        || unsafe { platform_native::destack_process_process_fd_close(context, handle) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessFdProcessFdCloseReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessFdProcessFdCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_fd_process_fd_open_replay(
+    context: &RuntimeCallContext,
+    out: *mut resource::ProcessFdHandle,
+    pid: ProcessId,
+    flags: ProcessFdFlags,
+) -> RuntimeResult<()> {
+    let _ = (&pid, &flags);
+
+    context.replay().run_binding(
+        PROCESS_FD_PROCESS_FD_OPEN,
+        || unsafe { platform_native::destack_process_process_fd_open(context, out, pid, flags) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay = result_value;
+                let payload = ProcessFdProcessFdOpenReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessFdProcessFdOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_fd_process_fd_send_signal_replay(
+    context: &RuntimeCallContext,
+    handle: resource::ProcessFdHandle,
+    signal: Signal,
+    flags: ProcessFdSignalFlags,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &signal, &flags);
+
+    context.replay().run_binding(
+        PROCESS_FD_PROCESS_FD_SEND_SIGNAL,
+        || unsafe {
+            platform_native::destack_process_process_fd_send_signal(context, handle, signal, flags)
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessFdProcessFdSendSignalReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessFdProcessFdSendSignalReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_fd_process_fd_try_wait_replay(
+    context: &RuntimeCallContext,
+    out: *mut ProcessWaitStatus,
+    handle: resource::ProcessFdHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding(
+        PROCESS_FD_PROCESS_FD_TRY_WAIT,
+        || unsafe { platform_native::destack_process_process_fd_try_wait(context, out, handle) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay_pid = result_value.pid;
+                let result_replay_kind = result_value.kind;
+                let result_replay_exit_code = result_value.exit_code;
+                let result_replay_signal = result_value.signal;
+                let result_replay_core_dumped = result_value.core_dumped;
+                let result_replay = ProcessWaitStatus {
+                    pid: result_replay_pid,
+                    kind: result_replay_kind,
+                    exit_code: result_replay_exit_code,
+                    signal: result_replay_signal,
+                    core_dumped: result_replay_core_dumped,
+                };
+                let payload = ProcessFdProcessFdTryWaitReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessFdProcessFdTryWaitReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_pid = value.pid;
+                    let value_native_kind = value.kind;
+                    let value_native_exit_code = value.exit_code;
+                    let value_native_signal = value.signal;
+                    let value_native_core_dumped = value.core_dumped;
+                    let value_native = ProcessWaitStatus {
+                        pid: value_native_pid,
+                        kind: value_native_kind,
+                        exit_code: value_native_exit_code,
+                        signal: value_native_signal,
+                        core_dumped: value_native_core_dumped,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_fd_process_fd_wait_replay(
+    context: &RuntimeCallContext,
+    out: *mut ProcessWaitStatus,
+    handle: resource::ProcessFdHandle,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &timeoutns);
+
+    context.replay().run_binding(
+        PROCESS_FD_PROCESS_FD_WAIT,
+        || unsafe {
+            platform_native::destack_process_process_fd_wait(context, out, handle, timeoutns)
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay_pid = result_value.pid;
+                let result_replay_kind = result_value.kind;
+                let result_replay_exit_code = result_value.exit_code;
+                let result_replay_signal = result_value.signal;
+                let result_replay_core_dumped = result_value.core_dumped;
+                let result_replay = ProcessWaitStatus {
+                    pid: result_replay_pid,
+                    kind: result_replay_kind,
+                    exit_code: result_replay_exit_code,
+                    signal: result_replay_signal,
+                    core_dumped: result_replay_core_dumped,
+                };
+                let payload = ProcessFdProcessFdWaitReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessFdProcessFdWaitReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_pid = value.pid;
+                    let value_native_kind = value.kind;
+                    let value_native_exit_code = value.exit_code;
+                    let value_native_signal = value.signal;
+                    let value_native_core_dumped = value.core_dumped;
+                    let value_native = ProcessWaitStatus {
+                        pid: value_native_pid,
+                        kind: value_native_kind,
+                        exit_code: value_native_exit_code,
+                        signal: value_native_signal,
+                        core_dumped: value_native_core_dumped,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_fd_signal_fd_close_replay(
+    context: &RuntimeCallContext,
+    handle: resource::SignalFdHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding(
+        PROCESS_FD_SIGNAL_FD_CLOSE,
+        || unsafe { platform_native::destack_process_signal_fd_close(context, handle) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessFdSignalFdCloseReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessFdSignalFdCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_fd_signal_fd_open_replay(
+    context: &RuntimeCallContext,
+    out: *mut resource::SignalFdHandle,
+    signals: NativeSlice<Signal>,
+    flags: SignalFdFlags,
+) -> RuntimeResult<()> {
+    let _ = (&signals, &flags);
+
+    context.replay().run_binding(
+        PROCESS_FD_SIGNAL_FD_OPEN,
+        || unsafe { platform_native::destack_process_signal_fd_open(context, out, signals, flags) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay = result_value;
+                let payload = ProcessFdSignalFdOpenReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessFdSignalFdOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_fd_signal_fd_read_replay(
+    context: &RuntimeCallContext,
+    out: *mut SignalEvent,
+    handle: resource::SignalFdHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding(
+        PROCESS_FD_SIGNAL_FD_READ,
+        || unsafe { platform_native::destack_process_signal_fd_read(context, out, handle) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay_signal = result_value.signal;
+                let result_replay_pid = result_value.pid;
+                let result_replay = SignalEvent {
+                    signal: result_replay_signal,
+                    pid: result_replay_pid,
+                };
+                let payload = ProcessFdSignalFdReadReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessFdSignalFdReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_signal = value.signal;
+                    let value_native_pid = value.pid;
+                    let value_native = SignalEvent {
+                        signal: value_native_signal,
+                        pid: value_native_pid,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_fd_signal_fd_set_mask_replay(
+    context: &RuntimeCallContext,
+    handle: resource::SignalFdHandle,
+    signals: NativeSlice<Signal>,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &signals);
+
+    context.replay().run_binding(
+        PROCESS_FD_SIGNAL_FD_SET_MASK,
+        || unsafe { platform_native::destack_process_signal_fd_set_mask(context, handle, signals) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessFdSignalFdSetMaskReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessFdSignalFdSetMaskReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_fd_signal_fd_try_read_replay(
+    context: &RuntimeCallContext,
+    out: *mut SignalEvent,
+    handle: resource::SignalFdHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding(
+        PROCESS_FD_SIGNAL_FD_TRY_READ,
+        || unsafe { platform_native::destack_process_signal_fd_try_read(context, out, handle) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay_signal = result_value.signal;
+                let result_replay_pid = result_value.pid;
+                let result_replay = SignalEvent {
+                    signal: result_replay_signal,
+                    pid: result_replay_pid,
+                };
+                let payload = ProcessFdSignalFdTryReadReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessFdSignalFdTryReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_signal = value.signal;
+                    let value_native_pid = value.pid;
+                    let value_native = SignalEvent {
+                        signal: value_native_signal,
+                        pid: value_native_pid,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_ids_gid_replay(
     context: &RuntimeCallContext,
     out: *mut GroupId,
 ) -> RuntimeResult<()> {
     context.replay().run_binding(
-        GID,
+        PROCESS_IDS_GID,
         || unsafe { platform_native::destack_process_gid(context, out) },
         |result| {
             if let Ok(()) = result {
@@ -935,7 +5145,7 @@ fn destack_process_gid_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = GidReplay {
+                let payload = ProcessIdsGidReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -944,7 +5154,7 @@ fn destack_process_gid_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    GidReplay { result }
+                    ProcessIdsGidReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -968,20 +5178,23 @@ fn destack_process_gid_replay(
 }
 
 #[inline]
-fn destack_process_kill_replay(
+fn destack_process_ids_pid_replay(
     context: &RuntimeCallContext,
-    pid: ProcessId,
-    signal: Signal,
+    out: *mut ProcessId,
 ) -> RuntimeResult<()> {
-    let _ = (&pid, &signal);
-
     context.replay().run_binding(
-        KILL,
-        || unsafe { platform_native::destack_process_kill(context, pid, signal) },
+        PROCESS_IDS_PID,
+        || unsafe { platform_native::destack_process_pid(context, out) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
-                let payload = KillReplay {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay = result_value;
+                let payload = ProcessIdsPidReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -990,7 +5203,101 @@ fn destack_process_kill_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    KillReplay { result }
+                    ProcessIdsPidReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_ids_ppid_replay(
+    context: &RuntimeCallContext,
+    out: *mut ProcessId,
+) -> RuntimeResult<()> {
+    context.replay().run_binding(
+        PROCESS_IDS_PPID,
+        || unsafe { platform_native::destack_process_ppid(context, out) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay = result_value;
+                let payload = ProcessIdsPpidReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessIdsPpidReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_ids_set_gid_replay(
+    context: &RuntimeCallContext,
+    groupid: GroupId,
+) -> RuntimeResult<()> {
+    let _ = &groupid;
+
+    context.replay().run_binding(
+        PROCESS_IDS_SET_GID,
+        || unsafe { platform_native::destack_process_set_gid(context, groupid) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessIdsSetGidReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessIdsSetGidReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1008,23 +5315,19 @@ fn destack_process_kill_replay(
 }
 
 #[inline]
-fn destack_process_pid_replay(
+fn destack_process_ids_set_groups_replay(
     context: &RuntimeCallContext,
-    out: *mut ProcessId,
+    groups: NativeSlice<GroupId>,
 ) -> RuntimeResult<()> {
+    let _ = &groups;
+
     context.replay().run_binding(
-        PID,
-        || unsafe { platform_native::destack_process_pid(context, out) },
+        PROCESS_IDS_SET_GROUPS,
+        || unsafe { platform_native::destack_process_set_groups(context, groups) },
         |result| {
             if let Ok(()) = result {
-                let result_value = unsafe {
-                    if out.is_null() {
-                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-                    }
-                    *out
-                };
-                let result_replay = result_value;
-                let payload = PidReplay {
+                let result_replay = ();
+                let payload = ProcessIdsSetGroupsReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1033,7 +5336,7 @@ fn destack_process_pid_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    PidReplay { result }
+                    ProcessIdsSetGroupsReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1043,13 +5346,7 @@ fn destack_process_pid_replay(
         |payload| {
             // replay result
             match payload.result {
-                Ok(value) => {
-                    let value_native = value;
-                    unsafe {
-                        std::ptr::write(out, value_native);
-                    }
-                    Ok(())
-                }
+                Ok(()) => Ok(()),
                 Err(error) => Err(RuntimeError::from(error).boxed()),
             }
         },
@@ -1057,23 +5354,19 @@ fn destack_process_pid_replay(
 }
 
 #[inline]
-fn destack_process_ppid_replay(
+fn destack_process_ids_set_uid_replay(
     context: &RuntimeCallContext,
-    out: *mut ProcessId,
+    userid: UserId,
 ) -> RuntimeResult<()> {
+    let _ = &userid;
+
     context.replay().run_binding(
-        PPID,
-        || unsafe { platform_native::destack_process_ppid(context, out) },
+        PROCESS_IDS_SET_UID,
+        || unsafe { platform_native::destack_process_set_uid(context, userid) },
         |result| {
             if let Ok(()) = result {
-                let result_value = unsafe {
-                    if out.is_null() {
-                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-                    }
-                    *out
-                };
-                let result_replay = result_value;
-                let payload = PpidReplay {
+                let result_replay = ();
+                let payload = ProcessIdsSetUidReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1082,7 +5375,7 @@ fn destack_process_ppid_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    PpidReplay { result }
+                    ProcessIdsSetUidReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1092,13 +5385,7 @@ fn destack_process_ppid_replay(
         |payload| {
             // replay result
             match payload.result {
-                Ok(value) => {
-                    let value_native = value;
-                    unsafe {
-                        std::ptr::write(out, value_native);
-                    }
-                    Ok(())
-                }
+                Ok(()) => Ok(()),
                 Err(error) => Err(RuntimeError::from(error).boxed()),
             }
         },
@@ -1106,9 +5393,12 @@ fn destack_process_ppid_replay(
 }
 
 #[inline]
-fn destack_process_uid_replay(context: &RuntimeCallContext, out: *mut UserId) -> RuntimeResult<()> {
+fn destack_process_ids_uid_replay(
+    context: &RuntimeCallContext,
+    out: *mut UserId,
+) -> RuntimeResult<()> {
     context.replay().run_binding(
-        UID,
+        PROCESS_IDS_UID,
         || unsafe { platform_native::destack_process_uid(context, out) },
         |result| {
             if let Ok(()) = result {
@@ -1119,7 +5409,7 @@ fn destack_process_uid_replay(context: &RuntimeCallContext, out: *mut UserId) ->
                     *out
                 };
                 let result_replay = result_value;
-                let payload = UidReplay {
+                let payload = ProcessIdsUidReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1128,7 +5418,7 @@ fn destack_process_uid_replay(context: &RuntimeCallContext, out: *mut UserId) ->
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    UidReplay { result }
+                    ProcessIdsUidReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1152,16 +5442,187 @@ fn destack_process_uid_replay(context: &RuntimeCallContext, out: *mut UserId) ->
 }
 
 #[inline]
-fn destack_process_umask_replay(
+fn destack_process_limits_get_limit_replay(
     context: &RuntimeCallContext,
-    out: *mut u32,
-    mask: u32,
+    out: *mut ProcessLimit,
+    resource: ProcessLimitResource,
 ) -> RuntimeResult<()> {
-    let _ = &mask;
+    let _ = &resource;
 
     context.replay().run_binding(
-        UMASK,
-        || unsafe { platform_native::destack_process_umask(context, out, mask) },
+        PROCESS_LIMITS_GET_LIMIT,
+        || unsafe { platform_native::destack_process_get_limit(context, out, resource) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay_soft = result_value.soft;
+                let result_replay_hard = result_value.hard;
+                let result_replay = ProcessLimit {
+                    soft: result_replay_soft,
+                    hard: result_replay_hard,
+                };
+                let payload = ProcessLimitsGetLimitReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessLimitsGetLimitReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_soft = value.soft;
+                    let value_native_hard = value.hard;
+                    let value_native = ProcessLimit {
+                        soft: value_native_soft,
+                        hard: value_native_hard,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_limits_set_limit_replay(
+    context: &RuntimeCallContext,
+    resource: ProcessLimitResource,
+    limit: ProcessLimit,
+) -> RuntimeResult<()> {
+    let _ = (&resource, &limit);
+
+    context.replay().run_binding(
+        PROCESS_LIMITS_SET_LIMIT,
+        || unsafe { platform_native::destack_process_set_limit(context, resource, limit) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessLimitsSetLimitReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessLimitsSetLimitReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_sched_get_affinity_replay(
+    context: &RuntimeCallContext,
+    out: *mut ProcessCpuSet,
+    pid: ProcessId,
+) -> RuntimeResult<()> {
+    let _ = &pid;
+
+    context.replay().run_binding(
+        PROCESS_SCHED_GET_AFFINITY,
+        || unsafe { platform_native::destack_process_get_affinity(context, out, pid) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay_cpus_raw = unsafe { result_value.cpus.as_slice()? };
+                let mut result_replay_cpus = Vec::with_capacity(result_replay_cpus_raw.len());
+                for result_replay_cpus_item_value in result_replay_cpus_raw {
+                    let result_replay_cpus_item = *result_replay_cpus_item_value;
+                    let result_replay_cpus_item_replay = result_replay_cpus_item;
+                    result_replay_cpus.push(result_replay_cpus_item_replay);
+                }
+                let result_replay = ProcessCpuSetReplay {
+                    cpus: result_replay_cpus,
+                };
+                let payload = ProcessSchedGetAffinityReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSchedGetAffinityReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_cpus_values = Vec::with_capacity(value.cpus.len());
+                    for value_native_cpus_item in value.cpus {
+                        let value_native_cpus_item_native = value_native_cpus_item;
+                        value_native_cpus_values.push(value_native_cpus_item_native);
+                    }
+                    let value_native_cpus = context.store_array(value_native_cpus_values);
+                    let value_native = ProcessCpuSet {
+                        cpus: value_native_cpus,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_sched_get_priority_replay(
+    context: &RuntimeCallContext,
+    out: *mut i32,
+    pid: ProcessId,
+) -> RuntimeResult<()> {
+    let _ = &pid;
+
+    context.replay().run_binding(
+        PROCESS_SCHED_GET_PRIORITY,
+        || unsafe { platform_native::destack_process_get_priority(context, out, pid) },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
@@ -1171,7 +5632,7 @@ fn destack_process_umask_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = UmaskReplay {
+                let payload = ProcessSchedGetPriorityReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1180,7 +5641,7 @@ fn destack_process_umask_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    UmaskReplay { result }
+                    ProcessSchedGetPriorityReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1192,6 +5653,1121 @@ fn destack_process_umask_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_sched_set_affinity_replay(
+    context: &RuntimeCallContext,
+    pid: ProcessId,
+    cpus: ProcessCpuSet,
+) -> RuntimeResult<()> {
+    let _ = (&pid, &cpus);
+
+    context.replay().run_binding(
+        PROCESS_SCHED_SET_AFFINITY,
+        || unsafe { platform_native::destack_process_set_affinity(context, pid, cpus) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessSchedSetAffinityReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSchedSetAffinityReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_sched_set_priority_replay(
+    context: &RuntimeCallContext,
+    pid: ProcessId,
+    priority: i32,
+) -> RuntimeResult<()> {
+    let _ = (&pid, &priority);
+
+    context.replay().run_binding(
+        PROCESS_SCHED_SET_PRIORITY,
+        || unsafe { platform_native::destack_process_set_priority(context, pid, priority) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessSchedSetPriorityReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSchedSetPriorityReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_session_getpgid_replay(
+    context: &RuntimeCallContext,
+    out: *mut ProcessId,
+    pid: ProcessId,
+) -> RuntimeResult<()> {
+    let _ = &pid;
+
+    context.replay().run_binding(
+        PROCESS_SESSION_GETPGID,
+        || unsafe { platform_native::destack_process_getpgid(context, out, pid) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay = result_value;
+                let payload = ProcessSessionGetpgidReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSessionGetpgidReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_session_setpgid_replay(
+    context: &RuntimeCallContext,
+    pid: ProcessId,
+    pgid: ProcessId,
+) -> RuntimeResult<()> {
+    let _ = (&pid, &pgid);
+
+    context.replay().run_binding(
+        PROCESS_SESSION_SETPGID,
+        || unsafe { platform_native::destack_process_setpgid(context, pid, pgid) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessSessionSetpgidReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSessionSetpgidReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_session_setsid_replay(
+    context: &RuntimeCallContext,
+    out: *mut ProcessId,
+) -> RuntimeResult<()> {
+    context.replay().run_binding(
+        PROCESS_SESSION_SETSID,
+        || unsafe { platform_native::destack_process_setsid(context, out) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay = result_value;
+                let payload = ProcessSessionSetsidReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSessionSetsidReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_signals_kill_replay(
+    context: &RuntimeCallContext,
+    pid: ProcessId,
+    signal: Signal,
+) -> RuntimeResult<()> {
+    let _ = (&pid, &signal);
+
+    context.replay().run_binding(
+        PROCESS_SIGNALS_KILL,
+        || unsafe { platform_native::destack_process_kill(context, pid, signal) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessSignalsKillReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSignalsKillReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_signals_signal_mask_read_replay(
+    context: &RuntimeCallContext,
+    out: *mut NativeArray<Signal>,
+) -> RuntimeResult<()> {
+    context.replay().run_binding(
+        PROCESS_SIGNALS_SIGNAL_MASK_READ,
+        || unsafe { platform_native::destack_process_signal_mask_read(context, out) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay_raw = unsafe { result_value.as_slice()? };
+                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
+                for result_replay_item_value in result_replay_raw {
+                    let result_replay_item = *result_replay_item_value;
+                    let result_replay_item_replay = result_replay_item;
+                    result_replay.push(result_replay_item_replay);
+                }
+                let payload = ProcessSignalsSignalMaskReadReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSignalsSignalMaskReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native = value_native_item;
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_array(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_signals_signal_mask_update_replay(
+    context: &RuntimeCallContext,
+    how: SignalMaskHow,
+    signals: NativeSlice<Signal>,
+) -> RuntimeResult<()> {
+    let _ = (&how, &signals);
+
+    context.replay().run_binding(
+        PROCESS_SIGNALS_SIGNAL_MASK_UPDATE,
+        || unsafe { platform_native::destack_process_signal_mask_update(context, how, signals) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessSignalsSignalMaskUpdateReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSignalsSignalMaskUpdateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_signals_signal_receive_replay(
+    context: &RuntimeCallContext,
+    out: *mut SignalEvent,
+    handle: resource::SignalHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding(
+        PROCESS_SIGNALS_SIGNAL_RECEIVE,
+        || unsafe { platform_native::destack_process_signal_receive(context, out, handle) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay_signal = result_value.signal;
+                let result_replay_pid = result_value.pid;
+                let result_replay = SignalEvent {
+                    signal: result_replay_signal,
+                    pid: result_replay_pid,
+                };
+                let payload = ProcessSignalsSignalReceiveReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSignalsSignalReceiveReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_signal = value.signal;
+                    let value_native_pid = value.pid;
+                    let value_native = SignalEvent {
+                        signal: value_native_signal,
+                        pid: value_native_pid,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_signals_signal_subscribe_replay(
+    context: &RuntimeCallContext,
+    out: *mut resource::SignalHandle,
+    signal: Signal,
+) -> RuntimeResult<()> {
+    let _ = &signal;
+
+    context.replay().run_binding(
+        PROCESS_SIGNALS_SIGNAL_SUBSCRIBE,
+        || unsafe { platform_native::destack_process_signal_subscribe(context, out, signal) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay = result_value;
+                let payload = ProcessSignalsSignalSubscribeReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSignalsSignalSubscribeReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_signals_signal_try_receive_replay(
+    context: &RuntimeCallContext,
+    out: *mut SignalEvent,
+    handle: resource::SignalHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding(
+        PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE,
+        || unsafe { platform_native::destack_process_signal_try_receive(context, out, handle) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay_signal = result_value.signal;
+                let result_replay_pid = result_value.pid;
+                let result_replay = SignalEvent {
+                    signal: result_replay_signal,
+                    pid: result_replay_pid,
+                };
+                let payload = ProcessSignalsSignalTryReceiveReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSignalsSignalTryReceiveReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_signal = value.signal;
+                    let value_native_pid = value.pid;
+                    let value_native = SignalEvent {
+                        signal: value_native_signal,
+                        pid: value_native_pid,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_signals_signal_try_wait_replay(
+    context: &RuntimeCallContext,
+    out: *mut SignalEvent,
+    signals: NativeSlice<Signal>,
+) -> RuntimeResult<()> {
+    let _ = &signals;
+
+    context.replay().run_binding(
+        PROCESS_SIGNALS_SIGNAL_TRY_WAIT,
+        || unsafe { platform_native::destack_process_signal_try_wait(context, out, signals) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay_signal = result_value.signal;
+                let result_replay_pid = result_value.pid;
+                let result_replay = SignalEvent {
+                    signal: result_replay_signal,
+                    pid: result_replay_pid,
+                };
+                let payload = ProcessSignalsSignalTryWaitReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSignalsSignalTryWaitReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_signal = value.signal;
+                    let value_native_pid = value.pid;
+                    let value_native = SignalEvent {
+                        signal: value_native_signal,
+                        pid: value_native_pid,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_signals_signal_unsubscribe_replay(
+    context: &RuntimeCallContext,
+    handle: resource::SignalHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding(
+        PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE,
+        || unsafe { platform_native::destack_process_signal_unsubscribe(context, handle) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessSignalsSignalUnsubscribeReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSignalsSignalUnsubscribeReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_signals_signal_wait_replay(
+    context: &RuntimeCallContext,
+    out: *mut SignalEvent,
+    signals: NativeSlice<Signal>,
+) -> RuntimeResult<()> {
+    let _ = &signals;
+
+    context.replay().run_binding(
+        PROCESS_SIGNALS_SIGNAL_WAIT,
+        || unsafe { platform_native::destack_process_signal_wait(context, out, signals) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay_signal = result_value.signal;
+                let result_replay_pid = result_value.pid;
+                let result_replay = SignalEvent {
+                    signal: result_replay_signal,
+                    pid: result_replay_pid,
+                };
+                let payload = ProcessSignalsSignalWaitReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSignalsSignalWaitReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_signal = value.signal;
+                    let value_native_pid = value.pid;
+                    let value_native = SignalEvent {
+                        signal: value_native_signal,
+                        pid: value_native_pid,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_spawn_spawn_replay(
+    context: &RuntimeCallContext,
+    out: *mut resource::ProcessHandle,
+    command: fs::OsPath,
+    arguments: NativeStringSlice,
+    environment: NativeStringSlice,
+    options: ProcessSpawnOptions,
+) -> RuntimeResult<()> {
+    let _ = (&command, &arguments, &environment, &options);
+
+    context.replay().run_binding(
+        PROCESS_SPAWN_SPAWN,
+        || unsafe {
+            platform_native::destack_process_spawn(
+                context,
+                out,
+                command,
+                arguments,
+                environment,
+                options,
+            )
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay = result_value;
+                let payload = ProcessSpawnSpawnReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSpawnSpawnReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_spawn_with_actions_replay(
+    context: &RuntimeCallContext,
+    out: *mut resource::ProcessHandle,
+    command: fs::OsPath,
+    arguments: NativeStringSlice,
+    environment: NativeStringSlice,
+    options: ProcessSpawnOptions,
+    stdio: NativeSlice<ProcessStdio>,
+    actions: NativeSlice<ProcessFdAction>,
+) -> RuntimeResult<()> {
+    let _ = (
+        &command,
+        &arguments,
+        &environment,
+        &options,
+        &stdio,
+        &actions,
+    );
+
+    context.replay().run_binding(
+        PROCESS_SPAWN_WITH_ACTIONS,
+        || unsafe {
+            platform_native::destack_process_spawn_with_actions(
+                context,
+                out,
+                command,
+                arguments,
+                environment,
+                options,
+                stdio,
+                actions,
+            )
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay = result_value;
+                let payload = ProcessSpawnWithActionsReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSpawnWithActionsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_umask_umask_replay(
+    context: &RuntimeCallContext,
+    out: *mut u32,
+    mask: u32,
+) -> RuntimeResult<()> {
+    let _ = &mask;
+
+    context.replay().run_binding(
+        PROCESS_UMASK_UMASK,
+        || unsafe { platform_native::destack_process_umask(context, out, mask) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay = result_value;
+                let payload = ProcessUmaskUmaskReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessUmaskUmaskReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_wait_pid_replay(
+    context: &RuntimeCallContext,
+    out: *mut ProcessWaitStatus,
+    pid: ProcessId,
+    flags: ProcessWaitFlags,
+) -> RuntimeResult<()> {
+    let _ = (&pid, &flags);
+
+    context.replay().run_binding(
+        PROCESS_WAIT_PID,
+        || unsafe { platform_native::destack_process_wait_pid(context, out, pid, flags) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay_pid = result_value.pid;
+                let result_replay_kind = result_value.kind;
+                let result_replay_exit_code = result_value.exit_code;
+                let result_replay_signal = result_value.signal;
+                let result_replay_core_dumped = result_value.core_dumped;
+                let result_replay = ProcessWaitStatus {
+                    pid: result_replay_pid,
+                    kind: result_replay_kind,
+                    exit_code: result_replay_exit_code,
+                    signal: result_replay_signal,
+                    core_dumped: result_replay_core_dumped,
+                };
+                let payload = ProcessWaitPidReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessWaitPidReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_pid = value.pid;
+                    let value_native_kind = value.kind;
+                    let value_native_exit_code = value.exit_code;
+                    let value_native_signal = value.signal;
+                    let value_native_core_dumped = value.core_dumped;
+                    let value_native = ProcessWaitStatus {
+                        pid: value_native_pid,
+                        kind: value_native_kind,
+                        exit_code: value_native_exit_code,
+                        signal: value_native_signal,
+                        core_dumped: value_native_core_dumped,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_wait_try_wait_replay(
+    context: &RuntimeCallContext,
+    out: *mut ProcessWaitStatus,
+    handle: resource::ProcessHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding(
+        PROCESS_WAIT_TRY_WAIT,
+        || unsafe { platform_native::destack_process_try_wait(context, out, handle) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay_pid = result_value.pid;
+                let result_replay_kind = result_value.kind;
+                let result_replay_exit_code = result_value.exit_code;
+                let result_replay_signal = result_value.signal;
+                let result_replay_core_dumped = result_value.core_dumped;
+                let result_replay = ProcessWaitStatus {
+                    pid: result_replay_pid,
+                    kind: result_replay_kind,
+                    exit_code: result_replay_exit_code,
+                    signal: result_replay_signal,
+                    core_dumped: result_replay_core_dumped,
+                };
+                let payload = ProcessWaitTryWaitReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessWaitTryWaitReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_pid = value.pid;
+                    let value_native_kind = value.kind;
+                    let value_native_exit_code = value.exit_code;
+                    let value_native_signal = value.signal;
+                    let value_native_core_dumped = value.core_dumped;
+                    let value_native = ProcessWaitStatus {
+                        pid: value_native_pid,
+                        kind: value_native_kind,
+                        exit_code: value_native_exit_code,
+                        signal: value_native_signal,
+                        core_dumped: value_native_core_dumped,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_wait_wait_replay(
+    context: &RuntimeCallContext,
+    out: *mut ProcessWaitStatus,
+    handle: resource::ProcessHandle,
+    flags: ProcessWaitFlags,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &flags);
+
+    context.replay().run_binding(
+        PROCESS_WAIT_WAIT,
+        || unsafe { platform_native::destack_process_wait(context, out, handle, flags) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay_pid = result_value.pid;
+                let result_replay_kind = result_value.kind;
+                let result_replay_exit_code = result_value.exit_code;
+                let result_replay_signal = result_value.signal;
+                let result_replay_core_dumped = result_value.core_dumped;
+                let result_replay = ProcessWaitStatus {
+                    pid: result_replay_pid,
+                    kind: result_replay_kind,
+                    exit_code: result_replay_exit_code,
+                    signal: result_replay_signal,
+                    core_dumped: result_replay_core_dumped,
+                };
+                let payload = ProcessWaitWaitReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessWaitWaitReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_pid = value.pid;
+                    let value_native_kind = value.kind;
+                    let value_native_exit_code = value.exit_code;
+                    let value_native_signal = value.signal;
+                    let value_native_core_dumped = value.core_dumped;
+                    let value_native = ProcessWaitStatus {
+                        pid: value_native_pid,
+                        kind: value_native_kind,
+                        exit_code: value_native_exit_code,
+                        signal: value_native_signal,
+                        core_dumped: value_native_core_dumped,
+                    };
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -1204,59 +6780,69 @@ fn destack_process_umask_replay(
 }
 
 /// Native export wrappers for process bindings.
-#[unsafe(export_name = "destack.process.args")]
-pub unsafe extern "C" fn destack_process_args(out: *mut NativeStringSlice) -> RuntimeStatus {
+#[unsafe(export_name = "destack.process.args.args")]
+pub unsafe extern "C" fn destack_process_args_args(out: *mut NativeStringSlice) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(ARGS)?;
+        context.check_policy(PROCESS_ARGS_ARGS)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = &out;
 
-        destack_process_args_replay(context, out)
+        destack_process_args_args_replay(context, out)
     })
 }
 
-#[unsafe(export_name = "destack.process.chdir")]
-pub unsafe extern "C" fn destack_process_chdir(path: NativeStringRef) -> RuntimeStatus {
+#[unsafe(export_name = "destack.process.cwd.chdir")]
+pub unsafe extern "C" fn destack_process_cwd_chdir(path: fs::OsPath) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(CHDIR)?;
+        context.check_policy(PROCESS_CWD_CHDIR)?;
         let _ = &path;
 
-        destack_process_chdir_replay(context, path)
+        destack_process_cwd_chdir_replay(context, path)
     })
 }
 
-#[unsafe(export_name = "destack.process.cwd")]
-pub unsafe extern "C" fn destack_process_cwd(out: *mut NativeStringRef) -> RuntimeStatus {
+#[unsafe(export_name = "destack.process.cwd.cwd")]
+pub unsafe extern "C" fn destack_process_cwd_cwd(out: *mut fs::OsPath) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(CWD)?;
+        context.check_policy(PROCESS_CWD_CWD)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = &out;
 
-        destack_process_cwd_replay(context, out)
+        destack_process_cwd_cwd_replay(context, out)
     })
 }
 
-#[unsafe(export_name = "destack.process.envDelete")]
+#[unsafe(export_name = "destack.process.env.delete")]
 pub unsafe extern "C" fn destack_process_env_delete(name: NativeStringRef) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(ENV_DELETE)?;
+        context.check_policy(PROCESS_ENV_DELETE)?;
         let _ = &name;
 
         destack_process_env_delete_replay(context, name)
     })
 }
 
-#[unsafe(export_name = "destack.process.envGet")]
+#[unsafe(export_name = "destack.process.env.deleteBytes")]
+pub unsafe extern "C" fn destack_process_env_delete_bytes(name: NativeSlice<u8>) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_ENV_DELETE_BYTES)?;
+        let _ = &name;
+
+        destack_process_env_delete_bytes_replay(context, name)
+    })
+}
+
+#[unsafe(export_name = "destack.process.env.get")]
 pub unsafe extern "C" fn destack_process_env_get(
     out: *mut NativeStringRef,
     name: NativeStringRef,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(ENV_GET)?;
+        context.check_policy(PROCESS_ENV_GET)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
@@ -1266,112 +6852,866 @@ pub unsafe extern "C" fn destack_process_env_get(
     })
 }
 
-#[unsafe(export_name = "destack.process.envSet")]
+#[unsafe(export_name = "destack.process.env.getBytes")]
+pub unsafe extern "C" fn destack_process_env_get_bytes(
+    out: *mut NativeArray<u8>,
+    name: NativeSlice<u8>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_ENV_GET_BYTES)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &name);
+
+        destack_process_env_get_bytes_replay(context, out, name)
+    })
+}
+
+#[unsafe(export_name = "destack.process.env.set")]
 pub unsafe extern "C" fn destack_process_env_set(
     name: NativeStringRef,
     value: NativeStringRef,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(ENV_SET)?;
+        context.check_policy(PROCESS_ENV_SET)?;
         let _ = (&name, &value);
 
         destack_process_env_set_replay(context, name, value)
     })
 }
 
-#[unsafe(export_name = "destack.process.exit")]
-pub unsafe extern "C" fn destack_process_exit(code: u32) -> RuntimeStatus {
+#[unsafe(export_name = "destack.process.env.setBytes")]
+pub unsafe extern "C" fn destack_process_env_set_bytes(
+    name: NativeSlice<u8>,
+    value: NativeSlice<u8>,
+) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(EXIT)?;
+        context.check_policy(PROCESS_ENV_SET_BYTES)?;
+        let _ = (&name, &value);
+
+        destack_process_env_set_bytes_replay(context, name, value)
+    })
+}
+
+#[unsafe(export_name = "destack.process.exec.exec")]
+pub unsafe extern "C" fn destack_process_exec_exec(
+    command: fs::OsPath,
+    arguments: NativeStringSlice,
+    environment: NativeStringSlice,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_EXEC_EXEC)?;
+        let _ = (&command, &arguments, &environment);
+
+        destack_process_exec_exec_replay(context, command, arguments, environment)
+    })
+}
+
+#[unsafe(export_name = "destack.process.exec.execat")]
+pub unsafe extern "C" fn destack_process_exec_execat(
+    directory: resource::DirectoryHandle,
+    path: fs::OsPath,
+    arguments: NativeStringSlice,
+    environment: NativeStringSlice,
+    flags: ExecAtFlags,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_EXEC_EXECAT)?;
+        let _ = (&directory, &path, &arguments, &environment, &flags);
+
+        destack_process_exec_execat_replay(context, directory, path, arguments, environment, flags)
+    })
+}
+
+#[unsafe(export_name = "destack.process.exec.fexec")]
+pub unsafe extern "C" fn destack_process_exec_fexec(
+    executable: resource::FileHandle,
+    arguments: NativeStringSlice,
+    environment: NativeStringSlice,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_EXEC_FEXEC)?;
+        let _ = (&executable, &arguments, &environment);
+
+        destack_process_exec_fexec_replay(context, executable, arguments, environment)
+    })
+}
+
+#[unsafe(export_name = "destack.process.exit.exit")]
+pub unsafe extern "C" fn destack_process_exit_exit(code: u32) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_EXIT_EXIT)?;
         let _ = &code;
 
-        destack_process_exit_replay(context, code)
+        destack_process_exit_exit_replay(context, code)
     })
 }
 
-#[unsafe(export_name = "destack.process.gid")]
-pub unsafe extern "C" fn destack_process_gid(out: *mut GroupId) -> RuntimeStatus {
+#[unsafe(export_name = "destack.process.fd.processFdClose")]
+pub unsafe extern "C" fn destack_process_fd_process_fd_close(
+    handle: resource::ProcessFdHandle,
+) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(GID)?;
+        context.check_policy(PROCESS_FD_PROCESS_FD_CLOSE)?;
+        let _ = &handle;
+
+        destack_process_fd_process_fd_close_replay(context, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.process.fd.processFdOpen")]
+pub unsafe extern "C" fn destack_process_fd_process_fd_open(
+    out: *mut resource::ProcessFdHandle,
+    pid: ProcessId,
+    flags: ProcessFdFlags,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_FD_PROCESS_FD_OPEN)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &pid, &flags);
+
+        destack_process_fd_process_fd_open_replay(context, out, pid, flags)
+    })
+}
+
+#[unsafe(export_name = "destack.process.fd.processFdSendSignal")]
+pub unsafe extern "C" fn destack_process_fd_process_fd_send_signal(
+    handle: resource::ProcessFdHandle,
+    signal: Signal,
+    flags: ProcessFdSignalFlags,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_FD_PROCESS_FD_SEND_SIGNAL)?;
+        let _ = (&handle, &signal, &flags);
+
+        destack_process_fd_process_fd_send_signal_replay(context, handle, signal, flags)
+    })
+}
+
+#[unsafe(export_name = "destack.process.fd.processFdTryWait")]
+pub unsafe extern "C" fn destack_process_fd_process_fd_try_wait(
+    out: *mut ProcessWaitStatus,
+    handle: resource::ProcessFdHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_FD_PROCESS_FD_TRY_WAIT)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        destack_process_fd_process_fd_try_wait_replay(context, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.process.fd.processFdWait")]
+pub unsafe extern "C" fn destack_process_fd_process_fd_wait(
+    out: *mut ProcessWaitStatus,
+    handle: resource::ProcessFdHandle,
+    timeoutns: u64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_FD_PROCESS_FD_WAIT)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &timeoutns);
+
+        destack_process_fd_process_fd_wait_replay(context, out, handle, timeoutns)
+    })
+}
+
+#[unsafe(export_name = "destack.process.fd.signalFdClose")]
+pub unsafe extern "C" fn destack_process_fd_signal_fd_close(
+    handle: resource::SignalFdHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_FD_SIGNAL_FD_CLOSE)?;
+        let _ = &handle;
+
+        destack_process_fd_signal_fd_close_replay(context, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.process.fd.signalFdOpen")]
+pub unsafe extern "C" fn destack_process_fd_signal_fd_open(
+    out: *mut resource::SignalFdHandle,
+    signals: NativeSlice<Signal>,
+    flags: SignalFdFlags,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_FD_SIGNAL_FD_OPEN)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &signals, &flags);
+
+        destack_process_fd_signal_fd_open_replay(context, out, signals, flags)
+    })
+}
+
+#[unsafe(export_name = "destack.process.fd.signalFdRead")]
+pub unsafe extern "C" fn destack_process_fd_signal_fd_read(
+    out: *mut SignalEvent,
+    handle: resource::SignalFdHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_FD_SIGNAL_FD_READ)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        destack_process_fd_signal_fd_read_replay(context, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.process.fd.signalFdSetMask")]
+pub unsafe extern "C" fn destack_process_fd_signal_fd_set_mask(
+    handle: resource::SignalFdHandle,
+    signals: NativeSlice<Signal>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_FD_SIGNAL_FD_SET_MASK)?;
+        let _ = (&handle, &signals);
+
+        destack_process_fd_signal_fd_set_mask_replay(context, handle, signals)
+    })
+}
+
+#[unsafe(export_name = "destack.process.fd.signalFdTryRead")]
+pub unsafe extern "C" fn destack_process_fd_signal_fd_try_read(
+    out: *mut SignalEvent,
+    handle: resource::SignalFdHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_FD_SIGNAL_FD_TRY_READ)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        destack_process_fd_signal_fd_try_read_replay(context, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.process.group.cgroupGetLimit")]
+pub unsafe extern "C" fn destack_process_group_cgroup_get_limit(
+    out: *mut ProcessLimit,
+    path: NativeStringRef,
+    resource: ProcessLimitResource,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_GROUP_CGROUP_GET_LIMIT)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &path, &resource);
+
+        unsafe { platform_native::destack_process_cgroup_get_limit(context, out, path, resource) }
+    })
+}
+
+#[unsafe(export_name = "destack.process.group.cgroupJoin")]
+pub unsafe extern "C" fn destack_process_group_cgroup_join(path: NativeStringRef) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_GROUP_CGROUP_JOIN)?;
+        let _ = &path;
+
+        unsafe { platform_native::destack_process_cgroup_join(context, path) }
+    })
+}
+
+#[unsafe(export_name = "destack.process.group.cgroupSetLimit")]
+pub unsafe extern "C" fn destack_process_group_cgroup_set_limit(
+    path: NativeStringRef,
+    resource: ProcessLimitResource,
+    limit: ProcessLimit,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_GROUP_CGROUP_SET_LIMIT)?;
+        let _ = (&path, &resource, &limit);
+
+        unsafe { platform_native::destack_process_cgroup_set_limit(context, path, resource, limit) }
+    })
+}
+
+#[unsafe(export_name = "destack.process.group.jobAssign")]
+pub unsafe extern "C" fn destack_process_group_job_assign(
+    name: NativeStringRef,
+    pids: NativeSlice<ProcessId>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_GROUP_JOB_ASSIGN)?;
+        let _ = (&name, &pids);
+
+        unsafe { platform_native::destack_process_job_assign(context, name, pids) }
+    })
+}
+
+#[unsafe(export_name = "destack.process.group.jobSetLimit")]
+pub unsafe extern "C" fn destack_process_group_job_set_limit(
+    name: NativeStringRef,
+    resource: ProcessLimitResource,
+    limit: ProcessLimit,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_GROUP_JOB_SET_LIMIT)?;
+        let _ = (&name, &resource, &limit);
+
+        unsafe { platform_native::destack_process_job_set_limit(context, name, resource, limit) }
+    })
+}
+
+#[unsafe(export_name = "destack.process.ids.gid")]
+pub unsafe extern "C" fn destack_process_ids_gid(out: *mut GroupId) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_IDS_GID)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = &out;
 
-        destack_process_gid_replay(context, out)
+        destack_process_ids_gid_replay(context, out)
     })
 }
 
-#[unsafe(export_name = "destack.process.kill")]
-pub unsafe extern "C" fn destack_process_kill(pid: ProcessId, signal: Signal) -> RuntimeStatus {
+#[unsafe(export_name = "destack.process.ids.pid")]
+pub unsafe extern "C" fn destack_process_ids_pid(out: *mut ProcessId) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(KILL)?;
+        context.check_policy(PROCESS_IDS_PID)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        destack_process_ids_pid_replay(context, out)
+    })
+}
+
+#[unsafe(export_name = "destack.process.ids.ppid")]
+pub unsafe extern "C" fn destack_process_ids_ppid(out: *mut ProcessId) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_IDS_PPID)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        destack_process_ids_ppid_replay(context, out)
+    })
+}
+
+#[unsafe(export_name = "destack.process.ids.setGid")]
+pub unsafe extern "C" fn destack_process_ids_set_gid(groupid: GroupId) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_IDS_SET_GID)?;
+        let _ = &groupid;
+
+        destack_process_ids_set_gid_replay(context, groupid)
+    })
+}
+
+#[unsafe(export_name = "destack.process.ids.setGroups")]
+pub unsafe extern "C" fn destack_process_ids_set_groups(
+    groups: NativeSlice<GroupId>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_IDS_SET_GROUPS)?;
+        let _ = &groups;
+
+        destack_process_ids_set_groups_replay(context, groups)
+    })
+}
+
+#[unsafe(export_name = "destack.process.ids.setUid")]
+pub unsafe extern "C" fn destack_process_ids_set_uid(userid: UserId) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_IDS_SET_UID)?;
+        let _ = &userid;
+
+        destack_process_ids_set_uid_replay(context, userid)
+    })
+}
+
+#[unsafe(export_name = "destack.process.ids.uid")]
+pub unsafe extern "C" fn destack_process_ids_uid(out: *mut UserId) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_IDS_UID)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        destack_process_ids_uid_replay(context, out)
+    })
+}
+
+#[unsafe(export_name = "destack.process.isolation.chroot")]
+pub unsafe extern "C" fn destack_process_isolation_chroot(path: fs::OsPath) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_ISOLATION_CHROOT)?;
+        let _ = &path;
+
+        unsafe { platform_native::destack_process_chroot(context, path) }
+    })
+}
+
+#[unsafe(export_name = "destack.process.isolation.installSyscallFilter")]
+pub unsafe extern "C" fn destack_process_isolation_install_syscall_filter(
+    program: NativeArray<u8>,
+    flags: SyscallFilterFlags,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_ISOLATION_INSTALL_SYSCALL_FILTER)?;
+        let _ = (&program, &flags);
+
+        unsafe { platform_native::destack_process_install_syscall_filter(context, program, flags) }
+    })
+}
+
+#[unsafe(export_name = "destack.process.isolation.setHostName")]
+pub unsafe extern "C" fn destack_process_isolation_set_host_name(
+    name: NativeStringRef,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_ISOLATION_SET_HOST_NAME)?;
+        let _ = &name;
+
+        unsafe { platform_native::destack_process_set_host_name(context, name) }
+    })
+}
+
+#[unsafe(export_name = "destack.process.isolation.setNetworkNamespace")]
+pub unsafe extern "C" fn destack_process_isolation_set_network_namespace(
+    path: fs::OsPath,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_ISOLATION_SET_NETWORK_NAMESPACE)?;
+        let _ = &path;
+
+        unsafe { platform_native::destack_process_set_network_namespace(context, path) }
+    })
+}
+
+#[unsafe(export_name = "destack.process.isolation.setns")]
+pub unsafe extern "C" fn destack_process_isolation_setns(
+    pid: ProcessId,
+    namespace: ProcessNamespaceKind,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_ISOLATION_SETNS)?;
+        let _ = (&pid, &namespace);
+
+        unsafe { platform_native::destack_process_setns(context, pid, namespace) }
+    })
+}
+
+#[unsafe(export_name = "destack.process.isolation.unshare")]
+pub unsafe extern "C" fn destack_process_isolation_unshare(
+    flags: ProcessUnshareFlags,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_ISOLATION_UNSHARE)?;
+        let _ = &flags;
+
+        unsafe { platform_native::destack_process_unshare(context, flags) }
+    })
+}
+
+#[unsafe(export_name = "destack.process.limits.getLimit")]
+pub unsafe extern "C" fn destack_process_limits_get_limit(
+    out: *mut ProcessLimit,
+    resource: ProcessLimitResource,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_LIMITS_GET_LIMIT)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &resource);
+
+        destack_process_limits_get_limit_replay(context, out, resource)
+    })
+}
+
+#[unsafe(export_name = "destack.process.limits.setLimit")]
+pub unsafe extern "C" fn destack_process_limits_set_limit(
+    resource: ProcessLimitResource,
+    limit: ProcessLimit,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_LIMITS_SET_LIMIT)?;
+        let _ = (&resource, &limit);
+
+        destack_process_limits_set_limit_replay(context, resource, limit)
+    })
+}
+
+#[unsafe(export_name = "destack.process.sched.getAffinity")]
+pub unsafe extern "C" fn destack_process_sched_get_affinity(
+    out: *mut ProcessCpuSet,
+    pid: ProcessId,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_SCHED_GET_AFFINITY)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &pid);
+
+        destack_process_sched_get_affinity_replay(context, out, pid)
+    })
+}
+
+#[unsafe(export_name = "destack.process.sched.getPriority")]
+pub unsafe extern "C" fn destack_process_sched_get_priority(
+    out: *mut i32,
+    pid: ProcessId,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_SCHED_GET_PRIORITY)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &pid);
+
+        destack_process_sched_get_priority_replay(context, out, pid)
+    })
+}
+
+#[unsafe(export_name = "destack.process.sched.setAffinity")]
+pub unsafe extern "C" fn destack_process_sched_set_affinity(
+    pid: ProcessId,
+    cpus: ProcessCpuSet,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_SCHED_SET_AFFINITY)?;
+        let _ = (&pid, &cpus);
+
+        destack_process_sched_set_affinity_replay(context, pid, cpus)
+    })
+}
+
+#[unsafe(export_name = "destack.process.sched.setPriority")]
+pub unsafe extern "C" fn destack_process_sched_set_priority(
+    pid: ProcessId,
+    priority: i32,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_SCHED_SET_PRIORITY)?;
+        let _ = (&pid, &priority);
+
+        destack_process_sched_set_priority_replay(context, pid, priority)
+    })
+}
+
+#[unsafe(export_name = "destack.process.session.getpgid")]
+pub unsafe extern "C" fn destack_process_session_getpgid(
+    out: *mut ProcessId,
+    pid: ProcessId,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_SESSION_GETPGID)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &pid);
+
+        destack_process_session_getpgid_replay(context, out, pid)
+    })
+}
+
+#[unsafe(export_name = "destack.process.session.setpgid")]
+pub unsafe extern "C" fn destack_process_session_setpgid(
+    pid: ProcessId,
+    pgid: ProcessId,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_SESSION_SETPGID)?;
+        let _ = (&pid, &pgid);
+
+        destack_process_session_setpgid_replay(context, pid, pgid)
+    })
+}
+
+#[unsafe(export_name = "destack.process.session.setsid")]
+pub unsafe extern "C" fn destack_process_session_setsid(out: *mut ProcessId) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_SESSION_SETSID)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        destack_process_session_setsid_replay(context, out)
+    })
+}
+
+#[unsafe(export_name = "destack.process.signals.kill")]
+pub unsafe extern "C" fn destack_process_signals_kill(
+    pid: ProcessId,
+    signal: Signal,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_SIGNALS_KILL)?;
         let _ = (&pid, &signal);
 
-        destack_process_kill_replay(context, pid, signal)
+        destack_process_signals_kill_replay(context, pid, signal)
     })
 }
 
-#[unsafe(export_name = "destack.process.pid")]
-pub unsafe extern "C" fn destack_process_pid(out: *mut ProcessId) -> RuntimeStatus {
+#[unsafe(export_name = "destack.process.signals.signalMaskRead")]
+pub unsafe extern "C" fn destack_process_signals_signal_mask_read(
+    out: *mut NativeArray<Signal>,
+) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(PID)?;
+        context.check_policy(PROCESS_SIGNALS_SIGNAL_MASK_READ)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = &out;
 
-        destack_process_pid_replay(context, out)
+        destack_process_signals_signal_mask_read_replay(context, out)
     })
 }
 
-#[unsafe(export_name = "destack.process.ppid")]
-pub unsafe extern "C" fn destack_process_ppid(out: *mut ProcessId) -> RuntimeStatus {
+#[unsafe(export_name = "destack.process.signals.signalMaskUpdate")]
+pub unsafe extern "C" fn destack_process_signals_signal_mask_update(
+    how: SignalMaskHow,
+    signals: NativeSlice<Signal>,
+) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(PPID)?;
+        context.check_policy(PROCESS_SIGNALS_SIGNAL_MASK_UPDATE)?;
+        let _ = (&how, &signals);
+
+        destack_process_signals_signal_mask_update_replay(context, how, signals)
+    })
+}
+
+#[unsafe(export_name = "destack.process.signals.signalReceive")]
+pub unsafe extern "C" fn destack_process_signals_signal_receive(
+    out: *mut SignalEvent,
+    handle: resource::SignalHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_SIGNALS_SIGNAL_RECEIVE)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = &out;
+        let _ = (&out, &handle);
 
-        destack_process_ppid_replay(context, out)
+        destack_process_signals_signal_receive_replay(context, out, handle)
     })
 }
 
-#[unsafe(export_name = "destack.process.uid")]
-pub unsafe extern "C" fn destack_process_uid(out: *mut UserId) -> RuntimeStatus {
+#[unsafe(export_name = "destack.process.signals.signalSubscribe")]
+pub unsafe extern "C" fn destack_process_signals_signal_subscribe(
+    out: *mut resource::SignalHandle,
+    signal: Signal,
+) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(UID)?;
+        context.check_policy(PROCESS_SIGNALS_SIGNAL_SUBSCRIBE)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = &out;
+        let _ = (&out, &signal);
 
-        destack_process_uid_replay(context, out)
+        destack_process_signals_signal_subscribe_replay(context, out, signal)
     })
 }
 
-#[unsafe(export_name = "destack.process.umask")]
-pub unsafe extern "C" fn destack_process_umask(out: *mut u32, mask: u32) -> RuntimeStatus {
+#[unsafe(export_name = "destack.process.signals.signalTryReceive")]
+pub unsafe extern "C" fn destack_process_signals_signal_try_receive(
+    out: *mut SignalEvent,
+    handle: resource::SignalHandle,
+) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(UMASK)?;
+        context.check_policy(PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        destack_process_signals_signal_try_receive_replay(context, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.process.signals.signalTryWait")]
+pub unsafe extern "C" fn destack_process_signals_signal_try_wait(
+    out: *mut SignalEvent,
+    signals: NativeSlice<Signal>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_SIGNALS_SIGNAL_TRY_WAIT)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &signals);
+
+        destack_process_signals_signal_try_wait_replay(context, out, signals)
+    })
+}
+
+#[unsafe(export_name = "destack.process.signals.signalUnsubscribe")]
+pub unsafe extern "C" fn destack_process_signals_signal_unsubscribe(
+    handle: resource::SignalHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE)?;
+        let _ = &handle;
+
+        destack_process_signals_signal_unsubscribe_replay(context, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.process.signals.signalWait")]
+pub unsafe extern "C" fn destack_process_signals_signal_wait(
+    out: *mut SignalEvent,
+    signals: NativeSlice<Signal>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_SIGNALS_SIGNAL_WAIT)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &signals);
+
+        destack_process_signals_signal_wait_replay(context, out, signals)
+    })
+}
+
+#[unsafe(export_name = "destack.process.spawn.spawn")]
+pub unsafe extern "C" fn destack_process_spawn_spawn(
+    out: *mut resource::ProcessHandle,
+    command: fs::OsPath,
+    arguments: NativeStringSlice,
+    environment: NativeStringSlice,
+    options: ProcessSpawnOptions,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_SPAWN_SPAWN)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &command, &arguments, &environment, &options);
+
+        destack_process_spawn_spawn_replay(context, out, command, arguments, environment, options)
+    })
+}
+
+#[unsafe(export_name = "destack.process.spawn.withActions")]
+pub unsafe extern "C" fn destack_process_spawn_with_actions(
+    out: *mut resource::ProcessHandle,
+    command: fs::OsPath,
+    arguments: NativeStringSlice,
+    environment: NativeStringSlice,
+    options: ProcessSpawnOptions,
+    stdio: NativeSlice<ProcessStdio>,
+    actions: NativeSlice<ProcessFdAction>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_SPAWN_WITH_ACTIONS)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (
+            &out,
+            &command,
+            &arguments,
+            &environment,
+            &options,
+            &stdio,
+            &actions,
+        );
+
+        destack_process_spawn_with_actions_replay(
+            context,
+            out,
+            command,
+            arguments,
+            environment,
+            options,
+            stdio,
+            actions,
+        )
+    })
+}
+
+#[unsafe(export_name = "destack.process.umask.umask")]
+pub unsafe extern "C" fn destack_process_umask_umask(out: *mut u32, mask: u32) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_UMASK_UMASK)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &mask);
 
-        destack_process_umask_replay(context, out, mask)
+        destack_process_umask_umask_replay(context, out, mask)
+    })
+}
+
+#[unsafe(export_name = "destack.process.wait.pid")]
+pub unsafe extern "C" fn destack_process_wait_pid(
+    out: *mut ProcessWaitStatus,
+    pid: ProcessId,
+    flags: ProcessWaitFlags,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_WAIT_PID)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &pid, &flags);
+
+        destack_process_wait_pid_replay(context, out, pid, flags)
+    })
+}
+
+#[unsafe(export_name = "destack.process.wait.tryWait")]
+pub unsafe extern "C" fn destack_process_wait_try_wait(
+    out: *mut ProcessWaitStatus,
+    handle: resource::ProcessHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_WAIT_TRY_WAIT)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        destack_process_wait_try_wait_replay(context, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.process.wait.wait")]
+pub unsafe extern "C" fn destack_process_wait_wait(
+    out: *mut ProcessWaitStatus,
+    handle: resource::ProcessHandle,
+    flags: ProcessWaitFlags,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(PROCESS_WAIT_WAIT)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &flags);
+
+        destack_process_wait_wait_replay(context, out, handle, flags)
     })
 }
 
 /// VM replay implementations for process bindings.
 #[inline]
-fn destack_process_args_vm_replay(
+fn destack_process_args_args_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        ARGS,
+        PROCESS_ARGS_ARGS,
         context,
         |context| platform_vm::destack_process_args(runtime, context),
         |context, result| {
@@ -1391,7 +7731,7 @@ fn destack_process_args_vm_replay(
                     };
                     result_replay.push(result_replay_item_replay);
                 }
-                let payload = ArgsReplay {
+                let payload = ProcessArgsArgsReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1400,7 +7740,7 @@ fn destack_process_args_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ArgsReplay { result }
+                    ProcessArgsArgsReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1427,25 +7767,25 @@ fn destack_process_args_vm_replay(
             }
         },
     );
-    let result = encode_destack_process_args_result(context, result)?;
+    let result = encode_destack_process_args_args_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_process_chdir_vm_replay(
+fn destack_process_cwd_chdir_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
-    path: vm::StringHandle,
+    path: fs::OsPathVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        CHDIR,
+        PROCESS_CWD_CHDIR,
         context,
         |context| platform_vm::destack_process_chdir(runtime, context, path),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = ChdirReplay {
+                let payload = ProcessCwdChdirReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1454,7 +7794,7 @@ fn destack_process_chdir_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ChdirReplay { result }
+                    ProcessCwdChdirReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1470,30 +7810,31 @@ fn destack_process_chdir_vm_replay(
             }
         },
     );
-    let result = encode_destack_process_chdir_result(context, result)?;
+    let result = encode_destack_process_cwd_chdir_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_process_cwd_vm_replay(
+fn destack_process_cwd_cwd_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        CWD,
+        PROCESS_CWD_CWD,
         context,
         |context| platform_vm::destack_process_cwd(runtime, context),
         |context, result| {
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
-                let result_replay = {
-                    let result_replay_ref = context
-                        .string_ref(result_value)
-                        .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_replay_ref.as_str().to_string()
+                let result_replay_encoding = result_value.encoding;
+                let result_replay_data_inner = result_value.data.0.read_bytes(context)?;
+                let result_replay_data = result_replay_data_inner;
+                let result_replay = fs::OsPathReplay {
+                    encoding: result_replay_encoding,
+                    data: result_replay_data,
                 };
-                let payload = CwdReplay {
+                let payload = ProcessCwdCwdReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1502,7 +7843,7 @@ fn destack_process_cwd_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    CwdReplay { result }
+                    ProcessCwdCwdReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1514,15 +7855,22 @@ fn destack_process_cwd_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result_value = context.intern_string(value.as_str());
-                    let vm_result = vm::StringHandle::new(vm_result_value);
+                    let vm_result_encoding = value.encoding;
+                    let vm_result_data_inner = VmArray::from_bytes(context, value.data.as_slice());
+                    let vm_result_data = crate::platform::fs::PathBytesAbi::<
+                        crate::platform::abi::VmAbi,
+                    >(vm_result_data_inner);
+                    let vm_result = fs::OsPathVm {
+                        encoding: vm_result_encoding,
+                        data: vm_result_data,
+                    };
                     Ok(vm_result)
                 }
                 Err(error) => Err(RuntimeError::from(error).boxed()),
             }
         },
     );
-    let result = encode_destack_process_cwd_result(context, result)?;
+    let result = encode_destack_process_cwd_cwd_result(context, result)?;
     Ok(result)
 }
 
@@ -1533,14 +7881,14 @@ fn destack_process_env_delete_vm_replay(
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        ENV_DELETE,
+        PROCESS_ENV_DELETE,
         context,
         |context| platform_vm::destack_process_env_delete(runtime, context, name),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = EnvDeleteReplay {
+                let payload = ProcessEnvDeleteReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1549,7 +7897,7 @@ fn destack_process_env_delete_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    EnvDeleteReplay { result }
+                    ProcessEnvDeleteReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1570,13 +7918,56 @@ fn destack_process_env_delete_vm_replay(
 }
 
 #[inline]
+fn destack_process_env_delete_bytes_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    name: VmSlice<u8>,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_ENV_DELETE_BYTES,
+        context,
+        |context| platform_vm::destack_process_env_delete_bytes(runtime, context, name),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessEnvDeleteBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessEnvDeleteBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_env_delete_bytes_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
 fn destack_process_env_get_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        ENV_GET,
+        PROCESS_ENV_GET,
         context,
         |context| platform_vm::destack_process_env_get(runtime, context, name),
         |context, result| {
@@ -1589,7 +7980,7 @@ fn destack_process_env_get_vm_replay(
                         .map_err(|error| RuntimeError::from(error).boxed())?;
                     result_replay_ref.as_str().to_string()
                 };
-                let payload = EnvGetReplay {
+                let payload = ProcessEnvGetReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1598,7 +7989,7 @@ fn destack_process_env_get_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    EnvGetReplay { result }
+                    ProcessEnvGetReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1623,21 +8014,21 @@ fn destack_process_env_get_vm_replay(
 }
 
 #[inline]
-fn destack_process_env_set_vm_replay(
+fn destack_process_env_get_bytes_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
-    name: vm::StringHandle,
-    value: vm::StringHandle,
+    name: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        ENV_SET,
+        PROCESS_ENV_GET_BYTES,
         context,
-        |context| platform_vm::destack_process_env_set(runtime, context, name, value),
+        |context| platform_vm::destack_process_env_get_bytes(runtime, context, name),
         |context, result| {
             let _ = &context;
-            if let Ok(()) = result {
-                let result_replay = ();
-                let payload = EnvSetReplay {
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay = result_value.read_bytes(context)?;
+                let payload = ProcessEnvGetBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1646,7 +8037,54 @@ fn destack_process_env_set_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    EnvSetReplay { result }
+                    ProcessEnvGetBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = VmArray::from_bytes(context, value.as_slice());
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_env_get_bytes_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_env_set_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    name: vm::StringHandle,
+    value: vm::StringHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_ENV_SET,
+        context,
+        |context| platform_vm::destack_process_env_set(runtime, context, name, value),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessEnvSetReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessEnvSetReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1667,20 +8105,21 @@ fn destack_process_env_set_vm_replay(
 }
 
 #[inline]
-fn destack_process_exit_vm_replay(
+fn destack_process_env_set_bytes_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
-    code: u32,
+    name: VmSlice<u8>,
+    value: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        EXIT,
+        PROCESS_ENV_SET_BYTES,
         context,
-        |context| platform_vm::destack_process_exit(runtime, context, code),
+        |context| platform_vm::destack_process_env_set_bytes(runtime, context, name, value),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = ExitReplay {
+                let payload = ProcessEnvSetBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1689,7 +8128,7 @@ fn destack_process_exit_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ExitReplay { result }
+                    ProcessEnvSetBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1705,17 +8144,741 @@ fn destack_process_exit_vm_replay(
             }
         },
     );
-    let result = encode_destack_process_exit_result(context, result)?;
+    let result = encode_destack_process_env_set_bytes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_process_gid_vm_replay(
+fn destack_process_exec_exec_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    command: fs::OsPathVm,
+    arguments: VmSlice<vm::StringHandle>,
+    environment: VmSlice<vm::StringHandle>,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_EXEC_EXEC,
+        context,
+        |context| {
+            platform_vm::destack_process_exec(runtime, context, command, arguments, environment)
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessExecExecReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessExecExecReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_exec_exec_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_exec_execat_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    directory: resource::DirectoryHandle,
+    path: fs::OsPathVm,
+    arguments: VmSlice<vm::StringHandle>,
+    environment: VmSlice<vm::StringHandle>,
+    flags: ExecAtFlags,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_EXEC_EXECAT,
+        context,
+        |context| {
+            platform_vm::destack_process_execat(
+                runtime,
+                context,
+                directory,
+                path,
+                arguments,
+                environment,
+                flags,
+            )
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessExecExecatReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessExecExecatReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_exec_execat_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_exec_fexec_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    executable: resource::FileHandle,
+    arguments: VmSlice<vm::StringHandle>,
+    environment: VmSlice<vm::StringHandle>,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_EXEC_FEXEC,
+        context,
+        |context| {
+            platform_vm::destack_process_fexec(runtime, context, executable, arguments, environment)
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessExecFexecReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessExecFexecReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_exec_fexec_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_exit_exit_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    code: u32,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_EXIT_EXIT,
+        context,
+        |context| platform_vm::destack_process_exit(runtime, context, code),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessExitExitReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessExitExitReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_exit_exit_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_fd_process_fd_close_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    handle: resource::ProcessFdHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_FD_PROCESS_FD_CLOSE,
+        context,
+        |context| platform_vm::destack_process_process_fd_close(runtime, context, handle),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessFdProcessFdCloseReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessFdProcessFdCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_fd_process_fd_close_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_fd_process_fd_open_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    pid: ProcessId,
+    flags: ProcessFdFlags,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_FD_PROCESS_FD_OPEN,
+        context,
+        |context| platform_vm::destack_process_process_fd_open(runtime, context, pid, flags),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay = result_value;
+                let payload = ProcessFdProcessFdOpenReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessFdProcessFdOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_fd_process_fd_open_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_fd_process_fd_send_signal_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    handle: resource::ProcessFdHandle,
+    signal: Signal,
+    flags: ProcessFdSignalFlags,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_FD_PROCESS_FD_SEND_SIGNAL,
+        context,
+        |context| {
+            platform_vm::destack_process_process_fd_send_signal(
+                runtime, context, handle, signal, flags,
+            )
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessFdProcessFdSendSignalReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessFdProcessFdSendSignalReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_fd_process_fd_send_signal_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_fd_process_fd_try_wait_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    handle: resource::ProcessFdHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_FD_PROCESS_FD_TRY_WAIT,
+        context,
+        |context| platform_vm::destack_process_process_fd_try_wait(runtime, context, handle),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay_pid = result_value.pid;
+                let result_replay_kind = result_value.kind;
+                let result_replay_exit_code = result_value.exit_code;
+                let result_replay_signal = result_value.signal;
+                let result_replay_core_dumped = result_value.core_dumped;
+                let result_replay = ProcessWaitStatus {
+                    pid: result_replay_pid,
+                    kind: result_replay_kind,
+                    exit_code: result_replay_exit_code,
+                    signal: result_replay_signal,
+                    core_dumped: result_replay_core_dumped,
+                };
+                let payload = ProcessFdProcessFdTryWaitReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessFdProcessFdTryWaitReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_pid = value.pid;
+                    let vm_result_kind = value.kind;
+                    let vm_result_exit_code = value.exit_code;
+                    let vm_result_signal = value.signal;
+                    let vm_result_core_dumped = value.core_dumped;
+                    let vm_result = ProcessWaitStatusVm {
+                        pid: vm_result_pid,
+                        kind: vm_result_kind,
+                        exit_code: vm_result_exit_code,
+                        signal: vm_result_signal,
+                        core_dumped: vm_result_core_dumped,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_fd_process_fd_try_wait_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_fd_process_fd_wait_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    handle: resource::ProcessFdHandle,
+    timeoutns: u64,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_FD_PROCESS_FD_WAIT,
+        context,
+        |context| platform_vm::destack_process_process_fd_wait(runtime, context, handle, timeoutns),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay_pid = result_value.pid;
+                let result_replay_kind = result_value.kind;
+                let result_replay_exit_code = result_value.exit_code;
+                let result_replay_signal = result_value.signal;
+                let result_replay_core_dumped = result_value.core_dumped;
+                let result_replay = ProcessWaitStatus {
+                    pid: result_replay_pid,
+                    kind: result_replay_kind,
+                    exit_code: result_replay_exit_code,
+                    signal: result_replay_signal,
+                    core_dumped: result_replay_core_dumped,
+                };
+                let payload = ProcessFdProcessFdWaitReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessFdProcessFdWaitReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_pid = value.pid;
+                    let vm_result_kind = value.kind;
+                    let vm_result_exit_code = value.exit_code;
+                    let vm_result_signal = value.signal;
+                    let vm_result_core_dumped = value.core_dumped;
+                    let vm_result = ProcessWaitStatusVm {
+                        pid: vm_result_pid,
+                        kind: vm_result_kind,
+                        exit_code: vm_result_exit_code,
+                        signal: vm_result_signal,
+                        core_dumped: vm_result_core_dumped,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_fd_process_fd_wait_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_fd_signal_fd_close_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    handle: resource::SignalFdHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_FD_SIGNAL_FD_CLOSE,
+        context,
+        |context| platform_vm::destack_process_signal_fd_close(runtime, context, handle),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessFdSignalFdCloseReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessFdSignalFdCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_fd_signal_fd_close_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_fd_signal_fd_open_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    signals: VmSlice<Signal>,
+    flags: SignalFdFlags,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_FD_SIGNAL_FD_OPEN,
+        context,
+        |context| platform_vm::destack_process_signal_fd_open(runtime, context, signals, flags),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay = result_value;
+                let payload = ProcessFdSignalFdOpenReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessFdSignalFdOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_fd_signal_fd_open_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_fd_signal_fd_read_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    handle: resource::SignalFdHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_FD_SIGNAL_FD_READ,
+        context,
+        |context| platform_vm::destack_process_signal_fd_read(runtime, context, handle),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay_signal = result_value.signal;
+                let result_replay_pid = result_value.pid;
+                let result_replay = SignalEvent {
+                    signal: result_replay_signal,
+                    pid: result_replay_pid,
+                };
+                let payload = ProcessFdSignalFdReadReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessFdSignalFdReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_signal = value.signal;
+                    let vm_result_pid = value.pid;
+                    let vm_result = SignalEventVm {
+                        signal: vm_result_signal,
+                        pid: vm_result_pid,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_fd_signal_fd_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_fd_signal_fd_set_mask_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    handle: resource::SignalFdHandle,
+    signals: VmSlice<Signal>,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_FD_SIGNAL_FD_SET_MASK,
+        context,
+        |context| {
+            platform_vm::destack_process_signal_fd_set_mask(runtime, context, handle, signals)
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessFdSignalFdSetMaskReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessFdSignalFdSetMaskReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_fd_signal_fd_set_mask_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_fd_signal_fd_try_read_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    handle: resource::SignalFdHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_FD_SIGNAL_FD_TRY_READ,
+        context,
+        |context| platform_vm::destack_process_signal_fd_try_read(runtime, context, handle),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay_signal = result_value.signal;
+                let result_replay_pid = result_value.pid;
+                let result_replay = SignalEvent {
+                    signal: result_replay_signal,
+                    pid: result_replay_pid,
+                };
+                let payload = ProcessFdSignalFdTryReadReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessFdSignalFdTryReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_signal = value.signal;
+                    let vm_result_pid = value.pid;
+                    let vm_result = SignalEventVm {
+                        signal: vm_result_signal,
+                        pid: vm_result_pid,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_fd_signal_fd_try_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_ids_gid_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        GID,
+        PROCESS_IDS_GID,
         context,
         |context| platform_vm::destack_process_gid(runtime, context),
         |context, result| {
@@ -1723,7 +8886,7 @@ fn destack_process_gid_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = GidReplay {
+                let payload = ProcessIdsGidReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1732,7 +8895,7 @@ fn destack_process_gid_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    GidReplay { result }
+                    ProcessIdsGidReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1751,26 +8914,25 @@ fn destack_process_gid_vm_replay(
             }
         },
     );
-    let result = encode_destack_process_gid_result(context, result)?;
+    let result = encode_destack_process_ids_gid_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_process_kill_vm_replay(
+fn destack_process_ids_pid_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
-    pid: ProcessId,
-    signal: Signal,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        KILL,
+        PROCESS_IDS_PID,
         context,
-        |context| platform_vm::destack_process_kill(runtime, context, pid, signal),
+        |context| platform_vm::destack_process_pid(runtime, context),
         |context, result| {
             let _ = &context;
-            if let Ok(()) = result {
-                let result_replay = ();
-                let payload = KillReplay {
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay = result_value;
+                let payload = ProcessIdsPidReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1779,7 +8941,99 @@ fn destack_process_kill_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    KillReplay { result }
+                    ProcessIdsPidReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_ids_pid_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_ids_ppid_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_IDS_PPID,
+        context,
+        |context| platform_vm::destack_process_ppid(runtime, context),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay = result_value;
+                let payload = ProcessIdsPpidReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessIdsPpidReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_ids_ppid_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_ids_set_gid_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    groupid: GroupId,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_IDS_SET_GID,
+        context,
+        |context| platform_vm::destack_process_set_gid(runtime, context, groupid),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessIdsSetGidReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessIdsSetGidReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1795,25 +9049,25 @@ fn destack_process_kill_vm_replay(
             }
         },
     );
-    let result = encode_destack_process_kill_result(context, result)?;
+    let result = encode_destack_process_ids_set_gid_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_process_pid_vm_replay(
+fn destack_process_ids_set_groups_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
+    groups: VmSlice<GroupId>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        PID,
+        PROCESS_IDS_SET_GROUPS,
         context,
-        |context| platform_vm::destack_process_pid(runtime, context),
+        |context| platform_vm::destack_process_set_groups(runtime, context, groups),
         |context, result| {
             let _ = &context;
-            if let Ok(value) = result {
-                let result_value = *value;
-                let result_replay = result_value;
-                let payload = PidReplay {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessIdsSetGroupsReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1822,7 +9076,7 @@ fn destack_process_pid_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    PidReplay { result }
+                    ProcessIdsSetGroupsReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1833,33 +9087,30 @@ fn destack_process_pid_vm_replay(
             let _ = &context;
             // replay result
             match payload.result {
-                Ok(value) => {
-                    let vm_result = value;
-                    Ok(vm_result)
-                }
+                Ok(()) => Ok(()),
                 Err(error) => Err(RuntimeError::from(error).boxed()),
             }
         },
     );
-    let result = encode_destack_process_pid_result(context, result)?;
+    let result = encode_destack_process_ids_set_groups_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_process_ppid_vm_replay(
+fn destack_process_ids_set_uid_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
+    userid: UserId,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        PPID,
+        PROCESS_IDS_SET_UID,
         context,
-        |context| platform_vm::destack_process_ppid(runtime, context),
+        |context| platform_vm::destack_process_set_uid(runtime, context, userid),
         |context, result| {
             let _ = &context;
-            if let Ok(value) = result {
-                let result_value = *value;
-                let result_replay = result_value;
-                let payload = PpidReplay {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessIdsSetUidReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1868,7 +9119,7 @@ fn destack_process_ppid_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    PpidReplay { result }
+                    ProcessIdsSetUidReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1879,25 +9130,22 @@ fn destack_process_ppid_vm_replay(
             let _ = &context;
             // replay result
             match payload.result {
-                Ok(value) => {
-                    let vm_result = value;
-                    Ok(vm_result)
-                }
+                Ok(()) => Ok(()),
                 Err(error) => Err(RuntimeError::from(error).boxed()),
             }
         },
     );
-    let result = encode_destack_process_ppid_result(context, result)?;
+    let result = encode_destack_process_ids_set_uid_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_process_uid_vm_replay(
+fn destack_process_ids_uid_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        UID,
+        PROCESS_IDS_UID,
         context,
         |context| platform_vm::destack_process_uid(runtime, context),
         |context, result| {
@@ -1905,7 +9153,7 @@ fn destack_process_uid_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = UidReplay {
+                let payload = ProcessIdsUidReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1914,7 +9162,7 @@ fn destack_process_uid_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    UidReplay { result }
+                    ProcessIdsUidReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1933,18 +9181,1051 @@ fn destack_process_uid_vm_replay(
             }
         },
     );
-    let result = encode_destack_process_uid_result(context, result)?;
+    let result = encode_destack_process_ids_uid_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_process_umask_vm_replay(
+fn destack_process_limits_get_limit_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    resource: ProcessLimitResource,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_LIMITS_GET_LIMIT,
+        context,
+        |context| platform_vm::destack_process_get_limit(runtime, context, resource),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay_soft = result_value.soft;
+                let result_replay_hard = result_value.hard;
+                let result_replay = ProcessLimit {
+                    soft: result_replay_soft,
+                    hard: result_replay_hard,
+                };
+                let payload = ProcessLimitsGetLimitReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessLimitsGetLimitReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_soft = value.soft;
+                    let vm_result_hard = value.hard;
+                    let vm_result = ProcessLimitVm {
+                        soft: vm_result_soft,
+                        hard: vm_result_hard,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_limits_get_limit_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_limits_set_limit_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    resource: ProcessLimitResource,
+    limit: ProcessLimitVm,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_LIMITS_SET_LIMIT,
+        context,
+        |context| platform_vm::destack_process_set_limit(runtime, context, resource, limit),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessLimitsSetLimitReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessLimitsSetLimitReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_limits_set_limit_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_sched_get_affinity_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    pid: ProcessId,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_SCHED_GET_AFFINITY,
+        context,
+        |context| platform_vm::destack_process_get_affinity(runtime, context, pid),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay_cpus_raw = result_value.cpus.raw_values(context)?;
+                let mut result_replay_cpus = Vec::with_capacity(result_replay_cpus_raw.len());
+                for result_replay_cpus_item_value in result_replay_cpus_raw {
+                    let result_replay_cpus_item = decode_uint32(
+                        result_replay_cpus_item_value,
+                        "result_replay_cpus_item",
+                        "item",
+                    )?;
+                    let result_replay_cpus_item_replay = result_replay_cpus_item;
+                    result_replay_cpus.push(result_replay_cpus_item_replay);
+                }
+                let result_replay = ProcessCpuSetReplay {
+                    cpus: result_replay_cpus,
+                };
+                let payload = ProcessSchedGetAffinityReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSchedGetAffinityReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_cpus_values = Vec::with_capacity(value.cpus.len());
+                    for vm_result_cpus_item in value.cpus.iter() {
+                        let vm_result_cpus_item = *vm_result_cpus_item;
+                        let vm_result_cpus_item_value = vm_result_cpus_item;
+                        vm_result_cpus_values.push(vm_result_cpus_item_value);
+                    }
+                    let vm_result_cpus = VmArray::from_values(context, &vm_result_cpus_values)?;
+                    let vm_result = ProcessCpuSetVm {
+                        cpus: vm_result_cpus,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_sched_get_affinity_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_sched_get_priority_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    pid: ProcessId,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_SCHED_GET_PRIORITY,
+        context,
+        |context| platform_vm::destack_process_get_priority(runtime, context, pid),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay = result_value;
+                let payload = ProcessSchedGetPriorityReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSchedGetPriorityReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_sched_get_priority_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_sched_set_affinity_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    pid: ProcessId,
+    cpus: ProcessCpuSetVm,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_SCHED_SET_AFFINITY,
+        context,
+        |context| platform_vm::destack_process_set_affinity(runtime, context, pid, cpus),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessSchedSetAffinityReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSchedSetAffinityReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_sched_set_affinity_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_sched_set_priority_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    pid: ProcessId,
+    priority: i32,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_SCHED_SET_PRIORITY,
+        context,
+        |context| platform_vm::destack_process_set_priority(runtime, context, pid, priority),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessSchedSetPriorityReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSchedSetPriorityReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_sched_set_priority_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_session_getpgid_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    pid: ProcessId,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_SESSION_GETPGID,
+        context,
+        |context| platform_vm::destack_process_getpgid(runtime, context, pid),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay = result_value;
+                let payload = ProcessSessionGetpgidReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSessionGetpgidReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_session_getpgid_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_session_setpgid_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    pid: ProcessId,
+    pgid: ProcessId,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_SESSION_SETPGID,
+        context,
+        |context| platform_vm::destack_process_setpgid(runtime, context, pid, pgid),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessSessionSetpgidReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSessionSetpgidReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_session_setpgid_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_session_setsid_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_SESSION_SETSID,
+        context,
+        |context| platform_vm::destack_process_setsid(runtime, context),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay = result_value;
+                let payload = ProcessSessionSetsidReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSessionSetsidReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_session_setsid_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_signals_kill_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    pid: ProcessId,
+    signal: Signal,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_SIGNALS_KILL,
+        context,
+        |context| platform_vm::destack_process_kill(runtime, context, pid, signal),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessSignalsKillReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSignalsKillReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_signals_kill_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_signals_signal_mask_read_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_SIGNALS_SIGNAL_MASK_READ,
+        context,
+        |context| platform_vm::destack_process_signal_mask_read(runtime, context),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay_raw = result_value.raw_values(context)?;
+                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
+                for result_replay_item_value in result_replay_raw {
+                    let result_replay_item_inner = decode_uint32(
+                        result_replay_item_value,
+                        "result_replay_item_inner",
+                        "item",
+                    )?;
+                    let result_replay_item = Signal(result_replay_item_inner);
+                    let result_replay_item_replay = result_replay_item;
+                    result_replay.push(result_replay_item_replay);
+                }
+                let payload = ProcessSignalsSignalMaskReadReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSignalsSignalMaskReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = *vm_result_item;
+                        let vm_result_item_value = vm_result_item;
+                        vm_result_values.push(vm_result_item_value);
+                    }
+                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_signals_signal_mask_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_signals_signal_mask_update_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    how: SignalMaskHow,
+    signals: VmSlice<Signal>,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_SIGNALS_SIGNAL_MASK_UPDATE,
+        context,
+        |context| platform_vm::destack_process_signal_mask_update(runtime, context, how, signals),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessSignalsSignalMaskUpdateReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSignalsSignalMaskUpdateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_signals_signal_mask_update_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_signals_signal_receive_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    handle: resource::SignalHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_SIGNALS_SIGNAL_RECEIVE,
+        context,
+        |context| platform_vm::destack_process_signal_receive(runtime, context, handle),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay_signal = result_value.signal;
+                let result_replay_pid = result_value.pid;
+                let result_replay = SignalEvent {
+                    signal: result_replay_signal,
+                    pid: result_replay_pid,
+                };
+                let payload = ProcessSignalsSignalReceiveReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSignalsSignalReceiveReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_signal = value.signal;
+                    let vm_result_pid = value.pid;
+                    let vm_result = SignalEventVm {
+                        signal: vm_result_signal,
+                        pid: vm_result_pid,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_signals_signal_receive_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_signals_signal_subscribe_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    signal: Signal,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_SIGNALS_SIGNAL_SUBSCRIBE,
+        context,
+        |context| platform_vm::destack_process_signal_subscribe(runtime, context, signal),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay = result_value;
+                let payload = ProcessSignalsSignalSubscribeReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSignalsSignalSubscribeReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_signals_signal_subscribe_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_signals_signal_try_receive_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    handle: resource::SignalHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE,
+        context,
+        |context| platform_vm::destack_process_signal_try_receive(runtime, context, handle),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay_signal = result_value.signal;
+                let result_replay_pid = result_value.pid;
+                let result_replay = SignalEvent {
+                    signal: result_replay_signal,
+                    pid: result_replay_pid,
+                };
+                let payload = ProcessSignalsSignalTryReceiveReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSignalsSignalTryReceiveReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_signal = value.signal;
+                    let vm_result_pid = value.pid;
+                    let vm_result = SignalEventVm {
+                        signal: vm_result_signal,
+                        pid: vm_result_pid,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_signals_signal_try_receive_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_signals_signal_try_wait_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    signals: VmSlice<Signal>,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_SIGNALS_SIGNAL_TRY_WAIT,
+        context,
+        |context| platform_vm::destack_process_signal_try_wait(runtime, context, signals),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay_signal = result_value.signal;
+                let result_replay_pid = result_value.pid;
+                let result_replay = SignalEvent {
+                    signal: result_replay_signal,
+                    pid: result_replay_pid,
+                };
+                let payload = ProcessSignalsSignalTryWaitReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSignalsSignalTryWaitReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_signal = value.signal;
+                    let vm_result_pid = value.pid;
+                    let vm_result = SignalEventVm {
+                        signal: vm_result_signal,
+                        pid: vm_result_pid,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_signals_signal_try_wait_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_signals_signal_unsubscribe_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    handle: resource::SignalHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE,
+        context,
+        |context| platform_vm::destack_process_signal_unsubscribe(runtime, context, handle),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ProcessSignalsSignalUnsubscribeReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSignalsSignalUnsubscribeReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_signals_signal_unsubscribe_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_signals_signal_wait_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    signals: VmSlice<Signal>,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_SIGNALS_SIGNAL_WAIT,
+        context,
+        |context| platform_vm::destack_process_signal_wait(runtime, context, signals),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay_signal = result_value.signal;
+                let result_replay_pid = result_value.pid;
+                let result_replay = SignalEvent {
+                    signal: result_replay_signal,
+                    pid: result_replay_pid,
+                };
+                let payload = ProcessSignalsSignalWaitReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSignalsSignalWaitReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_signal = value.signal;
+                    let vm_result_pid = value.pid;
+                    let vm_result = SignalEventVm {
+                        signal: vm_result_signal,
+                        pid: vm_result_pid,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_signals_signal_wait_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_spawn_spawn_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    command: fs::OsPathVm,
+    arguments: VmSlice<vm::StringHandle>,
+    environment: VmSlice<vm::StringHandle>,
+    options: ProcessSpawnOptionsVm,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_SPAWN_SPAWN,
+        context,
+        |context| {
+            platform_vm::destack_process_spawn(
+                runtime,
+                context,
+                command,
+                arguments,
+                environment,
+                options,
+            )
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay = result_value;
+                let payload = ProcessSpawnSpawnReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSpawnSpawnReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_spawn_spawn_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_spawn_with_actions_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    command: fs::OsPathVm,
+    arguments: VmSlice<vm::StringHandle>,
+    environment: VmSlice<vm::StringHandle>,
+    options: ProcessSpawnOptionsVm,
+    stdio: VmSlice<ProcessStdioVm>,
+    actions: VmSlice<ProcessFdActionVm>,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_SPAWN_WITH_ACTIONS,
+        context,
+        |context| {
+            platform_vm::destack_process_spawn_with_actions(
+                runtime,
+                context,
+                command,
+                arguments,
+                environment,
+                options,
+                stdio,
+                actions,
+            )
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay = result_value;
+                let payload = ProcessSpawnWithActionsReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessSpawnWithActionsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_spawn_with_actions_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_umask_umask_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     mask: u32,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        UMASK,
+        PROCESS_UMASK_UMASK,
         context,
         |context| platform_vm::destack_process_umask(runtime, context, mask),
         |context, result| {
@@ -1952,7 +10233,7 @@ fn destack_process_umask_vm_replay(
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = UmaskReplay {
+                let payload = ProcessUmaskUmaskReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -1961,7 +10242,7 @@ fn destack_process_umask_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    UmaskReplay { result }
+                    ProcessUmaskUmaskReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1980,71 +10261,315 @@ fn destack_process_umask_vm_replay(
             }
         },
     );
-    let result = encode_destack_process_umask_result(context, result)?;
+    let result = encode_destack_process_umask_umask_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_wait_pid_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    pid: ProcessId,
+    flags: ProcessWaitFlags,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_WAIT_PID,
+        context,
+        |context| platform_vm::destack_process_wait_pid(runtime, context, pid, flags),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay_pid = result_value.pid;
+                let result_replay_kind = result_value.kind;
+                let result_replay_exit_code = result_value.exit_code;
+                let result_replay_signal = result_value.signal;
+                let result_replay_core_dumped = result_value.core_dumped;
+                let result_replay = ProcessWaitStatus {
+                    pid: result_replay_pid,
+                    kind: result_replay_kind,
+                    exit_code: result_replay_exit_code,
+                    signal: result_replay_signal,
+                    core_dumped: result_replay_core_dumped,
+                };
+                let payload = ProcessWaitPidReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessWaitPidReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_pid = value.pid;
+                    let vm_result_kind = value.kind;
+                    let vm_result_exit_code = value.exit_code;
+                    let vm_result_signal = value.signal;
+                    let vm_result_core_dumped = value.core_dumped;
+                    let vm_result = ProcessWaitStatusVm {
+                        pid: vm_result_pid,
+                        kind: vm_result_kind,
+                        exit_code: vm_result_exit_code,
+                        signal: vm_result_signal,
+                        core_dumped: vm_result_core_dumped,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_wait_pid_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_wait_try_wait_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    handle: resource::ProcessHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_WAIT_TRY_WAIT,
+        context,
+        |context| platform_vm::destack_process_try_wait(runtime, context, handle),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay_pid = result_value.pid;
+                let result_replay_kind = result_value.kind;
+                let result_replay_exit_code = result_value.exit_code;
+                let result_replay_signal = result_value.signal;
+                let result_replay_core_dumped = result_value.core_dumped;
+                let result_replay = ProcessWaitStatus {
+                    pid: result_replay_pid,
+                    kind: result_replay_kind,
+                    exit_code: result_replay_exit_code,
+                    signal: result_replay_signal,
+                    core_dumped: result_replay_core_dumped,
+                };
+                let payload = ProcessWaitTryWaitReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessWaitTryWaitReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_pid = value.pid;
+                    let vm_result_kind = value.kind;
+                    let vm_result_exit_code = value.exit_code;
+                    let vm_result_signal = value.signal;
+                    let vm_result_core_dumped = value.core_dumped;
+                    let vm_result = ProcessWaitStatusVm {
+                        pid: vm_result_pid,
+                        kind: vm_result_kind,
+                        exit_code: vm_result_exit_code,
+                        signal: vm_result_signal,
+                        core_dumped: vm_result_core_dumped,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_wait_try_wait_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_wait_wait_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    handle: resource::ProcessHandle,
+    flags: ProcessWaitFlags,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        PROCESS_WAIT_WAIT,
+        context,
+        |context| platform_vm::destack_process_wait(runtime, context, handle, flags),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay_pid = result_value.pid;
+                let result_replay_kind = result_value.kind;
+                let result_replay_exit_code = result_value.exit_code;
+                let result_replay_signal = result_value.signal;
+                let result_replay_core_dumped = result_value.core_dumped;
+                let result_replay = ProcessWaitStatus {
+                    pid: result_replay_pid,
+                    kind: result_replay_kind,
+                    exit_code: result_replay_exit_code,
+                    signal: result_replay_signal,
+                    core_dumped: result_replay_core_dumped,
+                };
+                let payload = ProcessWaitWaitReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessWaitWaitReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_pid = value.pid;
+                    let vm_result_kind = value.kind;
+                    let vm_result_exit_code = value.exit_code;
+                    let vm_result_signal = value.signal;
+                    let vm_result_core_dumped = value.core_dumped;
+                    let vm_result = ProcessWaitStatusVm {
+                        pid: vm_result_pid,
+                        kind: vm_result_kind,
+                        exit_code: vm_result_exit_code,
+                        signal: vm_result_signal,
+                        core_dumped: vm_result_core_dumped,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_process_wait_wait_result(context, result)?;
     Ok(result)
 }
 
 /// Register VM bindings for process.
 pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
-        binding!(registry, isolate, ARGS, move |context, _args| {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_ARGS_ARGS,
+            move |context, _args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_ARGS_ARGS)?;
+
+                    // execute binding
+                    destack_process_args_args_vm_replay(runtime, context)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_CWD_CHDIR,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_CWD_CHDIR)?;
+
+                    // decode args
+                    let (path,) = decode_destack_process_cwd_chdir_args(context, args)?;
+
+                    // execute binding
+                    destack_process_cwd_chdir_vm_replay(runtime, context, path)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, PROCESS_CWD_CWD, move |context, _args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(ARGS)?;
+                runtime.check_policy(PROCESS_CWD_CWD)?;
 
                 // execute binding
-                destack_process_args_vm_replay(runtime, context)
+                destack_process_cwd_cwd_vm_replay(runtime, context)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, CHDIR, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(CHDIR)?;
+        binding!(
+            registry,
+            isolate,
+            PROCESS_ENV_DELETE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_ENV_DELETE)?;
 
-                // decode args
-                let (path,) = decode_destack_process_chdir_args(context, args)?;
+                    // decode args
+                    let (name,) = decode_destack_process_env_delete_args(context, args)?;
 
-                // execute binding
-                destack_process_chdir_vm_replay(runtime, context, path)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    destack_process_env_delete_vm_replay(runtime, context, name)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, CWD, move |context, _args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(CWD)?;
+        binding!(
+            registry,
+            isolate,
+            PROCESS_ENV_DELETE_BYTES,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_ENV_DELETE_BYTES)?;
 
-                // execute binding
-                destack_process_cwd_vm_replay(runtime, context)
-            })
-            .map_err(Into::into)
-        });
+                    // decode args
+                    let (name,) = decode_destack_process_env_delete_bytes_args(context, args)?;
+
+                    // execute binding
+                    destack_process_env_delete_bytes_vm_replay(runtime, context, name)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, ENV_DELETE, move |context, args| {
+        binding!(registry, isolate, PROCESS_ENV_GET, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(ENV_DELETE)?;
-
-                // decode args
-                let (name,) = decode_destack_process_env_delete_args(context, args)?;
-
-                // execute binding
-                destack_process_env_delete_vm_replay(runtime, context, name)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, ENV_GET, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(ENV_GET)?;
+                runtime.check_policy(PROCESS_ENV_GET)?;
 
                 // decode args
                 let (name,) = decode_destack_process_env_get_args(context, args)?;
@@ -2056,10 +10581,30 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
         });
     }
     {
-        binding!(registry, isolate, ENV_SET, move |context, args| {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_ENV_GET_BYTES,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_ENV_GET_BYTES)?;
+
+                    // decode args
+                    let (name,) = decode_destack_process_env_get_bytes_args(context, args)?;
+
+                    // execute binding
+                    destack_process_env_get_bytes_vm_replay(runtime, context, name)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, PROCESS_ENV_SET, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(ENV_SET)?;
+                runtime.check_policy(PROCESS_ENV_SET)?;
 
                 // decode args
                 let (name, value) = decode_destack_process_env_set_args(context, args)?;
@@ -2071,97 +10616,1203 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
         });
     }
     {
-        binding!(registry, isolate, EXIT, move |context, args| {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_ENV_SET_BYTES,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_ENV_SET_BYTES)?;
+
+                    // decode args
+                    let (name, value) = decode_destack_process_env_set_bytes_args(context, args)?;
+
+                    // execute binding
+                    destack_process_env_set_bytes_vm_replay(runtime, context, name, value)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_EXEC_EXEC,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_EXEC_EXEC)?;
+
+                    // decode args
+                    let (command, arguments, environment) =
+                        decode_destack_process_exec_exec_args(context, args)?;
+
+                    // execute binding
+                    destack_process_exec_exec_vm_replay(
+                        runtime,
+                        context,
+                        command,
+                        arguments,
+                        environment,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_EXEC_EXECAT,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_EXEC_EXECAT)?;
+
+                    // decode args
+                    let (directory, path, arguments, environment, flags) =
+                        decode_destack_process_exec_execat_args(context, args)?;
+
+                    // execute binding
+                    destack_process_exec_execat_vm_replay(
+                        runtime,
+                        context,
+                        directory,
+                        path,
+                        arguments,
+                        environment,
+                        flags,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_EXEC_FEXEC,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_EXEC_FEXEC)?;
+
+                    // decode args
+                    let (executable, arguments, environment) =
+                        decode_destack_process_exec_fexec_args(context, args)?;
+
+                    // execute binding
+                    destack_process_exec_fexec_vm_replay(
+                        runtime,
+                        context,
+                        executable,
+                        arguments,
+                        environment,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_EXIT_EXIT,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_EXIT_EXIT)?;
+
+                    // decode args
+                    let (code,) = decode_destack_process_exit_exit_args(context, args)?;
+
+                    // execute binding
+                    destack_process_exit_exit_vm_replay(runtime, context, code)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_FD_PROCESS_FD_CLOSE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_FD_PROCESS_FD_CLOSE)?;
+
+                    // decode args
+                    let (handle,) = decode_destack_process_fd_process_fd_close_args(context, args)?;
+
+                    // execute binding
+                    destack_process_fd_process_fd_close_vm_replay(runtime, context, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_FD_PROCESS_FD_OPEN,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_FD_PROCESS_FD_OPEN)?;
+
+                    // decode args
+                    let (pid, flags) =
+                        decode_destack_process_fd_process_fd_open_args(context, args)?;
+
+                    // execute binding
+                    destack_process_fd_process_fd_open_vm_replay(runtime, context, pid, flags)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_FD_PROCESS_FD_SEND_SIGNAL,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_FD_PROCESS_FD_SEND_SIGNAL)?;
+
+                    // decode args
+                    let (handle, signal, flags) =
+                        decode_destack_process_fd_process_fd_send_signal_args(context, args)?;
+
+                    // execute binding
+                    destack_process_fd_process_fd_send_signal_vm_replay(
+                        runtime, context, handle, signal, flags,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_FD_PROCESS_FD_TRY_WAIT,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_FD_PROCESS_FD_TRY_WAIT)?;
+
+                    // decode args
+                    let (handle,) =
+                        decode_destack_process_fd_process_fd_try_wait_args(context, args)?;
+
+                    // execute binding
+                    destack_process_fd_process_fd_try_wait_vm_replay(runtime, context, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_FD_PROCESS_FD_WAIT,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_FD_PROCESS_FD_WAIT)?;
+
+                    // decode args
+                    let (handle, timeoutns) =
+                        decode_destack_process_fd_process_fd_wait_args(context, args)?;
+
+                    // execute binding
+                    destack_process_fd_process_fd_wait_vm_replay(
+                        runtime, context, handle, timeoutns,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_FD_SIGNAL_FD_CLOSE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_FD_SIGNAL_FD_CLOSE)?;
+
+                    // decode args
+                    let (handle,) = decode_destack_process_fd_signal_fd_close_args(context, args)?;
+
+                    // execute binding
+                    destack_process_fd_signal_fd_close_vm_replay(runtime, context, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_FD_SIGNAL_FD_OPEN,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_FD_SIGNAL_FD_OPEN)?;
+
+                    // decode args
+                    let (signals, flags) =
+                        decode_destack_process_fd_signal_fd_open_args(context, args)?;
+
+                    // execute binding
+                    destack_process_fd_signal_fd_open_vm_replay(runtime, context, signals, flags)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_FD_SIGNAL_FD_READ,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_FD_SIGNAL_FD_READ)?;
+
+                    // decode args
+                    let (handle,) = decode_destack_process_fd_signal_fd_read_args(context, args)?;
+
+                    // execute binding
+                    destack_process_fd_signal_fd_read_vm_replay(runtime, context, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_FD_SIGNAL_FD_SET_MASK,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_FD_SIGNAL_FD_SET_MASK)?;
+
+                    // decode args
+                    let (handle, signals) =
+                        decode_destack_process_fd_signal_fd_set_mask_args(context, args)?;
+
+                    // execute binding
+                    destack_process_fd_signal_fd_set_mask_vm_replay(
+                        runtime, context, handle, signals,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_FD_SIGNAL_FD_TRY_READ,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_FD_SIGNAL_FD_TRY_READ)?;
+
+                    // decode args
+                    let (handle,) =
+                        decode_destack_process_fd_signal_fd_try_read_args(context, args)?;
+
+                    // execute binding
+                    destack_process_fd_signal_fd_try_read_vm_replay(runtime, context, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_GROUP_CGROUP_GET_LIMIT,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_GROUP_CGROUP_GET_LIMIT)?;
+
+                    // decode args
+                    let (path, resource) =
+                        decode_destack_process_group_cgroup_get_limit_args(context, args)?;
+
+                    // execute binding
+                    let result = platform_vm::destack_process_cgroup_get_limit(
+                        runtime, context, path, resource,
+                    );
+                    encode_destack_process_group_cgroup_get_limit_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_GROUP_CGROUP_JOIN,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_GROUP_CGROUP_JOIN)?;
+
+                    // decode args
+                    let (path,) = decode_destack_process_group_cgroup_join_args(context, args)?;
+
+                    // execute binding
+                    let result = platform_vm::destack_process_cgroup_join(runtime, context, path);
+                    encode_destack_process_group_cgroup_join_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_GROUP_CGROUP_SET_LIMIT,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_GROUP_CGROUP_SET_LIMIT)?;
+
+                    // decode args
+                    let (path, resource, limit) =
+                        decode_destack_process_group_cgroup_set_limit_args(context, args)?;
+
+                    // execute binding
+                    let result = platform_vm::destack_process_cgroup_set_limit(
+                        runtime, context, path, resource, limit,
+                    );
+                    encode_destack_process_group_cgroup_set_limit_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_GROUP_JOB_ASSIGN,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_GROUP_JOB_ASSIGN)?;
+
+                    // decode args
+                    let (name, pids) = decode_destack_process_group_job_assign_args(context, args)?;
+
+                    // execute binding
+                    let result =
+                        platform_vm::destack_process_job_assign(runtime, context, name, pids);
+                    encode_destack_process_group_job_assign_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_GROUP_JOB_SET_LIMIT,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_GROUP_JOB_SET_LIMIT)?;
+
+                    // decode args
+                    let (name, resource, limit) =
+                        decode_destack_process_group_job_set_limit_args(context, args)?;
+
+                    // execute binding
+                    let result = platform_vm::destack_process_job_set_limit(
+                        runtime, context, name, resource, limit,
+                    );
+                    encode_destack_process_group_job_set_limit_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, PROCESS_IDS_GID, move |context, _args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(EXIT)?;
+                runtime.check_policy(PROCESS_IDS_GID)?;
+
+                // execute binding
+                destack_process_ids_gid_vm_replay(runtime, context)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, PROCESS_IDS_PID, move |context, _args| {
+            with_runtime_call_context(|runtime| {
+                // policy
+                runtime.check_policy(PROCESS_IDS_PID)?;
+
+                // execute binding
+                destack_process_ids_pid_vm_replay(runtime, context)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_IDS_PPID,
+            move |context, _args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_IDS_PPID)?;
+
+                    // execute binding
+                    destack_process_ids_ppid_vm_replay(runtime, context)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_IDS_SET_GID,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_IDS_SET_GID)?;
+
+                    // decode args
+                    let (groupid,) = decode_destack_process_ids_set_gid_args(context, args)?;
+
+                    // execute binding
+                    destack_process_ids_set_gid_vm_replay(runtime, context, groupid)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_IDS_SET_GROUPS,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_IDS_SET_GROUPS)?;
+
+                    // decode args
+                    let (groups,) = decode_destack_process_ids_set_groups_args(context, args)?;
+
+                    // execute binding
+                    destack_process_ids_set_groups_vm_replay(runtime, context, groups)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_IDS_SET_UID,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_IDS_SET_UID)?;
+
+                    // decode args
+                    let (userid,) = decode_destack_process_ids_set_uid_args(context, args)?;
+
+                    // execute binding
+                    destack_process_ids_set_uid_vm_replay(runtime, context, userid)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, PROCESS_IDS_UID, move |context, _args| {
+            with_runtime_call_context(|runtime| {
+                // policy
+                runtime.check_policy(PROCESS_IDS_UID)?;
+
+                // execute binding
+                destack_process_ids_uid_vm_replay(runtime, context)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_ISOLATION_CHROOT,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_ISOLATION_CHROOT)?;
+
+                    // decode args
+                    let (path,) = decode_destack_process_isolation_chroot_args(context, args)?;
+
+                    // execute binding
+                    let result = platform_vm::destack_process_chroot(runtime, context, path);
+                    encode_destack_process_isolation_chroot_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_ISOLATION_INSTALL_SYSCALL_FILTER,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_ISOLATION_INSTALL_SYSCALL_FILTER)?;
+
+                    // decode args
+                    let (program, flags) =
+                        decode_destack_process_isolation_install_syscall_filter_args(
+                            context, args,
+                        )?;
+
+                    // execute binding
+                    let result = platform_vm::destack_process_install_syscall_filter(
+                        runtime, context, program, flags,
+                    );
+                    encode_destack_process_isolation_install_syscall_filter_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_ISOLATION_SET_HOST_NAME,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_ISOLATION_SET_HOST_NAME)?;
+
+                    // decode args
+                    let (name,) =
+                        decode_destack_process_isolation_set_host_name_args(context, args)?;
+
+                    // execute binding
+                    let result = platform_vm::destack_process_set_host_name(runtime, context, name);
+                    encode_destack_process_isolation_set_host_name_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_ISOLATION_SET_NETWORK_NAMESPACE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_ISOLATION_SET_NETWORK_NAMESPACE)?;
+
+                    // decode args
+                    let (path,) =
+                        decode_destack_process_isolation_set_network_namespace_args(context, args)?;
+
+                    // execute binding
+                    let result =
+                        platform_vm::destack_process_set_network_namespace(runtime, context, path);
+                    encode_destack_process_isolation_set_network_namespace_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_ISOLATION_SETNS,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_ISOLATION_SETNS)?;
+
+                    // decode args
+                    let (pid, namespace) =
+                        decode_destack_process_isolation_setns_args(context, args)?;
+
+                    // execute binding
+                    let result =
+                        platform_vm::destack_process_setns(runtime, context, pid, namespace);
+                    encode_destack_process_isolation_setns_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_ISOLATION_UNSHARE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_ISOLATION_UNSHARE)?;
+
+                    // decode args
+                    let (flags,) = decode_destack_process_isolation_unshare_args(context, args)?;
+
+                    // execute binding
+                    let result = platform_vm::destack_process_unshare(runtime, context, flags);
+                    encode_destack_process_isolation_unshare_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_LIMITS_GET_LIMIT,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_LIMITS_GET_LIMIT)?;
+
+                    // decode args
+                    let (resource,) = decode_destack_process_limits_get_limit_args(context, args)?;
+
+                    // execute binding
+                    destack_process_limits_get_limit_vm_replay(runtime, context, resource)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_LIMITS_SET_LIMIT,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_LIMITS_SET_LIMIT)?;
+
+                    // decode args
+                    let (resource, limit) =
+                        decode_destack_process_limits_set_limit_args(context, args)?;
+
+                    // execute binding
+                    destack_process_limits_set_limit_vm_replay(runtime, context, resource, limit)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_SCHED_GET_AFFINITY,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_SCHED_GET_AFFINITY)?;
+
+                    // decode args
+                    let (pid,) = decode_destack_process_sched_get_affinity_args(context, args)?;
+
+                    // execute binding
+                    destack_process_sched_get_affinity_vm_replay(runtime, context, pid)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_SCHED_GET_PRIORITY,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_SCHED_GET_PRIORITY)?;
+
+                    // decode args
+                    let (pid,) = decode_destack_process_sched_get_priority_args(context, args)?;
+
+                    // execute binding
+                    destack_process_sched_get_priority_vm_replay(runtime, context, pid)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_SCHED_SET_AFFINITY,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_SCHED_SET_AFFINITY)?;
+
+                    // decode args
+                    let (pid, cpus) =
+                        decode_destack_process_sched_set_affinity_args(context, args)?;
+
+                    // execute binding
+                    destack_process_sched_set_affinity_vm_replay(runtime, context, pid, cpus)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_SCHED_SET_PRIORITY,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_SCHED_SET_PRIORITY)?;
+
+                    // decode args
+                    let (pid, priority) =
+                        decode_destack_process_sched_set_priority_args(context, args)?;
+
+                    // execute binding
+                    destack_process_sched_set_priority_vm_replay(runtime, context, pid, priority)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_SESSION_GETPGID,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_SESSION_GETPGID)?;
+
+                    // decode args
+                    let (pid,) = decode_destack_process_session_getpgid_args(context, args)?;
+
+                    // execute binding
+                    destack_process_session_getpgid_vm_replay(runtime, context, pid)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_SESSION_SETPGID,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_SESSION_SETPGID)?;
+
+                    // decode args
+                    let (pid, pgid) = decode_destack_process_session_setpgid_args(context, args)?;
+
+                    // execute binding
+                    destack_process_session_setpgid_vm_replay(runtime, context, pid, pgid)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_SESSION_SETSID,
+            move |context, _args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_SESSION_SETSID)?;
+
+                    // execute binding
+                    destack_process_session_setsid_vm_replay(runtime, context)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_SIGNALS_KILL,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_SIGNALS_KILL)?;
+
+                    // decode args
+                    let (pid, signal) = decode_destack_process_signals_kill_args(context, args)?;
+
+                    // execute binding
+                    destack_process_signals_kill_vm_replay(runtime, context, pid, signal)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_SIGNALS_SIGNAL_MASK_READ,
+            move |context, _args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_SIGNALS_SIGNAL_MASK_READ)?;
+
+                    // execute binding
+                    destack_process_signals_signal_mask_read_vm_replay(runtime, context)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_SIGNALS_SIGNAL_MASK_UPDATE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_SIGNALS_SIGNAL_MASK_UPDATE)?;
+
+                    // decode args
+                    let (how, signals) =
+                        decode_destack_process_signals_signal_mask_update_args(context, args)?;
+
+                    // execute binding
+                    destack_process_signals_signal_mask_update_vm_replay(
+                        runtime, context, how, signals,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_SIGNALS_SIGNAL_RECEIVE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_SIGNALS_SIGNAL_RECEIVE)?;
+
+                    // decode args
+                    let (handle,) =
+                        decode_destack_process_signals_signal_receive_args(context, args)?;
+
+                    // execute binding
+                    destack_process_signals_signal_receive_vm_replay(runtime, context, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_SIGNALS_SIGNAL_SUBSCRIBE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_SIGNALS_SIGNAL_SUBSCRIBE)?;
+
+                    // decode args
+                    let (signal,) =
+                        decode_destack_process_signals_signal_subscribe_args(context, args)?;
+
+                    // execute binding
+                    destack_process_signals_signal_subscribe_vm_replay(runtime, context, signal)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE)?;
+
+                    // decode args
+                    let (handle,) =
+                        decode_destack_process_signals_signal_try_receive_args(context, args)?;
+
+                    // execute binding
+                    destack_process_signals_signal_try_receive_vm_replay(runtime, context, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_SIGNALS_SIGNAL_TRY_WAIT,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_SIGNALS_SIGNAL_TRY_WAIT)?;
+
+                    // decode args
+                    let (signals,) =
+                        decode_destack_process_signals_signal_try_wait_args(context, args)?;
+
+                    // execute binding
+                    destack_process_signals_signal_try_wait_vm_replay(runtime, context, signals)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE)?;
+
+                    // decode args
+                    let (handle,) =
+                        decode_destack_process_signals_signal_unsubscribe_args(context, args)?;
+
+                    // execute binding
+                    destack_process_signals_signal_unsubscribe_vm_replay(runtime, context, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_SIGNALS_SIGNAL_WAIT,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_SIGNALS_SIGNAL_WAIT)?;
+
+                    // decode args
+                    let (signals,) =
+                        decode_destack_process_signals_signal_wait_args(context, args)?;
+
+                    // execute binding
+                    destack_process_signals_signal_wait_vm_replay(runtime, context, signals)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_SPAWN_SPAWN,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_SPAWN_SPAWN)?;
+
+                    // decode args
+                    let (command, arguments, environment, options) =
+                        decode_destack_process_spawn_spawn_args(context, args)?;
+
+                    // execute binding
+                    destack_process_spawn_spawn_vm_replay(
+                        runtime,
+                        context,
+                        command,
+                        arguments,
+                        environment,
+                        options,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_SPAWN_WITH_ACTIONS,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_SPAWN_WITH_ACTIONS)?;
+
+                    // decode args
+                    let (command, arguments, environment, options, stdio, actions) =
+                        decode_destack_process_spawn_with_actions_args(context, args)?;
+
+                    // execute binding
+                    destack_process_spawn_with_actions_vm_replay(
+                        runtime,
+                        context,
+                        command,
+                        arguments,
+                        environment,
+                        options,
+                        stdio,
+                        actions,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_UMASK_UMASK,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_UMASK_UMASK)?;
+
+                    // decode args
+                    let (mask,) = decode_destack_process_umask_umask_args(context, args)?;
+
+                    // execute binding
+                    destack_process_umask_umask_vm_replay(runtime, context, mask)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, PROCESS_WAIT_PID, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // policy
+                runtime.check_policy(PROCESS_WAIT_PID)?;
 
                 // decode args
-                let (code,) = decode_destack_process_exit_args(context, args)?;
+                let (pid, flags) = decode_destack_process_wait_pid_args(context, args)?;
 
                 // execute binding
-                destack_process_exit_vm_replay(runtime, context, code)
+                destack_process_wait_pid_vm_replay(runtime, context, pid, flags)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, GID, move |context, _args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(GID)?;
+        binding!(
+            registry,
+            isolate,
+            PROCESS_WAIT_TRY_WAIT,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_WAIT_TRY_WAIT)?;
 
-                // execute binding
-                destack_process_gid_vm_replay(runtime, context)
-            })
-            .map_err(Into::into)
-        });
+                    // decode args
+                    let (handle,) = decode_destack_process_wait_try_wait_args(context, args)?;
+
+                    // execute binding
+                    destack_process_wait_try_wait_vm_replay(runtime, context, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, KILL, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(KILL)?;
+        binding!(
+            registry,
+            isolate,
+            PROCESS_WAIT_WAIT,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(PROCESS_WAIT_WAIT)?;
 
-                // decode args
-                let (pid, signal) = decode_destack_process_kill_args(context, args)?;
+                    // decode args
+                    let (handle, flags) = decode_destack_process_wait_wait_args(context, args)?;
 
-                // execute binding
-                destack_process_kill_vm_replay(runtime, context, pid, signal)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, PID, move |context, _args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(PID)?;
-
-                // execute binding
-                destack_process_pid_vm_replay(runtime, context)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, PPID, move |context, _args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(PPID)?;
-
-                // execute binding
-                destack_process_ppid_vm_replay(runtime, context)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, UID, move |context, _args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(UID)?;
-
-                // execute binding
-                destack_process_uid_vm_replay(runtime, context)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, UMASK, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(UMASK)?;
-
-                // decode args
-                let (mask,) = decode_destack_process_umask_args(context, args)?;
-
-                // execute binding
-                destack_process_umask_vm_replay(runtime, context, mask)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    destack_process_wait_wait_vm_replay(runtime, context, handle, flags)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
 }
 

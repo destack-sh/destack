@@ -1,165 +1,132 @@
-use super::{FsHarness, native_slice, native_slice_mut, path_bytes, temp_dir, with_native_harness};
-use crate::platform::NativeSlice;
-use crate::platform::fs::{
-    FileMode, FileOffset, OpenFlags, destack_fs_dir_mkdir, destack_fs_dir_rmdir,
-    destack_fs_file_close, destack_fs_file_fsync, destack_fs_file_ftruncate, destack_fs_file_open,
-    destack_fs_file_pread, destack_fs_file_preadv, destack_fs_file_pwrite, destack_fs_file_pwritev,
-    destack_fs_file_truncate, destack_fs_path_unlink,
-};
-use crate::platform::resource::{FileHandle, ResourceId};
+#![cfg_attr(windows, allow(dead_code, unused_imports))]
+use super::{temp_dir, with_harness_context};
+use crate::platform::fs::{FileMode, FileOffset, OpenFlags, SeekWhence};
 
 #[cfg(any(unix, windows))]
 #[test]
 fn test_fs_truncate_and_fsync() {
-    with_native_harness(|harness| {
+    with_harness_context(|mut context| {
         // runtime and temp directory
-        let runtime = harness.runtime();
         let temp_dir = temp_dir("fs_truncate");
         let file_path = temp_dir.join("data.txt");
 
-        let handle = harness.with_context(|| {
-            let (_bytes, dir) = path_bytes(&temp_dir);
-            let status = unsafe { destack_fs_dir_mkdir(dir, FileMode(0o755)) };
-            runtime.assert_status_ok(status, "mkdir");
+        let dir = context.path_bytes(&temp_dir);
+        context.mkdir(dir, FileMode(0o755))?;
 
-            let (_bytes, file) = path_bytes(&file_path);
-            let flags = OpenFlags((libc::O_RDWR | libc::O_CREAT | libc::O_TRUNC) as u32);
-            let mut handle = FileHandle(ResourceId(0));
-            let status = unsafe { destack_fs_file_open(&mut handle, file, flags, FileMode(0o644)) };
-            runtime.assert_status_ok(status, "open");
-            handle
-        });
+        // write payload
+        let file = context.path_bytes(&file_path);
+        let flags = OpenFlags((libc::O_RDWR | libc::O_CREAT | libc::O_TRUNC) as u32);
+        let handle = context.open(file, flags, FileMode(0o644))?;
 
-        harness.with_context(|| {
-            let buffer = b"hello world".to_vec();
-            let slice = native_slice(&buffer);
-            let mut out = 0u64;
-            let status = unsafe { destack_fs_file_pwrite(&mut out, handle, slice, FileOffset(0)) };
-            runtime.assert_status_ok(status, "write");
+        let buffer = b"hello world".to_vec();
+        context.pwrite(handle, &buffer, FileOffset(0))?;
+        context.fsync(handle)?;
+        context.ftruncate(handle, FileOffset(5))?;
 
-            let status = unsafe { destack_fs_file_fsync(handle) };
-            runtime.assert_status_ok(status, "fsync");
+        let mut buffer = vec![0u8; 16];
+        let out = context.pread(handle, &mut buffer, FileOffset(0))?;
+        buffer.truncate(out as usize);
+        assert_eq!(buffer, b"hello");
 
-            let status = unsafe { destack_fs_file_ftruncate(handle, FileOffset(5)) };
-            runtime.assert_status_ok(status, "ftruncate");
-        });
+        // cleanup
+        context.close(handle)?;
 
-        let truncated = harness.with_context(|| {
-            let mut buffer = vec![0u8; 16];
-            let slice = native_slice_mut(&mut buffer);
-            let mut out = 0u64;
-            let status = unsafe { destack_fs_file_pread(&mut out, handle, slice, FileOffset(0)) };
-            runtime.assert_status_ok(status, "read");
-            buffer.truncate(out as usize);
-            buffer
-        });
-        assert_eq!(truncated, b"hello");
+        let file = context.path_bytes(&file_path);
+        context.truncate(file.clone(), FileOffset(0))?;
+        context.unlink(file)?;
 
-        harness.with_context(|| {
-            let status = unsafe { destack_fs_file_close(handle) };
-            runtime.assert_status_ok(status, "close");
+        let dir = context.path_bytes(&temp_dir);
+        context.rmdir(dir)?;
 
-            let (_bytes, file) = path_bytes(&file_path);
-            let status = unsafe { destack_fs_file_truncate(file, FileOffset(0)) };
-            runtime.assert_status_ok(status, "truncate");
+        Ok(())
+    });
+}
 
-            let status = unsafe { destack_fs_path_unlink(file) };
-            runtime.assert_status_ok(status, "unlink");
+#[cfg(unix)]
+#[test]
+fn test_fs_readv_writev() {
+    with_harness_context(|mut context| {
+        // runtime and temp directory
+        let temp_dir = temp_dir("fs_vectored");
+        let file_path = temp_dir.join("data.txt");
 
-            let (_bytes, dir) = path_bytes(&temp_dir);
-            let status = unsafe { destack_fs_dir_rmdir(dir) };
-            runtime.assert_status_ok(status, "rmdir");
-        });
+        let dir = context.path_bytes(&temp_dir);
+        context.mkdir(dir, FileMode(0o755))?;
+
+        // write payload
+        let file = context.path_bytes(&file_path);
+        let flags = OpenFlags((libc::O_RDWR | libc::O_CREAT | libc::O_TRUNC) as u32);
+        let handle = context.open(file, flags, FileMode(0o644))?;
+
+        let buf_a = b"hello ".to_vec();
+        let buf_b = b"world".to_vec();
+        let buffers = [&buf_a[..], &buf_b[..]];
+        let out = context.writev(handle, &buffers)?;
+        assert_eq!(out, 11);
+
+        let _ = context.seek(handle, FileOffset(0), SeekWhence::Set)?;
+
+        let mut buf_a = vec![0u8; 6];
+        let mut buf_b = vec![0u8; 5];
+        let mut buffers = [&mut buf_a[..], &mut buf_b[..]];
+        let out = context.readv(handle, &mut buffers)?;
+        let mut combined = Vec::new();
+        combined.extend_from_slice(&buf_a);
+        combined.extend_from_slice(&buf_b);
+        combined.truncate(out as usize);
+        assert_eq!(combined, b"hello world");
+
+        // cleanup
+        context.close(handle)?;
+        let file = context.path_bytes(&file_path);
+        context.unlink(file)?;
+        let dir = context.path_bytes(&temp_dir);
+        context.rmdir(dir)?;
+
+        Ok(())
     });
 }
 
 #[cfg(any(unix, windows))]
 #[test]
-fn test_fs_readv_writev() {
-    with_native_harness(|harness| {
+fn test_fs_preadv_pwritev() {
+    with_harness_context(|mut context| {
         // runtime and temp directory
-        let runtime = harness.runtime();
-        let temp_dir = temp_dir("fs_vectored");
+        let temp_dir = temp_dir("fs_preadv");
         let file_path = temp_dir.join("data.txt");
 
-        let handle = harness.with_context(|| {
-            let (_bytes, dir) = path_bytes(&temp_dir);
-            let status = unsafe { destack_fs_dir_mkdir(dir, FileMode(0o755)) };
-            runtime.assert_status_ok(status, "mkdir");
+        let dir = context.path_bytes(&temp_dir);
+        context.mkdir(dir, FileMode(0o755))?;
 
-            let (_bytes, file) = path_bytes(&file_path);
-            let flags = OpenFlags((libc::O_RDWR | libc::O_CREAT | libc::O_TRUNC) as u32);
-            let mut handle = FileHandle(ResourceId(0));
-            let status = unsafe { destack_fs_file_open(&mut handle, file, flags, FileMode(0o644)) };
-            runtime.assert_status_ok(status, "open");
-            handle
-        });
+        // write payload using pwritev
+        let file = context.path_bytes(&file_path);
+        let flags = OpenFlags((libc::O_RDWR | libc::O_CREAT | libc::O_TRUNC) as u32);
+        let handle = context.open(file, flags, FileMode(0o644))?;
 
-        harness.with_context(|| {
-            let mut buf_a = b"hello ".to_vec();
-            let mut buf_b = b"world".to_vec();
-            let mut segments = [
-                NativeSlice {
-                    data: buf_a.as_mut_ptr(),
-                    len: buf_a.len() as u32,
-                },
-                NativeSlice {
-                    data: buf_b.as_mut_ptr(),
-                    len: buf_b.len() as u32,
-                },
-            ];
-            let buffers = NativeSlice {
-                data: segments.as_mut_ptr(),
-                len: segments.len() as u32,
-            };
-            let mut out = 0u64;
-            let status =
-                unsafe { destack_fs_file_pwritev(&mut out, handle, buffers, FileOffset(0)) };
-            runtime.assert_status_ok(status, "writev");
-            assert_eq!(out, 11);
-        });
+        let buf_a = b"hello ".to_vec();
+        let buf_b = b"world".to_vec();
+        let buffers = [&buf_a[..], &buf_b[..]];
+        let out = context.pwritev(handle, &buffers, FileOffset(0))?;
+        assert_eq!(out, 11);
 
-        let read_back = harness.with_context(|| {
-            let mut buf_a = vec![0u8; 6];
-            let mut buf_b = vec![0u8; 5];
-            let mut segments = [
-                NativeSlice {
-                    data: buf_a.as_mut_ptr(),
-                    len: buf_a.len() as u32,
-                },
-                NativeSlice {
-                    data: buf_b.as_mut_ptr(),
-                    len: buf_b.len() as u32,
-                },
-            ];
-            let buffers = NativeSlice {
-                data: segments.as_mut_ptr(),
-                len: segments.len() as u32,
-            };
-            let mut out = 0u64;
-            let status =
-                unsafe { destack_fs_file_preadv(&mut out, handle, buffers, FileOffset(0)) };
-            runtime.assert_status_ok(status, "readv");
-            let mut combined = Vec::new();
-            combined.extend_from_slice(&buf_a);
-            combined.extend_from_slice(&buf_b);
-            combined.truncate(out as usize);
-            combined
-        });
+        // read back using preadv
+        let mut buf_a = vec![0u8; 6];
+        let mut buf_b = vec![0u8; 5];
+        let mut buffers = [&mut buf_a[..], &mut buf_b[..]];
+        let out = context.preadv(handle, &mut buffers, FileOffset(0))?;
+        let mut combined = Vec::new();
+        combined.extend_from_slice(&buf_a);
+        combined.extend_from_slice(&buf_b);
+        combined.truncate(out as usize);
+        assert_eq!(combined, b"hello world");
 
-        assert_eq!(read_back, b"hello world");
+        // cleanup
+        context.close(handle)?;
+        let file = context.path_bytes(&file_path);
+        context.unlink(file)?;
+        let dir = context.path_bytes(&temp_dir);
+        context.rmdir(dir)?;
 
-        harness.with_context(|| {
-            let status = unsafe { destack_fs_file_close(handle) };
-            runtime.assert_status_ok(status, "close");
-
-            let (_bytes, file) = path_bytes(&file_path);
-            let status = unsafe { destack_fs_path_unlink(file) };
-            runtime.assert_status_ok(status, "unlink");
-
-            let (_bytes, dir) = path_bytes(&temp_dir);
-            let status = unsafe { destack_fs_dir_rmdir(dir) };
-            runtime.assert_status_ok(status, "rmdir");
-        });
+        Ok(())
     });
 }

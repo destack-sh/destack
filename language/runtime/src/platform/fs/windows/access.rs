@@ -1,5 +1,3 @@
-use std::os::windows::ffi::OsStrExt;
-
 use windows_sys::Win32::Security::Authorization::{SE_FILE_OBJECT, SetNamedSecurityInfoW};
 use windows_sys::Win32::Security::{GROUP_SECURITY_INFORMATION, OWNER_SECURITY_INFORMATION};
 use windows_sys::Win32::Storage::FileSystem::{
@@ -12,7 +10,6 @@ use crate::platform::PlatformError;
 use crate::platform::abi::NativeAbi;
 use crate::platform::fs::{
     AccessMode, AtFlags, DirectoryHandle, FileMode, PathBytes, PathBytesAbi, PathUtf16,
-    PathUtf16Abi,
 };
 use crate::runtime::RuntimeCallContext;
 
@@ -177,9 +174,7 @@ pub(crate) unsafe fn destack_fs_fchmodat_utf16(
         base.push(pathbuf);
         base
     };
-    let path = PathUtf16Abi::<NativeAbi>(
-        context.store_array(full_path.as_os_str().encode_wide().collect()),
-    );
+    let path = path_utf16_from_pathbuf(context, &full_path);
     unsafe { destack_fs_chmod_utf16(context, path, mode) }
 }
 
@@ -268,9 +263,7 @@ pub(crate) unsafe fn destack_fs_fchownat_utf16(
         base.push(pathbuf);
         base
     };
-    let path = PathUtf16Abi::<NativeAbi>(
-        context.store_array(full_path.as_os_str().encode_wide().collect()),
-    );
+    let path = path_utf16_from_pathbuf(context, &full_path);
     unsafe { destack_fs_chown_utf16(context, path, uid, gid) }
 }
 

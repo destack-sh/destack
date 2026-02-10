@@ -1,157 +1,129 @@
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::time::{ClockId, ClockInfoVm, SleepClock};
+use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
 
-use crate::diagnostic::RuntimeResult;
-use crate::platform::time::{ClockId, ClockInfoVm, ClockSource, SleepClock};
-use crate::runtime::RuntimeCallContext;
-
-/// Return wall clock time in nanoseconds.
-pub fn destack_time_wall_ns(
-    runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
-) -> RuntimeResult<u64> {
-    Ok(runtime.runtime().time.wall_nanos())
-}
-
-/// Return monotonic time in nanoseconds.
-pub fn destack_time_mono_ns(
-    runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
-) -> RuntimeResult<u64> {
-    Ok(runtime.runtime().time.mono_nanos())
-}
-
-/// Return clock metadata.
-pub fn destack_time_clock_info(
+/// Stub for destack.time.clock.info.
+pub(super) fn destack_time_clock_info(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     clock: ClockId,
 ) -> RuntimeResult<ClockInfoVm> {
-    let info = match clock {
-        ClockId::Wall => ClockInfoVm {
-            id: ClockId::Wall,
-            source: ClockSource::Realtime,
-            resolution_ns: 1,
-            is_monotonic: false,
-        },
-        ClockId::Monotonic => ClockInfoVm {
-            id: ClockId::Monotonic,
-            source: ClockSource::Monotonic,
-            resolution_ns: 1,
-            is_monotonic: true,
-        },
-        ClockId::ProcessCpu => ClockInfoVm {
-            id: ClockId::ProcessCpu,
-            source: ClockSource::PerformanceCounter,
-            resolution_ns: 1,
-            is_monotonic: true,
-        },
-        ClockId::ThreadCpu => ClockInfoVm {
-            id: ClockId::ThreadCpu,
-            source: ClockSource::PerformanceCounter,
-            resolution_ns: 1,
-            is_monotonic: true,
-        },
-        ClockId::Boot => ClockInfoVm {
-            id: ClockId::Boot,
-            source: ClockSource::Monotonic,
-            resolution_ns: 1,
-            is_monotonic: true,
-        },
-        ClockId::MonotonicRaw => ClockInfoVm {
-            id: ClockId::MonotonicRaw,
-            source: ClockSource::Monotonic,
-            resolution_ns: 1,
-            is_monotonic: true,
-        },
-    };
-
-    Ok(info)
+    let _ = clock;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.time.clock.info is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Return the current nanoseconds value for the selected clock.
-pub fn destack_time_now_ns(
-    runtime: &RuntimeCallContext,
+/// Stub for destack.time.clock.monoNs.
+pub(super) fn destack_time_mono_ns(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+) -> RuntimeResult<u64> {
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.time.clock.monoNs is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.time.clock.nowNs.
+pub(super) fn destack_time_now_ns(
+    _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     clock: ClockId,
 ) -> RuntimeResult<u64> {
-    let value = match clock {
-        ClockId::Wall => runtime.runtime().time.wall_nanos(),
-        ClockId::Monotonic => runtime.runtime().time.mono_nanos(),
-        // NOTE #Incomplete: implement process cpu clock source
-        ClockId::ProcessCpu => runtime.runtime().time.mono_nanos(),
-        // NOTE #Incomplete: implement thread cpu clock source
-        ClockId::ThreadCpu => runtime.runtime().time.mono_nanos(),
-        // NOTE #Incomplete: implement boot clock source
-        ClockId::Boot => runtime.runtime().time.mono_nanos(),
-        // NOTE #Incomplete: implement monotonic raw clock source
-        ClockId::MonotonicRaw => runtime.runtime().time.mono_nanos(),
-    };
-
-    Ok(value)
+    let _ = clock;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.time.clock.nowNs is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Return process cpu time in nanoseconds.
-pub fn destack_time_process_cpu_ns(
-    runtime: &RuntimeCallContext,
+/// Stub for destack.time.clock.processCpuNs.
+pub(super) fn destack_time_process_cpu_ns(
+    _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
 ) -> RuntimeResult<u64> {
-    // NOTE #Incomplete: implement process cpu timer source
-    Ok(runtime.runtime().time.mono_nanos())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.time.clock.processCpuNs is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Return thread cpu time in nanoseconds.
-pub fn destack_time_thread_cpu_ns(
-    runtime: &RuntimeCallContext,
+/// Stub for destack.time.clock.threadCpuNs.
+pub(super) fn destack_time_thread_cpu_ns(
+    _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
 ) -> RuntimeResult<u64> {
-    // NOTE #Incomplete: implement thread cpu timer source
-    Ok(runtime.runtime().time.mono_nanos())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.time.clock.threadCpuNs is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Sleep for the given duration in nanoseconds.
-pub fn destack_time_sleep_ns(
-    runtime: &RuntimeCallContext,
+/// Stub for destack.time.clock.wallNs.
+pub(super) fn destack_time_wall_ns(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+) -> RuntimeResult<u64> {
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.time.clock.wallNs is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.time.sleep.ns.
+pub(super) fn destack_time_sleep_ns(
+    _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     duration: u64,
 ) -> RuntimeResult<()> {
-    runtime.runtime().time.sleep_nanos(duration);
-    Ok(())
+    let _ = duration;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.time.sleep.ns is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Sleep for the given duration on the selected clock.
-pub fn destack_time_sleep_on_ns(
-    runtime: &RuntimeCallContext,
+/// Stub for destack.time.sleep.onNs.
+pub(super) fn destack_time_sleep_on_ns(
+    _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     duration: u64,
     clock: SleepClock,
 ) -> RuntimeResult<()> {
-    // NOTE #Incomplete: honor sleep clock selection
-    let _ = clock;
-    runtime.runtime().time.sleep_nanos(duration);
-
-    Ok(())
+    let _ = (duration, clock);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.time.sleep.onNs is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Sleep until the provided deadline in nanoseconds.
-pub fn destack_time_sleep_until_ns(
-    runtime: &RuntimeCallContext,
+/// Stub for destack.time.sleep.untilNs.
+pub(super) fn destack_time_sleep_until_ns(
+    _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     deadline: u64,
 ) -> RuntimeResult<()> {
-    runtime.runtime().time.sleep_until_nanos(deadline);
-    Ok(())
+    let _ = deadline;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.time.sleep.untilNs is not available in the VM yet",
+    ))
+    .boxed())
 }
 
-/// Sleep until the given deadline on the selected clock.
-pub fn destack_time_sleep_until_on_ns(
-    runtime: &RuntimeCallContext,
+/// Stub for destack.time.sleep.untilOnNs.
+pub(super) fn destack_time_sleep_until_on_ns(
+    _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     deadline: u64,
     clock: SleepClock,
 ) -> RuntimeResult<()> {
-    // NOTE #Incomplete: honor sleep clock selection
-    let _ = clock;
-    runtime.runtime().time.sleep_until_nanos(deadline);
-
-    Ok(())
+    let _ = (deadline, clock);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.time.sleep.untilOnNs is not available in the VM yet",
+    ))
+    .boxed())
 }

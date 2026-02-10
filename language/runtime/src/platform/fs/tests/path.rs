@@ -1,157 +1,304 @@
-use super::{
-    FsHarness, native_slice, native_slice_mut, os_path_string, path_bytes, temp_dir,
-    with_native_harness,
-};
+use super::{temp_dir, with_harness_context};
 #[cfg(unix)]
 use crate::platform::fs::SymlinkType;
-use crate::platform::fs::{
-    CopyFlags, FileMode, FileOffset, OpenFlags, OsPath, destack_fs_dir_mkdir, destack_fs_dir_rmdir,
-    destack_fs_file_close, destack_fs_file_open, destack_fs_file_pread, destack_fs_file_pwrite,
-    destack_fs_path_copyfile, destack_fs_path_link, destack_fs_path_readlink,
-    destack_fs_path_rename, destack_fs_path_symlink, destack_fs_path_unlink,
-};
-use crate::platform::resource::{FileHandle, ResourceId};
+use crate::platform::fs::{CopyFlags, FileMode, OpenFlags};
 
 #[cfg(any(unix, windows))]
 #[test]
 fn test_fs_rename_unlink_copyfile() {
-    with_native_harness(|harness| {
+    with_harness_context(|mut context| {
         // runtime and temp directory
-        let runtime = harness.runtime();
         let temp_dir = temp_dir("fs_path");
         let file_a = temp_dir.join("a.txt");
         let file_b = temp_dir.join("b.txt");
         let file_c = temp_dir.join("c.txt");
         let file_d = temp_dir.join("d.txt");
 
-        harness.with_context(|| {
-            let (_bytes, dir) = path_bytes(&temp_dir);
-            let status = unsafe { destack_fs_dir_mkdir(dir, FileMode(0o755)) };
-            runtime.assert_status_ok(status, "mkdir");
+        let dir = context.path_bytes(&temp_dir);
+        context.mkdir(dir, FileMode(0o755))?;
 
-            let (_bytes, path) = path_bytes(&file_a);
-            let flags = OpenFlags((libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC) as u32);
-            let mut handle = FileHandle(ResourceId(0));
-            let status = unsafe { destack_fs_file_open(&mut handle, path, flags, FileMode(0o644)) };
-            runtime.assert_status_ok(status, "open");
-            let payload = b"destack".to_vec();
-            let slice = native_slice(&payload);
-            let mut out = 0u64;
-            let status = unsafe { destack_fs_file_pwrite(&mut out, handle, slice, FileOffset(0)) };
-            runtime.assert_status_ok(status, "write");
-            let status = unsafe { destack_fs_file_close(handle) };
-            runtime.assert_status_ok(status, "close");
+        // write initial file
+        let path = context.path_bytes(&file_a);
+        let flags = OpenFlags((libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC) as u32);
+        let handle = context.open(path, flags, FileMode(0o644))?;
+        let payload = b"destack".to_vec();
+        context.write(handle, &payload)?;
+        context.close(handle)?;
 
-            let (_bytes, from) = path_bytes(&file_a);
-            let (_bytes, to) = path_bytes(&file_b);
-            let status = unsafe { destack_fs_path_rename(from, to) };
-            runtime.assert_status_ok(status, "rename");
+        // rename, link, and copy
+        let from = context.path_bytes(&file_a);
+        let to = context.path_bytes(&file_b);
+        context.rename(from, to)?;
 
-            let (_bytes, from) = path_bytes(&file_b);
-            let (_bytes, to) = path_bytes(&file_c);
-            let status = unsafe { destack_fs_path_link(from, to) };
-            runtime.assert_status_ok(status, "link");
+        let from = context.path_bytes(&file_b);
+        let to = context.path_bytes(&file_c);
+        context.link(from, to)?;
 
-            let (_bytes, from) = path_bytes(&file_b);
-            let (_bytes, to) = path_bytes(&file_d);
-            let status = unsafe { destack_fs_path_copyfile(from, to, CopyFlags(0)) };
-            runtime.assert_status_ok(status, "copyfile");
+        let from = context.path_bytes(&file_b);
+        let to = context.path_bytes(&file_d);
+        context.copyfile(from, to, CopyFlags(0))?;
 
-            let (_bytes, path) = path_bytes(&file_c);
-            let flags = OpenFlags(libc::O_RDONLY as u32);
-            let mut handle = FileHandle(ResourceId(0));
-            let status = unsafe { destack_fs_file_open(&mut handle, path, flags, FileMode(0o644)) };
-            runtime.assert_status_ok(status, "open link");
-            let mut buffer = vec![0u8; 16];
-            let slice = native_slice_mut(&mut buffer);
-            let mut out = 0u64;
-            let status = unsafe { destack_fs_file_pread(&mut out, handle, slice, FileOffset(0)) };
-            runtime.assert_status_ok(status, "read link");
-            buffer.truncate(out as usize);
-            assert_eq!(buffer, b"destack");
-            let status = unsafe { destack_fs_file_close(handle) };
-            runtime.assert_status_ok(status, "close link");
+        let path = context.path_bytes(&file_c);
+        let flags = OpenFlags(libc::O_RDONLY as u32);
+        let handle = context.open(path, flags, FileMode(0o644))?;
+        let mut buffer = vec![0u8; 16];
+        let out = context.read(handle, &mut buffer)?;
+        buffer.truncate(out as usize);
+        assert_eq!(buffer, b"destack");
+        context.close(handle)?;
 
-            let (_bytes, path) = path_bytes(&file_d);
-            let flags = OpenFlags(libc::O_RDONLY as u32);
-            let mut handle = FileHandle(ResourceId(0));
-            let status = unsafe { destack_fs_file_open(&mut handle, path, flags, FileMode(0o644)) };
-            runtime.assert_status_ok(status, "open copy");
-            let mut buffer = vec![0u8; 16];
-            let slice = native_slice_mut(&mut buffer);
-            let mut out = 0u64;
-            let status = unsafe { destack_fs_file_pread(&mut out, handle, slice, FileOffset(0)) };
-            runtime.assert_status_ok(status, "read copy");
-            buffer.truncate(out as usize);
-            assert_eq!(buffer, b"destack");
-            let status = unsafe { destack_fs_file_close(handle) };
-            runtime.assert_status_ok(status, "close copy");
+        let path = context.path_bytes(&file_d);
+        let handle = context.open(path, flags, FileMode(0o644))?;
+        let mut buffer = vec![0u8; 16];
+        let out = context.read(handle, &mut buffer)?;
+        buffer.truncate(out as usize);
+        assert_eq!(buffer, b"destack");
+        context.close(handle)?;
 
-            let (_bytes, to) = path_bytes(&file_b);
-            let status = unsafe { destack_fs_path_unlink(to) };
-            runtime.assert_status_ok(status, "unlink b");
+        // cleanup
+        let to = context.path_bytes(&file_b);
+        context.unlink(to)?;
+        let to = context.path_bytes(&file_c);
+        context.unlink(to)?;
+        let to = context.path_bytes(&file_d);
+        context.unlink(to)?;
 
-            let (_bytes, to) = path_bytes(&file_c);
-            let status = unsafe { destack_fs_path_unlink(to) };
-            runtime.assert_status_ok(status, "unlink c");
+        let dir = context.path_bytes(&temp_dir);
+        context.rmdir(dir)?;
 
-            let (_bytes, to) = path_bytes(&file_d);
-            let status = unsafe { destack_fs_path_unlink(to) };
-            runtime.assert_status_ok(status, "unlink d");
-
-            let (_bytes, dir) = path_bytes(&temp_dir);
-            let status = unsafe { destack_fs_dir_rmdir(dir) };
-            runtime.assert_status_ok(status, "rmdir");
-        });
+        Ok(())
     });
 }
 
 #[cfg(unix)]
 #[test]
 fn test_fs_symlink_readlink() {
-    with_native_harness(|harness| {
+    with_harness_context(|mut context| {
         // runtime and temp directory
-        let runtime = harness.runtime();
         let temp_dir = temp_dir("fs_symlink");
         let file_path = temp_dir.join("file.txt");
         let link_path = temp_dir.join("link.txt");
 
-        harness.with_context(|| {
-            let (_bytes, dir) = path_bytes(&temp_dir);
-            let status = unsafe { destack_fs_dir_mkdir(dir, FileMode(0o755)) };
-            runtime.assert_status_ok(status, "mkdir");
+        let dir = context.path_bytes(&temp_dir);
+        context.mkdir(dir, FileMode(0o755))?;
 
-            let (_bytes, path) = path_bytes(&file_path);
-            let flags = OpenFlags((libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC) as u32);
-            let mut handle = FileHandle(ResourceId(0));
-            let status = unsafe { destack_fs_file_open(&mut handle, path, flags, FileMode(0o644)) };
-            runtime.assert_status_ok(status, "open");
-            let status = unsafe { destack_fs_file_close(handle) };
-            runtime.assert_status_ok(status, "close");
+        // create target file
+        let path = context.path_bytes(&file_path);
+        let flags = OpenFlags((libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC) as u32);
+        let handle = context.open(path, flags, FileMode(0o644))?;
+        context.close(handle)?;
 
-            let (_bytes, target) = path_bytes(&file_path);
-            let (_bytes, link) = path_bytes(&link_path);
-            let status = unsafe { destack_fs_path_symlink(target, link, SymlinkType::File) };
-            runtime.assert_status_ok(status, "symlink");
+        // symlink and readlink
+        let target = context.path_bytes(&file_path);
+        let link = context.path_bytes(&link_path);
+        context.symlink(target, link, SymlinkType::File)?;
 
-            let mut out = std::mem::MaybeUninit::<OsPath>::uninit();
-            let status = unsafe { destack_fs_path_readlink(out.as_mut_ptr(), link) };
-            runtime.assert_status_ok(status, "readlink");
-            let path = unsafe { out.assume_init() };
-            let name = os_path_string(&path);
-            assert!(name.ends_with("file.txt"));
+        let link = context.path_bytes(&link_path);
+        let path = context.readlink(link)?;
+        let bytes = context.path_ref_bytes(path);
+        assert!(bytes.ends_with(b"file.txt"));
 
-            let (_bytes, link) = path_bytes(&link_path);
-            let status = unsafe { destack_fs_path_unlink(link) };
-            runtime.assert_status_ok(status, "unlink link");
+        // cleanup
+        let link = context.path_bytes(&link_path);
+        context.unlink(link)?;
 
-            let (_bytes, path) = path_bytes(&file_path);
-            let status = unsafe { destack_fs_path_unlink(path) };
-            runtime.assert_status_ok(status, "unlink file");
+        let path = context.path_bytes(&file_path);
+        context.unlink(path)?;
 
-            let (_bytes, dir) = path_bytes(&temp_dir);
-            let status = unsafe { destack_fs_dir_rmdir(dir) };
-            runtime.assert_status_ok(status, "rmdir");
-        });
+        let dir = context.path_bytes(&temp_dir);
+        context.rmdir(dir)?;
+
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_fs_realpath() {
+    with_harness_context(|mut context| {
+        // runtime and temp directory
+        let temp_dir = temp_dir("fs_realpath");
+        let file_path = temp_dir.join("real.txt");
+
+        let dir = context.path_bytes(&temp_dir);
+        context.mkdir(dir, FileMode(0o755))?;
+
+        // create file
+        let file = context.path_bytes(&file_path);
+        let flags = OpenFlags((libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC) as u32);
+        let handle = context.open(file, flags, FileMode(0o644))?;
+        context.close(handle)?;
+
+        // resolve real path
+        let file = context.path_bytes(&file_path);
+        let resolved = context.realpath(file)?;
+        let name = context.path_ref_string(resolved);
+        assert!(name.ends_with("real.txt"));
+
+        // cleanup
+        let file = context.path_bytes(&file_path);
+        context.unlink(file)?;
+        let dir = context.path_bytes(&temp_dir);
+        context.rmdir(dir)?;
+
+        Ok(())
+    });
+}
+
+#[cfg(any(
+    target_os = "linux",
+    target_os = "android",
+    target_os = "freebsd",
+    target_os = "openbsd",
+    target_os = "netbsd",
+    target_os = "dragonfly"
+))]
+#[test]
+fn test_fs_non_utf8_realpath_and_readlink_bytes() {
+    use std::ffi::OsString;
+    use std::os::unix::ffi::{OsStrExt, OsStringExt};
+
+    with_harness_context(|mut context| {
+        // runtime and temp directory
+        let temp_dir = temp_dir("fs_non_utf8");
+        let dir = context.path_bytes(&temp_dir);
+        context.mkdir(dir, FileMode(0o755))?;
+
+        // create a file with a non-utf8 byte in the name
+        let file_name = OsString::from_vec(b"target_\xff.bin".to_vec());
+        let file_path = temp_dir.join(file_name);
+        let file = context.path_bytes(&file_path);
+        let flags = OpenFlags((libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC) as u32);
+        let handle = context.open(file, flags, FileMode(0o644))?;
+        context.close(handle)?;
+
+        // resolve realpath and ensure the non-utf8 byte survives
+        let file = context.path_bytes(&file_path);
+        let resolved = context.realpath(file)?;
+        let resolved = context.path_ref_bytes(resolved);
+        assert!(resolved.contains(&0xff));
+
+        // create a symlink and verify readlink bytes preserve the target bytes
+        let link_name = OsString::from_vec(b"link_\xfe.bin".to_vec());
+        let link_path = temp_dir.join(link_name);
+        let target = context.path_bytes(&file_path);
+        let link = context.path_bytes(&link_path);
+        context.symlink(target, link, SymlinkType::File)?;
+
+        let link = context.path_bytes(&link_path);
+        let linked_target = context.readlink(link)?;
+        let linked_target = context.path_ref_bytes(linked_target);
+        let expected = file_path.as_os_str().as_bytes();
+        assert_eq!(linked_target.as_slice(), expected);
+
+        // cleanup
+        let link = context.path_bytes(&link_path);
+        context.unlink(link)?;
+        let file = context.path_bytes(&file_path);
+        context.unlink(file)?;
+        let dir = context.path_bytes(&temp_dir);
+        context.rmdir(dir)?;
+
+        Ok(())
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn test_fs_utf16_input_path_on_unix_uses_utf8_bytes() {
+    with_harness_context(|mut context| {
+        // runtime and temp directory
+        let temp_dir = temp_dir("fs_utf16_unix");
+        let file_path = temp_dir.join("utf8_name.txt");
+
+        // create directory
+        let dir = context.path_bytes(&temp_dir);
+        context.mkdir(dir, FileMode(0o755))?;
+
+        // create file through utf16 path encoding
+        let file = context.path_utf16(&file_path);
+        let flags = OpenFlags((libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC) as u32);
+        let handle = context.open(file, flags, FileMode(0o644))?;
+        context.write(handle, b"payload")?;
+        context.close(handle)?;
+
+        // stat and resolve through utf16 path encoding
+        let file = context.path_utf16(&file_path);
+        let stat = context.stat(file)?;
+        assert_eq!(stat.size.0, 7);
+
+        let file = context.path_utf16(&file_path);
+        let resolved = context.realpath(file)?;
+        let resolved = context.path_ref_string(resolved);
+        assert!(resolved.ends_with("utf8_name.txt"));
+
+        // cleanup
+        let file = context.path_bytes(&file_path);
+        context.unlink(file)?;
+        let dir = context.path_bytes(&temp_dir);
+        context.rmdir(dir)?;
+
+        Ok(())
+    });
+}
+
+#[cfg(any(
+    target_os = "linux",
+    target_os = "android",
+    target_os = "freebsd",
+    target_os = "openbsd",
+    target_os = "netbsd",
+    target_os = "dragonfly"
+))]
+#[test]
+fn test_fs_utf16_output_path_requires_utf8_on_unix() {
+    use std::ffi::OsString;
+    use std::os::unix::ffi::OsStringExt;
+
+    with_harness_context(|mut context| {
+        // runtime and temp directory
+        let temp_dir = temp_dir("fs_utf16_output_utf8");
+        let dir = context.path_bytes(&temp_dir);
+        context.mkdir(dir, FileMode(0o755))?;
+
+        // create a file with non-utf8 bytes in the name
+        let file_name = OsString::from_vec(b"target_\xff.bin".to_vec());
+        let file_path = temp_dir.join(file_name);
+        let file = context.path_bytes(&file_path);
+        let flags = OpenFlags((libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC) as u32);
+        let handle = context.open(file, flags, FileMode(0o644))?;
+        context.close(handle)?;
+
+        // create a utf8 symlink path that points to the non-utf8 target
+        let link_path = temp_dir.join("link_utf8.txt");
+        let target = context.path_bytes(&file_path);
+        let link = context.path_bytes(&link_path);
+        context.symlink(target, link, SymlinkType::File)?;
+
+        // readlink through utf16 input should fail when output bytes are not utf8
+        let link = context.path_utf16(&link_path);
+        let result = context.readlink(link);
+        assert!(
+            result.is_err(),
+            "readlink utf16 should fail for non-utf8 target bytes"
+        );
+
+        // realpath through utf16 input should fail for the same reason
+        let link = context.path_utf16(&link_path);
+        let result = context.realpath(link);
+        assert!(
+            result.is_err(),
+            "realpath utf16 should fail for non-utf8 target bytes"
+        );
+
+        // cleanup
+        let link = context.path_bytes(&link_path);
+        context.unlink(link)?;
+        let file = context.path_bytes(&file_path);
+        context.unlink(file)?;
+        let dir = context.path_bytes(&temp_dir);
+        context.rmdir(dir)?;
+
+        Ok(())
     });
 }

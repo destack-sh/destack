@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use windows_sys::Win32::Foundation::ERROR_IO_PENDING;
 use windows_sys::Win32::Networking::WinSock::{SOCKET_ERROR, send};
 use windows_sys::Win32::Storage::FileSystem::{ReadFile, WriteFile};
@@ -5,9 +7,7 @@ use windows_sys::Win32::System::IO::{GetOverlappedResult, OVERLAPPED, OVERLAPPED
 
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::fs::{
-    FileHandle, FileOffset, FileSize, ReadWriteFlags, SpliceCursor, SpliceFlags,
-};
+use crate::platform::fs::{FileHandle, FileOffset, FileSize};
 use crate::platform::net::SocketHandle;
 use crate::platform::resource::{PipeHandle, ResourceId};
 use crate::platform::{NativeSlice, PlatformError, core as core_platform};
@@ -28,6 +28,27 @@ fn last_socket_error(syscall: &str) -> Box<RuntimeError> {
         message,
     ))
     .boxed()
+}
+
+/// Add an unsigned byte delta to a signed file offset.
+fn add_offset(base: i64, delta: u64, name: &str) -> RuntimeResult<i64> {
+    // convert the delta into signed range
+    let delta = i64::try_from(delta).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            name,
+            "byte count exceeds signed offset range",
+        ))
+        .boxed()
+    })?;
+
+    // add with overflow checks
+    base.checked_add(delta).ok_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            name,
+            "offset overflow",
+        ))
+        .boxed()
+    })
 }
 
 /// Read from a file handle at a specific offset.
@@ -181,7 +202,7 @@ pub(crate) unsafe fn destack_fs_preadv(
             )?;
         }
         total += local;
-        current += local;
+        current = add_offset(current, local, "offset")?;
         if local < buffer.len as u64 {
             break;
         }
@@ -226,7 +247,7 @@ pub(crate) unsafe fn destack_fs_pwritev(
             )?;
         }
         total += local;
-        current += local;
+        current = add_offset(current, local, "offset")?;
         if local < buffer.len as u64 {
             break;
         }
@@ -247,7 +268,7 @@ pub(crate) unsafe fn destack_fs_preadv2(
     handle: FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
     offset: FileOffset,
-    flags: ReadWriteFlags,
+    flags: u32,
 ) -> RuntimeResult<()> {
     // NOTE #Incomplete: honor read flags for preadv2 on Windows
     let _ = flags;
@@ -262,7 +283,7 @@ pub(crate) unsafe fn destack_fs_pwritev2(
     handle: FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
     offset: FileOffset,
-    flags: ReadWriteFlags,
+    flags: u32,
 ) -> RuntimeResult<()> {
     // NOTE #Incomplete: honor write flags for pwritev2 on Windows
     let _ = flags;
@@ -292,7 +313,7 @@ pub(crate) unsafe fn destack_fs_read(
 
     // update the cursor
     let bytes_read = unsafe { *out };
-    *guard = guard.saturating_add(bytes_read);
+    *guard = add_offset(*guard, bytes_read, "cursor")?;
 
     Ok(())
 }
@@ -319,7 +340,7 @@ pub(crate) unsafe fn destack_fs_write(
 
     // update the cursor
     let bytes_written = unsafe { *out };
-    *guard = guard.saturating_add(bytes_written);
+    *guard = add_offset(*guard, bytes_written, "cursor")?;
 
     Ok(())
 }
@@ -370,7 +391,7 @@ pub(crate) unsafe fn destack_fs_sendfile(
         }
 
         total = total.saturating_add(sent);
-        file_offset = FileOffset(file_offset.0.saturating_add(sent));
+        file_offset = FileOffset(add_offset(file_offset.0, sent, "offset")?);
         remaining = remaining.saturating_sub(sent);
     }
 
@@ -386,11 +407,11 @@ pub(crate) unsafe fn destack_fs_splice(
     context: &RuntimeCallContext,
     _out: *mut u64,
     source: ResourceId,
-    sourcecursor: SpliceCursor,
+    sourcecursor: i64,
     target: ResourceId,
-    targetcursor: SpliceCursor,
+    targetcursor: i64,
     length: FileSize,
-    flags: SpliceFlags,
+    flags: u32,
 ) -> RuntimeResult<()> {
     let _ = (
         context,
@@ -411,7 +432,7 @@ pub(crate) unsafe fn destack_fs_tee(
     sourcepipe: PipeHandle,
     targetpipe: PipeHandle,
     length: FileSize,
-    flags: SpliceFlags,
+    flags: u32,
 ) -> RuntimeResult<()> {
     let _ = (context, sourcepipe, targetpipe, length, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.tee")).boxed())
@@ -423,7 +444,7 @@ pub(crate) unsafe fn destack_fs_vmsplice(
     _out: *mut u64,
     pipe: PipeHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
-    flags: SpliceFlags,
+    flags: u32,
 ) -> RuntimeResult<()> {
     let _ = (context, pipe, buffers, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.vmsplice")).boxed())

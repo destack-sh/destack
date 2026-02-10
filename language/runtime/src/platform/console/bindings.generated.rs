@@ -3,8 +3,8 @@
 use crate::binding;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::bindings::{
-    BindingDescriptor, BindingRegistry, BindingReplayKind, NativeBinding, NativeBindingSet,
-    ReplayPolicy, native_call,
+    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingScope,
+    NativeBinding, NativeBindingSet, ReplayPolicy, native_call,
 };
 use crate::platform::{NativeStringRef, PlatformError, RuntimeStatus};
 use crate::runtime::{RuntimeCallContext, with_runtime_call_context};
@@ -32,6 +32,7 @@ fn arg_value(
 }
 
 /// Decode a string argument.
+#[allow(dead_code)]
 fn decode_string(
     value: vm::Value,
     name: &'static str,
@@ -46,9 +47,9 @@ fn decode_string(
     Ok(vm::StringHandle::new(value))
 }
 
-/// Decode arguments for destack.console.error.
+/// Decode arguments for destack.console.console.error.
 #[inline]
-fn decode_destack_console_error_args(
+fn decode_destack_console_console_error_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
@@ -60,9 +61,9 @@ fn decode_destack_console_error_args(
     Ok((value,))
 }
 
-/// Encode the result for destack.console.error.
+/// Encode the result for destack.console.console.error.
 #[inline]
-fn encode_destack_console_error_result(
+fn encode_destack_console_console_error_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -72,9 +73,9 @@ fn encode_destack_console_error_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.console.info.
+/// Decode arguments for destack.console.console.info.
 #[inline]
-fn decode_destack_console_info_args(
+fn decode_destack_console_console_info_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
@@ -86,9 +87,9 @@ fn decode_destack_console_info_args(
     Ok((value,))
 }
 
-/// Encode the result for destack.console.info.
+/// Encode the result for destack.console.console.info.
 #[inline]
-fn encode_destack_console_info_result(
+fn encode_destack_console_console_info_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -98,9 +99,9 @@ fn encode_destack_console_info_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.console.log.
+/// Decode arguments for destack.console.console.log.
 #[inline]
-fn decode_destack_console_log_args(
+fn decode_destack_console_console_log_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
@@ -112,9 +113,9 @@ fn decode_destack_console_log_args(
     Ok((value,))
 }
 
-/// Encode the result for destack.console.log.
+/// Encode the result for destack.console.console.log.
 #[inline]
-fn encode_destack_console_log_result(
+fn encode_destack_console_console_log_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -124,9 +125,9 @@ fn encode_destack_console_log_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.console.warn.
+/// Decode arguments for destack.console.console.warn.
 #[inline]
-fn decode_destack_console_warn_args(
+fn decode_destack_console_console_warn_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
@@ -138,9 +139,9 @@ fn decode_destack_console_warn_args(
     Ok((value,))
 }
 
-/// Encode the result for destack.console.warn.
+/// Encode the result for destack.console.console.warn.
 #[inline]
-fn encode_destack_console_warn_result(
+fn encode_destack_console_console_warn_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -150,111 +151,132 @@ fn encode_destack_console_warn_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Replay payload for destack.console.error.
+/// Replay payload for destack.console.console.error.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct ErrorReplay {
+struct ConsoleConsoleErrorReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.console.info.
+/// Replay payload for destack.console.console.info.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct InfoReplay {
+struct ConsoleConsoleInfoReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.console.log.
+/// Replay payload for destack.console.console.log.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct LogReplay {
+struct ConsoleConsoleLogReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.console.warn.
+/// Replay payload for destack.console.console.warn.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct WarnReplay {
+struct ConsoleConsoleWarnReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Binding descriptor for destack.console.error.
-pub const ERROR: BindingDescriptor = BindingDescriptor::external_with_requires(
-    "destack.console.error",
-    "export function error(value: string): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["console.write"],
-);
+/// Binding descriptor for destack.console.console.error.
+pub const CONSOLE_CONSOLE_ERROR: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.console.console.error",
+        "export function error(value: string): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["console.write"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
-/// Binding descriptor for destack.console.info.
-pub const INFO: BindingDescriptor = BindingDescriptor::external_with_requires(
-    "destack.console.info",
-    "export function info(value: string): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["console.write"],
-);
+/// Binding descriptor for destack.console.console.info.
+pub const CONSOLE_CONSOLE_INFO: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.console.console.info",
+        "export function info(value: string): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["console.write"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
-/// Binding descriptor for destack.console.log.
-pub const LOG: BindingDescriptor = BindingDescriptor::external_with_requires(
-    "destack.console.log",
-    "export function log(value: string): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["console.write"],
-);
+/// Binding descriptor for destack.console.console.log.
+pub const CONSOLE_CONSOLE_LOG: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.console.console.log",
+        "export function log(value: string): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["console.write"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
-/// Binding descriptor for destack.console.warn.
-pub const WARN: BindingDescriptor = BindingDescriptor::external_with_requires(
-    "destack.console.warn",
-    "export function warn(value: string): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["console.write"],
-);
+/// Binding descriptor for destack.console.console.warn.
+pub const CONSOLE_CONSOLE_WARN: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.console.console.warn",
+        "export function warn(value: string): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["console.write"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
 
 /// Binding descriptors for console.
-pub const BINDINGS: &[BindingDescriptor] = &[ERROR, INFO, LOG, WARN];
+pub const BINDINGS: &[BindingDescriptor] = &[
+    CONSOLE_CONSOLE_ERROR,
+    CONSOLE_CONSOLE_INFO,
+    CONSOLE_CONSOLE_LOG,
+    CONSOLE_CONSOLE_WARN,
+];
 
 /// Native binding set for console.
 pub const CONSOLE_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "console",
     bindings: &[
         NativeBinding::new(
-            ERROR,
-            "destack.console.error",
-            destack_console_error as *const (),
+            CONSOLE_CONSOLE_ERROR,
+            "destack.console.console.error",
+            destack_console_console_error as *const (),
         ),
         NativeBinding::new(
-            INFO,
-            "destack.console.info",
-            destack_console_info as *const (),
+            CONSOLE_CONSOLE_INFO,
+            "destack.console.console.info",
+            destack_console_console_info as *const (),
         ),
-        NativeBinding::new(LOG, "destack.console.log", destack_console_log as *const ()),
         NativeBinding::new(
-            WARN,
-            "destack.console.warn",
-            destack_console_warn as *const (),
+            CONSOLE_CONSOLE_LOG,
+            "destack.console.console.log",
+            destack_console_console_log as *const (),
+        ),
+        NativeBinding::new(
+            CONSOLE_CONSOLE_WARN,
+            "destack.console.console.warn",
+            destack_console_console_warn as *const (),
         ),
     ],
 };
 
 /// Native replay implementations for console bindings.
 #[inline]
-fn destack_console_error_replay(
+fn destack_console_console_error_replay(
     context: &RuntimeCallContext,
     value: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = &value;
 
     context.replay().run_binding(
-        ERROR,
+        CONSOLE_CONSOLE_ERROR,
         || unsafe { platform_native::destack_console_error(context, value) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = ErrorReplay {
+                let payload = ConsoleConsoleErrorReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -263,7 +285,7 @@ fn destack_console_error_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ErrorReplay { result }
+                    ConsoleConsoleErrorReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -281,19 +303,19 @@ fn destack_console_error_replay(
 }
 
 #[inline]
-fn destack_console_info_replay(
+fn destack_console_console_info_replay(
     context: &RuntimeCallContext,
     value: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = &value;
 
     context.replay().run_binding(
-        INFO,
+        CONSOLE_CONSOLE_INFO,
         || unsafe { platform_native::destack_console_info(context, value) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = InfoReplay {
+                let payload = ConsoleConsoleInfoReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -302,7 +324,7 @@ fn destack_console_info_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    InfoReplay { result }
+                    ConsoleConsoleInfoReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -320,19 +342,19 @@ fn destack_console_info_replay(
 }
 
 #[inline]
-fn destack_console_log_replay(
+fn destack_console_console_log_replay(
     context: &RuntimeCallContext,
     value: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = &value;
 
     context.replay().run_binding(
-        LOG,
+        CONSOLE_CONSOLE_LOG,
         || unsafe { platform_native::destack_console_log(context, value) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = LogReplay {
+                let payload = ConsoleConsoleLogReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -341,7 +363,7 @@ fn destack_console_log_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    LogReplay { result }
+                    ConsoleConsoleLogReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -359,19 +381,19 @@ fn destack_console_log_replay(
 }
 
 #[inline]
-fn destack_console_warn_replay(
+fn destack_console_console_warn_replay(
     context: &RuntimeCallContext,
     value: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = &value;
 
     context.replay().run_binding(
-        WARN,
+        CONSOLE_CONSOLE_WARN,
         || unsafe { platform_native::destack_console_warn(context, value) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = WarnReplay {
+                let payload = ConsoleConsoleWarnReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -380,7 +402,7 @@ fn destack_console_warn_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    WarnReplay { result }
+                    ConsoleConsoleWarnReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -398,62 +420,62 @@ fn destack_console_warn_replay(
 }
 
 /// Native export wrappers for console bindings.
-#[unsafe(export_name = "destack.console.error")]
-pub unsafe extern "C" fn destack_console_error(value: NativeStringRef) -> RuntimeStatus {
+#[unsafe(export_name = "destack.console.console.error")]
+pub unsafe extern "C" fn destack_console_console_error(value: NativeStringRef) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(ERROR)?;
+        context.check_policy(CONSOLE_CONSOLE_ERROR)?;
         let _ = &value;
 
-        destack_console_error_replay(context, value)
+        destack_console_console_error_replay(context, value)
     })
 }
 
-#[unsafe(export_name = "destack.console.info")]
-pub unsafe extern "C" fn destack_console_info(value: NativeStringRef) -> RuntimeStatus {
+#[unsafe(export_name = "destack.console.console.info")]
+pub unsafe extern "C" fn destack_console_console_info(value: NativeStringRef) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(INFO)?;
+        context.check_policy(CONSOLE_CONSOLE_INFO)?;
         let _ = &value;
 
-        destack_console_info_replay(context, value)
+        destack_console_console_info_replay(context, value)
     })
 }
 
-#[unsafe(export_name = "destack.console.log")]
-pub unsafe extern "C" fn destack_console_log(value: NativeStringRef) -> RuntimeStatus {
+#[unsafe(export_name = "destack.console.console.log")]
+pub unsafe extern "C" fn destack_console_console_log(value: NativeStringRef) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(LOG)?;
+        context.check_policy(CONSOLE_CONSOLE_LOG)?;
         let _ = &value;
 
-        destack_console_log_replay(context, value)
+        destack_console_console_log_replay(context, value)
     })
 }
 
-#[unsafe(export_name = "destack.console.warn")]
-pub unsafe extern "C" fn destack_console_warn(value: NativeStringRef) -> RuntimeStatus {
+#[unsafe(export_name = "destack.console.console.warn")]
+pub unsafe extern "C" fn destack_console_console_warn(value: NativeStringRef) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(WARN)?;
+        context.check_policy(CONSOLE_CONSOLE_WARN)?;
         let _ = &value;
 
-        destack_console_warn_replay(context, value)
+        destack_console_console_warn_replay(context, value)
     })
 }
 
 /// VM replay implementations for console bindings.
 #[inline]
-fn destack_console_error_vm_replay(
+fn destack_console_console_error_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     value: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        ERROR,
+        CONSOLE_CONSOLE_ERROR,
         context,
         |context| platform_vm::destack_console_error(runtime, context, value),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = ErrorReplay {
+                let payload = ConsoleConsoleErrorReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -462,7 +484,7 @@ fn destack_console_error_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ErrorReplay { result }
+                    ConsoleConsoleErrorReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -478,25 +500,25 @@ fn destack_console_error_vm_replay(
             }
         },
     );
-    let result = encode_destack_console_error_result(context, result)?;
+    let result = encode_destack_console_console_error_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_console_info_vm_replay(
+fn destack_console_console_info_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     value: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        INFO,
+        CONSOLE_CONSOLE_INFO,
         context,
         |context| platform_vm::destack_console_info(runtime, context, value),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = InfoReplay {
+                let payload = ConsoleConsoleInfoReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -505,7 +527,7 @@ fn destack_console_info_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    InfoReplay { result }
+                    ConsoleConsoleInfoReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -521,25 +543,25 @@ fn destack_console_info_vm_replay(
             }
         },
     );
-    let result = encode_destack_console_info_result(context, result)?;
+    let result = encode_destack_console_console_info_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_console_log_vm_replay(
+fn destack_console_console_log_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     value: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        LOG,
+        CONSOLE_CONSOLE_LOG,
         context,
         |context| platform_vm::destack_console_log(runtime, context, value),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = LogReplay {
+                let payload = ConsoleConsoleLogReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -548,7 +570,7 @@ fn destack_console_log_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    LogReplay { result }
+                    ConsoleConsoleLogReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -564,25 +586,25 @@ fn destack_console_log_vm_replay(
             }
         },
     );
-    let result = encode_destack_console_log_result(context, result)?;
+    let result = encode_destack_console_console_log_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_console_warn_vm_replay(
+fn destack_console_console_warn_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     value: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        WARN,
+        CONSOLE_CONSOLE_WARN,
         context,
         |context| platform_vm::destack_console_warn(runtime, context, value),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = WarnReplay {
+                let payload = ConsoleConsoleWarnReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -591,7 +613,7 @@ fn destack_console_warn_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    WarnReplay { result }
+                    ConsoleConsoleWarnReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -607,71 +629,91 @@ fn destack_console_warn_vm_replay(
             }
         },
     );
-    let result = encode_destack_console_warn_result(context, result)?;
+    let result = encode_destack_console_console_warn_result(context, result)?;
     Ok(result)
 }
 
 /// Register VM bindings for console.
 pub fn register_console_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
-        binding!(registry, isolate, ERROR, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(ERROR)?;
+        binding!(
+            registry,
+            isolate,
+            CONSOLE_CONSOLE_ERROR,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(CONSOLE_CONSOLE_ERROR)?;
 
-                // decode args
-                let (value,) = decode_destack_console_error_args(context, args)?;
+                    // decode args
+                    let (value,) = decode_destack_console_console_error_args(context, args)?;
 
-                // execute binding
-                destack_console_error_vm_replay(runtime, context, value)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    destack_console_console_error_vm_replay(runtime, context, value)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, INFO, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(INFO)?;
+        binding!(
+            registry,
+            isolate,
+            CONSOLE_CONSOLE_INFO,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(CONSOLE_CONSOLE_INFO)?;
 
-                // decode args
-                let (value,) = decode_destack_console_info_args(context, args)?;
+                    // decode args
+                    let (value,) = decode_destack_console_console_info_args(context, args)?;
 
-                // execute binding
-                destack_console_info_vm_replay(runtime, context, value)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    destack_console_console_info_vm_replay(runtime, context, value)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, LOG, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(LOG)?;
+        binding!(
+            registry,
+            isolate,
+            CONSOLE_CONSOLE_LOG,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(CONSOLE_CONSOLE_LOG)?;
 
-                // decode args
-                let (value,) = decode_destack_console_log_args(context, args)?;
+                    // decode args
+                    let (value,) = decode_destack_console_console_log_args(context, args)?;
 
-                // execute binding
-                destack_console_log_vm_replay(runtime, context, value)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    destack_console_console_log_vm_replay(runtime, context, value)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, WARN, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // policy
-                runtime.check_policy(WARN)?;
+        binding!(
+            registry,
+            isolate,
+            CONSOLE_CONSOLE_WARN,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // policy
+                    runtime.check_policy(CONSOLE_CONSOLE_WARN)?;
 
-                // decode args
-                let (value,) = decode_destack_console_warn_args(context, args)?;
+                    // decode args
+                    let (value,) = decode_destack_console_console_warn_args(context, args)?;
 
-                // execute binding
-                destack_console_warn_vm_replay(runtime, context, value)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    destack_console_console_warn_vm_replay(runtime, context, value)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
 }
 

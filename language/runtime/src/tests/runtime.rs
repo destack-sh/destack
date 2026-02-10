@@ -3,12 +3,13 @@ use destack_mir::NodeTree;
 use destack_vm as vm;
 use destack_workspace::{ExecutionMode, RandomMode, RandomOptions, RuntimeOptions};
 
-use crate::diagnostic::RuntimeStatus;
-use crate::platform::PlatformContext;
+use crate::diagnostic::{RuntimeError, RuntimeErrorId, RuntimeResult, RuntimeStatus};
+use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::random::{
     RandomStream, destack_random_stream_next_u64, destack_random_stream_next_u64_from,
 };
 use crate::platform::resource::{ListenerHandle, ResourceKind};
+use crate::platform::{PlatformContext, PlatformError};
 use crate::runtime::{Runtime, RuntimeCallContext, RuntimeContext, enter_runtime_call_context};
 
 /// Runtime harness for runtime tests.
@@ -86,24 +87,59 @@ impl TestRuntime {
     }
 
     /// Execute the native random binding with deterministic runtime state.
-    pub(crate) fn call_native_next_u64(&self) -> u64 {
+    pub(crate) fn call_native_next_u64(&self) -> RuntimeResult<u64> {
         self.with_native_call_context(|_| {
             let mut out = 0u64;
             let status = unsafe { destack_random_stream_next_u64(&mut out) };
-            assert_eq!(status, RuntimeStatus::OK);
-            out
+            self.status_value(status, "random stream nextU64", out)
         })
     }
 
     /// Execute the native stream binding with deterministic runtime state.
-    pub(crate) fn call_native_next_u64_from(&self, stream: u64) -> u64 {
+    pub(crate) fn call_native_next_u64_from(&self, stream: u64) -> RuntimeResult<u64> {
         self.with_native_call_context(|_| {
             let mut out = 0u64;
             let status =
                 unsafe { destack_random_stream_next_u64_from(&mut out, RandomStream(stream)) };
-            assert_eq!(status, RuntimeStatus::OK);
-            out
+            self.status_value(status, "random stream nextU64From", out)
         })
+    }
+
+    /// Convert a native status and value into a runtime result.
+    fn status_value<T>(&self, status: RuntimeStatus, label: &str, value: T) -> RuntimeResult<T> {
+        // return the produced value on success
+        if status == RuntimeStatus::OK {
+            return Ok(value);
+        }
+
+        // synthesize a diagnostic when the runtime status lacks an error id
+        if status.error_id == 0 {
+            if status.code == PlatformErrorCode::NotSupported.number().saturating_add(1) {
+                let error = RuntimeError::from(PlatformError::not_supported(label));
+                return Err(error.boxed());
+            }
+
+            let error = RuntimeError::from(PlatformError::io(format!(
+                "{label} failed without runtime error id",
+            )));
+            return Err(error.boxed());
+        }
+
+        // take the stored runtime error
+        let error_id = RuntimeErrorId::from_raw(status.error_id);
+        let error = self
+            .runtime
+            .context
+            .errors()
+            .take(error_id)
+            .unwrap_or_else(|| {
+                RuntimeError::from(PlatformError::io(format!(
+                    "{label} failed with missing runtime error",
+                )))
+                .boxed()
+            });
+
+        Err(error)
     }
 
     /// Assert a RuntimeStatus is OK and include the runtime error message if not.
@@ -116,7 +152,7 @@ impl TestRuntime {
             .runtime
             .context
             .errors()
-            .take(crate::diagnostic::RuntimeErrorId::from_raw(status.error_id))
+            .take(RuntimeErrorId::from_raw(status.error_id))
             .map(|error| error.message())
             .unwrap_or_else(|| "missing runtime error".to_string());
 
@@ -133,7 +169,7 @@ impl TestRuntime {
             .runtime
             .context
             .errors()
-            .take(crate::diagnostic::RuntimeErrorId::from_raw(status.error_id))
+            .take(RuntimeErrorId::from_raw(status.error_id))
             .map(|error| error.message())
             .unwrap_or_else(|| "missing runtime error".to_string());
 
