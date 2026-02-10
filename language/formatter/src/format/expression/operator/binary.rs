@@ -1,7 +1,10 @@
 use super::super::super::timing::tags;
 use super::super::*;
-use super::shared::expression_is_trivial_inline_without_annotations;
+use super::common::expression_is_trivial_inline_without_annotations;
 use destack_fir::{format_args, write};
+
+// binary inline width constants
+const BINARY_OPERATOR_PADDING_WIDTH: usize = 3;
 
 /// Return whether a leading type union has an expression ancestor with block-prefix comments.
 fn leading_union_has_ancestor_block_prefix_annotation(
@@ -180,7 +183,7 @@ pub(super) fn format_binary_expression<'ast>(
             Expression::Parenthesized { expression }
                 if (f.context().has_prefix_annotation(left)
                     || f.context().has_prefix_annotation(*expression))
-                    && f.context().has_newline(f.context().get_span(left))
+                    && f.context().node_has_newline(left)
         );
         if left_prefers_trailing_operator
             && expression_is_trivial_inline_without_annotations(f.context(), right)
@@ -216,7 +219,9 @@ pub(super) fn format_binary_expression<'ast>(
                 assignment_like_remaining_width(f.context(), node_id).unwrap_or(line_width);
             let left_len = expression_source_len(f.context(), left);
             let operator_len = binary_operator_len(operator);
-            let inline_len = left_len.saturating_add(operator_len).saturating_add(3);
+            let inline_len = left_len
+                .saturating_add(operator_len)
+                .saturating_add(BINARY_OPERATOR_PADDING_WIDTH);
 
             if inline_len <= remaining_width {
                 write!(
@@ -633,8 +638,7 @@ pub(super) fn format_binary_expression<'ast>(
                             op,
                             BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Coalesce
                         ) && (f.context().has_prefix_annotation(operand.expression)
-                            || f.context()
-                                .has_newline(f.context().get_span(operand.expression)));
+                            || f.context().node_has_newline(operand.expression));
                     if operand_prefers_trailing_operator {
                         if !has_postfix {
                             write!(f, [space()])?;

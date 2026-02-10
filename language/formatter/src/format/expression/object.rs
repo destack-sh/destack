@@ -3,6 +3,11 @@ use crate::collection::{collection_nodes_have_annotations, collection_nodes_have
 use crate::directive::any_ignore_range_for_nodes;
 use destack_fir::{format_args, write};
 
+// object literal shape thresholds
+const SINGLE_PROPERTY_COUNT: usize = 1;
+const INLINE_ASSIGNMENT_TARGET_MAX_PROPERTIES: usize = 2;
+const COMPLEX_ASSIGNMENT_TARGET_MIN_PROPERTIES: usize = 3;
+
 /// Format boundary comments for array-like structures.
 pub(super) fn format_boundary_comment_array<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -123,7 +128,7 @@ fn is_multiline_pattern_field_default_object(
     }
 
     let pattern_id = LocalNodeId::<Pattern>::new(pattern_id);
-    context.has_newline(context.get_span(pattern_id))
+    context.node_has_newline(pattern_id)
 }
 
 /// Return whether an object literal has a source newline immediately after `{`.
@@ -202,9 +207,9 @@ pub(crate) fn format_struct_literal<'ast>(
             .iter()
             .any(|property_id| span_has_comment(f.context(), f.context().get_span(*property_id)));
     let keep_single_inline_comment_object =
-        has_comments && properties_ids.len() == 1 && !has_newline_in_source;
+        has_comments && properties_ids.len() == SINGLE_PROPERTY_COUNT && !has_newline_in_source;
     let keep_single_inline_annotated_object =
-        has_annotations && properties_ids.len() == 1 && !has_newline_in_source;
+        has_annotations && properties_ids.len() == SINGLE_PROPERTY_COUNT && !has_newline_in_source;
     let has_complex_property = properties_ids
         .iter()
         .copied()
@@ -222,13 +227,16 @@ pub(crate) fn format_struct_literal<'ast>(
             && has_newline_in_source
             && !properties_ids.is_empty();
     let is_assignment_target = is_assignment_left_target(f.context(), expression_id);
-    let keep_inline_assignment_target_commented_object =
-        is_assignment_target && has_comments && !has_newline_in_source && properties_ids.len() <= 2;
+    let keep_inline_assignment_target_commented_object = is_assignment_target
+        && has_comments
+        && !has_newline_in_source
+        && properties_ids.len() <= INLINE_ASSIGNMENT_TARGET_MAX_PROPERTIES;
     let keep_inline_assignment_target_annotated_object = is_assignment_target
         && has_annotations
         && !has_newline_in_source
-        && properties_ids.len() <= 2;
-    let is_complex_assignment_target = properties_ids.len() > 2 && is_assignment_target;
+        && properties_ids.len() <= INLINE_ASSIGNMENT_TARGET_MAX_PROPERTIES;
+    let is_complex_assignment_target =
+        properties_ids.len() >= COMPLEX_ASSIGNMENT_TARGET_MIN_PROPERTIES && is_assignment_target;
     let must_expand = has_methods
         || (has_annotations
             && !keep_single_inline_annotated_object
@@ -279,7 +287,7 @@ pub(crate) fn format_struct_literal<'ast>(
 
     let should_inline_parameter_type_literal = in_type_context
         && is_parameter_type_annotation(f.context(), expression_id)
-        && properties_ids.len() == 1
+        && properties_ids.len() == SINGLE_PROPERTY_COUNT
         && !has_methods
         && !has_annotations
         && !has_comments

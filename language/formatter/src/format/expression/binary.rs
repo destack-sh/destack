@@ -73,7 +73,7 @@ pub(super) fn is_static_type_argument_context(
 }
 
 /// Whether a binary expression is in a type position.
-pub(super) fn is_type_context(
+pub(crate) fn is_type_context(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {

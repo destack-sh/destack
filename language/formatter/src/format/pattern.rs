@@ -7,6 +7,10 @@ use destack_ast::{Expression, LocalNodeId, Mutability, NodeTree, NodeType, Patte
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
 
+// object pattern expansion thresholds
+const OBJECT_PATTERN_FORCE_EXPAND_MIN_FIELDS: usize = 3;
+const OBJECT_PATTERN_INLINE_MAX_FIELDS: usize = 1;
+
 impl<'ast> Format<DestackFormatContext<'ast>> for Mutability {
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
@@ -134,8 +138,7 @@ fn should_expand_pattern_field_default<'ast>(
     }
 
     let parent_pattern = LocalNodeId::<Pattern>::new(parent_id);
-    f.context()
-        .has_newline(f.context().get_span(parent_pattern))
+    f.context().node_has_newline(parent_pattern)
 }
 
 /// Decide whether an object parameter pattern should expand for readability.
@@ -171,11 +174,11 @@ fn should_expand_parameter_object_pattern(
         return true;
     }
 
-    if fields.len() >= 3 {
+    if fields.len() >= OBJECT_PATTERN_FORCE_EXPAND_MIN_FIELDS {
         return true;
     }
 
-    if fields.len() <= 1 {
+    if fields.len() <= OBJECT_PATTERN_INLINE_MAX_FIELDS {
         return false;
     }
 

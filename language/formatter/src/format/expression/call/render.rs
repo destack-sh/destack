@@ -232,28 +232,28 @@ pub(in super::super) fn expression_is_in_deferred_empty_call_boundary_chain(
 pub(in super::super) fn format_call_dynamic_arguments_with_deferred_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     call_node_id: LocalNodeId<Expression>,
-    dynamic_arguments: &Vec<LocalNodeId<Argument>>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {
+    if !dynamic_arguments.is_empty() {
+        return format_call_arguments(f, call_node_id, dynamic_arguments);
+    }
+
     let (inline_argument_comment, line_argument_comment, trailing_optional_comment) =
         collect_deferred_empty_call_boundary_comments(f.context(), call_node_id);
 
-    if dynamic_arguments.is_empty() {
-        let _timing = f
-            .context()
-            .timing_scope(tags::FORMAT_EXPRESSION_CALL_EMPTY_ARGUMENTS);
-        if let Some(comment) = line_argument_comment {
-            let content = format_with(|f| write!(f, [hard_line_break(), text(comment.as_str())]));
-            write!(
-                f,
-                [token("("), indent(&content), hard_line_break(), token(")")]
-            )?;
-        } else if let Some(comment) = inline_argument_comment {
-            write!(f, [token("("), text(comment.as_str()), token(")")])?;
-        } else {
-            write!(f, [token("("), token(")")])?;
-        }
+    let _timing = f
+        .context()
+        .timing_scope(tags::FORMAT_EXPRESSION_CALL_EMPTY_ARGUMENTS);
+    if let Some(comment) = line_argument_comment {
+        let content = format_with(|f| write!(f, [hard_line_break(), text(comment.as_str())]));
+        write!(
+            f,
+            [token("("), indent(&content), hard_line_break(), token(")")]
+        )?;
+    } else if let Some(comment) = inline_argument_comment {
+        write!(f, [token("("), text(comment.as_str()), token(")")])?;
     } else {
-        format_call_arguments(f, call_node_id, dynamic_arguments)?;
+        write!(f, [token("("), token(")")])?;
     }
 
     if let Some(comment) = trailing_optional_comment {

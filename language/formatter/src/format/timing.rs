@@ -207,6 +207,16 @@ pub mod tags {
         FormatterTimingTag::new("format.expression.call.arguments.comment_profile");
     pub const FORMAT_EXPRESSION_CALL_ARGUMENTS_EXPANSION_PROFILE: FormatterTimingTag =
         FormatterTimingTag::new("format.expression.call.arguments.expansion_profile");
+    pub const FORMAT_EXPRESSION_CALL_ARGUMENTS_PROFILED: FormatterTimingTag =
+        FormatterTimingTag::new("format.expression.call.arguments.profiled");
+    pub const FORMAT_EXPRESSION_CALL_ARGUMENTS_PROFILED_DECIDE: FormatterTimingTag =
+        FormatterTimingTag::new("format.expression.call.arguments.profiled.decide");
+    pub const FORMAT_EXPRESSION_CALL_ARGUMENTS_PROFILED_RENDER: FormatterTimingTag =
+        FormatterTimingTag::new("format.expression.call.arguments.profiled.render");
+    pub const FORMAT_EXPRESSION_CALL_ARGUMENTS_HUG_LAST: FormatterTimingTag =
+        FormatterTimingTag::new("format.expression.call.arguments.hug_last");
+    pub const FORMAT_EXPRESSION_CALL_ARGUMENTS_LIST_DEFAULT: FormatterTimingTag =
+        FormatterTimingTag::new("format.expression.call.arguments.list_default");
     pub const FORMAT_EXPRESSION_CALL_EMPTY_ARGUMENTS: FormatterTimingTag =
         FormatterTimingTag::new("format.expression.call.empty_arguments");
 

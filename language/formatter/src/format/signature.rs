@@ -11,6 +11,11 @@ use destack_fir::format::{FormatResult, text};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
+// signature expansion thresholds
+const CONSTRUCTOR_PARAMETER_EXPAND_MIN_COUNT: usize = 2;
+const OBJECT_PATTERN_FORCE_EXPAND_MIN_FIELDS: usize = 3;
+const OBJECT_PATTERN_INLINE_MAX_FIELDS: usize = 1;
+
 /// Return whether this parameter is variadic.
 pub(crate) fn parameter_is_variadic(
     context: &DestackFormatContext<'_>,
@@ -42,7 +47,7 @@ pub(crate) fn constructor_parameters_should_expand(
     parameters: &[LocalNodeId<Parameter>],
 ) -> bool {
     matches!(mode, Some(FunctionMode::Constructor | FunctionMode::New))
-        && parameters.len() > 1
+        && parameters.len() >= CONSTRUCTOR_PARAMETER_EXPAND_MIN_COUNT
         && parameters
             .iter()
             .any(|parameter_id| parameter_has_modifier(context, *parameter_id))
@@ -63,7 +68,7 @@ pub(crate) fn single_parameter_should_hug(
                 matches!(
                     context.tree.get(default_id),
                     Expression::ObjectExpression { .. } | Expression::ArrayExpression { .. }
-                ) && context.has_newline(context.get_span(default_id))
+                ) && context.node_has_newline(default_id)
             }),
         Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } => false,
     };
@@ -71,7 +76,7 @@ pub(crate) fn single_parameter_should_hug(
         return false;
     }
 
-    let has_newline = context.has_newline(context.get_span(parameter_id));
+    let has_newline = context.node_has_newline(parameter_id);
     match context.tree.get(parameter_id) {
         Parameter::Named { default, .. } => !(has_newline && default.is_some()),
         Parameter::VariadicNamed { .. } => !has_newline,
@@ -199,11 +204,11 @@ fn parameter_object_pattern_should_expand(
         return true;
     }
 
-    if fields.len() >= 3 {
+    if fields.len() >= OBJECT_PATTERN_FORCE_EXPAND_MIN_FIELDS {
         return true;
     }
 
-    if fields.len() <= 1 {
+    if fields.len() <= OBJECT_PATTERN_INLINE_MAX_FIELDS {
         return false;
     }
 
@@ -224,7 +229,7 @@ pub(crate) fn parameter_should_force_expand_in_signature(
     context: &DestackFormatContext<'_>,
     parameter_id: LocalNodeId<Parameter>,
 ) -> bool {
-    if context.has_newline(context.get_span(parameter_id)) {
+    if context.node_has_newline(parameter_id) {
         return true;
     }
 
@@ -238,7 +243,7 @@ pub(crate) fn parameter_should_force_expand_in_signature(
         return false;
     };
 
-    if context.has_newline(context.get_span(pattern_id)) {
+    if context.node_has_newline(pattern_id) {
         return true;
     }
 
@@ -250,7 +255,7 @@ pub(crate) fn signature_return_type_is_multiline(
     context: &DestackFormatContext<'_>,
     return_type: Option<LocalNodeId<Expression>>,
 ) -> bool {
-    return_type.is_some_and(|return_type| context.has_newline(context.get_span(return_type)))
+    return_type.is_some_and(|return_type| context.node_has_newline(return_type))
 }
 
 /// Return whether spacing before a function body should be emitted by annotations.

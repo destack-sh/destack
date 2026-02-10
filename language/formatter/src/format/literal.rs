@@ -14,6 +14,11 @@ use destack_fir::{format_args, write};
 use destack_source::Span;
 use destack_workspace::QuoteStyle;
 
+// template interpolation complexity thresholds
+const TEMPLATE_COMPLEX_ARGUMENT_COUNT_THRESHOLD: usize = 2;
+const TEMPLATE_INTERPOLATION_DELIMITER_WIDTH: usize = 4;
+const TEMPLATE_COMPLEX_OBJECT_PROPERTY_THRESHOLD: usize = 2;
+
 /// Format a scalar literal.
 /// (This is a separate function because it's not a node but we need the span for normalization.)
 pub(crate) fn format_scalar_literal<'ast>(
@@ -213,14 +218,12 @@ fn template_argument_should_force_inline(
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
     let expression_id = template_argument_expression_id(context, argument_id);
-    let expression_span = context.get_span(expression_id);
-    let argument_span = context.get_span(argument_id);
     let expression_is_inline_trivial =
         is_trivial_expression(context.tree, context.tree.get(expression_id))
             && !context.has_annotation(expression_id)
             && !context.has_annotation(argument_id)
-            && !context.has_newline(expression_span)
-            && !context.has_newline(argument_span);
+            && !context.node_has_newline(expression_id)
+            && !context.node_has_newline(argument_id);
     if expression_is_inline_trivial {
         return true;
     }
@@ -231,8 +234,8 @@ fn template_argument_should_force_inline(
             kind: IfKind::Ternary,
             ..
         }
-    ) && !context.has_newline(expression_span)
-        && !context.has_newline(argument_span)
+    ) && !context.node_has_newline(expression_id)
+        && !context.node_has_newline(argument_id)
 }
 
 /// Decide whether a template literal interpolation should break across lines.
@@ -253,8 +256,8 @@ fn template_argument_should_expand(
             kind: IfKind::Ternary,
             ..
         }
-    ) && !context.has_newline(context.get_span(expression_id))
-        && !context.has_newline(context.get_span(argument_id))
+    ) && !context.node_has_newline(expression_id)
+        && !context.node_has_newline(argument_id)
     {
         return false;
     }
@@ -274,7 +277,7 @@ fn template_argument_should_expand(
         | Expression::New {
             dynamic_arguments, ..
         } => {
-            if dynamic_arguments.len() > 2 {
+            if dynamic_arguments.len() > TEMPLATE_COMPLEX_ARGUMENT_COUNT_THRESHOLD {
                 return true;
             }
         }
@@ -282,8 +285,7 @@ fn template_argument_should_expand(
     }
 
     let span = context.get_span(expression_id);
-    let has_expression_newline =
-        context.has_newline(span) || context.has_newline(context.get_span(argument_id));
+    let has_expression_newline = context.has_newline(span) || context.node_has_newline(argument_id);
     if !has_expression_newline {
         return false;
     }
@@ -292,7 +294,7 @@ fn template_argument_should_expand(
     let expression_len = span_str.chars().count();
     let line_width = usize::from(context.options.line_width);
 
-    expression_len.saturating_add(4) > line_width
+    expression_len.saturating_add(TEMPLATE_INTERPOLATION_DELIMITER_WIDTH) > line_width
 }
 
 /// Check whether a template literal interpolation is complex enough to force expansion.
@@ -308,14 +310,16 @@ fn template_expression_is_complex(
         | Expression::TypeTemplateLiteral { .. } => true,
         Expression::Maybe { .. } | Expression::Must { .. } => true,
         Expression::TreeExpression { .. } => true,
-        Expression::ObjectExpression { properties, .. } => properties.len() > 2,
+        Expression::ObjectExpression { properties, .. } => {
+            properties.len() > TEMPLATE_COMPLEX_OBJECT_PROPERTY_THRESHOLD
+        }
         Expression::Call {
             dynamic_arguments, ..
         }
         | Expression::New {
             dynamic_arguments, ..
         } => {
-            dynamic_arguments.len() > 2
+            dynamic_arguments.len() > TEMPLATE_COMPLEX_ARGUMENT_COUNT_THRESHOLD
                 || dynamic_arguments.iter().any(|argument_id| {
                     let argument = context.tree.get(*argument_id);
                     !is_trivial_expression(

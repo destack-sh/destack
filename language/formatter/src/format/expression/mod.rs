@@ -11,7 +11,6 @@ use destack_ast::{
     UnaryOperator, WhereClause, WhileKind, YieldCardinality,
 };
 use destack_base::StringId;
-use destack_fir::best_fitting;
 use destack_fir::format::{FormatError, GroupId, text};
 use destack_fir::prelude::*;
 use destack_source::Span;
@@ -71,6 +70,7 @@ mod sort;
 mod statement;
 mod ternary;
 
+pub(crate) use self::binary::is_type_context;
 pub(crate) use self::chain::{
     format_expression_chain, is_chain_root, is_expression_chain, is_poorly_breakable_chain,
     lambda_expression_should_break,

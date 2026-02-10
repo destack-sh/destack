@@ -46,7 +46,7 @@ where
 {
     node_ids.iter().any(|node_id| {
         let node_id = LocalNodeId::<T>::new(node_id.id);
-        context.has_newline(context.get_span(node_id))
+        context.node_has_newline(node_id)
     })
 }
 

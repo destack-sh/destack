@@ -339,7 +339,7 @@ fn should_keep_field_default_inline<'ast>(
     }
 
     // preserve inline `= <expr>` when source already uses multiline rhs structure
-    if f.context().has_newline(f.context().get_span(expression_id)) {
+    if f.context().node_has_newline(expression_id) {
         return true;
     }
 

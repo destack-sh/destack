@@ -346,20 +346,8 @@ pub(in super::super) fn argument_has_multiline_prefix_annotation(
     }
 
     context
-        .with_annotations(argument_id, |annotations| {
-            annotations.iter().any(|annotation_id| {
-                match context.tree.get::<Annotation>(*annotation_id) {
-                    Annotation::Blank { .. } => false,
-                    Annotation::Doc { position, .. }
-                    | Annotation::Comment { position, .. }
-                    | Annotation::Decorator { position, .. } => matches!(
-                        position,
-                        AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
-                    ),
-                }
-            })
-        })
-        .unwrap_or(false)
+        .argument_annotation_profile(argument_id)
+        .has_prefix_annotation
 }
 
 /// Return whether an argument has prefix annotations that start before the argument span.
