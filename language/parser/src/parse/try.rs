@@ -45,9 +45,12 @@ impl Parser {
             );
 
             // catch
+            self.eat_newlines_maybe()?;
             let (catch_pattern, catch_ty, catch_expression) =
                 if self.peek_keyword(Keyword::Catch).is_ok() {
                     self.bump(); // eat keyword
+                    self.eat_newlines_maybe()?;
+
                     // no pattern or catch match
                     if self.peek_block().is_ok() || self.peek_keyword(Keyword::Match).is_ok() {
                         let catch_expression = self.with_options(
@@ -123,8 +126,10 @@ impl Parser {
                 };
 
             // finally
+            self.eat_newlines_maybe()?;
             let finally_expression = if self.peek_keyword(Keyword::Finally).is_ok() {
                 self.bump(); // eat keyword
+                self.eat_newlines_maybe()?;
                 let finally_expression = self.with_options(
                     self.options.not_in_position().in_statement_position(),
                     |parser| parser.eat_expression(),
@@ -399,6 +404,28 @@ try {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(..));
             });
             assert_node!(parser.tree, *catch_expression, Expression::Block(..));
+        });
+    }
+
+    /// Parse js catch blocks separated from try by a newline.
+    #[test]
+    fn test_parse_js_catch_without_binding_after_newline() {
+        let mut test = TestParser::new_with_options(
+            "try {\n  foo()\n}\ncatch {\n  bar()\n}",
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+
+        let try_id = parser.eat_try().unwrap();
+        assert_node!(parser.tree, try_id, Expression::Try { catch_pattern: None, catch_ty: None, catch_expression: Some(catch_expression), finally_expression: None, .. } => {
+            assert_node!(parser.tree, *catch_expression, Expression::Block(block_id) => {
+                assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                    assert_eq!(expressions.len(), 1);
+                    assert_node!(parser.tree, expressions[0], Expression::Call { left, .. } => {
+                        assert_expression_path!(parser, parser.tree.get(*left), "bar");
+                    });
+                });
+            });
         });
     }
 }
