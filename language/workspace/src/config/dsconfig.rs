@@ -386,6 +386,9 @@ impl DsConfig {
         if compiler.tsconfig.is_none() {
             compiler.tsconfig = parent_compiler.tsconfig.clone();
         }
+        if self.content.compiler_options.js_as_jsx.is_none() {
+            compiler.js_as_jsx = parent_compiler.js_as_jsx;
+        }
 
         // inherit formatter options (child overrides if explicitly set in JSON)
         let child_json = &self.content.formatter;

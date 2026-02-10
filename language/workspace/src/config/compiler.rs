@@ -157,6 +157,8 @@ pub struct DsConfigCompilerOptions {
     pub check_ts: bool,
     /// Allow JavaScript files (.js, .jsx) in the project.
     pub allow_js: bool,
+    /// Parse JavaScript files (.js, .mjs, .cjs) in JSX mode.
+    pub js_as_jsx: bool,
     /// Type-check JavaScript files.
     pub check_js: bool,
     /// Skip type checking of declaration files.
@@ -254,6 +256,7 @@ impl Default for DsConfigCompilerOptions {
             allow_ts: true,
             check_ts: false,
             allow_js: true,
+            js_as_jsx: false,
             check_js: false,
             skip_lib_check: false,
         }
@@ -662,6 +665,8 @@ pub struct CompilerOptionsJson {
     pub check_ts: Option<bool>,
     /// Allow JavaScript files (.js, .jsx) in the project.
     pub allow_js: Option<bool>,
+    /// Parse JavaScript files (.js, .mjs, .cjs) in JSX mode.
+    pub js_as_jsx: Option<bool>,
     /// Type-check JavaScript files.
     pub check_js: Option<bool>,
     /// Skip type checking of declaration files (.d.ts, .d.ds).
@@ -878,6 +883,7 @@ impl From<&CompilerOptionsJson> for DsConfigCompilerOptions {
             allow_ts: json.allow_ts.unwrap_or(true),
             check_ts: json.check_ts.unwrap_or(false),
             allow_js: json.allow_js.unwrap_or(true),
+            js_as_jsx: json.js_as_jsx.unwrap_or(false),
             check_js: json.check_js.unwrap_or(false),
             skip_lib_check: json.skip_lib_check.unwrap_or(false),
         };
@@ -893,5 +899,31 @@ impl From<&CompilerOptionsJson> for DsConfigCompilerOptions {
         }
 
         options
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{CompilerOptionsJson, DsConfigCompilerOptions};
+
+    /// Parse js_as_jsx as false by default.
+    #[test]
+    fn test_parse_compiler_options_js_as_jsx_default_false() {
+        let json = CompilerOptionsJson::default();
+        let options = DsConfigCompilerOptions::from(&json);
+
+        assert!(!options.js_as_jsx);
+    }
+
+    /// Parse js_as_jsx when the JSON field is enabled.
+    #[test]
+    fn test_parse_compiler_options_js_as_jsx_true() {
+        let json = CompilerOptionsJson {
+            js_as_jsx: Some(true),
+            ..CompilerOptionsJson::default()
+        };
+        let options = DsConfigCompilerOptions::from(&json);
+
+        assert!(options.js_as_jsx);
     }
 }
