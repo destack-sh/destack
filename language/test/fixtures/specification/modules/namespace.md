@@ -110,6 +110,74 @@ const box = make("ok");
 box.value satisfies string;
 ```
 
+### class and namespace exports can merge on one name
+
+> TypeScript allows class and namespace exports to merge under one exported identifier.
+
+```ts:main.ts
+export class Client {}
+
+export namespace Client {
+    export interface Options {
+        readonly name: string;
+    }
+}
+```
+
+### namespace declarations must follow class declarations when merging
+
+> TypeScript rejects class and namespace merges when the namespace appears first.
+
+```ts:main.ts
+namespace Client {
+    export interface Options {
+        readonly name: string;
+    }
+}
+
+class Client {}
+```
+
+- contains: duplicate identifier
+
+### runtime namespace and runtime value declarations conflict
+
+> TypeScript rejects runtime namespace declarations that collide with runtime value declarations.
+
+```ts:main.ts
+namespace Runtime {
+    export const value = 1;
+}
+
+var Runtime = 1;
+```
+
+- contains: duplicate identifier
+
+### ambient namespace declarations can coexist with runtime values
+
+> TypeScript allows ambient namespace declarations to share names with runtime value declarations.
+
+```ts:main.ts
+declare namespace Runtime {}
+
+var Runtime = 1;
+```
+
+### ambient class and value declarations conflict
+
+> TypeScript declaration files reject ambient class and value declarations with one name.
+
+```ts:main.d.ts
+declare abstract class Iterator<T> {}
+
+declare var Iterator: {
+    new<T>(): Iterator<T>;
+};
+```
+
+- contains: duplicate identifier
+
 ## declare namespace restrictions
 
 ### declare namespaces reject initializers and bodies

@@ -90,6 +90,28 @@ declare global {
 import "./globals.d.ds";
 ```
 
+### typescript global augmentations do not conflict with module declarations
+
+> TypeScript declaration files keep global augmentations separate from module-local declarations.
+
+```ts:globals.d.ts
+export {};
+
+declare abstract class Iterator<T> {
+    next(value?: T): T;
+}
+
+declare global {
+    var Iterator: {
+        new<T>(): Iterator<T>;
+    };
+}
+```
+
+```ts:main.ts
+import "./globals.d.ts";
+```
+
 ### global declarations in module bindings can use module scope
 
 > Global augmentations declared inside module bindings can reference names from that module binding.

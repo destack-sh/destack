@@ -116,25 +116,36 @@ pub(crate) fn can_merge_declarations(
         return false;
     }
 
-    // allow namespaces to merge with namespace or value declarations
+    // allow namespaces to merge by ts declaration merge rules
     if left.kind == SymbolKind::Namespace || right.kind == SymbolKind::Namespace {
-        let other_type = if left.kind == SymbolKind::Namespace {
-            right.symbol_type
+        let (namespace, other, namespace_is_left) = if left.kind == SymbolKind::Namespace {
+            (left, right, true)
         } else {
-            left.symbol_type
+            (right, left, false)
         };
-        return matches!(
-            other_type,
-            SymbolType::Class | SymbolType::Enum | SymbolType::Function | SymbolType::Void
-        );
-    }
 
-    // allow ambient declarations with matching symbol types
-    if left.binding == SymbolBinding::Ambient
-        && right.binding == SymbolBinding::Ambient
-        && left.symbol_type == right.symbol_type
-    {
-        return true;
+        // namespace declarations always merge with each other
+        if other.kind == SymbolKind::Namespace {
+            return true;
+        }
+
+        // class or function merges require the namespace to appear after the value declaration
+        if matches!(other.symbol_type, SymbolType::Class | SymbolType::Function) {
+            return !namespace_is_left;
+        }
+
+        // enum merges are order independent
+        if other.symbol_type == SymbolType::Enum {
+            return true;
+        }
+
+        // namespace and value declarations only merge when one side is ambient
+        if other.symbol_type == SymbolType::Void {
+            return namespace.binding == SymbolBinding::Ambient
+                || other.binding == SymbolBinding::Ambient;
+        }
+
+        return false;
     }
 
     // allow ambient function signatures to merge with runtime implementations
