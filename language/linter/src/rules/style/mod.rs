@@ -17,6 +17,7 @@ mod no_duplicate_string;
 mod no_else_return;
 mod no_empty_interface;
 mod no_extra_boolean_cast;
+mod no_implicit_coercion;
 mod no_lonely_if;
 mod no_negated_condition;
 mod no_nested_template_literal;
@@ -51,9 +52,11 @@ mod prefer_object_has_own;
 mod prefer_object_spread;
 mod prefer_pattern_over_guard;
 mod prefer_precise_numeric;
+mod prefer_promise_reject_errors;
 mod prefer_range_contains;
 mod prefer_range_literal;
 mod prefer_self_closing_tree;
+mod prefer_set_over_empty_map;
 mod prefer_string_replaceall;
 mod prefer_struct;
 mod prefer_struct_literal;
@@ -62,8 +65,10 @@ mod prefer_tuple;
 mod prefer_tuple_destructure;
 mod prefer_tuple_swap;
 mod prefer_unary_negation;
+mod promise_function_async;
 mod require_jsdoc;
 mod require_returns_doc;
+mod restrict_template_expressions;
 mod sort_imports;
 mod symbol_description;
 mod yoda;
@@ -89,6 +94,7 @@ pub use no_duplicate_string::*;
 pub use no_else_return::*;
 pub use no_empty_interface::*;
 pub use no_extra_boolean_cast::*;
+pub use no_implicit_coercion::*;
 pub use no_lonely_if::*;
 pub use no_negated_condition::*;
 pub use no_nested_template_literal::*;
@@ -123,9 +129,11 @@ pub use prefer_object_has_own::*;
 pub use prefer_object_spread::*;
 pub use prefer_pattern_over_guard::*;
 pub use prefer_precise_numeric::*;
+pub use prefer_promise_reject_errors::*;
 pub use prefer_range_contains::*;
 pub use prefer_range_literal::*;
 pub use prefer_self_closing_tree::*;
+pub use prefer_set_over_empty_map::*;
 pub use prefer_string_replaceall::*;
 pub use prefer_struct::*;
 pub use prefer_struct_literal::*;
@@ -134,8 +142,10 @@ pub use prefer_tuple::*;
 pub use prefer_tuple_destructure::*;
 pub use prefer_tuple_swap::*;
 pub use prefer_unary_negation::*;
+pub use promise_function_async::*;
 pub use require_jsdoc::*;
 pub use require_returns_doc::*;
+pub use restrict_template_expressions::*;
 pub use sort_imports::*;
 pub use symbol_description::*;
 pub use yoda::*;
@@ -162,6 +172,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoElseReturn),
         boxed(NoEmptyInterface),
         boxed(NoExtraBooleanCast),
+        boxed(NoImplicitCoercion),
         boxed(NoLonelyIf),
         boxed(NoNegatedCondition),
         boxed(NoNestedTemplateLiteral),
@@ -190,11 +201,13 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(PreferLoop),
         boxed(PreferMatch),
         boxed(PreferPatternOverGuard),
+        boxed(PreferPromiseRejectErrors),
         boxed(PreferRangeContains),
         boxed(PreferSelfClosingTree),
         boxed(PreferObjectSpread),
         boxed(PreferStruct),
         boxed(PreferStructLiteral),
+        boxed(PreferSetOverEmptyMap),
         boxed(PreferStringReplaceAll),
         boxed(PreferTuple),
         boxed(PreferTupleDestructure),
@@ -207,8 +220,10 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(PreferRangeLiteral),
         boxed(PreferTemplate),
         boxed(PreferUnaryNegation),
+        boxed(PromiseFunctionAsync),
         boxed(RequireJsdoc),
         boxed(RequireReturnsDoc),
+        boxed(RestrictTemplateExpressions),
         boxed(SortImports),
         boxed(SymbolDescription),
         boxed(Yoda),
