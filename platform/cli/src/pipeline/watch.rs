@@ -8,7 +8,7 @@ use destack_daemon::{
 };
 use destack_source::{
     DiagnosticCollection, DiagnosticOptions, FileRegistry, FileType, FileWatchFilter,
-    FileWatchOptions, FileWatcher, PhysicalFileWatcher,
+    FileWatchOptions, FileWatchRescanReason, FileWatchStatus, FileWatcher, PhysicalFileWatcher,
 };
 use destack_workspace::Session;
 
@@ -26,8 +26,6 @@ use crate::error::CliResult;
 pub struct WatchBatchSummary {
     /// Whether updates were produced.
     pub updated: bool,
-    /// Whether a rescan is required.
-    pub rescan: bool,
     /// Messages produced by the daemon.
     pub messages: Vec<WatchMessage>,
 }
@@ -45,8 +43,6 @@ pub struct WatchMessage {
 pub trait WatchDaemon {
     /// Apply a watch batch and return a summary.
     fn apply_watch_batch(&self, batch: &WatchBatch) -> CliResult<WatchBatchSummary>;
-    /// Rescan the workspace roots and return a summary.
-    fn rescan_roots(&self, roots: &[PathBuf]) -> CliResult<WatchBatchSummary>;
 }
 
 impl WatchMessage {
@@ -64,20 +60,6 @@ impl WatchDaemon for Daemon {
         let result = Daemon::apply_watch_batch(self, batch);
         Ok(WatchBatchSummary {
             updated: result.updated(),
-            rescan: result.rescan,
-            messages: result
-                .messages
-                .iter()
-                .map(WatchMessage::from_daemon)
-                .collect(),
-        })
-    }
-
-    fn rescan_roots(&self, roots: &[PathBuf]) -> CliResult<WatchBatchSummary> {
-        let result = self.rescan_roots(roots);
-        Ok(WatchBatchSummary {
-            updated: result.updated(),
-            rescan: false,
             messages: result
                 .messages
                 .iter()
@@ -344,9 +326,6 @@ where
         bool,
     ) -> WatchLoopAction,
 {
-    // retain roots for rescans
-    let watch_roots = roots.clone();
-
     // start the file watcher
     let coordinator = WatchCoordinator::new(
         loop_options.watcher,
@@ -383,27 +362,15 @@ where
                 continue;
             }
         };
-        let requires_rescan = result.rescan;
+        let requires_rescan = batch_requires_rescan(&batch);
         for message in &result.messages {
             emit_watch_message(reporter, message);
         }
 
-        let mut updated = result.updated;
+        let updated = result.updated;
 
-        // refresh sources when a rescan is requested
+        // refresh caller state when a rescan is requested
         if requires_rescan {
-            let rescan_result = match daemon.rescan_roots(&watch_roots) {
-                Ok(result) => result,
-                Err(error) => {
-                    emit_watch_warning(reporter, &watch_error(&error.to_string()));
-                    continue;
-                }
-            };
-            updated = updated || rescan_result.updated;
-            for message in &rescan_result.messages {
-                emit_watch_message(reporter, message);
-            }
-
             if let Err(error) = on_rescan(state) {
                 emit_watch_warning(reporter, &error.to_string());
                 continue;
@@ -475,4 +442,49 @@ fn emit_watch_warning(reporter: &mut Option<WatchReporter>, message: &str) {
     }
 
     console::warn(message);
+}
+
+/// Return true when a watch batch should refresh caller source inputs.
+fn batch_requires_rescan(batch: &WatchBatch) -> bool {
+    // treat overflow batches as requiring a refresh
+    if batch.overflowed {
+        return true;
+    }
+
+    // treat explicit watcher rescan requests as requiring a refresh
+    if batch.status.iter().any(|status| {
+        matches!(
+            status,
+            FileWatchStatus::RescanRequested {
+                reason: FileWatchRescanReason::Overflow
+                    | FileWatchRescanReason::Manual
+                    | FileWatchRescanReason::Update,
+                ..
+            }
+        )
+    }) {
+        return true;
+    }
+
+    // treat config path updates as requiring a refresh
+    batch.events.iter().any(|event| {
+        is_config_path(&event.path)
+            || event
+                .previous_path
+                .as_ref()
+                .is_some_and(|path| is_config_path(path))
+    })
+}
+
+/// Return true when a path is a workspace config file.
+fn is_config_path(path: &Path) -> bool {
+    let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
+        return false;
+    };
+
+    if file_name == "dsconfig.json" || file_name == "jsconfig.json" {
+        return true;
+    }
+
+    file_name.starts_with("tsconfig") && file_name.ends_with(".json")
 }

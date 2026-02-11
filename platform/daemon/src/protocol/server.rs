@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -8,25 +8,25 @@ use destack_source::{ModuleId, ProfileId};
 use parking_lot::Mutex;
 
 use destack_workspace::{
-    FileUpdate as WorkspaceFileUpdate, ModuleGraphKey, ModuleSignatureKey, Program,
+    FileUpdate as WorkspaceFileUpdate, ModuleGraphKey, ModuleSignatureKey, Program, query,
 };
+use destack_workspace_service::WorkspaceHandleId as ServiceWorkspaceHandleId;
 
 use crate::{Daemon, DaemonError, DaemonUpdate, WatchBatch as DaemonWatchBatch};
 
 use super::{
     BinaryPayload, CacheStatsPayload, CommandRequest, CommandResponse, DaemonNotification,
-    DaemonRequest, DaemonResponse, DiagnosticBatch, FileUpdate, FileUpdateKind, FileUpdateRequest,
-    FileUpdateResponse, HandshakeRequest, HandshakeResponse, PayloadBody, PayloadChunkNotification,
-    PayloadFormat, PayloadId, ProtocolCodec, ProtocolCodecError, ProtocolError, ProtocolErrorCode,
-    ProtocolLimits, ProtocolMessage, ProtocolNotification, ProtocolRange, ProtocolRequest,
-    ProtocolResponse, RescanWorkspaceRequest, ServerInfo, SessionId, Transport, TransportError,
-    WatchBatchRequest, WatchBatchResponse, WatchRequest, WatchResponse, WorkspaceHandleId,
-    WorkspaceOpenedResponse, WorkspaceRescanResponse, daemon_messages_to_records,
+    DaemonQuery, DaemonQueryResponse, DaemonRequest, DaemonResponse, DiagnosticBatch, FileUpdate,
+    FileUpdateKind, FileUpdateRequest, FileUpdateResponse, HandshakeRequest, HandshakeResponse,
+    PayloadBody, PayloadChunkNotification, PayloadFormat, PayloadId, ProtocolCodec,
+    ProtocolCodecError, ProtocolError, ProtocolErrorCode, ProtocolLimits, ProtocolMessage,
+    ProtocolNotification, ProtocolRange, ProtocolRequest, ProtocolResponse, RescanWorkspaceRequest,
+    ServerInfo, SessionId, Transport, TransportError, WatchBatchRequest, WatchBatchResponse,
+    WorkspaceHandleId, WorkspaceOpenedResponse, WorkspaceRescanResponse,
+    command_output_to_protocol, command_stats_to_protocol, daemon_messages_to_records,
     daemon_updates_to_records, diagnostics_to_batches, files_to_snapshots,
     inline_payload_max_bytes, payload_chunk_bytes,
 };
-
-mod query;
 
 /// Server side protocol handler for daemon requests.
 #[derive(Debug)]
@@ -245,16 +245,12 @@ struct ProtocolServerState {
     negotiated_limits: Option<super::ProtocolLimits>,
     /// Next session id to allocate.
     next_session_id: u64,
-    /// Next workspace handle id to allocate.
-    next_workspace_id: u64,
     /// Next payload id to allocate.
     next_payload_id: u64,
     /// Workspace roots keyed by handle id.
     workspace_roots: HashMap<WorkspaceHandleId, PathBuf>,
     /// Workspace handles keyed by root path.
     workspace_handles: HashMap<PathBuf, WorkspaceHandleId>,
-    /// Active watch subscriptions.
-    watch_subscriptions: HashSet<WorkspaceHandleId>,
     /// Pending payloads to stream.
     pending_payloads: Vec<PendingPayload>,
     /// Whether a shutdown was requested.
@@ -268,11 +264,9 @@ impl ProtocolServerState {
             session_id: None,
             negotiated_limits: None,
             next_session_id: 1,
-            next_workspace_id: 1,
             next_payload_id: 1,
             workspace_roots: HashMap::new(),
             workspace_handles: HashMap::new(),
-            watch_subscriptions: HashSet::new(),
             pending_payloads: Vec::new(),
             shutting_down: false,
         }
@@ -408,7 +402,6 @@ impl ProtocolServer {
             DaemonRequest::Runtime(_) => self.not_ready("runtime requests are not ready"),
             DaemonRequest::Cache(_) => self.not_ready("cache control is not ready"),
             DaemonRequest::Artifact(_) => self.not_ready("artifact requests are not ready"),
-            DaemonRequest::Watch(request) => self.handle_watch_request(request),
         };
 
         match payload {
@@ -488,22 +481,21 @@ impl ProtocolServer {
 
         let root = self.normalize_root(&request.root);
         // open or reuse the workspace handle
-        let (handle, inserted) = self.open_workspace_handle(&root);
+        let (handle, inserted) = self.open_workspace_handle(&root)?;
         if inserted {
             self.control.register_handle();
         }
-        let _ = self.daemon.session.get_or_create_program(root.clone());
-
-        let rescan = self
-            .daemon
-            .rescan_roots_with_analysis(std::slice::from_ref(&root));
-        let updates = rescan.updates;
-        let diagnostics = diagnostics_from_updates(&updates);
-        let messages = daemon_messages_to_records(&rescan.messages);
-
-        if request.options.watch {
-            self.state.lock().watch_subscriptions.insert(handle);
-        }
+        let (diagnostics, messages) = if request.options.load_index {
+            let rescan = self
+                .daemon
+                .rescan_roots_with_analysis(std::slice::from_ref(&root));
+            let updates = rescan.updates;
+            let diagnostics = diagnostics_from_updates(&updates);
+            let messages = daemon_messages_to_records(&rescan.messages);
+            (diagnostics, messages)
+        } else {
+            (Vec::new(), Vec::new())
+        };
 
         Ok(DaemonResponse::WorkspaceOpened(WorkspaceOpenedResponse {
             handle,
@@ -524,11 +516,12 @@ impl ProtocolServer {
             .remove(&request.handle)
             .ok_or_else(|| self.missing_workspace(request.handle))?;
         let removed = state.workspace_handles.remove(&root);
-        state.watch_subscriptions.remove(&request.handle);
         drop(state);
 
         // release the workspace handle
-        let _ = self.daemon.remove_program_handle(&root);
+        self.daemon
+            .release_workspace_root(&root)
+            .map_err(|error| self.protocol_error_from_daemon(error))?;
         if removed.is_some() {
             self.control.unregister_handle();
         }
@@ -571,15 +564,15 @@ impl ProtocolServer {
         }
 
         let update = workspace_update_from_request(&request.update)?;
-        let updates = self
+        let update_result = self
             .daemon
             .apply_file_update(&request.update.path, update, request.update.write_to_disk)
             .map_err(|error| self.protocol_error_from_daemon(error))?;
 
         Ok(DaemonResponse::FileUpdated(FileUpdateResponse {
             handle: request.handle,
-            updates: daemon_updates_to_records(&updates),
-            messages: Vec::new(),
+            updates: daemon_updates_to_records(&update_result.updates),
+            messages: daemon_messages_to_records(&update_result.messages),
         }))
     }
 
@@ -604,7 +597,7 @@ impl ProtocolServer {
 
         Ok(DaemonResponse::Analyzed(super::AnalyzeResponse {
             handle: request.handle,
-            query_context_ready: outcome.query_context_ready,
+            semantic_query_ready: outcome.semantic_query_ready,
             detail: outcome.detail,
         }))
     }
@@ -634,17 +627,11 @@ impl ProtocolServer {
         }
 
         let batch = DaemonWatchBatch::from(&request.batch);
-        let mut result = self.daemon.apply_watch_batch(&batch);
-        if result.rescan {
-            let rescan = self.daemon.rescan_roots_with_analysis(&[root]);
-            result.updates.extend(rescan.updates);
-            result.messages.extend(rescan.messages);
-        }
+        let result = self.daemon.apply_watch_batch(&batch);
 
         Ok(DaemonResponse::WatchBatchApplied(WatchBatchResponse {
             handle: request.handle,
             updates: daemon_updates_to_records(&result.updates),
-            rescan: result.rescan,
             messages: daemon_messages_to_records(&result.messages),
         }))
     }
@@ -656,10 +643,18 @@ impl ProtocolServer {
 
         let result = self
             .daemon
-            .run_command(&root, &request)
+            .run_command(&root, &request.common, &request.payload)
             .map_err(|error| self.protocol_error(ProtocolErrorCode::Internal, &error))?;
         let data = match result.data {
-            Some(payload) => Some(self.prepare_payload(payload)?),
+            Some(payload) => {
+                let binary_payload = BinaryPayload::from_json_value(&payload).map_err(|error| {
+                    self.protocol_error(
+                        ProtocolErrorCode::Internal,
+                        &format!("failed to encode command payload: {error}"),
+                    )
+                })?;
+                Some(self.prepare_payload(binary_payload)?)
+            }
             None => None,
         };
         let program = self.program_for_root(&root)?;
@@ -673,35 +668,87 @@ impl ProtocolServer {
             diagnostics,
             files,
             messages: Vec::new(),
-            output: result.output,
+            output: command_output_to_protocol(&result.output),
             artifacts: Vec::new(),
             module_count: result.module_count,
             profile_count: result.profile_count,
             target_count: result.target_count,
-            stats: result.stats,
+            stats: result.stats.as_ref().map(command_stats_to_protocol),
             data,
         }))
     }
 
-    /// Handle watch subscribe and unsubscribe requests.
-    fn handle_watch_request(&self, request: WatchRequest) -> Result<DaemonResponse, ProtocolError> {
+    /// Handle a query request.
+    fn handle_query(&self, query: DaemonQuery) -> Result<DaemonResponse, ProtocolError> {
         self.require_session()?;
-        let handle = match request {
-            WatchRequest::Subscribe { handle } => handle,
-            WatchRequest::Unsubscribe { handle } => handle,
+        let response = match query {
+            DaemonQuery::WorkspaceIndex { handle } => {
+                let root = self.root_for_handle(handle)?;
+                let payload = self.prepare_payload(self.workspace_index_payload(&root)?)?;
+                DaemonQueryResponse::WorkspaceIndex(payload)
+            }
+            DaemonQuery::ModuleGraph { handle, profile } => {
+                let root = self.root_for_handle(handle)?;
+                let payload = self.prepare_payload(self.module_graph_payload(&root, profile)?)?;
+                DaemonQueryResponse::ModuleGraph(payload)
+            }
+            DaemonQuery::ModuleSignature {
+                handle,
+                module_id,
+                profile,
+            } => {
+                let root = self.root_for_handle(handle)?;
+                let payload = self
+                    .prepare_payload(self.module_signature_payload(&root, module_id, profile)?)?;
+                DaemonQueryResponse::ModuleSignature(payload)
+            }
+            DaemonQuery::Diagnostics { handle } => {
+                let root = self.root_for_handle(handle)?;
+                let diagnostics = self.diagnostics_for_root(&root)?;
+                DaemonQueryResponse::Diagnostics(diagnostics)
+            }
+            DaemonQuery::CacheStats { handle } => {
+                let root = self.root_for_handle(handle)?;
+                let stats = self.cache_stats_for_root(&root)?;
+                DaemonQueryResponse::CacheStats(stats)
+            }
+            DaemonQuery::WorkspaceQuery { handle, request } => {
+                let _ = self.root_for_handle(handle)?;
+                let response = self.execute_workspace_query(handle, request)?;
+                DaemonQueryResponse::WorkspaceQuery(response)
+            }
+            DaemonQuery::WorkspaceQueryBatch { handle, requests } => {
+                let _ = self.root_for_handle(handle)?;
+                let responses = requests
+                    .into_iter()
+                    .map(|request| self.execute_workspace_query(handle, request))
+                    .collect::<Result<Vec<_>, ProtocolError>>()?;
+                DaemonQueryResponse::WorkspaceQueryBatch(responses)
+            }
         };
+
+        Ok(DaemonResponse::QueryResult(response))
+    }
+
+    /// Execute a workspace query against the current session.
+    fn execute_workspace_query(
+        &self,
+        handle: WorkspaceHandleId,
+        request: query::QueryRequestEnvelope,
+    ) -> Result<query::QueryResponseEnvelope, ProtocolError> {
         let _ = self.root_for_handle(handle)?;
+        let response = self
+            .daemon
+            .workspace_service
+            .query_for_handle(ServiceWorkspaceHandleId(handle.0), request.request)
+            .map_err(|error| {
+                self.protocol_error(
+                    ProtocolErrorCode::Internal,
+                    &format!("workspace query failed: {error}"),
+                )
+            })?;
 
-        let mut state = self.state.lock();
-        let success = match request {
-            WatchRequest::Subscribe { .. } => state.watch_subscriptions.insert(handle),
-            WatchRequest::Unsubscribe { .. } => state.watch_subscriptions.remove(&handle),
-        };
-
-        Ok(DaemonResponse::WatchResult(WatchResponse {
-            handle,
-            success,
-        }))
+        Ok(response)
     }
 
     /// Return a NotReady protocol error with message.
@@ -751,17 +798,23 @@ impl ProtocolServer {
     }
 
     /// Open or reuse a workspace handle for a root.
-    fn open_workspace_handle(&self, root: &Path) -> (WorkspaceHandleId, bool) {
+    fn open_workspace_handle(
+        &self,
+        root: &Path,
+    ) -> Result<(WorkspaceHandleId, bool), ProtocolError> {
         let mut state = self.state.lock();
         if let Some(existing) = state.workspace_handles.get(root) {
-            return (*existing, false);
+            return Ok((*existing, false));
         }
 
-        let handle = WorkspaceHandleId::new(state.next_workspace_id);
-        state.next_workspace_id += 1;
+        let service_handle = self
+            .daemon
+            .acquire_workspace_root(root)
+            .map_err(|error| self.protocol_error_from_daemon(error))?;
+        let handle = WorkspaceHandleId::new(service_handle.0);
         state.workspace_handles.insert(root.to_path_buf(), handle);
         state.workspace_roots.insert(handle, root.to_path_buf());
-        (handle, true)
+        Ok((handle, true))
     }
 
     /// Release workspace handles tied to this connection.
@@ -769,7 +822,6 @@ impl ProtocolServer {
         // drain roots and clear subscriptions for this connection
         let roots = {
             let mut state = self.state.lock();
-            state.watch_subscriptions.clear();
             state.workspace_handles.clear();
             state
                 .workspace_roots
@@ -778,9 +830,9 @@ impl ProtocolServer {
                 .collect::<Vec<_>>()
         };
 
-        // release program handles for the drained roots
+        // release workspace leases for the drained roots
         for root in roots {
-            let _ = self.daemon.remove_program_handle(&root);
+            let _ = self.daemon.release_workspace_root(&root);
             self.control.unregister_handle();
         }
     }

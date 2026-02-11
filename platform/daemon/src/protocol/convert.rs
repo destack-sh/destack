@@ -6,13 +6,18 @@ use destack_source::{
     FileWatchStatus,
 };
 use destack_workspace::{InvalidationKind, InvalidationPlan, Program};
+use destack_workspace_service::FileSnapshot as WorkspaceFileSnapshot;
 
+use crate::command::{
+    DaemonCommandOutputChunk, DaemonCommandStats, DaemonOutputStream as CommandOutputStream,
+};
 use crate::{DaemonMessage, DaemonUpdate, WatchBatch as DaemonWatchBatch};
 
 use super::{
+    CommandOutputChunk, CommandStats, CommandTimingTagStats,
     DaemonMessageKind as ProtocolMessageKind, DaemonMessageRecord, DaemonUpdateRecord,
     DiagnosticBatch, FileSnapshot, InvalidationKind as ProtocolInvalidationKind,
-    InvalidationSummary, RescanReason, WatchBatch as ProtocolWatchBatch,
+    InvalidationSummary, OutputStream, RescanReason, WatchBatch as ProtocolWatchBatch,
     WatchEvent as ProtocolWatchEvent, WatchEventKind as ProtocolWatchEventKind,
     WatchStatus as ProtocolWatchStatus,
 };
@@ -52,49 +57,38 @@ impl From<&DaemonUpdate> for DaemonUpdateRecord {
         Self {
             module_id: update.module_id,
             file_id: update.file_id,
-            file: update.file.clone(),
+            file: protocol_snapshot_from_workspace(&update.file),
             invalidation: InvalidationSummary::from(&update.invalidation),
             diagnostics: update.diagnostics.clone(),
         }
     }
 }
 
+/// Convert a workspace snapshot into protocol shape.
+fn protocol_snapshot_from_workspace(snapshot: &WorkspaceFileSnapshot) -> FileSnapshot {
+    FileSnapshot {
+        id: snapshot.id,
+        name: snapshot.name.clone(),
+        uri: snapshot.uri.clone(),
+        path: snapshot.path.clone(),
+        file_type: snapshot.file_type,
+        content: snapshot.content.clone(),
+    }
+}
+
 impl From<&DaemonMessage> for DaemonMessageRecord {
     fn from(message: &DaemonMessage) -> Self {
-        let (kind, path) = match message {
-            DaemonMessage::WatchOverflowRescan => (ProtocolMessageKind::Warning, None),
-            DaemonMessage::WatchRemoveFailed { path, .. } => {
-                (ProtocolMessageKind::Warning, Some(path.clone()))
-            }
-            DaemonMessage::WatchReadFailed { path, .. } => {
-                (ProtocolMessageKind::Warning, Some(path.clone()))
-            }
-            DaemonMessage::WatchUpdateFailed { path, .. } => {
-                (ProtocolMessageKind::Warning, Some(path.clone()))
-            }
-            DaemonMessage::RescanReadFailed { path, .. } => {
-                (ProtocolMessageKind::Warning, Some(path.clone()))
-            }
-            DaemonMessage::RescanInvalidationFailed { .. } => (ProtocolMessageKind::Warning, None),
-            DaemonMessage::RescanAnalyzeFailed { .. } => (ProtocolMessageKind::Warning, None),
-            DaemonMessage::WatchStatusError { .. } => (ProtocolMessageKind::Warning, None),
-            DaemonMessage::WatchRescanRequested { .. } => (ProtocolMessageKind::Info, None),
-            DaemonMessage::ConfigReloadWorkspaceFailed { .. } => {
-                (ProtocolMessageKind::Warning, None)
-            }
-            DaemonMessage::ConfigReloadPackageFailed { path, .. } => {
-                (ProtocolMessageKind::Warning, Some(path.clone()))
-            }
-            DaemonMessage::ConfigReloadTsconfigFailed { path, .. } => {
-                (ProtocolMessageKind::Warning, Some(path.clone()))
-            }
+        let kind = match message.kind {
+            crate::DaemonMessageKind::Info => ProtocolMessageKind::Info,
+            crate::DaemonMessageKind::Warning => ProtocolMessageKind::Warning,
+            crate::DaemonMessageKind::Error => ProtocolMessageKind::Error,
         };
 
         Self {
             kind,
-            code: message.code().to_string(),
-            message: message.render(),
-            path,
+            code: message.code.clone(),
+            message: message.message.clone(),
+            path: message.path.clone(),
         }
     }
 }
@@ -283,6 +277,52 @@ pub fn files_to_snapshots(program: &Program, diagnostics: &[Diagnostic]) -> Vec<
     // keep snapshots stable by file id
     snapshots.sort_by_key(|snapshot| snapshot.id.0);
     snapshots
+}
+
+/// Convert daemon command output chunks into protocol records.
+pub fn command_output_to_protocol(chunks: &[DaemonCommandOutputChunk]) -> Vec<CommandOutputChunk> {
+    chunks
+        .iter()
+        .map(|chunk| CommandOutputChunk {
+            stream: match chunk.stream {
+                CommandOutputStream::Stdout => OutputStream::Stdout,
+                CommandOutputStream::Stderr => OutputStream::Stderr,
+            },
+            bytes: chunk.bytes.clone(),
+        })
+        .collect()
+}
+
+/// Convert daemon command stats into protocol shape.
+pub fn command_stats_to_protocol(stats: &DaemonCommandStats) -> CommandStats {
+    CommandStats {
+        elapsed_ms: stats.elapsed_ms,
+        tasks_completed: stats.tasks_completed,
+        tasks_failed: stats.tasks_failed,
+        tasks_skipped: stats.tasks_skipped,
+        modules_processed: stats.modules_processed,
+        lines_processed: stats.lines_processed,
+        slow_tasks: stats.slow_tasks,
+        cache: stats.cache.as_ref().map(|cache| super::CommandCacheStats {
+            hits_memory: cache.hits_memory,
+            hits_disk: cache.hits_disk,
+            misses: cache.misses,
+            writes_memory: cache.writes_memory,
+            writes_disk: cache.writes_disk,
+            errors: cache.errors,
+            hit_rate: cache.hit_rate,
+        }),
+        timings: stats.timings.as_ref().map(|timings| {
+            timings
+                .iter()
+                .map(|entry| CommandTimingTagStats {
+                    name: entry.name.clone(),
+                    duration_ms: entry.duration_ms,
+                    sample_count: entry.sample_count,
+                })
+                .collect()
+        }),
+    }
 }
 
 /// Build a snapshot for a file id.

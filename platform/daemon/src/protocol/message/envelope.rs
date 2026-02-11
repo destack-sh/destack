@@ -6,8 +6,8 @@ use super::{
     CacheResponse, CloseWorkspaceRequest, CommandRequest, CommandResponse, DaemonNotification,
     DaemonQuery, DaemonQueryResponse, FileUpdateRequest, FileUpdateResponse, OpenWorkspaceRequest,
     ReplRequest, ReplResponse, RescanWorkspaceRequest, RuntimeRequest, RuntimeResponse,
-    WatchBatchRequest, WatchBatchResponse, WatchRequest, WatchResponse, WorkspaceClosedResponse,
-    WorkspaceOpenedResponse, WorkspaceRescanResponse,
+    WatchBatchRequest, WatchBatchResponse, WorkspaceClosedResponse, WorkspaceOpenedResponse,
+    WorkspaceRescanResponse,
 };
 
 /// Unique identifier for protocol requests.
@@ -215,8 +215,6 @@ pub enum DaemonRequest {
     Cache(CacheRequest),
     /// Fetch artifact content.
     Artifact(ArtifactRequest),
-    /// Manage watch subscriptions.
-    Watch(WatchRequest),
 }
 
 /// Responses emitted by the daemon.
@@ -254,8 +252,6 @@ pub enum DaemonResponse {
     CacheResult(CacheResponse),
     /// Artifact fetch response.
     ArtifactResult(ArtifactResponse),
-    /// Watch subscription response.
-    WatchResult(WatchResponse),
     /// Error response.
     Error(ProtocolError),
 }

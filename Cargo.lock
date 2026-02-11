@@ -1008,6 +1008,7 @@ dependencies = [
  "destack_source",
  "destack_vm",
  "destack_workspace",
+ "destack_workspace_service",
  "fs2",
  "interprocess",
  "parking_lot",
@@ -1119,7 +1120,6 @@ version = "0.53.0"
 dependencies = [
  "dashmap",
  "destack_ast",
- "destack_compiler",
  "destack_dir",
  "destack_fir",
  "destack_formatter",
@@ -1129,6 +1129,7 @@ dependencies = [
  "destack_resolver",
  "destack_source",
  "destack_workspace",
+ "destack_workspace_service",
  "futures",
  "libc",
  "parking_lot",
@@ -1391,6 +1392,18 @@ dependencies = [
  "smallvec",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "destack_workspace_service"
+version = "0.53.0"
+dependencies = [
+ "dashmap",
+ "destack_compiler",
+ "destack_resolver",
+ "destack_source",
+ "destack_workspace",
+ "parking_lot",
 ]
 
 [[package]]

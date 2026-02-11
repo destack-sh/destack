@@ -176,9 +176,8 @@ fn test_apply_watch_event_updates_file() {
 
     let result = daemon.apply_watch_event(&event);
 
-    // assert the update is applied without rescan
+    // assert the update is applied
     assert!(result.updated());
-    assert!(!result.rescan);
 }
 
 /// Apply delete watch events to a tracked file.
@@ -210,7 +209,6 @@ fn test_apply_watch_event_deletes_file() {
 
     // check that the deleted files are marked missing
     assert!(result.updated());
-    assert!(!result.rescan);
     assert!(file.is_missing());
 }
 
@@ -255,12 +253,11 @@ fn test_apply_watch_event_renames_file() {
 
     // check that the rename removes the old file and updates the new one
     assert!(result.updated());
-    assert!(!result.rescan);
     assert!(old_file.is_missing());
     assert!(!new_file.is_missing());
 }
 
-/// Rescan when config files change.
+/// Apply config watch events through the daemon.
 #[test]
 fn test_apply_watch_event_requests_rescan_for_config() {
     let test = TestProgram::new("watch_config");
@@ -283,9 +280,8 @@ fn test_apply_watch_event_requests_rescan_for_config() {
 
     let result = daemon.apply_watch_event(&event);
 
-    // check that the rescan is requested
-    assert!(!result.updated());
-    assert!(result.rescan);
+    // check that the config update is applied
+    assert!(result.updated());
 }
 
 /// Exercise the shared watch loop for config updates.

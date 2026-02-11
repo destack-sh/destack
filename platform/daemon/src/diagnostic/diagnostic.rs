@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use destack_compiler::ImportError;
 use destack_source::{Diagnostic, FileId};
 use destack_workspace::InvalidationError;
+use destack_workspace_service::WorkspaceServiceError;
 
 /// Diagnostics produced by daemon work.
 #[derive(Debug, Clone, Default)]
@@ -52,6 +53,11 @@ pub enum DaemonError {
         /// The underlying invalidation error.
         error: Box<InvalidationError>,
     },
+    /// Workspace service operation failed.
+    Workspace {
+        /// The typed workspace service error.
+        error: WorkspaceServiceError,
+    },
 }
 
 impl std::fmt::Display for DaemonError {
@@ -73,8 +79,17 @@ impl std::fmt::Display for DaemonError {
             DaemonError::Invalidation { path, error } => {
                 write!(f, "failed to invalidate file {}: {error}", path.display())
             }
+            DaemonError::Workspace { error } => {
+                write!(f, "workspace error: {error}")
+            }
         }
     }
 }
 
 impl std::error::Error for DaemonError {}
+
+impl From<WorkspaceServiceError> for DaemonError {
+    fn from(error: WorkspaceServiceError) -> Self {
+        Self::Workspace { error }
+    }
+}

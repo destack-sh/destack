@@ -13,8 +13,9 @@ use destack_source::{
     DiagnosticSeverity, File, FileId, FileType, LanguageType, Span, WATCHABLE_FILE_TYPES,
 };
 use destack_workspace::{FormatterOptions, Session, query};
-
-use super::workspace::{FileSnapshot, LspWorkspaceDriver};
+use destack_workspace_service::{
+    FileSnapshot, WorkspaceService as LspWorkspaceService, WorkspaceServiceError,
+};
 
 /// Globs for config files tracked by the LSP.
 pub(super) const CONFIG_GLOBS: [&str; 2] = ["**/dsconfig.json", "**/tsconfig*.json"];
@@ -159,12 +160,12 @@ pub(super) fn tracked_file_globs() -> Vec<&'static str> {
     patterns
 }
 
-/// Create a workspace driver for the LSP session.
-pub(super) fn create_workspace_driver(
+/// Create a workspace service for the LSP session.
+pub(super) fn create_workspace_service(
     session: Arc<Session>,
     root: PathBuf,
-) -> Result<LspWorkspaceDriver, String> {
-    LspWorkspaceDriver::new(session, vec![root])
+) -> Result<LspWorkspaceService, WorkspaceServiceError> {
+    LspWorkspaceService::new(session, vec![root])
 }
 
 /// Convert completion kind to LSP completion item kind.

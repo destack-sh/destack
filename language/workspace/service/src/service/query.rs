@@ -1,85 +1,44 @@
-use destack_compiler::AnalyzeTask;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+use std::path::Path;
+
+use destack_compiler::TaskOutcome;
 use destack_source::{FileId, Span, Uri};
-use destack_workspace::{ModuleContent, Program, query};
+use destack_workspace::{ModuleContent, Program, QueryResponseEnvelope, query};
 
-use super::ProtocolServer;
-use crate::protocol::{
-    DaemonQuery, DaemonQueryResponse, DaemonResponse, ProtocolError, ProtocolErrorCode,
-    WorkspaceHandleId,
-};
+use super::{WorkspaceHandleId, WorkspaceService, WorkspaceServiceError};
 
-impl ProtocolServer {
-    /// Handle a query request.
-    pub(super) fn handle_query(&self, query: DaemonQuery) -> Result<DaemonResponse, ProtocolError> {
-        self.require_session()?;
-        let response = match query {
-            DaemonQuery::WorkspaceIndex { handle } => {
-                let root = self.root_for_handle(handle)?;
-                let payload = self.prepare_payload(self.workspace_index_payload(&root)?)?;
-                DaemonQueryResponse::WorkspaceIndex(payload)
-            }
-            DaemonQuery::ModuleGraph { handle, profile } => {
-                let root = self.root_for_handle(handle)?;
-                let payload = self.prepare_payload(self.module_graph_payload(&root, profile)?)?;
-                DaemonQueryResponse::ModuleGraph(payload)
-            }
-            DaemonQuery::ModuleSignature {
-                handle,
-                module_id,
-                profile,
-            } => {
-                let root = self.root_for_handle(handle)?;
-                let payload = self
-                    .prepare_payload(self.module_signature_payload(&root, module_id, profile)?)?;
-                DaemonQueryResponse::ModuleSignature(payload)
-            }
-            DaemonQuery::Diagnostics { handle } => {
-                let root = self.root_for_handle(handle)?;
-                let diagnostics = self.diagnostics_for_root(&root)?;
-                DaemonQueryResponse::Diagnostics(diagnostics)
-            }
-            DaemonQuery::CacheStats { handle } => {
-                let root = self.root_for_handle(handle)?;
-                let stats = self.cache_stats_for_root(&root)?;
-                DaemonQueryResponse::CacheStats(stats)
-            }
-            DaemonQuery::WorkspaceQuery { handle, request } => {
-                let _root = self.root_for_handle(handle)?;
-                let response = self.execute_workspace_query(handle, request)?;
-                DaemonQueryResponse::WorkspaceQuery(response)
-            }
-            DaemonQuery::WorkspaceQueryBatch { handle, requests } => {
-                let _root = self.root_for_handle(handle)?;
-                let responses = requests
-                    .into_iter()
-                    .map(|request| self.execute_workspace_query(handle, request))
-                    .collect::<Result<Vec<_>, ProtocolError>>()?;
-                DaemonQueryResponse::WorkspaceQueryBatch(responses)
-            }
-        };
+impl WorkspaceService {
+    /// Execute a workspace query for the workspace that owns the path.
+    pub fn query_for_path(
+        &self,
+        path: &Path,
+        request: query::QueryRequest,
+    ) -> Result<QueryResponseEnvelope, WorkspaceServiceError> {
+        // resolve the workspace handle for this path
+        let handle = self.handle_for_path(path)?;
 
-        Ok(DaemonResponse::QueryResult(response))
+        // route to handle based query execution
+        self.query_for_handle(handle, request)
     }
 
-    /// Execute a workspace query against the current session.
-    fn execute_workspace_query(
+    /// Execute a workspace query for a specific workspace handle.
+    pub fn query_for_handle(
         &self,
         handle: WorkspaceHandleId,
-        request: query::QueryRequestEnvelope,
-    ) -> Result<query::QueryResponseEnvelope, ProtocolError> {
-        // resolve the workspace program
+        request: query::QueryRequest,
+    ) -> Result<QueryResponseEnvelope, WorkspaceServiceError> {
+        // resolve the root and owning program
         let root = self.root_for_handle(handle)?;
-        let program = self.program_for_root(&root)?;
+        let program = self.program_for_root(&root);
 
-        // build the response payload
-        let response = self.query_response_for_request(&program, request.request)?;
+        // dispatch query execution
+        let response = self.query_response_for_request(&program, request)?;
 
-        // select the snapshot id for the response
-        let snapshot_id = request
-            .snapshot_id
-            .unwrap_or_else(|| self.snapshot_id_for_handle(handle));
+        // build a snapshot id from current module state
+        let snapshot_id = self.snapshot_id_for_program(handle, &program);
 
-        Ok(query::QueryResponseEnvelope {
+        Ok(QueryResponseEnvelope {
             snapshot_id,
             response,
         })
@@ -90,26 +49,23 @@ impl ProtocolServer {
         &self,
         program: &Program,
         request: query::QueryRequest,
-    ) -> Result<query::QueryResponse, ProtocolError> {
-        // resolve the session reference
-        let session = self.daemon.session.as_ref();
+    ) -> Result<query::QueryResponse, WorkspaceServiceError> {
+        // resolve the shared session for query helpers
+        let session = self.session_ref();
 
-        // dispatch the query request
+        // dispatch by query request variant
         let response = match request {
             query::QueryRequest::Completion(params) => {
-                // resolve the file id
                 let file_id = self.resolve_file_id(program, &params.uri);
-
-                // collect completion items when available
                 let mut items = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_query_context(program, file_id, &params.uri)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, file_id, &params.uri)?;
                         query::completions(session, file_id, params.offset, params.trigger)
                     }
                     None => Vec::new(),
                 };
 
-                // drop auto import entries when disabled
                 if !params.include_imports {
                     items.retain(|item| item.additional_text_edits.is_empty());
                 }
@@ -120,13 +76,11 @@ impl ProtocolServer {
                 })
             }
             query::QueryRequest::Hover(params) => {
-                // resolve the file id
                 let file_id = self.resolve_file_id(program, &params.uri);
-
-                // compute hover info when available
                 let hover = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_query_context(program, file_id, &params.uri)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, file_id, &params.uri)?;
                         query::hover(session, file_id, params.offset)
                     }
                     None => None,
@@ -135,13 +89,11 @@ impl ProtocolServer {
                 query::QueryResponse::Hover(query::HoverResponse { hover })
             }
             query::QueryRequest::SignatureHelp(params) => {
-                // resolve the file id
                 let file_id = self.resolve_file_id(program, &params.uri);
-
-                // compute signature help when available
                 let help = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_query_context(program, file_id, &params.uri)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, file_id, &params.uri)?;
                         query::signature_help(session, file_id, params.offset)
                     }
                     None => None,
@@ -150,13 +102,11 @@ impl ProtocolServer {
                 query::QueryResponse::SignatureHelp(query::SignatureHelpResponse { help })
             }
             query::QueryRequest::InlayHints(params) => {
-                // resolve the file id
                 let file_id = self.resolve_file_id(program, &params.uri);
-
-                // compute inlay hints when available
                 let hints = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_query_context(program, file_id, &params.uri)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, file_id, &params.uri)?;
                         let range = self.span_for_offsets(file_id, params.start, params.end);
                         query::inlay_hints(session, file_id, range)
                     }
@@ -166,13 +116,11 @@ impl ProtocolServer {
                 query::QueryResponse::InlayHints(query::InlayHintsResponse { hints })
             }
             query::QueryRequest::CodeLenses(params) => {
-                // resolve the file id
                 let file_id = self.resolve_file_id(program, &params.uri);
-
-                // compute code lenses when available
                 let lenses = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_query_context(program, file_id, &params.uri)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, file_id, &params.uri)?;
                         query::code_lenses(session, file_id)
                     }
                     None => Vec::new(),
@@ -181,19 +129,15 @@ impl ProtocolServer {
                 query::QueryResponse::CodeLenses(query::CodeLensesResponse { lenses })
             }
             query::QueryRequest::ResolveCodeLens(params) => {
-                // resolve the code lens
                 let lens = query::resolve_code_lens(session, &params.lens);
-
                 query::QueryResponse::ResolveCodeLens(query::ResolveCodeLensResponse { lens })
             }
             query::QueryRequest::FoldingRanges(params) => {
-                // resolve the file id
                 let file_id = self.resolve_file_id(program, &params.uri);
-
-                // compute folding ranges when available
                 let ranges = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_query_context(program, file_id, &params.uri)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, file_id, &params.uri)?;
                         query::folding_ranges(session, file_id)
                     }
                     None => Vec::new(),
@@ -202,13 +146,11 @@ impl ProtocolServer {
                 query::QueryResponse::FoldingRanges(query::FoldingRangesResponse { ranges })
             }
             query::QueryRequest::SemanticTokens(params) => {
-                // resolve the file id
                 let file_id = self.resolve_file_id(program, &params.uri);
-
-                // compute semantic tokens when available
                 let tokens = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_query_context(program, file_id, &params.uri)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, file_id, &params.uri)?;
                         query::semantic_tokens(session, file_id)
                     }
                     None => Vec::new(),
@@ -217,13 +159,11 @@ impl ProtocolServer {
                 query::QueryResponse::SemanticTokens(query::SemanticTokensResponse { tokens })
             }
             query::QueryRequest::SemanticTokensRange(params) => {
-                // resolve the file id
                 let file_id = self.resolve_file_id(program, &params.uri);
-
-                // compute semantic tokens when available
                 let tokens = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_query_context(program, file_id, &params.uri)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, file_id, &params.uri)?;
                         let range = self.span_for_offsets(file_id, params.start, params.end);
                         query::semantic_tokens_range(session, file_id, range)
                     }
@@ -233,13 +173,11 @@ impl ProtocolServer {
                 query::QueryResponse::SemanticTokensRange(query::SemanticTokensResponse { tokens })
             }
             query::QueryRequest::DocumentSymbols(params) => {
-                // resolve the file id
                 let file_id = self.resolve_file_id(program, &params.uri);
-
-                // compute document symbols when available
                 let symbols = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_query_context(program, file_id, &params.uri)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, file_id, &params.uri)?;
                         query::document_symbols(session, file_id)
                     }
                     None => Vec::new(),
@@ -248,20 +186,16 @@ impl ProtocolServer {
                 query::QueryResponse::DocumentSymbols(query::DocumentSymbolsResponse { symbols })
             }
             query::QueryRequest::WorkspaceSymbols(params) => {
-                // compute workspace symbols
                 let symbols =
                     query::workspace_symbols(session, &params.query, params.max_results as usize);
-
                 query::QueryResponse::WorkspaceSymbols(query::WorkspaceSymbolsResponse { symbols })
             }
             query::QueryRequest::DocumentLinks(params) => {
-                // resolve the file id
                 let file_id = self.resolve_file_id(program, &params.uri);
-
-                // compute document links when available
                 let links = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_query_context(program, file_id, &params.uri)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, file_id, &params.uri)?;
                         query::document_links(session, file_id)
                     }
                     None => Vec::new(),
@@ -270,21 +204,17 @@ impl ProtocolServer {
                 query::QueryResponse::DocumentLinks(query::DocumentLinksResponse { links })
             }
             query::QueryRequest::ResolveDocumentLink(params) => {
-                // resolve the document link
                 let link = query::resolve_document_link(session, &params.link);
-
                 query::QueryResponse::ResolveDocumentLink(query::ResolveDocumentLinkResponse {
                     link,
                 })
             }
             query::QueryRequest::DocumentHighlight(params) => {
-                // resolve the file id
                 let file_id = self.resolve_file_id(program, &params.uri);
-
-                // compute document highlights when available
                 let highlights = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_query_context(program, file_id, &params.uri)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, file_id, &params.uri)?;
                         query::document_highlight(session, file_id, params.offset)
                     }
                     None => Vec::new(),
@@ -295,13 +225,11 @@ impl ProtocolServer {
                 })
             }
             query::QueryRequest::SelectionRanges(params) => {
-                // resolve the file id
                 let file_id = self.resolve_file_id(program, &params.uri);
-
-                // compute selection ranges when available
                 let ranges = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_query_context(program, file_id, &params.uri)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, file_id, &params.uri)?;
                         query::selection_ranges(session, file_id, &params.offsets)
                     }
                     None => Vec::new(),
@@ -310,13 +238,11 @@ impl ProtocolServer {
                 query::QueryResponse::SelectionRanges(query::SelectionRangesResponse { ranges })
             }
             query::QueryRequest::GotoDefinition(params) => {
-                // resolve the file id
                 let file_id = self.resolve_file_id(program, &params.uri);
-
-                // compute definition when available
                 let result = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_query_context(program, file_id, &params.uri)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, file_id, &params.uri)?;
                         query::goto_definition(session, file_id, params.offset)
                     }
                     None => None,
@@ -325,13 +251,11 @@ impl ProtocolServer {
                 query::QueryResponse::GotoDefinition(query::GotoDefinitionResponse { result })
             }
             query::QueryRequest::GotoDeclaration(params) => {
-                // resolve the file id
                 let file_id = self.resolve_file_id(program, &params.uri);
-
-                // compute declaration when available
                 let result = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_query_context(program, file_id, &params.uri)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, file_id, &params.uri)?;
                         query::goto_declaration(session, file_id, params.offset)
                     }
                     None => None,
@@ -340,13 +264,11 @@ impl ProtocolServer {
                 query::QueryResponse::GotoDeclaration(query::GotoDeclarationResponse { result })
             }
             query::QueryRequest::GotoTypeDefinition(params) => {
-                // resolve the file id
                 let file_id = self.resolve_file_id(program, &params.uri);
-
-                // compute type definition when available
                 let result = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_query_context(program, file_id, &params.uri)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, file_id, &params.uri)?;
                         query::goto_type_definition(session, file_id, params.offset)
                     }
                     None => None,
@@ -357,13 +279,11 @@ impl ProtocolServer {
                 })
             }
             query::QueryRequest::GotoImplementation(params) => {
-                // resolve the file id
                 let file_id = self.resolve_file_id(program, &params.uri);
-
-                // compute implementations when available
                 let result = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_query_context(program, file_id, &params.uri)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, file_id, &params.uri)?;
                         query::goto_implementation(session, file_id, params.offset)
                     }
                     None => None,
@@ -374,13 +294,11 @@ impl ProtocolServer {
                 })
             }
             query::QueryRequest::FindReferences(params) => {
-                // resolve the file id
                 let file_id = self.resolve_file_id(program, &params.uri);
-
-                // compute references when available
                 let result = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_query_context(program, file_id, &params.uri)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, file_id, &params.uri)?;
                         query::find_references(
                             session,
                             file_id,
@@ -394,13 +312,11 @@ impl ProtocolServer {
                 query::QueryResponse::FindReferences(query::FindReferencesResponse { result })
             }
             query::QueryRequest::PrepareCallHierarchy(params) => {
-                // resolve the file id
                 let file_id = self.resolve_file_id(program, &params.uri);
-
-                // compute call hierarchy item when available
                 let item = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_query_context(program, file_id, &params.uri)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, file_id, &params.uri)?;
                         query::prepare_call_hierarchy(session, file_id, params.offset)
                     }
                     None => None,
@@ -411,29 +327,23 @@ impl ProtocolServer {
                 })
             }
             query::QueryRequest::CallHierarchyIncoming(params) => {
-                // compute incoming calls
                 let calls = query::incoming_calls(session, &params.item);
-
                 query::QueryResponse::CallHierarchyIncoming(query::CallHierarchyIncomingResponse {
                     calls,
                 })
             }
             query::QueryRequest::CallHierarchyOutgoing(params) => {
-                // compute outgoing calls
                 let calls = query::outgoing_calls(session, &params.item);
-
                 query::QueryResponse::CallHierarchyOutgoing(query::CallHierarchyOutgoingResponse {
                     calls,
                 })
             }
             query::QueryRequest::PrepareTypeHierarchy(params) => {
-                // resolve the file id
                 let file_id = self.resolve_file_id(program, &params.uri);
-
-                // compute type hierarchy item when available
                 let item = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_query_context(program, file_id, &params.uri)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, file_id, &params.uri)?;
                         query::prepare_type_hierarchy(session, file_id, params.offset)
                     }
                     None => None,
@@ -444,29 +354,23 @@ impl ProtocolServer {
                 })
             }
             query::QueryRequest::TypeHierarchySupertypes(params) => {
-                // compute type hierarchy supertypes
                 let items = query::supertypes(session, &params.item);
-
                 query::QueryResponse::TypeHierarchySupertypes(
                     query::TypeHierarchySupertypesResponse { items },
                 )
             }
             query::QueryRequest::TypeHierarchySubtypes(params) => {
-                // compute type hierarchy subtypes
                 let items = query::subtypes(session, &params.item);
-
                 query::QueryResponse::TypeHierarchySubtypes(query::TypeHierarchySubtypesResponse {
                     items,
                 })
             }
             query::QueryRequest::PrepareRename(params) => {
-                // resolve the file id
                 let file_id = self.resolve_file_id(program, &params.uri);
-
-                // compute prepare rename when available
                 let result = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_query_context(program, file_id, &params.uri)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, file_id, &params.uri)?;
                         query::prepare_rename(session, file_id, params.offset)
                     }
                     None => None,
@@ -475,13 +379,11 @@ impl ProtocolServer {
                 query::QueryResponse::PrepareRename(query::PrepareRenameResponse { result })
             }
             query::QueryRequest::Rename(params) => {
-                // resolve the file id
                 let file_id = self.resolve_file_id(program, &params.uri);
-
-                // compute rename when available
                 let result = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_query_context(program, file_id, &params.uri)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, file_id, &params.uri)?;
                         query::rename(session, file_id, params.offset, &params.new_name)
                     }
                     None => None,
@@ -490,19 +392,15 @@ impl ProtocolServer {
                 query::QueryResponse::Rename(query::RenameResponse { result })
             }
             query::QueryRequest::RenameFiles(params) => {
-                // compute rename files when available
                 let result = query::rename_files(session, &params.renames);
-
                 query::QueryResponse::RenameFiles(query::RenameFilesResponse { result })
             }
             query::QueryRequest::ExtractFunction(params) => {
-                // resolve the file id
                 let file_id = self.resolve_file_id(program, &params.uri);
-
-                // compute extract function when available
                 let result = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_query_context(program, file_id, &params.uri)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, file_id, &params.uri)?;
                         let selection = self.span_for_offsets(file_id, params.start, params.end);
                         query::extract_function(session, file_id, selection, &params.new_name)
                     }
@@ -512,13 +410,11 @@ impl ProtocolServer {
                 query::QueryResponse::ExtractFunction(query::ExtractFunctionResponse { result })
             }
             query::QueryRequest::ExtractVariable(params) => {
-                // resolve the file id
                 let file_id = self.resolve_file_id(program, &params.uri);
-
-                // compute extract variable when available
                 let result = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_query_context(program, file_id, &params.uri)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, file_id, &params.uri)?;
                         let selection = self.span_for_offsets(file_id, params.start, params.end);
                         query::extract_variable(session, file_id, selection, &params.new_name)
                     }
@@ -528,13 +424,11 @@ impl ProtocolServer {
                 query::QueryResponse::ExtractVariable(query::ExtractVariableResponse { result })
             }
             query::QueryRequest::Inline(params) => {
-                // resolve the file id
                 let file_id = self.resolve_file_id(program, &params.uri);
-
-                // compute inline when available
                 let result = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_query_context(program, file_id, &params.uri)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, file_id, &params.uri)?;
                         query::inline_symbol(session, file_id, params.offset)
                     }
                     None => None,
@@ -543,13 +437,11 @@ impl ProtocolServer {
                 query::QueryResponse::Inline(query::InlineResponse { result })
             }
             query::QueryRequest::ChangeSignature(params) => {
-                // resolve the file id
                 let file_id = self.resolve_file_id(program, &params.uri);
-
-                // compute change signature when available
                 let result = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_query_context(program, file_id, &params.uri)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, file_id, &params.uri)?;
                         query::change_signature(
                             session,
                             file_id,
@@ -564,13 +456,11 @@ impl ProtocolServer {
                 query::QueryResponse::ChangeSignature(query::ChangeSignatureResponse { result })
             }
             query::QueryRequest::CodeActions(params) => {
-                // resolve the file id
                 let file_id = self.resolve_file_id(program, &params.uri);
-
-                // compute code actions when available
                 let actions = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_query_context(program, file_id, &params.uri)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, file_id, &params.uri)?;
                         let range = self.span_for_offsets(file_id, params.start, params.end);
                         query::code_actions(session, file_id, range, &params.context)
                     }
@@ -586,12 +476,13 @@ impl ProtocolServer {
 
     /// Resolve a file id for a query uri.
     fn resolve_file_id(&self, program: &Program, uri: &Uri) -> Option<FileId> {
-        // prefer module lookups so we get the correct file id for code modules
+        // prefer module lookups by uri
         if let Some(module_id) = program.modules.get_id_by_uri(uri) {
             let module = program.modules.get(module_id);
             return Some(module.read().file_id);
         }
 
+        // fall back to module lookups by path
         if let Some(path) = uri.to_path_buf()
             && let Some(module_id) = program.modules.get_id_by_path(&path)
         {
@@ -599,50 +490,46 @@ impl ProtocolServer {
             return Some(module.read().file_id);
         }
 
-        // fall back to the file registry
+        // fall back to file registry lookups by uri
         if let Some(file_id) = program.files.get_id_by_uri(uri) {
             return Some(file_id);
         }
 
+        // finally try file registry lookups by path
         let path = uri.to_path_buf()?;
         program.files.get_id_by_path(&path)
     }
 
-    /// Ensure query context is ready for a file.
-    fn ensure_query_context(
+    /// Ensure semantic query state is ready for a file.
+    fn ensure_semantic_query_ready(
         &self,
         program: &Program,
         file_id: FileId,
         uri: &Uri,
-    ) -> Result<FileId, ProtocolError> {
-        if self.query_context_ready(file_id) {
+    ) -> Result<FileId, WorkspaceServiceError> {
+        // return early when semantic query state is already ready
+        if self.semantic_query_ready(file_id) {
             return Ok(file_id);
         }
 
-        let mut validate_outcome = None;
-
-        // drive the full dependency chain through compiler scheduling
-        let session = self.daemon.session.as_ref();
-        if let Some(module_id) = session.modules.get_id_by_file_id(file_id) {
-            let profile_id = session.default_profile_for_module(module_id);
-            let handle = self.daemon.program_handle_for_path(&program.cwd);
-            let _compile_guard = handle.compile_lock.lock();
-
-            let module = handle.compiler.module_stamp(module_id);
-            let profile = handle.compiler.profile_stamp(profile_id);
-            let analyze_task = AnalyzeTask::AnalyzeModuleValidate { module, profile };
-            validate_outcome = Some(handle.compiler.run_task(analyze_task));
-            if self.query_context_ready(file_id) {
+        // run cheap validation first
+        let session = self.session_ref();
+        let validate_outcome = self.validate_semantic_query_module(program, file_id);
+        if validate_outcome.is_some() {
+            // check original file id after validation
+            if self.semantic_query_ready(file_id) {
                 return Ok(file_id);
             }
 
+            // check resolved file id after validation
             if let Some(resolved_file_id) = self.resolve_file_id(program, uri)
-                && self.query_context_ready(resolved_file_id)
+                && self.semantic_query_ready(resolved_file_id)
             {
                 return Ok(resolved_file_id);
             }
         }
 
+        // resolve a path for explicit analyze fallback
         let path = program
             .files
             .get_maybe(file_id)
@@ -650,39 +537,35 @@ impl ProtocolServer {
             .or_else(|| uri.to_path_buf());
 
         let Some(path) = path else {
-            return Err(self.protocol_error(
-                ProtocolErrorCode::NotReady,
-                "query context is not ready for the requested uri",
-            ));
-        };
-
-        let analyze_result = match self.daemon.analyze_path(&path) {
-            Ok(outcome) => outcome,
-            Err(error) => {
-                return Err(self.protocol_error_from_daemon(error));
-            }
-        };
-
-        if !analyze_result.query_context_ready {
-            return Err(ProtocolError {
-                code: ProtocolErrorCode::NotReady,
-                message: "analysis did not produce a query context".to_string(),
-                detail: analyze_result.detail,
-                retryable: false,
-                retry_after_ms: None,
+            return Err(WorkspaceServiceError::SemanticQueryNotReady {
+                detail: "semantic query state is not ready for the requested uri".to_string(),
             });
+        };
+
+        // run analysis fallback for this path
+        let analyze_result = self.analyze_path(&path)?;
+
+        // surface analyze failure details directly
+        if !analyze_result.semantic_query_ready {
+            let detail = analyze_result
+                .detail
+                .unwrap_or_else(|| "analysis did not produce a semantic query state".to_string());
+            return Err(WorkspaceServiceError::SemanticQueryNotReady { detail });
         }
 
-        if self.query_context_ready(file_id) {
+        // check original file id after analyze fallback
+        if self.semantic_query_ready(file_id) {
             return Ok(file_id);
         }
 
+        // check resolved file id after analyze fallback
         if let Some(resolved_file_id) = self.resolve_file_id(program, uri)
-            && self.query_context_ready(resolved_file_id)
+            && self.semantic_query_ready(resolved_file_id)
         {
             return Ok(resolved_file_id);
         }
 
+        // build a detailed failure summary for diagnostics
         let detail = session
             .modules
             .get_by_file_id(file_id)
@@ -693,17 +576,14 @@ impl ProtocolServer {
                 let base_dir_ready = module.dir_base_maybe().is_some();
                 let dir_ready = module.dir_maybe(profile_id).is_some();
                 let dir_profiles: Vec<_> = match &module.content {
-                    ModuleContent::Code(code) => code
-                        .dirs
-                        .iter()
-                        .filter_map(|dir| dir.profile_id)
-                        .collect(),
+                    ModuleContent::Code(code) => {
+                        code.dirs.iter().filter_map(|dir| dir.profile_id).collect()
+                    }
                     ModuleContent::Data { dirs, .. }
                     | ModuleContent::Text { dirs, .. }
-                    | ModuleContent::Binary { dirs, .. } => dirs
-                        .iter()
-                        .filter_map(|dir| dir.profile_id)
-                        .collect(),
+                    | ModuleContent::Binary { dirs, .. } => {
+                        dirs.iter().filter_map(|dir| dir.profile_id).collect()
+                    }
                     ModuleContent::Unloaded => Vec::new(),
                 };
                 let path = module
@@ -711,32 +591,36 @@ impl ProtocolServer {
                     .as_ref()
                     .map(|path| path.display().to_string())
                     .unwrap_or_else(|| "<none>".to_string());
+                let validate_state = validate_outcome
+                    .as_ref()
+                    .map(Self::task_outcome_label)
+                    .unwrap_or("unavailable");
+                let analyze_state = if analyze_result.semantic_query_ready {
+                    "ready"
+                } else {
+                    "not_ready"
+                };
+                let analyze_detail = analyze_result.detail.as_deref().unwrap_or("none");
                 format!(
-                    "file_id={file_id:?} module_id={:?} profile_id={:?} ast_ready={ast_ready} base_dir_ready={base_dir_ready} dir_ready={dir_ready} dir_profiles={dir_profiles:?} validate_outcome={validate_outcome:?} analyze_result={analyze_result:?} path={path}",
+                    "file_id={file_id:?} module_id={:?} profile_id={:?} ast_ready={ast_ready} base_dir_ready={base_dir_ready} dir_ready={dir_ready} dir_profiles={dir_profiles:?} validate_state={validate_state} analyze_state={analyze_state} analyze_detail={analyze_detail} path={path}",
                     module.id,
                     profile_id
                 )
             })
-            .or_else(|| Some(format!("file_id={file_id:?} module_id=<missing>")));
+            .unwrap_or_else(|| format!("file_id={file_id:?} module_id=<missing>"));
 
-        Err(ProtocolError {
-            code: ProtocolErrorCode::NotReady,
-            message: "analysis did not produce a query context".to_string(),
-            detail,
-            retryable: false,
-            retry_after_ms: None,
-        })
+        Err(WorkspaceServiceError::SemanticQueryNotReady { detail })
     }
 
-    /// Check if the query context is ready for the given file id.
-    fn query_context_ready(&self, file_id: FileId) -> bool {
-        // resolve the module for the file
-        let session = self.daemon.session.as_ref();
+    /// Check if semantic query state is ready for the file.
+    fn semantic_query_ready(&self, file_id: FileId) -> bool {
+        // resolve the module for this file id
+        let session = self.session_ref();
         let Some(module) = session.modules.get_by_file_id(file_id) else {
             return false;
         };
 
-        // verify AST and DIR are available for the default profile
+        // require both ast and profile dir state
         let module = module.read();
         let profile = session.default_profile_for_module(module.id);
         module.ast_maybe().is_some() && module.dir_maybe(profile).is_some()
@@ -744,16 +628,35 @@ impl ProtocolServer {
 
     /// Build a span from offsets for a file.
     fn span_for_offsets(&self, file_id: FileId, start: u32, end: u32) -> Span {
-        // normalize the offset order
+        // normalize offset order before building a span
         let range_start = start.min(end);
         let range_end = start.max(end);
-
         Span::new(file_id, range_start, range_end)
     }
 
-    /// Build a snapshot identifier for a workspace handle.
-    fn snapshot_id_for_handle(&self, handle: WorkspaceHandleId) -> String {
-        // format a handle based snapshot id
-        format!("handle:{}", handle.0)
+    /// Return a stable label for task outcomes in diagnostics.
+    fn task_outcome_label(outcome: &TaskOutcome) -> &'static str {
+        match outcome {
+            TaskOutcome::Yield { .. } => "yield",
+            TaskOutcome::Error { .. } => "error",
+            TaskOutcome::Skipped { .. } => "skipped",
+            TaskOutcome::Complete => "complete",
+        }
+    }
+
+    /// Build a snapshot id from current module state.
+    fn snapshot_id_for_program(&self, handle: WorkspaceHandleId, program: &Program) -> String {
+        let mut hasher = DefaultHasher::new();
+        handle.0.hash(&mut hasher);
+        program.modules.len().hash(&mut hasher);
+
+        for module in program.modules.iter() {
+            let module = module.read();
+            module.id.hash(&mut hasher);
+            module.version.hash(&mut hasher);
+            module.source_version.hash(&mut hasher);
+        }
+
+        format!("handle:{}:{:x}", handle.0, hasher.finish())
     }
 }

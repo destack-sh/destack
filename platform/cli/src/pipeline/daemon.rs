@@ -9,9 +9,8 @@ use destack_daemon::protocol::{
     CommandRequest, CommandResponse, CommandStats, CommandTargetOverrides, CommonCommandOptions,
     ConfigOverride, DaemonMessageKind as ProtocolMessageKind, DaemonMessageRecord, DaemonQuery,
     DaemonQueryResponse, DaemonRequest, DaemonResponse, DiagnosticBatch, FileSnapshot,
-    OpenWorkspaceRequest, OutputStream, ProtocolClient, RescanReason, RescanWorkspaceRequest,
-    WatchBatch as ProtocolWatchBatch, WatchBatchRequest, WatchEvent, WatchStatus,
-    WorkspaceHandleId, WorkspaceOpenOptions,
+    OpenWorkspaceRequest, OutputStream, ProtocolClient, WatchBatch as ProtocolWatchBatch,
+    WatchBatchRequest, WatchEvent, WatchStatus, WorkspaceHandleId, WorkspaceOpenOptions,
 };
 use destack_daemon::{
     DaemonConnectOptions, DaemonConnection, DaemonInstance, DaemonLaunchConfig,
@@ -295,13 +294,9 @@ impl ProtocolDaemonClient {
         // open each workspace root
         let mut handles = Vec::new();
         for root in roots {
-            let options = WorkspaceOpenOptions {
-                watch: false,
-                ..Default::default()
-            };
             let request = OpenWorkspaceRequest {
                 root: root.clone(),
-                options,
+                options: WorkspaceOpenOptions::default(),
             };
             let response = match client.send_request(DaemonRequest::OpenWorkspace(request)) {
                 Ok(response) => response,
@@ -458,21 +453,6 @@ impl ProtocolDaemonClient {
         let _ = self.connection.take();
     }
 
-    /// Return handles matching the provided roots.
-    fn handles_for_roots<'a>(&'a self, roots: &[PathBuf]) -> Vec<&'a WorkspaceHandle> {
-        if roots.is_empty() {
-            return self.handles.iter().collect();
-        }
-
-        let mut handles = Vec::new();
-        for root in roots {
-            if let Some(handle) = self.handle_for_root(root) {
-                handles.push(handle);
-            }
-        }
-        handles
-    }
-
     /// Resolve the handle for a root, if known.
     fn handle_for_root(&self, root: &Path) -> Option<&WorkspaceHandle> {
         self.handles.iter().find(|handle| handle.root == root)
@@ -528,7 +508,6 @@ impl ProtocolDaemonClient {
         match response {
             DaemonResponse::WatchBatchApplied(response) => Ok(WatchBatchSummary {
                 updated: !response.updates.is_empty(),
-                rescan: response.rescan,
                 messages: response
                     .messages
                     .iter()
@@ -538,33 +517,6 @@ impl ProtocolDaemonClient {
             DaemonResponse::Error(error) => Err(CliError::message(format!(
                 "apply watch batch failed: {error}"
             ))),
-            other => Err(CliError::message(format!("unexpected response: {other:?}"))),
-        }
-    }
-
-    /// Rescan a handle and return a watch batch summary.
-    fn rescan_handle(&self, handle: &WorkspaceHandle) -> CliResult<WatchBatchSummary> {
-        let response = self
-            .client
-            .send_request(DaemonRequest::RescanWorkspace(RescanWorkspaceRequest {
-                handle: handle.handle,
-                reason: RescanReason::Manual,
-            }))
-            .map_err(|error| CliError::message(format!("rescan failed: {error}")))?;
-
-        match response {
-            DaemonResponse::WorkspaceRescanned(response) => Ok(WatchBatchSummary {
-                updated: !response.updates.is_empty(),
-                rescan: false,
-                messages: response
-                    .messages
-                    .iter()
-                    .map(WatchMessage::from_record)
-                    .collect(),
-            }),
-            DaemonResponse::Error(error) => {
-                Err(CliError::message(format!("rescan failed: {error}")))
-            }
             other => Err(CliError::message(format!("unexpected response: {other:?}"))),
         }
     }
@@ -581,19 +533,6 @@ impl WatchDaemon for ProtocolDaemonClient {
                 continue;
             };
             let result = self.apply_batch_for_handle(handle, protocol_batch)?;
-            summary.updated |= result.updated;
-            summary.rescan |= result.rescan;
-            summary.messages.extend(result.messages);
-        }
-
-        Ok(summary)
-    }
-
-    fn rescan_roots(&self, roots: &[PathBuf]) -> CliResult<WatchBatchSummary> {
-        let mut summary = WatchBatchSummary::default();
-        let handles = self.handles_for_roots(roots);
-        for handle in handles {
-            let result = self.rescan_handle(handle)?;
             summary.updated |= result.updated;
             summary.messages.extend(result.messages);
         }

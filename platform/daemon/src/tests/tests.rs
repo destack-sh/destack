@@ -149,6 +149,7 @@ impl TestDaemon {
         self.daemon
             .update_file(&path, content.to_string())
             .unwrap_or_else(|error| panic!("update failed for {}: {error}", path.display()))
+            .updates
     }
 
     /// Update a virtual file and return all daemon updates.
@@ -157,6 +158,7 @@ impl TestDaemon {
         self.daemon
             .update_virtual_file(&path, content.to_string())
             .unwrap_or_else(|error| panic!("virtual update failed for {}: {error}", path.display()))
+            .updates
     }
 
     /// Resolve the tracked file id for a path.
@@ -451,7 +453,7 @@ impl TestProtocolHarness {
         }
 
         panic!(
-            "query context did not become ready after {max_attempts} attempts",
+            "semantic query state did not become ready after {max_attempts} attempts",
             max_attempts = policy.max_attempts
         );
     }

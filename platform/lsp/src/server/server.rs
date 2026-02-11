@@ -14,6 +14,10 @@ use destack_source::{
     OverlayFileSystem, PhysicalFileSystem, Uri,
 };
 use destack_workspace::{Session, Workspace, WorkspaceKind, query};
+use destack_workspace_service::{
+    RescanReason, WorkspaceMessage, WorkspaceMessageKind as ProtocolMessageKind,
+    WorkspaceService as LspWorkspaceService, WorkspaceUpdateRecord,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{from_value, to_value};
 
@@ -29,16 +33,12 @@ use crate::query::navigation::{
 use crate::query::refactor::batch_edit_to_workspace_edit;
 use crate::query::semantic;
 use crate::server::file::{
-    apply_text_changes, build_file_watchers, completion_kind_to_lsp, create_workspace_driver,
+    apply_text_changes, build_file_watchers, completion_kind_to_lsp, create_workspace_service,
     diagnostic_result_id, format_file, format_range, normalize_line_endings, tracked_file_globs,
     upsert_file_from_snapshot,
 };
 use crate::server::progress::WorkDoneProgressTracker;
 use crate::server::token::semantic_tokens_edits;
-use crate::server::workspace::{
-    LspWorkspaceDriver, RescanReason, WorkspaceMessageKind as ProtocolMessageKind,
-    WorkspaceMessageRecord, WorkspaceUpdateRecord,
-};
 use crate::uri::lsp_uri_for_file;
 
 const PARTIAL_RESULT_CHUNK_SIZE: usize = 128;
@@ -135,8 +135,8 @@ pub struct DestackLanguageServer {
     overlay_fs: Arc<OverlayFileSystem>,
     /// The session.
     session: OnceLock<Arc<Session>>,
-    /// The workspace driver.
-    workspace_driver: OnceLock<Arc<LspWorkspaceDriver>>,
+    /// The workspace service.
+    workspace_service: OnceLock<Arc<LspWorkspaceService>>,
     /// The open documents.
     open_documents: DashMap<String, OpenDocument>,
     /// The latest diagnostics for open virtual documents.
@@ -168,7 +168,7 @@ impl DestackLanguageServer {
             client,
             overlay_fs,
             session: OnceLock::new(),
-            workspace_driver: OnceLock::new(),
+            workspace_service: OnceLock::new(),
             open_documents: DashMap::new(),
             virtual_diagnostics: DashMap::new(),
             semantic_tokens_cache: DashMap::new(),
@@ -188,12 +188,12 @@ impl DestackLanguageServer {
         self.session.get().expect("session not initialized")
     }
 
-    /// Get the workspace driver (must be called after initialize).
+    /// Get the workspace service (must be called after initialize).
     #[inline]
-    fn workspace_driver(&self) -> &Arc<LspWorkspaceDriver> {
-        self.workspace_driver
+    fn workspace_service(&self) -> &Arc<LspWorkspaceService> {
+        self.workspace_service
             .get()
-            .expect("workspace driver not initialized")
+            .expect("workspace service not initialized")
     }
 
     /// Allocate the next semantic tokens result id.
@@ -389,7 +389,7 @@ impl DestackLanguageServer {
         path: &Path,
         request: query::QueryRequest,
     ) -> Option<query::QueryResponse> {
-        match self.workspace_driver().query_for_path(path, request) {
+        match self.workspace_service().query_for_path(path, request) {
             Ok(response) => Some(response.response),
             Err(error) => {
                 tracing::debug!(?error, path = ?path, "lsp.query.workspace_failed");
@@ -558,8 +558,8 @@ impl DestackLanguageServer {
         }
 
         // apply updates through the workspace
-        let workspace_driver = self.workspace_driver().clone();
-        let result = match workspace_driver.apply_watch_events(events) {
+        let workspace_service = self.workspace_service().clone();
+        let result = match workspace_service.apply_watch_events(events) {
             Ok(result) => result,
             Err(error) => {
                 tracing::debug!(?error, "lsp.watch.apply_failed");
@@ -608,10 +608,12 @@ impl DestackLanguageServer {
     }
 
     /// Publish watch warnings for a batch.
-    async fn publish_watch_messages(&self, messages: Vec<WorkspaceMessageRecord>) {
+    async fn publish_watch_messages(&self, messages: Vec<WorkspaceMessage>) {
         for message in messages {
             let message_type = match message.kind {
+                ProtocolMessageKind::Info => lsp::MessageType::INFO,
                 ProtocolMessageKind::Warning => lsp::MessageType::WARNING,
+                ProtocolMessageKind::Error => lsp::MessageType::ERROR,
             };
             self.client.log_message(message_type, message.message).await;
         }
@@ -666,18 +668,13 @@ impl DestackLanguageServer {
         content: String,
     ) {
         // apply the virtual file update through the workspace
-        let result = match self.workspace_driver().update_virtual_file(path, content) {
+        let result = match self.workspace_service().update_virtual_file(path, content) {
             Ok(updates) => updates,
             Err(error) => {
                 tracing::debug!(?error, "lsp.invalidate.file");
                 return;
             }
         };
-
-        // ensure analysis for the primary path
-        if let Err(error) = self.workspace_driver().ensure_analyzed_for_path(path) {
-            tracing::debug!(?error, "lsp.invalidate.analyze_failed");
-        }
 
         // gather diagnostics for updated files
         let session = self.session().clone();
@@ -802,15 +799,15 @@ impl LanguageServer for DestackLanguageServer {
             return Err(jsonrpc::Error::internal_error());
         }
 
-        // create workspace driver for the session
-        let workspace_driver = match create_workspace_driver(session.clone(), root.clone()) {
-            Ok(workspace_driver) => Arc::new(workspace_driver),
+        // create workspace service for the session
+        let workspace_service = match create_workspace_service(session.clone(), root.clone()) {
+            Ok(workspace_service) => Arc::new(workspace_service),
             Err(error) => {
                 tracing::debug!(?error, "lsp.workspace.init_failed");
                 return Err(jsonrpc::Error::internal_error());
             }
         };
-        if self.workspace_driver.set(workspace_driver).is_err() {
+        if self.workspace_service.set(workspace_service).is_err() {
             tracing::warn!("lsp.initialize.workspace_already_set");
             return Err(jsonrpc::Error::internal_error());
         }
@@ -1001,12 +998,12 @@ impl LanguageServer for DestackLanguageServer {
     async fn did_change_configuration(&self, _: lsp::DidChangeConfigurationParams) {
         self.refresh_configuration().await;
 
-        let Some(workspace_driver) = self.workspace_driver.get() else {
+        let Some(workspace_service) = self.workspace_service.get() else {
             return;
         };
 
         // rescan workspaces so config changes refresh diagnostics
-        let result = match workspace_driver.rescan_all(RescanReason::Manual) {
+        let result = match workspace_service.rescan_all(RescanReason::Manual) {
             Ok(result) => result,
             Err(error) => {
                 tracing::debug!(?error, "lsp.config.rescan_failed");
@@ -1022,8 +1019,8 @@ impl LanguageServer for DestackLanguageServer {
         self.client
             .log_message(lsp::MessageType::INFO, "destack.shutdown")
             .await;
-        if let Some(workspace_driver) = self.workspace_driver.get() {
-            workspace_driver.shutdown();
+        if let Some(workspace_service) = self.workspace_service.get() {
+            workspace_service.shutdown();
         }
         Ok(())
     }
@@ -1174,12 +1171,12 @@ impl LanguageServer for DestackLanguageServer {
 
     async fn did_change_workspace_folders(&self, params: lsp::DidChangeWorkspaceFoldersParams) {
         let session = self.session();
-        let workspace_driver = self.workspace_driver();
+        let workspace_service = self.workspace_service();
 
         for folder in params.event.added {
             if let Some(path) = folder.uri.to_file_path().map(|path| path.into_owned()) {
                 session.get_or_create_program(path.clone());
-                if let Err(error) = workspace_driver.open_workspace_root(path) {
+                if let Err(error) = workspace_service.open_workspace_root(path) {
                     tracing::debug!(?error, "lsp.workspace.add_failed");
                 }
             }
@@ -1188,7 +1185,7 @@ impl LanguageServer for DestackLanguageServer {
         for folder in params.event.removed {
             if let Some(path) = folder.uri.to_file_path().map(|path| path.into_owned()) {
                 let _ = session.remove_root(&path);
-                if let Err(error) = workspace_driver.close_workspace_root(&path) {
+                if let Err(error) = workspace_service.close_workspace_root(&path) {
                     tracing::debug!(?error, "lsp.workspace.remove_failed");
                 }
             }
@@ -1655,8 +1652,8 @@ impl LanguageServer for DestackLanguageServer {
         match params.command.as_str() {
             "destack.rescan" | "destack.reindex" => {
                 let started_at = Instant::now();
-                let workspace_driver = self.workspace_driver();
-                let result = match workspace_driver.rescan_all(RescanReason::Manual) {
+                let workspace_service = self.workspace_service();
+                let result = match workspace_service.rescan_all(RescanReason::Manual) {
                     Ok(result) => result,
                     Err(error) => {
                         tracing::debug!(?error, "lsp.command.rescan_failed");
@@ -1684,13 +1681,13 @@ impl LanguageServer for DestackLanguageServer {
             }
             "destack.clearCache" => {
                 let started_at = Instant::now();
-                let workspace_driver = self.workspace_driver();
-                if let Err(error) = workspace_driver.clear_cache_all() {
+                let workspace_service = self.workspace_service();
+                if let Err(error) = workspace_service.clear_cache_all() {
                     tracing::debug!(?error, "lsp.command.clear_cache_failed");
                     return Err(jsonrpc::Error::internal_error());
                 }
 
-                let result = match workspace_driver.rescan_all(RescanReason::Manual) {
+                let result = match workspace_service.rescan_all(RescanReason::Manual) {
                     Ok(result) => result,
                     Err(error) => {
                         tracing::debug!(?error, "lsp.command.rescan_failed");
@@ -3763,7 +3760,7 @@ mod tests {
         assert_eq!(mapped, vec![query::CodeActionKind::SourceOrganizeImports]);
     }
 
-    /// Build query context with deduplicated mapped kinds.
+    /// Build code action mapping with deduplicated mapped kinds.
     #[test]
     fn test_query_code_action_context_deduplicates_mapped_kinds() {
         let context = lsp::CodeActionContext {

@@ -6,7 +6,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use fs2::FileExt;
 use serde::{Deserialize, Serialize};
 
-use destack_workspace::hash_bytes;
+use destack_workspace::{Session, hash_bytes};
 
 use crate::protocol::{MIN_PROTOCOL_VERSION, PROTOCOL_VERSION, ProtocolRange};
 
@@ -70,7 +70,7 @@ impl DaemonInstance {
     }
 
     /// Build a daemon instance from a session.
-    pub fn from_session(session: &destack_workspace::Session) -> Self {
+    pub fn from_session(session: &Session) -> Self {
         // resolve roots from the session
         let workspace_root = session.workspace_root();
         let cache_root = session.workspace_cache_dir();

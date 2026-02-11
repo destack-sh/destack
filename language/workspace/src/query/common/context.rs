@@ -105,8 +105,13 @@ impl Session {
         // resolve module ast
         let ast = module.ast_maybe()?;
 
+        // resolve profile and base dirs for selection
+        let profile_dir = module.dir_maybe(profile);
+        let base_dir = module.dir_base_maybe();
+
         // resolve module dir
-        let dir = module.dir_maybe(profile)?;
+        // prefer profile dir, but allow base dir when profile dir is unavailable
+        let dir = profile_dir.or(base_dir)?;
 
         // build query context
         Some(QueryContext {

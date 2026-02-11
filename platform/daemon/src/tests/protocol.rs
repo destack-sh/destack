@@ -218,6 +218,32 @@ fn test_protocol_requires_handshake() {
     harness.shutdown();
 }
 
+/// Opens a workspace without preloading diagnostics when requested.
+#[test]
+fn test_protocol_open_workspace_skips_preload_when_disabled() {
+    // build the protocol harness
+    let harness = TestProtocolHarness::new();
+    let _ = harness.handshake();
+
+    // open without preload
+    let request = OpenWorkspaceRequest {
+        root: harness.test.root.clone(),
+        options: WorkspaceOpenOptions { load_index: false },
+    };
+    let response = harness.send_request(DaemonRequest::OpenWorkspace(request));
+
+    // assertion block
+    match response {
+        DaemonResponse::WorkspaceOpened(response) => {
+            assert!(response.diagnostics.is_empty());
+            assert!(response.messages.is_empty());
+        }
+        other => panic!("unexpected response: {other:?}"),
+    }
+
+    harness.shutdown();
+}
+
 /// Handles missing workspace handles gracefully.
 #[test]
 fn test_protocol_unknown_workspace_handle() {
@@ -487,7 +513,7 @@ fn test_protocol_watch_batch_roundtrip() {
     }));
     match response {
         DaemonResponse::WatchBatchApplied(response) => {
-            assert!(response.rescan);
+            assert!(!response.messages.is_empty());
         }
         other => panic!("unexpected response: {other:?}"),
     }
@@ -587,7 +613,7 @@ fn test_protocol_workspace_query_hover() {
     // build the hover query
     let offset = content.find("announce(name").unwrap_or(0) as u32 + 1;
     let request = QueryRequestEnvelope {
-        snapshot_id: None,
+        snapshot_id: Some("stale-snapshot".to_string()),
         request: QueryRequest::Hover(HoverRequest {
             uri: Uri::from_path(&file_path),
             offset,
@@ -607,6 +633,7 @@ fn test_protocol_workspace_query_hover() {
 
     // assert hover response content
     assert!(!envelope.snapshot_id.is_empty());
+    assert_ne!(envelope.snapshot_id, "stale-snapshot");
     match envelope.response {
         QueryResponse::Hover(payload) => {
             if let Some(hover) = payload.hover {
@@ -659,7 +686,7 @@ fn test_protocol_workspace_query_batch() {
     }));
     match response {
         DaemonResponse::Analyzed(response) => {
-            assert!(response.query_context_ready);
+            assert!(response.semantic_query_ready);
             assert!(response.detail.is_none());
         }
         other => panic!("unexpected analyze response: {other:?}"),
@@ -772,7 +799,7 @@ fn test_protocol_workspace_query_find_references_member_access() {
     }));
     match response {
         DaemonResponse::Analyzed(response) => {
-            assert!(response.query_context_ready);
+            assert!(response.semantic_query_ready);
             assert!(response.detail.is_none());
         }
         other => panic!("unexpected analyze response: {other:?}"),
