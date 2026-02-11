@@ -9,6 +9,13 @@ use destack_source::NodeSpanType;
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser};
 
+/// Parsed parameter head in either pattern or name form.
+type ParameterPatternOrName = (
+    Option<LocalNodeId<Pattern>>,
+    Option<StringId>,
+    Option<destack_source::Span>,
+);
+
 impl Parser {
     /// Return true when the next token can start a member name.
     pub(crate) fn next_token_starts_member_name(&mut self) -> bool {
@@ -393,43 +400,17 @@ impl Parser {
         };
 
         // pattern/name
-        let (pattern, name, name_span): (
-            Option<LocalNodeId<Pattern>>,
-            Option<StringId>,
-            Option<destack_source::Span>,
-        ) = {
-            // ...[name] is just a name, not a pattern
-            if is_variadic
-                && (self.options.in_type || self.options.in_variant)
-                && self.peek_is(TokenType::OpenBracket)
-            {
-                self.bump(); // eat [
-                self.eat_newlines_maybe()?;
-                let (name, span) = self.eat_binding_identifier_with_span()?;
-                self.eat_newlines_maybe()?;
-                self.eat_token(TokenType::CloseBracket)?;
-                (None, Some(name), Some(span))
-            }
-            // pattern
-            else if self
-                .peek_token_in(&[
-                    TokenType::OpenParenthesis,
-                    TokenType::OpenBracket,
-                    TokenType::OpenBrace,
-                ])
-                .is_ok()
-                || self.peek_identifier_str("_").is_ok()
-            {
-                let pattern = self
-                    .with_options(self.options.in_before_type(), |parser| parser.eat_pattern())?;
-                (Some(pattern), None, None)
-            }
-            // name
-            else {
-                let (name, span) = self.eat_binding_identifier_with_span()?;
-                (None, Some(name), Some(span))
-            }
-        };
+        let (pattern, name, name_span) =
+            if is_variadic && (self.options.in_type || self.options.in_variant) {
+                // variadic tuple labels in type positions: ...[name]: T
+                if let Some((name, span)) = self.try_eat_variadic_tuple_label_name_with_span()? {
+                    (None, Some(name), Some(span))
+                } else {
+                    self.eat_parameter_pattern_or_name()?
+                }
+            } else {
+                self.eat_parameter_pattern_or_name()?
+            };
 
         // ? maybe
         if self.peek_is(TokenType::Maybe) {
@@ -442,12 +423,24 @@ impl Parser {
 
         // : type (or keyword for #Compatibility)
         let (ty, ty_span) = {
-            if self.peek_colon().is_ok()
-                || (self.options.in_static
-                    && (self.peek_keyword(Keyword::Extends).is_ok()
-                        || self.peek_keyword(Keyword::Implements).is_ok()))
-            {
+            // type markers can start on the next line
+            let annotation_index = self.next_non_newline_index_from(self.pos_index());
+            let annotation_token_type = self.token_type_at(annotation_index);
+            let annotation_keyword = if annotation_token_type == TokenType::Identifier {
+                self.keyword_for_index(annotation_index)
+            } else {
+                None
+            };
+            let has_type_annotation_marker = annotation_token_type == TokenType::Colon
+                || self.options.in_static
+                    && matches!(
+                        annotation_keyword,
+                        Some(Keyword::Extends | Keyword::Implements)
+                    );
+
+            if has_type_annotation_marker {
                 let type_start = self.mark();
+                self.eat_newlines_maybe()?;
                 self.bump(); // eat colon or keyword
                 self.eat_newlines_maybe()?;
                 let mut type_options = self
@@ -564,6 +557,66 @@ impl Parser {
         }
 
         Ok(parameter_id)
+    }
+
+    /// Eat either a parameter pattern or a parameter name.
+    fn eat_parameter_pattern_or_name(&mut self) -> ParseResult<ParameterPatternOrName> {
+        // pattern
+        if self
+            .peek_token_in(&[
+                TokenType::OpenParenthesis,
+                TokenType::OpenBracket,
+                TokenType::OpenBrace,
+            ])
+            .is_ok()
+            || self.peek_identifier_str("_").is_ok()
+        {
+            let pattern =
+                self.with_options(self.options.in_before_type(), |parser| parser.eat_pattern())?;
+            return Ok((Some(pattern), None, None));
+        }
+
+        // name
+        let (name, span) = self.eat_binding_identifier_with_span()?;
+        Ok((None, Some(name), Some(span)))
+    }
+
+    /// Try to eat a variadic tuple label name in the shape `...[name]: T`.
+    fn try_eat_variadic_tuple_label_name_with_span(
+        &mut self,
+    ) -> ParseResult<Option<(StringId, destack_source::Span)>> {
+        if !self.peek_is(TokenType::OpenBracket) {
+            return Ok(None);
+        }
+
+        // parse the tuple label head speculatively
+        let tuple_label_start = self.mark();
+        self.bump(); // eat [
+        self.eat_newlines_maybe()?;
+        let (name, span) = match self.eat_binding_identifier_with_span() {
+            Ok(value) => value,
+            Err(_) => {
+                self.rewind(tuple_label_start);
+                return Ok(None);
+            }
+        };
+        self.eat_newlines_maybe()?;
+
+        // require `]`
+        if !self.peek_is(TokenType::CloseBracket) {
+            self.rewind(tuple_label_start);
+            return Ok(None);
+        }
+        self.bump(); // eat ]
+        self.eat_newlines_maybe()?;
+
+        // require following `:`
+        if !self.peek_is(TokenType::Colon) {
+            self.rewind(tuple_label_start);
+            return Ok(None);
+        }
+
+        Ok(Some((name, span)))
     }
 
     /// Eat a parameter list. May be comma or newline separated.
@@ -846,7 +899,7 @@ impl Parser {
         }
 
         // positional value expression
-        let mut value_options = self.options.not_in_sequence_expression();
+        let mut value_options = self.options.not_in_position().not_in_sequence_expression();
         if self.options.in_arrow_return_type {
             value_options = value_options.not_in_arrow_return_type();
         }
@@ -1189,6 +1242,56 @@ impl Parser {
         Ok(None)
     }
 
+    /// Return true when the current token starts a labeled tuple head.
+    #[inline]
+    fn starts_labeled_tuple_head(&mut self) -> bool {
+        self.peek_is(TokenType::Identifier)
+            && (self.peek_next_is(TokenType::Colon)
+                || self.peek_next_is(TokenType::Maybe)
+                    && self.peek_next_next_token(TokenType::Colon).is_ok())
+    }
+
+    /// Eat top-level static type arguments.
+    ///
+    /// Type argument lists accept types only, so tuple labels and spread
+    /// are only valid in nested tuple literals, not at the top level.
+    #[inline]
+    fn eat_static_type_arguments_body(&mut self) -> ParseResult<Vec<LocalNodeId<Argument>>> {
+        let mut arguments: Vec<LocalNodeId<Argument>> = Vec::new();
+        self.eat_newlines_maybe()?;
+
+        while self.has_more_tokens() {
+            // stop on closing `>`
+            if self.peek_token_type() == TokenType::GreaterThan {
+                break;
+            }
+
+            // spread is not valid in top-level type argument lists
+            if self.peek_is(TokenType::Spread) {
+                return Err(ParseError::unexpected(self.peek()?.span));
+            }
+
+            // labeled tuple heads are only valid inside tuple literals
+            if self.starts_labeled_tuple_head() {
+                return Err(ParseError::unexpected(self.peek()?.span));
+            }
+
+            // parse one type argument
+            let argument_id = self.eat_positional_argument()?;
+            arguments.push(argument_id);
+            self.eat_newlines_maybe()?;
+
+            // continue through separators
+            if self.is_item_stop() {
+                self.eat_item_stop_with_newlines()?;
+            } else {
+                break;
+            }
+        }
+
+        Ok(arguments)
+    }
+
     /// Eat static arguments (including the `<` and `>` tokens).
     /// Only positional and spread arguments are allowed (no named arguments).
     /// Also handles `<<` (ShiftLeft) for patterns like `Extends<<T>() => ...>`.
@@ -1226,12 +1329,20 @@ impl Parser {
         {
             options = options.in_type();
         }
-        let static_arguments = self.with_options(options, |parser| {
-            parser.eat_positional_arguments_body(TokenType::GreaterThan)
-        })?;
+        let static_arguments =
+            self.with_options(options, |parser| parser.eat_static_type_arguments_body())?;
+
+        // ts expression contexts only close static args on a concrete `>` token
+        // (this matches ts disambiguation for cases like `f<T>=x` and `x < y, x >>= y`.. sigh)
+        let allow_glued_type_close =
+            self.options.in_type || self.options.in_decorator || self.language.is_destack();
 
         self.eat_newlines_maybe()?;
-        self.eat_token(TokenType::GreaterThan)?;
+        if allow_glued_type_close {
+            self.eat_type_angle_close()?;
+        } else {
+            self.eat_token(TokenType::GreaterThan)?;
+        }
         Ok(static_arguments)
     }
 
@@ -1336,9 +1447,9 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Argument, BinaryOperator, BindingKind, BindingOperator, Decorator, Expression, IntType,
-        Mutability, Name, Parameter, Pattern, PatternField, ScalarLiteral, Timing, TypeLiteral,
-        Visibility,
+        Argument, BinaryOperator, BindingKind, BindingOperator, Decorator, Expression, IfKind,
+        IntType, Mutability, Name, Parameter, Pattern, PatternField, ScalarLiteral, Timing,
+        TypeLiteral, TypeUnaryOperator, Visibility,
     };
     use destack_source::LanguageType;
 
@@ -1478,7 +1589,7 @@ mod tests {
     fn test_parse_parameter_variadic_tuple_name() {
         let mut test = TestParser::new("...[value]: [] | [TNext]");
         let mut parser = test.prepare();
-        parser.options.in_variant = true;
+        parser.options.in_type = true;
         let parameter_id = parser.eat_parameter().unwrap();
         assert_node!(parser.tree, parameter_id, Parameter::VariadicNamed { modifiers: _, name, ty } => {
             assert_string!(parser, *name, "value");
@@ -1496,6 +1607,47 @@ mod tests {
             assert!(ty.is_none());
             assert_node!(parser.tree, *pattern, Pattern::Array { fields, .. } => {
                 assert_eq!(fields.len(), 2);
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_parameter_variadic_array_pattern_with_type() {
+        // ...[body, init]: ConstructorParameters<typeof Response>
+        let mut test = TestParser::new_with_options(
+            "...[body, init]: ConstructorParameters<typeof Response>",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let parameter_id = parser.eat_parameter().unwrap();
+        assert_node!(parser.tree, parameter_id, Parameter::VariadicPattern { modifiers: _, pattern, ty } => {
+            // [body, init]
+            assert_node!(parser.tree, *pattern, Pattern::Array { fields, .. } => {
+                assert_eq!(fields.len(), 2);
+
+                assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: None, .. } => {
+                    assert_name!(parser, *name, "body");
+                });
+
+                assert_node!(parser.tree, fields[1], PatternField::Named { name, pattern: None, .. } => {
+                    assert_name!(parser, *name, "init");
+                });
+            });
+
+            // ConstructorParameters<typeof Response>
+            let ty = ty.expect("expected variadic tuple type annotation");
+            assert_node!(parser.tree, ty, Expression::Path { path, static_arguments: Some(static_arguments) } => {
+                assert_path!(parser, *path, "ConstructorParameters");
+                assert_eq!(static_arguments.len(), 1);
+
+                assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
+                    assert_node!(parser.tree, *value, Expression::TypeUnary { operator, right } => {
+                        assert_eq!(*operator, TypeUnaryOperator::Typeof);
+                        assert_node!(parser.tree, *right, Expression::Path { path, static_arguments: None } => {
+                            assert_path!(parser, *path, "Response");
+                        });
+                    });
+                });
             });
         });
     }
@@ -1658,6 +1810,22 @@ class Test {
     }
 
     #[test]
+    fn test_parse_named_argument_with_double_hyphen_kebab_segment() {
+        let mut test = TestParser::new_with_options(
+            "data-nextjs-container-errors-pseudo-html--diff={sign === '+' ? 'add' : 'remove'}",
+            LanguageType::TypeScriptXml,
+        );
+        let mut parser = test.prepare();
+        let argument_id = parser.eat_tree_literal_argument().unwrap();
+        assert_node!(parser.tree, argument_id, Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
+            assert_string!(parser, *name, "dataNextjsContainerErrorsPseudoHtmlDiff");
+            assert_node!(parser.tree, *value, Expression::If { kind, .. } => {
+                assert_eq!(*kind, IfKind::Ternary);
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_positional_argument() {
         // 3
         let mut test = TestParser::new("3");
@@ -1733,6 +1901,25 @@ class Test {
             assert_string!(parser, *label, "options");
             assert_node!(parser.tree, *value, Expression::Binary { operator, .. } => {
                 assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_static_arguments_with_nested_generics_and_union() {
+        let mut test = TestParser::new_with_options(
+            "<keyof ServerReservedEventsMap<never, never, never, never> | keyof NamespaceReservedEventsMap<never, never, never, never>>",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let static_arguments = parser.eat_static_arguments().unwrap();
+
+        assert_eq!(static_arguments.len(), 1);
+        assert_node!(parser.tree, static_arguments[0], Argument::Positional { modifiers: None, value } => {
+            assert_node!(parser.tree, *value, Expression::Binary { left, operator, right, .. } => {
+                assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                assert_node!(parser.tree, *left, Expression::TypeUnary { .. });
+                assert_node!(parser.tree, *right, Expression::TypeUnary { .. });
             });
         });
     }
