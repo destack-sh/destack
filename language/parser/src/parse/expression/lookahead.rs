@@ -47,10 +47,8 @@ impl Parser {
             TokenType::OpenParenthesis,
             TokenType::CloseParenthesis,
         )?;
-        let close_pos_for_follow = self.skip_newlines(close_pos)?;
-        let follow_token_type = self
-            .token_ref_at(close_pos_for_follow as usize + 1)
-            .map(|token| token.token.ty);
+        let follow_index = self.next_non_newline_index_from(close_pos as usize + 1);
+        let follow_token_type = self.token_ref_at(follow_index).map(|token| token.token.ty);
         let has_arrow_follow = matches!(
             follow_token_type,
             Some(TokenType::Arrow | TokenType::ArrowWide)

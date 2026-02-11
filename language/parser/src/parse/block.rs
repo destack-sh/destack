@@ -47,10 +47,10 @@ impl Parser {
         }
 
         // otherwise, eat a single statement and wrap it in a block
-        let expression_id = self.with_options(
-            self.options.nested().in_statement_position(),
-            |parser| parser.eat_statement_expression_in_current_options(),
-        )?;
+        let expression_id = self
+            .with_options(self.options.nested().in_statement_position(), |parser| {
+                parser.eat_statement_expression_in_current_options()
+            })?;
 
         // reject declaration statements in single statement contexts
         if !self.language.is_destack() && self.is_single_statement_declaration(expression_id) {
