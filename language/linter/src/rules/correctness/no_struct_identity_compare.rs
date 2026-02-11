@@ -1,6 +1,7 @@
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, SymbolType, walk_expression};
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::is_reference_symbol_type;
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -69,29 +70,6 @@ impl<'a, 'b> StructCompareVisitor<'a, 'b> {
         }
     }
 
-    /// Check if a type is a struct type.
-    fn is_struct_type(&self, type_id: dir::LocalTypeId) -> bool {
-        let ty = self.ctx.types.get_type(type_id);
-
-        match ty {
-            dir::Type::Reference { symbol, .. } => {
-                // check if symbol refers to a struct declaration
-                self.is_struct_symbol(*symbol)
-            }
-            dir::Type::Value { value } => self.is_struct_type(*value),
-            dir::Type::ValueOf { right, .. } | dir::Type::ReferenceOf { right, .. } => {
-                self.is_struct_type(*right)
-            }
-            _ => false,
-        }
-    }
-
-    /// Check if a symbol refers to a struct declaration.
-    fn is_struct_symbol(&self, symbol: dir::GlobalSymbolId) -> bool {
-        // the symbol type is embedded in GlobalSymbolId
-        symbol.ty() == SymbolType::Struct
-    }
-
     /// Check a binary expression for struct identity comparison.
     fn check_struct_compare(
         &mut self,
@@ -100,16 +78,14 @@ impl<'a, 'b> StructCompareVisitor<'a, 'b> {
         right: dir::LocalNodeId<dir::Expression>,
     ) {
         // resolve the left operand type
-        let left_is_struct = self
-            .ctx
-            .expression_type_id(left)
-            .is_some_and(|type_id| self.is_struct_type(type_id));
+        let left_is_struct = self.ctx.expression_type_id(left).is_some_and(|type_id| {
+            is_reference_symbol_type(self.ctx.types, type_id, SymbolType::Struct)
+        });
 
         // resolve the right operand type
-        let right_is_struct = self
-            .ctx
-            .expression_type_id(right)
-            .is_some_and(|type_id| self.is_struct_type(type_id));
+        let right_is_struct = self.ctx.expression_type_id(right).is_some_and(|type_id| {
+            is_reference_symbol_type(self.ctx.types, type_id, SymbolType::Struct)
+        });
 
         // at least one operand must be a struct
         if !left_is_struct && !right_is_struct {

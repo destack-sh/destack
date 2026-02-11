@@ -8,7 +8,7 @@ use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
     expression_declared_or_inferred_type_id, expression_is_promise_like,
     function_parameter_types_at, function_return_type, is_any_type, is_async_function_type,
-    is_function_type, is_promise_type,
+    is_function_type, is_promise_or_any_type, supports_promise_spread_elements,
 };
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -93,67 +93,7 @@ impl<'a, 'b> MisusedPromiseVisitor<'a, 'b> {
 
     /// Return true when a type allows Promise values.
     fn type_allows_promise(&self, type_id: dir::LocalTypeId) -> bool {
-        // handle direct Promise and any first
-        if is_promise_type(self.ctx.types, type_id, Some(self.promise_symbol))
-            || is_any_type(self.ctx.types, type_id)
-        {
-            return true;
-        }
-
-        // prefer flow-normalized types when available
-        let normalized_type_id = self
-            .ctx
-            .types
-            .normalized_type(dir::NormalizationMode::Flow, 0, type_id)
-            .map(|entry| entry.normalized_type)
-            .unwrap_or(type_id);
-
-        // resolve nested wrappers and unions
-        let mut visited = Vec::new();
-        self.type_allows_promise_inner(normalized_type_id, &mut visited)
-    }
-
-    /// Return true when a type allows Promise values with cycle protection.
-    fn type_allows_promise_inner(
-        &self,
-        type_id: dir::LocalTypeId,
-        visited: &mut Vec<dir::LocalTypeId>,
-    ) -> bool {
-        // guard against cycles
-        if visited.contains(&type_id) {
-            return false;
-        }
-        visited.push(type_id);
-
-        // inspect the type node
-        let ty = self.ctx.types.get_type(type_id);
-        match ty {
-            dir::Type::TypeLiteral {
-                value: dir::TypeLiteral::Any | dir::TypeLiteral::Unknown,
-            } => true,
-            dir::Type::Value { value } => self.type_allows_promise_inner(*value, visited),
-            dir::Type::ValueOf { right, .. }
-            | dir::Type::ReferenceOf { right, .. }
-            | dir::Type::PointerOf { right, .. } => self.type_allows_promise_inner(*right, visited),
-            dir::Type::Reference { symbol, .. } => {
-                if *symbol == self.promise_symbol {
-                    return true;
-                }
-
-                if let Some(instance_type_id) = self.ctx.types.get_instance_type_id(*symbol) {
-                    return self.type_allows_promise_inner(instance_type_id, visited);
-                }
-                if let Some(value_type_id) = self.ctx.types.get_value_type_id(*symbol) {
-                    return self.type_allows_promise_inner(value_type_id, visited);
-                }
-
-                false
-            }
-            dir::Type::Union { elements } | dir::Type::Intersection { elements } => elements
-                .iter()
-                .any(|element| self.type_allows_promise_inner(*element, visited)),
-            _ => false,
-        }
+        is_promise_or_any_type(self.ctx.types, type_id, Some(self.promise_symbol))
     }
 
     /// Return true when an expression type is Promise.
@@ -220,142 +160,6 @@ impl<'a, 'b> MisusedPromiseVisitor<'a, 'b> {
         );
     }
 
-    /// Return true when a parameter type accepts Promise elements from spread arguments.
-    fn type_accepts_promise_spread_element(&self, type_id: dir::LocalTypeId) -> bool {
-        // prefer flow-normalized types when available
-        let normalized_type_id = self
-            .ctx
-            .types
-            .normalized_type(dir::NormalizationMode::Flow, 0, type_id)
-            .map(|entry| entry.normalized_type)
-            .unwrap_or(type_id);
-
-        // resolve nested wrappers and unions
-        let mut visited = Vec::new();
-        self.type_accepts_promise_spread_element_inner(normalized_type_id, &mut visited)
-    }
-
-    /// Return true when a type accepts Promise spread elements with cycle protection.
-    fn type_accepts_promise_spread_element_inner(
-        &self,
-        type_id: dir::LocalTypeId,
-        visited: &mut Vec<dir::LocalTypeId>,
-    ) -> bool {
-        // guard against cycles
-        if visited.contains(&type_id) {
-            return false;
-        }
-        visited.push(type_id);
-
-        // direct Promise and any are always acceptable
-        if self.type_allows_promise(type_id) {
-            return true;
-        }
-
-        // inspect the type node
-        let ty = self.ctx.types.get_type(type_id);
-        match ty {
-            dir::Type::Array { element, .. } => {
-                element.is_some_and(|element_type_id| self.type_allows_promise(element_type_id))
-            }
-            dir::Type::ArraySized { element, .. } => self.type_allows_promise(*element),
-            dir::Type::Tuple { elements, .. } => elements
-                .iter()
-                .any(|element| self.type_allows_promise(element.ty)),
-            dir::Type::Value { value } => {
-                self.type_accepts_promise_spread_element_inner(*value, visited)
-            }
-            dir::Type::ValueOf { right, .. }
-            | dir::Type::ReferenceOf { right, .. }
-            | dir::Type::PointerOf { right, .. } => {
-                self.type_accepts_promise_spread_element_inner(*right, visited)
-            }
-            dir::Type::Reference { symbol, .. } => {
-                if let Some(instance_type_id) = self.ctx.types.get_instance_type_id(*symbol) {
-                    return self
-                        .type_accepts_promise_spread_element_inner(instance_type_id, visited);
-                }
-
-                if let Some(value_type_id) = self.ctx.types.get_value_type_id(*symbol) {
-                    return self.type_accepts_promise_spread_element_inner(value_type_id, visited);
-                }
-
-                false
-            }
-            dir::Type::Union { elements } | dir::Type::Intersection { elements } => {
-                elements.iter().any(|element_type_id| {
-                    self.type_accepts_promise_spread_element_inner(*element_type_id, visited)
-                })
-            }
-            _ => false,
-        }
-    }
-
-    /// Return true when a spread argument type can produce Promise elements.
-    fn spread_contains_promise_elements(&self, type_id: dir::LocalTypeId) -> bool {
-        // prefer flow-normalized types when available
-        let normalized_type_id = self
-            .ctx
-            .types
-            .normalized_type(dir::NormalizationMode::Flow, 0, type_id)
-            .map(|entry| entry.normalized_type)
-            .unwrap_or(type_id);
-
-        // resolve nested wrappers and unions
-        let mut visited = Vec::new();
-        self.spread_contains_promise_elements_inner(normalized_type_id, &mut visited)
-    }
-
-    /// Return true when a spread argument type can produce Promise elements with cycle protection.
-    fn spread_contains_promise_elements_inner(
-        &self,
-        type_id: dir::LocalTypeId,
-        visited: &mut Vec<dir::LocalTypeId>,
-    ) -> bool {
-        // guard against cycles
-        if visited.contains(&type_id) {
-            return false;
-        }
-        visited.push(type_id);
-
-        // inspect the type node
-        let ty = self.ctx.types.get_type(type_id);
-        match ty {
-            dir::Type::Array { element, .. } => {
-                element.is_some_and(|element_type_id| self.type_allows_promise(element_type_id))
-            }
-            dir::Type::ArraySized { element, .. } => self.type_allows_promise(*element),
-            dir::Type::Tuple { elements, .. } => elements
-                .iter()
-                .any(|element| self.type_allows_promise(element.ty)),
-            dir::Type::Value { value } => {
-                self.spread_contains_promise_elements_inner(*value, visited)
-            }
-            dir::Type::ValueOf { right, .. }
-            | dir::Type::ReferenceOf { right, .. }
-            | dir::Type::PointerOf { right, .. } => {
-                self.spread_contains_promise_elements_inner(*right, visited)
-            }
-            dir::Type::Reference { symbol, .. } => {
-                if let Some(instance_type_id) = self.ctx.types.get_instance_type_id(*symbol) {
-                    return self.spread_contains_promise_elements_inner(instance_type_id, visited);
-                }
-
-                if let Some(value_type_id) = self.ctx.types.get_value_type_id(*symbol) {
-                    return self.spread_contains_promise_elements_inner(value_type_id, visited);
-                }
-
-                false
-            }
-            dir::Type::Union { elements } | dir::Type::Intersection { elements } => {
-                elements.iter().any(|element_type_id| {
-                    self.spread_contains_promise_elements_inner(*element_type_id, visited)
-                })
-            }
-            _ => false,
-        }
-    }
-
     /// Check call arguments for Promise misuse.
     fn check_call_arguments(
         &mut self,
@@ -398,11 +202,17 @@ impl<'a, 'b> MisusedPromiseVisitor<'a, 'b> {
 
             // spread Promise elements passed where Promise elements are not accepted
             if is_spread {
-                if self.spread_contains_promise_elements(argument_type_id)
-                    && !parameter_type_ids.iter().any(|parameter_type_id| {
-                        self.type_accepts_promise_spread_element(*parameter_type_id)
-                    })
-                {
+                if supports_promise_spread_elements(
+                    self.ctx.types,
+                    argument_type_id,
+                    Some(self.promise_symbol),
+                ) && !parameter_type_ids.iter().any(|parameter_type_id| {
+                    supports_promise_spread_elements(
+                        self.ctx.types,
+                        *parameter_type_id,
+                        Some(self.promise_symbol),
+                    )
+                }) {
                     self.report(
                         *argument_id,
                         "Promise passed to a non-Promise parameter",

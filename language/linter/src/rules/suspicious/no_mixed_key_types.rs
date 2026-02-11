@@ -1,7 +1,10 @@
 use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_declared_or_inferred_type_id;
+use crate::rules::common::{
+    expression_declared_or_inferred_type_id, is_numeric_property_key_type,
+    is_string_like_property_key_type, is_symbol_like_property_key_type,
+};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -187,88 +190,17 @@ fn key_expression_kind(
         expression_id,
     )
     .or_else(|| ctx.expression_type_id(expression_id))?;
-    if expression_type_is_symbol_like(ctx.types, type_id) {
+    if is_symbol_like_property_key_type(ctx.types, type_id) {
         return Some(ObjectKeyKind::SymbolLike);
     }
-    if expression_type_is_numeric(ctx.types, type_id) {
+    if is_numeric_property_key_type(ctx.types, type_id) {
         return Some(ObjectKeyKind::Numeric);
     }
-    if expression_type_is_string_like(ctx.types, type_id) {
+    if is_string_like_property_key_type(ctx.types, type_id) {
         return Some(ObjectKeyKind::StringLike);
     }
 
     None
-}
-
-/// Return true when the type is string-like.
-fn expression_type_is_string_like(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
-    let type_id = normalized_type_id(types, type_id);
-    match types.get_type(type_id) {
-        dir::Type::TypeLiteral { value } => matches!(
-            value,
-            dir::TypeLiteral::Primitive(dir::PrimitiveType::String)
-                | dir::TypeLiteral::Primitive(dir::PrimitiveType::Boolean)
-                | dir::TypeLiteral::Primitive(dir::PrimitiveType::Character)
-                | dir::TypeLiteral::ScalarLiteral(dir::ScalarLiteral::String(_))
-                | dir::TypeLiteral::ScalarLiteral(dir::ScalarLiteral::Boolean(_))
-                | dir::TypeLiteral::ScalarLiteral(dir::ScalarLiteral::Character(_))
-                | dir::TypeLiteral::ScalarLiteral(dir::ScalarLiteral::RegexString { .. })
-                | dir::TypeLiteral::Null
-                | dir::TypeLiteral::Undefined
-        ),
-        dir::Type::Value { value } => expression_type_is_string_like(types, *value),
-        dir::Type::Union { elements } | dir::Type::Intersection { elements } => elements
-            .iter()
-            .all(|element| expression_type_is_string_like(types, *element)),
-        _ => false,
-    }
-}
-
-/// Return true when the type is numeric.
-fn expression_type_is_numeric(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
-    let type_id = normalized_type_id(types, type_id);
-    match types.get_type(type_id) {
-        dir::Type::TypeLiteral { value } => matches!(
-            value,
-            dir::TypeLiteral::Primitive(dir::PrimitiveType::Number)
-                | dir::TypeLiteral::Primitive(dir::PrimitiveType::Bigint)
-                | dir::TypeLiteral::Primitive(dir::PrimitiveType::Int(_))
-                | dir::TypeLiteral::Primitive(dir::PrimitiveType::Float(_))
-                | dir::TypeLiteral::ScalarLiteral(dir::ScalarLiteral::Integer(_))
-                | dir::TypeLiteral::ScalarLiteral(dir::ScalarLiteral::Float(_))
-                | dir::TypeLiteral::ScalarLiteral(dir::ScalarLiteral::Bigint(_))
-        ),
-        dir::Type::Value { value } => expression_type_is_numeric(types, *value),
-        dir::Type::Union { elements } | dir::Type::Intersection { elements } => elements
-            .iter()
-            .all(|element| expression_type_is_numeric(types, *element)),
-        _ => false,
-    }
-}
-
-/// Return true when the type is symbol-like.
-fn expression_type_is_symbol_like(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
-    let type_id = normalized_type_id(types, type_id);
-    match types.get_type(type_id) {
-        dir::Type::TypeLiteral { value } => matches!(
-            value,
-            dir::TypeLiteral::Primitive(dir::PrimitiveType::Symbol)
-                | dir::TypeLiteral::Primitive(dir::PrimitiveType::UniqueSymbol)
-        ),
-        dir::Type::Value { value } => expression_type_is_symbol_like(types, *value),
-        dir::Type::Union { elements } | dir::Type::Intersection { elements } => elements
-            .iter()
-            .all(|element| expression_type_is_symbol_like(types, *element)),
-        _ => false,
-    }
-}
-
-/// Normalize one type id for stable key-kind checks.
-fn normalized_type_id(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> dir::LocalTypeId {
-    types
-        .normalized_type(dir::NormalizationMode::Flow, 0, type_id)
-        .map(|entry| entry.normalized_type)
-        .unwrap_or(type_id)
 }
 
 #[cfg(test)]
@@ -354,6 +286,28 @@ const value = {
             r#"
 const stringKey = "name";
 const numericKey = 1;
+
+const value = {
+    [stringKey]: "ok",
+    [numericKey]: "one",
+};
+"#,
+        );
+        test.result(result).assert_lint("no-mixed-key-types");
+    }
+
+    /// Flag mixed key kinds for alias-typed computed keys.
+    #[test]
+    fn test_flags_alias_typed_mixed_computed_keys() {
+        let test = TestProgram::for_rule_without_prelude(NoMixedKeyTypes);
+        let result = test.lint_dir(
+            "no_mixed_key_types/test_flags_alias_typed_mixed_computed_keys.ds",
+            r#"
+type StringKey = string;
+type NumericKey = int32;
+
+const stringKey: StringKey = "name";
+const numericKey: NumericKey = 1;
 
 const value = {
     [stringKey]: "ok",

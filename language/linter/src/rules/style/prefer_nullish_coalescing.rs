@@ -1,13 +1,10 @@
-use std::collections::HashSet;
-
-use destack_base::StringPool;
 use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::is_strict_boolean_type;
+use crate::rules::common::{
+    has_non_nullish_falsy_type, is_maybe_nullish_type, is_strict_boolean_type,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
-
-const DEFAULT_RELATION_CACHE_KEY: u64 = 0;
 
 declare_lint! {
     /// Prefer nullish coalescing over `||` for nullish defaulting.
@@ -195,179 +192,17 @@ fn left_side_prefers_nullish(
         return false;
     }
 
-    let normalized_type_id = normalize_type(ctx.types, type_id);
-
     // require maybe-nullish values
-    let mut nullish_visited = HashSet::new();
-    if !type_is_maybe_nullish(ctx.types, normalized_type_id, &mut nullish_visited) {
+    if !is_maybe_nullish_type(ctx.types, type_id) {
         return false;
     }
 
     // reject candidates where non-nullish falsy values are possible
-    let mut falsy_visited = HashSet::new();
-    if type_has_non_nullish_falsy(
-        ctx.types,
-        &ctx.program.strings,
-        normalized_type_id,
-        &mut falsy_visited,
-    ) {
+    if has_non_nullish_falsy_type(ctx.types, &ctx.program.strings, type_id) {
         return false;
     }
 
     true
-}
-
-/// Normalize one type id using flow mode.
-fn normalize_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> dir::LocalTypeId {
-    types
-        .normalized_type(
-            dir::NormalizationMode::Flow,
-            DEFAULT_RELATION_CACHE_KEY,
-            type_id,
-        )
-        .map(|entry| entry.normalized_type)
-        .unwrap_or(type_id)
-}
-
-/// Return true when a type can evaluate to a nullish value.
-fn type_is_maybe_nullish(
-    types: &dir::TypeTable,
-    type_id: dir::LocalTypeId,
-    visited: &mut HashSet<dir::LocalTypeId>,
-) -> bool {
-    if !visited.insert(type_id) {
-        return false;
-    }
-
-    match types.get_type(type_id) {
-        dir::Type::TypeLiteral { value } => matches!(
-            value,
-            dir::TypeLiteral::Null
-                | dir::TypeLiteral::Undefined
-                | dir::TypeLiteral::Void
-                | dir::TypeLiteral::Any
-                | dir::TypeLiteral::Infer
-                | dir::TypeLiteral::Unknown
-        ),
-        dir::Type::Value { value } => type_is_maybe_nullish(types, *value, visited),
-        dir::Type::ValueOf { right, .. }
-        | dir::Type::ReferenceOf { right, .. }
-        | dir::Type::PointerOf { right, .. } => type_is_maybe_nullish(types, *right, visited),
-        dir::Type::Reference { symbol, .. } => {
-            if let Some(instance_type_id) = types.get_instance_type_id(*symbol) {
-                return type_is_maybe_nullish(types, instance_type_id, visited);
-            }
-            if let Some(value_type_id) = types.get_value_type_id(*symbol) {
-                return type_is_maybe_nullish(types, value_type_id, visited);
-            }
-
-            false
-        }
-        dir::Type::Union { elements } => elements
-            .iter()
-            .any(|element| type_is_maybe_nullish(types, *element, visited)),
-        dir::Type::Intersection { elements } => elements
-            .iter()
-            .all(|element| type_is_maybe_nullish(types, *element, visited)),
-        dir::Type::InferVar { .. }
-        | dir::Type::Conditional { .. }
-        | dir::Type::Mapped { .. }
-        | dir::Type::Index { .. }
-        | dir::Type::TemplateLiteral { .. }
-        | dir::Type::Import { .. }
-        | dir::Type::Infer { .. }
-        | dir::Type::Predicate { .. }
-        | dir::Type::Unary { .. }
-        | dir::Type::Binary { .. }
-        | dir::Type::Error
-        | dir::Type::Unevaluated(_) => true,
-        dir::Type::This => false,
-        dir::Type::Array { .. }
-        | dir::Type::ArraySized { .. }
-        | dir::Type::Tuple { .. }
-        | dir::Type::Object { .. }
-        | dir::Type::Function { .. } => false,
-    }
-}
-
-/// Return true when a type can evaluate to a non-nullish falsy value.
-fn type_has_non_nullish_falsy(
-    types: &dir::TypeTable,
-    strings: &StringPool,
-    type_id: dir::LocalTypeId,
-    visited: &mut HashSet<dir::LocalTypeId>,
-) -> bool {
-    if !visited.insert(type_id) {
-        return false;
-    }
-
-    match types.get_type(type_id) {
-        dir::Type::TypeLiteral { value } => match value {
-            dir::TypeLiteral::Null | dir::TypeLiteral::Undefined | dir::TypeLiteral::Void => false,
-            dir::TypeLiteral::Never => false,
-            dir::TypeLiteral::Any | dir::TypeLiteral::Infer | dir::TypeLiteral::Unknown => true,
-            dir::TypeLiteral::Object => false,
-            dir::TypeLiteral::Primitive(primitive) => matches!(
-                primitive,
-                dir::PrimitiveType::Boolean
-                    | dir::PrimitiveType::Number
-                    | dir::PrimitiveType::Bigint
-                    | dir::PrimitiveType::String
-                    | dir::PrimitiveType::Int(_)
-                    | dir::PrimitiveType::Float(_)
-            ),
-            dir::TypeLiteral::ScalarLiteral(literal) => match literal {
-                dir::ScalarLiteral::Boolean(false) => true,
-                dir::ScalarLiteral::Boolean(true) => false,
-                dir::ScalarLiteral::Integer(value) => *value == 0,
-                dir::ScalarLiteral::Bigint(value) => *value == 0,
-                dir::ScalarLiteral::Float(value) => *value == 0.0,
-                dir::ScalarLiteral::String(value) => strings.get(*value).is_empty(),
-                dir::ScalarLiteral::Character(_) | dir::ScalarLiteral::RegexString { .. } => true,
-            },
-            dir::TypeLiteral::Intrinsic(_) => true,
-        },
-        dir::Type::Value { value } => type_has_non_nullish_falsy(types, strings, *value, visited),
-        dir::Type::ValueOf { right, .. }
-        | dir::Type::ReferenceOf { right, .. }
-        | dir::Type::PointerOf { right, .. } => {
-            type_has_non_nullish_falsy(types, strings, *right, visited)
-        }
-        dir::Type::Reference { symbol, .. } => {
-            if let Some(instance_type_id) = types.get_instance_type_id(*symbol) {
-                return type_has_non_nullish_falsy(types, strings, instance_type_id, visited);
-            }
-            if let Some(value_type_id) = types.get_value_type_id(*symbol) {
-                return type_has_non_nullish_falsy(types, strings, value_type_id, visited);
-            }
-
-            true
-        }
-        dir::Type::Union { elements } => elements
-            .iter()
-            .any(|element| type_has_non_nullish_falsy(types, strings, *element, visited)),
-        dir::Type::Intersection { elements } => elements
-            .iter()
-            .any(|element| type_has_non_nullish_falsy(types, strings, *element, visited)),
-        dir::Type::Array { .. }
-        | dir::Type::ArraySized { .. }
-        | dir::Type::Tuple { .. }
-        | dir::Type::Object { .. }
-        | dir::Type::Function { .. } => false,
-        dir::Type::InferVar { .. }
-        | dir::Type::This
-        | dir::Type::Unevaluated(_)
-        | dir::Type::Conditional { .. }
-        | dir::Type::Mapped { .. }
-        | dir::Type::Index { .. }
-        | dir::Type::TemplateLiteral { .. }
-        | dir::Type::Import { .. }
-        | dir::Type::Infer { .. }
-        | dir::Type::Predicate { .. }
-        | dir::Type::Unary { .. }
-        | dir::Type::Binary { .. }
-        | dir::Type::Error => true,
-    }
 }
 
 #[cfg(test)]

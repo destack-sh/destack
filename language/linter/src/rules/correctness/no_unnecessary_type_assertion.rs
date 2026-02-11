@@ -3,7 +3,7 @@ use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     expression_declared_or_inferred_type_id, expression_is_any_typed, expression_target_symbol,
-    expression_unwrap_parenthesized, is_any_type, symbol_value_type_id_for,
+    expression_unwrap_parenthesized, is_any_type, symbol_value_type_id_for, unwrap_value_type_id,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -136,7 +136,7 @@ fn source_expression_matches_target_type(
 
     // same module: compare semantic type equality directly
     if source_value_type_id.module_id == ctx.module_id() {
-        let source_type_id = unwrap_type_value(ctx.types, source_value_type_id.type_id);
+        let source_type_id = unwrap_value_type_id(ctx.types, source_value_type_id.type_id);
         return dir::are_types_equal(source_type_id, target_type_id, ctx.types);
     }
 
@@ -151,7 +151,7 @@ fn source_expression_matches_target_type(
         return false;
     };
     let types = module_dir.types.read();
-    let source_type_id = unwrap_type_value(&types, source_value_type_id.type_id);
+    let source_type_id = unwrap_value_type_id(&types, source_value_type_id.type_id);
     is_any_type(&types, source_type_id)
 }
 
@@ -257,22 +257,7 @@ fn assertion_operand_type_id(
     )
     .or_else(|| ctx.expression_type_id(expression_id))?;
 
-    Some(unwrap_type_value(ctx.types, type_id))
-}
-
-/// Unwrap nested `Type::Value` wrappers to reach the underlying type.
-fn unwrap_type_value(types: &dir::TypeTable, mut type_id: dir::LocalTypeId) -> dir::LocalTypeId {
-    loop {
-        let dir::Type::Value { value } = types.get_type(type_id) else {
-            return type_id;
-        };
-
-        if *value == type_id {
-            return type_id;
-        }
-
-        type_id = *value;
-    }
+    Some(unwrap_value_type_id(ctx.types, type_id))
 }
 
 #[cfg(test)]
