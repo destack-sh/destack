@@ -115,7 +115,7 @@ impl<'a> Printer<'a> {
                     self.flush_line_postfixes(queue, stack, Some(node));
                 } else {
                     // only print a newline if the current line isn't already empty
-                    if !self.state.buffer[self.state.line_start..].is_empty() {
+                    if self.state.buffer.len() > self.state.line_start {
                         self.push_marker();
                         self.print_char('\n');
                     }
@@ -428,27 +428,7 @@ impl<'a> Printer<'a> {
     }
 
     fn print_text(&mut self, text: Text<'_>) {
-        if !self.state.pending_indent.is_empty() {
-            let (indent_char, repeat_count) = match self.options.indent_style {
-                IndentStyle::Tab => ('\t', 1),
-                IndentStyle::Space => (' ', self.options.indent_width),
-            };
-
-            let indent = std::mem::take(&mut self.state.pending_indent);
-            let total_indent_char_count = indent.level() as usize * repeat_count as usize;
-
-            self.state
-                .buffer
-                .reserve(total_indent_char_count + indent.align() as usize);
-
-            for _ in 0..total_indent_char_count {
-                self.print_char(indent_char);
-            }
-
-            for _ in 0..indent.align() {
-                self.print_char(' ');
-            }
-        }
+        self.write_pending_indent();
 
         self.push_marker();
 
@@ -466,11 +446,89 @@ impl<'a> Printer<'a> {
                     self.state.buffer.push_str(text);
                     self.state.line_width += width.value();
                 } else {
-                    for char in text.chars() {
-                        self.print_char(char);
-                    }
+                    self.print_multiline_text(text);
                 }
             }
+        }
+    }
+
+    /// write pending indentation into the output buffer
+    fn write_pending_indent(&mut self) {
+        let indent = std::mem::take(&mut self.state.pending_indent);
+        if indent.is_empty() {
+            return;
+        }
+
+        let level = indent.level() as usize;
+        let align = indent.align() as usize;
+        let indent_width = self.options.indent_width as usize;
+
+        // indentation write: avoid per-character print_char calls
+        match self.options.indent_style {
+            IndentStyle::Space => {
+                let total_spaces = level.saturating_mul(indent_width).saturating_add(align);
+                self.state.buffer.reserve(total_spaces);
+                push_spaces(&mut self.state.buffer, total_spaces);
+                self.state.line_width += total_spaces as u32;
+            }
+            IndentStyle::Tab => {
+                self.state.buffer.reserve(level.saturating_add(align));
+                push_tabs(&mut self.state.buffer, level);
+                push_spaces(&mut self.state.buffer, align);
+                self.state.line_width +=
+                    (level.saturating_mul(indent_width).saturating_add(align)) as u32;
+            }
+        }
+    }
+
+    /// print a multiline text payload
+    fn print_multiline_text(&mut self, text: &str) {
+        // ascii fast path: stream chunks between newline and tab characters
+        if text.is_ascii() {
+            self.print_multiline_ascii_text(text);
+            return;
+        }
+
+        for char in text.chars() {
+            self.print_char(char);
+        }
+    }
+
+    /// print an ascii multiline text payload
+    fn print_multiline_ascii_text(&mut self, text: &str) {
+        let bytes = text.as_bytes();
+        let mut run_start = 0usize;
+        let mut index = 0usize;
+
+        while index < bytes.len() {
+            let byte = bytes[index];
+
+            if byte != b'\n' && byte != b'\t' {
+                index += 1;
+                continue;
+            }
+
+            if run_start < index {
+                let chunk = &text[run_start..index];
+                self.state.buffer.push_str(chunk);
+                self.state.line_width += (index - run_start) as u32;
+            }
+
+            if byte == b'\n' {
+                self.print_newline();
+            } else {
+                self.state.buffer.push('\t');
+                self.state.line_width += u32::from(self.options.indent_width);
+            }
+
+            index += 1;
+            run_start = index;
+        }
+
+        if run_start < bytes.len() {
+            let chunk = &text[run_start..];
+            self.state.buffer.push_str(chunk);
+            self.state.line_width += (bytes.len() - run_start) as u32;
         }
     }
 
@@ -808,27 +866,36 @@ impl<'a> Printer<'a> {
 
     fn print_char(&mut self, char: char) {
         if char == '\n' {
-            self.state
-                .buffer
-                .push_str(self.options.line_ending.as_str());
-
-            self.state.line_width = 0;
-            self.state.line_start = self.state.buffer.len();
-
-            // fit's only tests if groups up to the first line break fit.
-            // the next group must re-measure if it still fits.
-            self.state.measured_group_fits = false;
+            self.print_newline();
         } else {
             self.state.buffer.push(char);
 
-            let char_width = if char == '\t' {
-                self.options.indent_width as u32
+            let char_width = if char.is_ascii() {
+                if char == '\t' {
+                    self.options.indent_width as u32
+                } else {
+                    1
+                }
             } else {
                 char.width() as u32
             };
 
             self.state.line_width += char_width;
         }
+    }
+
+    /// print a newline with the configured line ending
+    fn print_newline(&mut self) {
+        self.state
+            .buffer
+            .push_str(self.options.line_ending.as_str());
+
+        self.state.line_width = 0;
+        self.state.line_start = self.state.buffer.len();
+
+        // fit's only tests if groups up to the first line break fit.
+        // the next group must re-measure if it still fits.
+        self.state.measured_group_fits = false;
     }
 }
 
@@ -1360,14 +1427,12 @@ impl<'a, 'print> FitsMeasurer<'a, 'print> {
     }
 
     fn fits_text(&mut self, text: Text<'_>, args: PrintNodeArgs) -> Fits {
-        fn exceeds_width(fits: &FitsMeasurer<'_, '_>, args: PrintNodeArgs) -> bool {
-            fits.state.line_width > fits.options().line_width.into()
-                && !args.measure_mode().allows_text_overflow()
-        }
-
         let indent = std::mem::take(&mut self.state.pending_indent);
-        self.state.line_width += u32::from(indent.level()) * u32::from(self.options().indent_width)
-            + u32::from(indent.align());
+        if !indent.is_empty() {
+            self.state.line_width += u32::from(indent.level())
+                * u32::from(self.options().indent_width)
+                + u32::from(indent.align());
+        }
 
         match text {
             #[expect(clippy::cast_possible_truncation)]
@@ -1378,40 +1443,98 @@ impl<'a, 'print> FitsMeasurer<'a, 'print> {
                 if let Some(width) = text_width.width() {
                     self.state.line_width += width.value();
                 } else {
-                    for c in text.chars() {
-                        let char_width = match c {
-                            '\t' => self.options().indent_width,
-                            '\n' => {
-                                if self.must_be_flat {
-                                    return Fits::No;
-                                }
-                                match args.measure_mode() {
-                                    MeasureMode::FirstLine => {
-                                        return if exceeds_width(self, args) {
-                                            Fits::No
-                                        } else {
-                                            Fits::Yes
-                                        };
+                    if text.is_ascii() {
+                        let ascii_fit = self.fits_multiline_ascii_text(text, args);
+                        if !matches!(ascii_fit, Fits::Maybe) {
+                            return ascii_fit;
+                        }
+                    } else {
+                        for c in text.chars() {
+                            let char_width = match c {
+                                '\t' => self.options().indent_width,
+                                '\n' => {
+                                    if self.must_be_flat {
+                                        return Fits::No;
                                     }
-                                    MeasureMode::AllLines
-                                    | MeasureMode::AllLinesAllowTextOverflow => {
-                                        self.state.line_width = 0;
-                                        continue;
+                                    match args.measure_mode() {
+                                        MeasureMode::FirstLine => {
+                                            return if self.exceeds_width(args) {
+                                                Fits::No
+                                            } else {
+                                                Fits::Yes
+                                            };
+                                        }
+                                        MeasureMode::AllLines
+                                        | MeasureMode::AllLinesAllowTextOverflow => {
+                                            self.state.line_width = 0;
+                                            continue;
+                                        }
                                     }
                                 }
-                            }
-                            c => c.width(),
-                        };
-                        self.state.line_width += char_width as u32;
+                                c => c.width(),
+                            };
+                            self.state.line_width += char_width as u32;
+                        }
                     }
                 }
             }
         }
 
-        if exceeds_width(self, args) {
+        if self.exceeds_width(args) {
             return Fits::No;
         }
 
+        Fits::Maybe
+    }
+
+    /// return true if the measured line width exceeds the line limit
+    fn exceeds_width(&self, args: PrintNodeArgs) -> bool {
+        self.state.line_width > self.options().line_width.into()
+            && !args.measure_mode().allows_text_overflow()
+    }
+
+    /// measure ascii text with newline or tab handling without char decoding
+    fn fits_multiline_ascii_text(&mut self, text: &str, args: PrintNodeArgs) -> Fits {
+        let bytes = text.as_bytes();
+        let mut run_start = 0usize;
+        let mut index = 0usize;
+
+        while index < bytes.len() {
+            let byte = bytes[index];
+
+            if byte != b'\n' && byte != b'\t' {
+                index += 1;
+                continue;
+            }
+
+            self.state.line_width += (index - run_start) as u32;
+
+            if byte == b'\n' {
+                if self.must_be_flat {
+                    return Fits::No;
+                }
+
+                match args.measure_mode() {
+                    MeasureMode::FirstLine => {
+                        return if self.exceeds_width(args) {
+                            Fits::No
+                        } else {
+                            Fits::Yes
+                        };
+                    }
+                    MeasureMode::AllLines | MeasureMode::AllLinesAllowTextOverflow => {
+                        self.state.line_width = 0;
+                    }
+                }
+            } else {
+                self.state.line_width += u32::from(self.options().indent_width);
+            }
+
+            index += 1;
+            run_start = index;
+        }
+
+        self.state.line_width += (bytes.len() - run_start) as u32;
         Fits::Maybe
     }
 
@@ -1492,6 +1615,32 @@ enum Fits {
 impl From<bool> for Fits {
     fn from(value: bool) -> Self {
         if value { Fits::Yes } else { Fits::No }
+    }
+}
+
+/// Push `count` spaces into a string buffer.
+fn push_spaces(buffer: &mut String, count: usize) {
+    const SPACES_CHUNK: &str = "                                                                ";
+    let mut remaining = count;
+    while remaining >= SPACES_CHUNK.len() {
+        buffer.push_str(SPACES_CHUNK);
+        remaining -= SPACES_CHUNK.len();
+    }
+    if remaining > 0 {
+        buffer.push_str(&SPACES_CHUNK[..remaining]);
+    }
+}
+
+/// Push `count` tabs into a string buffer.
+fn push_tabs(buffer: &mut String, count: usize) {
+    const TABS_CHUNK: &str = "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t";
+    let mut remaining = count;
+    while remaining >= TABS_CHUNK.len() {
+        buffer.push_str(TABS_CHUNK);
+        remaining -= TABS_CHUNK.len();
+    }
+    if remaining > 0 {
+        buffer.push_str(&TABS_CHUNK[..remaining]);
     }
 }
 
