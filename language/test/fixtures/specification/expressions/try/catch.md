@@ -181,10 +181,10 @@ value satisfies int;
 const value = try {
     throw { message: "oops" }
 } catch ({ message }: any) {
-    message satisfies string
+    message satisfies string;
     0
-}
-value satisfies number
+};
+value satisfies number;
 ```
 
 ### typescript catch annotation allows unknown

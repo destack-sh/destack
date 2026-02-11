@@ -4,18 +4,19 @@ use destack_ast::Keyword;
 use destack_base::StringId;
 use destack_dir::{
     Declaration, DependencyItem, DependencyKind, DependencyMode, DependencySource, Expression,
-    LocalNodeId, LocalNodeIdAny, Pattern, PatternField, StaticKey,
+    LocalNodeId, LocalNodeIdAny, Pattern, PatternField, StaticKey, SymbolTable,
 };
 use destack_workspace::Module;
 use std::str::FromStr;
 
+use crate::import::{SymbolDescriptor, can_merge_declarations};
 use crate::{Compiler, ImportError};
 
 /// The export category used for duplicate export checks.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum ExportConflictKind {
-    /// A function declaration export.
-    FunctionDeclaration,
+    /// A declaration export with merge metadata.
+    Declaration(SymbolDescriptor),
     /// Any non-function export.
     Other,
 }
@@ -130,6 +131,7 @@ impl Compiler {
         // load the module tree once for export scanning
         let dir = module.dir_base();
         let tree = dir.tree.read();
+        let symbols = dir.symbols.read();
         let default_name = self.program.strings.intern("default");
         let mut exported_names = HashMap::new();
 
@@ -147,8 +149,8 @@ impl Compiler {
                         self.value_export_name_for_declaration(declaration, default_name);
                     if let Some(export_name) = export_name {
                         let conflict_kind =
-                            self.export_conflict_kind_for_declaration(module, declaration);
-                        self.report_conflicting_export_name(
+                            self.export_conflict_kind_for_declaration(declaration, &symbols);
+                        self.report_conflicting_export_name_maybe(
                             module,
                             export_name,
                             declaration_id.into_any(),
@@ -178,7 +180,7 @@ impl Compiler {
                         );
 
                         for name in names {
-                            self.report_conflicting_export_name(
+                            self.report_conflicting_export_name_maybe(
                                 module,
                                 name,
                                 (*declarator_id).into_any(),
@@ -209,7 +211,7 @@ impl Compiler {
                         );
 
                         for name in names {
-                            self.report_conflicting_export_name(
+                            self.report_conflicting_export_name_maybe(
                                 module,
                                 name,
                                 (*declarator_id).into_any(),
@@ -230,7 +232,7 @@ impl Compiler {
                             default_name,
                         );
                         if let Some(export_name) = export_name {
-                            self.report_conflicting_export_name(
+                            self.report_conflicting_export_name_maybe(
                                 module,
                                 export_name,
                                 (*item_id).into_any(),
@@ -410,7 +412,7 @@ impl Compiler {
     }
 
     /// Report duplicate exported names.
-    fn report_conflicting_export_name(
+    fn report_conflicting_export_name_maybe(
         &self,
         module: &Module,
         export_name: StringId,
@@ -424,13 +426,6 @@ impl Compiler {
             exported_names.insert(export_name, (local_node, conflict_kind));
             return;
         };
-
-        // allow overload style function declarations to share an export name
-        if first_kind == ExportConflictKind::FunctionDeclaration
-            && conflict_kind == ExportConflictKind::FunctionDeclaration
-        {
-            return;
-        }
 
         // convert local ids to anchored diagnostics
         let node = local_node.into_global(module.id).into_anchored(None);
@@ -447,6 +442,14 @@ impl Compiler {
             return;
         }
 
+        // allow mergeable declaration exports to share one exported name
+        if let (ExportConflictKind::Declaration(first), ExportConflictKind::Declaration(next)) =
+            (first_kind, conflict_kind)
+            && can_merge_declarations(module.language_type, first, next)
+        {
+            return;
+        }
+
         self.error(ImportError::ConflictingExport {
             node,
             other_node,
@@ -458,18 +461,12 @@ impl Compiler {
     /// Resolve the conflict category for a declaration export.
     fn export_conflict_kind_for_declaration(
         &self,
-        module: &Module,
         declaration: &Declaration,
+        symbols: &SymbolTable,
     ) -> ExportConflictKind {
-        // overload declarations intentionally share one export symbol
-        if matches!(declaration, Declaration::Function { .. })
-            && (module.language_type.supports_declaration_merging()
-                || module.language_type.is_destack())
-        {
-            ExportConflictKind::FunctionDeclaration
-        } else {
-            ExportConflictKind::Other
-        }
+        let symbol_id = declaration.symbol();
+        let symbol = symbols.get_symbol(symbol_id);
+        ExportConflictKind::Declaration(SymbolDescriptor::from(symbol))
     }
 
     /// Collect all binding names declared by a pattern.
@@ -592,6 +589,32 @@ mod tests {
         test.import_module(module_id);
         test.compile();
         test.check_no_diagnostic_code("EI201");
+    }
+
+    /// Allow class and namespace exports that merge under TypeScript rules.
+    #[test]
+    fn test_allow_class_namespace_export_merge() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ts",
+            "export class Client {} export namespace Client { export interface Options {} }",
+        );
+        test.import_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("EI201");
+    }
+
+    /// Reject namespace and class exports when namespace appears first.
+    #[test]
+    fn test_reject_namespace_class_export_merge_wrong_order() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ts",
+            "export namespace Client {} export class Client {}",
+        );
+        test.import_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EI201");
     }
 
     /// Reject export declarations nested under block statements.

@@ -62,10 +62,10 @@ impl Compiler {
 
                     let enum_kind_mismatch =
                         self.is_const_enum_mismatch(&tree, symbol, other_symbol);
-                    let can_merge = can_merge_declarations(
+                    let can_merge = self.can_symbols_merge_declarations(
                         module.language_type,
-                        SymbolDescriptor::from(symbol),
-                        SymbolDescriptor::from(other_symbol),
+                        symbol,
+                        other_symbol,
                     ) && !enum_kind_mismatch;
                     if can_merge {
                         continue;
@@ -157,6 +157,30 @@ impl Compiler {
     fn is_strict_local_conflict(&self, left: &Symbol, right: &Symbol) -> bool {
         matches!(left.ty, SymbolType::TypeAlias | SymbolType::Newtype)
             || matches!(right.ty, SymbolType::TypeAlias | SymbolType::Newtype)
+    }
+
+    /// Check whether two symbols can merge using declaration order.
+    fn can_symbols_merge_declarations(
+        &self,
+        language_type: destack_source::LanguageType,
+        left: &Symbol,
+        right: &Symbol,
+    ) -> bool {
+        let left_descriptor = SymbolDescriptor::from(left);
+        let right_descriptor = SymbolDescriptor::from(right);
+
+        let Some(left_declaration) = left.primary_declaration else {
+            return can_merge_declarations(language_type, left_descriptor, right_descriptor);
+        };
+        let Some(right_declaration) = right.primary_declaration else {
+            return can_merge_declarations(language_type, left_descriptor, right_descriptor);
+        };
+
+        if left_declaration.local_id.id <= right_declaration.local_id.id {
+            can_merge_declarations(language_type, left_descriptor, right_descriptor)
+        } else {
+            can_merge_declarations(language_type, right_descriptor, left_descriptor)
+        }
     }
 
     /// Check if the symbols are a const enum mismatch.
@@ -359,6 +383,8 @@ impl Compiler {
         symbols: &SymbolTable,
         reported_conflicts: &mut HashSet<(u32, u32)>,
     ) {
+        let global_augmentation_scope = module.dir_base().global_augmentation_scope;
+
         for scope in symbols.scopes() {
             for (key, symbol_id) in symbols.active_named_symbols(scope) {
                 let normalized_key = self.normalize_conflict_key(key);
@@ -370,11 +396,26 @@ impl Compiler {
                 let Some(primary_declaration) = symbol.primary_declaration else {
                     continue;
                 };
+                let scope_is_global_augmentation = self.scope_is_within_global_augmentation(
+                    symbols,
+                    symbol.scope.0,
+                    global_augmentation_scope,
+                );
 
                 // walk ancestor scopes up to the nearest function boundary
                 let mut current_parent = scope.parent;
                 while let Some((ancestor_scope_id, _ancestor_mark)) = current_parent {
                     let ancestor_scope = symbols.get_scope_by_id(ancestor_scope_id);
+                    let ancestor_is_global_augmentation = self.scope_is_within_global_augmentation(
+                        symbols,
+                        ancestor_scope_id,
+                        global_augmentation_scope,
+                    );
+
+                    // keep global augmentations isolated from module-local ancestor checks
+                    if scope_is_global_augmentation != ancestor_is_global_augmentation {
+                        break;
+                    }
 
                     for (ancestor_key, ancestor_symbol_id) in
                         symbols.active_named_symbols(ancestor_scope)
@@ -419,6 +460,29 @@ impl Compiler {
                 }
             }
         }
+    }
+
+    /// Return true when a scope is the global augmentation scope or nested under it.
+    /// (This keeps `declare global` bindings isolated from module-local redeclaration checks.)
+    fn scope_is_within_global_augmentation(
+        &self,
+        symbols: &SymbolTable,
+        scope_id: LocalScopeId,
+        global_augmentation_scope: LocalScopeId,
+    ) -> bool {
+        let mut current = Some(scope_id);
+        while let Some(current_scope_id) = current {
+            if current_scope_id == global_augmentation_scope {
+                return true;
+            }
+
+            current = symbols
+                .get_scope_by_id(current_scope_id)
+                .parent
+                .map(|(id, _)| id);
+        }
+
+        false
     }
 
     /// Return true when the category participates in duplicate-binding checks.
@@ -614,18 +678,32 @@ impl From<&Symbol> for SymbolCategory {
 mod tests {
     use crate::tests::TestProgram;
 
-    /// Report duplicate binding diagnostics from import for the given source.
-    fn assert_import_conflicting_binding(source: &str) {
-        // setup a ts module with the provided source
+    /// Report duplicate binding diagnostics from import for the given source path.
+    fn assert_import_conflicting_binding_in(path: &str, source: &str) {
         let test = TestProgram::memory_sequential();
-        let module_id = test.add_module("test.ts", source);
-
-        // run import and compile the queued task
+        let module_id = test.add_module(path, source);
         test.import_module(module_id);
         test.compile();
-
-        // assert the duplicate binding diagnostic
         test.check_has_diagnostic("EI200");
+    }
+
+    /// Report no duplicate binding diagnostics from import for the given source path.
+    fn assert_import_no_conflicting_binding_in(path: &str, source: &str) {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(path, source);
+        test.import_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("EI200");
+    }
+
+    /// Report duplicate binding diagnostics from import for a TypeScript module.
+    fn assert_import_conflicting_binding(source: &str) {
+        assert_import_conflicting_binding_in("test.ts", source);
+    }
+
+    /// Report no duplicate binding diagnostics from import for a TypeScript module.
+    fn assert_import_no_conflicting_binding(source: &str) {
+        assert_import_no_conflicting_binding_in("test.ts", source);
     }
 
     /// Catch parameters conflict with lexical declarations in catch bodies.
@@ -656,5 +734,58 @@ mod tests {
     #[test]
     fn test_unicode_escaped_identifier_conflicts() {
         assert_import_conflicting_binding("let \\u0061, \\u{0061};");
+    }
+
+    /// Reject ambient class and value declarations that share one name.
+    #[test]
+    fn test_reject_ambient_class_value_duplicate() {
+        assert_import_conflicting_binding_in(
+            "test.d.ts",
+            "declare abstract class Iterator<T> {}\ndeclare var Iterator: { new<T>(): Iterator<T> };",
+        );
+    }
+
+    /// Reject duplicate ambient class declarations.
+    #[test]
+    fn test_reject_ambient_class_duplicate() {
+        assert_import_conflicting_binding_in(
+            "test.d.ts",
+            "declare class Client {}\ndeclare class Client {}",
+        );
+    }
+
+    /// Allow module-local class names to coexist with global augmentations.
+    #[test]
+    fn test_allow_module_local_class_with_global_var_augmentation() {
+        assert_import_no_conflicting_binding_in(
+            "test.d.ts",
+            "export {};\ndeclare abstract class Iterator<T> {}\ndeclare global { var Iterator: { new<T>(): Iterator<T> }; }",
+        );
+    }
+
+    /// Allow class and namespace declarations to merge when class appears first.
+    #[test]
+    fn test_allow_class_then_namespace_merge() {
+        assert_import_no_conflicting_binding("class Client {} namespace Client {}");
+    }
+
+    /// Reject class and namespace declarations when namespace appears first.
+    #[test]
+    fn test_reject_namespace_then_class_merge() {
+        assert_import_conflicting_binding("namespace Client {} class Client {}");
+    }
+
+    /// Reject runtime namespace declarations that collide with runtime values.
+    #[test]
+    fn test_reject_runtime_namespace_with_runtime_value() {
+        assert_import_conflicting_binding(
+            "namespace Runtime { export const value = 1; } var Runtime = 1;",
+        );
+    }
+
+    /// Allow ambient namespace declarations to coexist with runtime values.
+    #[test]
+    fn test_allow_ambient_namespace_with_runtime_value() {
+        assert_import_no_conflicting_binding("declare namespace Runtime {} var Runtime = 1;");
     }
 }
