@@ -4,8 +4,8 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
-    canonical_symbol_for, expression_method_call, expression_target_symbol, expression_type_map,
-    is_definitely_non_error_value_type,
+    expression_method_call, expression_target_symbol, expression_type_map,
+    is_definitely_non_error_value_type, symbol_matches_or_canonical,
 };
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -101,18 +101,14 @@ fn is_promise_receiver(
         return false;
     };
 
-    if target_symbol == promise_symbol {
-        return true;
-    }
-
-    canonical_symbol_for(
+    symbol_matches_or_canonical(
         &ctx.program,
         ctx.profile_id,
         ctx.module_id(),
         ctx.symbols,
         target_symbol,
+        promise_symbol,
     )
-    .is_some_and(|canonical_symbol| canonical_symbol == promise_symbol)
 }
 
 /// Return true when the reject payload is clearly non-Error.

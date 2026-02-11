@@ -1,0 +1,593 @@
+use destack_base::StringId;
+use destack_dir as dir;
+use destack_source::LabeledSpan;
+use destack_workspace::LintSeverity;
+
+use crate::rules::common::{
+    expression_candidate_symbols, expression_unwrap_parenthesized, symbol_primary_declaration_for,
+};
+use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+
+declare_lint! {
+    /// Disallow positional arguments that appear swapped by parameter name.
+    ///
+    /// When two argument names match the opposite parameter names, the call is
+    /// often a bug and hard to notice in review.
+    #[lint(
+        id = "no-arguments-order-mismatch",
+        code = "LC046",
+        category = Correctness,
+        level = Dir,
+        requires_all = [],
+        requires_any = [],
+        fixable = No,
+        recommended = Strict,
+        stability = Stable,
+        declarations = Exclude
+    )]
+    pub NoArgumentsOrderMismatch,
+    "Disallow swapped positional arguments by parameter name"
+}
+
+impl LintRule for NoArgumentsOrderMismatch {
+    /// Return lint metadata.
+    fn meta(&self) -> &'static LintMeta {
+        NoArgumentsOrderMismatch::meta()
+    }
+
+    /// Check module DIR nodes for likely swapped positional arguments.
+    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+        let meta = self.meta();
+
+        for (expression_id, expression) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
+            let (callee_expression_id, argument_ids) = match expression {
+                dir::Expression::Call {
+                    left,
+                    dynamic_arguments,
+                    ..
+                }
+                | dir::Expression::New {
+                    left,
+                    dynamic_arguments,
+                    ..
+                } => (*left, dynamic_arguments.as_slice()),
+                _ => continue,
+            };
+
+            let argument_name_hints = argument_name_hints(ctx.tree, argument_ids);
+            if argument_name_hints.len() < 2 {
+                continue;
+            }
+            if argument_name_hints.iter().all(Option::is_none) {
+                continue;
+            }
+
+            let Some(parameter_names) =
+                stable_parameter_names_for_call_target(ctx, callee_expression_id)
+            else {
+                continue;
+            };
+            if parameter_names.len() < 2 {
+                continue;
+            }
+
+            let Some((first_index, second_index)) =
+                swapped_argument_pair(argument_name_hints.as_slice(), parameter_names.as_slice())
+            else {
+                continue;
+            };
+
+            let severity = ctx.get_effective_severity(meta, expression_id);
+            if !severity.is_enabled() {
+                continue;
+            }
+
+            let Some(Some(first_parameter_name)) = parameter_names.get(first_index) else {
+                continue;
+            };
+            let Some(Some(second_parameter_name)) = parameter_names.get(second_index) else {
+                continue;
+            };
+            let first_parameter_name_text =
+                ctx.program.strings.get(*first_parameter_name).to_string();
+            let second_parameter_name_text =
+                ctx.program.strings.get(*second_parameter_name).to_string();
+
+            let first_argument_span = ctx.get_span(argument_ids[first_index]);
+            let second_argument_span = ctx.get_span(argument_ids[second_index]);
+            let span = ctx.get_span(expression_id);
+            ctx.report(
+                LintDiagnostic::new(
+                    NO_ARGUMENTS_ORDER_MISMATCH.id,
+                    NO_ARGUMENTS_ORDER_MISMATCH.code,
+                    NO_ARGUMENTS_ORDER_MISMATCH.category,
+                    severity,
+                    "positional arguments appear to be in the wrong order",
+                    ctx.module.file_id,
+                    span,
+                )
+                .with_label("these arguments look swapped for this call")
+                .with_secondary(LabeledSpan::new(
+                    first_argument_span,
+                    format!(
+                        "this argument matches parameter `{}`",
+                        second_parameter_name_text
+                    ),
+                ))
+                .with_secondary(LabeledSpan::new(
+                    second_argument_span,
+                    format!(
+                        "this argument matches parameter `{}`",
+                        first_parameter_name_text
+                    ),
+                )),
+            );
+        }
+    }
+}
+
+/// Return argument name hints for one positional argument list.
+fn argument_name_hints(
+    tree: &dir::NodeTree,
+    argument_ids: &[dir::LocalNodeId<dir::Argument>],
+) -> Vec<Option<StringId>> {
+    let mut hints = Vec::new();
+
+    for argument_id in argument_ids {
+        let argument = tree.get(*argument_id);
+        let dir::Argument::Positional { value, .. } = argument else {
+            return Vec::new();
+        };
+
+        hints.push(expression_name_hint(tree, *value));
+    }
+
+    hints
+}
+
+/// Return one argument name hint for an expression when available.
+fn expression_name_hint(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<StringId> {
+    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
+    let expression = tree.get(expression_id);
+    match expression {
+        dir::Expression::LocalReference { path, .. }
+        | dir::Expression::ModuleReference { path, .. }
+        | dir::Expression::GlobalReference { path, .. } => path.last_segment(),
+        dir::Expression::Member { name, .. } | dir::Expression::PrivateMember { name, .. } => {
+            Some(*name)
+        }
+        dir::Expression::Cast { value, .. } | dir::Expression::OwnershipCast { value, .. } => {
+            expression_name_hint(tree, *value)
+        }
+        dir::Expression::ValueOf { right, .. }
+        | dir::Expression::ReferenceOf { right, .. }
+        | dir::Expression::PointerOf { right, .. } => expression_name_hint(tree, *right),
+        dir::Expression::Maybe { left } | dir::Expression::Must { left } => {
+            expression_name_hint(tree, *left)
+        }
+        _ => None,
+    }
+}
+
+/// Return stable dynamic parameter names for one call target.
+///
+/// When multiple resolution candidates disagree about parameter names, this
+/// returns none to avoid noisy false positives.
+fn stable_parameter_names_for_call_target(
+    ctx: &LintModuleDirContext<'_>,
+    callee_expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<Vec<Option<StringId>>> {
+    let callee_expression = ctx.tree.get(callee_expression_id);
+    let candidate_symbols = expression_candidate_symbols(
+        &ctx.program,
+        ctx.profile_id,
+        ctx.module_id(),
+        ctx.symbols,
+        ctx.types,
+        callee_expression_id,
+        callee_expression,
+    );
+    if candidate_symbols.is_empty() {
+        return None;
+    }
+
+    let mut candidate_parameter_names = Vec::new();
+    for symbol_id in candidate_symbols {
+        let Some(parameter_names) = parameter_names_for_symbol(ctx, symbol_id) else {
+            continue;
+        };
+
+        if !candidate_parameter_names.contains(&parameter_names) {
+            candidate_parameter_names.push(parameter_names);
+        }
+    }
+
+    if candidate_parameter_names.len() != 1 {
+        return None;
+    }
+
+    candidate_parameter_names.into_iter().next()
+}
+
+/// Return dynamic parameter names for one symbol declaration.
+fn parameter_names_for_symbol(
+    ctx: &LintModuleDirContext<'_>,
+    symbol_id: dir::GlobalSymbolId,
+) -> Option<Vec<Option<StringId>>> {
+    let declaration_id = symbol_primary_declaration_for(
+        &ctx.program,
+        ctx.profile_id,
+        ctx.module_id(),
+        ctx.symbols,
+        symbol_id,
+    )?;
+
+    if declaration_id.module_id == ctx.module_id() {
+        return declaration_parameter_names(ctx.tree, declaration_id.local_id);
+    }
+
+    let module_ref = ctx.program.modules.get(declaration_id.module_id);
+    let module = module_ref.read();
+    let module_dir = module.dir_maybe(ctx.profile_id)?;
+    let tree = module_dir.tree.read();
+    declaration_parameter_names(&tree, declaration_id.local_id)
+}
+
+/// Return dynamic parameter names for one declaration node id.
+fn declaration_parameter_names(
+    tree: &dir::NodeTree,
+    declaration_id: dir::LocalNodeIdAny,
+) -> Option<Vec<Option<StringId>>> {
+    let dynamic_parameters = declaration_dynamic_parameters(tree, declaration_id)?;
+    Some(
+        dynamic_parameters
+            .into_iter()
+            .map(|parameter_id| parameter_name_for_signature_parameter(tree, parameter_id))
+            .collect(),
+    )
+}
+
+/// Return dynamic parameter ids for one callable declaration node.
+fn declaration_dynamic_parameters(
+    tree: &dir::NodeTree,
+    declaration_id: dir::LocalNodeIdAny,
+) -> Option<Vec<dir::LocalNodeId<dir::Parameter>>> {
+    if declaration_id.ty == dir::NodeType::Declaration {
+        let declaration = tree.get(declaration_id.into_typed::<dir::Declaration>());
+        if let dir::Declaration::Function { signature, .. } = declaration {
+            return Some(signature.dynamic_parameters.clone());
+        }
+        if let dir::Declaration::Class { members, .. } | dir::Declaration::Struct { members, .. } =
+            declaration
+        {
+            return constructor_dynamic_parameters(tree, members);
+        }
+    }
+
+    if declaration_id.ty == dir::NodeType::Member {
+        let member = tree.get(declaration_id.into_typed::<dir::Member>());
+        if let dir::Member::Method { signature, .. } = member {
+            return Some(signature.dynamic_parameters.clone());
+        }
+    }
+
+    if declaration_id.ty == dir::NodeType::Property {
+        let property = tree.get(declaration_id.into_typed::<dir::Property>());
+        if let dir::Property::Method { signature, .. } = property {
+            return Some(signature.dynamic_parameters.clone());
+        }
+    }
+
+    None
+}
+
+/// Return constructor dynamic parameters for a class or struct when stable.
+///
+/// When multiple constructors disagree on dynamic parameter shape, this
+/// returns none to avoid noisy false positives.
+fn constructor_dynamic_parameters(
+    tree: &dir::NodeTree,
+    members: &[dir::LocalNodeId<dir::Member>],
+) -> Option<Vec<dir::LocalNodeId<dir::Parameter>>> {
+    let mut constructor_parameters: Option<Vec<dir::LocalNodeId<dir::Parameter>>> = None;
+
+    for member_id in members {
+        let member = tree.get(*member_id);
+        let dir::Member::Method { signature, .. } = member else {
+            continue;
+        };
+        if signature.mode != Some(dir::FunctionMode::Constructor) {
+            continue;
+        }
+
+        let parameters = signature.dynamic_parameters.clone();
+        if let Some(existing_parameters) = constructor_parameters.as_ref() {
+            if *existing_parameters != parameters {
+                return None;
+            }
+        } else {
+            constructor_parameters = Some(parameters);
+        }
+    }
+
+    constructor_parameters
+}
+
+/// Return a stable name for one signature parameter.
+fn parameter_name_for_signature_parameter(
+    tree: &dir::NodeTree,
+    parameter_id: dir::LocalNodeId<dir::Parameter>,
+) -> Option<StringId> {
+    let parameter = tree.get(parameter_id);
+    match parameter {
+        dir::Parameter::Named { name, .. } | dir::Parameter::VariadicNamed { name, .. } => {
+            Some(*name)
+        }
+        dir::Parameter::Pattern { pattern, .. }
+        | dir::Parameter::VariadicPattern { pattern, .. } => pattern_name_hint(tree, *pattern),
+    }
+}
+
+/// Return a stable pattern binding name when one exists.
+fn pattern_name_hint(
+    tree: &dir::NodeTree,
+    pattern_id: dir::LocalNodeId<dir::Pattern>,
+) -> Option<StringId> {
+    let pattern = tree.get(pattern_id);
+    match pattern {
+        dir::Pattern::Binding { name, .. } => Some(*name),
+        dir::Pattern::Must(inner)
+        | dir::Pattern::ReferenceOf { right: inner, .. }
+        | dir::Pattern::ValueOf { right: inner, .. } => pattern_name_hint(tree, *inner),
+        _ => None,
+    }
+}
+
+/// Return the first pair of indices that look like a swapped argument pair.
+fn swapped_argument_pair(
+    argument_hints: &[Option<StringId>],
+    parameter_names: &[Option<StringId>],
+) -> Option<(usize, usize)> {
+    let max_index = std::cmp::min(argument_hints.len(), parameter_names.len());
+
+    for first_index in 0..max_index {
+        let Some(first_argument_name) = argument_hints[first_index] else {
+            continue;
+        };
+        let Some(first_parameter_name) = parameter_names[first_index] else {
+            continue;
+        };
+        if first_argument_name == first_parameter_name {
+            continue;
+        }
+
+        for second_index in first_index + 1..max_index {
+            let Some(second_argument_name) = argument_hints[second_index] else {
+                continue;
+            };
+            let Some(second_parameter_name) = parameter_names[second_index] else {
+                continue;
+            };
+            if first_parameter_name == second_parameter_name {
+                continue;
+            }
+
+            let first_matches_second_parameter = first_argument_name == second_parameter_name;
+            let second_matches_first_parameter = second_argument_name == first_parameter_name;
+            if first_matches_second_parameter && second_matches_first_parameter {
+                return Some((first_index, second_index));
+            }
+        }
+    }
+
+    None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::linter::{TestProgram, test_modules};
+
+    /// Flag two positional arguments that appear swapped by parameter names.
+    #[test]
+    fn test_flags_swapped_positional_arguments() {
+        let test = TestProgram::for_rule_without_prelude(NoArgumentsOrderMismatch);
+        let result = test.lint_dir(
+            "no_arguments_order_mismatch/test_flags_swapped_positional_arguments.ds",
+            r#"
+function createUser(firstName: string, lastName: string): string {
+    return `${firstName} ${lastName}`;
+}
+
+const firstName = "Ada";
+const lastName = "Lovelace";
+
+createUser(lastName, firstName);
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-arguments-order-mismatch");
+    }
+
+    /// Allow calls where argument order matches parameter names.
+    #[test]
+    fn test_allows_correct_positional_argument_order() {
+        let test = TestProgram::for_rule_without_prelude(NoArgumentsOrderMismatch);
+        let result = test.lint_dir(
+            "no_arguments_order_mismatch/test_allows_correct_positional_argument_order.ds",
+            r#"
+function createUser(firstName: string, lastName: string): string {
+    return `${firstName} ${lastName}`;
+}
+
+const firstName = "Ada";
+const lastName = "Lovelace";
+
+createUser(firstName, lastName);
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-arguments-order-mismatch");
+    }
+
+    /// Allow calls when argument names do not provide a stable signal.
+    #[test]
+    fn test_allows_uninformative_argument_names() {
+        let test = TestProgram::for_rule_without_prelude(NoArgumentsOrderMismatch);
+        let result = test.lint_dir(
+            "no_arguments_order_mismatch/test_allows_uninformative_argument_names.ds",
+            r#"
+function configure(hostName: string, port: int32): void {}
+
+const a = "localhost";
+const b = 8080;
+
+configure(a, b);
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-arguments-order-mismatch");
+    }
+
+    /// Flag swapped imported function calls across modules.
+    #[test]
+    fn test_flags_cross_module_swapped_arguments() {
+        let test = TestProgram::for_rule_without_prelude(NoArgumentsOrderMismatch);
+        let diagnostics = test.lint_module_dir_with_modules(
+            test_modules! {
+                "no_arguments_order_mismatch/api.ds" => r#"
+export function pair(leftValue: string, rightValue: string): string {
+    return `${leftValue}:${rightValue}`;
+}
+"#,
+                "no_arguments_order_mismatch/use.ds" => r#"
+import { pair } from "./api.ds";
+
+const leftValue = "L";
+const rightValue = "R";
+
+pair(rightValue, leftValue);
+"#,
+            },
+            "no_arguments_order_mismatch/use.ds",
+        );
+
+        test.result(diagnostics)
+            .assert_lint("no-arguments-order-mismatch");
+    }
+
+    /// Allow calls with non positional arguments to avoid false positives.
+    #[test]
+    fn test_allows_non_positional_arguments() {
+        let test = TestProgram::for_rule_without_prelude(NoArgumentsOrderMismatch);
+        let result = test.lint_dir(
+            "no_arguments_order_mismatch/test_allows_non_positional_arguments.ds",
+            r#"
+declare function makeName(firstName: string, lastName: string): string;
+const values = ["Ada", "Lovelace"];
+makeName(...values);
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-arguments-order-mismatch");
+    }
+
+    /// Flag swapped positional arguments for constructor calls.
+    #[test]
+    fn test_flags_swapped_constructor_arguments() {
+        let test = TestProgram::for_rule_without_prelude(NoArgumentsOrderMismatch);
+        let result = test.lint_dir(
+            "no_arguments_order_mismatch/test_flags_swapped_constructor_arguments.ds",
+            r#"
+class Person {
+    constructor(firstName: string, lastName: string) {}
+}
+
+const firstName = "Ada";
+const lastName = "Lovelace";
+
+new Person(lastName, firstName);
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-arguments-order-mismatch");
+    }
+
+    /// Flag swapped constructor arguments for imported class symbols.
+    #[test]
+    fn test_flags_cross_module_swapped_constructor_arguments() {
+        let test = TestProgram::for_rule_without_prelude(NoArgumentsOrderMismatch);
+        let diagnostics = test.lint_module_dir_with_modules(
+            test_modules! {
+                "no_arguments_order_mismatch/person.ds" => r#"
+export class Person {
+    constructor(firstName: string, lastName: string) {}
+}
+"#,
+                "no_arguments_order_mismatch/new_person.ds" => r#"
+import { Person } from "./person.ds";
+
+const firstName = "Ada";
+const lastName = "Lovelace";
+
+new Person(lastName, firstName);
+"#,
+            },
+            "no_arguments_order_mismatch/new_person.ds",
+        );
+
+        test.result(diagnostics)
+            .assert_lint("no-arguments-order-mismatch");
+    }
+
+    /// Flag swapped positional arguments in method calls.
+    #[test]
+    fn test_flags_swapped_method_arguments() {
+        let test = TestProgram::for_rule_without_prelude(NoArgumentsOrderMismatch);
+        let result = test.lint_dir(
+            "no_arguments_order_mismatch/test_flags_swapped_method_arguments.ds",
+            r#"
+class Pairer {
+    pair(leftValue: string, rightValue: string): string {
+        return `${leftValue}:${rightValue}`;
+    }
+}
+
+const leftValue = "L";
+const rightValue = "R";
+const pairer = new Pairer();
+
+pairer.pair(rightValue, leftValue);
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-arguments-order-mismatch");
+    }
+
+    /// Allow method calls where positional argument order is correct.
+    #[test]
+    fn test_allows_method_arguments_in_correct_order() {
+        let test = TestProgram::for_rule_without_prelude(NoArgumentsOrderMismatch);
+        let result = test.lint_dir(
+            "no_arguments_order_mismatch/test_allows_method_arguments_in_correct_order.ds",
+            r#"
+class Pairer {
+    pair(leftValue: string, rightValue: string): string {
+        return `${leftValue}:${rightValue}`;
+    }
+}
+
+const leftValue = "L";
+const rightValue = "R";
+const pairer = new Pairer();
+
+pairer.pair(leftValue, rightValue);
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-arguments-order-mismatch");
+    }
+}

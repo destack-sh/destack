@@ -868,6 +868,18 @@ pub fn is_promise_type(
     evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::Promise { promise_symbol })
 }
 
+/// Return true when one type resolves to Promise for any candidate symbol.
+pub fn is_promise_type_with_candidates(
+    types: &dir::TypeTable,
+    type_id: dir::LocalTypeId,
+    promise_symbols: &[dir::GlobalSymbolId],
+) -> bool {
+    promise_symbols
+        .iter()
+        .copied()
+        .any(|symbol| is_promise_type(types, type_id, Some(symbol)))
+}
+
 /// Return true when the type is Promise or any-like.
 pub fn is_promise_or_any_type(
     types: &dir::TypeTable,

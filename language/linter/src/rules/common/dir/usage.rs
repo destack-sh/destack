@@ -2,8 +2,9 @@ use std::collections::HashSet;
 
 use destack_dir as dir;
 use destack_source::ModuleId;
+use destack_workspace::{ProfileId, Program};
 
-use super::resolution_target_symbols;
+use super::{expression_candidate_symbols, resolution_target_symbols};
 
 /// Collected symbol usage for one DIR module.
 #[derive(Debug, Clone, Default)]
@@ -77,4 +78,68 @@ pub fn collect_module_symbol_usage(
     }
 
     usage
+}
+
+/// Collect assigned symbols for assignment-like expressions in one module.
+#[allow(clippy::too_many_arguments)]
+pub fn collect_assigned_symbol_usage(
+    program: &Program,
+    profile_id: ProfileId,
+    module_id: ModuleId,
+    tree: &dir::NodeTree,
+    symbols: &dir::SymbolTable,
+    types: &dir::TypeTable,
+    mut include_assignment: impl FnMut(
+        dir::LocalNodeId<dir::Expression>,
+        dir::LocalNodeId<dir::Expression>,
+    ) -> bool,
+) -> HashSet<dir::GlobalSymbolId> {
+    let mut assigned_symbols = HashSet::new();
+
+    // collect assignment targets from assignment-like expressions
+    for (assignment_expression_id, assignment_expression) in
+        tree.iter_nodes_of_type::<dir::Expression>()
+    {
+        let Some(assigned_expression_id) = assignment_target_expression_id(assignment_expression)
+        else {
+            continue;
+        };
+        if !include_assignment(assignment_expression_id, assigned_expression_id) {
+            continue;
+        }
+
+        let assigned_expression = tree.get(assigned_expression_id);
+        let candidate_symbols = expression_candidate_symbols(
+            program,
+            profile_id,
+            module_id,
+            symbols,
+            types,
+            assigned_expression_id,
+            assigned_expression,
+        );
+        assigned_symbols.extend(candidate_symbols);
+    }
+
+    assigned_symbols
+}
+
+/// Return one assigned target expression for assignment-like expressions.
+fn assignment_target_expression_id(
+    expression: &dir::Expression,
+) -> Option<dir::LocalNodeId<dir::Expression>> {
+    match expression {
+        dir::Expression::Assign { left, .. } | dir::Expression::AssignBinary { left, .. } => {
+            Some(*left)
+        }
+        dir::Expression::Unary {
+            operator:
+                dir::UnaryOperator::PreIncrement
+                | dir::UnaryOperator::PostIncrement
+                | dir::UnaryOperator::PreDecrement
+                | dir::UnaryOperator::PostDecrement,
+            right,
+        } => Some(*right),
+        _ => None,
+    }
 }

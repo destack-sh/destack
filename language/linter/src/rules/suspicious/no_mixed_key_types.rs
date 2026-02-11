@@ -182,9 +182,8 @@ fn key_expression_kind(
         };
     }
 
-    // symbol-like primitive key types
-    // resolve and classify the expression type through shared DIR lookup
-    if expression_type_map(
+    // resolve and classify expression types through a single DIR lookup
+    expression_type_map(
         &ctx.program,
         ctx.profile_id,
         ctx.module_id(),
@@ -192,42 +191,21 @@ fn key_expression_kind(
         ctx.symbols,
         ctx.types,
         expression_id,
-        is_symbol_like_property_key_type,
-    )
-    .unwrap_or(false)
-    {
-        return Some(ObjectKeyKind::SymbolLike);
-    }
-    if expression_type_map(
-        &ctx.program,
-        ctx.profile_id,
-        ctx.module_id(),
-        ctx.tree,
-        ctx.symbols,
-        ctx.types,
-        expression_id,
-        is_numeric_property_key_type,
-    )
-    .unwrap_or(false)
-    {
-        return Some(ObjectKeyKind::Numeric);
-    }
-    if expression_type_map(
-        &ctx.program,
-        ctx.profile_id,
-        ctx.module_id(),
-        ctx.tree,
-        ctx.symbols,
-        ctx.types,
-        expression_id,
-        is_string_like_property_key_type,
-    )
-    .unwrap_or(false)
-    {
-        return Some(ObjectKeyKind::StringLike);
-    }
+        |types, type_id| {
+            if is_symbol_like_property_key_type(types, type_id) {
+                return Some(ObjectKeyKind::SymbolLike);
+            }
+            if is_numeric_property_key_type(types, type_id) {
+                return Some(ObjectKeyKind::Numeric);
+            }
+            if is_string_like_property_key_type(types, type_id) {
+                return Some(ObjectKeyKind::StringLike);
+            }
 
-    None
+            None
+        },
+    )
+    .flatten()
 }
 
 #[cfg(test)]
