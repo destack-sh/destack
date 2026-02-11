@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::env;
 use std::sync::OnceLock;
 
+use destack_ast as ast;
 use destack_ast::Keyword;
 use destack_dir::{self as dir, FloatType, IntType, SymbolSpace, SymbolType};
 use destack_source::{Edit, FileId, FileType, ModuleId, PackageId, PathExt, Uri};
@@ -851,10 +852,18 @@ pub fn completions(
     // resolve base completions for the detected context
     let mut results = match &context {
         CompletionContext::MemberAccess {
+            receiver_node,
             receiver_symbol,
             receiver_type,
-            ..
-        } => complete_members(session, file, *receiver_type, *receiver_symbol),
+            fallback_type_name,
+        } => complete_members(
+            session,
+            file,
+            *receiver_node,
+            *receiver_type,
+            *receiver_symbol,
+            fallback_type_name.as_deref(),
+        ),
 
         CompletionContext::TypePosition {
             scope_id,
@@ -1018,15 +1027,19 @@ pub fn completions(
     }
 
     // apply fuzzy matching to filter and rank results
-    filter_and_rank_completions(results, token.as_ref())
+    let ranked = filter_and_rank_completions(results, token.as_ref());
+
+    ranked
 }
 
 /// Complete members of a type (after `.`).
 fn complete_members(
     session: &Session,
     file: FileId,
+    receiver_node: dir::LocalNodeIdAny,
     receiver_type: Option<dir::LocalTypeId>,
     receiver_symbol: Option<dir::GlobalSymbolId>,
+    fallback_type_name: Option<&str>,
 ) -> Vec<Completion> {
     // prepare the completion buffer
     let mut results = Vec::new();
@@ -1042,6 +1055,9 @@ fn complete_members(
     let types = ctx.types();
     let symbols = ctx.symbols();
     let current_module_id = ctx.module_id;
+    let fallback_type_name = fallback_type_name
+        .map(ToOwned::to_owned)
+        .or_else(|| ast_type_name_from_receiver_node(&ctx, receiver_node));
 
     // primary path: use receiver type for type aware completions
     if let Some(type_id) = receiver_type {
@@ -1195,8 +1211,176 @@ fn complete_members(
         }
     }
 
+    // ast fallback for incomplete member access states
+    if results.is_empty()
+        && let Some(type_name) = fallback_type_name.as_deref()
+    {
+        return complete_members_from_ast_type(session, file, type_name);
+    }
+
     // return the final member completions
     results
+}
+
+/// Resolve a fallback type name from a receiver DIR node.
+fn ast_type_name_from_receiver_node(
+    ctx: &crate::query::common::QueryContext<'_>,
+    receiver_node: dir::LocalNodeIdAny,
+) -> Option<String> {
+    let dir_tree = ctx.tree();
+    let source_id = dir_tree.get_source(receiver_node.id);
+    if ctx.ast.tree.get_node_type(source_id) != ast::NodeType::Expression {
+        return None;
+    }
+
+    ast_type_name_from_expression_ast(ctx.ast, ast::LocalNodeId::<ast::Expression>::new(source_id))
+}
+
+/// Complete members from AST declarations for a fallback type name.
+fn complete_members_from_ast_type(
+    session: &Session,
+    file: FileId,
+    type_name: &str,
+) -> Vec<Completion> {
+    let Some(module) = get_module_by_file_id(session, file) else {
+        return Vec::new();
+    };
+    let module = module.read();
+    let Some(ast) = module.ast_maybe() else {
+        return Vec::new();
+    };
+
+    // collect declaration members for the target type
+    let mut results = Vec::new();
+    let mut seen = HashSet::new();
+    for declaration_id in ast.tree.iter_nodes::<ast::Declaration>() {
+        let declaration = ast.tree.get(declaration_id);
+        let declaration_name = declaration
+            .name()
+            .map(|name| ast.strings.get(name.string()).to_string());
+
+        let matches_target = declaration_name
+            .as_ref()
+            .is_some_and(|name| name == type_name);
+
+        match declaration {
+            ast::Declaration::Struct { members, .. }
+            | ast::Declaration::Class { members, .. }
+            | ast::Declaration::Interface { members, .. }
+                if matches_target =>
+            {
+                collect_member_completions_from_ast(ast, members, false, &mut seen, &mut results);
+            }
+            ast::Declaration::Enum {
+                fields, members, ..
+            } if matches_target => {
+                for field_id in fields {
+                    let field = ast.tree.get(*field_id);
+                    let name = ast.strings.get(field.name.string()).to_string();
+                    if seen.insert(name.clone()) {
+                        results.push(
+                            Completion::new(name, CompletionKind::EnumMember)
+                                .with_sort_order(SORT_LOCAL_SYMBOL),
+                        );
+                    }
+                }
+                collect_member_completions_from_ast(ast, members, true, &mut seen, &mut results);
+            }
+            ast::Declaration::Extension {
+                target_type,
+                members,
+                ..
+            } => {
+                let extension_target = ast_type_name_from_expression_ast(ast, *target_type);
+                if extension_target.as_deref() == Some(type_name) {
+                    collect_member_completions_from_ast(
+                        ast,
+                        members,
+                        false,
+                        &mut seen,
+                        &mut results,
+                    );
+                }
+            }
+            _ => {}
+        }
+    }
+
+    results
+}
+
+/// Collect member completions from AST member lists.
+fn collect_member_completions_from_ast(
+    ast: &crate::ModuleAst,
+    members: &[ast::LocalNodeId<ast::Member>],
+    enum_receiver: bool,
+    seen: &mut HashSet<String>,
+    results: &mut Vec<Completion>,
+) {
+    for member_id in members {
+        let member = ast.tree.get(*member_id);
+        match member {
+            ast::Member::Field { key: Some(key), .. } => {
+                let Some(name) = member_key_name_ast(ast, key) else {
+                    continue;
+                };
+                if seen.insert(name.clone()) {
+                    let kind = if enum_receiver {
+                        CompletionKind::EnumMember
+                    } else {
+                        CompletionKind::Field
+                    };
+                    results.push(Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL));
+                }
+            }
+            ast::Member::Method { key: Some(key), .. } => {
+                let Some(name) = member_key_name_ast(ast, key) else {
+                    continue;
+                };
+                if seen.insert(name.clone()) {
+                    let kind = if enum_receiver {
+                        CompletionKind::EnumMember
+                    } else {
+                        CompletionKind::Method
+                    };
+                    results.push(Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL));
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Resolve a display name for an AST member key.
+fn member_key_name_ast(ast: &crate::ModuleAst, key: &ast::Key) -> Option<String> {
+    match key {
+        ast::Key::Name(name) => Some(ast.strings.get(name.string()).to_string()),
+        ast::Key::Private(name) => Some(format!("#{}", ast.strings.get(*name).to_string())),
+        ast::Key::NamedExpression { name, .. } => Some(ast.strings.get(*name).to_string()),
+        ast::Key::Expression(_) => None,
+    }
+}
+
+/// Resolve a fallback type name from an AST expression.
+fn ast_type_name_from_expression_ast(
+    ast: &crate::ModuleAst,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> Option<String> {
+    let expression = ast.tree.get(expression_id);
+    match expression {
+        ast::Expression::Path { path, .. } => path
+            .segments
+            .last()
+            .map(|name_id| ast.strings.get(*name_id).to_string()),
+        ast::Expression::Member { name, .. } => Some(ast.strings.get(*name).to_string()),
+        ast::Expression::Instantiation { left, .. }
+        | ast::Expression::Call { left, .. }
+        | ast::Expression::New { left, .. } => ast_type_name_from_expression_ast(ast, *left),
+        ast::Expression::ObjectExpression { ty: Some(ty), .. } => {
+            ast_type_name_from_expression_ast(ast, *ty)
+        }
+        _ => None,
+    }
 }
 
 /// Complete fields inside an object literal.
@@ -1630,6 +1814,29 @@ fn complete_new_expression(
 
             // push a completion entry
             let kind = CompletionKind::from(symbol.ty);
+            results.push(Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL));
+        }
+    }
+
+    // ast fallback for incomplete new expressions
+    if results.is_empty() {
+        let mut seen = HashSet::new();
+        for declaration_id in ctx.ast.tree.iter_nodes::<ast::Declaration>() {
+            let declaration = ctx.ast.tree.get(declaration_id);
+            let kind = match declaration {
+                ast::Declaration::Class { .. } => CompletionKind::Class,
+                ast::Declaration::Struct { .. } => CompletionKind::Struct,
+                _ => continue,
+            };
+
+            let Some(name) = declaration.name() else {
+                continue;
+            };
+            let name = ctx.ast.strings.get(name.string()).to_string();
+            if !seen.insert(name.clone()) {
+                continue;
+            }
+
             results.push(Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL));
         }
     }

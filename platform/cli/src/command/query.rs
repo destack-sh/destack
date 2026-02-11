@@ -38,10 +38,6 @@ pub struct QueryArgs {
     #[arg(value_name = "INPUT")]
     pub input: Option<PathBuf>,
 
-    /// Optional snapshot id for the query.
-    #[arg(long)]
-    pub snapshot_id: Option<String>,
-
     /// Query file path for position-based requests.
     #[arg(long, value_name = "PATH")]
     pub file: Option<PathBuf>,
@@ -579,7 +575,7 @@ fn run_method_mode(
     };
     let envelope = QueryRequestEnvelope {
         request,
-        snapshot_id: args.snapshot_id.clone(),
+        snapshot_id: None,
     };
 
     // execute the query
@@ -652,7 +648,6 @@ pub fn run(args: &QueryArgs) -> i32 {
         // validate unsupported input
         let is_input_present = args.stdin
             || args.params.is_some()
-            || args.snapshot_id.is_some()
             || args.method_arg.is_some()
             || args.input.is_some()
             || args.allow_stale
@@ -678,7 +673,6 @@ pub fn run(args: &QueryArgs) -> i32 {
         // validate unsupported input
         let is_input_present = args.stdin
             || args.params.is_some()
-            || args.snapshot_id.is_some()
             || args.input.is_some()
             || args.allow_stale
             || args.file.is_some()
@@ -709,7 +703,6 @@ pub fn run(args: &QueryArgs) -> i32 {
         // validate unsupported input
         let is_input_present = args.stdin
             || args.params.is_some()
-            || args.snapshot_id.is_some()
             || args.input.is_some()
             || args.allow_stale
             || args.file.is_some()
@@ -757,12 +750,6 @@ pub fn run(args: &QueryArgs) -> i32 {
     // reject params without a method
     if args.params.is_some() {
         console::error("--params requires a method name");
-        return 1;
-    }
-
-    // reject snapshot id without a method
-    if args.snapshot_id.is_some() {
-        console::error("--snapshot-id requires a method name");
         return 1;
     }
 
@@ -817,7 +804,6 @@ mod tests {
             stdin: false,
             params: None,
             input: None,
-            snapshot_id: None,
             file: None,
             uri: None,
             line: None,
@@ -847,7 +833,6 @@ mod tests {
             stdin: false,
             params: None,
             input: None,
-            snapshot_id: None,
             file: None,
             uri: None,
             line: None,

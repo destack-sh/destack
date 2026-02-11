@@ -9,6 +9,7 @@ use destack_source::{
     FileSystem, OverlayFileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem,
 };
 use destack_workspace::{MemoryCacheStore, Session, Workspace};
+use destack_workspace_service::WorkspaceService as LspWorkspaceService;
 use futures::{SinkExt, StreamExt};
 use tower::Service;
 
@@ -17,8 +18,6 @@ use super::harness::{
     LspHarness, harness_for_fs, notification_with_params, request_with_params, test_fs,
     uri_for_path,
 };
-use crate::server::workspace::LspWorkspaceDriver;
-
 /// LSP didOpen publishes diagnostics for the document.
 #[tokio::test]
 async fn test_lsp_did_open_publishes_diagnostics() {
@@ -34,9 +33,9 @@ async fn test_lsp_did_open_publishes_diagnostics() {
     assert!(diagnostics.diagnostics.is_empty());
 }
 
-/// LSP workspace driver emits diagnostics for virtual updates.
+/// LSP workspace service emits diagnostics for virtual updates.
 #[test]
-fn test_lsp_workspace_driver_virtual_update_emits_diagnostics() {
+fn test_lsp_workspace_service_virtual_update_emits_diagnostics() {
     let fs = TemporaryPhysicalFileSystem::new_with_prefix("lsp_workspace_client");
     let overlay = Arc::new(OverlayFileSystem::with_inner(Arc::new(
         PhysicalFileSystem::new(),
@@ -52,12 +51,12 @@ fn test_lsp_workspace_driver_virtual_update_emits_diagnostics() {
     let session = Arc::new(session.with_workspace(workspace));
     session.add_root(root.clone());
 
-    let workspace_driver = LspWorkspaceDriver::new_in_process(session.clone(), vec![root.clone()])
-        .expect("expected workspace driver");
+    let workspace_service = LspWorkspaceService::new(session.clone(), vec![root.clone()])
+        .expect("expected workspace service");
 
     let path = root.join("main.ds");
     let _ = fs.write_text("main.ds", "export const x: number = 1;\n");
-    let initial = workspace_driver
+    let initial = workspace_service
         .update_virtual_file(&path, "export const x: number = 1;\n".to_string())
         .expect("expected initial update");
     assert!(
@@ -68,7 +67,7 @@ fn test_lsp_workspace_driver_virtual_update_emits_diagnostics() {
         "expected no diagnostics for valid content"
     );
 
-    let updated = workspace_driver
+    let updated = workspace_service
         .update_virtual_file(&path, "export const x = ;\n".to_string())
         .expect("expected updated diagnostics");
     assert!(
@@ -79,7 +78,7 @@ fn test_lsp_workspace_driver_virtual_update_emits_diagnostics() {
         "expected diagnostics for invalid content"
     );
 
-    workspace_driver.shutdown();
+    workspace_service.shutdown();
 }
 
 /// LSP didChange publishes updated diagnostics.

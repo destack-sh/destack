@@ -83,7 +83,7 @@ fn test_watch_batch_updates_daemon() {
     harness.stop();
 }
 
-/// Requests rescan when configuration files change.
+/// Applies config changes through workspace service watch flow.
 #[test]
 fn test_watch_batch_requests_rescan_for_config() {
     let policy = WatchPolicy {
@@ -102,9 +102,8 @@ fn test_watch_batch_requests_rescan_for_config() {
     let batch = harness.next_batch();
     let result = harness.apply_batch(&batch);
 
-    // check that the rescan is requested for config updates
-    assert!(!result.updated());
-    assert!(result.rescan);
+    // check that config updates are applied without deferred rescan
+    assert!(result.updated());
 
     harness.stop();
 }
@@ -123,9 +122,8 @@ fn test_watch_batch_handles_status_rescan() {
 
     let result = harness.test.apply_watch_batch(&batch);
 
-    // check that the status rescan is surfaced without updates
+    // check that status driven rescan is applied immediately
     assert!(!result.updated());
-    assert!(result.rescan);
     assert!(!result.messages.is_empty());
 
     harness.stop();

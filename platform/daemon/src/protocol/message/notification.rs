@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 use super::{
     CommandOutputNotification, DaemonMessageNotification, DiagnosticsNotification,
     PayloadChunkNotification, ProgressNotification, RuntimeOutputNotification,
-    WatchUpdateNotification,
 };
 
 /// Notifications emitted by the daemon.
@@ -11,8 +10,6 @@ use super::{
 pub enum DaemonNotification {
     /// Publish diagnostics for a workspace.
     Diagnostics(DiagnosticsNotification),
-    /// Publish watch updates.
-    WatchUpdates(WatchUpdateNotification),
     /// Publish daemon messages.
     Messages(DaemonMessageNotification),
     /// Publish progress updates.

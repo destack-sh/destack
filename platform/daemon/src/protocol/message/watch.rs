@@ -20,21 +20,8 @@ pub struct WatchBatchResponse {
     pub handle: WorkspaceHandleId,
     /// Updates produced by the batch.
     pub updates: Vec<DaemonUpdateRecord>,
-    /// Whether a rescan is required.
-    pub rescan: bool,
     /// Messages produced by the batch.
     pub messages: Vec<DaemonMessageRecord>,
-}
-
-/// Options for file watching within the protocol.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct WatchOptions {
-    /// Debounce interval in milliseconds.
-    pub debounce_ms: u64,
-    /// Optional poll interval in milliseconds.
-    pub poll_interval_ms: Option<u64>,
-    /// Whether to watch recursively.
-    pub recursive: bool,
 }
 
 /// Watch batch payload used in the protocol.
@@ -94,33 +81,4 @@ pub enum WatchStatus {
     Error { message: String },
     /// Watcher stopped.
     Stopped,
-}
-
-/// Notification for watch updates.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct WatchUpdateNotification {
-    /// Workspace handle.
-    pub handle: WorkspaceHandleId,
-    /// Update records.
-    pub updates: Vec<DaemonUpdateRecord>,
-    /// Whether a rescan is required.
-    pub rescan: bool,
-}
-
-/// Watch subscription request payloads.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum WatchRequest {
-    /// Subscribe to watch notifications.
-    Subscribe { handle: WorkspaceHandleId },
-    /// Unsubscribe from watch notifications.
-    Unsubscribe { handle: WorkspaceHandleId },
-}
-
-/// Watch subscription response payloads.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct WatchResponse {
-    /// Workspace handle.
-    pub handle: WorkspaceHandleId,
-    /// Whether the subscription change succeeded.
-    pub success: bool,
 }

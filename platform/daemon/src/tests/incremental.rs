@@ -26,7 +26,7 @@ const IMPORT_A_VALUE_SOURCE: &str = r#"import { value } from "./a.ds";
 value;
 "#;
 
-/// Assert navigation query readiness for a virtual source file.
+/// Assert semantic query readiness for a virtual source file.
 fn assert_virtual_navigation_ready(session: &Session, path: &Path, source: &str) {
     // resolve the file id from the tracked path
     let file_id = session
@@ -34,7 +34,7 @@ fn assert_virtual_navigation_ready(session: &Session, path: &Path, source: &str)
         .get_id_by_path(path)
         .expect("expected file id for virtual source");
 
-    // require strict query context for navigation
+    // require strict semantic query state for navigation
     let module = session
         .modules
         .get_by_file_id(file_id)
@@ -42,7 +42,7 @@ fn assert_virtual_navigation_ready(session: &Session, path: &Path, source: &str)
     let module = module.read();
     assert!(
         session.query_context(&module).is_some(),
-        "expected strict query context for virtual source"
+        "expected strict semantic query state for virtual source"
     );
     drop(module);
 
@@ -118,6 +118,7 @@ fn test_daemon_virtual_update_emits_diagnostics_physical_fs() {
         .get_id_by_path(&path)
         .expect("expected file id after virtual update");
     let initial_update = initial
+        .updates
         .into_iter()
         .find(|update| update.file_id == file_id)
         .expect("expected update for virtual file");
@@ -131,6 +132,7 @@ fn test_daemon_virtual_update_emits_diagnostics_physical_fs() {
         .update_virtual_file(&path, "export const value = ;".to_string())
         .expect("virtual update failed");
     let updated_update = updated
+        .updates
         .into_iter()
         .find(|update| update.file_id == file_id)
         .expect("expected update for virtual file");
@@ -140,9 +142,9 @@ fn test_daemon_virtual_update_emits_diagnostics_physical_fs() {
     );
 }
 
-/// Ensure virtual updates build strict navigation query context.
+/// Ensure virtual updates build strict navigation semantic query state.
 #[test]
-fn test_daemon_virtual_update_builds_navigation_query_context() {
+fn test_daemon_virtual_update_builds_navigation_semantic_query_state() {
     let test = TestDaemon::new();
     let path = test.root.join("main.ds");
     let source = NAVIGATION_SOURCE;

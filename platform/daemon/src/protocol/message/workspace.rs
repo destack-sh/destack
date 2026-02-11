@@ -2,9 +2,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use super::{
-    DaemonMessageRecord, DaemonUpdateRecord, DiagnosticBatch, WatchOptions, WorkspaceHandleId,
-};
+use super::{DaemonMessageRecord, DaemonUpdateRecord, DiagnosticBatch, WorkspaceHandleId};
 
 /// Request to open a workspace root.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -18,21 +16,13 @@ pub struct OpenWorkspaceRequest {
 /// Options for opening a workspace.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WorkspaceOpenOptions {
-    /// Whether to enable file watching.
-    pub watch: bool,
-    /// Optional watch options.
-    pub watch_options: Option<WatchOptions>,
     /// Whether to preload workspace index state.
     pub load_index: bool,
 }
 
 impl Default for WorkspaceOpenOptions {
     fn default() -> Self {
-        Self {
-            watch: true,
-            watch_options: None,
-            load_index: true,
-        }
+        Self { load_index: true }
     }
 }
 
@@ -128,9 +118,9 @@ pub struct FileUpdateResponse {
 pub struct AnalyzeResponse {
     /// Workspace handle.
     pub handle: WorkspaceHandleId,
-    /// Whether query context is ready after analysis.
-    pub query_context_ready: bool,
-    /// Optional readiness detail when query context is not ready.
+    /// Whether semantic query state is ready after analysis.
+    pub semantic_query_ready: bool,
+    /// Optional readiness detail when semantic query state is not ready.
     pub detail: Option<String>,
 }
 

@@ -244,7 +244,7 @@ pub struct ConfigOverride {
     /// Override path (e.g. compilerOptions.strict).
     pub path: String,
     /// Override payload value.
-    pub value: crate::protocol::BinaryPayload,
+    pub value: serde_json::Value,
 }
 
 /// Standard payload for unimplemented command responses.

@@ -1,15 +1,17 @@
 use destack_base::StringId;
 use destack_dir::{
     Declaration, DependencyItem, DependencyKind, DependencyMode, DynamicKey, EnumField, Expression,
-    GlobalSymbolId, LocalNodeIdAny, Member, NodeType, Parameter, Pattern, PatternField,
-    SymbolSpace,
+    GlobalSymbolId, LocalNodeIdAny, LocalSymbolId, Member, NodeType, Parameter, Pattern,
+    PatternField, SymbolSpace,
 };
 use destack_source::{FileId, Span};
 use std::collections::HashSet;
 use {destack_ast as ast, destack_dir as dir};
 
 use super::resolve::{global_symbol, resolve_module_id_for_import_target};
-use super::{QueryContext, get_dir_node_main_span, get_dir_node_span, get_module_by_file_id};
+use super::{
+    QueryContext, get_dir_node_main_span, get_dir_node_span, get_module_by_file_id, token_at_offset,
+};
 use crate::Session;
 use crate::program::{ModuleAst, ModuleDir};
 
@@ -369,15 +371,26 @@ pub fn find_symbol_at_offset(
         }
     }
 
+    // fallback: resolve by identifier name when source map links are missing
+    if let Some(identifier) = token_at_offset(session, file_id, offset)
+        && let Some(symbol_at) =
+            fallback_named_symbol_at_offset(session, &ctx, identifier.as_str(), offset)
+    {
+        return Some(symbol_at);
+    }
+
     None
 }
 
 /// Resolve a static parameter symbol at the given offset.
 fn static_parameter_symbol_at_offset(
-    _session: &Session,
+    session: &Session,
     ctx: &QueryContext<'_>,
     offset: u32,
 ) -> Option<SymbolAtOffset> {
+    // resolve identifier text at the cursor when available
+    let token_name = token_at_offset(session, ctx.file_id, offset);
+
     // scan declarations with static parameters for a matching name span
     let dir_tree = ctx.tree();
     for (_decl_id, declaration) in dir_tree.iter_nodes_of_type::<Declaration>() {
@@ -387,14 +400,23 @@ fn static_parameter_symbol_at_offset(
 
         for parameter_id in parameters {
             let ast_node_id = dir_tree.get_source(parameter_id.id);
-            let Some(main_span) = ctx.ast.tree.get_main_span_by_id(ast_node_id) else {
-                continue;
-            };
+            let main_span = ctx
+                .ast
+                .tree
+                .get_main_span_by_id(ast_node_id)
+                .unwrap_or_else(|| ctx.ast.tree.source_map.get_main_or_enclosing(ast_node_id));
+            let parameter = dir_tree.get::<Parameter>(*parameter_id);
             if offset < main_span.start || offset > main_span.end {
                 continue;
             }
 
-            let parameter = dir_tree.get::<Parameter>(*parameter_id);
+            if let Some(token_name) = token_name.as_deref()
+                && let Some(parameter_name) = static_parameter_name(session, &parameter)
+                && parameter_name != token_name
+            {
+                continue;
+            }
+
             let symbol_id = global_symbol(ctx.module_id, parameter.symbol());
             let span = Span::new(ctx.file_id, main_span.start, main_span.end);
             return Some(SymbolAtOffset {
@@ -406,6 +428,76 @@ fn static_parameter_symbol_at_offset(
     }
 
     None
+}
+
+/// Resolve a symbol by identifier name when direct AST to DIR mapping fails.
+fn fallback_named_symbol_at_offset(
+    session: &Session,
+    ctx: &QueryContext<'_>,
+    identifier: &str,
+    offset: u32,
+) -> Option<SymbolAtOffset> {
+    // resolve the symbols table for candidate lookup
+    let symbols = ctx.symbols();
+
+    // track the best candidate in this file
+    let mut best: Option<(GlobalSymbolId, LocalNodeIdAny, Span, u32, u8)> = None;
+    for (symbol_index, symbol) in symbols.symbols().enumerate() {
+        let Some(name_id) = symbol.name() else {
+            continue;
+        };
+        if session.strings.get(name_id) != identifier {
+            continue;
+        }
+        let symbol_id = LocalSymbolId::new_typed(symbol_index as u32, symbol.ty);
+
+        let Some(declaration) = symbol.primary_declaration else {
+            continue;
+        };
+        let node_id = declaration.local_id;
+        let span = get_dir_node_main_span(ctx.ast, ctx.dir, node_id)
+            .or_else(|| get_dir_node_span(ctx.ast, ctx.dir, node_id))?;
+        if span.file != ctx.file_id {
+            continue;
+        }
+
+        // prefer spans containing the cursor, then nearest preceding declarations
+        let contains_cursor = u8::from(span.start <= offset && offset <= span.end);
+        let distance = if contains_cursor == 1 {
+            0
+        } else {
+            offset.abs_diff(span.start)
+        };
+
+        let global_symbol = global_symbol(ctx.module_id, symbol_id);
+        let candidate = (global_symbol, node_id, span, distance, contains_cursor);
+        if best.as_ref().is_none_or(|best_candidate| {
+            candidate.4 > best_candidate.4
+                || (candidate.4 == best_candidate.4
+                    && (candidate.3 < best_candidate.3
+                        || (candidate.3 == best_candidate.3
+                            && candidate.2.start >= best_candidate.2.start)))
+        }) {
+            best = Some(candidate);
+        }
+    }
+
+    let (symbol_id, node_id, span, ..) = best?;
+    Some(SymbolAtOffset {
+        symbol_id,
+        node_id,
+        span,
+    })
+}
+
+/// Resolve the declared name for a static parameter when available.
+fn static_parameter_name(session: &Session, parameter: &Parameter) -> Option<String> {
+    match parameter {
+        Parameter::Named { name, .. } | Parameter::VariadicNamed { name, .. } => {
+            Some(session.strings.get(*name).to_string())
+        }
+        Parameter::Pattern { .. } | Parameter::VariadicPattern { .. } => None,
+    }
 }
 
 /// Resolve a member access symbol when the cursor is on the member name.

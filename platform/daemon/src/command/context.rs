@@ -8,7 +8,9 @@ use destack_source::{
     Diagnostic, DiagnosticCollection, DiagnosticOptions, DiagnosticStoreUpdate, FileId,
     FileVersion, ModuleId, Uri, glob,
 };
-use destack_workspace::{DsConfig, Program, Target, TargetDiscovery, TargetId, Workspace};
+use destack_workspace::{
+    DsConfig, OptimizeLevel, Program, Target, TargetDiscovery, TargetId, Workspace,
+};
 
 use crate::Daemon;
 
@@ -291,7 +293,7 @@ impl<'a> CommandContext<'a> {
             return true;
         }
 
-        !matches!(target.optimize_level, destack_workspace::OptimizeLevel::O0)
+        !matches!(target.optimize_level, OptimizeLevel::O0)
     }
 
     /// Build a resolver for the current program.

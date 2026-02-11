@@ -19,14 +19,9 @@ Responsibilities include:
 
 ## Lifecycle
 
-The daemon is auto spawned by CLI clients when needed.
+The daemon is auto spawned by clients when needed (e.g., on the CLI).
 Each workspace root maps to its own daemon instance and socket.
-Clients connect by discovering the instance metadata and performing a protocol handshake.
-When no client connections or workspace handles remain, the daemon will idle shut down after the configured timeout.
-Use `daemon.idleShutdownMs` in `dsconfig.json` to tune or disable auto shutdown (set to `0` to disable).
-
-The LSP server does not depend on daemon IPC.
-LSP and daemon both use the shared `destack_workspace` query infrastructure.
+After a while, when no client connections or workspace handles remain, the daemon will idle shut down after the configured timeout.
 
 ## Commands
 

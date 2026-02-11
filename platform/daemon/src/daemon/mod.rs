@@ -3,7 +3,6 @@ mod daemon;
 mod instance;
 mod lifecycle;
 mod message;
-mod program;
 mod server;
 mod service;
 mod update;
