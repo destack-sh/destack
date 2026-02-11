@@ -9,6 +9,7 @@ use destack_workspace::{
     Loader, Module, ModuleSource, Package, PackageKind, ProfileId, Runtime, SourceType,
 };
 
+use crate::import::{ImportResolveRequest, materialize_import_resolve_options};
 use crate::{Compiler, ImportError, ImportResult};
 
 /// Extensions to try for builtin modules.
@@ -60,11 +61,15 @@ impl Compiler {
         let specifier_str = self.program.strings.get(specifier).to_string();
         let profile_key = self.program.profile(profile_id).key.clone();
         let runtime = profile_key.runtime;
+        let source_language_type = self.source_language_type_for_resolution(source_module);
 
         // resolve protocol specifiers (destack:, node:, bun:, deno:)
-        if let Some(module_id) =
-            self.resolve_protocol_specifier(&specifier_str, runtime, &profile_key)
-        {
+        if let Some(module_id) = self.resolve_protocol_specifier(
+            &specifier_str,
+            runtime,
+            &profile_key,
+            source_language_type,
+        ) {
             return Ok(module_id);
         }
 
@@ -78,8 +83,13 @@ impl Compiler {
 
         // resolve non-builtin imports
         let directory = self.get_resolve_directory(source_module);
-        let (path, resolver) =
-            self.resolve_specifier_to_path(&directory, specifier, &specifier_str, kind)?;
+        let (path, resolver) = self.resolve_specifier_to_path(
+            &directory,
+            specifier,
+            &specifier_str,
+            kind,
+            source_language_type,
+        )?;
 
         self.resolve_specifier_registration(&path, loader_override, &resolver)
     }
@@ -91,8 +101,9 @@ impl Compiler {
         specifier_id: StringId,
         specifier_str: &str,
         kind: DependencyKind,
+        source_language_type: Option<LanguageType>,
     ) -> ImportResult<(PathBuf, Resolver)> {
-        let resolver = self.resolver_for_kind(kind);
+        let resolver = self.resolver_for_kind(kind, source_language_type);
         let resolution = resolver.resolve(directory, specifier_str);
         if let Ok(resolution) = resolution {
             return Ok((resolution.path, resolver));
@@ -263,6 +274,7 @@ impl Compiler {
         specifier: &str,
         runtime: Runtime,
         profile_key: &destack_workspace::ProfileKey,
+        source_language_type: Option<LanguageType>,
     ) -> Option<ModuleId> {
         let (protocol, path) = specifier.split_once(':')?;
         let path = path.trim_start_matches('/');
@@ -273,11 +285,16 @@ impl Compiler {
             return None;
         }
         if is_alias {
+            let source_is_destack = source_language_type
+                .map(|language_type| language_type.is_destack())
+                .unwrap_or(true);
+            if !source_is_destack {
+                return None;
+            }
             if !runtime.is_native() {
                 return None;
             }
-            // NOTE #Architecture: decide whether node:/bun:/deno: are aliases or separate libs.
-            // for now, treat them as aliases to destack: on native runtimes.
+            // NOTE #Architecture: decide whether node:/bun:/deno: are aliases or separate libs (?)
             if !protocol_alias_allowed(protocol, path) {
                 return None;
             }
@@ -331,7 +348,7 @@ impl Compiler {
 
     /// Resolve a path to a ModuleId, registering a blank module if needed.
     pub fn resolve_path_to_module(&self, path: &PathBuf) -> ImportResult<ModuleId> {
-        let resolver = self.resolver_for_kind(DependencyKind::Value);
+        let resolver = self.resolver_for_kind(DependencyKind::Value, None);
 
         // check if module already exists for this path
         if let Some(module_id) = self.program.modules.get_id_by_path(path) {
@@ -463,58 +480,38 @@ impl Compiler {
     }
 
     /// Build resolve options for a dependency kind.
-    fn resolver_options_for_kind(&self, kind: DependencyKind) -> destack_resolver::ResolveOptions {
-        let mut resolver_options = self.options.import_resolve.clone();
+    fn resolver_options_for_kind(
+        &self,
+        kind: DependencyKind,
+        source_language_type: Option<LanguageType>,
+    ) -> destack_resolver::ResolveOptions {
+        let request = ImportResolveRequest {
+            dependency_kind: kind,
+            source_language_type,
+        };
 
-        // ensure declaration extensions are available in the resolution order
-        let mut extensions = resolver_options.extensions.clone();
-        Self::insert_extension_after(&mut extensions, ".ds", ".d.ds");
-        Self::insert_extension_after(&mut extensions, ".ts", ".d.ts");
-        if extensions.is_empty() {
-            extensions = vec![
-                ".ds".into(),
-                ".d.ds".into(),
-                ".tsx".into(),
-                ".ts".into(),
-                ".d.ts".into(),
-                ".jsx".into(),
-                ".js".into(),
-                ".mjs".into(),
-                ".cjs".into(),
-                ".json".into(),
-                ".node".into(),
-            ];
-        }
-        resolver_options = resolver_options.with_extensions(extensions);
-
-        // normalize conditions to include the import/runtime conditions
-        let mut conditions = resolver_options.conditions.clone();
-        conditions.retain(|condition| condition != "types");
-        if kind == DependencyKind::Type {
-            conditions.insert(0, "types".to_string());
-        }
-        if !conditions.iter().any(|condition| condition == "import") {
-            conditions.push("import".to_string());
-        }
-        resolver_options.with_conditions(conditions)
+        materialize_import_resolve_options(&self.options.import_resolve, request)
     }
 
     /// Create a resolver configured for a dependency kind.
-    fn resolver_for_kind(&self, kind: DependencyKind) -> Resolver {
-        let resolver_options = self.resolver_options_for_kind(kind);
+    fn resolver_for_kind(
+        &self,
+        kind: DependencyKind,
+        source_language_type: Option<LanguageType>,
+    ) -> Resolver {
+        let resolver_options = self.resolver_options_for_kind(kind, source_language_type);
         Resolver::from_program(&self.program, resolver_options)
     }
 
-    /// Insert an extension after a preferred predecessor when missing.
-    fn insert_extension_after(extensions: &mut Vec<String>, after: &str, extension: &str) {
-        if extensions.iter().any(|entry| entry == extension) {
-            return;
-        }
-        if let Some(index) = extensions.iter().position(|entry| entry == after) {
-            extensions.insert(index + 1, extension.to_string());
-        } else {
-            extensions.push(extension.to_string());
-        }
+    /// Return the source language used when resolving one import.
+    fn source_language_type_for_resolution(
+        &self,
+        source_module: Option<ModuleId>,
+    ) -> Option<LanguageType> {
+        source_module.map(|module_id| {
+            let module = self.program.modules.get(module_id);
+            module.read().language_type
+        })
     }
 
     /// Get the directory to resolve from for a source module.

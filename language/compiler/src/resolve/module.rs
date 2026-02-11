@@ -2228,6 +2228,42 @@ value;
         );
     }
 
+    /// Resolve ts relative .js specifiers through TypeScript extension substitution.
+    #[test]
+    fn test_module_graph_typescript_import_js_specifier_dependency() {
+        let test = TestProgram::memory_sequential();
+        let dep_source = r#"
+export const value = 1;
+"#;
+        let main_source = r#"
+import { value } from "./dep.js";
+
+value;
+"#;
+
+        let dep_module_id = test.add_module("dep.ts", dep_source);
+        let main_module_id = test.add_module("main.ts", main_source);
+
+        test.resolve_module(main_module_id);
+        test.compile_check_clean();
+
+        let profile = test.default_profile_id(main_module_id);
+        let key = ModuleGraphKey::new(profile);
+        let graph = test
+            .program
+            .index
+            .module_graphs
+            .get(&key)
+            .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
+        let dependencies = graph.dependencies_for(main_module_id);
+
+        // assert dependency edges
+        assert!(
+            dependencies.contains(&dep_module_id),
+            "expected module graph to include dep.ts for ./dep.js import"
+        );
+    }
+
     /// Build module graph edges for namespace exports.
     #[test]
     fn test_module_graph_namespace_export_dependency() {

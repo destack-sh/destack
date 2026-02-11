@@ -1,7 +1,10 @@
 use std::collections::HashSet;
 
 use destack_source::{FileType, ModuleId, Span};
-use destack_workspace::{ModuleGraphKey, TargetDiscovery, discover_entry_modules_relaxed};
+use destack_workspace::{
+    EntryResolutionMode, EntrySource, ModuleGraphKey, TargetDiscovery, TargetDiscoveryOptions,
+    discover_entry_modules,
+};
 
 use crate::{LintDiagnostic, LintProgramDirContext, LintRule, declare_lint};
 
@@ -150,12 +153,18 @@ fn collect_profile_target_entry_modules(
                 continue;
             }
 
-            let discovered_modules = discover_entry_modules_relaxed(
+            let options = TargetDiscoveryOptions {
+                entry_source: EntrySource::Target,
+                entry_resolution: EntryResolutionMode::RegistryRelative,
+                manifest_entry_targets: &[],
+            };
+            let discovered_modules = discover_entry_modules(
                 &ctx.program.modules,
                 package.id,
                 &package_path,
                 target,
                 target_id,
+                &options,
             );
             let Ok(discovered_modules) = discovered_modules else {
                 continue;

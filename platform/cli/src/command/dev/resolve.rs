@@ -1,7 +1,10 @@
 use std::path::PathBuf;
 
 use clap::Args;
+use destack_compiler::{ImportResolveRequest, materialize_import_resolve_options};
+use destack_dir::DependencyKind;
 use destack_resolver::{ResolveOptions, Resolver};
+use destack_source::LanguageType;
 
 use crate::common::ProgramArgs;
 use crate::console;
@@ -34,6 +37,14 @@ pub struct ResolveArgs {
     /// Resolve to a context instead of a file.
     #[arg(long)]
     pub resolve_directory: bool,
+
+    /// Treat this as a type dependency resolution.
+    #[arg(long)]
+    pub type_dependency: bool,
+
+    /// Treat the source file as TypeScript for extension aliasing.
+    #[arg(long)]
+    pub typescript_source: bool,
 
     /// The program options.
     #[command(flatten)]
@@ -77,6 +88,19 @@ pub fn run(args: &ResolveArgs) -> i32 {
     options.prefer_relative = args.prefer_relative;
     options.prefer_absolute = args.prefer_absolute;
     options.resolve_to_context = args.resolve_directory;
+    let request = ImportResolveRequest {
+        dependency_kind: if args.type_dependency {
+            DependencyKind::Type
+        } else {
+            DependencyKind::Value
+        },
+        source_language_type: if args.typescript_source {
+            Some(LanguageType::TypeScript)
+        } else {
+            None
+        },
+    };
+    options = materialize_import_resolve_options(&options, request);
 
     let resolver = Resolver::from_program(&program, options);
 

@@ -1,10 +1,11 @@
 use destack_base::StringId;
 use destack_dir::ModuleTarget;
-use destack_source::{ModuleId, PackageId};
+use destack_source::{ModuleId, ModuleVersion, PackageId};
 use destack_workspace::{
     ModuleBindingReference, ModuleBindingRegistry, ModuleBindingTable, ModuleBindingTableKey,
     ProfileId,
 };
+use indexmap::IndexMap;
 
 use crate::{Compiler, ResolveResult};
 
@@ -31,17 +32,10 @@ impl Compiler {
         // rebuild when module bindings changed since the cache was built
         let mut rebuild_cache = true;
         if let Some(cache) = self.program.index.module_binding_tables.get(&key) {
-            rebuild_cache = self.module_binding_table_is_stale(package_id, &cache);
+            rebuild_cache = self.module_binding_table_is_stale(package_id, profile_id, &cache);
         }
         if rebuild_cache {
-            let Some(registry) = self.program.index.module_binding_registry.get(&package_id) else {
-                self.program
-                    .index
-                    .module_binding_tables
-                    .insert(key.clone(), ModuleBindingTable::new());
-                return Ok(key);
-            };
-            let cache = self.build_module_binding_table_from_registry(&registry);
+            let cache = self.build_module_binding_table(package_id, profile_id);
             self.program
                 .index
                 .module_binding_tables
@@ -82,47 +76,132 @@ impl Compiler {
         Ok(cache.bindings_by_specifier.get(&specifier).cloned())
     }
 
-    /// Build the module binding table from a package registry.
-    fn build_module_binding_table_from_registry(
+    /// Build the module binding table for one package and profile.
+    fn build_module_binding_table(
         &self,
-        registry: &ModuleBindingRegistry,
+        package_id: PackageId,
+        profile_id: ProfileId,
     ) -> ModuleBindingTable {
         let mut cache = ModuleBindingTable::new();
-        for (module_id, version) in &registry.module_versions {
-            cache.module_versions.insert(*module_id, *version);
+
+        // collect module bindings declared in the current package
+        if let Some(registry) = self.program.index.module_binding_registry.get(&package_id) {
+            self.append_module_binding_registry(&mut cache, &registry);
         }
-        for (specifier, bindings) in &registry.bindings_by_specifier {
-            cache
-                .bindings_by_specifier
-                .entry(*specifier)
-                .or_default()
-                .extend(bindings.iter().copied());
+
+        // include ambient lib module bindings visible to this profile
+        for module_id in self.ambient_binding_module_ids(profile_id) {
+            self.append_module_bindings_from_module(&mut cache, module_id);
         }
+
         cache
     }
 
-    /// Whether a module binding cache is missing any bound modules.
+    /// Append one package registry to a module binding table.
+    fn append_module_binding_registry(
+        &self,
+        cache: &mut ModuleBindingTable,
+        registry: &ModuleBindingRegistry,
+    ) {
+        for (module_id, version) in &registry.module_versions {
+            cache.module_versions.insert(*module_id, *version);
+        }
+
+        for (specifier, bindings) in &registry.bindings_by_specifier {
+            let entries = cache.bindings_by_specifier.entry(*specifier).or_default();
+            for binding in bindings {
+                if entries.iter().any(|entry| entry == binding) {
+                    continue;
+                }
+                entries.push(*binding);
+            }
+        }
+    }
+
+    /// Append bindings declared in one module to a module binding table.
+    fn append_module_bindings_from_module(
+        &self,
+        cache: &mut ModuleBindingTable,
+        module_id: ModuleId,
+    ) {
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        cache.module_versions.insert(module_id, module.version);
+
+        let module_bindings = module.dir_base().module_bindings.read();
+        for module_binding in module_bindings.iter() {
+            let binding_ref = ModuleBindingReference {
+                module_id,
+                declaration: module_binding.declaration,
+            };
+
+            let entries = cache
+                .bindings_by_specifier
+                .entry(module_binding.specifier)
+                .or_default();
+            if entries.iter().any(|entry| entry == &binding_ref) {
+                continue;
+            }
+            entries.push(binding_ref);
+        }
+    }
+
+    /// Collect ambient modules that can contribute module bindings.
+    fn ambient_binding_module_ids(&self, profile_id: ProfileId) -> Vec<ModuleId> {
+        let Some(builtins) = self.program.builtins.as_ref() else {
+            return Vec::new();
+        };
+
+        let profile = self.program.profile(profile_id);
+        builtins.ambient_libs(&profile.key).unwrap_or_default()
+    }
+
+    /// Collect module versions used for stale checks.
+    fn module_binding_versions(
+        &self,
+        package_id: PackageId,
+        profile_id: ProfileId,
+    ) -> IndexMap<ModuleId, ModuleVersion> {
+        let mut versions = IndexMap::new();
+
+        // include package module binding versions
+        if let Some(registry) = self.program.index.module_binding_registry.get(&package_id) {
+            for (module_id, version) in &registry.module_versions {
+                versions.insert(*module_id, *version);
+            }
+        }
+
+        // include ambient lib module versions
+        for module_id in self.ambient_binding_module_ids(profile_id) {
+            let module = self.program.modules.get(module_id);
+            let module = module.read();
+            versions.insert(module_id, module.version);
+        }
+
+        versions
+    }
+
+    /// Return true when the module binding cache is stale for package and profile.
     fn module_binding_table_is_stale(
         &self,
         package_id: PackageId,
+        profile_id: ProfileId,
         cache: &ModuleBindingTable,
     ) -> bool {
-        let Some(registry) = self.program.index.module_binding_registry.get(&package_id) else {
-            return !cache.bindings_by_specifier.is_empty();
-        };
-        for (module_id, cached_version) in &cache.module_versions {
-            let Some(registry_version) = registry.module_versions.get(module_id) else {
+        let expected_versions = self.module_binding_versions(package_id, profile_id);
+        if expected_versions.len() != cache.module_versions.len() {
+            return true;
+        }
+
+        for (module_id, expected_version) in expected_versions {
+            let Some(cached_version) = cache.module_versions.get(&module_id) else {
                 return true;
             };
-            if cached_version != registry_version {
+            if cached_version != &expected_version {
                 return true;
             }
         }
-        for module_id in registry.module_versions.keys() {
-            if !cache.module_versions.contains_key(module_id) {
-                return true;
-            }
-        }
+
         false
     }
 }
@@ -131,6 +210,7 @@ impl Compiler {
 mod tests {
     use crate::TestProgram;
     use destack_dir::StaticKey;
+    use std::time::Duration;
 
     /// Resolve imports from module declarations.
     #[test]
@@ -562,5 +642,43 @@ import { Assert, AssertionError } from 'assert/strict';
         );
         test.resolve_module(main_module_id);
         test.compile_check_clean();
+    }
+
+    /// Resolve node builtin subpath imports from ambient lib module bindings.
+    #[test]
+    fn test_module_binding_node_builtin_subpath_import() {
+        let test = TestProgram::memory_sequential_with_prelude_and_libs();
+        let main_module_id = test.add_module(
+            "main.ts",
+            r#"
+import assert from "node:assert/strict";
+
+assert.ok(true);
+"#,
+        );
+
+        test.resolve_module(main_module_id);
+        test.compile_with_timeout(Duration::from_secs(30));
+        test.check_no_diagnostic_code("ER200");
+    }
+
+    /// Resolve node builtin named exports from ambient lib module bindings.
+    #[test]
+    fn test_module_binding_node_builtin_named_import() {
+        let test = TestProgram::memory_sequential_with_prelude_and_libs();
+        let main_module_id = test.add_module(
+            "main.ts",
+            r#"
+import { createHash, randomUUID } from "node:crypto";
+
+createHash("sha1");
+randomUUID();
+"#,
+        );
+
+        test.resolve_module(main_module_id);
+        test.compile_with_timeout(Duration::from_secs(30));
+        test.check_no_diagnostic_code("ER101");
+        test.check_no_diagnostic_code("ER200");
     }
 }
