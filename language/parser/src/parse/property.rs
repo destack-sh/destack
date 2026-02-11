@@ -148,9 +148,7 @@ impl Parser {
             // getter
             if self.is_keyword(Keyword::Get)
                 && self.next_token_starts_member_name()
-                && self
-                    .peek_token_after_newlines(self.pos(), TokenType::OpenParenthesis)
-                    .is_err()
+                && !self.is_token_after_newlines(self.pos(), TokenType::OpenParenthesis)
             {
                 self.bump(); // eat get keyword
                 Some(FunctionMode::Getter)
@@ -158,9 +156,7 @@ impl Parser {
             // setter
             else if self.is_keyword(Keyword::Set)
                 && self.next_token_starts_member_name()
-                && self
-                    .peek_token_after_newlines(self.pos(), TokenType::OpenParenthesis)
-                    .is_err()
+                && !self.is_token_after_newlines(self.pos(), TokenType::OpenParenthesis)
             {
                 self.bump(); // eat set keyword
                 Some(FunctionMode::Setter)
@@ -358,8 +354,7 @@ impl Parser {
 
             // body
             let body = if self
-                .peek_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
-                .is_ok()
+                .is_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
             {
                 self.eat_newlines_maybe()?;
                 let options = self
@@ -624,9 +619,7 @@ impl Parser {
         if modifiers
             .as_ref()
             .is_some_and(|m| m.anchor == Some(destack_ast::BindingAnchor::Static))
-            && self
-                .peek_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
-                .is_ok()
+            && self.is_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
         {
             self.eat_newlines_maybe()?;
             let body = self.with_options(
@@ -681,9 +674,7 @@ impl Parser {
         if modifiers
             .as_ref()
             .is_some_and(|m| m.timing == Some(destack_ast::Timing::Comptime))
-            && self
-                .peek_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
-                .is_ok()
+            && self.is_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
         {
             self.eat_newlines_maybe()?;
             let body = self.with_options(
@@ -770,9 +761,7 @@ impl Parser {
             // getter
             if self.is_keyword(Keyword::Get)
                 && self.next_token_starts_member_name()
-                && self
-                    .peek_token_after_newlines(self.pos(), TokenType::OpenParenthesis)
-                    .is_err()
+                && !self.is_token_after_newlines(self.pos(), TokenType::OpenParenthesis)
             {
                 self.bump(); // eat get keyword
                 Some(FunctionMode::Getter)
@@ -780,9 +769,7 @@ impl Parser {
             // setter
             else if self.is_keyword(Keyword::Set)
                 && self.next_token_starts_member_name()
-                && self
-                    .peek_token_after_newlines(self.pos(), TokenType::OpenParenthesis)
-                    .is_err()
+                && !self.is_token_after_newlines(self.pos(), TokenType::OpenParenthesis)
             {
                 self.bump(); // eat set keyword
                 Some(FunctionMode::Setter)
@@ -967,8 +954,7 @@ impl Parser {
 
             // body
             let body = if self
-                .peek_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
-                .is_ok()
+                .is_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
             {
                 self.eat_newlines_maybe()?;
                 let options = self

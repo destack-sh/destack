@@ -748,9 +748,7 @@ impl Parser {
         while self.has_more_tokens() {
             // allow trailing newlines before the closing token
             if self.peek_is(TokenType::Newline)
-                && self
-                    .peek_token_after_newlines(self.pos(), close_token)
-                    .is_ok()
+                && self.is_token_after_newlines(self.pos(), close_token)
             {
                 break;
             }
@@ -761,9 +759,7 @@ impl Parser {
             // consume comma separators, including newline then comma
             let has_comma_separator = self.peek_comma().is_ok()
                 || self.peek_is(TokenType::Newline)
-                    && self
-                        .peek_token_after_newlines(self.pos(), TokenType::Comma)
-                        .is_ok();
+                    && self.is_token_after_newlines(self.pos(), TokenType::Comma);
             if has_comma_separator {
                 let start = self.mark();
 

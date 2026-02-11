@@ -582,17 +582,10 @@ impl Parser {
     /// Return true when tokens after `import` can start an import statement.
     pub(crate) fn can_start_import_statement(&mut self) -> bool {
         let after_import = self.pos().saturating_add(1);
-        self.peek_token_after_newlines(after_import, TokenType::Identifier)
-            .is_ok()
-            || self
-                .peek_token_after_newlines(after_import, TokenType::OpenBrace)
-                .is_ok()
-            || self
-                .peek_token_after_newlines(after_import, TokenType::Multiply)
-                .is_ok()
-            || self
-                .peek_token_after_newlines(after_import, TokenType::Literal)
-                .is_ok()
+        self.is_token_after_newlines(after_import, TokenType::Identifier)
+            || self.is_token_after_newlines(after_import, TokenType::OpenBrace)
+            || self.is_token_after_newlines(after_import, TokenType::Multiply)
+            || self.is_token_after_newlines(after_import, TokenType::Literal)
     }
 
     /// Eat an dependency target and return both the string and its span.

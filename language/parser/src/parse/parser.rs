@@ -719,12 +719,6 @@ impl Parser {
         self.token_stream.take_tokens()
     }
 
-    /// Lex tokens to EOF without changing parser position.
-    #[inline]
-    pub(crate) fn lex_to_end(&mut self) {
-        self.token_stream.lex_to_end();
-    }
-
     /// Return the EOF span without forcing a full lex.
     #[inline]
     pub(crate) fn eof_span(&self) -> Span {
@@ -902,7 +896,8 @@ impl Parser {
 
         // insert a stub expression if there are no expressions but there are annotations
         // (this ensures annotations have something to attach to, e.g. in comment-only files)
-        if expressions.is_empty() && self.has_annotation_tokens() {
+        self.token_stream.lex_to_end();
+        if expressions.is_empty() && self.token_stream.has_comment_annotation_tokens() {
             let stub = self.tree.insert(Expression::Stub, self.file_span());
             expressions.push(stub);
         }
@@ -910,48 +905,13 @@ impl Parser {
         expressions
     }
 
-    /// Check if there are any annotation tokens (comments, docs) in the side tokens.
-    fn has_annotation_tokens(&mut self) -> bool {
-        self.lex_to_end();
-        self.side_tokens().iter().any(|token| {
-            matches!(
-                token.token.ty,
-                TokenType::LineComment
-                    | TokenType::DocLineComment
-                    | TokenType::BlockComment
-                    | TokenType::DocBlockComment
-            )
-        })
-    }
-
-    /// Check if there are any blank annotations (multiple newlines) in main tokens.
-    fn has_blank_annotation_tokens(&mut self) -> bool {
-        self.token_stream.lex_to_end();
-        let mut seen_newline = false;
-        for token in self.tokens() {
-            let token_ty = token.token.ty;
-            if token_ty == TokenType::Whitespace {
-                continue;
-            }
-            if token_ty == TokenType::Newline {
-                if seen_newline {
-                    return true;
-                }
-                seen_newline = true;
-                continue;
-            }
-            seen_newline = false;
-        }
-
-        false
-    }
-
     /// Return true when annotations should be attached.
     pub(crate) fn should_attach_annotations(&mut self) -> bool {
-        if self.has_annotation_tokens() {
+        self.token_stream.lex_to_end();
+        if self.token_stream.has_comment_annotation_tokens() {
             return true;
         }
-        if self.has_blank_annotation_tokens() {
+        if self.token_stream.has_blank_annotation_tokens() {
             return true;
         }
 

@@ -423,12 +423,8 @@ impl Parser {
 
                         // spread with omitted target is allowed before separators and terminators
                         let pattern = if self.peek_is(TokenType::Newline)
-                            && (self
-                                .peek_token_after_newlines(self.pos(), seperator)
-                                .is_ok()
-                                || self
-                                    .peek_token_after_newlines(self.pos(), terminator)
-                                    .is_ok())
+                            && (self.is_token_after_newlines(self.pos(), seperator)
+                                || self.is_token_after_newlines(self.pos(), terminator))
                         {
                             self.eat_newlines_maybe()?;
                             None
@@ -515,9 +511,7 @@ impl Parser {
                 has_spread_field = true;
                 let has_separator_after_spread = self.peek_token_type() == seperator;
                 let has_non_terminal_newline_after_spread = self.peek_is(TokenType::Newline)
-                    && self
-                        .peek_token_after_newlines(self.pos(), terminator)
-                        .is_err();
+                    && !self.is_token_after_newlines(self.pos(), terminator);
                 if has_separator_after_spread || has_non_terminal_newline_after_spread {
                     return Err(ParseError::unexpected(self.peek()?.span));
                 }

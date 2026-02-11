@@ -940,12 +940,8 @@ impl Parser {
 
         // tuple optional marker after positional element
         if self.options.in_type && self.peek_is(TokenType::Maybe) {
-            let is_tuple_optional = self
-                .peek_token_after_newlines(self.pos(), TokenType::Comma)
-                .is_ok()
-                || self
-                    .peek_token_after_newlines(self.pos(), TokenType::CloseBracket)
-                    .is_ok();
+            let is_tuple_optional = self.is_token_after_newlines(self.pos(), TokenType::Comma)
+                || self.is_token_after_newlines(self.pos(), TokenType::CloseBracket);
             if is_tuple_optional {
                 self.bump(); // eat ?
                 if modifiers.is_none() {

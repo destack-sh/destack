@@ -125,10 +125,7 @@ impl Parser {
     ) -> ParseResult<bool> {
         // require dot member access
         let dot_index = if allow_newlines {
-            if self
-                .peek_token_after_newlines(self.pos(), TokenType::Dot)
-                .is_err()
-            {
+            if !self.is_token_after_newlines(self.pos(), TokenType::Dot) {
                 return Ok(false);
             }
             self.next_non_newline_index_from(self.pos_index() + 1)
@@ -540,10 +537,7 @@ impl Parser {
             // import declaration or import meta
             Keyword::Import => {
                 // treat `import.meta` as a path and reject other member access
-                if self
-                    .peek_token_after_newlines(self.pos(), TokenType::Dot)
-                    .is_ok()
-                {
+                if self.is_token_after_newlines(self.pos(), TokenType::Dot) {
                     if self.keyword_member_access_is("meta", true)? {
                         return Ok(None);
                     }

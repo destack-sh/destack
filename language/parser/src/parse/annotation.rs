@@ -158,8 +158,8 @@ impl Parser {
             tokens.push(token);
         };
 
-        // fast path when there are no side tokens
-        if self.side_tokens().is_empty() {
+        // fast path when side tokens only contain whitespace
+        if !self.token_stream.has_comment_annotation_tokens() {
             for token in self.tokens() {
                 if token.token.ty == TokenType::Whitespace {
                     continue;

@@ -94,9 +94,7 @@ impl Parser {
                 // call parsing flags
                 let has_direct_call = self.peek_is(TokenType::OpenParenthesis);
                 let has_direct_call_after_newlines = self.peek_is(TokenType::Newline)
-                    && self
-                        .peek_token_after_newlines(self.pos(), TokenType::OpenParenthesis)
-                        .is_ok();
+                    && self.is_token_after_newlines(self.pos(), TokenType::OpenParenthesis);
                 let has_indirect_call =
                     self.peek_is(TokenType::Dot) && self.peek_next_is(TokenType::OpenParenthesis);
                 let can_direct_call = (has_direct_call || has_direct_call_after_newlines)
@@ -227,9 +225,7 @@ impl Parser {
 
                     let _call_timing = self.timing_scope(tags::PARSE_EXPRESSION_POSTFIX_CALL);
                     if self.peek_is(TokenType::Newline)
-                        && self
-                            .peek_token_after_newlines(self.pos(), TokenType::OpenParenthesis)
-                            .is_ok()
+                        && self.is_token_after_newlines(self.pos(), TokenType::OpenParenthesis)
                     {
                         self.eat_newlines_maybe()?; // eat newlines
                     }
@@ -645,9 +641,8 @@ impl Parser {
             let mut expressions = vec![left_expression_id];
             loop {
                 if self.peek_is(TokenType::Newline) {
-                    let has_comma_after_newlines = self
-                        .peek_token_after_newlines(self.pos(), TokenType::Comma)
-                        .is_ok();
+                    let has_comma_after_newlines =
+                        self.is_token_after_newlines(self.pos(), TokenType::Comma);
                     if !has_comma_after_newlines {
                         break;
                     }
@@ -687,11 +682,8 @@ impl Parser {
                 None
             };
             let is_optional_tuple = optional_tuple_pos.is_some_and(|pos| {
-                self.peek_token_after_newlines(pos, TokenType::Comma)
-                    .is_ok()
-                    || self
-                        .peek_token_after_newlines(pos, TokenType::CloseBracket)
-                        .is_ok()
+                self.is_token_after_newlines(pos, TokenType::Comma)
+                    || self.is_token_after_newlines(pos, TokenType::CloseBracket)
             });
             let Some((left, right)) = conditional_operands else {
                 if is_optional_tuple {
