@@ -14,7 +14,7 @@ const FILE_GLOBS_TO_UPDATE: &[&str] = &[
     "*/*/package.json",
     "*/*/*/package.json",
 ];
-const FILE_GLOBS_TO_IGNORE: &[&str] = &["language/test/fixtures/"];
+const FILE_GLOBS_TO_IGNORE: &[&str] = &["language/test/fixtures/", "language/grammar/destack/"];
 
 #[derive(Subcommand, Clone, Debug)]
 pub enum VersionCommands {
