@@ -179,10 +179,10 @@ function process(a: boolean, b: boolean, c: boolean) {
             "no_excessive_booleans/test_detects_excessive_boolean_fields.ds",
             r#"
 struct Options {
-    enabled: boolean,
-    visible: boolean,
-    active: boolean,
-    selected: boolean,
+    enabled: boolean;
+    visible: boolean;
+    active: boolean;
+    selected: boolean;
 }
 "#,
         );
@@ -196,9 +196,9 @@ struct Options {
             "no_excessive_booleans/test_allows_few_boolean_fields.ds",
             r#"
 struct Options {
-    enabled: boolean,
-    visible: boolean,
-    active: boolean,
+    enabled: boolean;
+    visible: boolean;
+    active: boolean;
 }
 "#,
         );
