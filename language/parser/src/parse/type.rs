@@ -435,7 +435,9 @@ impl Parser {
         &mut self,
     ) -> ParseResult<LocalNodeId<Expression>> {
         // allow ts style multiline unions and intersections that start with separators
-        if self.peek_is(TokenType::ElementwiseOr) || self.peek_is(TokenType::ElementwiseAnd) {
+        if !self.language.is_destack()
+            && (self.peek_is(TokenType::ElementwiseOr) || self.peek_is(TokenType::ElementwiseAnd))
+        {
             self.bump(); // eat leading | or &
             self.eat_newlines_maybe()?;
         }
@@ -1334,6 +1336,42 @@ mod tests {
                 assert_node!(parser.tree, *value, Expression::PointerOf { mutability, right } => {
                     assert_eq!(*mutability, Some(Mutability::Mutable));
                     assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
+                });
+            });
+        });
+    }
+
+    /// Parse borrowed reference types in a type alias.
+    #[test]
+    fn test_parse_borrowed_reference_type_alias() {
+        let mut test = TestParser::new("type Borrowed = &Buffer");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { descriptor, value, .. } => {
+                assert_string!(parser, descriptor.name.unwrap().string(), "Borrowed");
+                assert_node!(parser.tree, *value, Expression::ReferenceOf { mutability, variance, right } => {
+                    assert_eq!(*mutability, Some(Mutability::Mutable));
+                    assert!(variance.is_none());
+                    assert_expression_path!(parser, parser.tree.get(*right), "Buffer");
+                });
+            });
+        });
+    }
+
+    /// Parse readonly borrowed reference types in a type alias.
+    #[test]
+    fn test_parse_readonly_borrowed_reference_type_alias() {
+        let mut test = TestParser::new("type Borrowed = &readonly Buffer");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { descriptor, value, .. } => {
+                assert_string!(parser, descriptor.name.unwrap().string(), "Borrowed");
+                assert_node!(parser.tree, *value, Expression::ReferenceOf { mutability, variance, right } => {
+                    assert_eq!(*mutability, Some(Mutability::Immutable));
+                    assert!(variance.is_none());
+                    assert_expression_path!(parser, parser.tree.get(*right), "Buffer");
                 });
             });
         });

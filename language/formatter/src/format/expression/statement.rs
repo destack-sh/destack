@@ -313,28 +313,24 @@ fn format_let_expression<'ast>(
 
     // keyword header: export + declare + let/var/const
     if !handled_export_import_equals {
-        let keyword_header = format_with(|f| {
-            // export
-            if let Some(export) = descriptor.export {
-                write!(f, [export, space()])?;
-            }
+        // export
+        if let Some(export) = descriptor.export {
+            write!(f, [export, space()])?;
+        }
 
-            // declare
-            if descriptor.kind == DeclarationKind::Declaration {
-                write!(f, [Keyword::Declare, space()])?;
-            }
+        // declare
+        if descriptor.kind == DeclarationKind::Declaration {
+            write!(f, [Keyword::Declare, space()])?;
+        }
 
-            // let kind
-            match kind {
-                LetKind::Let => write!(f, [Keyword::Let])?,
-                LetKind::Var => write!(f, [Keyword::Var])?,
-                LetKind::Const => write!(f, [Keyword::Const])?,
-            }
-            Ok(())
-        });
+        // let kind
+        match kind {
+            LetKind::Let => write!(f, [Keyword::Let])?,
+            LetKind::Var => write!(f, [Keyword::Var])?,
+            LetKind::Const => write!(f, [Keyword::Const])?,
+        }
 
         // declarators
-        write!(f, [keyword_header])?;
         for (index, declarator_id) in declarators.iter().enumerate() {
             if index > 0 {
                 write!(f, [token(",")])?;
@@ -357,29 +353,25 @@ fn format_using_expression<'ast>(
     let tree = f.context().tree;
 
     // keyword header: export + declare + await + using
-    let keyword_header = format_with(|f| {
-        // export
-        if let Some(export) = descriptor.export {
-            write!(f, [export, space()])?;
-        }
+    // export
+    if let Some(export) = descriptor.export {
+        write!(f, [export, space()])?;
+    }
 
-        // declare
-        if descriptor.kind == DeclarationKind::Declaration {
-            write!(f, [Keyword::Declare, space()])?;
-        }
+    // declare
+    if descriptor.kind == DeclarationKind::Declaration {
+        write!(f, [Keyword::Declare, space()])?;
+    }
 
-        // await
-        if asynchrony == Asynchrony::Async {
-            write!(f, [Keyword::Await, space()])?;
-        }
+    // await
+    if asynchrony == Asynchrony::Async {
+        write!(f, [Keyword::Await, space()])?;
+    }
 
-        // using
-        write!(f, [Keyword::Using])?;
-        Ok(())
-    });
+    // using
+    write!(f, [Keyword::Using])?;
 
     // declarators
-    write!(f, [keyword_header])?;
     for (index, declarator_id) in declarators.iter().enumerate() {
         if index > 0 {
             write!(f, [token(",")])?;
@@ -582,7 +574,10 @@ fn format_try_expression<'ast>(
         if let Some(catch_pattern) = catch_pattern {
             let trailing_boundary_comments =
                 collect_catch_pattern_trailing_boundary_comments(f.context(), catch_pattern);
-            if trailing_boundary_comments.is_empty() || catch_ty.is_some() {
+            let keep_pattern_node_formatting = trailing_boundary_comments.is_empty()
+                || catch_ty.is_some()
+                || f.context().has_prefix_annotation(catch_pattern);
+            if keep_pattern_node_formatting {
                 write!(f, [token("("), catch_pattern])?;
                 if let Some(catch_ty) = catch_ty {
                     write!(f, [token(":"), space(), catch_ty])?;

@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use destack_ast::{
     Annotation, AnnotationPosition, Block, Declaration, Expression, FunctionKind, LocalNodeId,
     Node, NodeTree, NodeTreeImpl, NodeType, ScalarLiteral,
@@ -133,7 +135,12 @@ fn expressions_have_blank_line_between(
         return false;
     }
 
-    let between = context.get_span_str(Span::new(left_span.file, left_span.end, right_span.start));
+    let between_span = Span::new(left_span.file, left_span.end, right_span.start);
+    if !context.has_newline(between_span) {
+        return false;
+    }
+
+    let between = context.get_span_str(between_span);
     source_has_blank_line_in_trivia(between)
 }
 
@@ -148,24 +155,36 @@ fn source_has_blank_line_between_offsets(
         return false;
     }
 
-    let between = context.get_span_str(Span::new(file, start, end));
+    let between_span = Span::new(file, start, end);
+    if !context.has_newline(between_span) {
+        return false;
+    }
+
+    let between = context.get_span_str(between_span);
     source_has_blank_line_in_trivia(between)
 }
 
 /// Return whether trivia text contains an interior blank line.
 fn source_has_blank_line_in_trivia(source: &str) -> bool {
-    let mut lines = source.split('\n').peekable();
-    if lines.next().is_none() {
-        return false;
-    }
+    let mut has_first_newline = false;
+    let mut line_has_content = false;
 
-    while let Some(line) = lines.next() {
-        if lines.peek().is_none() {
-            break;
-        }
-
-        if line.trim().is_empty() {
-            return true;
+    for byte in source.bytes() {
+        match byte {
+            b'\r' => {}
+            b'\n' => {
+                if has_first_newline && !line_has_content {
+                    return true;
+                }
+                has_first_newline = true;
+                line_has_content = false;
+            }
+            b' ' | b'\t' => {}
+            _ => {
+                if has_first_newline {
+                    line_has_content = true;
+                }
+            }
         }
     }
 
@@ -267,9 +286,13 @@ pub(crate) fn format_block_of_statements<'ast>(
     let organize = f.context().options.organize_imports.is_enabled();
     let tree = f.context().tree;
     let strings = f.context().strings;
-    let comment_tokens = f.context().comment_tokens();
-
-    let ignore_ranges = collect_ignore_ranges_for_nodes(f.context(), expressions, comment_tokens);
+    // ignore ranges: only compute when the file may contain ignore directives
+    let ignore_ranges = if f.context().has_ignore_directive_markers() {
+        let comment_tokens = f.context().comment_tokens();
+        collect_ignore_ranges_for_nodes(f.context(), expressions, comment_tokens)
+    } else {
+        std::collections::HashMap::new()
+    };
     let has_ignore_ranges = !ignore_ranges.is_empty();
 
     // find contiguous import section at the start
@@ -280,16 +303,18 @@ pub(crate) fn format_block_of_statements<'ast>(
 
     // prepare the expression list (potentially with sorted imports)
     let sorted_imports: Vec<LocalNodeId<Expression>>;
-    let effective_expressions: Vec<LocalNodeId<Expression>> =
+    let effective_expressions: Cow<'_, [LocalNodeId<Expression>]> =
         if organize && import_count > 1 && !has_ignore_ranges {
             sorted_imports = imports::sort_imports(&expressions[..import_count], tree, strings);
-            sorted_imports
-                .iter()
-                .copied()
-                .chain(expressions[import_count..].iter().copied())
-                .collect()
+            Cow::Owned(
+                sorted_imports
+                    .iter()
+                    .copied()
+                    .chain(expressions[import_count..].iter().copied())
+                    .collect(),
+            )
         } else {
-            expressions.to_vec()
+            Cow::Borrowed(expressions)
         };
 
     let directive_count = effective_expressions
@@ -314,7 +339,8 @@ pub(crate) fn format_block_of_statements<'ast>(
     for (i, &expression_id) in effective_expressions.iter().enumerate() {
         let expression = f.context().tree.get(expression_id);
         let is_import_expr = imports::is_import(expression_id, tree);
-        let has_ignore_range = ignore_ranges.contains_key(&expression_id.id);
+        let ignore_range = ignore_ranges.get(&expression_id.id).copied();
+        let has_ignore_range = ignore_range.is_some();
 
         let expression_span = f.context().get_span(expression_id);
 
@@ -338,9 +364,8 @@ pub(crate) fn format_block_of_statements<'ast>(
                     if previous_file != expression_span.file {
                         false
                     } else {
-                        let range_start = ignore_ranges
-                            .get(&expression_id.id)
-                            .map_or(expression_span.start, |span| span.start);
+                        let range_start =
+                            ignore_range.map_or(expression_span.start, |span| span.start);
                         source_has_blank_line_between_offsets(
                             f.context(),
                             expression_span.file,
@@ -353,9 +378,8 @@ pub(crate) fn format_block_of_statements<'ast>(
                     if previous_span.file != expression_span.file {
                         false
                     } else {
-                        let range_start = ignore_ranges
-                            .get(&expression_id.id)
-                            .map_or(expression_span.start, |span| span.start);
+                        let range_start =
+                            ignore_range.map_or(expression_span.start, |span| span.start);
                         source_has_blank_line_between_offsets(
                             f.context(),
                             expression_span.file,
@@ -407,7 +431,7 @@ pub(crate) fn format_block_of_statements<'ast>(
             }
         }
 
-        if let Some(range_span) = ignore_ranges.get(&expression_id.id) {
+        if let Some(range_span) = ignore_range {
             let prefix_start =
                 expression_prefix_start(f.context(), expression_id, expression_span.start);
             if prefix_start < range_span.start {
@@ -421,7 +445,7 @@ pub(crate) fn format_block_of_statements<'ast>(
                 }
             }
 
-            write_ignored_span(f, *range_span)?;
+            write_ignored_span(f, range_span)?;
             skip_until = Some(range_span.end);
             prev_was_import = false;
             prev_import_id = None;

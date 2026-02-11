@@ -380,6 +380,44 @@ fn test_format_type_const_pointer_normalizes_to_readonly() {
     );
 }
 
+/// Type aliases preserve borrowed references.
+#[test]
+fn test_format_type_alias_preserves_borrowed_reference() {
+    let (formatter, expression_id) =
+        TestFormatter::parse("type Borrowed = &Buffer", |p| p.eat_expression())
+            .expect("parse type alias with borrowed reference");
+    let Expression::Declaration(declaration_id) = formatter.tree.get(expression_id) else {
+        panic!("expected type declaration expression");
+    };
+    let Declaration::Type { value, .. } = formatter.tree.get(*declaration_id) else {
+        panic!("expected type declaration");
+    };
+    if !matches!(formatter.tree.get(*value), Expression::ReferenceOf { .. }) {
+        panic!(
+            "unexpected type alias value expression: {:?}",
+            formatter.tree.get(*value)
+        );
+    }
+
+    assert_format!(
+        "type Borrowed = &Buffer",
+        "type Borrowed = &Buffer;",
+        |p| p.eat_expression(),
+        DestackFormatOptions::default()
+    );
+}
+
+/// Type aliases preserve readonly borrowed references.
+#[test]
+fn test_format_type_alias_preserves_readonly_borrowed_reference() {
+    assert_format!(
+        "type Borrowed = &readonly Buffer",
+        "type Borrowed = &readonly Buffer;",
+        |p| p.eat_expression(),
+        DestackFormatOptions::default()
+    );
+}
+
 #[test]
 fn test_format_member_call_chain_line() {
     assert_format!(

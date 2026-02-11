@@ -232,6 +232,7 @@ struct FileAggregate {
 struct BenchSummary {
     root: PathBuf,
     mode: BenchMode,
+    workers: usize,
     files: usize,
     formatted_files_per_run: usize,
     skipped_files_per_run: usize,
@@ -447,6 +448,7 @@ fn main() -> Result<(), String> {
     let summary = summarize(
         root.as_path(),
         args.mode,
+        args.workers.max(1),
         args.warmup_runs,
         args.top,
         args.timings_top,
@@ -913,6 +915,7 @@ fn benchmark_file(
 fn summarize(
     root: &Path,
     mode: BenchMode,
+    workers: usize,
     warmup_runs: usize,
     top: usize,
     timings_top: usize,
@@ -1057,6 +1060,7 @@ fn summarize(
     BenchSummary {
         root: root.to_path_buf(),
         mode,
+        workers,
         files,
         formatted_files_per_run,
         skipped_files_per_run,
@@ -1522,9 +1526,31 @@ fn print_table(summary: &BenchSummary, color: bool) {
     let parse_ratio = summary.mean_parse.as_secs_f64() / phase_total.as_secs_f64().max(0.000_001);
     let format_ratio = summary.mean_format.as_secs_f64() / phase_total.as_secs_f64().max(0.000_001);
     let print_ratio = summary.mean_print.as_secs_f64() / phase_total.as_secs_f64().max(0.000_001);
+    let workers = summary.workers.max(1);
+    let effective_parallelism =
+        phase_total.as_secs_f64() / summary.mean.as_secs_f64().max(0.000_001);
+    let parallel_efficiency = effective_parallelism / workers as f64;
+    let wall_stage_denominator = effective_parallelism.max(0.000_001);
+    let parse_wall_est =
+        Duration::from_secs_f64(summary.mean_parse.as_secs_f64() / wall_stage_denominator);
+    let format_wall_est =
+        Duration::from_secs_f64(summary.mean_format.as_secs_f64() / wall_stage_denominator);
+    let print_wall_est =
+        Duration::from_secs_f64(summary.mean_print.as_secs_f64() / wall_stage_denominator);
+
+    println!("  workers:           {:>10}", format_count(workers));
+    println!(
+        "  effective workers: {:>10}",
+        format!("{effective_parallelism:>.2}x")
+    );
+    println!(
+        "  parallel eff:      {:>10}",
+        format_percent(parallel_efficiency)
+    );
+    println!("  phase cpu total:   {:>10}", format_duration(phase_total));
 
     println!(
-        "  parse stage:       {parse_heat}{:>10}{reset} ({:>6})  {}",
+        "  parse stage cpu:   {parse_heat}{:>10}{reset} ({:>6})  {}",
         format_duration(summary.mean_parse),
         format_percent(parse_ratio),
         format_share_bar(parse_ratio, SHARE_BAR_WIDTH),
@@ -1532,7 +1558,7 @@ fn print_table(summary: &BenchSummary, color: bool) {
         reset = style.reset
     );
     println!(
-        "  format stage:      {format_heat}{:>10}{reset} ({:>6})  {}",
+        "  format stage cpu:  {format_heat}{:>10}{reset} ({:>6})  {}",
         format_duration(summary.mean_format),
         format_percent(format_ratio),
         format_share_bar(format_ratio, SHARE_BAR_WIDTH),
@@ -1540,7 +1566,7 @@ fn print_table(summary: &BenchSummary, color: bool) {
         reset = style.reset
     );
     println!(
-        "  print stage:       {print_heat}{:>10}{reset} ({:>6})  {}",
+        "  print stage cpu:   {print_heat}{:>10}{reset} ({:>6})  {}",
         format_duration(summary.mean_print),
         format_percent(print_ratio),
         format_share_bar(print_ratio, SHARE_BAR_WIDTH),
@@ -1548,11 +1574,26 @@ fn print_table(summary: &BenchSummary, color: bool) {
         reset = style.reset
     );
     println!(
-        "  parse lines/s:     {:>10}",
+        "  parse stage wall:  {:>10} ({:>6})",
+        format_duration(parse_wall_est),
+        format_percent(parse_ratio)
+    );
+    println!(
+        "  format stage wall: {:>10} ({:>6})",
+        format_duration(format_wall_est),
+        format_percent(format_ratio)
+    );
+    println!(
+        "  print stage wall:  {:>10} ({:>6})",
+        format_duration(print_wall_est),
+        format_percent(print_ratio)
+    );
+    println!(
+        "  parse cpu lines/s: {:>10}",
         format_count_rate_per_second(summary.parse_lines_per_second)
     );
     println!(
-        "  format cpu/s:      {:>10}",
+        "  format cpu lines/s: {:>9}",
         format_count_rate_per_second(summary.format_lines_per_second)
     );
     println!(
@@ -1560,8 +1601,18 @@ fn print_table(summary: &BenchSummary, color: bool) {
         format_count_rate_per_second(summary.format_formatted_lines_per_second)
     );
     println!(
-        "  print lines/s:     {:>10}",
+        "  print cpu lines/s: {:>10}",
         format_count_rate_per_second(summary.print_lines_per_second)
+    );
+    println!(
+        "  {dim}stage cpu rows sum cumulative worker cpu time{reset}",
+        dim = style.dim,
+        reset = style.reset
+    );
+    println!(
+        "  {dim}stage wall rows estimate wall share using effective workers{reset}",
+        dim = style.dim,
+        reset = style.reset
     );
 
     println!(

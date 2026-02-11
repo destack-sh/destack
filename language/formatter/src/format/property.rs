@@ -752,7 +752,7 @@ mod tests {
     #[test]
     fn test_format_struct_with_fields() {
         assert_format!(
-            "struct Foo { a: int32, b: boolean }",
+            "struct Foo { a: int32; b: boolean }",
             "struct Foo {\n\ta: int32;\n\tb: boolean;\n}",
             |p| p.eat_struct_or_class(&p.mark(), DeclarationDescriptor::default(), false),
             DestackFormatOptions::default_tab()
@@ -762,7 +762,7 @@ mod tests {
     #[test]
     fn test_format_struct_with_modified_fields() {
         assert_format!(
-            "struct Foo { readonly a: int32, private b: boolean }",
+            "struct Foo { readonly a: int32; private b: boolean }",
             "struct Foo {\n\treadonly a: int32;\n\tprivate b: boolean;\n}",
             |p| p.eat_struct_or_class(&p.mark(), DeclarationDescriptor::default(), false),
             DestackFormatOptions::default_tab()
@@ -782,7 +782,7 @@ mod tests {
     #[test]
     fn test_format_struct_with_fields_and_defaults() {
         assert_format!(
-            "struct Foo { a?: int32 = 42, b: boolean }",
+            "struct Foo { a?: int32 = 42; b: boolean }",
             "struct Foo {\n\ta?: int32 = 42;\n\tb: boolean;\n}",
             |p| p.eat_struct_or_class(&p.mark(), DeclarationDescriptor::default(), false),
             DestackFormatOptions::default_tab()

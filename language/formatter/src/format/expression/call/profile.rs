@@ -3,7 +3,7 @@ use super::classify::*;
 use crate::timing::tags;
 use crate::{
     CachedCallArgumentExpansionProfile, CachedCallArgumentExpansionProfiles,
-    CachedCallArgumentFacts,
+    CachedCallArgumentLayoutClass,
 };
 use destack_fir::write;
 
@@ -73,73 +73,6 @@ impl From<CallArgumentExpansionProfiles> for CachedCallArgumentExpansionProfiles
     }
 }
 
-/// Store one-pass facts for call argument expansion heuristics.
-#[derive(Debug, Clone, Copy, Default)]
-struct CallArgumentFacts {
-    /// Whether any argument has a line comment annotation.
-    has_line_comment_annotations: bool,
-    /// Whether the last argument is a collection literal.
-    trailing_collection_argument: bool,
-    /// Whether any argument is a block callback.
-    has_block_callback_argument: bool,
-    /// Whether the first argument is a block callback.
-    first_argument_is_block_callback: bool,
-    /// Whether the last argument is a block callback.
-    last_argument_is_block_callback: bool,
-    /// Whether any non-last, non-callback argument is non-trivial.
-    has_non_trivial_non_callback_argument: bool,
-    /// Number of block callback arguments before the last argument.
-    non_last_block_callback_count: usize,
-    /// Index of the first block callback before the last argument.
-    non_last_block_callback_index: Option<usize>,
-    /// Number of lambda arguments.
-    arrow_argument_count: usize,
-    /// Number of function expression arguments.
-    function_argument_count: usize,
-    /// Whether any argument is a spread argument.
-    has_spread_argument: bool,
-    /// Whether any non-callback argument is complex and non-tree.
-    has_complex_non_callback_argument: bool,
-}
-
-impl From<CachedCallArgumentFacts> for CallArgumentFacts {
-    fn from(cached: CachedCallArgumentFacts) -> Self {
-        Self {
-            has_line_comment_annotations: cached.has_line_comment_annotations,
-            trailing_collection_argument: cached.trailing_collection_argument,
-            has_block_callback_argument: cached.has_block_callback_argument,
-            first_argument_is_block_callback: cached.first_argument_is_block_callback,
-            last_argument_is_block_callback: cached.last_argument_is_block_callback,
-            has_non_trivial_non_callback_argument: cached.has_non_trivial_non_callback_argument,
-            non_last_block_callback_count: cached.non_last_block_callback_count,
-            non_last_block_callback_index: cached.non_last_block_callback_index,
-            arrow_argument_count: cached.arrow_argument_count,
-            function_argument_count: cached.function_argument_count,
-            has_spread_argument: cached.has_spread_argument,
-            has_complex_non_callback_argument: cached.has_complex_non_callback_argument,
-        }
-    }
-}
-
-impl From<CallArgumentFacts> for CachedCallArgumentFacts {
-    fn from(facts: CallArgumentFacts) -> Self {
-        Self {
-            has_line_comment_annotations: facts.has_line_comment_annotations,
-            trailing_collection_argument: facts.trailing_collection_argument,
-            has_block_callback_argument: facts.has_block_callback_argument,
-            first_argument_is_block_callback: facts.first_argument_is_block_callback,
-            last_argument_is_block_callback: facts.last_argument_is_block_callback,
-            has_non_trivial_non_callback_argument: facts.has_non_trivial_non_callback_argument,
-            non_last_block_callback_count: facts.non_last_block_callback_count,
-            non_last_block_callback_index: facts.non_last_block_callback_index,
-            arrow_argument_count: facts.arrow_argument_count,
-            function_argument_count: facts.function_argument_count,
-            has_spread_argument: facts.has_spread_argument,
-            has_complex_non_callback_argument: facts.has_complex_non_callback_argument,
-        }
-    }
-}
-
 /// Store comment and boundary data for call argument layout decisions.
 #[derive(Default)]
 struct CallArgumentCommentProfile {
@@ -190,145 +123,6 @@ fn collect_call_argument_comment_profile(
         has_prefix_line_comment_annotations,
         deferred_boundary_prefix_annotations,
     }
-}
-
-/// Collect one-pass facts used by call argument expansion heuristics.
-fn collect_call_argument_facts(
-    context: &DestackFormatContext<'_>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
-) -> CallArgumentFacts {
-    let mut has_line_comment_annotations = false;
-    let mut trailing_collection_argument = false;
-    let mut has_block_callback_argument = false;
-    let mut first_argument_is_block_callback = false;
-    let mut last_argument_is_block_callback = false;
-    let mut has_non_trivial_non_callback_argument = false;
-    let mut non_last_block_callback_count = 0;
-    let mut non_last_block_callback_index = None;
-    let mut arrow_argument_count = 0;
-    let mut function_argument_count = 0;
-    let mut has_spread_argument = false;
-    let mut has_complex_non_callback_argument = false;
-    let last_argument_index = dynamic_arguments.len().saturating_sub(1);
-
-    context.increment_counter(
-        "profile.call_arguments.layout.scan.arguments",
-        dynamic_arguments.len(),
-    );
-
-    for (index, argument_id) in dynamic_arguments.iter().copied().enumerate() {
-        if !has_line_comment_annotations
-            && context.has_annotation(argument_id)
-            && context
-                .argument_annotation_profile(argument_id)
-                .has_line_comment
-        {
-            has_line_comment_annotations = true;
-        }
-
-        let argument = context.tree.get(argument_id);
-        let value_id = argument_value_id(context.tree, argument_id);
-        let value_id = transparent_inner_expression(context, value_id);
-        let value = context.tree.get(value_id);
-        let is_spread_argument = matches!(argument, Argument::Spread { .. });
-        if is_spread_argument {
-            has_spread_argument = true;
-        }
-
-        let (is_lambda_argument, is_function_argument, is_block_callback) = match value {
-            Expression::Declaration(declaration_id) => match context.tree.get(*declaration_id) {
-                Declaration::Function {
-                    signature, body, ..
-                } => {
-                    let is_lambda_argument = signature.kind == FunctionKind::Lambda;
-                    let is_function_argument = !is_lambda_argument;
-                    let is_block_callback = is_lambda_argument
-                        && body.is_some_and(|body_id| {
-                            let body_id = transparent_inner_expression(context, body_id);
-                            matches!(context.tree.get(body_id), Expression::Block(_))
-                        });
-
-                    (is_lambda_argument, is_function_argument, is_block_callback)
-                }
-                _ => (false, false, false),
-            },
-            _ => (false, false, false),
-        };
-        if is_lambda_argument {
-            arrow_argument_count += 1;
-        }
-        if is_function_argument {
-            function_argument_count += 1;
-        }
-
-        let is_last_argument = index == last_argument_index;
-
-        if is_last_argument {
-            trailing_collection_argument = matches!(
-                value,
-                Expression::ObjectExpression { .. } | Expression::ArrayExpression { .. }
-            );
-            last_argument_is_block_callback = is_block_callback;
-        }
-        if index == 0 {
-            first_argument_is_block_callback = is_block_callback;
-        }
-
-        if is_block_callback {
-            has_block_callback_argument = true;
-            if !is_last_argument {
-                non_last_block_callback_count += 1;
-                if non_last_block_callback_index.is_none() {
-                    non_last_block_callback_index = Some(index);
-                }
-            }
-            continue;
-        }
-
-        if !is_last_argument && !is_trivial_argument(context.tree, argument) {
-            has_non_trivial_non_callback_argument = true;
-        }
-
-        if dynamic_arguments.len() > 1 {
-            let value_is_tree_expression = matches!(value, Expression::TreeExpression { .. });
-            if !value_is_tree_expression && is_complex_argument(context.tree, argument) {
-                has_complex_non_callback_argument = true;
-            }
-        }
-    }
-
-    CallArgumentFacts {
-        has_line_comment_annotations,
-        trailing_collection_argument,
-        has_block_callback_argument,
-        first_argument_is_block_callback,
-        last_argument_is_block_callback,
-        has_non_trivial_non_callback_argument,
-        non_last_block_callback_count,
-        non_last_block_callback_index,
-        arrow_argument_count,
-        function_argument_count,
-        has_spread_argument,
-        has_complex_non_callback_argument,
-    }
-}
-
-/// Return call argument facts with per-call caching.
-fn resolve_call_argument_facts(
-    context: &DestackFormatContext<'_>,
-    call_node_id: LocalNodeId<Expression>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
-) -> CallArgumentFacts {
-    if let Some(cached) = context.cached_call_argument_facts(call_node_id) {
-        context.increment_counter("profile.call_arguments.layout.cache.hits", 1);
-        return CallArgumentFacts::from(cached);
-    }
-
-    context.increment_counter("profile.call_arguments.layout.cache.misses", 1);
-    let facts = collect_call_argument_facts(context, dynamic_arguments);
-    context.cache_call_argument_facts(call_node_id, CachedCallArgumentFacts::from(facts));
-
-    facts
 }
 
 /// Return single argument expansion facts without scanning all arguments.
@@ -422,7 +216,6 @@ fn build_call_argument_expansion_profiles(
     dynamic_arguments: &[LocalNodeId<Argument>],
 ) -> CallArgumentExpansionProfiles {
     context.increment_counter("profile.call_arguments.layout.builds", 1);
-
     let has_call_infix_annotations = call_has_non_blank_infix_annotation(context, call_node_id);
 
     if dynamic_arguments.is_empty() {
@@ -490,36 +283,32 @@ fn build_call_argument_expansion_profiles(
         };
     }
 
+    let layout_class = resolve_call_argument_layout_class(context, call_node_id, dynamic_arguments);
+
     // compact unannotated argument lists do not require full expansion profiling
-    let can_use_simple_multi_argument_fast_path = !has_call_infix_annotations
-        && resolve_call_arguments_compact_simple_unannotated(
-            context,
-            call_node_id,
-            dynamic_arguments,
-        );
+    let can_use_simple_multi_argument_fast_path =
+        !layout_class.has_call_infix_annotations && layout_class.all_compact_simple_unannotated;
     if can_use_simple_multi_argument_fast_path {
         context.increment_counter("profile.call_arguments.layout.simple_fast_path", 1);
         return CallArgumentExpansionProfiles {
             regular: CallArgumentExpansionProfile {
                 force_expand: false,
-                has_call_infix_annotations,
+                has_call_infix_annotations: layout_class.has_call_infix_annotations,
                 trailing_collection_argument: false,
             },
             chain_force_expand: false,
         };
     }
 
-    let argument_facts = resolve_call_argument_facts(context, call_node_id, dynamic_arguments);
-    let has_line_comment_annotations = argument_facts.has_line_comment_annotations;
+    let has_line_comment_annotations = layout_class.has_line_comment_annotations;
     let force_expand_jsx = has_multiline_jsx_argument(context.tree, dynamic_arguments);
-    let trailing_collection_argument = argument_facts.trailing_collection_argument;
-    let has_block_callback_argument = argument_facts.has_block_callback_argument;
-    let last_argument_is_block_callback = argument_facts.last_argument_is_block_callback;
-    let first_argument_is_block_callback = argument_facts.first_argument_is_block_callback;
-    let has_non_trivial_non_callback_argument =
-        argument_facts.has_non_trivial_non_callback_argument;
-    let non_last_block_callback_count = argument_facts.non_last_block_callback_count;
-    let non_last_block_callback_index = argument_facts.non_last_block_callback_index;
+    let trailing_collection_argument = layout_class.trailing_collection_argument;
+    let has_block_callback_argument = layout_class.has_block_callback_argument;
+    let last_argument_is_block_callback = layout_class.last_argument_is_block_callback;
+    let first_argument_is_block_callback = layout_class.first_argument_is_block_callback;
+    let has_non_trivial_non_callback_argument = layout_class.has_non_trivial_non_callback_argument;
+    let non_last_block_callback_count = layout_class.non_last_block_callback_count;
+    let non_last_block_callback_index = layout_class.non_last_block_callback_index;
     let allow_non_last_block_callback_with_collection_tail = !last_argument_is_block_callback
         && trailing_collection_argument
         && non_last_block_callback_count == NON_LAST_BLOCK_CALLBACK_COUNT_TARGET
@@ -539,8 +328,8 @@ fn build_call_argument_expansion_profiles(
             || (!last_argument_is_block_callback
                 && !allow_non_last_block_callback_with_collection_tail
                 && !has_leading_block_callback_with_simple_tail));
-    let arrow_argument_count = argument_facts.arrow_argument_count;
-    let function_argument_count = argument_facts.function_argument_count;
+    let arrow_argument_count = layout_class.arrow_argument_count;
+    let function_argument_count = layout_class.function_argument_count;
     let has_any_function_argument = arrow_argument_count > 0 || function_argument_count > 0;
     let has_multiple_function_arguments = arrow_argument_count
         >= MULTIPLE_FUNCTION_ARGUMENT_MIN_COUNT
@@ -560,12 +349,21 @@ fn build_call_argument_expansion_profiles(
         };
     }
 
-    let has_spread_argument = argument_facts.has_spread_argument;
+    let has_spread_argument = layout_class.has_spread_argument;
     let force_expand_multiline_function_composition = context.node_has_newline(call_node_id)
         && dynamic_arguments.len() >= MULTILINE_FUNCTION_COMPOSITION_MIN_ARGUMENTS
         && has_any_function_argument
         && !has_spread_argument;
-    let force_expand_complex = argument_facts.has_complex_non_callback_argument;
+    let has_non_complex_force_expand_signal = force_expand_jsx
+        || has_line_comment_annotations
+        || should_expand_for_block_callback
+        || force_expand_multiline_function_composition
+        || has_call_infix_annotations;
+    let force_expand_complex = if has_non_complex_force_expand_signal {
+        false
+    } else {
+        layout_class.has_complex_non_callback_argument
+    };
 
     let regular_force_expand = force_expand_jsx
         || force_expand_complex
@@ -583,7 +381,7 @@ fn build_call_argument_expansion_profiles(
     CallArgumentExpansionProfiles {
         regular: CallArgumentExpansionProfile {
             force_expand: regular_force_expand,
-            has_call_infix_annotations,
+            has_call_infix_annotations: layout_class.has_call_infix_annotations,
             trailing_collection_argument,
         },
         chain_force_expand,
@@ -705,13 +503,18 @@ fn write_inline_call_argument_list<'ast>(
     all_plain_call_arguments: bool,
 ) -> FormatResult<()> {
     write!(f, [token("(")])?;
-    for (index, argument_id) in dynamic_arguments.iter().enumerate() {
-        if index > 0 {
-            write!(f, [token(","), space()])?;
-        }
-        if all_plain_call_arguments {
+    if all_plain_call_arguments {
+        for (index, argument_id) in dynamic_arguments.iter().enumerate() {
+            if index > 0 {
+                write!(f, [token(","), space()])?;
+            }
             write_plain_call_argument(f, *argument_id)?;
-        } else {
+        }
+    } else {
+        for (index, argument_id) in dynamic_arguments.iter().enumerate() {
+            if index > 0 {
+                write!(f, [token(","), space()])?;
+            }
             write_plain_call_argument_or_node(f, *argument_id)?;
         }
     }
@@ -725,25 +528,31 @@ fn argument_is_plain_call_argument(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    if context.has_annotation(argument_id) {
-        return false;
+    if let Some(cached) = context.cached_argument_plain_call_argument(argument_id) {
+        context.increment_counter("profile.call.arguments.plain.cache.hits", 1);
+        return cached;
     }
+    context.increment_counter("profile.call.arguments.plain.cache.misses", 1);
 
-    match context.tree.get(argument_id) {
-        Argument::Named {
-            modifiers: None, ..
-        }
-        | Argument::Labeled {
-            modifiers: None, ..
-        }
-        | Argument::Positional {
-            modifiers: None, ..
-        }
-        | Argument::Spread {
-            modifiers: None, ..
-        } => true,
-        _ => false,
-    }
+    let is_plain = !context.has_annotation(argument_id)
+        && matches!(
+            context.tree.get(argument_id),
+            Argument::Named {
+                modifiers: None,
+                ..
+            } | Argument::Labeled {
+                modifiers: None,
+                ..
+            } | Argument::Positional {
+                modifiers: None,
+                ..
+            } | Argument::Spread {
+                modifiers: None,
+                ..
+            }
+        );
+    context.cache_argument_plain_call_argument(argument_id, is_plain);
+    is_plain
 }
 
 /// Write one call argument that is known to be plain.
@@ -819,38 +628,6 @@ fn argument_is_compact_simple_unannotated(
     is_compact_simple_unannotated
 }
 
-/// Return whether every argument in a list is compact, unannotated, and simple.
-fn arguments_are_compact_simple_unannotated(
-    context: &DestackFormatContext<'_>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
-) -> bool {
-    dynamic_arguments
-        .iter()
-        .copied()
-        .all(|argument_id| argument_is_compact_simple_unannotated(context, argument_id))
-}
-
-/// Return whether every call argument is compact simple unannotated with per-call caching.
-fn resolve_call_arguments_compact_simple_unannotated(
-    context: &DestackFormatContext<'_>,
-    call_node_id: LocalNodeId<Expression>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
-) -> bool {
-    if let Some(cached) = context.cached_call_arguments_compact_simple_unannotated(call_node_id) {
-        context.increment_counter("profile.call.arguments.compact_simple.call_cache.hits", 1);
-        return cached;
-    }
-
-    context.increment_counter("profile.call.arguments.compact_simple.call_cache.misses", 1);
-    let all_compact_simple_unannotated =
-        arguments_are_compact_simple_unannotated(context, dynamic_arguments);
-    context.cache_call_arguments_compact_simple_unannotated(
-        call_node_id,
-        all_compact_simple_unannotated,
-    );
-    all_compact_simple_unannotated
-}
-
 /// Return whether a call expression is used as the callee/receiver of a parent postfix call chain.
 fn call_has_call_chain_parent(
     context: &DestackFormatContext<'_>,
@@ -902,89 +679,209 @@ struct CallArgumentShape {
     all_single_line_and_unannotated: bool,
 }
 
-/// Store one-pass quick call argument facts for hot path selection.
-#[derive(Clone, Copy, Debug, Default)]
-struct CallArgumentQuickProfile {
-    /// One-pass shape facts for the argument list.
-    shape: CallArgumentShape,
+/// Build one call argument shape from cached layout-class facts.
+fn call_argument_shape_from_layout_class(
+    layout_class: CachedCallArgumentLayoutClass,
+) -> CallArgumentShape {
+    CallArgumentShape {
+        has_any_argument_annotation: layout_class.has_any_argument_annotation,
+        is_multiline_in_source: layout_class.is_multiline_in_source,
+        all_single_line_and_unannotated: layout_class.all_single_line_and_unannotated,
+    }
 }
 
-/// Collect one-pass quick call argument facts for hot path selection.
-fn collect_call_argument_quick_profile(
+/// Resolve one cached call argument layout class.
+fn resolve_call_argument_layout_class(
     context: &DestackFormatContext<'_>,
+    call_node_id: LocalNodeId<Expression>,
     dynamic_arguments: &[LocalNodeId<Argument>],
-) -> CallArgumentQuickProfile {
+) -> CachedCallArgumentLayoutClass {
+    if let Some(cached) = context.cached_call_argument_layout_class(call_node_id) {
+        context.increment_counter("profile.call.arguments.layout_class.cache.hits", 1);
+        return cached;
+    }
+
+    context.increment_counter("profile.call.arguments.layout_class.cache.misses", 1);
+    context.increment_counter("profile.call.arguments.layout_class.builds", 1);
+    let has_call_infix_annotations = call_has_non_blank_infix_annotation(context, call_node_id);
+    let has_call_chain_parent = call_has_call_chain_parent(context, call_node_id);
+
     if dynamic_arguments.is_empty() {
-        return CallArgumentQuickProfile {
-            shape: CallArgumentShape {
-                has_any_argument_annotation: false,
-                is_multiline_in_source: false,
-                all_single_line_and_unannotated: true,
-            },
+        let layout_class = CachedCallArgumentLayoutClass {
+            has_call_infix_annotations,
+            all_single_line_and_unannotated: true,
+            all_compact_simple_unannotated: true,
+            all_plain_call_arguments: true,
+            has_call_chain_parent,
+            ..CachedCallArgumentLayoutClass::default()
         };
+        context.cache_call_argument_layout_class(call_node_id, layout_class);
+        return layout_class;
     }
 
     let mut has_any_argument_annotation = false;
     let mut all_single_line_and_unannotated = true;
+    let mut all_compact_simple_unannotated = true;
+    let mut all_plain_call_arguments = true;
+    let mut has_line_comment_annotations = false;
+    let mut trailing_collection_argument = false;
+    let mut has_block_callback_argument = false;
+    let mut first_argument_is_block_callback = false;
+    let mut last_argument_is_block_callback = false;
+    let mut has_non_trivial_non_callback_argument = false;
+    let mut non_last_block_callback_count = 0;
+    let mut non_last_block_callback_index = None;
+    let mut arrow_argument_count = 0;
+    let mut function_argument_count = 0;
+    let mut has_spread_argument = false;
+    let mut has_complex_non_callback_argument = false;
+    let last_argument_index = dynamic_arguments.len().saturating_sub(1);
+    context.increment_counter(
+        "profile.call_arguments.layout.scan.arguments",
+        dynamic_arguments.len(),
+    );
 
-    for argument_id in dynamic_arguments.iter().copied() {
+    for (index, argument_id) in dynamic_arguments.iter().copied().enumerate() {
         let has_annotation = context.has_annotation(argument_id);
         let has_newline = context.node_has_newline(argument_id);
         if has_annotation {
             has_any_argument_annotation = true;
+            if !has_line_comment_annotations
+                && context
+                    .argument_annotation_profile(argument_id)
+                    .has_line_comment
+            {
+                has_line_comment_annotations = true;
+            }
         }
 
         let is_single_line_and_unannotated = !has_annotation && !has_newline;
         all_single_line_and_unannotated &= is_single_line_and_unannotated;
+        if all_compact_simple_unannotated {
+            all_compact_simple_unannotated = if is_single_line_and_unannotated {
+                argument_is_compact_simple_unannotated(context, argument_id)
+            } else {
+                false
+            };
+        }
+
+        if all_plain_call_arguments {
+            all_plain_call_arguments &= argument_is_plain_call_argument(context, argument_id);
+        }
+
+        let argument = context.tree.get(argument_id);
+        if matches!(argument, Argument::Spread { .. }) {
+            has_spread_argument = true;
+        }
+
+        let value_id = argument_value_id(context.tree, argument_id);
+        let value_id = transparent_inner_expression(context, value_id);
+        let value = context.tree.get(value_id);
+        let (is_lambda_argument, is_function_argument, is_block_callback) = match value {
+            Expression::Declaration(declaration_id) => match context.tree.get(*declaration_id) {
+                Declaration::Function {
+                    signature, body, ..
+                } => {
+                    let is_lambda_argument = signature.kind == FunctionKind::Lambda;
+                    let is_function_argument = !is_lambda_argument;
+                    let is_block_callback = is_lambda_argument
+                        && body.is_some_and(|body_id| {
+                            let body_id = transparent_inner_expression(context, body_id);
+                            matches!(context.tree.get(body_id), Expression::Block(_))
+                        });
+
+                    (is_lambda_argument, is_function_argument, is_block_callback)
+                }
+                _ => (false, false, false),
+            },
+            _ => (false, false, false),
+        };
+        if is_lambda_argument {
+            arrow_argument_count += 1;
+        }
+        if is_function_argument {
+            function_argument_count += 1;
+        }
+
+        let is_last_argument = index == last_argument_index;
+        if index == 0 {
+            first_argument_is_block_callback = is_block_callback;
+        }
+        if is_last_argument {
+            trailing_collection_argument = matches!(
+                value,
+                Expression::ObjectExpression { .. } | Expression::ArrayExpression { .. }
+            );
+            last_argument_is_block_callback = is_block_callback;
+        }
+
+        if is_block_callback {
+            has_block_callback_argument = true;
+            if !is_last_argument {
+                non_last_block_callback_count += 1;
+                if non_last_block_callback_index.is_none() {
+                    non_last_block_callback_index = Some(index);
+                }
+            }
+            continue;
+        }
+
+        if !has_complex_non_callback_argument
+            && !matches!(value, Expression::TreeExpression { .. })
+            && is_complex_argument(context.tree, argument)
+        {
+            has_complex_non_callback_argument = true;
+        }
+
+        if !has_non_trivial_non_callback_argument
+            && !is_last_argument
+            && !is_trivial_argument(context.tree, argument)
+        {
+            has_non_trivial_non_callback_argument = true;
+        }
     }
 
-    CallArgumentQuickProfile {
-        shape: CallArgumentShape {
-            has_any_argument_annotation,
-            is_multiline_in_source: call_arguments_are_multiline_in_source(
-                context,
-                dynamic_arguments,
-            ),
-            all_single_line_and_unannotated,
-        },
-    }
-}
+    let force_hug_last_inline = dynamic_arguments.len() > 1
+        && !has_call_infix_annotations
+        && !has_any_argument_annotation
+        && all_single_line_and_unannotated
+        && call_arguments_force_hug_last_inline(
+            context,
+            call_node_id,
+            dynamic_arguments,
+            trailing_collection_argument,
+        );
+    let is_multiline_in_source = if all_single_line_and_unannotated {
+        false
+    } else {
+        call_arguments_are_multiline_in_source(context, dynamic_arguments)
+    };
 
-/// Return whether any argument value is lambda or function-like.
-fn call_arguments_have_function_like_values(
-    context: &DestackFormatContext<'_>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
-) -> bool {
-    dynamic_arguments.iter().copied().any(|argument_id| {
-        argument_is_lambda_expression(context, argument_id)
-            || argument_is_function_expression(context, argument_id)
-    })
-}
+    let layout_class = CachedCallArgumentLayoutClass {
+        has_call_infix_annotations,
+        has_any_argument_annotation,
+        is_multiline_in_source,
+        all_single_line_and_unannotated,
+        all_compact_simple_unannotated,
+        all_plain_call_arguments,
+        has_line_comment_annotations,
+        has_block_callback_argument,
+        first_argument_is_block_callback,
+        last_argument_is_block_callback,
+        has_non_trivial_non_callback_argument,
+        non_last_block_callback_count,
+        non_last_block_callback_index,
+        arrow_argument_count,
+        function_argument_count,
+        has_spread_argument,
+        has_complex_non_callback_argument,
+        has_call_chain_parent,
+        trailing_collection_argument,
+        force_hug_last_inline,
+    };
+    context.cache_call_argument_layout_class(call_node_id, layout_class);
 
-/// Return whether every argument can use the plain writer.
-fn call_arguments_are_plain(
-    context: &DestackFormatContext<'_>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
-) -> bool {
-    dynamic_arguments
-        .iter()
-        .copied()
-        .all(|argument_id| argument_is_plain_call_argument(context, argument_id))
-}
-
-/// Return whether every argument can use the plain writer with per-call local caching.
-fn resolve_all_plain_call_arguments(
-    context: &DestackFormatContext<'_>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
-    cached_all_plain_call_arguments: &mut Option<bool>,
-) -> bool {
-    if let Some(cached) = *cached_all_plain_call_arguments {
-        return cached;
-    }
-
-    let all_plain_call_arguments = call_arguments_are_plain(context, dynamic_arguments);
-    *cached_all_plain_call_arguments = Some(all_plain_call_arguments);
-    all_plain_call_arguments
+    layout_class
 }
 
 /// Return whether all leading arguments before the last are compact and simple.
@@ -1277,6 +1174,24 @@ fn resolve_hug_last_call_argument_layout(
     force_expand: bool,
     trailing_collection_argument: bool,
 ) -> Option<HugLastCallArgumentLayout> {
+    let mut inline_call_len_without_static_arguments =
+        planner_state.inline_call_len_without_static_arguments;
+    let mut resolve_inline_call_len = || {
+        if inline_call_len_without_static_arguments.is_none()
+            && !planner_state.call_has_static_arguments
+        {
+            inline_call_len_without_static_arguments =
+                resolve_inline_call_len_without_static_arguments(
+                    context,
+                    call_node_id,
+                    dynamic_arguments,
+                    planner_state.call_has_static_arguments,
+                );
+        }
+
+        inline_call_len_without_static_arguments
+    };
+
     if call_arguments_force_hug_last_inline(
         context,
         call_node_id,
@@ -1290,8 +1205,7 @@ fn resolve_hug_last_call_argument_layout(
     // only hug when deterministic inline fit says yes
     let can_inline_hug_last = !force_expand
         && planner_state.argument_shape.all_single_line_and_unannotated
-        && planner_state
-            .inline_call_len_without_static_arguments
+        && resolve_inline_call_len()
             .is_some_and(|inline_len| inline_len <= planner_state.line_width);
     if can_inline_hug_last {
         context.increment_counter("profile.call.arguments.hug_last.fast_path", 1);
@@ -1315,8 +1229,7 @@ fn resolve_hug_last_call_argument_layout(
     }
 
     let can_inline_overflow_tail = !force_expand
-        && planner_state
-            .inline_call_len_without_static_arguments
+        && resolve_inline_call_len()
             .is_some_and(|inline_len| inline_len > planner_state.line_width)
         && (last_argument_is_collection_literal || last_argument_is_callback_like);
     if can_inline_overflow_tail {
@@ -1355,15 +1268,15 @@ enum CallArgumentLayoutDecision {
 fn build_call_argument_planner_base_state(
     context: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
-    argument_shape: CallArgumentShape,
+    layout_class: CachedCallArgumentLayoutClass,
 ) -> CallArgumentPlannerBaseState {
     let call_has_static_arguments = call_has_static_arguments(context, call_node_id);
 
     CallArgumentPlannerBaseState {
         line_width: usize::from(context.options.line_width),
         call_has_static_arguments,
-        has_call_infix_annotations: call_has_non_blank_infix_annotation(context, call_node_id),
-        argument_shape,
+        has_call_infix_annotations: layout_class.has_call_infix_annotations,
+        argument_shape: call_argument_shape_from_layout_class(layout_class),
     }
 }
 
@@ -1377,18 +1290,23 @@ fn build_call_argument_planner_state(
     force_expand_single_long_with_static_arguments: bool,
     inline_call_len_without_static_arguments: Option<usize>,
 ) -> CallArgumentPlannerState {
+    let force_expand_single_collection_for_type_binary_callee = if dynamic_arguments.len() == 1 {
+        call_force_expand_single_collection_for_type_binary_callee(
+            context,
+            call_node_id,
+            dynamic_arguments,
+        )
+    } else {
+        false
+    };
+
     CallArgumentPlannerState {
         line_width: base_state.line_width,
         call_has_static_arguments: base_state.call_has_static_arguments,
         has_call_infix_annotations: base_state.has_call_infix_annotations,
         single_argument_force_expand,
         force_expand_single_long_with_static_arguments,
-        force_expand_single_collection_for_type_binary_callee:
-            call_force_expand_single_collection_for_type_binary_callee(
-                context,
-                call_node_id,
-                dynamic_arguments,
-            ),
+        force_expand_single_collection_for_type_binary_callee,
         inline_call_len_without_static_arguments,
         argument_shape: base_state.argument_shape,
     }
@@ -1531,20 +1449,30 @@ fn decide_post_hugged_call_argument_layout(
     }
 }
 
-/// Format default call arguments via plain argument emission for annotation-free lists.
-fn format_plain_default_call_argument_list<'ast>(
+/// Format default call arguments via direct argument emission for annotation-free lists.
+fn format_fast_default_call_argument_list<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     group_id: GroupId,
     dynamic_arguments: &[LocalNodeId<Argument>],
     force_expand: bool,
+    all_plain_call_arguments: bool,
 ) -> FormatResult<()> {
     let allow_trailing_comma = f.context().options.trailing_comma == TrailingComma::All;
     let body = format_with(|f| {
-        for (index, argument_id) in dynamic_arguments.iter().copied().enumerate() {
-            if index > 0 {
-                write!(f, [token(","), soft_line_break_or_space()])?;
+        if all_plain_call_arguments {
+            for (index, argument_id) in dynamic_arguments.iter().copied().enumerate() {
+                if index > 0 {
+                    write!(f, [token(","), soft_line_break_or_space()])?;
+                }
+                write_plain_call_argument(f, argument_id)?;
             }
-            write_plain_call_argument(f, argument_id)?;
+        } else {
+            for (index, argument_id) in dynamic_arguments.iter().copied().enumerate() {
+                if index > 0 {
+                    write!(f, [token(","), soft_line_break_or_space()])?;
+                }
+                write_plain_call_argument_or_node(f, argument_id)?;
+            }
         }
 
         if allow_trailing_comma {
@@ -1567,12 +1495,17 @@ fn format_default_call_argument_list<'ast>(
     dynamic_arguments: &[LocalNodeId<Argument>],
     force_expand: bool,
     has_line_comment_annotations: bool,
-    all_plain_call_arguments: Option<bool>,
+    has_any_argument_annotation: bool,
+    all_plain_call_arguments: bool,
 ) -> FormatResult<()> {
     let is_single_argument = dynamic_arguments.len() == 1;
     let single_argument_id = is_single_argument.then_some(dynamic_arguments[0]);
-    let has_single_template_literal_argument = single_argument_id
-        .is_some_and(|argument_id| argument_is_template_literal(f.context(), argument_id));
+    let has_single_template_literal_argument = if is_single_argument {
+        single_argument_id
+            .is_some_and(|argument_id| argument_is_template_literal(f.context(), argument_id))
+    } else {
+        false
+    };
     let last_argument_has_line_comment = if has_line_comment_annotations {
         dynamic_arguments.last().is_some_and(|argument_id| {
             argument_has_line_comment_annotation(f.context(), *argument_id)
@@ -1580,22 +1513,20 @@ fn format_default_call_argument_list<'ast>(
     } else {
         false
     };
-    let single_callback_without_leading_prefix = single_argument_id.is_some_and(|argument_id| {
-        (argument_is_lambda_expression(f.context(), argument_id)
-            || argument_is_function_expression(f.context(), argument_id))
-            && !argument_has_leading_prefix_annotation_outside_span(f.context(), argument_id)
-    });
+    let single_callback_without_leading_prefix = if is_single_argument {
+        single_argument_id.is_some_and(|argument_id| {
+            (argument_is_lambda_expression(f.context(), argument_id)
+                || argument_is_function_expression(f.context(), argument_id))
+                && !argument_has_leading_prefix_annotation_outside_span(f.context(), argument_id)
+        })
+    } else {
+        false
+    };
     let can_use_plain_default_fast_path = !f.context().has_ignore_directive_markers()
         && dynamic_arguments.len() > 1
-        && !has_single_template_literal_argument
-        && !last_argument_has_line_comment
-        && !single_callback_without_leading_prefix
-        && all_plain_call_arguments.unwrap_or_else(|| {
-            dynamic_arguments
-                .iter()
-                .copied()
-                .all(|argument_id| argument_is_plain_call_argument(f.context(), argument_id))
-        });
+        && !has_any_argument_annotation
+        && !has_line_comment_annotations
+        && !is_single_argument;
 
     let _timing = f
         .context()
@@ -1603,11 +1534,12 @@ fn format_default_call_argument_list<'ast>(
     if can_use_plain_default_fast_path {
         f.context()
             .increment_counter("profile.call.arguments.path.list_default_plain_fast", 1);
-        return format_plain_default_call_argument_list(
+        return format_fast_default_call_argument_list(
             f,
             group_id,
             dynamic_arguments,
             force_expand,
+            all_plain_call_arguments,
         );
     }
 
@@ -1709,149 +1641,46 @@ pub(in super::super) fn format_call_arguments<'ast>(
 }
 
 /// Format call arguments with an active list group id.
-fn format_call_arguments_with_group<'ast>(
+fn format_single_call_argument_with_group<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     call_node_id: LocalNodeId<Expression>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
+    argument_id: LocalNodeId<Argument>,
     group_id: GroupId,
 ) -> FormatResult<()> {
-    let quick_profile = collect_call_argument_quick_profile(f.context(), dynamic_arguments);
-    let planner_base_state =
-        build_call_argument_planner_base_state(f.context(), call_node_id, quick_profile.shape);
-    let mut cached_all_plain_call_arguments = None;
-    let is_single_dynamic_argument = dynamic_arguments.len() == 1;
-    let single_argument_force_expand = if is_single_dynamic_argument {
-        single_argument_requires_expanded_list(f.context(), dynamic_arguments)
+    let single_argument = [argument_id];
+
+    // shared single argument planner base state
+    let has_call_infix_annotations = call_has_non_blank_infix_annotation(f.context(), call_node_id);
+    let has_any_argument_annotation = f.context().has_annotation(argument_id);
+    let is_multiline_in_source = f.context().node_has_newline(argument_id);
+    let argument_shape = CallArgumentShape {
+        has_any_argument_annotation,
+        is_multiline_in_source,
+        all_single_line_and_unannotated: !has_any_argument_annotation && !is_multiline_in_source,
+    };
+    let planner_base_state = CallArgumentPlannerBaseState {
+        line_width: usize::from(f.context().options.line_width),
+        call_has_static_arguments: call_has_static_arguments(f.context(), call_node_id),
+        has_call_infix_annotations,
+        argument_shape,
+    };
+    let single_argument_force_expand =
+        single_argument_requires_expanded_list(f.context(), &single_argument);
+    let inline_call_len_without_static_arguments = if planner_base_state.call_has_static_arguments {
+        None
     } else {
-        false
+        resolve_inline_call_len_without_static_arguments(
+            f.context(),
+            call_node_id,
+            &single_argument,
+            planner_base_state.call_has_static_arguments,
+        )
     };
 
-    // keep compact, no-annotation lists on a cheap inline or grouped path
-    let no_annotation_multi_argument_candidate = dynamic_arguments.len() > 1
-        && !planner_base_state.has_call_infix_annotations
-        && quick_profile.shape.all_single_line_and_unannotated
-        && !planner_base_state.argument_shape.is_multiline_in_source;
-    let use_no_annotation_multi_argument_fast_path = no_annotation_multi_argument_candidate
-        && resolve_call_arguments_compact_simple_unannotated(
-            f.context(),
-            call_node_id,
-            dynamic_arguments,
-        );
-    if use_no_annotation_multi_argument_fast_path {
-        if expression_source_len(f.context(), call_node_id) <= planner_base_state.line_width {
-            f.context()
-                .increment_counter("profile.call.arguments.path.no_annotation_inline_fast", 1);
-            let all_plain_call_arguments = resolve_all_plain_call_arguments(
-                f.context(),
-                dynamic_arguments,
-                &mut cached_all_plain_call_arguments,
-            );
-            write_inline_call_argument_list(f, dynamic_arguments, all_plain_call_arguments)?;
-        } else {
-            f.context()
-                .increment_counter("profile.call.arguments.path.no_annotation_grouped_fast", 1);
-            let mut list = list_like("(", ")", ",", dynamic_arguments);
-            list.with_group_id(Some(group_id)).should_expand(false);
-            write!(f, [list])?;
-        }
-        return Ok(());
-    }
-
-    // keep deterministic non callback call arguments on the cheap path
-    let use_no_annotation_deterministic_fast_path = dynamic_arguments.len() > 1
-        && !planner_base_state.has_call_infix_annotations
-        && planner_base_state
-            .argument_shape
-            .all_single_line_and_unannotated
-        && !call_has_call_chain_parent(f.context(), call_node_id)
-        && !call_arguments_have_function_like_values(f.context(), dynamic_arguments);
-    if use_no_annotation_deterministic_fast_path {
-        let inline_len = if planner_base_state.call_has_static_arguments {
-            expression_source_len(f.context(), call_node_id)
-        } else {
-            let inline_len_without_static_arguments =
-                resolve_inline_call_len_without_static_arguments(
-                    f.context(),
-                    call_node_id,
-                    dynamic_arguments,
-                    planner_base_state.call_has_static_arguments,
-                );
-            inline_len_without_static_arguments.unwrap_or(usize::MAX)
-        };
-        if inline_len <= planner_base_state.line_width {
-            f.context().increment_counter(
-                "profile.call.arguments.path.no_annotation_deterministic_inline",
-                1,
-            );
-            let all_plain_call_arguments = resolve_all_plain_call_arguments(
-                f.context(),
-                dynamic_arguments,
-                &mut cached_all_plain_call_arguments,
-            );
-            write_inline_call_argument_list(f, dynamic_arguments, all_plain_call_arguments)?;
-        } else {
-            f.context().increment_counter(
-                "profile.call.arguments.path.no_annotation_deterministic_grouped",
-                1,
-            );
-            let all_plain_call_arguments = resolve_all_plain_call_arguments(
-                f.context(),
-                dynamic_arguments,
-                &mut cached_all_plain_call_arguments,
-            );
-            format_default_call_argument_list(
-                f,
-                group_id,
-                dynamic_arguments,
-                false,
-                false,
-                Some(all_plain_call_arguments),
-            )?;
-        }
-        return Ok(());
-    }
-
-    // frequent hug-last callback and collection tails can skip profiled layout
-    let use_forced_hug_last_inline_fast_path = dynamic_arguments.len() > 1
-        && !planner_base_state.has_call_infix_annotations
-        && !planner_base_state
-            .argument_shape
-            .has_any_argument_annotation
-        && call_arguments_force_hug_last_inline(
-            f.context(),
-            call_node_id,
-            dynamic_arguments,
-            dynamic_arguments.last().is_some_and(|argument_id| {
-                argument_is_collection_literal(f.context(), *argument_id)
-            }),
-        );
-    if use_forced_hug_last_inline_fast_path {
-        f.context()
-            .increment_counter("profile.call.arguments.path.hug_last_forced", 1);
-        let all_plain_call_arguments = resolve_all_plain_call_arguments(
-            f.context(),
-            dynamic_arguments,
-            &mut cached_all_plain_call_arguments,
-        );
-        write_inline_call_argument_list(f, dynamic_arguments, all_plain_call_arguments)?;
-        return Ok(());
-    }
-
-    // very common single argument calls can short-circuit before heavier layout profiling
-    let inline_call_len_without_static_arguments =
-        if is_single_dynamic_argument && !planner_base_state.call_has_static_arguments {
-            resolve_inline_call_len_without_static_arguments(
-                f.context(),
-                call_node_id,
-                dynamic_arguments,
-                planner_base_state.call_has_static_arguments,
-            )
-        } else {
-            None
-        };
+    // keep very common single simple arguments wrapped inline
     let use_single_simple_argument_fast_path = call_arguments_use_single_simple_argument_fast_path(
         f.context(),
-        dynamic_arguments,
+        &single_argument,
         SingleSimpleArgumentFastPathOptions {
             line_width: planner_base_state.line_width,
             call_has_static_arguments: planner_base_state.call_has_static_arguments,
@@ -1867,34 +1696,27 @@ fn format_call_arguments_with_group<'ast>(
         f.context()
             .increment_counter("profile.call.arguments.path.single_simple_fast_path", 1);
         write!(f, [token("(")])?;
-        write_plain_call_argument_or_node(f, dynamic_arguments[0])?;
+        write_plain_call_argument_or_node(f, argument_id)?;
         write!(f, [token(")")])?;
         return Ok(());
     }
 
-    let force_expand_single_long_with_static_arguments = if is_single_dynamic_argument {
+    // preserve inline callback single argument rendering
+    let force_expand_single_long_with_static_arguments =
         call_force_expand_single_long_with_static_arguments(
             f.context(),
             call_node_id,
-            dynamic_arguments,
-        )
-    } else {
-        false
-    };
-    let force_expand_single_collection_for_type_binary_callee = if is_single_dynamic_argument {
+            &single_argument,
+        );
+    let force_expand_single_collection_for_type_binary_callee =
         call_force_expand_single_collection_for_type_binary_callee(
             f.context(),
             call_node_id,
-            dynamic_arguments,
-        )
-    } else {
-        false
-    };
-
-    // keep single callback arguments wrapped directly without entering profiled layout
+            &single_argument,
+        );
     let use_single_callback_argument_inline = call_arguments_use_single_callback_argument_inline(
         f.context(),
-        dynamic_arguments,
+        &single_argument,
         planner_base_state.has_call_infix_annotations,
         force_expand_single_long_with_static_arguments,
         force_expand_single_collection_for_type_binary_callee,
@@ -1903,28 +1725,23 @@ fn format_call_arguments_with_group<'ast>(
         f.context()
             .increment_counter("profile.call.arguments.path.single_callback_inline", 1);
         write!(f, [token("(")])?;
-        write_plain_call_argument_or_node(f, dynamic_arguments[0])?;
+        write_plain_call_argument_or_node(f, argument_id)?;
         write!(f, [token(")")])?;
         return Ok(());
     }
 
+    // keep single collection arguments on hugged path when allowed
     let force_hugged_expand =
         call_should_force_hugged_expand(force_expand_single_collection_for_type_binary_callee);
-
-    // try hugged format for single object/array arguments
-    let can_use_hugged = if is_single_dynamic_argument {
-        !argument_has_multiline_prefix_annotation(f.context(), dynamic_arguments[0])
-            && !planner_base_state.has_call_infix_annotations
-            && !force_expand_single_long_with_static_arguments
-            && !argument_is_lambda_expression(f.context(), dynamic_arguments[0])
-            && !argument_is_function_expression(f.context(), dynamic_arguments[0])
-    } else {
-        true
-    };
+    let can_use_hugged = !argument_has_multiline_prefix_annotation(f.context(), argument_id)
+        && !planner_base_state.has_call_infix_annotations
+        && !force_expand_single_long_with_static_arguments
+        && !argument_is_lambda_expression(f.context(), argument_id)
+        && !argument_is_function_expression(f.context(), argument_id);
     if can_use_hugged {
         let used_hugged = format_hugged(
             f,
-            dynamic_arguments,
+            &single_argument,
             HugOptions::CALL,
             Some(group_id),
             force_hugged_expand,
@@ -1936,23 +1753,128 @@ fn format_call_arguments_with_group<'ast>(
         }
     }
 
-    let inline_call_len_without_static_arguments = if planner_base_state.call_has_static_arguments {
-        None
-    } else {
-        resolve_inline_call_len_without_static_arguments(
+    // run profiled single argument planner decision
+    let planner_state = build_call_argument_planner_state(
+        f.context(),
+        call_node_id,
+        &single_argument,
+        planner_base_state,
+        single_argument_force_expand,
+        force_expand_single_long_with_static_arguments,
+        inline_call_len_without_static_arguments,
+    );
+    let _timing = f
+        .context()
+        .timing_scope(tags::FORMAT_EXPRESSION_CALL_ARGUMENTS_PROFILED);
+    let layout_decision = {
+        let _timing = f
+            .context()
+            .timing_scope(tags::FORMAT_EXPRESSION_CALL_ARGUMENTS_PROFILED_DECIDE);
+        decide_post_hugged_call_argument_layout(
             f.context(),
             call_node_id,
-            dynamic_arguments,
-            planner_base_state.call_has_static_arguments,
+            &single_argument,
+            planner_state,
         )
     };
+
+    let _timing = f
+        .context()
+        .timing_scope(tags::FORMAT_EXPRESSION_CALL_ARGUMENTS_PROFILED_RENDER);
+    let all_plain_call_arguments = argument_is_plain_call_argument(f.context(), argument_id);
+    match layout_decision {
+        CallArgumentLayoutDecision::InlineAll => {
+            write_inline_call_argument_list(f, &single_argument, all_plain_call_arguments)
+        }
+        CallArgumentLayoutDecision::InlineSingle => {
+            write!(f, [token("(")])?;
+            write_plain_call_argument_or_node(f, argument_id)?;
+            write!(f, [token(")")])
+        }
+        CallArgumentLayoutDecision::CommentExpanded(comment_profile) => {
+            format_comment_expanded_call_argument_list(f, &single_argument, &comment_profile)
+        }
+        CallArgumentLayoutDecision::ListDefault {
+            force_expand,
+            has_line_comment_annotations,
+        } => format_default_call_argument_list(
+            f,
+            group_id,
+            &single_argument,
+            force_expand,
+            has_line_comment_annotations,
+            planner_base_state
+                .argument_shape
+                .has_any_argument_annotation,
+            all_plain_call_arguments,
+        ),
+    }
+}
+
+/// Format call arguments with an active list group id.
+fn format_call_arguments_with_group<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    call_node_id: LocalNodeId<Expression>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+    group_id: GroupId,
+) -> FormatResult<()> {
+    if dynamic_arguments.len() == 1 {
+        return format_single_call_argument_with_group(
+            f,
+            call_node_id,
+            dynamic_arguments[0],
+            group_id,
+        );
+    }
+
+    let layout_class =
+        resolve_call_argument_layout_class(f.context(), call_node_id, dynamic_arguments);
+    let planner_base_state =
+        build_call_argument_planner_base_state(f.context(), call_node_id, layout_class);
+    let all_plain_call_arguments = layout_class.all_plain_call_arguments;
+
+    // keep compact, no-annotation lists on a cheap inline or grouped path
+    let no_annotation_multi_argument_candidate = dynamic_arguments.len() > 1
+        && !planner_base_state.has_call_infix_annotations
+        && planner_base_state
+            .argument_shape
+            .all_single_line_and_unannotated
+        && !planner_base_state.argument_shape.is_multiline_in_source;
+    let use_no_annotation_multi_argument_fast_path =
+        no_annotation_multi_argument_candidate && layout_class.all_compact_simple_unannotated;
+    if use_no_annotation_multi_argument_fast_path {
+        if expression_source_len(f.context(), call_node_id) <= planner_base_state.line_width {
+            f.context()
+                .increment_counter("profile.call.arguments.path.no_annotation_inline_fast", 1);
+            write_inline_call_argument_list(f, dynamic_arguments, all_plain_call_arguments)?;
+        } else {
+            f.context()
+                .increment_counter("profile.call.arguments.path.no_annotation_grouped_fast", 1);
+            let mut list = list_like("(", ")", ",", dynamic_arguments);
+            list.with_group_id(Some(group_id)).should_expand(false);
+            write!(f, [list])?;
+        }
+        return Ok(());
+    }
+
+    // frequent hug-last callback and collection tails can skip profiled layout
+    let use_forced_hug_last_inline_fast_path =
+        dynamic_arguments.len() > 1 && layout_class.force_hug_last_inline;
+    if use_forced_hug_last_inline_fast_path {
+        f.context()
+            .increment_counter("profile.call.arguments.path.hug_last_forced", 1);
+        write_inline_call_argument_list(f, dynamic_arguments, all_plain_call_arguments)?;
+        return Ok(());
+    }
+
+    let inline_call_len_without_static_arguments = None;
     let planner_state = build_call_argument_planner_state(
         f.context(),
         call_node_id,
         dynamic_arguments,
         planner_base_state,
-        single_argument_force_expand,
-        force_expand_single_long_with_static_arguments,
+        false,
+        false,
         inline_call_len_without_static_arguments,
     );
     let _timing = f
@@ -1975,11 +1897,6 @@ fn format_call_arguments_with_group<'ast>(
         .timing_scope(tags::FORMAT_EXPRESSION_CALL_ARGUMENTS_PROFILED_RENDER);
     match layout_decision {
         CallArgumentLayoutDecision::InlineAll => {
-            let all_plain_call_arguments = resolve_all_plain_call_arguments(
-                f.context(),
-                dynamic_arguments,
-                &mut cached_all_plain_call_arguments,
-            );
             write_inline_call_argument_list(f, dynamic_arguments, all_plain_call_arguments)
         }
         CallArgumentLayoutDecision::InlineSingle => {
@@ -1994,21 +1911,15 @@ fn format_call_arguments_with_group<'ast>(
         CallArgumentLayoutDecision::ListDefault {
             force_expand,
             has_line_comment_annotations,
-        } => {
-            let all_plain_call_arguments = resolve_all_plain_call_arguments(
-                f.context(),
-                dynamic_arguments,
-                &mut cached_all_plain_call_arguments,
-            );
-            format_default_call_argument_list(
-                f,
-                group_id,
-                dynamic_arguments,
-                force_expand,
-                has_line_comment_annotations,
-                Some(all_plain_call_arguments),
-            )
-        }
+        } => format_default_call_argument_list(
+            f,
+            group_id,
+            dynamic_arguments,
+            force_expand,
+            has_line_comment_annotations,
+            layout_class.has_any_argument_annotation,
+            all_plain_call_arguments,
+        ),
     }
 }
 
@@ -2039,12 +1950,9 @@ pub(in super::super) fn call_arguments_force_expand_for_chain(
         return false;
     }
 
-    let can_use_simple_fast_false = !call_has_non_blank_infix_annotation(context, call_node_id)
-        && resolve_call_arguments_compact_simple_unannotated(
-            context,
-            call_node_id,
-            dynamic_arguments,
-        );
+    let layout_class = resolve_call_argument_layout_class(context, call_node_id, dynamic_arguments);
+    let can_use_simple_fast_false =
+        !layout_class.has_call_infix_annotations && layout_class.all_compact_simple_unannotated;
     if can_use_simple_fast_false {
         context.cache_call_argument_chain_force_expand(call_node_id, false);
         context.increment_counter("profile.call_arguments.chain.fast_false.simple", 1);
