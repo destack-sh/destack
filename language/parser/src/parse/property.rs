@@ -59,11 +59,11 @@ impl Parser {
     /// ```
     pub fn eat_property(&mut self) -> ParseResult<LocalNodeId<Property>> {
         let _timing = self.timing_scope(tags::PARSE_PROPERTY);
-        let start = self.mark();
+        let start = self.mark_span();
 
         // spread property
         if self.peek_is(TokenType::Spread) {
-            let start = self.mark();
+            let start = self.mark_span();
             self.bump(); // eat spread
             let value = self.with_options(
                 self.options.not_in_position().not_in_sequence_expression(),
@@ -81,7 +81,7 @@ impl Parser {
             self.eat_binding_modifiers_prefix_maybe(true, true, false, false, false)?;
 
         // async
-        let is_async = if self.peek_keyword(Keyword::Async).is_ok()
+        let is_async = if self.is_keyword(Keyword::Async)
             && (self.peek_next_is(TokenType::Identifier)
                 || self.peek_next_is(TokenType::Literal)
                 || self.peek_next_is(TokenType::Hash)
@@ -101,7 +101,7 @@ impl Parser {
             let mut abstraction = modifiers.and_then(|modifiers| modifiers.abstraction);
             let mut has_abstraction = abstraction.is_some();
             loop {
-                if self.peek_keyword(Keyword::Abstract).is_ok() {
+                if self.is_keyword(Keyword::Abstract) {
                     self.bump(); // eat abstract
                     abstraction = Some(match abstraction {
                         None => AbstractionModifier::Abstract,
@@ -116,7 +116,7 @@ impl Parser {
                     has_abstraction = true;
                     continue;
                 }
-                if self.peek_keyword(Keyword::Override).is_ok() {
+                if self.is_keyword(Keyword::Override) {
                     self.bump(); // eat override
                     abstraction = Some(match abstraction {
                         None => AbstractionModifier::Override,
@@ -146,7 +146,7 @@ impl Parser {
         // mode
         let mode = {
             // getter
-            if self.peek_keyword(Keyword::Get).is_ok()
+            if self.is_keyword(Keyword::Get)
                 && self.next_token_starts_member_name()
                 && self
                     .peek_token_after_newlines(self.pos(), TokenType::OpenParenthesis)
@@ -156,7 +156,7 @@ impl Parser {
                 Some(FunctionMode::Getter)
             }
             // setter
-            else if self.peek_keyword(Keyword::Set).is_ok()
+            else if self.is_keyword(Keyword::Set)
                 && self.next_token_starts_member_name()
                 && self
                     .peek_token_after_newlines(self.pos(), TokenType::OpenParenthesis)
@@ -166,7 +166,7 @@ impl Parser {
                 Some(FunctionMode::Setter)
             }
             // constructor
-            else if self.peek_keyword(Keyword::Constructor).is_ok()
+            else if self.is_keyword(Keyword::Constructor)
                 && (self.peek_next_is(TokenType::LessThan)
                     || self.peek_next_is(TokenType::OpenParenthesis))
             {
@@ -174,7 +174,7 @@ impl Parser {
                 Some(FunctionMode::Constructor)
             }
             // new constructor
-            else if self.peek_keyword(Keyword::New).is_ok()
+            else if self.is_keyword(Keyword::New)
                 && (self.peek_next_is(TokenType::LessThan)
                     || self.peek_next_is(TokenType::OpenParenthesis))
             {
@@ -339,7 +339,7 @@ impl Parser {
 
             // return type
             let (return_type, return_type_span) = if self.peek_colon().is_ok() {
-                let type_start = self.mark();
+                let type_start = self.mark_span();
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;
                 let return_type = self.with_options(
@@ -429,7 +429,7 @@ impl Parser {
                 Option<LocalNodeId<Expression>>,
                 Option<destack_source::Span>,
             ) = if self.peek_colon().is_ok() {
-                let type_start = self.mark();
+                let type_start = self.mark_span();
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;
 
@@ -570,11 +570,11 @@ impl Parser {
     /// static { console.log("init") }
     /// ```
     pub fn eat_member(&mut self) -> ParseResult<LocalNodeId<Member>> {
-        let start = self.mark();
+        let start = self.mark_span();
 
         // embed (type embedding via ...Type)
         if self.peek_is(TokenType::Spread) {
-            let start = self.mark();
+            let start = self.mark_span();
             self.bump(); // eat spread
             let value = self.with_options(
                 self.options.not_in_position().not_in_sequence_expression(),
@@ -642,7 +642,7 @@ impl Parser {
         }
 
         // type member: `type Name<U> = ...` or `type Name: Bound`
-        if self.peek_keyword(Keyword::Type).is_ok() && self.peek_next_is(TokenType::Identifier) {
+        if self.is_keyword(Keyword::Type) && self.peek_next_is(TokenType::Identifier) {
             self.bump(); // eat type keyword
             // parse type member name
             let (name, _name_span) = self.eat_identifier_with_span()?;
@@ -703,7 +703,7 @@ impl Parser {
         }
 
         // async
-        let is_async = if self.peek_keyword(Keyword::Async).is_ok()
+        let is_async = if self.is_keyword(Keyword::Async)
             && (self.peek_next_is(TokenType::Identifier)
                 || self.peek_next_is(TokenType::Literal)
                 || self.peek_next_is(TokenType::Hash)
@@ -723,7 +723,7 @@ impl Parser {
             let mut abstraction = modifiers.and_then(|modifiers| modifiers.abstraction);
             let mut has_abstraction = abstraction.is_some();
             loop {
-                if self.peek_keyword(Keyword::Abstract).is_ok() {
+                if self.is_keyword(Keyword::Abstract) {
                     self.bump(); // eat abstract
                     abstraction = Some(match abstraction {
                         None => AbstractionModifier::Abstract,
@@ -738,7 +738,7 @@ impl Parser {
                     has_abstraction = true;
                     continue;
                 }
-                if self.peek_keyword(Keyword::Override).is_ok() {
+                if self.is_keyword(Keyword::Override) {
                     self.bump(); // eat override
                     abstraction = Some(match abstraction {
                         None => AbstractionModifier::Override,
@@ -768,7 +768,7 @@ impl Parser {
         // mode
         let mode = {
             // getter
-            if self.peek_keyword(Keyword::Get).is_ok()
+            if self.is_keyword(Keyword::Get)
                 && self.next_token_starts_member_name()
                 && self
                     .peek_token_after_newlines(self.pos(), TokenType::OpenParenthesis)
@@ -778,7 +778,7 @@ impl Parser {
                 Some(FunctionMode::Getter)
             }
             // setter
-            else if self.peek_keyword(Keyword::Set).is_ok()
+            else if self.is_keyword(Keyword::Set)
                 && self.next_token_starts_member_name()
                 && self
                     .peek_token_after_newlines(self.pos(), TokenType::OpenParenthesis)
@@ -788,7 +788,7 @@ impl Parser {
                 Some(FunctionMode::Setter)
             }
             // constructor
-            else if self.peek_keyword(Keyword::Constructor).is_ok()
+            else if self.is_keyword(Keyword::Constructor)
                 && (self.peek_next_is(TokenType::LessThan)
                     || self.peek_next_is(TokenType::OpenParenthesis))
             {
@@ -796,7 +796,7 @@ impl Parser {
                 Some(FunctionMode::Constructor)
             }
             // new constructor
-            else if self.peek_keyword(Keyword::New).is_ok()
+            else if self.is_keyword(Keyword::New)
                 && (self.peek_next_is(TokenType::LessThan)
                     || self.peek_next_is(TokenType::OpenParenthesis))
             {
@@ -948,7 +948,7 @@ impl Parser {
 
             // return type
             let (return_type, return_type_span) = if self.peek_colon().is_ok() {
-                let type_start = self.mark();
+                let type_start = self.mark_span();
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;
                 let return_type = self.with_options(
@@ -1034,7 +1034,7 @@ impl Parser {
         else {
             // value (type annotation)
             let (value, type_span) = if self.peek_colon().is_ok() {
-                let type_start = self.mark();
+                let type_start = self.mark_span();
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;
                 // member field annotations are always type positions

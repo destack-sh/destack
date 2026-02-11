@@ -119,6 +119,11 @@ impl Parser {
         allow_statement_keyword: bool,
         allow_newline_prefix: bool,
     ) -> Option<Vec<LocalNodeId<Argument>>> {
+        // javascript modes do not support static arguments
+        if self.language.is_javascript() && !self.options.in_type && !self.options.in_decorator {
+            return None;
+        }
+
         // static argument start
         let has_static_argument_start = self.peek_is(TokenType::LessThan)
             || self.peek_is(TokenType::ShiftLeft)
@@ -196,7 +201,7 @@ impl Parser {
         &mut self,
         start: &ParserMark,
     ) -> ParseResult<LocalNodeId<Expression>> {
-        let operator_start = self.mark();
+        let operator_start = self.mark_span();
 
         // parse `<const>` with dedicated ts assertion behavior
         let const_assertion = {

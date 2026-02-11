@@ -94,17 +94,17 @@ impl Parser {
     #[inline]
     pub fn eat_variance_bound_maybe(&mut self) -> ParseResult<Option<VarianceBound>> {
         // implements
-        if self.peek_keyword(Keyword::Implements).is_ok() {
+        if self.is_keyword(Keyword::Implements) {
             self.bump(); // eat implements
             Ok(Some(VarianceBound::Implements))
         }
         // extends
-        else if self.peek_keyword(Keyword::Extends).is_ok() {
+        else if self.is_keyword(Keyword::Extends) {
             self.bump(); // eat extends
             Ok(Some(VarianceBound::Extends))
         }
         // super
-        else if self.peek_keyword(Keyword::Super).is_ok() {
+        else if self.is_keyword(Keyword::Super) {
             self.bump(); // eat super
             Ok(Some(VarianceBound::Super))
         }
@@ -485,7 +485,7 @@ impl Parser {
     /// Check whether `infer ... extends ... ?` should parse as a conditional type.
     fn infer_extends_starts_conditional(&mut self) -> bool {
         // quick reject when extends is not next
-        if self.peek_keyword(Keyword::Extends).is_err() {
+        if !self.is_keyword(Keyword::Extends) {
             return false;
         }
 
@@ -673,7 +673,7 @@ impl Parser {
     /// Eat a type infer expression.
     pub fn eat_type_infer_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         // parse infer name
-        let start = self.mark();
+        let start = self.mark_span();
         self.eat_keyword(Keyword::Infer)?;
         let (name, name_span) = self.eat_identifier_with_span()?;
 
@@ -682,15 +682,14 @@ impl Parser {
         if self.options.in_type_conditional_right {
             constraint_options = constraint_options.in_type_conditional_right();
         }
-        let constraint = if self.peek_keyword(Keyword::Extends).is_ok()
-            && !self.infer_extends_starts_conditional()
-        {
-            self.bump(); // eat extends
-            self.eat_newlines_maybe()?;
-            Some(self.with_options(constraint_options, |parser| parser.eat_expression())?)
-        } else {
-            None
-        };
+        let constraint =
+            if self.is_keyword(Keyword::Extends) && !self.infer_extends_starts_conditional() {
+                self.bump(); // eat extends
+                self.eat_newlines_maybe()?;
+                Some(self.with_options(constraint_options, |parser| parser.eat_expression())?)
+            } else {
+                None
+            };
         let expr_id = self.tree.insert(
             Expression::TypeInfer { name, constraint },
             self.get_span_from(&start),
@@ -701,7 +700,7 @@ impl Parser {
 
     /// Eat a type import expression.
     pub fn eat_type_import_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark();
+        let start = self.mark_span();
 
         // keyword
         self.eat_keyword(Keyword::Import)?;
@@ -766,12 +765,12 @@ impl Parser {
     }
 
     pub fn eat_type_predicate_asserts(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark();
+        let start = self.mark_span();
         self.eat_keyword(Keyword::Asserts)?;
         self.eat_newlines_maybe()?;
 
         // asserts this | asserts param
-        let (subject, subject_span) = if self.peek_keyword(Keyword::This).is_ok() {
+        let (subject, subject_span) = if self.is_keyword(Keyword::This) {
             let token = *self.peek()?;
             self.bump(); // eat this
             (TypePredicateSubject::This, token.span)
@@ -781,7 +780,7 @@ impl Parser {
         };
 
         // optional target: asserts x is T
-        let target = if self.peek_keyword(Keyword::Is).is_ok() {
+        let target = if self.is_keyword(Keyword::Is) {
             self.bump(); // eat is
             self.eat_newlines_maybe()?;
             let mut target_options = self.options.not_in_position().in_type();
@@ -826,7 +825,7 @@ impl Parser {
 
     /// Eat a type mapped expression.
     pub fn eat_type_mapped_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark();
+        let start = self.mark_span();
 
         self.eat_token(TokenType::OpenBrace)?;
         self.eat_newlines_maybe()?;
@@ -865,7 +864,7 @@ impl Parser {
         self.eat_newlines_maybe()?;
 
         // optional key remap: [K in T as ...]
-        if self.peek_keyword(Keyword::As).is_ok() {
+        if self.is_keyword(Keyword::As) {
             self.bump(); // eat as
             self.eat_newlines_maybe()?;
             key_remap = Some(
@@ -923,21 +922,18 @@ impl Parser {
     /// Eat a type mapped readonly modifier.
     fn eat_type_mapped_readonly_modifier(&mut self) -> ParseResult<TypeModifier> {
         // readonly
-        if self.peek_keyword(Keyword::Readonly).is_ok() {
+        if self.is_keyword(Keyword::Readonly) {
             self.bump(); // eat readonly
             return Ok(TypeModifier::Add);
         }
         // -readonly
-        else if self.peek_is(TokenType::Subtract)
-            && self.peek_next_keyword(Keyword::Readonly).is_ok()
-        {
+        else if self.peek_is(TokenType::Subtract) && self.is_next_keyword(Keyword::Readonly) {
             self.bump(); // eat -
             self.bump(); // eat readonly
             return Ok(TypeModifier::Remove);
         }
         // +readonly
-        else if self.peek_is(TokenType::Add) && self.peek_next_keyword(Keyword::Readonly).is_ok()
-        {
+        else if self.peek_is(TokenType::Add) && self.is_next_keyword(Keyword::Readonly) {
             self.bump(); // eat +
             self.bump(); // eat readonly
             return Ok(TypeModifier::Add);
@@ -974,7 +970,7 @@ impl Parser {
         self.eat_newlines_maybe()?;
 
         // check for extends keyword before calling underlying implementation
-        if self.peek_keyword(Keyword::Extends).is_ok() {
+        if self.is_keyword(Keyword::Extends) {
             self.bump(); // eat extends
             self.eat_super_type_list_maybe(
                 &[Keyword::Implements, Keyword::With, Keyword::Where],
@@ -997,7 +993,7 @@ impl Parser {
         self.eat_newlines_maybe()?;
 
         // check for extends keyword before calling underlying implementation
-        if self.peek_keyword(Keyword::Extends).is_ok() {
+        if self.is_keyword(Keyword::Extends) {
             self.bump(); // eat extends
             self.eat_super_type_list_maybe(
                 &[Keyword::Implements, Keyword::With, Keyword::Where],
@@ -1019,7 +1015,7 @@ impl Parser {
         self.eat_newlines_maybe()?;
 
         // check for implements keyword before calling underlying implementation
-        if self.peek_keyword(Keyword::Implements).is_ok() {
+        if self.is_keyword(Keyword::Implements) {
             self.bump(); // eat implements
             self.eat_super_type_list_maybe(&[Keyword::With, Keyword::Where], false)
         } else {
@@ -1071,7 +1067,7 @@ impl Parser {
             || self.peek_is(TokenType::CloseParenthesis)
             || terminators
                 .iter()
-                .any(|terminator| self.peek_keyword(*terminator).is_ok())
+                .any(|terminator| self.is_keyword(*terminator))
     }
 
     /// Unwrap an optional parenthesized super type expression.
@@ -1156,7 +1152,7 @@ impl Parser {
 
                 // parse the super type expression
                 let starts_with_parenthesis = self.peek_is(TokenType::OpenParenthesis);
-                let type_start = self.mark();
+                let type_start = self.mark_span();
                 let ty = self.with_options(self.options.in_before_block(), |parser| {
                     parser.eat_expression()
                 })?;

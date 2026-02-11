@@ -19,7 +19,7 @@ impl Parser {
         // allow newlines before where
         let mark = self.mark();
         self.eat_newlines_maybe()?;
-        if self.peek_keyword(Keyword::Where).is_ok() {
+        if self.is_keyword(Keyword::Where) {
             Ok(Some(self.eat_where()?))
         } else {
             self.rewind(mark);

@@ -46,88 +46,86 @@ impl Parser {
 
             // catch
             self.eat_newlines_maybe()?;
-            let (catch_pattern, catch_ty, catch_expression) =
-                if self.peek_keyword(Keyword::Catch).is_ok() {
-                    self.bump(); // eat keyword
-                    self.eat_newlines_maybe()?;
+            let (catch_pattern, catch_ty, catch_expression) = if self.is_keyword(Keyword::Catch) {
+                self.bump(); // eat keyword
+                self.eat_newlines_maybe()?;
 
-                    // no pattern or catch match
-                    if self.peek_block().is_ok() || self.peek_keyword(Keyword::Match).is_ok() {
-                        let catch_expression = self.with_options(
-                            self.options.not_in_position().in_statement_position(),
-                            |parser| parser.eat_expression(),
+                // no pattern or catch match
+                if self.peek_block().is_ok() || self.is_keyword(Keyword::Match) {
+                    let catch_expression = self.with_options(
+                        self.options.not_in_position().in_statement_position(),
+                        |parser| parser.eat_expression(),
+                    )?;
+                    (None, None, Some(catch_expression))
+                }
+                // catch pattern with expression content
+                else {
+                    // parse catch binding pattern
+                    let (catch_pattern, catch_ty) = if self.peek_is(TokenType::OpenParenthesis) {
+                        self.bump(); // eat (
+                        self.eat_newlines_maybe()?;
+
+                        let catch_pattern = self.with_options(
+                            self.options
+                                .not_in_position()
+                                .in_before_type()
+                                .in_before_block(),
+                            |parser| parser.eat_pattern(),
                         )?;
-                        (None, None, Some(catch_expression))
-                    }
-                    // catch pattern with expression content
-                    else {
-                        // parse catch binding pattern
-                        let (catch_pattern, catch_ty) = if self.peek_is(TokenType::OpenParenthesis)
-                        {
-                            self.bump(); // eat (
-                            self.eat_newlines_maybe()?;
 
-                            let catch_pattern = self.with_options(
-                                self.options
-                                    .not_in_position()
-                                    .in_before_type()
-                                    .in_before_block(),
-                                |parser| parser.eat_pattern(),
+                        self.eat_newlines_maybe()?;
+
+                        let catch_ty = if self.peek_colon().is_ok() {
+                            self.bump(); // eat :
+                            self.eat_newlines_maybe()?;
+                            let catch_ty = self.with_options(
+                                self.options.not_in_position().in_type().in_before_block(),
+                                |parser| parser.eat_expression(),
                             )?;
-
                             self.eat_newlines_maybe()?;
-
-                            let catch_ty = if self.peek_colon().is_ok() {
-                                self.bump(); // eat :
-                                self.eat_newlines_maybe()?;
-                                let catch_ty = self.with_options(
-                                    self.options.not_in_position().in_type().in_before_block(),
-                                    |parser| parser.eat_expression(),
-                                )?;
-                                self.eat_newlines_maybe()?;
-                                Some(catch_ty)
-                            } else {
-                                None
-                            };
-
-                            self.eat_token(TokenType::CloseParenthesis)?;
-                            (catch_pattern, catch_ty)
+                            Some(catch_ty)
                         } else {
-                            let catch_pattern = self.with_options(
-                                self.options
-                                    .not_in_position()
-                                    .in_before_type()
-                                    .in_before_block(),
-                                |parser| parser.eat_pattern(),
-                            )?;
-                            let catch_ty = if self.peek_colon().is_ok() {
-                                self.bump(); // eat :
-                                self.eat_newlines_maybe()?;
-                                let catch_ty = self.with_options(
-                                    self.options.not_in_position().in_type().in_before_block(),
-                                    |parser| parser.eat_expression(),
-                                )?;
-                                self.eat_newlines_maybe()?;
-                                Some(catch_ty)
-                            } else {
-                                None
-                            };
-                            (catch_pattern, catch_ty)
+                            None
                         };
 
-                        let catch_expression = self.with_options(
-                            self.options.not_in_position().in_statement_position(),
-                            |parser| parser.eat_expression(),
+                        self.eat_token(TokenType::CloseParenthesis)?;
+                        (catch_pattern, catch_ty)
+                    } else {
+                        let catch_pattern = self.with_options(
+                            self.options
+                                .not_in_position()
+                                .in_before_type()
+                                .in_before_block(),
+                            |parser| parser.eat_pattern(),
                         )?;
-                        (Some(catch_pattern), catch_ty, Some(catch_expression))
-                    }
-                } else {
-                    (None, None, None)
-                };
+                        let catch_ty = if self.peek_colon().is_ok() {
+                            self.bump(); // eat :
+                            self.eat_newlines_maybe()?;
+                            let catch_ty = self.with_options(
+                                self.options.not_in_position().in_type().in_before_block(),
+                                |parser| parser.eat_expression(),
+                            )?;
+                            self.eat_newlines_maybe()?;
+                            Some(catch_ty)
+                        } else {
+                            None
+                        };
+                        (catch_pattern, catch_ty)
+                    };
+
+                    let catch_expression = self.with_options(
+                        self.options.not_in_position().in_statement_position(),
+                        |parser| parser.eat_expression(),
+                    )?;
+                    (Some(catch_pattern), catch_ty, Some(catch_expression))
+                }
+            } else {
+                (None, None, None)
+            };
 
             // finally
             self.eat_newlines_maybe()?;
-            let finally_expression = if self.peek_keyword(Keyword::Finally).is_ok() {
+            let finally_expression = if self.is_keyword(Keyword::Finally) {
                 self.bump(); // eat keyword
                 self.eat_newlines_maybe()?;
                 let finally_expression = self.with_options(

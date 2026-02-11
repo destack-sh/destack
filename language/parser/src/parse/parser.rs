@@ -567,8 +567,12 @@ pub struct Parser {
     pub(crate) timings: Option<Rc<ParserTimings>>,
     /// Cached keyword lookup for identifier tokens.
     pub(crate) token_keywords: Vec<Option<Keyword>>,
+    /// Cached-state bits for keyword lookup entries.
+    pub(crate) token_keywords_cached: Vec<bool>,
     /// Cached identifier lookup for identifier tokens.
     pub(crate) token_identifiers: Vec<Option<StringId>>,
+    /// Cached-state bits for identifier lookup entries.
+    pub(crate) token_identifiers_cached: Vec<bool>,
     /// Cached string id for `global`.
     pub(crate) global_identifier: Option<StringId>,
     /// Cached string id for `module`.
@@ -622,8 +626,10 @@ impl Parser {
             annotation_tokens: Vec::with_capacity(token_capacity),
             annotation_line_indices: Vec::with_capacity(token_capacity),
             timings: timings_enabled_from_env().then(|| Rc::new(ParserTimings::default())),
-            token_keywords: Vec::new(),
-            token_identifiers: Vec::new(),
+            token_keywords: Vec::with_capacity(estimated_tokens),
+            token_keywords_cached: Vec::with_capacity(estimated_tokens),
+            token_identifiers: Vec::with_capacity(estimated_tokens),
+            token_identifiers_cached: Vec::with_capacity(estimated_tokens),
             global_identifier,
             module_identifier,
             underscore_identifier,
@@ -786,7 +792,9 @@ impl Parser {
     fn truncate_token_caches(&mut self) {
         let len = self.tokens().len();
         self.token_keywords.truncate(len);
+        self.token_keywords_cached.truncate(len);
         self.token_identifiers.truncate(len);
+        self.token_identifiers_cached.truncate(len);
     }
 
     /// Return true when a split token is active.
@@ -808,19 +816,21 @@ impl Parser {
 
         if self.token_keywords.len() <= index {
             self.token_keywords.resize(index + 1, None);
+            self.token_keywords_cached.resize(index + 1, false);
         }
 
-        if self.token_keywords[index].is_some() {
+        if self.token_keywords_cached[index] {
             return self.token_keywords[index];
         }
 
         let token = self.tokens().get(index)?;
-        if token.token.ty != TokenType::Identifier {
-            return None;
-        }
-
-        let keyword = Keyword::from_str(self.get_span_str(token.span)).ok();
+        let keyword = if token.token.ty == TokenType::Identifier {
+            Keyword::from_str(self.get_span_str(token.span)).ok()
+        } else {
+            None
+        };
         self.token_keywords[index] = keyword;
+        self.token_keywords_cached[index] = true;
         keyword
     }
 
@@ -831,21 +841,32 @@ impl Parser {
 
         if self.token_identifiers.len() <= index {
             self.token_identifiers.resize(index + 1, None);
+            self.token_identifiers_cached.resize(index + 1, false);
         }
 
-        if self.token_identifiers[index].is_some() {
+        if self.token_identifiers_cached[index] {
             return self.token_identifiers[index];
         }
 
         let token = self.tokens().get(index)?;
-        if token.token.ty != TokenType::Identifier {
-            return None;
-        }
-
-        let span_str = self.file.span_str(token.span);
-        let identifier = Some(self.strings.intern(span_str));
+        let identifier = if token.token.ty == TokenType::Identifier {
+            let span_str = self.file.span_str(token.span);
+            Some(self.strings.intern(span_str))
+        } else {
+            None
+        };
         self.token_identifiers[index] = identifier;
+        self.token_identifiers_cached[index] = true;
         identifier
+    }
+
+    /// Return true when the identifier token at index matches the expected string.
+    #[inline]
+    pub(crate) fn identifier_equals_at(&mut self, index: usize, expected: &str) -> bool {
+        self.token_stream.ensure_token(index);
+        self.tokens().get(index).is_some_and(|token| {
+            token.token.ty == TokenType::Identifier && self.get_span_str(token.span) == expected
+        })
     }
 
     /// Get the token index used by peek_next.
@@ -889,7 +910,7 @@ impl Parser {
     /// Call `finish` to attach annotations and build the position index.
     pub fn parse_without_finish(&mut self) -> Vec<LocalNodeId<Expression>> {
         // parse the root block body with recovery
-        let start = self.mark();
+        let start = self.mark_span();
         let mut expressions = self.with_recovery(
             &start,
             |parser| parser.eat_block_body(BlockFormat::Implicit),
@@ -1033,6 +1054,20 @@ impl Parser {
             self.errors.len(),
             self.diagnostics.len(),
         )
+    }
+
+    /// Get a lightweight mark used for span calculations without rewind support.
+    #[inline]
+    pub fn mark_span(&self) -> ParserMark {
+        ParserMark {
+            pos: self.pos,
+            split_token: self.split_token,
+            split_token_consumed: self.split_token_consumed,
+            token_stream_mark: None,
+            error_count: None,
+            diagnostic_count: None,
+            span_override: None,
+        }
     }
 
     /// Run a closure at a temporary token position and restore parser state afterward.
@@ -1610,7 +1645,7 @@ impl Parser {
         }
 
         // try to recover
-        let start = self.mark();
+        let start = self.mark_span();
         while let Ok(token) = self.peek()
             && token.token.ty != bail
         {

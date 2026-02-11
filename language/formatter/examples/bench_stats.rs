@@ -825,6 +825,11 @@ fn benchmark_file(
     let mut parser = DestackParser::lex_file(file.clone(), language);
     let expressions: Vec<LocalNodeId<Expression>> = parser.parse();
     parser.finish();
+    let parser_timings = if timings_enabled {
+        parser.timing_snapshot().unwrap_or_default()
+    } else {
+        Vec::new()
+    };
     let side_span: MultiSpan = parser.compute_side_span();
     let (tokens, side_tokens) = parser.take_tokens();
     let tree = parser.tree;
@@ -875,9 +880,20 @@ fn benchmark_file(
         annotation_cache_hits: cache_collector.annotation_cache_hits.get(),
         annotation_cache_misses: cache_collector.annotation_cache_misses.get(),
     };
-    let timings = timing_collector
+    let mut timings = timing_collector
         .as_ref()
         .map_or_else(Vec::new, |timings| timings.snapshot());
+    if timings_enabled {
+        timings.extend(
+            parser_timings
+                .into_iter()
+                .map(|entry| FormatterTimingEntry {
+                    name: entry.name,
+                    duration: entry.duration,
+                    count: entry.count,
+                }),
+        );
+    }
     let counters = counter_collector.snapshot();
     let skipped_by_file_ignore = file_ignore_applied.get();
     let (formatted_lines, skipped_lines) = if skipped_by_file_ignore {

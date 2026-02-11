@@ -16,7 +16,7 @@ impl Parser {
             return self.eat_block();
         }
 
-        let start = self.mark();
+        let start = self.mark_span();
 
         // empty statement (just semicolon, e.g., `for (x of y);`)
         if self.peek_is(TokenType::Semicolon) {
@@ -83,7 +83,7 @@ impl Parser {
     pub fn peek_block(&mut self) -> ParseResult<()> {
         if self.peek_is(TokenType::OpenBrace)
             || self.language.is_destack()
-                && self.peek_keyword(Keyword::Do).is_ok()
+                && self.is_keyword(Keyword::Do)
                 && self.peek_next_is(TokenType::OpenBrace)
         {
             Ok(())
@@ -97,7 +97,7 @@ impl Parser {
     pub fn peek_next_block(&mut self) -> ParseResult<()> {
         if self.peek_next_is(TokenType::OpenBrace)
             || self.language.is_destack()
-                && self.peek_next_keyword(Keyword::Do).is_ok()
+                && self.is_next_keyword(Keyword::Do)
                 && self.peek_next_next_token(TokenType::OpenBrace).is_ok()
         {
             Ok(())
@@ -113,10 +113,10 @@ impl Parser {
     /// { ... }
     /// block: { ... }
     pub fn eat_block(&mut self) -> ParseResult<LocalNodeId<Block>> {
-        let start = self.mark();
+        let start = self.mark_span();
 
         // `do` prefix
-        if self.language.is_destack() && self.peek_keyword(Keyword::Do).is_ok() {
+        if self.language.is_destack() && self.is_keyword(Keyword::Do) {
             self.bump(); // eat keyword
         }
 
@@ -214,7 +214,7 @@ impl Parser {
     pub fn try_eat_statement_expression_with_flag(
         &mut self,
     ) -> ParseResult<(LocalNodeId<Expression>, bool)> {
-        let start = self.mark();
+        let start = self.mark_span();
         match self.with_options(self.options.nested().in_statement_position(), |parser| {
             parser.eat_expression()
         }) {

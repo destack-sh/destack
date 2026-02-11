@@ -212,7 +212,7 @@ impl Parser {
         allow_match_pattern: bool,
     ) -> ParseResult<LocalNodeId<Declarator>> {
         let _timing = self.timing_scope(tags::PARSE_DECLARATOR);
-        let start = self.mark();
+        let start = self.mark_span();
 
         // pattern
         let pattern_id = if self.peek_is(TokenType::Identifier) {
@@ -294,7 +294,7 @@ impl Parser {
 
         // type
         let (ty, ty_span) = if self.peek_colon().is_ok() {
-            let type_start = self.mark();
+            let type_start = self.mark_span();
             self.bump(); // eat colon
             self.eat_newlines_maybe()?;
             let ty = self.with_options(self.options.not_in_position().in_type(), |parser| {

@@ -108,7 +108,7 @@ impl Parser {
             // variance for static parameters
             if allow_variance_modifier {
                 // handle 'in' variance modifier
-                if self.peek_keyword(Keyword::In).is_ok() {
+                if self.is_keyword(Keyword::In) {
                     let span = self.peek()?.span;
                     self.bump(); // eat in
                     if validate_modifier_order && seen_variance_in {
@@ -129,7 +129,7 @@ impl Parser {
                 // handle 'out' variance modifier
                 else if self.peek_identifier_str("out").is_ok()
                     && (self.peek_next_is(TokenType::Identifier)
-                        || self.peek_next_keyword(Keyword::In).is_ok())
+                        || self.is_next_keyword(Keyword::In))
                 {
                     let span = self.peek()?.span;
                     self.bump(); // eat out
@@ -169,7 +169,7 @@ impl Parser {
             }
 
             // declaration modifiers
-            if allow_declare_modifier && self.peek_keyword(Keyword::Declare).is_ok() {
+            if allow_declare_modifier && self.is_keyword(Keyword::Declare) {
                 if !self.next_token_starts_member_name() {
                     break;
                 }
@@ -187,7 +187,7 @@ impl Parser {
             }
 
             // scope modifiers (static)
-            if modifiers.anchor.is_none() && self.peek_keyword(Keyword::Static).is_ok() {
+            if modifiers.anchor.is_none() && self.is_keyword(Keyword::Static) {
                 if !self.next_token_starts_member_name() {
                     break;
                 }
@@ -206,7 +206,7 @@ impl Parser {
             }
 
             // abstraction modifiers (abstract)
-            if self.peek_keyword(Keyword::Abstract).is_ok() && abstraction_is_modifier {
+            if self.is_keyword(Keyword::Abstract) && abstraction_is_modifier {
                 if !self.next_token_starts_member_name() {
                     break;
                 }
@@ -225,7 +225,7 @@ impl Parser {
             }
 
             // abstraction modifiers (override)
-            if self.peek_keyword(Keyword::Override).is_ok() && abstraction_is_modifier {
+            if self.is_keyword(Keyword::Override) && abstraction_is_modifier {
                 if !self.next_token_starts_member_name() {
                     break;
                 }
@@ -255,7 +255,7 @@ impl Parser {
                 true
             };
             if modifiers.mutability.is_none()
-                && self.peek_keyword(Keyword::Readonly).is_ok()
+                && self.is_keyword(Keyword::Readonly)
                 && readonly_is_modifier
             {
                 self.bump(); // eat readonly
@@ -266,7 +266,7 @@ impl Parser {
             }
 
             // operator modifiers (const)
-            if modifiers.operator.is_none() && self.peek_keyword(Keyword::Const).is_ok() {
+            if modifiers.operator.is_none() && self.is_keyword(Keyword::Const) {
                 if !self.next_token_starts_member_name() {
                     break;
                 }
@@ -278,7 +278,7 @@ impl Parser {
 
             // accessor modifiers
             let accessor_is_modifier = allow_accessor_modifier
-                && self.peek_keyword(Keyword::Accessor).is_ok()
+                && self.is_keyword(Keyword::Accessor)
                 && !self.peek_next_is(TokenType::Colon)
                 && !self.peek_next_is(TokenType::Maybe)
                 && !self.peek_next_is(TokenType::LessThan)
@@ -295,7 +295,7 @@ impl Parser {
             }
 
             // timing modifiers (comptime)
-            if modifiers.timing.is_none() && self.peek_keyword(Keyword::Comptime).is_ok() {
+            if modifiers.timing.is_none() && self.is_keyword(Keyword::Comptime) {
                 if !self.next_token_starts_member_name() {
                     break;
                 }
@@ -381,7 +381,7 @@ impl Parser {
             self.eat_decorators_prefix_maybe()?;
         }
 
-        let start = self.mark();
+        let start = self.mark_span();
 
         let mut modifiers = self.eat_binding_modifiers_prefix_maybe(
             true,
@@ -439,7 +439,7 @@ impl Parser {
                     );
 
             if has_type_annotation_marker {
-                let type_start = self.mark();
+                let type_start = self.mark_span();
                 self.eat_newlines_maybe()?;
                 self.bump(); // eat colon or keyword
                 self.eat_newlines_maybe()?;
@@ -632,7 +632,7 @@ impl Parser {
         let mut has_variadic_parameter = false;
         self.eat_newlines_maybe()?;
         while self.peek_is(TokenType::Identifier)
-            || (self.options.in_static && self.peek_keyword(Keyword::In).is_ok())
+            || (self.options.in_static && self.is_keyword(Keyword::In))
             // spread
             || self.peek_is(TokenType::Spread)
             // pattern
@@ -689,7 +689,7 @@ impl Parser {
 
     /// Eat static parameters (including the `<` and `>` tokens).
     pub fn eat_static_parameters(&mut self) -> ParseResult<Vec<LocalNodeId<Parameter>>> {
-        let start = self.mark();
+        let start = self.mark_span();
         self.eat_token(TokenType::LessThan)?;
         self.eat_newlines_maybe()?;
 
@@ -786,11 +786,11 @@ impl Parser {
     /// ```
     #[inline]
     pub fn eat_positional_argument(&mut self) -> ParseResult<LocalNodeId<Argument>> {
-        let start = self.mark();
+        let start = self.mark_span();
         let mut modifiers = None;
 
         // readonly tuple element modifiers in type context
-        if self.options.in_type && self.peek_keyword(Keyword::Readonly).is_ok() {
+        if self.options.in_type && self.is_keyword(Keyword::Readonly) {
             self.bump(); // eat readonly
             modifiers = Some(BindingModifier {
                 mutability: Some(Mutability::Immutable),
@@ -957,7 +957,7 @@ impl Parser {
     /// ```
     #[inline]
     pub fn eat_tree_argument(&mut self) -> ParseResult<LocalNodeId<Argument>> {
-        let start = self.mark();
+        let start = self.mark_span();
         // named argument (name: value)
         if self.peek_name().is_ok() && self.peek_next_is(TokenType::Colon) {
             let (name, name_span) = self
@@ -1110,7 +1110,7 @@ impl Parser {
     /// ```
     #[inline]
     pub fn eat_tree_literal_argument(&mut self) -> ParseResult<LocalNodeId<Argument>> {
-        let start = self.mark();
+        let start = self.mark_span();
         // spread argument
         if self.peek_is(TokenType::Spread) {
             self.bump(); // eat spread
@@ -1187,7 +1187,7 @@ impl Parser {
                 }
                 // shorthand array attribute
                 else if self.peek_is(TokenType::OpenBracket) {
-                    let value_start = self.mark();
+                    let value_start = self.mark_span();
                     let elements = self.with_options(
                         self.options.not_in_position().not_in_tree_literal(),
                         |parser| parser.eat_array_literal(),
@@ -1297,7 +1297,7 @@ impl Parser {
     /// Also handles `<<` (ShiftLeft) for patterns like `Extends<<T>() => ...>`.
     pub fn eat_static_arguments(&mut self) -> ParseResult<Vec<LocalNodeId<Argument>>> {
         let _timing = self.timing_scope(tags::PARSE_ARGUMENT);
-        let start = self.mark();
+        let start = self.mark_span();
 
         // handle both `<` and `<<` (ShiftLeft) as opening token
         // `<<` occurs when the first argument is a generic arrow function like `<T>() => ...`

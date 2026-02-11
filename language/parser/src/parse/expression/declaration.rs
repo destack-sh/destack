@@ -139,21 +139,26 @@ impl Parser {
             keyword,
             Some(Keyword::Export | Keyword::Declare | Keyword::Abstract | Keyword::Static)
         );
-        let is_global_identifier = self
-            .global_identifier
-            .is_some_and(|id| self.identifier_for_index(pos) == Some(id));
-        let is_module_identifier = self.language.supports_module_declaration()
-            && self
-                .module_identifier
-                .is_some_and(|id| self.identifier_for_index(pos) == Some(id));
+        let next_token_type = self.peek_next_token_type();
+        let can_start_global_or_module_declaration = matches!(
+            next_token_type,
+            TokenType::OpenBrace | TokenType::Identifier | TokenType::Literal | TokenType::Newline
+        );
+        let is_global_identifier = !is_modifier_keyword
+            && can_start_global_or_module_declaration
+            && self.identifier_equals_at(pos, "global");
+        let is_module_identifier = !is_modifier_keyword
+            && can_start_global_or_module_declaration
+            && self.language.supports_module_declaration()
+            && self.identifier_equals_at(pos, "module");
         if !is_modifier_keyword && !is_global_identifier && !is_module_identifier {
             return Ok(DescriptorHead::Descriptor(descriptor));
         }
 
         // export modifier
-        if self.peek_keyword(Keyword::Export).is_ok() {
+        if self.is_keyword(Keyword::Export) {
             self.bump(); // eat export
-            let export_mode = if self.peek_keyword(Keyword::Default).is_ok() {
+            let export_mode = if self.is_keyword(Keyword::Default) {
                 self.bump(); // eat default
                 Some(DependencyMode::Default)
             } else if self.peek_is(TokenType::Assign) {
@@ -164,8 +169,8 @@ impl Parser {
             };
 
             // export namespace handled by export statement parsing
-            let is_export_namespace = self.peek_keyword(Keyword::As).is_ok()
-                && self.peek_next_keyword(Keyword::Namespace).is_ok();
+            let is_export_namespace =
+                self.is_keyword(Keyword::As) && self.is_next_keyword(Keyword::Namespace);
             if is_export_namespace {
                 self.rewind(start.clone());
                 let export = self.eat_export()?;
@@ -181,13 +186,11 @@ impl Parser {
                 || has_module_identifier_declaration;
 
             // reject export default enum declarations
-            if export_mode == Some(DependencyMode::Default)
-                && self.peek_keyword(Keyword::Enum).is_ok()
-            {
+            if export_mode == Some(DependencyMode::Default) && self.is_keyword(Keyword::Enum) {
                 return Err(ParseError::unexpected(self.peek()?.span));
             }
 
-            let is_export_type_binding = self.peek_keyword(Keyword::Type).is_ok()
+            let is_export_type_binding = self.is_keyword(Keyword::Type)
                 && (self.peek_next_is(TokenType::OpenBrace)
                     || self.peek_next_is(TokenType::Multiply)
                     || self.peek_next_is(TokenType::Semicolon)
@@ -196,7 +199,7 @@ impl Parser {
             let is_invalid_export_form = !has_declaration_keyword
                 && !self.peek_is(TokenType::At)
                 && self.peek_dependency_binding().is_err()
-                && self.peek_keyword_after_newlines(Keyword::Import).is_err();
+                && !self.is_keyword_after_newlines(Keyword::Import);
             let is_export_dependency = export_mode == Some(DependencyMode::Namespace)
                 || is_export_type_binding
                 || (!has_declaration_keyword && self.peek_dependency_binding().is_ok())
@@ -219,13 +222,13 @@ impl Parser {
         // skip newlines before export import equals
         if descriptor.export.is_some()
             && self.peek_is(TokenType::Newline)
-            && self.peek_keyword_after_newlines(Keyword::Import).is_ok()
+            && self.is_keyword_after_newlines(Keyword::Import)
         {
             self.eat_newlines_maybe()?;
         }
 
         // declare modifier
-        let is_declare = self.peek_keyword(Keyword::Declare).is_ok();
+        let is_declare = self.is_keyword(Keyword::Declare);
         let direct_index = self.pos_index() + 1;
 
         // locate a declare target
@@ -290,7 +293,7 @@ impl Parser {
         };
 
         // abstraction modifier
-        descriptor.abstraction = if self.peek_keyword(Keyword::Abstract).is_ok()
+        descriptor.abstraction = if self.is_keyword(Keyword::Abstract)
             && !self.options.in_variant
             && !self.peek_next_is(TokenType::Newline)
             && self
@@ -304,7 +307,7 @@ impl Parser {
         };
 
         // anchor modifier
-        descriptor.anchor = if self.peek_keyword(Keyword::Static).is_ok() {
+        descriptor.anchor = if self.is_keyword(Keyword::Static) {
             self.bump(); // eat static
             BindingAnchor::Static
         } else {

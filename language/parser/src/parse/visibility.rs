@@ -5,11 +5,11 @@ impl Parser {
     /// Peek a visibility.
     #[inline]
     pub fn peek_visibility(&mut self) -> ParseResult<Option<Visibility>> {
-        if self.peek_keyword(Keyword::Public).is_ok() {
+        if self.is_keyword(Keyword::Public) {
             Ok(Some(Visibility::Public))
-        } else if self.peek_keyword(Keyword::Protected).is_ok() {
+        } else if self.is_keyword(Keyword::Protected) {
             Ok(Some(Visibility::Protected))
-        } else if self.peek_keyword(Keyword::Private).is_ok() {
+        } else if self.is_keyword(Keyword::Private) {
             Ok(Some(Visibility::Private))
         } else {
             Err(ParseError::unexpected(self.peek()?.span))

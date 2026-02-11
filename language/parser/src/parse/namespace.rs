@@ -38,7 +38,7 @@ impl Parser {
     ) -> ParseResult<LocalNodeId<Declaration>> {
         let _timing = self.timing_scope(tags::PARSE_NAMESPACE);
         // keyword
-        let is_module = if self.peek_keyword(Keyword::Namespace).is_ok() {
+        let is_module = if self.is_keyword(Keyword::Namespace) {
             self.bump(); // eat namespace
             false
         } else {

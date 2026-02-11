@@ -759,6 +759,40 @@ fn test_parse_export_expression_type_declaration() {
     });
 }
 
+/// Parse export default abstract class with decorator prefixes.
+#[test]
+fn test_parse_export_default_abstract_class_with_decorator_prefixes() {
+    let mut test = TestParser::new_with_options(
+        "@before\nexport default @after abstract class Foo { }",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    assert!(
+        parser.errors.is_empty(),
+        "unexpected parser errors: {:?}",
+        parser.errors
+    );
+    assert_eq!(expressions.len(), 1);
+    let expression_id = match parser.tree.get(expressions[0]) {
+        Expression::Statement(expression_id) => *expression_id,
+        _ => expressions[0],
+    };
+    assert_node!(parser.tree, expression_id, Expression::Export { kind, items, .. } => {
+        assert_eq!(*kind, DependencyKind::Value);
+        assert_eq!(items.len(), 1);
+        assert_node!(parser.tree, items[0], DependencyItem { mode, value: Some(value), .. } => {
+            assert_eq!(*mode, DependencyMode::Default);
+            assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
+                assert_node!(parser.tree, *declaration_id, Declaration::Class { descriptor, .. } => {
+                    assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
+                });
+            });
+        });
+    });
+}
+
 #[test]
 fn test_reject_export_type_without_binding_or_declaration() {
     let mut test = TestParser::new("export type");

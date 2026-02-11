@@ -15,6 +15,16 @@ pub struct TokenStreamMark {
     pub(super) tokens_len: usize,
     /// The number of side tokens captured in the mark.
     pub(super) side_tokens_len: usize,
+    /// The first mutable next non newline index at mark time.
+    pub(super) pending_non_newline_start: usize,
+    /// The next non newline tail values from pending_non_newline_start onward.
+    pub(super) next_non_newline_tail: Vec<u32>,
+    /// The open parenthesis stack at mark time.
+    pub(super) paren_stack: Vec<usize>,
+    /// The open brace stack at mark time.
+    pub(super) brace_stack: Vec<usize>,
+    /// The open bracket stack at mark time.
+    pub(super) bracket_stack: Vec<usize>,
 }
 
 /// Lazy token stream that drives the lexer on demand.
@@ -121,24 +131,69 @@ impl TokenStream {
     /// Snapshot token stream state for speculative parsing.
     #[inline]
     pub fn mark(&self) -> TokenStreamMark {
+        let pending_non_newline_start = self.pending_non_newline_start.min(self.tokens.len());
         TokenStreamMark {
             lexer: self.lexer.snapshot(),
             tokens_len: self.tokens.len(),
             side_tokens_len: self.side_tokens.len(),
+            pending_non_newline_start,
+            next_non_newline_tail: self.next_non_newline[pending_non_newline_start..].to_vec(),
+            paren_stack: self.paren_stack.clone(),
+            brace_stack: self.brace_stack.clone(),
+            bracket_stack: self.bracket_stack.clone(),
         }
     }
 
     /// Restore token stream state from a snapshot.
     pub fn restore(&mut self, mark: TokenStreamMark) {
-        // restore lexer state and truncate token buffers
-        self.lexer.restore(mark.lexer);
-        self.tokens.truncate(mark.tokens_len);
-        self.side_tokens.truncate(mark.side_tokens_len);
-        self.lexer.tokens.truncate(mark.tokens_len);
-        self.lexer.side_tokens.truncate(mark.side_tokens_len);
+        let TokenStreamMark {
+            lexer,
+            tokens_len,
+            side_tokens_len,
+            pending_non_newline_start,
+            next_non_newline_tail,
+            paren_stack,
+            brace_stack,
+            bracket_stack,
+        } = mark;
 
-        // rebuild caches and stacks to match the restored tokens
-        self.rebuild_indexes();
+        // restore lexer state and truncate token buffers
+        let semantic_tokens_changed = self.tokens.len() != tokens_len;
+        let side_tokens_changed = self.side_tokens.len() != side_tokens_len;
+        self.lexer.restore(lexer);
+        if side_tokens_changed {
+            self.side_tokens.truncate(side_tokens_len);
+            self.lexer.side_tokens.truncate(side_tokens_len);
+        }
+
+        // fast path: no semantic token changes, caches are still valid
+        if !semantic_tokens_changed {
+            return;
+        }
+
+        self.tokens.truncate(tokens_len);
+        self.lexer.tokens.truncate(tokens_len);
+
+        // restore next non newline cache and mutable tail cursor
+        self.next_non_newline.truncate(tokens_len);
+        for (offset, next_non_newline) in next_non_newline_tail.into_iter().enumerate() {
+            self.next_non_newline[pending_non_newline_start + offset] = next_non_newline;
+        }
+        self.pending_non_newline_start = pending_non_newline_start;
+
+        // restore matching pair cache and open delimiter stacks
+        self.matching_pairs.truncate(tokens_len);
+        for open_index in paren_stack
+            .iter()
+            .copied()
+            .chain(brace_stack.iter().copied())
+            .chain(bracket_stack.iter().copied())
+        {
+            self.matching_pairs[open_index] = u32::MAX;
+        }
+        self.paren_stack = paren_stack;
+        self.brace_stack = brace_stack;
+        self.bracket_stack = bracket_stack;
 
         // reset EOF tracking to the restored tail
         self.eof_token = self
@@ -337,58 +392,6 @@ impl TokenStream {
         // fill EOF next non newline once the end is reached
         if token_span.token.ty == TokenType::End {
             self.next_non_newline[token_index] = (token_index + 1) as u32;
-        }
-    }
-
-    /// Rebuild cached indexes and stacks from current tokens.
-    fn rebuild_indexes(&mut self) {
-        // reset caches and stacks
-        self.next_non_newline.clear();
-        self.matching_pairs.clear();
-        self.paren_stack.clear();
-        self.brace_stack.clear();
-        self.bracket_stack.clear();
-        self.pending_non_newline_start = 0;
-
-        // recompute next non newline and matching pairs
-        for (index, token) in self.tokens.iter().enumerate() {
-            self.next_non_newline.push(u32::MAX);
-            self.matching_pairs.push(u32::MAX);
-
-            if token.token.ty != TokenType::Newline {
-                for idx in self.pending_non_newline_start..index {
-                    self.next_non_newline[idx] = index as u32;
-                }
-                self.pending_non_newline_start = index;
-            }
-
-            match token.token.ty {
-                TokenType::OpenParenthesis => self.paren_stack.push(index),
-                TokenType::CloseParenthesis => {
-                    if let Some(open) = self.paren_stack.pop() {
-                        self.matching_pairs[open] = index as u32;
-                    }
-                }
-                TokenType::OpenBrace => self.brace_stack.push(index),
-                TokenType::CloseBrace => {
-                    if let Some(open) = self.brace_stack.pop() {
-                        self.matching_pairs[open] = index as u32;
-                    }
-                }
-                TokenType::OpenBracket => self.bracket_stack.push(index),
-                TokenType::CloseBracket => {
-                    if let Some(open) = self.bracket_stack.pop() {
-                        self.matching_pairs[open] = index as u32;
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        if self.is_finished
-            && let Some(last_index) = self.tokens.len().checked_sub(1)
-        {
-            self.next_non_newline[last_index] = self.tokens.len() as u32;
         }
     }
 }

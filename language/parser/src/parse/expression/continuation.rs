@@ -108,7 +108,7 @@ impl Parser {
 
                 // unary postfix operations
                 if let Ok(operator) = self.peek_unary_postfix_operator() {
-                    let operator_start = self.mark();
+                    let operator_start = self.mark_span();
                     self.bump(); // eat unary operator
                     let operator_span = self.get_span_from(&operator_start);
                     left_expression_id = self.tree.insert(
@@ -123,7 +123,7 @@ impl Parser {
                 // type unary postfix operations
                 else if let Ok(operator) = self.peek_type_unary_postfix_operator() {
                     // avoid consuming conditional type ? as a type maybe
-                    let operator_start = self.mark();
+                    let operator_start = self.mark_span();
                     self.bump(); // eat type unary operator
                     if matches!(
                         operator,
@@ -531,7 +531,7 @@ impl Parser {
                 }
 
                 // capture operator span before eating
-                let operator_start = self.mark();
+                let operator_start = self.mark_span();
                 self.bump_by(operator_offset); // eat infix operator
                 let operator_span = self.get_span_from(&operator_start);
 

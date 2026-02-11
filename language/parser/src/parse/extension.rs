@@ -43,7 +43,7 @@ impl Parser {
         // name and static parameters
         let (static_parameters, name, name_span) =
             // named extension
-            if self.peek_name().is_ok() && self.peek_keyword(Keyword::For).is_err() {
+            if self.peek_name().is_ok() && !self.is_keyword(Keyword::For) {
                 let (name, span) = self.eat_name_with_span()?;
                 let static_parameters = self.eat_static_parameters_maybe()?;
                 (static_parameters, Some(name), Some(span))
