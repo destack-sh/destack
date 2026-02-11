@@ -14,12 +14,17 @@ doctest = false
 
 [dependencies]
 # language
+destack_ast = { workspace = true }
 destack_codegen_js = { workspace = true }
 destack_compiler = { workspace = true }
 destack_dir = { workspace = true }
+destack_fir = { workspace = true }
+destack_formatter = { workspace = true }
+destack_parser = { workspace = true }
 destack_resolver = { workspace = true }
 destack_source = { workspace = true }
 destack_workspace = { workspace = true }
+destack_workspace_service = { workspace = true }
 
 # platform
 destack_daemon = { workspace = true }
@@ -28,6 +33,7 @@ destack_daemon = { workspace = true }
 indexmap = { workspace = true }
 napi = { version = "3", features = ["napi8"] }
 napi-derive = "3"
+serde_json = { workspace = true }
 
 [build-dependencies]
 napi-build = "2"
