@@ -4251,6 +4251,26 @@ fn test_parse_async_arrow_with_as_parameter() {
     });
 }
 
+/// Parse async arrows with a newline before a return type annotation.
+#[test]
+fn test_parse_async_arrow_with_newline_before_return_type() {
+    let mut test = TestParser::new_with_options("async (f)\n: t => { }", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression().unwrap();
+    assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body, .. } => {
+            assert_eq!(signature.asynchrony, Asynchrony::Async);
+            assert_eq!(signature.kind, FunctionKind::Lambda);
+            assert_eq!(signature.dynamic_parameters.len(), 1);
+            assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, .. } => {
+                assert_string!(parser, *name, "f");
+            });
+            assert_expression_path!(parser, parser.tree.get(signature.return_type.expect("expected return type")), "t");
+            assert!(body.is_some());
+        });
+    });
+}
+
 /// Parse `type as string` as a cast expression.
 #[test]
 fn test_parse_type_keyword_as_cast_expression() {

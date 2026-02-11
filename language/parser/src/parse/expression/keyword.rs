@@ -25,10 +25,28 @@ impl Parser {
     /// Return true when `async` can plausibly start a function form.
     #[inline]
     fn can_start_async_function_signature(&mut self, next_token_type: TokenType) -> bool {
-        // non identifier starts are always signature candidates
+        // async (...) must be followed by an arrow or return type to form a lambda
+        if next_token_type == TokenType::OpenParenthesis {
+            let open_index = self.index_for_next() as u32;
+            let Ok(close_pos) = self.find_matching_close(
+                Some(open_index),
+                TokenType::OpenParenthesis,
+                TokenType::CloseParenthesis,
+            ) else {
+                return false;
+            };
+            let follow_index = self.next_non_newline_index_from(close_pos as usize + 1);
+            let follow_token_type = self.token_ref_at(follow_index).map(|token| token.token.ty);
+            return matches!(
+                follow_token_type,
+                Some(TokenType::Arrow | TokenType::ArrowWide | TokenType::Colon)
+            );
+        }
+
+        // non parenthesized non identifier starts are signature candidates
         if matches!(
             next_token_type,
-            TokenType::OpenParenthesis | TokenType::LessThan | TokenType::At | TokenType::Multiply
+            TokenType::LessThan | TokenType::At | TokenType::Multiply
         ) {
             return true;
         }
