@@ -4,8 +4,8 @@ use crate::platform::bindings::{
 };
 use destack_source::matches as glob_matches;
 use destack_workspace::{
-    RuntimeAccess, RuntimeOptions, RuntimeRule, RuntimeRuleBlocking, RuntimeRuleEffect,
-    RuntimeRuleFilter, RuntimeRuleScope,
+    RuntimeAccess, RuntimeEffect, RuntimeFilter, RuntimeFilterBlocking, RuntimeFilterEffect,
+    RuntimeFilterEngine, RuntimeFilterScope, RuntimeOptions, RuntimePolicyEffect, RuntimeRule,
 };
 
 /// Execution mode for the runtime.
@@ -35,7 +35,7 @@ pub enum PolicyEngine {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct AccessRule {
     /// Filter clause for this rule.
-    when: RuntimeRuleFilter,
+    when: RuntimeFilter,
     /// Access action when the rule matches.
     access: RuntimeAccess,
 }
@@ -145,16 +145,21 @@ impl Default for BindingPolicy {
 
 fn rule_to_access_rule(rule: &RuntimeRule) -> Option<AccessRule> {
     // keep only access action rules for policy checks
-    let access = rule.access?;
+    let RuntimeEffect::Policy {
+        policy: RuntimePolicyEffect::SetAccess { access },
+    } = &rule.effect
+    else {
+        return None;
+    };
 
     Some(AccessRule {
         when: rule.when.clone(),
-        access,
+        access: *access,
     })
 }
 
 fn matches_rule(
-    filter: &RuntimeRuleFilter,
+    filter: &RuntimeFilter,
     spec: BindingDescriptor,
     mode: ExecutionMode,
     engine: Option<PolicyEngine>,
@@ -170,6 +175,14 @@ fn matches_rule(
     if let Some(pattern) = &filter.module {
         let module_name = spec.name.strip_prefix("destack.").unwrap_or(spec.name);
         if !glob_match(pattern, module_name) {
+            return false;
+        }
+    }
+
+    // match component name glob
+    if let Some(pattern) = &filter.component {
+        let component_name = binding_component_name(spec.name);
+        if !glob_match(pattern, component_name) {
             return false;
         }
     }
@@ -241,48 +254,48 @@ fn matches_rule(
     true
 }
 
-fn matches_engine(rule_engine: destack_workspace::RuntimeRuleEngine, engine: PolicyEngine) -> bool {
+fn matches_engine(rule_engine: RuntimeFilterEngine, engine: PolicyEngine) -> bool {
     matches!(
         (rule_engine, engine),
-        (destack_workspace::RuntimeRuleEngine::Vm, PolicyEngine::Vm)
-            | (
-                destack_workspace::RuntimeRuleEngine::Native,
-                PolicyEngine::Native,
-            )
+        (RuntimeFilterEngine::Vm, PolicyEngine::Vm)
+            | (RuntimeFilterEngine::Native, PolicyEngine::Native)
     )
 }
 
-fn matches_scope(rule_scope: RuntimeRuleScope, scope: BindingScope) -> bool {
+fn matches_scope(rule_scope: RuntimeFilterScope, scope: BindingScope) -> bool {
     matches!(
         (rule_scope, scope),
-        (RuntimeRuleScope::Os, BindingScope::Os)
-            | (RuntimeRuleScope::Runtime, BindingScope::Runtime)
-            | (RuntimeRuleScope::Hybrid, BindingScope::Hybrid)
+        (RuntimeFilterScope::Os, BindingScope::Os)
+            | (RuntimeFilterScope::Runtime, BindingScope::Runtime)
+            | (RuntimeFilterScope::Hybrid, BindingScope::Hybrid)
     )
 }
 
-fn matches_blocking(rule_blocking: RuntimeRuleBlocking, blocking: BindingBlocking) -> bool {
+fn matches_blocking(rule_blocking: RuntimeFilterBlocking, blocking: BindingBlocking) -> bool {
     matches!(
         (rule_blocking, blocking),
-        (RuntimeRuleBlocking::Always, BindingBlocking::Always)
-            | (RuntimeRuleBlocking::Never, BindingBlocking::Never)
-            | (RuntimeRuleBlocking::Sometimes, BindingBlocking::Sometimes)
+        (RuntimeFilterBlocking::Always, BindingBlocking::Always)
+            | (RuntimeFilterBlocking::Never, BindingBlocking::Never)
+            | (RuntimeFilterBlocking::Sometimes, BindingBlocking::Sometimes)
     )
 }
 
-fn matches_effect(rule_effect: RuntimeRuleEffect, effect_class: EffectClass) -> bool {
+fn matches_effect(rule_effect: RuntimeFilterEffect, effect_class: EffectClass) -> bool {
     matches!(
         (rule_effect, effect_class),
-        (RuntimeRuleEffect::Pure, EffectClass::Pure)
-            | (RuntimeRuleEffect::Deterministic, EffectClass::Deterministic)
+        (RuntimeFilterEffect::Pure, EffectClass::Pure)
             | (
-                RuntimeRuleEffect::ExternalRecordable,
+                RuntimeFilterEffect::Deterministic,
+                EffectClass::Deterministic
+            )
+            | (
+                RuntimeFilterEffect::ExternalRecordable,
                 EffectClass::External {
                     replay: ReplayPolicy::Recordable,
                 },
             )
             | (
-                RuntimeRuleEffect::ExternalNonRecordable,
+                RuntimeFilterEffect::ExternalNonRecordable,
                 EffectClass::External {
                     replay: ReplayPolicy::NonRecordable,
                 },
@@ -292,6 +305,14 @@ fn matches_effect(rule_effect: RuntimeRuleEffect, effect_class: EffectClass) -> 
 
 fn glob_match(pattern: &str, text: &str) -> bool {
     glob_matches(pattern.as_bytes(), 0, text.as_bytes(), 0)
+}
+
+fn binding_component_name(binding_name: &str) -> &str {
+    let stripped_name = binding_name
+        .strip_prefix("destack.")
+        .unwrap_or(binding_name);
+    let mut component_segments = stripped_name.splitn(2, '.');
+    component_segments.next().unwrap_or("unknown")
 }
 
 fn runtime_platform_name() -> &'static str {

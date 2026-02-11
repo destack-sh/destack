@@ -992,35 +992,39 @@
         },
         "when": {
           "description": "Rule filter clause.",
-          "$ref": "#/$defs/RuntimeRuleFilterJson"
+          "$ref": "#/$defs/RuntimeFilterJson"
         },
-        "world": {
-          "description": "World action for this rule.",
+        "effect": {
+          "description": "Rule effect payload.",
+          "$ref": "#/$defs/RuntimeEffectJson"
+        },
+        "trigger": {
+          "description": "Rule trigger controls.",
           "anyOf": [
             {
-              "$ref": "#/$defs/RuntimeWorldJson"
+              "$ref": "#/$defs/RuntimeRuleTriggerJson"
             },
             {
               "type": "null"
             }
           ]
         },
-        "access": {
-          "description": "Access action for this rule.",
+        "activation": {
+          "description": "Activation window for this rule.",
           "anyOf": [
             {
-              "$ref": "#/$defs/RuntimeAccessJson"
+              "$ref": "#/$defs/RuntimeRuleActivationJson"
             },
             {
               "type": "null"
             }
           ]
         },
-        "fault": {
-          "description": "Fault action for this rule.",
+        "lifetime": {
+          "description": "Lifetime window for this rule.",
           "anyOf": [
             {
-              "$ref": "#/$defs/RuntimeFaultJson"
+              "$ref": "#/$defs/RuntimeRuleLifetimeJson"
             },
             {
               "type": "null"
@@ -1029,10 +1033,11 @@
         }
       },
       "required": [
-        "when"
+        "when",
+        "effect"
       ]
     },
-    "RuntimeRuleFilterJson": {
+    "RuntimeFilterJson": {
       "description": "Runtime rule filter clause for JSON deserialization.",
       "type": "object",
       "properties": {
@@ -1050,6 +1055,13 @@
             "null"
           ]
         },
+        "component": {
+          "description": "Glob selector for component names.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "module": {
           "description": "Glob selector for module names.",
           "type": [
@@ -1061,7 +1073,7 @@
           "description": "Engine selector.",
           "anyOf": [
             {
-              "$ref": "#/$defs/RuntimeRuleEngineJson"
+              "$ref": "#/$defs/RuntimeFilterEngineJson"
             },
             {
               "type": "null"
@@ -1092,7 +1104,7 @@
           "description": "Binding scope selector.",
           "anyOf": [
             {
-              "$ref": "#/$defs/RuntimeRuleScopeJson"
+              "$ref": "#/$defs/RuntimeFilterScopeJson"
             },
             {
               "type": "null"
@@ -1103,7 +1115,7 @@
           "description": "Binding blocking selector.",
           "anyOf": [
             {
-              "$ref": "#/$defs/RuntimeRuleBlockingJson"
+              "$ref": "#/$defs/RuntimeFilterBlockingJson"
             },
             {
               "type": "null"
@@ -1114,7 +1126,7 @@
           "description": "Binding effect selector.",
           "anyOf": [
             {
-              "$ref": "#/$defs/RuntimeRuleEffectJson"
+              "$ref": "#/$defs/RuntimeFilterEffectJson"
             },
             {
               "type": "null"
@@ -1123,7 +1135,7 @@
         }
       }
     },
-    "RuntimeRuleEngineJson": {
+    "RuntimeFilterEngineJson": {
       "description": "Runtime rule engine selector for JSON deserialization.",
       "oneOf": [
         {
@@ -1138,7 +1150,7 @@
         }
       ]
     },
-    "RuntimeRuleScopeJson": {
+    "RuntimeFilterScopeJson": {
       "description": "Runtime rule scope selector for JSON deserialization.",
       "oneOf": [
         {
@@ -1158,7 +1170,7 @@
         }
       ]
     },
-    "RuntimeRuleBlockingJson": {
+    "RuntimeFilterBlockingJson": {
       "description": "Runtime rule blocking selector for JSON deserialization.",
       "oneOf": [
         {
@@ -1178,8 +1190,8 @@
         }
       ]
     },
-    "RuntimeRuleEffectJson": {
-      "description": "Runtime rule effect selector for JSON deserialization.",
+    "RuntimeFilterEffectJson": {
+      "description": "Runtime rule binding effect selector for JSON deserialization.",
       "oneOf": [
         {
           "description": "Match pure bindings.",
@@ -1203,38 +1215,129 @@
         }
       ]
     },
-    "RuntimeFaultJson": {
-      "description": "Runtime fault payload for JSON deserialization.",
+    "RuntimeEffectJson": {
+      "description": "Runtime rule effect payload for JSON deserialization.",
       "oneOf": [
         {
-          "description": "Inject a binding error.",
+          "description": "Apply one routing or access policy effect.",
           "type": "object",
           "properties": {
-            "code": {
-              "description": "Error code name for error injection.",
-              "type": "string"
-            },
-            "probability_ppm": {
-              "description": "Probability in parts-per-million.",
-              "type": [
-                "integer",
-                "null"
-              ],
-              "format": "uint32",
-              "minimum": 0
+            "policy": {
+              "description": "Policy effect payload.",
+              "$ref": "#/$defs/RuntimePolicyEffectJson"
             },
             "kind": {
               "type": "string",
-              "const": "error"
+              "const": "policy"
             }
           },
           "required": [
             "kind",
-            "code"
+            "policy"
           ]
         },
         {
-          "description": "Inject base delay and optional jitter before returning.",
+          "description": "Inject one typed runtime fault.",
+          "type": "object",
+          "properties": {
+            "fault": {
+              "description": "Fault payload to inject for matching bindings.",
+              "$ref": "#/$defs/RuntimeFaultEffectJson"
+            },
+            "kind": {
+              "type": "string",
+              "const": "fault"
+            }
+          },
+          "required": [
+            "kind",
+            "fault"
+          ]
+        },
+        {
+          "description": "Apply one runtime control effect.",
+          "type": "object",
+          "properties": {
+            "control": {
+              "description": "Control effect payload.",
+              "$ref": "#/$defs/RuntimeControlEffectJson"
+            },
+            "kind": {
+              "type": "string",
+              "const": "control"
+            }
+          },
+          "required": [
+            "kind",
+            "control"
+          ]
+        },
+        {
+          "description": "Apply one runtime mock effect.",
+          "type": "object",
+          "properties": {
+            "mock": {
+              "description": "Mock effect payload.",
+              "$ref": "#/$defs/RuntimeMockEffectJson"
+            },
+            "kind": {
+              "type": "string",
+              "const": "mock"
+            }
+          },
+          "required": [
+            "kind",
+            "mock"
+          ]
+        }
+      ]
+    },
+    "RuntimePolicyEffectJson": {
+      "description": "Runtime policy effect payload for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Set the matching binding world.",
+          "type": "object",
+          "properties": {
+            "world": {
+              "description": "The selected world for matching bindings.",
+              "$ref": "#/$defs/RuntimeWorldJson"
+            },
+            "policy": {
+              "type": "string",
+              "const": "setWorld"
+            }
+          },
+          "required": [
+            "policy",
+            "world"
+          ]
+        },
+        {
+          "description": "Set the matching binding access mode.",
+          "type": "object",
+          "properties": {
+            "access": {
+              "description": "The selected access mode for matching bindings.",
+              "$ref": "#/$defs/RuntimeAccessJson"
+            },
+            "policy": {
+              "type": "string",
+              "const": "setAccess"
+            }
+          },
+          "required": [
+            "policy",
+            "access"
+          ]
+        }
+      ]
+    },
+    "RuntimeFaultEffectJson": {
+      "description": "Runtime fault payload for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Inject deterministic runtime delay.",
           "type": "object",
           "properties": {
             "base_ns": {
@@ -1244,7 +1347,7 @@
               "minimum": 0
             },
             "jitter_ns": {
-              "description": "Jitter range in nanoseconds.",
+              "description": "Jitter delay in nanoseconds.",
               "type": [
                 "integer",
                 "null"
@@ -1253,117 +1356,46 @@
               "minimum": 0
             },
             "distribution": {
-              "description": "Jitter distribution selector.",
+              "description": "Delay distribution mode.",
               "anyOf": [
                 {
-                  "$ref": "#/$defs/RuntimeFaultDistributionJson"
+                  "$ref": "#/$defs/RuntimeJitterDistributionJson"
                 },
                 {
                   "type": "null"
                 }
               ]
             },
-            "probability_ppm": {
-              "description": "Probability in parts-per-million.",
-              "type": [
-                "integer",
-                "null"
-              ],
-              "format": "uint32",
-              "minimum": 0
-            },
-            "kind": {
+            "name": {
               "type": "string",
-              "const": "delay"
+              "const": "runtime.delay"
             }
           },
           "required": [
-            "kind",
+            "name",
             "base_ns"
           ]
         },
         {
-          "description": "Drop the call result.",
+          "description": "Inject one binding error.",
           "type": "object",
           "properties": {
-            "probability_ppm": {
-              "description": "Probability in parts-per-million.",
-              "type": [
-                "integer",
-                "null"
-              ],
-              "format": "uint32",
-              "minimum": 0
+            "code": {
+              "description": "Error code name for this injected failure.",
+              "type": "string"
             },
-            "kind": {
+            "name": {
               "type": "string",
-              "const": "drop"
+              "const": "runtime.error"
             }
           },
           "required": [
-            "kind"
+            "name",
+            "code"
           ]
         },
         {
-          "description": "Duplicate delivery of a result.",
-          "type": "object",
-          "properties": {
-            "copies": {
-              "description": "Number of result copies to emit.",
-              "type": "integer",
-              "format": "uint32",
-              "minimum": 0
-            },
-            "probability_ppm": {
-              "description": "Probability in parts-per-million.",
-              "type": [
-                "integer",
-                "null"
-              ],
-              "format": "uint32",
-              "minimum": 0
-            },
-            "kind": {
-              "type": "string",
-              "const": "duplicate"
-            }
-          },
-          "required": [
-            "kind",
-            "copies"
-          ]
-        },
-        {
-          "description": "Reorder result delivery within a bounded window.",
-          "type": "object",
-          "properties": {
-            "window": {
-              "description": "Reorder window size.",
-              "type": "integer",
-              "format": "uint32",
-              "minimum": 0
-            },
-            "probability_ppm": {
-              "description": "Probability in parts-per-million.",
-              "type": [
-                "integer",
-                "null"
-              ],
-              "format": "uint32",
-              "minimum": 0
-            },
-            "kind": {
-              "type": "string",
-              "const": "reorder"
-            }
-          },
-          "required": [
-            "kind",
-            "window"
-          ]
-        },
-        {
-          "description": "Force timeout behavior for the call.",
+          "description": "Inject deterministic timeout behavior.",
           "type": "object",
           "properties": {
             "timeout_ns": {
@@ -1379,31 +1411,81 @@
                 "null"
               ]
             },
-            "probability_ppm": {
-              "description": "Probability in parts-per-million.",
-              "type": [
-                "integer",
-                "null"
-              ],
-              "format": "uint32",
-              "minimum": 0
-            },
-            "kind": {
+            "name": {
               "type": "string",
-              "const": "timeout"
+              "const": "runtime.timeout"
             }
           },
           "required": [
-            "kind",
+            "name",
             "timeout_ns"
           ]
         },
         {
-          "description": "Simulate a connection or handle disconnect.",
+          "description": "Inject connection disconnect on transport edges.",
           "type": "object",
           "properties": {
-            "probability_ppm": {
-              "description": "Probability in parts-per-million.",
+            "name": {
+              "type": "string",
+              "const": "net.connection.disconnect"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        {
+          "description": "Inject connection reset behavior.",
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "const": "net.connection.reset"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        {
+          "description": "Inject connection timeout behavior.",
+          "type": "object",
+          "properties": {
+            "timeout_ns": {
+              "description": "Timeout duration in nanoseconds.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "name": {
+              "type": "string",
+              "const": "net.connection.timeout"
+            }
+          },
+          "required": [
+            "name",
+            "timeout_ns"
+          ]
+        },
+        {
+          "description": "Inject packet drop faults.",
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "const": "net.packet.drop"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        {
+          "description": "Inject packet duplication faults.",
+          "type": "object",
+          "properties": {
+            "copies": {
+              "description": "Number of duplicates emitted when the fault triggers.",
               "type": [
                 "integer",
                 "null"
@@ -1411,19 +1493,407 @@
               "format": "uint32",
               "minimum": 0
             },
-            "kind": {
+            "name": {
               "type": "string",
-              "const": "disconnect"
+              "const": "net.packet.duplicate"
             }
           },
           "required": [
-            "kind"
+            "name"
+          ]
+        },
+        {
+          "description": "Inject packet reordering faults.",
+          "type": "object",
+          "properties": {
+            "window": {
+              "description": "Reordering window size.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0
+            },
+            "name": {
+              "type": "string",
+              "const": "net.packet.reorder"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        {
+          "description": "Inject packet corruption faults.",
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "const": "net.packet.corrupt"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        {
+          "description": "Inject route partition faults.",
+          "type": "object",
+          "properties": {
+            "direction": {
+              "description": "Direction filter for one-way or two-way partition.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RuntimeNetRouteDirectionJson"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "name": {
+              "type": "string",
+              "const": "net.route.partition"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        {
+          "description": "Inject route blackhole faults.",
+          "type": "object",
+          "properties": {
+            "direction": {
+              "description": "Direction filter for one-way or two-way blackhole.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RuntimeNetRouteDirectionJson"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "name": {
+              "type": "string",
+              "const": "net.route.blackhole"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        {
+          "description": "Inject link bandwidth limiting faults.",
+          "type": "object",
+          "properties": {
+            "bytes_per_second": {
+              "description": "Maximum throughput in bytes per second.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "name": {
+              "type": "string",
+              "const": "net.bandwidth.limit"
+            }
+          },
+          "required": [
+            "name",
+            "bytes_per_second"
+          ]
+        },
+        {
+          "description": "Inject DNS timeout faults.",
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "const": "net.dns.timeout"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        {
+          "description": "Inject DNS NXDOMAIN faults.",
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "const": "net.dns.nxdomain"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        {
+          "description": "Inject DNS SERVFAIL faults.",
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "const": "net.dns.servfail"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        {
+          "description": "Inject ENOSPC-like filesystem I/O failures.",
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "const": "fs.io.enospc"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        {
+          "description": "Inject low-level filesystem I/O faults.",
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "const": "fs.io.eio"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        {
+          "description": "Inject per-process file descriptor exhaustion.",
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "const": "fs.io.emfile"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        {
+          "description": "Inject global file descriptor exhaustion.",
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "const": "fs.io.enfile"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        {
+          "description": "Inject filesystem quota exceeded failures.",
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "const": "fs.io.quota"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        {
+          "description": "Inject short write behavior.",
+          "type": "object",
+          "properties": {
+            "max_bytes": {
+              "description": "Optional maximum bytes written before returning.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0
+            },
+            "name": {
+              "type": "string",
+              "const": "fs.write.short"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        {
+          "description": "Inject successful sync acknowledgements without persistence.",
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "const": "fs.sync.lie"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        {
+          "description": "Inject process crash lifecycle events.",
+          "type": "object",
+          "properties": {
+            "signal": {
+              "description": "Optional crash signal number.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            },
+            "name": {
+              "type": "string",
+              "const": "process.lifecycle.crash"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        {
+          "description": "Inject process signal delivery events.",
+          "type": "object",
+          "properties": {
+            "signal": {
+              "description": "Signal number.",
+              "type": "integer",
+              "format": "int64"
+            },
+            "name": {
+              "type": "string",
+              "const": "process.signal.deliver"
+            }
+          },
+          "required": [
+            "name",
+            "signal"
+          ]
+        },
+        {
+          "description": "Inject process wait timeouts.",
+          "type": "object",
+          "properties": {
+            "timeout_ns": {
+              "description": "Timeout duration in nanoseconds.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "name": {
+              "type": "string",
+              "const": "process.wait.timeout"
+            }
+          },
+          "required": [
+            "name",
+            "timeout_ns"
+          ]
+        },
+        {
+          "description": "Inject scheduler timer skew.",
+          "type": "object",
+          "properties": {
+            "skew_ns": {
+              "description": "Signed skew in nanoseconds.",
+              "type": "integer",
+              "format": "int64"
+            },
+            "name": {
+              "type": "string",
+              "const": "scheduler.timer.skew"
+            }
+          },
+          "required": [
+            "name",
+            "skew_ns"
+          ]
+        },
+        {
+          "description": "Inject scheduler queue starvation.",
+          "type": "object",
+          "properties": {
+            "target": {
+              "description": "Queue target selector.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "duration_ns": {
+              "description": "Starvation duration in nanoseconds.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0
+            },
+            "name": {
+              "type": "string",
+              "const": "scheduler.queue.starve"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        {
+          "description": "Inject wall or monotonic clock jumps.",
+          "type": "object",
+          "properties": {
+            "delta_ns": {
+              "description": "Signed jump in nanoseconds.",
+              "type": "integer",
+              "format": "int64"
+            },
+            "name": {
+              "type": "string",
+              "const": "time.clock.jump"
+            }
+          },
+          "required": [
+            "name",
+            "delta_ns"
+          ]
+        },
+        {
+          "description": "Inject persistent wall or monotonic drift.",
+          "type": "object",
+          "properties": {
+            "rate_ppm": {
+              "description": "Signed rate offset in parts-per-million.",
+              "type": "integer",
+              "format": "int64"
+            },
+            "name": {
+              "type": "string",
+              "const": "time.clock.drift"
+            }
+          },
+          "required": [
+            "name",
+            "rate_ppm"
           ]
         }
       ]
     },
-    "RuntimeFaultDistributionJson": {
-      "description": "Jitter distribution for delay faults in JSON.",
+    "RuntimeJitterDistributionJson": {
+      "description": "Jitter distribution for runtime delay faults in JSON.",
       "oneOf": [
         {
           "description": "Use a uniform random distribution.",
@@ -1439,6 +1909,279 @@
           "description": "Use an exponential random distribution.",
           "type": "string",
           "const": "exponential"
+        }
+      ]
+    },
+    "RuntimeNetRouteDirectionJson": {
+      "description": "Direction selector for route-level network faults in JSON.",
+      "oneOf": [
+        {
+          "description": "Affect ingress traffic.",
+          "type": "string",
+          "const": "ingress"
+        },
+        {
+          "description": "Affect egress traffic.",
+          "type": "string",
+          "const": "egress"
+        },
+        {
+          "description": "Affect both directions.",
+          "type": "string",
+          "const": "both"
+        }
+      ]
+    },
+    "RuntimeControlEffectJson": {
+      "description": "Runtime control effect payload for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Trigger one immediate GC cycle.",
+          "type": "object",
+          "properties": {
+            "control": {
+              "type": "string",
+              "const": "gcCycleCollect"
+            }
+          },
+          "required": [
+            "control"
+          ]
+        },
+        {
+          "description": "Delay one GC cycle.",
+          "type": "object",
+          "properties": {
+            "delay_ns": {
+              "description": "Delay duration in nanoseconds.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0
+            },
+            "control": {
+              "type": "string",
+              "const": "gcCycleDelay"
+            }
+          },
+          "required": [
+            "control"
+          ]
+        },
+        {
+          "description": "Apply one temporary heap limit.",
+          "type": "object",
+          "properties": {
+            "limit_bytes": {
+              "description": "Heap limit in bytes.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "control": {
+              "type": "string",
+              "const": "gcHeapLimit"
+            }
+          },
+          "required": [
+            "control",
+            "limit_bytes"
+          ]
+        }
+      ]
+    },
+    "RuntimeMockEffectJson": {
+      "description": "Runtime mock effect payload for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Force one successful no-op response.",
+          "type": "object",
+          "properties": {
+            "mock": {
+              "type": "string",
+              "const": "success"
+            }
+          },
+          "required": [
+            "mock"
+          ]
+        },
+        {
+          "description": "Force one failure response with a code.",
+          "type": "object",
+          "properties": {
+            "code": {
+              "description": "Error code name for this mocked failure.",
+              "type": "string"
+            },
+            "mock": {
+              "type": "string",
+              "const": "error"
+            }
+          },
+          "required": [
+            "mock",
+            "code"
+          ]
+        }
+      ]
+    },
+    "RuntimeRuleTriggerJson": {
+      "description": "Runtime rule trigger controls for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "probability": {
+          "description": "Trigger probability in the range 0.0 to 1.0.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "maxOccurrences": {
+          "description": "Maximum number of effect firings.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "cooldownNs": {
+          "description": "Cooldown duration between firings in nanoseconds.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "burst": {
+          "description": "Number of firings per trigger hit.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        }
+      }
+    },
+    "RuntimeRuleActivationJson": {
+      "description": "Runtime rule activation behavior for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Activate immediately.",
+          "type": "object",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "const": "immediate"
+            }
+          },
+          "required": [
+            "mode"
+          ]
+        },
+        {
+          "description": "Activate once virtual time reaches this timestamp.",
+          "type": "object",
+          "properties": {
+            "virtual_ns": {
+              "description": "Activation timestamp in virtual nanoseconds.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "mode": {
+              "type": "string",
+              "const": "atVirtualNs"
+            }
+          },
+          "required": [
+            "mode",
+            "virtual_ns"
+          ]
+        },
+        {
+          "description": "Activate once this matching call count has elapsed.",
+          "type": "object",
+          "properties": {
+            "call_count": {
+              "description": "Matching call count before activation.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "mode": {
+              "type": "string",
+              "const": "afterCallCount"
+            }
+          },
+          "required": [
+            "mode",
+            "call_count"
+          ]
+        }
+      ]
+    },
+    "RuntimeRuleLifetimeJson": {
+      "description": "Runtime rule lifetime behavior for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Keep active until explicitly disabled.",
+          "type": "object",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "const": "untilDisabled"
+            }
+          },
+          "required": [
+            "mode"
+          ]
+        },
+        {
+          "description": "Keep active for this virtual duration.",
+          "type": "object",
+          "properties": {
+            "duration_ns": {
+              "description": "Active duration in virtual nanoseconds.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "mode": {
+              "type": "string",
+              "const": "forDurationNs"
+            }
+          },
+          "required": [
+            "mode",
+            "duration_ns"
+          ]
+        },
+        {
+          "description": "Keep active for this matching call budget.",
+          "type": "object",
+          "properties": {
+            "call_count": {
+              "description": "Active call count before expiration.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "mode": {
+              "type": "string",
+              "const": "forCallCount"
+            }
+          },
+          "required": [
+            "mode",
+            "call_count"
+          ]
         }
       ]
     },
