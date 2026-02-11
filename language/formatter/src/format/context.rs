@@ -26,6 +26,10 @@ use super::timing::{
 const ANNOTATION_STATE_NONE: u8 = 1;
 const ANNOTATION_STATE_PRESENT: u8 = 2;
 const ANNOTATION_STATE_CACHED: u8 = 3;
+const NODE_BOOL_STATE_UNKNOWN: u8 = 0;
+const NODE_BOOL_STATE_FALSE: u8 = 1;
+const NODE_BOOL_STATE_TRUE: u8 = 2;
+const NODE_SPAN_CHAR_LEN_UNKNOWN: u32 = u32::MAX;
 const TYPE_CONTEXT_STATE_UNKNOWN: u8 = 0;
 const TYPE_CONTEXT_STATE_FALSE: u8 = 1;
 const TYPE_CONTEXT_STATE_TRUE: u8 = 2;
@@ -213,35 +217,6 @@ pub struct CachedArgumentAnnotationProfile {
     pub has_prefix_annotation: bool,
 }
 
-/// Cached call argument expansion facts keyed by call expression node id.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct CachedCallArgumentFacts {
-    /// Whether any argument has a line comment annotation.
-    pub has_line_comment_annotations: bool,
-    /// Whether the last argument is a collection literal.
-    pub trailing_collection_argument: bool,
-    /// Whether any argument is a block callback.
-    pub has_block_callback_argument: bool,
-    /// Whether the first argument is a block callback.
-    pub first_argument_is_block_callback: bool,
-    /// Whether the last argument is a block callback.
-    pub last_argument_is_block_callback: bool,
-    /// Whether any non-last, non-callback argument is non-trivial.
-    pub has_non_trivial_non_callback_argument: bool,
-    /// Number of block callback arguments before the last argument.
-    pub non_last_block_callback_count: usize,
-    /// Index of the first block callback before the last argument.
-    pub non_last_block_callback_index: Option<usize>,
-    /// Number of lambda arguments.
-    pub arrow_argument_count: usize,
-    /// Number of function expression arguments.
-    pub function_argument_count: usize,
-    /// Whether any argument is a spread argument.
-    pub has_spread_argument: bool,
-    /// Whether any non-callback argument is complex and non-tree.
-    pub has_complex_non_callback_argument: bool,
-}
-
 /// Cached regular call argument expansion profile keyed by call expression node id.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct CachedCallArgumentExpansionProfile {
@@ -260,6 +235,51 @@ pub struct CachedCallArgumentExpansionProfiles {
     pub regular: CachedCallArgumentExpansionProfile,
     /// Cached chain call force-expand decision.
     pub chain_force_expand: bool,
+}
+
+/// Cached call argument layout-class facts keyed by call expression node id.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct CachedCallArgumentLayoutClass {
+    /// Whether the call has a non-blank infix annotation.
+    pub has_call_infix_annotations: bool,
+    /// Whether any dynamic argument has annotations.
+    pub has_any_argument_annotation: bool,
+    /// Whether argument source between first and last spans multiple lines.
+    pub is_multiline_in_source: bool,
+    /// Whether all dynamic arguments are single-line and unannotated.
+    pub all_single_line_and_unannotated: bool,
+    /// Whether all dynamic arguments are compact, simple, and unannotated.
+    pub all_compact_simple_unannotated: bool,
+    /// Whether all arguments can use the plain argument writer.
+    pub all_plain_call_arguments: bool,
+    /// Whether any argument has a line comment annotation.
+    pub has_line_comment_annotations: bool,
+    /// Whether any argument is a block callback.
+    pub has_block_callback_argument: bool,
+    /// Whether the first argument is a block callback.
+    pub first_argument_is_block_callback: bool,
+    /// Whether the last argument is a block callback.
+    pub last_argument_is_block_callback: bool,
+    /// Whether any non-last non-callback argument is non-trivial.
+    pub has_non_trivial_non_callback_argument: bool,
+    /// Number of block callback arguments before the last argument.
+    pub non_last_block_callback_count: usize,
+    /// Index of the first block callback before the last argument.
+    pub non_last_block_callback_index: Option<usize>,
+    /// Number of lambda arguments.
+    pub arrow_argument_count: usize,
+    /// Number of function expression arguments.
+    pub function_argument_count: usize,
+    /// Whether any argument is a spread argument.
+    pub has_spread_argument: bool,
+    /// Whether any non-callback argument is complex and non-tree.
+    pub has_complex_non_callback_argument: bool,
+    /// Whether this call has a parent postfix call-chain operation.
+    pub has_call_chain_parent: bool,
+    /// Whether the last dynamic argument is a collection literal.
+    pub trailing_collection_argument: bool,
+    /// Whether this call can force hug-last inline layout.
+    pub force_hug_last_inline: bool,
 }
 
 /// Destack format options.
@@ -462,9 +482,9 @@ pub struct DestackFormatContext<'a> {
     /// Cached comment checks for repeated span comment predicates.
     pub span_has_comment_cache: RefCell<FxHashMap<Span, bool>>,
     /// Cached span char lengths for node ids.
-    pub node_span_char_len_cache: RefCell<Vec<Option<usize>>>,
+    pub node_span_char_len_cache: Vec<Cell<u32>>,
     /// Cached node span newline predicates keyed by node id.
-    pub node_has_newline_cache: RefCell<Vec<Option<bool>>>,
+    pub node_has_newline_cache: Vec<Cell<u8>>,
     /// Cached call argument expansion profiles for regular and chain modes keyed by call node id.
     pub call_argument_expansion_profiles_cache:
         RefCell<Vec<Option<CachedCallArgumentExpansionProfiles>>>,
@@ -474,10 +494,10 @@ pub struct DestackFormatContext<'a> {
     pub argument_annotation_profile_cache: RefCell<Vec<Option<CachedArgumentAnnotationProfile>>>,
     /// Cached compact simple unannotated argument predicate keyed by argument node id.
     pub argument_compact_simple_unannotated_cache: RefCell<Vec<Option<bool>>>,
-    /// Cached compact simple unannotated call argument list predicate keyed by call expression id.
-    pub call_arguments_compact_simple_unannotated_cache: RefCell<Vec<Option<bool>>>,
-    /// Cached call argument expansion facts keyed by call expression node id.
-    pub call_argument_facts_cache: RefCell<Vec<Option<CachedCallArgumentFacts>>>,
+    /// Cached plain-call-argument predicate keyed by argument node id.
+    pub argument_plain_call_argument_cache: RefCell<Vec<Option<bool>>>,
+    /// Cached call argument layout-class facts keyed by call expression node id.
+    pub call_argument_layout_class_cache: RefCell<Vec<Option<CachedCallArgumentLayoutClass>>>,
     /// Cached chain call force-expand decisions keyed by call expression node id.
     pub call_argument_chain_force_expand_cache: RefCell<Vec<Option<bool>>>,
     /// Cached transparent inner expression ids keyed by expression node id.
@@ -601,8 +621,14 @@ impl<'a> DestackFormatContext<'a> {
             newline_offsets: OnceCell::new(),
             span_has_newline_cache: RefCell::new(FxHashMap::default()),
             span_has_comment_cache: RefCell::new(FxHashMap::default()),
-            node_span_char_len_cache: RefCell::new(vec![None; tree.next_id() as usize]),
-            node_has_newline_cache: RefCell::new(vec![None; tree.next_id() as usize]),
+            node_span_char_len_cache: vec![
+                Cell::new(NODE_SPAN_CHAR_LEN_UNKNOWN);
+                tree.next_id() as usize
+            ],
+            node_has_newline_cache: vec![
+                Cell::new(NODE_BOOL_STATE_UNKNOWN);
+                tree.next_id() as usize
+            ],
             call_argument_expansion_profiles_cache: RefCell::new(vec![
                 None;
                 tree.next_id() as usize
@@ -617,12 +643,8 @@ impl<'a> DestackFormatContext<'a> {
                 None;
                 tree.next_id() as usize
             ]),
-            call_arguments_compact_simple_unannotated_cache: RefCell::new(vec![
-                None;
-                tree.next_id()
-                    as usize
-            ]),
-            call_argument_facts_cache: RefCell::new(vec![None; tree.next_id() as usize]),
+            argument_plain_call_argument_cache: RefCell::new(vec![None; tree.next_id() as usize]),
+            call_argument_layout_class_cache: RefCell::new(vec![None; tree.next_id() as usize]),
             call_argument_chain_force_expand_cache: RefCell::new(vec![
                 None;
                 tree.next_id() as usize
@@ -762,16 +784,14 @@ impl<'a> DestackFormatContext<'a> {
         NodeTree: NodeTreeImpl<T>,
     {
         let node_index = node_id.id as usize;
-
-        {
-            let cache = self.node_span_char_len_cache.borrow();
-            if let Some(len) = cache[node_index] {
-                return len;
-            }
+        let cached = self.node_span_char_len_cache[node_index].get();
+        if cached != NODE_SPAN_CHAR_LEN_UNKNOWN {
+            return cached as usize;
         }
 
         let len = self.span_char_len(self.get_span(node_id));
-        self.node_span_char_len_cache.borrow_mut()[node_index] = Some(len);
+        #[expect(clippy::cast_possible_truncation)]
+        self.node_span_char_len_cache[node_index].set(len as u32);
 
         len
     }
@@ -784,16 +804,20 @@ impl<'a> DestackFormatContext<'a> {
         NodeTree: NodeTreeImpl<T>,
     {
         let node_index = node_id.id as usize;
-
-        {
-            let cache = self.node_has_newline_cache.borrow();
-            if let Some(has_newline) = cache[node_index] {
-                return has_newline;
-            }
+        let cached = self.node_has_newline_cache[node_index].get();
+        if cached == NODE_BOOL_STATE_TRUE {
+            return true;
+        }
+        if cached == NODE_BOOL_STATE_FALSE {
+            return false;
         }
 
         let has_newline = self.has_newline(self.get_span(node_id));
-        self.node_has_newline_cache.borrow_mut()[node_index] = Some(has_newline);
+        self.node_has_newline_cache[node_index].set(if has_newline {
+            NODE_BOOL_STATE_TRUE
+        } else {
+            NODE_BOOL_STATE_FALSE
+        });
 
         has_newline
     }
@@ -1486,49 +1510,50 @@ impl<'a> DestackFormatContext<'a> {
         );
     }
 
-    /// Return cached compact simple unannotated call argument list predicate.
+    /// Return cached plain call argument predicate.
     #[inline]
-    pub fn cached_call_arguments_compact_simple_unannotated(
+    pub fn cached_argument_plain_call_argument(
         &self,
-        call_node_id: LocalNodeId<Expression>,
+        argument_id: LocalNodeId<Argument>,
     ) -> Option<bool> {
-        self.cache_get_copy_entry(
-            &self.call_arguments_compact_simple_unannotated_cache,
-            call_node_id.id,
-        )
+        self.cache_get_copy_entry(&self.argument_plain_call_argument_cache, argument_id.id)
     }
 
-    /// Cache compact simple unannotated call argument list predicate.
+    /// Cache plain call argument predicate.
     #[inline]
-    pub fn cache_call_arguments_compact_simple_unannotated(
+    pub fn cache_argument_plain_call_argument(
         &self,
-        call_node_id: LocalNodeId<Expression>,
+        argument_id: LocalNodeId<Argument>,
         value: bool,
     ) {
         self.cache_set_copy_entry(
-            &self.call_arguments_compact_simple_unannotated_cache,
-            call_node_id.id,
+            &self.argument_plain_call_argument_cache,
+            argument_id.id,
             value,
         );
     }
 
-    /// Return cached call argument expansion facts for one call expression node.
+    /// Return cached call argument layout-class facts for one call expression node.
     #[inline]
-    pub fn cached_call_argument_facts(
+    pub fn cached_call_argument_layout_class(
         &self,
         call_node_id: LocalNodeId<Expression>,
-    ) -> Option<CachedCallArgumentFacts> {
-        self.cache_get_copy_entry(&self.call_argument_facts_cache, call_node_id.id)
+    ) -> Option<CachedCallArgumentLayoutClass> {
+        self.cache_get_copy_entry(&self.call_argument_layout_class_cache, call_node_id.id)
     }
 
-    /// Cache call argument expansion facts for one call expression node.
+    /// Cache call argument layout-class facts for one call expression node.
     #[inline]
-    pub fn cache_call_argument_facts(
+    pub fn cache_call_argument_layout_class(
         &self,
         call_node_id: LocalNodeId<Expression>,
-        facts: CachedCallArgumentFacts,
+        layout_class: CachedCallArgumentLayoutClass,
     ) {
-        self.cache_set_copy_entry(&self.call_argument_facts_cache, call_node_id.id, facts);
+        self.cache_set_copy_entry(
+            &self.call_argument_layout_class_cache,
+            call_node_id.id,
+            layout_class,
+        );
     }
 
     /// Return cached chain call force-expand decision for one call expression node.
