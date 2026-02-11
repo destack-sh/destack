@@ -13,7 +13,7 @@ use crate::query::common::{
     string_literal_span_in_enclosing, strip_module_extension, strip_path_extension,
     strip_path_suffix,
 };
-use crate::{ModuleSpecifier, Session};
+use crate::{ImportEdgeKind, ModuleSpecifier, Session};
 
 /// A file rename entry for refactor queries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -305,7 +305,7 @@ fn resolve_rename_target_module_id(
         None
     };
     let target_id = session.strings.intern(specifier);
-    let cache_key = (relative_module, target_id, None);
+    let cache_key = (relative_module, target_id, ImportEdgeKind::Import, None);
     if let Some(targets) = ctx.dir.imported_modules.read().get(&cache_key).copied() {
         let dependency_kind = match kind {
             ast::DependencyKind::Type => dir::DependencyKind::Type,

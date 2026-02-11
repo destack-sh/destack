@@ -1293,6 +1293,7 @@ impl Compiler {
     ) {
         // cache the default export name
         let default_name = self.program.strings.intern("default");
+        let is_commonjs_module = module.module_format.is_commonjs();
 
         // collect the export assignment if present
         let dependency_items = dependency_items_by_scope
@@ -1316,6 +1317,7 @@ impl Compiler {
             && namespace_scope.named_symbols.is_empty()
             && namespace_scope.anonymous_symbols.is_empty()
             && !self.module_is_ambient_lib(module)
+            && !is_commonjs_module
         {
             exports.clear();
             return;
@@ -1351,6 +1353,19 @@ impl Compiler {
         // add ambient exports when a builtin lib is global
         if self.module_is_ambient_lib(module) {
             self.insert_ambient_exports(module.id, dir, symbols, &mut exports);
+        }
+
+        // synthesize static named exports for commonjs modules
+        if is_commonjs_module && export_assignment_item.is_none() {
+            self.insert_commonjs_named_exports(
+                module.id,
+                dir.namespace_scope,
+                dir.namespace_symbol.into_global(module.id),
+                &dir.roots,
+                tree,
+                symbols,
+                &mut exports,
+            );
         }
     }
 
@@ -2190,7 +2205,48 @@ impl Compiler {
 #[cfg(test)]
 mod tests {
     use crate::TestProgram;
+    use destack_dir::{StaticKey, SymbolSpace};
     use destack_workspace::ModuleGraphKey;
+
+    /// Assert one module exports a value symbol for the requested name.
+    fn assert_has_value_export(
+        test: &TestProgram,
+        module_id: destack_source::ModuleId,
+        name: &str,
+    ) {
+        let profile = test.default_profile_id(module_id);
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let dir = module.dir(profile);
+        let exports = dir.exported_symbols.read();
+        let name_id = test.program.strings.intern(name);
+        let key = (SymbolSpace::Value, StaticKey::Name(name_id));
+
+        let Some(export) = exports.get(&key) else {
+            panic!("expected value export '{name}'");
+        };
+        assert!(export.target.resolved().is_some());
+    }
+
+    /// Assert one module does not export a value symbol for the requested name.
+    fn assert_missing_value_export(
+        test: &TestProgram,
+        module_id: destack_source::ModuleId,
+        name: &str,
+    ) {
+        let profile = test.default_profile_id(module_id);
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let dir = module.dir(profile);
+        let exports = dir.exported_symbols.read();
+        let name_id = test.program.strings.intern(name);
+        let key = (SymbolSpace::Value, StaticKey::Name(name_id));
+
+        assert!(
+            !exports.contains_key(&key),
+            "expected missing value export '{name}'"
+        );
+    }
 
     /// Build module graph edges for import dependencies.
     #[test]
@@ -2337,5 +2393,104 @@ value;
             dependencies.contains(&decl_module_id),
             "expected module graph to include module binding module"
         );
+    }
+
+    /// Synthesize named exports from CommonJS property writes.
+    #[test]
+    fn test_build_module_exports_collects_commonjs_named_property_writes() {
+        let test = TestProgram::memory_sequential_with_prelude();
+        let module_id = test.add_module(
+            "cjs.js",
+            r#"
+function buildValue() {
+    return 1;
+}
+
+exports.buildValue = buildValue;
+"#,
+        );
+
+        test.resolve_module(module_id);
+        test.compile_check_clean();
+
+        assert_has_value_export(&test, module_id, "buildValue");
+    }
+
+    /// Replace named exports when CommonJS default replacement occurs.
+    #[test]
+    fn test_build_module_exports_replaces_commonjs_named_exports_on_module_exports_assignment() {
+        let test = TestProgram::memory_sequential_with_prelude();
+        let module_id = test.add_module(
+            "cjs.js",
+            r#"
+function first() {
+    return 1;
+}
+
+function second() {
+    return 2;
+}
+
+exports.first = first;
+module.exports = second;
+"#,
+        );
+
+        test.resolve_module(module_id);
+        test.compile_check_clean();
+
+        assert_missing_value_export(&test, module_id, "first");
+    }
+
+    /// Ignore exports alias writes after module exports replacement.
+    #[test]
+    fn test_build_module_exports_ignores_exports_alias_writes_after_replacement() {
+        let test = TestProgram::memory_sequential_with_prelude();
+        let module_id = test.add_module(
+            "cjs.js",
+            r#"
+function selected() {
+    return 1;
+}
+
+function leaked() {
+    return 2;
+}
+
+module.exports = selected;
+exports.leaked = leaked;
+"#,
+        );
+
+        test.resolve_module(module_id);
+        test.compile_check_clean();
+
+        assert_missing_value_export(&test, module_id, "leaked");
+    }
+
+    /// Skip synthesized CommonJS named exports when export assignment is present.
+    #[test]
+    fn test_build_module_exports_skips_commonjs_named_exports_with_export_assignment() {
+        let test = TestProgram::memory_sequential_with_prelude();
+        let module_id = test.add_module(
+            "cjs.cts",
+            r#"
+function selected() {
+    return 1;
+}
+
+function helper() {
+    return 2;
+}
+
+module.exports.helper = helper;
+export = selected;
+"#,
+        );
+
+        test.resolve_module(module_id);
+        test.compile_check_clean();
+
+        assert_missing_value_export(&test, module_id, "helper");
     }
 }

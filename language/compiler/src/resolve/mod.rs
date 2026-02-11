@@ -5,6 +5,7 @@ mod decorator;
 mod dependency;
 mod discover;
 mod error;
+mod export;
 mod expression;
 mod globals;
 mod language;

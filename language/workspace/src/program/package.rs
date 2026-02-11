@@ -386,6 +386,13 @@ impl PackageRegistry {
             .clone()
     }
 
+    /// Get a package by package id when present.
+    pub fn get_maybe(&self, id: PackageId) -> Option<Arc<RwLock<Package>>> {
+        self.packages_by_id
+            .get(&id)
+            .map(|entry| entry.value().clone())
+    }
+
     /// Get the current package version.
     ///
     /// # Panics

@@ -147,6 +147,8 @@ impl Compiler {
                 let mut module = module.write();
                 self.ensure_module_version_matches_guard::<ImportError>(&module, module_version)?;
                 module.code_mut().ast = Some(ast);
+                drop(module);
+                self.program.refresh_module_semantics(module_id);
                 tracing::trace!(?module_id, "import.module.parse.code.cache");
                 return Ok(());
             }
@@ -223,6 +225,7 @@ impl Compiler {
         ast.ensure_anchor_expression(file_id);
         module.code_mut().ast = Some(ast);
         drop(module);
+        self.program.refresh_module_semantics(module_id);
 
         // write AST to cache
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;

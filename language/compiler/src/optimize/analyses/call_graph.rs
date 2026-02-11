@@ -1441,7 +1441,9 @@ mod tests {
     use destack_source::{
         FileId, FileVersion, LanguageType, ModuleId, ModuleVersion, PackageId, Uri,
     };
-    use destack_workspace::{Loader, Module, ModuleMir, ModuleSource, SourceType, TargetId};
+    use destack_workspace::{
+        Loader, Module, ModuleFormat, ModuleMir, ModuleSource, SourceType, TargetId,
+    };
 
     use crate::optimize::common::tests::TestProgram;
     use crate::optimize::{
@@ -1473,6 +1475,7 @@ mod tests {
             package_id,
             None,
             SourceType::Module,
+            ModuleFormat::Esm,
             LanguageType::Destack,
             Loader::Destack,
             ModuleSource::User,

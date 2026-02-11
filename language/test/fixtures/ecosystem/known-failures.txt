@@ -15,7 +15,6 @@ astro-lower
 astro-resolve
 chalk-analyze
 chalk-lower
-chalk-resolve
 changesets-analyze
 changesets-lower
 changesets-resolve
@@ -24,19 +23,16 @@ cloudflare-workers-sdk-lower
 cloudflare-workers-sdk-resolve
 commander-analyze
 commander-lower
-commander-resolve
 dayjs-analyze
 dayjs-lower
 dayjs-resolve
 debug-analyze
 debug-lower
-debug-resolve
 definitelytyped-analyze
 definitelytyped-lower
 definitelytyped-resolve
 dotenv-analyze
 dotenv-lower
-dotenv-resolve
 drizzle-orm-analyze
 drizzle-orm-lower
 drizzle-orm-resolve
@@ -230,7 +226,6 @@ vue-lower
 vue-resolve
 ws-analyze
 ws-lower
-ws-resolve
 yarn-berry-analyze
 yarn-berry-lower
 yarn-berry-resolve

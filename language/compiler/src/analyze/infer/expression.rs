@@ -26,7 +26,7 @@ use destack_dir::{
     WellKnownSymbol, YieldCardinality,
 };
 use destack_source::ModuleId;
-use destack_workspace::{Module, ModuleSource, ProfileId};
+use destack_workspace::{ImportEdgeKind, Module, ModuleSource, ProfileId};
 
 /// Object literal field metadata for excess property checks.
 #[derive(Debug, Clone)]
@@ -4225,7 +4225,11 @@ impl Compiler {
                 let target_module_id = target_module
                     .or_else(|| {
                         self.imported_module_resolution_for_specifier(
-                            module, profile, *target, None,
+                            module,
+                            profile,
+                            *target,
+                            ImportEdgeKind::Import,
+                            None,
                         )
                     })
                     .and_then(|targets| targets.ty.or(targets.value))

@@ -21,6 +21,108 @@ pub enum ModuleSource {
     Builtin(BuiltinLibKind),
 }
 
+/// The runtime module system format.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+pub enum ModuleFormat {
+    /// ECMAScript module format.
+    #[default]
+    Esm,
+    /// CommonJS module format.
+    CommonJs,
+}
+
+impl ModuleFormat {
+    /// Detect a module format from extension and package context.
+    pub fn detect(
+        path: Option<&Path>,
+        language_type: LanguageType,
+        source_type: SourceType,
+        package_type: Option<&str>,
+        tsconfig_format: Option<Self>,
+    ) -> Self {
+        // destack modules always use esm semantics
+        if language_type.is_destack() {
+            return Self::Esm;
+        }
+
+        // extension based module formats are authoritative
+        if let Some(path) = path
+            && let Some(format) = Self::from_extension(path)
+        {
+            return format;
+        }
+
+        // tsconfig module targets can force commonjs or esm semantics
+        if let Some(format) = tsconfig_format {
+            return format;
+        }
+
+        // package json type defines js or ts module format defaults
+        if let Some(format) = Self::from_package_type(package_type) {
+            return format;
+        }
+
+        // default typescript modules to esm semantics
+        if language_type.is_typescript() {
+            return Self::Esm;
+        }
+
+        // fall back to script or module source semantics
+        if source_type.is_module() {
+            Self::Esm
+        } else {
+            Self::CommonJs
+        }
+    }
+
+    /// Detect a module format from one file extension.
+    pub fn from_extension(path: &Path) -> Option<Self> {
+        let extension = path.extension()?.to_str()?;
+        match extension {
+            "mjs" | "mts" | "ds" => Some(Self::Esm),
+            "cjs" | "cts" => Some(Self::CommonJs),
+            _ => None,
+        }
+    }
+
+    /// Detect a module format from one package type value.
+    pub fn from_package_type(package_type: Option<&str>) -> Option<Self> {
+        match package_type {
+            Some("module") => Some(Self::Esm),
+            Some("commonjs") => Some(Self::CommonJs),
+            _ => None,
+        }
+    }
+
+    /// Detect a module format from one tsconfig module target.
+    pub fn from_tsconfig_target(target: crate::ModuleTarget) -> Option<Self> {
+        match target {
+            crate::ModuleTarget::CommonJs => Some(Self::CommonJs),
+            crate::ModuleTarget::Es2015
+            | crate::ModuleTarget::Es2020
+            | crate::ModuleTarget::Es2022
+            | crate::ModuleTarget::EsNext
+            | crate::ModuleTarget::Preserve => Some(Self::Esm),
+            crate::ModuleTarget::Amd
+            | crate::ModuleTarget::Umd
+            | crate::ModuleTarget::System
+            | crate::ModuleTarget::Node16
+            | crate::ModuleTarget::NodeNext
+            | crate::ModuleTarget::None => None,
+        }
+    }
+
+    /// Return true when this module format is ESM.
+    pub fn is_esm(self) -> bool {
+        matches!(self, Self::Esm)
+    }
+
+    /// Return true when this module format is CommonJS.
+    pub fn is_commonjs(self) -> bool {
+        matches!(self, Self::CommonJs)
+    }
+}
+
 /// The type of module content.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
 pub enum ModuleType {
@@ -113,6 +215,8 @@ pub struct Module {
     pub tsconfig_id: Option<TsConfigId>,
     /// The source type of the Module (Script vs Module).
     pub source_type: SourceType,
+    /// The runtime module format for import and export interop.
+    pub module_format: ModuleFormat,
     /// The language type of the Module (Destack, TypeScript, JavaScript, etc.).
     pub language_type: LanguageType,
     /// How the module content is loaded/interpreted.
@@ -137,6 +241,7 @@ impl Module {
         package_id: PackageId,
         tsconfig_id: Option<TsConfigId>,
         source_type: SourceType,
+        module_format: ModuleFormat,
         language_type: LanguageType,
         loader: Loader,
         source: ModuleSource,
@@ -156,6 +261,7 @@ impl Module {
             package_id,
             tsconfig_id,
             source_type,
+            module_format,
             language_type,
             loader,
             source,
@@ -174,6 +280,7 @@ impl Module {
         package_id: PackageId,
         tsconfig_id: Option<TsConfigId>,
         source_type: SourceType,
+        module_format: ModuleFormat,
         language_type: LanguageType,
         loader: Loader,
         source: ModuleSource,
@@ -189,6 +296,7 @@ impl Module {
             package_id,
             tsconfig_id,
             source_type,
+            module_format,
             language_type,
             loader,
             source,

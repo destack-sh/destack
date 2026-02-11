@@ -32,7 +32,7 @@ impl Compiler {
         // rebuild when module bindings changed since the cache was built
         let mut rebuild_cache = true;
         if let Some(cache) = self.program.index.module_binding_tables.get(&key) {
-            rebuild_cache = self.module_binding_table_is_stale(package_id, profile_id, &cache);
+            rebuild_cache = self.module_binding_table_is_stale(package_id, &cache);
         }
         if rebuild_cache {
             let cache = self.build_module_binding_table(package_id, profile_id);
@@ -105,6 +105,7 @@ impl Compiler {
     ) {
         for (module_id, version) in &registry.module_versions {
             cache.module_versions.insert(*module_id, *version);
+            cache.registry_module_versions.insert(*module_id, *version);
         }
 
         for (specifier, bindings) in &registry.bindings_by_specifier {
@@ -156,11 +157,10 @@ impl Compiler {
         builtins.ambient_libs(&profile.key).unwrap_or_default()
     }
 
-    /// Collect module versions used for stale checks.
-    fn module_binding_versions(
+    /// Collect package declared module binding versions for stale checks.
+    fn registry_module_binding_versions(
         &self,
         package_id: PackageId,
-        profile_id: ProfileId,
     ) -> IndexMap<ModuleId, ModuleVersion> {
         let mut versions = IndexMap::new();
 
@@ -171,30 +171,22 @@ impl Compiler {
             }
         }
 
-        // include ambient lib module versions
-        for module_id in self.ambient_binding_module_ids(profile_id) {
-            let module = self.program.modules.get(module_id);
-            let module = module.read();
-            versions.insert(module_id, module.version);
-        }
-
         versions
     }
 
-    /// Return true when the module binding cache is stale for package and profile.
+    /// Return true when package declared module bindings changed since caching.
     fn module_binding_table_is_stale(
         &self,
         package_id: PackageId,
-        profile_id: ProfileId,
         cache: &ModuleBindingTable,
     ) -> bool {
-        let expected_versions = self.module_binding_versions(package_id, profile_id);
-        if expected_versions.len() != cache.module_versions.len() {
+        let expected_versions = self.registry_module_binding_versions(package_id);
+        if expected_versions.len() != cache.registry_module_versions.len() {
             return true;
         }
 
         for (module_id, expected_version) in expected_versions {
-            let Some(cached_version) = cache.module_versions.get(&module_id) else {
+            let Some(cached_version) = cache.registry_module_versions.get(&module_id) else {
                 return true;
             };
             if cached_version != &expected_version {
@@ -680,5 +672,162 @@ randomUUID();
         test.compile_with_timeout(Duration::from_secs(30));
         test.check_no_diagnostic_code("ER101");
         test.check_no_diagnostic_code("ER200");
+    }
+
+    /// Resolve default imports from CommonJS `module.exports` assignments.
+    #[test]
+    fn test_resolve_default_import_from_commonjs_module_exports() {
+        let test = TestProgram::memory_sequential_with_prelude();
+        test.add_module(
+            "cjs.js",
+            r#"
+function buildValue() {
+    return 1;
+}
+
+module.exports = buildValue;
+"#,
+        );
+        let main_module_id = test.add_module(
+            "main.mjs",
+            r#"
+import buildValue from "./cjs.js";
+
+buildValue();
+"#,
+        );
+
+        test.resolve_module(main_module_id);
+        test.compile_with_timeout(Duration::from_secs(30));
+        test.check_no_diagnostic_code("ER101");
+        test.check_no_diagnostic_code("ER200");
+    }
+
+    /// Resolve default imports from CommonJS bracket export assignments.
+    #[test]
+    fn test_resolve_default_import_from_commonjs_bracket_exports() {
+        let test = TestProgram::memory_sequential_with_prelude();
+        test.add_module(
+            "cjs.js",
+            r#"
+function buildValue() {
+    return 1;
+}
+
+module["exports"] = buildValue;
+"#,
+        );
+        let main_module_id = test.add_module(
+            "main.mjs",
+            r#"
+import buildValue from "./cjs.js";
+
+buildValue() satisfies number;
+"#,
+        );
+
+        test.resolve_module(main_module_id);
+        test.compile_with_timeout(Duration::from_secs(30));
+        test.check_no_diagnostic_code("ER101");
+        test.check_no_diagnostic_code("ER200");
+    }
+
+    /// Resolve the last CommonJS export assignment as the default import.
+    #[test]
+    fn test_resolve_default_import_from_commonjs_last_assignment_wins() {
+        let test = TestProgram::memory_sequential_with_prelude();
+        test.add_module(
+            "cjs.js",
+            r#"
+function second() {
+    return;
+}
+
+module.exports = 1;
+module.exports = second;
+"#,
+        );
+        let main_module_id = test.add_module(
+            "main.mjs",
+            r#"
+import selected from "./cjs.js";
+
+selected();
+"#,
+        );
+
+        test.resolve_module(main_module_id);
+        test.compile_with_timeout(Duration::from_secs(30));
+        test.check_no_diagnostic_code("ER101");
+        test.check_no_diagnostic_code("ER200");
+    }
+
+    /// Resolve default imports from chained CommonJS export assignments.
+    #[test]
+    fn test_resolve_default_import_from_commonjs_chained_assignment() {
+        let test = TestProgram::memory_sequential_with_prelude();
+        test.add_module(
+            "cjs.js",
+            r#"
+const holder = {};
+
+function buildValue() {
+    return 1;
+}
+
+holder.value = module.exports = buildValue;
+"#,
+        );
+        let main_module_id = test.add_module(
+            "main.mjs",
+            r#"
+import selected from "./cjs.js";
+
+selected();
+"#,
+        );
+
+        test.resolve_module(main_module_id);
+        test.compile_with_timeout(Duration::from_secs(30));
+        test.check_no_diagnostic_code("ER101");
+        test.check_no_diagnostic_code("ER200");
+    }
+
+    /// Resolve CommonJS default imports when `module` is declared via global augmentation.
+    #[test]
+    fn test_resolve_default_import_from_commonjs_with_ambient_module_global() {
+        let test = TestProgram::memory_sequential_with_prelude();
+        test.add_module(
+            "globals.d.ts",
+            r#"
+export {};
+
+declare global {
+    var module: { exports: unknown };
+}
+"#,
+        );
+        test.add_module(
+            "cjs.js",
+            r#"
+function buildValue() {
+    return 1;
+}
+
+module.exports = buildValue;
+"#,
+        );
+        let main_module_id = test.add_module(
+            "main.ts",
+            r#"
+import "./globals.d.ts";
+import buildValue from "./cjs";
+
+buildValue() satisfies number;
+"#,
+        );
+
+        test.resolve_module(main_module_id);
+        test.compile_check_clean();
     }
 }

@@ -13,11 +13,12 @@ use parking_lot::RwLock;
 
 use crate::{
     ArtifactRegistry, Builtins, DsConfigCompilerOptions, DsConfigOptions, EnvSnapshot,
-    FormatterOptions, LinterOptions, Loader, Module, ModuleAst, ModuleGraphKey, ModuleGraphStamp,
-    ModuleGraphVersion, ModuleRegistry, ModuleSource, Package, PackageKind, PackageRegistry,
-    Profile, ProfileConfig, ProfileEnv, ProfileFlags, ProfileId, ProfileKey, ProfileRegistry,
-    ProgramIndex, SourceType, Target, TargetId, TsConfigOptions, TsConfigRegistry,
-    WorkspaceFileEntry, WorkspaceIndexSnapshot, WorkspaceModuleEntry, payload_hash_from_bytes,
+    FormatterOptions, LinterOptions, Loader, Module, ModuleAst, ModuleDetection, ModuleFormat,
+    ModuleGraphKey, ModuleGraphStamp, ModuleGraphVersion, ModuleRegistry, ModuleSource, Package,
+    PackageKind, PackageRegistry, Profile, ProfileConfig, ProfileEnv, ProfileFlags, ProfileId,
+    ProfileKey, ProfileRegistry, ProgramIndex, SourceType, Target, TargetId, TsConfigId,
+    TsConfigOptions, TsConfigRegistry, WorkspaceFileEntry, WorkspaceIndexSnapshot,
+    WorkspaceModuleEntry, payload_hash_from_bytes,
 };
 
 /// Unique identifier for Programs.
@@ -291,6 +292,7 @@ impl Program {
             root_package_id,
             None, // no tsconfig for root module
             SourceType::Script,
+            ModuleFormat::Esm,
             LanguageType::Destack,
             Loader::Destack,
             ModuleSource::User,
@@ -480,11 +482,12 @@ impl Program {
         let package_id = PackageId::EPHEMERAL;
         let module_id =
             ModuleId::from_relative_path(package_id, std::path::Path::new(uri.as_ref()));
-        let module_type = uri
+        let source_type = uri
             .to_path()
             .and_then(SourceType::from_extension)
             .unwrap_or(SourceType::Script);
         let language_type = LanguageType::from(ty);
+        let module_format = ModuleFormat::detect(None, language_type, source_type, None, None);
         let loader = Loader::from_file_type(ty);
         let module = Module::blank(
             module_id,
@@ -494,7 +497,8 @@ impl Program {
             None,
             package_id,
             None,
-            module_type,
+            source_type,
+            module_format,
             language_type,
             loader,
             ModuleSource::User,
@@ -502,6 +506,124 @@ impl Program {
         self.modules.insert(module);
 
         module_id
+    }
+
+    /// Detect source type for one module file.
+    pub fn detect_module_source_type(
+        &self,
+        path: Option<&Path>,
+        package_id: PackageId,
+        tsconfig_id: Option<TsConfigId>,
+        has_import_export: bool,
+    ) -> SourceType {
+        // collect detection inputs from package and tsconfig
+        let package_type = self.package_module_type_for_id(package_id);
+        let module_detection = self.tsconfig_module_detection_for_id(tsconfig_id);
+
+        // detect from path when available
+        if let Some(path) = path {
+            return SourceType::detect(
+                path,
+                has_import_export,
+                module_detection,
+                package_type.as_deref(),
+            );
+        }
+
+        // force module mode when requested
+        if module_detection == ModuleDetection::Force {
+            return SourceType::Module;
+        }
+
+        // honor package type without a filesystem path
+        if let Some(package_type) = package_type.as_deref() {
+            if package_type == "module" {
+                return SourceType::Module;
+            }
+
+            if package_type == "commonjs" {
+                return SourceType::Script;
+            }
+        }
+
+        // fall back to syntax-based auto detection
+        if has_import_export {
+            SourceType::Module
+        } else {
+            SourceType::Script
+        }
+    }
+
+    /// Detect module format for one module file.
+    pub fn detect_module_format(
+        &self,
+        path: Option<&Path>,
+        language_type: LanguageType,
+        source_type: SourceType,
+        package_id: PackageId,
+        tsconfig_id: Option<TsConfigId>,
+    ) -> ModuleFormat {
+        // collect format overrides from package and tsconfig
+        let package_type = self.package_module_type_for_id(package_id);
+        let tsconfig_format = self.tsconfig_module_format_for_id(tsconfig_id);
+
+        ModuleFormat::detect(
+            path,
+            language_type,
+            source_type,
+            package_type.as_deref(),
+            tsconfig_format,
+        )
+    }
+
+    /// Recompute source type and module format for one module.
+    pub fn refresh_module_semantics(&self, module_id: ModuleId) {
+        // capture current module state and detection inputs
+        let module = self.modules.get(module_id);
+        let (
+            path,
+            package_id,
+            tsconfig_id,
+            language_type,
+            previous_source_type,
+            previous_module_format,
+            has_import_export,
+        ) = {
+            let module = module.read();
+            (
+                module.path.clone(),
+                module.package_id,
+                module.tsconfig_id,
+                module.language_type,
+                module.source_type,
+                module.module_format,
+                Self::module_has_import_export_syntax(&module),
+            )
+        };
+
+        // detect fresh semantics from current workspace state
+        let source_type = self.detect_module_source_type(
+            path.as_deref(),
+            package_id,
+            tsconfig_id,
+            has_import_export,
+        );
+        let module_format = self.detect_module_format(
+            path.as_deref(),
+            language_type,
+            source_type,
+            package_id,
+            tsconfig_id,
+        );
+
+        // write updates only when semantics changed
+        if source_type == previous_source_type && module_format == previous_module_format {
+            return;
+        }
+
+        let mut module = module.write();
+        module.source_type = source_type;
+        module.module_format = module_format;
     }
 
     /// Increment a module version and return the updated value.
@@ -845,6 +967,117 @@ impl Program {
         }
 
         options
+    }
+
+    /// Read package json module type for one package id.
+    fn package_module_type_for_id(&self, package_id: PackageId) -> Option<String> {
+        // skip missing package entries
+        let Some(package) = self.packages.get_maybe(package_id) else {
+            return None;
+        };
+
+        // read module type from package manifest
+        let package = package.read();
+        package
+            .manifest
+            .as_ref()
+            .and_then(|manifest| manifest.content.module_type.clone())
+    }
+
+    /// Read module detection strategy from one tsconfig id.
+    fn tsconfig_module_detection_for_id(&self, tsconfig_id: Option<TsConfigId>) -> ModuleDetection {
+        // use defaults when no tsconfig is attached
+        let Some(tsconfig_id) = tsconfig_id else {
+            return ModuleDetection::default();
+        };
+
+        // use defaults when the tsconfig is missing
+        let Some(tsconfig) = self.tsconfigs.get_maybe(tsconfig_id) else {
+            return ModuleDetection::default();
+        };
+
+        // read module detection from tsconfig compiler options
+        tsconfig.read().options.compiler.module_detection
+    }
+
+    /// Read module format override from one tsconfig id.
+    fn tsconfig_module_format_for_id(
+        &self,
+        tsconfig_id: Option<TsConfigId>,
+    ) -> Option<ModuleFormat> {
+        // skip when no tsconfig is attached
+        let tsconfig_id = tsconfig_id?;
+
+        // skip when the tsconfig is missing
+        let tsconfig = self.tsconfigs.get_maybe(tsconfig_id)?;
+        let module_target = tsconfig.read().options.compiler.module;
+
+        ModuleFormat::from_tsconfig_target(module_target)
+    }
+
+    /// Return true when a module AST contains top-level module syntax.
+    fn module_has_import_export_syntax(module: &Module) -> bool {
+        // skip modules without parsed ASTs
+        let Some(ast) = module.ast_maybe() else {
+            return false;
+        };
+
+        // scan top-level expressions for import or export syntax
+        for root_id in &ast.roots {
+            if Self::expression_has_module_syntax(ast, *root_id) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Return true when one top-level expression contains module syntax.
+    fn expression_has_module_syntax(
+        ast: &ModuleAst,
+        expression_id: ast::LocalNodeId<ast::Expression>,
+    ) -> bool {
+        // unwrap statement wrappers at the top level
+        let expression_id = Self::top_level_expression_without_statement(&ast.tree, expression_id);
+        let expression = ast.tree.get(expression_id);
+
+        // treat explicit imports as module syntax
+        if let ast::Expression::Import { source, .. } = expression {
+            return *source != ast::ImportSource::ImportCall;
+        }
+
+        // treat explicit export statements as module syntax
+        if matches!(
+            expression,
+            ast::Expression::Export { .. } | ast::Expression::ExportNamespace { .. }
+        ) {
+            return true;
+        }
+
+        // treat declaration-style export modifiers as module syntax
+        match expression {
+            ast::Expression::Declaration(declaration_id) => {
+                let declaration = ast.tree.get(*declaration_id);
+                declaration.descriptor().export.is_some()
+            }
+            ast::Expression::Let { descriptor, .. } | ast::Expression::Using { descriptor, .. } => {
+                descriptor.export.is_some()
+            }
+            _ => false,
+        }
+    }
+
+    /// Unwrap one top-level statement expression.
+    fn top_level_expression_without_statement(
+        tree: &ast::NodeTree,
+        expression_id: ast::LocalNodeId<ast::Expression>,
+    ) -> ast::LocalNodeId<ast::Expression> {
+        let expression = tree.get(expression_id);
+        if let ast::Expression::Statement(statement_id) = expression {
+            *statement_id
+        } else {
+            expression_id
+        }
     }
 }
 

@@ -8,6 +8,7 @@ The point of testing conformance is to ensure that modern TS-first libraries can
 However, we do not expect or need to reach 100% _general_ conformance across all suites because:
 
 - **Modern (TS) ESM**: We target strict module semantics and do not support script mode and some legacy or otherwise unsupported JS/TS syntax.
+- **CommonJS interop**: Top-level `module.exports` assignments are supported for default import compatibility without enabling script mode semantics.
 - **Annex B**: Legacy Annex B syntax is out of scope.
 - **JS-only in JS**: `.js` and `.jsx` reject TS-only syntax and decorators, and JSX is only enabled in `.jsx`.
 - **TypeScript++**: `.ds` files override obscure TypeScript patterns like the comma operator in favor of tuple syntax.

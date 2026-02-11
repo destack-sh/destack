@@ -6,10 +6,10 @@ use destack_dir::{DependencyKind, ModuleResolution, ModuleTarget};
 use destack_resolver::{CachePolicy, Resolver};
 use destack_source::{File, FileType, LanguageType, ModuleId, PackageId, PackageVersion, Uri};
 use destack_workspace::{
-    Loader, Module, ModuleSource, Package, PackageKind, ProfileId, Runtime, SourceType,
+    ImportEdgeKind, Loader, Module, ModuleSource, Package, PackageKind, ProfileId, Runtime,
 };
 
-use crate::import::{ImportResolveRequest, materialize_import_resolve_options};
+use crate::import::{ImportResolveContext, materialize_import_resolve_options};
 use crate::{Compiler, ImportError, ImportResult};
 
 /// Extensions to try for builtin modules.
@@ -35,11 +35,12 @@ impl Compiler {
             specifier,
             source_module,
             kind,
+            ImportEdgeKind::Import,
             None,
         )
     }
 
-    /// Resolve a specifier to a ModuleId with an optional loader override.
+    /// Resolve a specifier to a ModuleId with explicit edge semantics.
     ///
     /// If `loader_override` is provided and the module doesn't exist yet, the module
     /// will be registered with the specified loader instead of the default for its file type.
@@ -50,6 +51,7 @@ impl Compiler {
         specifier: StringId,
         source_module: Option<ModuleId>,
         kind: DependencyKind,
+        edge_kind: ImportEdgeKind,
         loader_override: Option<Loader>,
     ) -> ImportResult<ModuleId> {
         let profile_id = profile_id
@@ -89,6 +91,7 @@ impl Compiler {
             &specifier_str,
             kind,
             source_language_type,
+            edge_kind,
         )?;
 
         self.resolve_specifier_registration(&path, loader_override, &resolver)
@@ -102,8 +105,9 @@ impl Compiler {
         specifier_str: &str,
         kind: DependencyKind,
         source_language_type: Option<LanguageType>,
+        edge_kind: ImportEdgeKind,
     ) -> ImportResult<(PathBuf, Resolver)> {
-        let resolver = self.resolver_for_kind(kind, source_language_type);
+        let resolver = self.resolver_for_kind(kind, source_language_type, edge_kind);
         let resolution = resolver.resolve(directory, specifier_str);
         if let Ok(resolution) = resolution {
             return Ok((resolution.path, resolver));
@@ -116,11 +120,12 @@ impl Compiler {
         })
     }
 
-    /// Resolve a specifier to value and type module targets.
+    /// Resolve a specifier to value and type targets with explicit edge semantics.
     pub(crate) fn resolve_specifier_to_module_resolution(
         &self,
         specifier: StringId,
         source_module: Option<ModuleId>,
+        edge_kind: ImportEdgeKind,
         loader_override: Option<Loader>,
     ) -> ImportResult<ModuleResolution> {
         let value_target = self
@@ -129,6 +134,7 @@ impl Compiler {
                 specifier,
                 source_module,
                 DependencyKind::Value,
+                edge_kind,
                 loader_override,
             )
             .ok()
@@ -139,6 +145,7 @@ impl Compiler {
                 specifier,
                 source_module,
                 DependencyKind::Type,
+                edge_kind,
                 loader_override,
             )
             .ok()
@@ -348,7 +355,7 @@ impl Compiler {
 
     /// Resolve a path to a ModuleId, registering a blank module if needed.
     pub fn resolve_path_to_module(&self, path: &PathBuf) -> ImportResult<ModuleId> {
-        let resolver = self.resolver_for_kind(DependencyKind::Value, None);
+        let resolver = self.resolver_for_kind(DependencyKind::Value, None, ImportEdgeKind::Import);
 
         // check if module already exists for this path
         if let Some(module_id) = self.program.modules.get_id_by_path(path) {
@@ -443,8 +450,20 @@ impl Compiler {
         let tsconfig_id = resolver.find_tsconfig(path);
 
         // create and register blank module
-        let source_type = SourceType::from_extension(path).unwrap_or(SourceType::Script);
         let language_type = LanguageType::from(ty);
+        let source_type = self.program.detect_module_source_type(
+            Some(path.as_path()),
+            package_id,
+            tsconfig_id,
+            false,
+        );
+        let module_format = self.program.detect_module_format(
+            Some(path.as_path()),
+            language_type,
+            source_type,
+            package_id,
+            tsconfig_id,
+        );
         let module = Module::blank(
             module_id,
             file_id,
@@ -454,6 +473,7 @@ impl Compiler {
             package_id,
             tsconfig_id,
             source_type,
+            module_format,
             language_type,
             loader,
             ModuleSource::User,
@@ -484,13 +504,15 @@ impl Compiler {
         &self,
         kind: DependencyKind,
         source_language_type: Option<LanguageType>,
+        edge_kind: ImportEdgeKind,
     ) -> destack_resolver::ResolveOptions {
-        let request = ImportResolveRequest {
+        let context = ImportResolveContext {
             dependency_kind: kind,
             source_language_type,
+            edge_kind,
         };
 
-        materialize_import_resolve_options(&self.options.import_resolve, request)
+        materialize_import_resolve_options(&self.options.import_resolve, context)
     }
 
     /// Create a resolver configured for a dependency kind.
@@ -498,8 +520,10 @@ impl Compiler {
         &self,
         kind: DependencyKind,
         source_language_type: Option<LanguageType>,
+        edge_kind: ImportEdgeKind,
     ) -> Resolver {
-        let resolver_options = self.resolver_options_for_kind(kind, source_language_type);
+        let resolver_options =
+            self.resolver_options_for_kind(kind, source_language_type, edge_kind);
         Resolver::from_program(&self.program, resolver_options)
     }
 

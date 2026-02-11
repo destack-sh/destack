@@ -482,6 +482,7 @@ impl Compiler {
                 let remote_module_id = match self.resolve_specifier_to_module_resolution(
                     dependency.target,
                     Some(module_id),
+                    destack_workspace::ImportEdgeKind::Import,
                     None,
                 ) {
                     Ok(targets) => targets

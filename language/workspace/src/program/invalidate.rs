@@ -28,6 +28,8 @@ pub enum InvalidationKind {
     DsConfig,
     /// Tsconfig changed.
     TsConfig,
+    /// Package manifest changed.
+    PackageManifest,
     /// No known mapping for the file.
     Unknown,
 }
@@ -108,6 +110,13 @@ impl Program {
                 .and_then(|path| path.file_name())
                 .and_then(|name| name.to_str())
                 .is_some_and(|name| name == "dsconfig.json");
+        let is_package_manifest = file.name == "package.json"
+            || file
+                .path
+                .as_ref()
+                .and_then(|path| path.file_name())
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name == "package.json");
 
         // map file id to module invalidation
         if let Some(module_id) = self.modules.get_id_by_file_id(file_id) {
@@ -133,6 +142,7 @@ impl Program {
             // collect modules for config invalidation
             let config_modules = self.modules_for_packages(&dsconfig_packages);
             modules.extend(config_modules.iter().copied());
+            self.refresh_module_semantics_for_modules(&config_modules);
 
             // invalidate profile data for config modules
             let config_profiles = self.invalidate_profile_data_for_modules(&config_modules);
@@ -146,11 +156,32 @@ impl Program {
                 config_modules.push(module.read().id);
             }
             modules.extend(config_modules.iter().copied());
+            self.refresh_module_semantics_for_modules(&config_modules);
 
             // invalidate profile data for config modules
             let config_profiles = self.invalidate_profile_data_for_modules(&config_modules);
             profiles.extend(config_profiles.iter().copied());
             graphs_dropped.extend(config_profiles);
+        }
+
+        // map file id to package manifest invalidation
+        let package_ids = self.packages_for_manifest_file(file_id);
+        if !package_ids.is_empty() {
+            kinds.insert(InvalidationKind::PackageManifest);
+            packages.extend(package_ids.iter().copied());
+            self.refresh_package_manifest_for_file(file_id, &package_ids);
+
+            // collect modules for package invalidation
+            let config_modules = self.modules_for_packages(&package_ids);
+            modules.extend(config_modules.iter().copied());
+            self.refresh_module_semantics_for_modules(&config_modules);
+
+            // invalidate profile data for config modules
+            let config_profiles = self.invalidate_profile_data_for_modules(&config_modules);
+            profiles.extend(config_profiles.iter().copied());
+            graphs_dropped.extend(config_profiles);
+        } else if is_package_manifest {
+            kinds.insert(InvalidationKind::PackageManifest);
         }
 
         // map file id to tsconfig invalidation
@@ -161,6 +192,7 @@ impl Program {
             // collect modules for config invalidation
             let config_modules = self.modules_for_tsconfigs(&tsconfig_ids);
             modules.extend(config_modules.iter().copied());
+            self.refresh_module_semantics_for_modules(&config_modules);
 
             // invalidate profile data for config modules
             let config_profiles = self.invalidate_profile_data_for_modules(&config_modules);
@@ -622,6 +654,69 @@ impl Program {
         }
         modules
     }
+
+    /// Find packages that own the given package.json file id.
+    fn packages_for_manifest_file(&self, file_id: FileId) -> Vec<PackageId> {
+        // collect packages that reference the package manifest file id
+        let mut packages = Vec::new();
+        for package in self.packages.iter() {
+            let package = package.read();
+            let Some(manifest) = package.manifest.as_ref() else {
+                continue;
+            };
+            if manifest.file_id == file_id {
+                packages.push(package.id);
+            }
+        }
+
+        packages
+    }
+
+    /// Refresh package manifest data for one invalidated file.
+    fn refresh_package_manifest_for_file(&self, file_id: FileId, package_ids: &[PackageId]) {
+        // load the current package manifest file state
+        let file = self.files.get(file_id);
+
+        for package_id in package_ids {
+            let package = self.packages.get(*package_id);
+            let mut package = package.write();
+            let Some(existing_manifest) = package.manifest.as_ref() else {
+                continue;
+            };
+            if existing_manifest.file_id != file_id {
+                continue;
+            }
+
+            // drop package manifest when file is missing
+            if file.is_missing() {
+                package.manifest = None;
+                continue;
+            }
+
+            // parse and apply the updated package manifest
+            let Ok(next_manifest) =
+                crate::PackageManifest::parse(&file, existing_manifest.realpath.clone())
+            else {
+                continue;
+            };
+            package.name = Some(next_manifest.name.clone());
+            package.version = Some(next_manifest.version.clone());
+            package.manifest = Some(next_manifest);
+        }
+    }
+
+    /// Refresh module source and format semantics for modules.
+    fn refresh_module_semantics_for_modules(&self, modules: &[ModuleId]) {
+        // deduplicate modules before refreshing
+        let mut visited = HashSet::new();
+        for module_id in modules {
+            if !visited.insert(*module_id) {
+                continue;
+            }
+
+            self.refresh_module_semantics(*module_id);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -637,9 +732,9 @@ mod tests {
     };
 
     use crate::{
-        DsConfig, EnvSnapshot, Loader, Module, ModuleAst, ModuleDir, ModuleSource, OutputFormat,
-        Package, PackageKind, Platform, ProfileFlags, ProfileId, ProfileKey, Program, Runtime,
-        SourceType,
+        DsConfig, EnvSnapshot, Loader, Module, ModuleAst, ModuleDetection, ModuleDir, ModuleFormat,
+        ModuleSource, ModuleTarget, OutputFormat, Package, PackageKind, PackageManifest, Platform,
+        ProfileFlags, ProfileId, ProfileKey, Program, Runtime, SourceType, TsConfig,
     };
 
     use super::{FileUpdate, InvalidationError};
@@ -825,6 +920,200 @@ mod tests {
         assert!(module_b.read().dir_maybe(profile_id).is_none());
     }
 
+    /// Refresh module semantics when package manifest module type changes.
+    #[test]
+    fn test_invalidate_package_manifest_refreshes_module_semantics() {
+        let fs = Arc::new(MemoryFileSystem::new());
+        let files = Arc::new(FileRegistry::new());
+        let program = Program::from_fs(PathBuf::from("/workspace"), fs, files.clone());
+
+        // insert package manifest file with commonjs module type
+        let package_json_file_id = files.next_id();
+        let package_json_path = PathBuf::from("/workspace/pkg/package.json");
+        let (package_json_name, package_json_uri) = Uri::from_path_with_name(&package_json_path);
+        let package_json_file = File::from_text_as_jsonc(
+            package_json_file_id,
+            package_json_name,
+            package_json_uri.clone(),
+            Some(package_json_path.clone()),
+            FileType::Json,
+            r#"{ "name": "pkg", "version": "0.1.0", "type": "commonjs" }"#.to_string(),
+        )
+        .unwrap_or_else(|error| panic!("failed to create package manifest file: {error}"));
+        files.insert(package_json_file);
+        let package_json_file = files.get(package_json_file_id);
+        let package_manifest =
+            PackageManifest::parse(&package_json_file, package_json_path.clone())
+                .unwrap_or_else(|error| panic!("failed to parse package manifest: {error}"));
+
+        // insert package with manifest
+        let package_id = PackageId::from_path(Path::new("/workspace/pkg"));
+        let package = Package {
+            id: package_id,
+            package_version: PackageVersion::INITIAL,
+            kind: PackageKind::Physical,
+            uri: Uri::from_path(&PathBuf::from("/workspace/pkg")),
+            path: Some(PathBuf::from("/workspace/pkg")),
+            name: Some("pkg".to_string()),
+            version: Some("0.1.0".to_string()),
+            manifest: Some(package_manifest),
+            dsconfig: None,
+            tsconfig: None,
+            targets: IndexMap::new(),
+        };
+        program.packages.insert(package);
+
+        // insert a script-like typescript module under the package
+        let module_file_id = files.next_id();
+        let module_path = PathBuf::from("/workspace/pkg/src/main.ts");
+        let (module_name, module_uri) = Uri::from_path_with_name(&module_path);
+        let module_file = File::from_text(
+            module_file_id,
+            module_name,
+            module_uri.clone(),
+            Some(module_path.clone()),
+            FileType::TypeScript,
+            "const value = 1;".to_string(),
+        );
+        files.insert(module_file);
+        let module_file = files.get(module_file_id);
+        let module_id = ModuleId::from_relative_path(package_id, Path::new("src/main.ts"));
+        let module = Module::blank(
+            module_id,
+            module_file_id,
+            module_file.version,
+            module_uri,
+            Some(module_path),
+            package_id,
+            None,
+            SourceType::Script,
+            ModuleFormat::CommonJs,
+            LanguageType::TypeScript,
+            Loader::TypeScript,
+            ModuleSource::User,
+        );
+        program.modules.insert(module);
+
+        // update package manifest module type to module and invalidate
+        let result = program
+            .invalidate_file(
+                package_json_file_id,
+                FileUpdate::Text {
+                    content: r#"{ "name": "pkg", "version": "0.2.0", "type": "module" }"#
+                        .to_string(),
+                },
+            )
+            .unwrap_or_else(|error| panic!("failed to invalidate package manifest: {error}"));
+
+        // assert invalidation kind and module semantics were updated
+        assert!(
+            result
+                .kinds
+                .contains(&super::InvalidationKind::PackageManifest)
+        );
+        let module = program.modules.get(module_id);
+        let module = module.read();
+        assert!(module.source_type.is_module());
+        assert!(module.module_format.is_esm());
+    }
+
+    /// Refresh module semantics when tsconfig mapping is invalidated.
+    #[test]
+    fn test_invalidate_tsconfig_refreshes_module_semantics() {
+        let fs = Arc::new(MemoryFileSystem::new());
+        let files = Arc::new(FileRegistry::new());
+        let program = Program::from_fs(PathBuf::from("/workspace"), fs, files.clone());
+
+        // insert package
+        let package_id = PackageId::from_path(Path::new("/workspace/pkg"));
+        let package = Package {
+            id: package_id,
+            package_version: PackageVersion::INITIAL,
+            kind: PackageKind::Physical,
+            uri: Uri::from_path(&PathBuf::from("/workspace/pkg")),
+            path: Some(PathBuf::from("/workspace/pkg")),
+            name: Some("pkg".to_string()),
+            version: Some("0.1.0".to_string()),
+            manifest: None,
+            dsconfig: None,
+            tsconfig: None,
+            targets: IndexMap::new(),
+        };
+        program.packages.insert(package);
+
+        // insert tsconfig file with force+commonjs semantics
+        let tsconfig_file_id = files.next_id();
+        let tsconfig_path = PathBuf::from("/workspace/pkg/tsconfig.json");
+        let (tsconfig_name, tsconfig_uri) = Uri::from_path_with_name(&tsconfig_path);
+        let tsconfig_file = File::from_text_as_jsonc(
+            tsconfig_file_id,
+            tsconfig_name,
+            tsconfig_uri.clone(),
+            Some(tsconfig_path.clone()),
+            FileType::Json,
+            r#"{ "compilerOptions": { "moduleDetection": "force", "module": "commonjs" } }"#
+                .to_string(),
+        )
+        .unwrap_or_else(|error| panic!("failed to create tsconfig file: {error}"));
+        files.insert(tsconfig_file);
+        let tsconfig_file = files.get(tsconfig_file_id);
+        let tsconfig_id = program.tsconfigs.next_id();
+        let tsconfig = TsConfig::parse(tsconfig_id, true, &tsconfig_file)
+            .unwrap_or_else(|error| panic!("failed to parse tsconfig: {error}"));
+        program.tsconfigs.insert(tsconfig);
+
+        // insert a typescript module that intentionally starts with stale semantics
+        let module_file_id = files.next_id();
+        let module_path = PathBuf::from("/workspace/pkg/src/main.ts");
+        let (module_name, module_uri) = Uri::from_path_with_name(&module_path);
+        let module_file = File::from_text(
+            module_file_id,
+            module_name,
+            module_uri.clone(),
+            Some(module_path.clone()),
+            FileType::TypeScript,
+            "const value = 1;".to_string(),
+        );
+        files.insert(module_file);
+        let module_file = files.get(module_file_id);
+        let module_id = ModuleId::from_relative_path(package_id, Path::new("src/main.ts"));
+        let module = Module::blank(
+            module_id,
+            module_file_id,
+            module_file.version,
+            module_uri,
+            Some(module_path),
+            package_id,
+            Some(tsconfig_id),
+            SourceType::Script,
+            ModuleFormat::Esm,
+            LanguageType::TypeScript,
+            Loader::TypeScript,
+            ModuleSource::User,
+        );
+        program.modules.insert(module);
+
+        // invalidate the tsconfig file and assert semantics are refreshed
+        let result = program
+            .invalidate_file(tsconfig_file_id, FileUpdate::Touch)
+            .unwrap_or_else(|error| panic!("failed to invalidate tsconfig: {error}"));
+        assert!(result.kinds.contains(&super::InvalidationKind::TsConfig));
+
+        let module = program.modules.get(module_id);
+        let module = module.read();
+        assert!(module.source_type.is_module());
+        assert!(module.module_format.is_commonjs());
+
+        // assert compiler options are still intact for this test setup
+        let tsconfig = program.tsconfigs.get(tsconfig_id);
+        let tsconfig = tsconfig.read();
+        assert_eq!(
+            tsconfig.options.compiler.module_detection,
+            ModuleDetection::Force
+        );
+        assert_eq!(tsconfig.options.compiler.module, ModuleTarget::CommonJs);
+    }
+
     /// Register a new code module for testing.
     fn insert_module(
         program: &Program,
@@ -862,6 +1151,7 @@ mod tests {
             package_id,
             None,
             SourceType::Script,
+            ModuleFormat::CommonJs,
             LanguageType::TypeScript,
             Loader::from_file_type(FileType::TypeScript),
             ModuleSource::User,
