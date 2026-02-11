@@ -1,0 +1,644 @@
+use crate::parse::prelude::*;
+use crate::{ParseError, ParseResult, Parser, ParserMark};
+
+use destack_ast::{
+    Asynchrony, Declaration, DeclarationDescriptor, DependencyMode, EnumKind, Expression,
+    FunctionKind, Keyword, LocalNodeId, NodeType, PostfixPosition, TokenType, TypeKind,
+};
+
+use super::common::is_type_relation_keyword;
+
+impl Parser {
+    /// Return true when a token can start a function signature head.
+    #[inline]
+    fn can_start_function_signature(next_token_type: TokenType) -> bool {
+        matches!(
+            next_token_type,
+            TokenType::Identifier
+                | TokenType::OpenParenthesis
+                | TokenType::LessThan
+                | TokenType::At
+                | TokenType::Multiply
+        )
+    }
+
+    /// Wrap a declaration node in an expression with the current span.
+    #[inline]
+    fn insert_declaration_expression(
+        &mut self,
+        start: &ParserMark,
+        declaration_id: LocalNodeId<Declaration>,
+    ) -> LocalNodeId<Expression> {
+        self.tree.insert(
+            Expression::Declaration(declaration_id),
+            self.get_span_from(start),
+        )
+    }
+
+    /// Parse a keyword path and optionally fold `<T>(...)` into a call expression.
+    fn eat_keyword_path_or_static_call_expression(
+        &mut self,
+        start: &ParserMark,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        let (path, last_span) = self
+            .eat_path_with_last_span()
+            .for_node_type(NodeType::Expression)?;
+        let static_arguments = self.eat_static_arguments_in_expression(false);
+
+        // parse call when static arguments apply
+        if static_arguments.is_some()
+            && self.peek_is(TokenType::OpenParenthesis)
+            && !self.options.in_new_receiver
+        {
+            let receiver = Expression::Path {
+                path,
+                static_arguments: None,
+            };
+            let receiver_id = self.tree.insert(receiver, self.get_span_from(start));
+            self.tree.set_main_span(receiver_id, last_span);
+            return self.eat_call(receiver_id, static_arguments, PostfixPosition::Direct);
+        }
+
+        // otherwise build a path expression
+        let expression = Expression::Path {
+            path,
+            static_arguments,
+        };
+        let expression_id = self.tree.insert(expression, self.get_span_from(start));
+        self.tree.set_main_span(expression_id, last_span);
+
+        Ok(expression_id)
+    }
+
+    pub(super) fn keyword_member_access_is(
+        &mut self,
+        member_name: &str,
+        allow_newlines: bool,
+    ) -> ParseResult<bool> {
+        // require dot member access
+        let dot_index = if allow_newlines {
+            if self
+                .peek_token_after_newlines(self.pos(), TokenType::Dot)
+                .is_err()
+            {
+                return Ok(false);
+            }
+            self.next_non_newline_index_from(self.pos_index() + 1)
+        } else {
+            if !self.peek_next_is(TokenType::Dot) {
+                return Ok(false);
+            }
+            self.index_for_next()
+        };
+
+        // require identifier member
+        let identifier_index = if allow_newlines {
+            self.next_non_newline_index_from(dot_index + 1)
+        } else {
+            dot_index + 1
+        };
+        self.token_stream.ensure_token(identifier_index);
+        let Some(identifier_token) = self.tokens().get(identifier_index).copied() else {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        };
+        if identifier_token.token.ty != TokenType::Identifier {
+            return Err(ParseError::unexpected(identifier_token.span));
+        }
+
+        // match the member name from cached interned identifiers when available
+        let matches_member_name = self
+            .identifier_for_index(identifier_index)
+            .is_some_and(|identifier| self.strings.get(identifier) == member_name)
+            || self.get_span_str(identifier_token.span) == member_name;
+        if matches_member_name {
+            Ok(true)
+        } else {
+            Err(ParseError::unexpected(identifier_token.span))
+        }
+    }
+
+    /// Eat a keyword-led expression when possible.
+    pub(super) fn eat_keyword_expression(
+        &mut self,
+        start: &ParserMark,
+        descriptor: DeclarationDescriptor,
+        keyword: Keyword,
+        next_token_type: TokenType,
+        is_declaration_start: bool,
+    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+        match keyword {
+            // namespace declaration
+            Keyword::Namespace
+                if is_declaration_start
+                    && next_token_type == TokenType::Identifier
+                    && !is_type_relation_keyword(self.keyword_for_index(self.index_for_next())) =>
+            {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let namespace_id = self.eat_namespace(start, descriptor)?;
+                Ok(Some(
+                    self.insert_declaration_expression(start, namespace_id),
+                ))
+            }
+            // struct declaration
+            Keyword::Struct
+                if self.language.is_destack()
+                    && (is_declaration_start || next_token_type == TokenType::Newline) =>
+            {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let allow_anonymous_class = !self.options.in_statement_position
+                    || descriptor.export == Some(DependencyMode::Default);
+                let struct_id =
+                    self.eat_struct_or_class(start, descriptor, allow_anonymous_class)?;
+                Ok(Some(self.insert_declaration_expression(start, struct_id)))
+            }
+            // class declaration
+            Keyword::Class if is_declaration_start || next_token_type == TokenType::Newline => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let allow_anonymous_class = !self.options.in_statement_position
+                    || descriptor.export == Some(DependencyMode::Default);
+                let struct_id =
+                    self.eat_struct_or_class(start, descriptor, allow_anonymous_class)?;
+                Ok(Some(self.insert_declaration_expression(start, struct_id)))
+            }
+            // enum declaration
+            Keyword::Enum if is_declaration_start => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let enum_id = self.eat_enum(start, EnumKind::Enum, descriptor)?;
+                Ok(Some(self.insert_declaration_expression(start, enum_id)))
+            }
+            // const enum or binding declaration
+            Keyword::Const => {
+                // look ahead for const enum
+                let next_keyword = if next_token_type == TokenType::Identifier {
+                    self.keyword_for_index(self.index_for_next())
+                } else {
+                    None
+                };
+
+                // parse const enum declaration
+                if next_keyword == Some(Keyword::Enum) {
+                    let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                    self.eat_keyword(Keyword::Const)?;
+                    let enum_id = self.eat_enum(start, EnumKind::Const, descriptor)?;
+                    Ok(Some(self.insert_declaration_expression(start, enum_id)))
+                // otherwise parse binding declaration
+                } else {
+                    let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
+                    Ok(Some(self.eat_let(start, descriptor)?))
+                }
+            }
+            // newtype interface or alias declaration
+            Keyword::Newtype => {
+                // look ahead for newtype interface
+                let next_keyword = if next_token_type == TokenType::Identifier {
+                    self.keyword_for_index(self.index_for_next())
+                } else {
+                    None
+                };
+
+                // parse newtype interface declaration
+                if next_keyword == Some(Keyword::Interface) {
+                    let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                    self.eat_keyword(Keyword::Newtype)?;
+                    let interface_id = self.eat_interface(start, descriptor, TypeKind::Nominal)?;
+                    Ok(Some(
+                        self.insert_declaration_expression(start, interface_id),
+                    ))
+                // otherwise parse newtype alias declaration
+                } else {
+                    // require a valid type alias start
+                    let can_start_type_alias = matches!(
+                        next_token_type,
+                        TokenType::Identifier
+                            | TokenType::OpenBrace
+                            | TokenType::OpenParenthesis
+                            | TokenType::OpenBracket
+                            | TokenType::Literal
+                    );
+
+                    // parse the alias when it can start
+                    if can_start_type_alias {
+                        let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                        Ok(Some(self.eat_type(start, descriptor)?))
+                    // otherwise bail
+                    } else {
+                        Ok(None)
+                    }
+                }
+            }
+            // interface declaration
+            Keyword::Interface if is_declaration_start || next_token_type == TokenType::Newline => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let interface_id = self.eat_interface(start, descriptor, TypeKind::Structural)?;
+                Ok(Some(
+                    self.insert_declaration_expression(start, interface_id),
+                ))
+            }
+            // extension declaration
+            Keyword::Extension
+                if self.language.is_destack()
+                    && self.options.in_statement_position
+                    && is_declaration_start =>
+            {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let extension_id = self.eat_extension(start, descriptor)?;
+                Ok(Some(
+                    self.insert_declaration_expression(start, extension_id),
+                ))
+            }
+            // async declaration or async path
+            Keyword::Async => {
+                // avoid async generic parses when tree literal disambiguation is active
+                if self.language.is_typescript()
+                    && self.options.left_precedence.is_some()
+                    && (self.peek_next_is(TokenType::LessThan)
+                        || self.peek_next_is(TokenType::ShiftLeft))
+                {
+                    return Ok(None);
+                }
+
+                // require a valid function signature start
+                let can_start_signature = Self::can_start_function_signature(next_token_type);
+                if !can_start_signature {
+                    return Ok(None);
+                }
+
+                // parse async function with speculative rollback
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let speculative_start = self.mark();
+                let speculative_start_idx = self.tree.next_id();
+                if let Ok(function_id) = self.eat_function(start, descriptor, false, false) {
+                    // accept only when not a rejected lambda signature
+                    let should_accept = match self.tree.get(function_id) {
+                        Declaration::Function {
+                            signature, body, ..
+                        } => {
+                            !(signature.kind == FunctionKind::Lambda
+                                && body.is_none()
+                                && !self.options.in_type)
+                        }
+                        _ => true,
+                    };
+
+                    // accept the parsed function
+                    if should_accept {
+                        Ok(Some(self.insert_declaration_expression(start, function_id)))
+                    // otherwise fall back to async path
+                    } else {
+                        self.restore(speculative_start, speculative_start_idx);
+                        Ok(Some(
+                            self.eat_keyword_path_or_static_call_expression(start)?,
+                        ))
+                    }
+                // fall back to async path when signature parsing failed
+                } else {
+                    self.restore(speculative_start, speculative_start_idx);
+                    Ok(Some(
+                        self.eat_keyword_path_or_static_call_expression(start)?,
+                    ))
+                }
+            }
+            // override is contextual in value expressions
+            Keyword::Override if !self.options.in_type => Ok(None),
+            // abstract is contextual outside declaration positions
+            Keyword::Abstract
+                if !self.options.in_type
+                    && !self.options.in_statement_position
+                    && descriptor.export.is_none() =>
+            {
+                Ok(None)
+            }
+            // function or method declaration
+            Keyword::Function | Keyword::Abstract | Keyword::Override => {
+                // require a valid function signature start
+                let can_start_signature = Self::can_start_function_signature(next_token_type);
+                if !can_start_signature {
+                    return Ok(None);
+                }
+
+                // parse function declaration
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let function_id = self.eat_function(start, descriptor, false, false)?;
+                Ok(Some(self.insert_declaration_expression(start, function_id)))
+            }
+            // new signature declaration in type positions
+            Keyword::New if self.options.in_type => {
+                // require a valid function signature start
+                let can_start_signature = Self::can_start_function_signature(next_token_type);
+                if can_start_signature {
+                    // parse constructor signature
+                    let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                    let function_id = self.eat_function(start, descriptor, false, false)?;
+                    Ok(Some(self.insert_declaration_expression(start, function_id)))
+                // otherwise bail
+                } else {
+                    Ok(None)
+                }
+            }
+            // variant method declaration
+            Keyword::Get | Keyword::Set | Keyword::Constructor if self.options.in_variant => {
+                // require a valid function signature start
+                let can_start_signature = Self::can_start_function_signature(next_token_type);
+                if !can_start_signature {
+                    return Ok(None);
+                }
+
+                // parse variant method declaration
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let function_id = self.eat_function(start, descriptor, false, false)?;
+                Ok(Some(self.insert_declaration_expression(start, function_id)))
+            }
+            // this expression
+            Keyword::This => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
+                self.bump(); // eat this
+                Ok(Some(
+                    self.tree
+                        .insert(Expression::This, self.get_span_from(start)),
+                ))
+            }
+            // super expression
+            Keyword::Super => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
+                self.bump(); // eat super
+                Ok(Some(
+                    self.tree
+                        .insert(Expression::Super, self.get_span_from(start)),
+                ))
+            }
+            // new expression
+            Keyword::New if !self.options.in_type => {
+                // require a valid new expression start
+                let can_start_new_expression = matches!(
+                    next_token_type,
+                    TokenType::Identifier
+                        | TokenType::OpenParenthesis
+                        | TokenType::OpenBrace
+                        | TokenType::LessThan
+                );
+                if can_start_new_expression {
+                    // parse new expression
+                    let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
+                    Ok(Some(self.eat_new()?))
+                }
+                // allow `new.target` to fall back to path parsing
+                else if next_token_type == TokenType::Dot {
+                    if self.keyword_member_access_is("target", false)? {
+                        Ok(None)
+                    } else {
+                        Err(ParseError::unexpected(self.peek()?.span))
+                    }
+                }
+                // otherwise reject `new` in expression position
+                else {
+                    Err(ParseError::unexpected(self.peek()?.span))
+                }
+            }
+            // delete expression
+            Keyword::Delete if next_token_type != TokenType::Colon => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
+                Ok(Some(self.eat_delete()?))
+            }
+            // type only import expression
+            Keyword::Import
+                if self.options.in_type && next_token_type == TokenType::OpenParenthesis =>
+            {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DEPENDENCY);
+                Ok(Some(self.eat_type_import_expression()?))
+            }
+            // import call expression
+            Keyword::Import if next_token_type == TokenType::OpenParenthesis => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DEPENDENCY);
+                Ok(Some(self.eat_import_call_expression(start)?))
+            }
+            // import declaration or import meta
+            Keyword::Import => {
+                // treat `import.meta` as a path and reject other member access
+                if self
+                    .peek_token_after_newlines(self.pos(), TokenType::Dot)
+                    .is_ok()
+                {
+                    if self.keyword_member_access_is("meta", true)? {
+                        return Ok(None);
+                    }
+                    return Err(ParseError::unexpected(self.peek()?.span));
+                }
+
+                // require a valid import start
+                let can_start_import = matches!(
+                    next_token_type,
+                    TokenType::Multiply
+                        | TokenType::Identifier
+                        | TokenType::OpenBrace
+                        | TokenType::Literal
+                ) || self.can_start_import_statement();
+                if !can_start_import {
+                    return Err(ParseError::unexpected(self.peek()?.span));
+                }
+
+                // parse import or export import equals declaration
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DEPENDENCY);
+                if descriptor.export.is_some() && self.peek_import_equals_after_import() {
+                    Ok(Some(self.eat_export_import_equals(start, descriptor)?))
+                } else {
+                    Ok(Some(self.eat_import()?))
+                }
+            }
+            // infer type expression
+            Keyword::Infer if self.options.in_type => Ok(Some(self.eat_type_infer_expression()?)),
+            // asserts type predicate
+            Keyword::Asserts if self.options.in_type => {
+                // allow asserts predicate only when grammar supports it
+                if self.can_start_type_predicate_asserts() {
+                    Ok(Some(self.eat_type_predicate_asserts()?))
+                // otherwise bail
+                } else {
+                    Ok(None)
+                }
+            }
+            // let or var binding declaration
+            Keyword::Let | Keyword::Var => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
+                Ok(Some(self.eat_let(start, descriptor)?))
+            }
+            // using declaration
+            Keyword::Using => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
+                if self.can_parse_using_declaration(&descriptor, Asynchrony::Sync) {
+                    Ok(Some(self.eat_using(start, descriptor, Asynchrony::Sync)?))
+                // otherwise bail
+                } else {
+                    Ok(None)
+                }
+            }
+            // readonly type operator in ts and js type contexts
+            Keyword::Readonly if self.language.is_typescript() || self.language.is_javascript() => {
+                // in new receiver context, readonly behaves like an identifier
+                if self.options.in_new_receiver {
+                    return Ok(None);
+                }
+
+                // ts and js parse readonly as a type unary in type positions
+                if self.options.in_type {
+                    let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                    return Ok(Some(self.eat_type(start, descriptor)?));
+                }
+
+                // value positions keep readonly contextual
+                Ok(None)
+            }
+            // type alias declaration and destack readonly/newtype aliases
+            Keyword::Type | Keyword::Readonly => {
+                // in new receiver context, `type` and `readonly` behave like identifiers
+                if self.options.in_new_receiver {
+                    return Ok(None);
+                }
+
+                let next_keyword = if next_token_type == TokenType::Identifier {
+                    self.keyword_for_index(self.index_for_next())
+                } else {
+                    None
+                };
+                let next_index = self.index_for_next();
+                let after_next_index = self.next_non_newline_index_from(next_index + 1);
+                let after_next_token_type = self.token_type_at(after_next_index);
+                let starts_type_operator = is_type_relation_keyword(next_keyword)
+                    && !matches!(
+                        after_next_token_type,
+                        TokenType::Assign
+                            | TokenType::LessThan
+                            | TokenType::ShiftLeft
+                            | TokenType::SaturatingShiftLeft
+                    );
+
+                // typescript and javascript only allow identifier names in type alias declarations
+                let can_start_type_alias =
+                    if self.language.is_typescript() || self.language.is_javascript() {
+                        next_token_type == TokenType::Identifier && !starts_type_operator
+                    }
+                    // destack keeps broader alias starts
+                    else {
+                        matches!(
+                            next_token_type,
+                            TokenType::Identifier
+                                | TokenType::OpenBrace
+                                | TokenType::OpenParenthesis
+                                | TokenType::OpenBracket
+                                | TokenType::Literal
+                        ) && !starts_type_operator
+                    };
+
+                // parse type alias when it can start
+                if can_start_type_alias {
+                    let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                    Ok(Some(self.eat_type(start, descriptor)?))
+                // otherwise bail
+                } else {
+                    Ok(None)
+                }
+            }
+            // if
+            Keyword::If => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_if()?))
+            }
+            // while
+            Keyword::While => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_while()?))
+            }
+            // do while
+            Keyword::Do if self.is_do_while_statement(next_token_type) => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_while()?))
+            }
+            // for
+            Keyword::For => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_for()?))
+            }
+            // loop
+            Keyword::Loop if self.language.is_destack() && self.peek_next_block().is_ok() => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_loop()?))
+            }
+            // try
+            Keyword::Try => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_try()?))
+            }
+            // switch
+            Keyword::Switch => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_match()?))
+            }
+            // match
+            Keyword::Match if self.language.is_destack() => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_match()?))
+            }
+            // break
+            Keyword::Break => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_break()?))
+            }
+            // continue
+            Keyword::Continue => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_continue()?))
+            }
+            // await expression or await using
+            Keyword::Await => {
+                // reject await in contexts that forbid it
+                if self.options.forbid_await {
+                    return Err(ParseError::unexpected(self.peek()?.span));
+                }
+
+                // parse await using when allowed
+                if self.can_parse_using_declaration(&descriptor, Asynchrony::Async) {
+                    let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
+                    Ok(Some(self.eat_using(
+                        start,
+                        descriptor,
+                        Asynchrony::Async,
+                    )?))
+                // otherwise parse await expression
+                } else {
+                    let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
+                    Ok(Some(self.eat_await()?))
+                }
+            }
+            // comptime expression
+            Keyword::Comptime if self.language.is_destack() => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
+                Ok(Some(self.eat_comptime()?))
+            }
+            // yield statement
+            Keyword::Yield if self.options.in_generator => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_yield()?))
+            }
+            // throw statement
+            Keyword::Throw => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_throw()?))
+            }
+            // return statement
+            Keyword::Return => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_return()?))
+            }
+            // debugger statement
+            Keyword::Debugger => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                self.bump(); // eat `debugger`
+                Ok(Some(
+                    self.tree
+                        .insert(Expression::Debugger, self.get_span_from(start)),
+                ))
+            }
+            // fall through when not a keyword expression
+            _ => Ok(None),
+        }
+    }
+}

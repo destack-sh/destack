@@ -289,6 +289,15 @@ impl ParserOptions {
         }
     }
 
+    /// Set `in_parenthesis=false`.
+    #[inline]
+    pub(crate) fn not_in_parenthesis(self) -> Self {
+        Self {
+            in_parenthesis: false,
+            ..self
+        }
+    }
+
     /// Set `in_statement_position=true`.
     #[inline]
     pub(crate) fn in_statement_position(self) -> Self {
