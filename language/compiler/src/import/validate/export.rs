@@ -431,6 +431,14 @@ impl Compiler {
         let node = local_node.into_global(module.id).into_anchored(None);
         let other_node = first_node.into_global(module.id).into_anchored(None);
 
+        // allow mergeable declaration exports to share one exported name
+        if let (ExportConflictKind::Declaration(first), ExportConflictKind::Declaration(next)) =
+            (first_kind, conflict_kind)
+            && can_merge_declarations(module.language_type, first, next)
+        {
+            return;
+        }
+
         // report default export conflicts separately
         if export_name == default_name {
             self.error(ImportError::ConflictingDefaultExport {
@@ -439,14 +447,6 @@ impl Compiler {
                 name: Some(export_name),
                 module: module.id,
             });
-            return;
-        }
-
-        // allow mergeable declaration exports to share one exported name
-        if let (ExportConflictKind::Declaration(first), ExportConflictKind::Declaration(next)) =
-            (first_kind, conflict_kind)
-            && can_merge_declarations(module.language_type, first, next)
-        {
             return;
         }
 
@@ -576,6 +576,25 @@ mod tests {
         test.import_module(module_id);
         test.compile();
         test.check_has_diagnostic("EI202");
+    }
+
+    /// Allow default function overload declarations to share one exported name.
+    #[test]
+    fn test_allow_default_function_export_overloads() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ts",
+            r#"
+export default function convert(value: string): string;
+export default function convert(value: number): number;
+export default function convert(value: string | number): string | number {
+    return value;
+}
+"#,
+        );
+        test.import_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("EI202");
     }
 
     /// Allow value and type exports that share the same textual name.
