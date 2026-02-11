@@ -307,9 +307,7 @@ impl Parser {
 
         // value
         let value = if self.peek_is(TokenType::Assign)
-            || self
-                .peek_token_after_newlines(self.pos(), TokenType::Assign)
-                .is_ok()
+            || self.is_token_after_newlines(self.pos(), TokenType::Assign)
         {
             self.eat_newlines_maybe()?;
             self.bump(); // eat assign

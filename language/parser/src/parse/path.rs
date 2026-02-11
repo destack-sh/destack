@@ -29,9 +29,7 @@ impl Parser {
             }
             // newline followed by dot
             else if self.peek_is(TokenType::Newline)
-                && self
-                    .peek_token_after_newlines(self.pos(), TokenType::Dot)
-                    .is_ok()
+                && self.is_token_after_newlines(self.pos(), TokenType::Dot)
             {
                 self.eat_newlines_maybe()?;
             }
@@ -77,9 +75,7 @@ impl Parser {
             }
             // newline followed by dot
             else if self.peek_is(TokenType::Newline)
-                && self
-                    .peek_token_after_newlines(self.pos(), TokenType::Dot)
-                    .is_ok()
+                && self.is_token_after_newlines(self.pos(), TokenType::Dot)
             {
                 self.eat_newlines_maybe()?;
             }
@@ -116,9 +112,7 @@ impl Parser {
             }
             // newline followed by dot
             else if self.peek_is(TokenType::Newline)
-                && self
-                    .peek_token_after_newlines(self.pos(), TokenType::Dot)
-                    .is_ok()
+                && self.is_token_after_newlines(self.pos(), TokenType::Dot)
             {
                 self.eat_newlines_maybe()?;
             }
@@ -156,9 +150,7 @@ impl Parser {
             }
             // newline followed by dot
             else if self.peek_is(TokenType::Newline)
-                && self
-                    .peek_token_after_newlines(self.pos(), TokenType::Dot)
-                    .is_ok()
+                && self.is_token_after_newlines(self.pos(), TokenType::Dot)
             {
                 self.eat_newlines_maybe()?;
             }

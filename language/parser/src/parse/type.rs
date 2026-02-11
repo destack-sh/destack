@@ -304,9 +304,7 @@ impl Parser {
         // alias (or expression with static parameters)
         if self.peek_identifier().is_ok()
             && (self.peek_next_is(TokenType::LessThan)
-                || self
-                    .peek_token_after_newlines(self.pos(), TokenType::Assign)
-                    .is_ok())
+                || self.is_token_after_newlines(self.pos(), TokenType::Assign))
         {
             // identifier
             // (speculative because we don't know yet if we'll have a `=` afterwards)
@@ -349,9 +347,7 @@ impl Parser {
 
             // if followed by =, then it's a type alias
             if self.peek_is(TokenType::Assign)
-                || self
-                    .peek_token_after_newlines(self.pos(), TokenType::Assign)
-                    .is_ok()
+                || self.is_token_after_newlines(self.pos(), TokenType::Assign)
             {
                 let _timing = self.timing_scope(tags::PARSE_TYPE_DECLARATION);
                 // =
@@ -734,12 +730,8 @@ impl Parser {
             let qualifier = self.eat_path()?;
             // only consume newlines when a static argument list follows
             let static_arguments = if self.peek_is(TokenType::Newline)
-                && (self
-                    .peek_token_after_newlines(self.pos(), TokenType::LessThan)
-                    .is_ok()
-                    || self
-                        .peek_token_after_newlines(self.pos(), TokenType::ShiftLeft)
-                        .is_ok())
+                && (self.is_token_after_newlines(self.pos(), TokenType::LessThan)
+                    || self.is_token_after_newlines(self.pos(), TokenType::ShiftLeft))
             {
                 self.eat_newlines_maybe()?;
                 self.eat_static_arguments_maybe()?

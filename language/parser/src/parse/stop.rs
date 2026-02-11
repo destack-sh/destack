@@ -640,6 +640,22 @@ impl Parser {
     }
 
     /// Skip any newlines at and after a position and check if there's a specific token after.
+    #[inline]
+    pub fn is_token_after_newlines(&mut self, pos: u32, target_token: TokenType) -> bool {
+        let mut pos = pos as usize;
+        self.token_stream.ensure_token(pos);
+        if let Some(token) = self.tokens().get(pos)
+            && token.token.ty != TokenType::Newline
+        {
+            pos = pos.saturating_add(1);
+        }
+        let next = self.token_stream.next_non_newline_index_from(pos);
+        self.tokens()
+            .get(next)
+            .is_some_and(|token| token.token.ty == target_token)
+    }
+
+    /// Skip any newlines at and after a position and check if there's a specific token after.
     pub fn peek_token_after_newlines(
         &mut self,
         pos: u32,
@@ -653,8 +669,10 @@ impl Parser {
             pos = pos.saturating_add(1);
         }
         let next = self.token_stream.next_non_newline_index_from(pos);
-        if let Some(token) = self.tokens().get(next)
-            && token.token.ty == target_token
+        if self
+            .tokens()
+            .get(next)
+            .is_some_and(|token| token.token.ty == target_token)
         {
             if next == 0 {
                 Ok(0)
@@ -662,7 +680,12 @@ impl Parser {
                 Ok((next - 1) as u32)
             }
         } else {
-            Err(ParseError::expected(self.peek()?.span, target_token))
+            let span = self
+                .tokens()
+                .get(next)
+                .map(|token| token.span)
+                .unwrap_or(self.eof_span());
+            Err(ParseError::expected(span, target_token))
         }
     }
 }

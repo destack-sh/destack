@@ -366,9 +366,7 @@ impl Parser {
             || self.options.in_declare_context)
             && !self.has_active_split()
             && self.identifier_equals_at(self.pos_index(), "global")
-            && self
-                .peek_token_after_newlines(self.pos(), TokenType::OpenBrace)
-                .is_ok()
+            && self.is_token_after_newlines(self.pos(), TokenType::OpenBrace)
         {
             let mut global_descriptor = descriptor;
             if global_descriptor.kind == DeclarationKind::Definition {

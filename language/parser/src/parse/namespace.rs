@@ -74,9 +74,8 @@ impl Parser {
             self.options
         };
 
-        let has_body = self
-            .peek_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
-            .is_ok();
+        let has_body =
+            self.is_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace);
         let expressions = if has_body {
             self.eat_newlines_maybe()?;
             self.eat_token(TokenType::OpenBrace)?; // eat open brace

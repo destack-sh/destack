@@ -4,10 +4,78 @@ use destack_parser::Parser;
 use destack_source::{File, FileId, FileType, LanguageType, Uri, glob};
 use pprof::ProfilerGuard;
 use pprof::flamegraph::Options as FlamegraphOptions;
+use rayon::prelude::*;
 use std::hint::black_box;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::{env, fs};
+
+/// Return whether a file type is supported by the parser bench.
+fn is_parser_source_file_type(file_type: FileType) -> bool {
+    matches!(
+        file_type,
+        FileType::Destack
+            | FileType::DestackDeclaration
+            | FileType::JavaScript
+            | FileType::JavaScriptXml
+            | FileType::TypeScript
+            | FileType::TypeScriptXml
+            | FileType::TypeScriptDeclaration
+    )
+}
+
+/// Return the parser bench worker count.
+fn parser_bench_worker_count() -> usize {
+    let physical_cores = num_cpus::get_physical();
+    physical_cores.max(1)
+}
+
+/// Parse one file and run full parser finalization.
+fn parse_with_finish(file: Arc<File>) -> Parser {
+    let language_type = LanguageType::from(file.ty);
+    let mut parser = Parser::lex_file(file, language_type);
+    parser.parse_without_finish();
+    parser.finish();
+    parser
+}
+
+/// Parse one file without parser finalization.
+fn parse_without_finish(file: Arc<File>) -> Parser {
+    let language_type = LanguageType::from(file.ty);
+    let mut parser = Parser::lex_file(file, language_type);
+    parser.parse_without_finish();
+    parser
+}
+
+/// Read an optional comma separated file list from the environment.
+fn parser_files_from_env() -> Option<Vec<PathBuf>> {
+    let files_env = env::var("DESTACK_PARSE_FILES").ok()?;
+    let files: Vec<PathBuf> = files_env
+        .split(',')
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+        .collect();
+    if files.is_empty() { None } else { Some(files) }
+}
+
+/// Collect parser source files for the workspace benchmark.
+fn collect_workspace_parser_sources(workspace_root: &str) -> Vec<PathBuf> {
+    let mut source_files: Vec<PathBuf> = Vec::new();
+    source_files.extend(
+        glob(&format!("{workspace_root}/**/*.ds"))
+            .into_iter()
+            .map(PathBuf::from),
+    );
+    source_files.extend(
+        glob(&format!("{workspace_root}/**/*.d.ds"))
+            .into_iter()
+            .map(PathBuf::from),
+    );
+    source_files.sort();
+    source_files.dedup();
+    source_files
+}
 
 /// Pprof profiler for Criterion benches.
 struct PprofProfiler {
@@ -69,24 +137,22 @@ fn bench_parse(criterion: &mut Criterion) {
     let workspace_root = workspace_root_path.to_string_lossy().into_owned();
 
     // collect source files
-    let mut ds_files = glob(&format!("{workspace_root}/**/*.ds"));
-    ds_files.extend(glob(&format!("{workspace_root}/**/*.d.ds")));
-    ds_files.sort();
-    ds_files.dedup();
+    let parser_files = parser_files_from_env()
+        .unwrap_or_else(|| collect_workspace_parser_sources(&workspace_root));
 
     // load sources and count lines
-    let mut total_lines: u64 = 0;
-    let mut source_files: Vec<Arc<File>> = Vec::with_capacity(ds_files.len());
+    let mut total_lines = 0u64;
+    let mut source_files: Vec<Arc<File>> = Vec::with_capacity(parser_files.len());
 
-    for path in ds_files.iter() {
+    for path in parser_files.iter() {
         // file type
         let file_type = FileType::from_path_or_unknown(path);
-        let is_destack_source =
-            matches!(file_type, FileType::Destack | FileType::DestackDeclaration);
-        assert!(is_destack_source, "path is not a destack source: {path:?}");
+        let is_parser_source = is_parser_source_file_type(file_type);
+        assert!(is_parser_source, "path is not a parser source: {path:?}");
 
         // file content
-        let content = fs::read_to_string(path).unwrap_or_default();
+        let content = fs::read_to_string(path)
+            .unwrap_or_else(|_| panic!("file system error while reading {}", path.display()));
         let line_count = content.lines().count() as u64;
         total_lines = total_lines.saturating_add(line_count);
 
@@ -107,9 +173,7 @@ fn bench_parse(criterion: &mut Criterion) {
             bencher.iter(|| {
                 // parse each file
                 for file in source_files.iter() {
-                    let language_type = LanguageType::from(file.ty);
-                    let mut parser = Parser::lex_file(file.clone(), language_type);
-                    parser.parse();
+                    let parser = parse_with_finish(file.clone());
                     black_box(parser);
                 }
             });
@@ -133,11 +197,12 @@ fn resolve_single_file_path(workspace_root: &Path) -> PathBuf {
 fn load_single_file(path: &Path) -> (Arc<File>, u64) {
     // file type
     let file_type = FileType::from_path_or_unknown(path);
-    let is_destack_source = matches!(file_type, FileType::Destack | FileType::DestackDeclaration);
-    assert!(is_destack_source, "path is not a destack source: {path:?}");
+    let is_parser_source = is_parser_source_file_type(file_type);
+    assert!(is_parser_source, "path is not a parser source: {path:?}");
 
     // file content
-    let content = fs::read_to_string(path).unwrap_or_default();
+    let content = fs::read_to_string(path)
+        .unwrap_or_else(|_| panic!("file system error while reading {}", path.display()));
     let line_count = content.lines().count() as u64;
 
     // register file
@@ -165,17 +230,87 @@ fn bench_parse_single(criterion: &mut Criterion) {
     // benchmark
     let mut group = criterion.benchmark_group("destack_parser_single");
     group.throughput(Throughput::Elements(total_lines));
+    let worker_count = parser_bench_worker_count();
 
+    // oxc style: single thread parse
+    group.bench_with_input(
+        BenchmarkId::new("parse", "single-thread"),
+        &file,
+        |bencher, file| {
+            bencher.iter(|| {
+                // parse full pipeline
+                let parser = parse_with_finish(file.clone());
+                black_box(parser);
+            });
+        },
+    );
+
+    // oxc style: no drop parse timing
+    group.bench_with_input(
+        BenchmarkId::new("parse", "no-drop"),
+        &file,
+        |bencher, file| {
+            bencher.iter_with_large_drop(|| parse_with_finish(file.clone()));
+        },
+    );
+
+    // oxc style: parallel parse throughput
+    group.bench_with_input(
+        BenchmarkId::new("parse", "parallel"),
+        &file,
+        |bencher, file| {
+            bencher.iter(|| {
+                (0..worker_count).into_par_iter().for_each(|_| {
+                    let parser = parse_with_finish(file.clone());
+                    black_box(parser);
+                });
+            });
+        },
+    );
+
+    // keep compatibility alias for existing profile commands
     group.bench_with_input(
         BenchmarkId::new("parse", "single"),
         &file,
         |bencher, file| {
             bencher.iter(|| {
-                // parse full pipeline
-                let language_type = LanguageType::from(file.ty);
-                let mut parser = Parser::lex_file(file.clone(), language_type);
-                parser.parse();
+                let parser = parse_with_finish(file.clone());
                 black_box(parser);
+            });
+        },
+    );
+
+    // parse main only: no annotation attach and position build
+    group.bench_with_input(
+        BenchmarkId::new("main", "single-thread"),
+        &file,
+        |bencher, file| {
+            bencher.iter(|| {
+                let parser = parse_without_finish(file.clone());
+                black_box(parser);
+            });
+        },
+    );
+
+    // parse main only: no drop timing
+    group.bench_with_input(
+        BenchmarkId::new("main", "no-drop"),
+        &file,
+        |bencher, file| {
+            bencher.iter_with_large_drop(|| parse_without_finish(file.clone()));
+        },
+    );
+
+    // parse main only: parallel throughput
+    group.bench_with_input(
+        BenchmarkId::new("main", "parallel"),
+        &file,
+        |bencher, file| {
+            bencher.iter(|| {
+                (0..worker_count).into_par_iter().for_each(|_| {
+                    let parser = parse_without_finish(file.clone());
+                    black_box(parser);
+                });
             });
         },
     );
@@ -188,10 +323,7 @@ fn bench_parse_single(criterion: &mut Criterion) {
             bencher.iter_batched(
                 || {
                     // parse up to finish
-                    let language_type = LanguageType::from(file.ty);
-                    let mut parser = Parser::lex_file(file.clone(), language_type);
-                    parser.parse_without_finish();
-                    parser
+                    parse_without_finish(file.clone())
                 },
                 |mut parser| {
                     // attach annotations and build indexes

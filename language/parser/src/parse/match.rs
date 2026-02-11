@@ -228,9 +228,7 @@ impl Parser {
                 || self.peek_is(TokenType::Newline)
                     && (self.is_keyword_after_newlines(Keyword::Case)
                         || self.is_keyword_after_newlines(Keyword::Default)
-                        || self
-                            .peek_token_after_newlines(self.pos(), TokenType::CloseBrace)
-                            .is_ok());
+                        || self.is_token_after_newlines(self.pos(), TokenType::CloseBrace));
             if is_empty_case {
                 self.eat_newlines_maybe()?;
                 let block_id = self.tree.insert(

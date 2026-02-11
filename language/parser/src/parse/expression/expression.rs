@@ -511,8 +511,7 @@ impl Parser {
                                 {
                                     let has_ternary_delimiter = self.peek_is(TokenType::Colon)
                                         || self
-                                            .peek_token_after_newlines(self.pos(), TokenType::Colon)
-                                            .is_ok();
+                                            .is_token_after_newlines(self.pos(), TokenType::Colon);
                                     let should_accept = match self.tree.get(lambda_id) {
                                         Declaration::Function { body, .. } => {
                                             (body.is_some() || self.options.in_type)

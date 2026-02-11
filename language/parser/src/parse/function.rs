@@ -579,9 +579,7 @@ impl Parser {
             let has_parenthesized_parameters = kind == FunctionKind::Function
                 || self.options.in_type
                 || self.peek_is(TokenType::OpenParenthesis)
-                || self
-                    .peek_token_after_newlines(self.pos(), TokenType::OpenParenthesis)
-                    .is_ok();
+                || self.is_token_after_newlines(self.pos(), TokenType::OpenParenthesis);
             if has_parenthesized_parameters {
                 // allow line breaks before the parameter list
                 self.eat_newlines_maybe()?;
@@ -659,12 +657,8 @@ impl Parser {
                 let has_return_type_marker = self.peek_arrow().is_ok()
                     || self.peek_colon().is_ok()
                     || self.peek_is(TokenType::Newline)
-                        && (self
-                            .peek_token_after_newlines(self.pos(), TokenType::Arrow)
-                            .is_ok()
-                            || self
-                                .peek_token_after_newlines(self.pos(), TokenType::Colon)
-                                .is_ok());
+                        && (self.is_token_after_newlines(self.pos(), TokenType::Arrow)
+                            || self.is_token_after_newlines(self.pos(), TokenType::Colon));
                 let (return_type, return_type_span) = if has_return_type_marker {
                     let type_start = self.mark_span();
                     self.eat_newlines_maybe()?;
@@ -826,10 +820,8 @@ impl Parser {
     /// Check whether a lambda return type marker is present.
     fn has_lambda_return_type_marker(&mut self) -> bool {
         // check for a colon return type
-        let has_colon = self.peek_colon().is_ok()
-            || self
-                .peek_token_after_newlines(self.pos(), TokenType::Colon)
-                .is_ok();
+        let has_colon =
+            self.peek_colon().is_ok() || self.is_token_after_newlines(self.pos(), TokenType::Colon);
         if has_colon {
             return true;
         }
@@ -841,9 +833,7 @@ impl Parser {
 
         self.peek_arrow().is_ok()
             || self.peek_is(TokenType::Newline)
-                && self
-                    .peek_token_after_newlines(self.pos(), TokenType::Arrow)
-                    .is_ok()
+                && self.is_token_after_newlines(self.pos(), TokenType::Arrow)
     }
 }
 
