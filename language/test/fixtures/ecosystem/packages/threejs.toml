@@ -8,4 +8,4 @@ tags = ["graphics", "frontend", "library"]
 
 [discovery]
 include = ["src/**/*.js", "examples/jsm/**/*.js", "examples/jsm/**/*.ts"]
-exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/editor/**", "**/dist/**", "**/node_modules/**"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/editor/**", "**/dist/**", "**/node_modules/**", "examples/jsm/libs/**"]

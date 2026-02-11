@@ -8,20 +8,6 @@
 #
 #   another-test # inline comment also works
 
-# legacy <T>x type assertion syntax (use `x as T` instead)
-typescript/cast/arrow-in-parens
-typescript/cast/arrow-in-parens-with-parens-node
-typescript/cast/as-const
-typescript/cast/destructure-and-assign
-typescript/cast/need-parentheses
-typescript/cast/parenthesized-type-assertion-and-assign
-typescript/cast/type-assertion
-typescript/cast/type-assertion-after-operator
-typescript/cast/type-assertion-and-assign
-typescript/cast/type-assertion-before-operator
-typescript/cast/for-of-lhs
-typescript/type-arguments-bit-shift-left-like/after-bit-shift
-
 # the "with" object shape in imports is a typing concern, not a separate error
 # (in theory we could also validate this in the tests but seems annoying, we have separate tests)
 typescript/types/invalid-import-type-dynamic-with-jsx-options

@@ -8,19 +8,6 @@
 #
 #   another-test # inline comment also works
 
-# legacy TypeScript type assertions (`<T>expr` / `<const>expr`) are intentionally unsupported
-typescript/cast/need-parentheses/input.ts
-typescript/cast/type-assertion-after-operator/input.ts
-typescript/cast/type-assertion-and-assign/input.ts
-typescript/cast/type-assertion-before-operator/input.ts
-typescript/cast/type-assertion/input.ts
-typescript/custom/issue-374/input.ts
-typescript/custom/issue-401-const-assertion-array-ts/input.ts
-typescript/custom/issue-401-const-assertion-literal-ts/input.ts
-typescript/custom/issue-401-const-assertion-object-ts/input.ts
-typescript/deno/dso/reflect/input.ts
-typescript/issue-11142/input.ts
-
 # variance modifiers are validated like Babel/TSC, SWC suite does not expect errors here
 typescript/variance-annotations/1/input.ts
 typescript/variance-annotations/with_jsx/input.tsx
