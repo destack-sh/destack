@@ -108,7 +108,6 @@ High-confidence issues that are almost always wrong.
 | `LC016` | `no-floating-promises` | TS-ESLint | DIR | ✓ | Sometimes | Suggestion | Require Promises to be awaited or returned |
 | `LC017` | `no-for-in-array` | TS-ESLint | DIR | ✓ | Sometimes | Unsafe | Disallow iterating over arrays with for-in |
 | `LC018` | `no-implicit-any` | TypeScript | DIR | ✓ | Always | Suggestion | Disallow implicit `any` types |
-| `LC047` | `no-infinite-iterator` | Destack | DIR |  |  | None | Disallow using methods that produce infinite iterators |
 | `LC019` | `no-infinite-recursion` | ErrorProne | DIR | ✓ | No | None | Disallow functions that unconditionally call themselves |
 | `LC020` | `no-invalid-regexp` | ESLint | AST | ✓ | No | None | Disallow invalid regular expression strings |
 | `LC021` | `no-iterator-invalidation` | Destack | DIR | ✓ | No | None | Disallow modifying a collection while iterating over it |
@@ -175,12 +174,9 @@ Code that is likely unintentional but may occasionally be intentional.
 | `LU027` | `no-return-assign` | ESLint | AST | ✓ | Sometimes | Unsafe | Disallow assignment operators in return statements |
 | `LU028` | `no-self-assign` | ESLint | AST | ✓ | Always | Safe | Disallow assignments where both sides are exactly the same |
 | `LU029` | `no-shadow-restricted-names` | ESLint | AST | ✓ | Sometimes | Suggestion | Disallow shadowing of restricted or builtin names |
-| `LU067` | `no-shadowed-mutable` | Clippy | DIR |  |  | Suggestion | Warn on mutable shadowing that obscures prior bindings |
 | `LU030` | `no-single-element-tuple` | Destack | AST | ✓ | Always | Safe | Warn on single-element tuples that may be accidental |
 | `LU031` | `no-template-curly-in-string` | ESLint | AST | ✓ | Sometimes | Safe | Disallow template literal placeholder syntax in regular strings |
 | `LU032` | `no-throw-literal` | ESLint | DIR | ✓ | Always | Suggestion | Disallow throwing literals instead of Error objects |
-| `LU051` | `no-unnecessary-clone` | TS-ESLint | DIR |  |  | Safe | Warn on cloning values that are not used afterward |
-| `LU068` | `no-unstable-iteration-order` | Go | DIR |  |  | Suggestion | Warn on map iteration order where determinism is required |
 | `LU033` | `no-unused-except-recursion` | Destack | DIR | ✓ | Sometimes | Unsafe | Warn on function arguments only used for recursion |
 | `LU034` | `no-useless-backreference` | ESLint | AST | ✓ | No | None | Disallow useless backreferences in regular expressions |
 | `LU035` | `no-useless-catch` | ESLint | AST | ✓ | Always | Safe | Disallow catch clauses that only rethrow |
@@ -207,17 +203,13 @@ Patterns that may expose the application to attacks.
 | `LS016` | `no-ffi-abi-mismatch` | Rust | DIR |  |  | None | Disallow FFI calls with ABI-unsafe layouts |
 | `LS002` | `no-hardcoded-ip` | SonarQube | AST | ✓ | No | None | Disallow hardcoded IP addresses |
 | `LS003` | `no-implied-eval` | ESLint | DIR | ✓ | No | None | Disallow `setTimeout` and `setInterval` with string arguments |
-| `LS019` | `no-insecure-deserialization` | Semgrep | DIR |  |  | None | Disallow deserialization of untrusted data without validation |
 | `LS004` | `no-insecure-random` | Semgrep | DIR | ✓ | No | None | Disallow insecure random number generators |
 | `LS005` | `no-open-redirect` | Semgrep | DIR | ✓ | No | None | Disallow tainted values in browser redirect APIs |
-| `LS020` | `no-path-traversal` | Semgrep | DIR |  |  | None | Disallow file system path construction from untrusted input |
 | `LS006` | `no-prototype-pollution` | Semgrep | DIR | ✓ | No | None | Disallow patterns that may pollute Object.prototype |
 | `LS007` | `no-regex-injection` | Destack | DIR | ✓ | No | None | Disallow tainted values in dynamic regular expression patterns |
 | `LS008` | `no-script-url` | ESLint | AST | ✓ | No | None | Disallow `javascript:` URLs |
 | `LS009` | `no-secrets` | Biome | AST | ✓ | No | None | Disallow hardcoded secrets and credentials |
-| `LS022` | `no-ssrf` | Semgrep | DIR |  |  | None | Disallow network requests to attacker controlled destinations |
 | `LS010` | `no-tainted-sink` | Destack | DIR | ✓ | No | None | Disallow passing tainted values into security sinks |
-| `LS023` | `no-template-injection` | Semgrep | DIR |  |  | None | Disallow rendering templates with untrusted template text |
 | `LS011` | `no-weak-crypto` | Semgrep | DIR | ✓ | No | None | Disallow weak cryptographic algorithms |
 
 ## Performance (P)
@@ -273,10 +265,8 @@ Subjective preferences for consistent coding style.
 | `LY009` | `dot-notation` | ESLint | AST | ✓ | Always | Safe | Enforce dot notation whenever possible |
 | `LY010` | `eqeqeq` | ESLint | AST | ✓ | Always | Safe | Require `===` and `!==` |
 | `LY011` | `explicit-function-return-type` | TS-ESLint | AST | ✓ | Sometimes | Safe | Require explicit return types on functions |
-| `LY071` | `explicit-module-boundary-types` | TS-ESLint | AST |  |  | Suggestion | Require explicit types on exported APIs |
 | `LY012` | `filename-case` | Unicorn | AST | ✓ | No | None | Enforce a case style for filenames |
 | `LY013` | `grouped-accessor-pairs` | ESLint | AST | ✓ | Sometimes | Unsafe | Require grouped accessor pairs in object literals and classes |
-| `LY088` | `missing-docs` | Rust | AST |  |  | Suggestion | Require documentation comments on public items |
 | `LY014` | `no-boolean-literal-compare` | Unicorn | AST | ✓ | Always | Safe | Disallow comparing boolean expressions to boolean literals |
 | `LY015` | `no-collapsible-if` | Unicorn | AST | ✓ | Always | Safe | Suggest merging nested if statements without else |
 | `LY016` | `no-duplicate-string` | SonarQube | AST | ✓ | No | None | Disallow the same string literal appearing many times |
@@ -300,7 +290,6 @@ Subjective preferences for consistent coding style.
 | `LY033` | `prefer-arrow-callback` | ESLint | AST | ✓ | Always | Safe | Require arrow functions as callbacks |
 | `LY034` | `prefer-as-const` | TS-ESLint | AST | ✓ | Sometimes | Safe | Prefer `as const` over literal type assertions |
 | `LY035` | `prefer-const` | ESLint | DIR | ✓ | Always | Safe | Require `const` declarations for never-reassigned variables |
-| `LY075` | `prefer-destructuring` | ESLint | DIR |  |  | Safe | Prefer destructuring from arrays and objects |
 | `LY036` | `prefer-exponentiation-operator` | ESLint | DIR | ✓ | Sometimes | Safe | Prefer `**` over `Math.pow()` |
 | `LY037` | `prefer-expression` | Destack | AST | ✓ | Sometimes | Safe | Prefer expression syntax for assignments |
 | `LY039` | `prefer-fragment-shorthand` | Destack | AST | ✓ | Always | Safe | Prefer `<>` shorthand over `<Fragment>` |
@@ -319,7 +308,7 @@ Subjective preferences for consistent coding style.
 | `LY077` | `prefer-propagate-operator` | Destack | DIR |  |  | Safe | Prefer `?` propagation over manual Result matching |
 | `LY051` | `prefer-range-contains` | Destack | AST | ✓ | Sometimes | Safe | Prefer range contains method over comparison chains |
 | `LY052` | `prefer-range-literal` | Destack | AST | ✓ | Sometimes | Unsafe | Prefer range literals over C-style for loops |
-| `LY078` | `prefer-readonly` | TS-ESLint | DIR |  |  | Suggestion | Prefer `readonly` for non-mutated fields |
+| `LY078` | `prefer-readonly` | TS-ESLint | DIR | ✓ | No | None | Prefer `readonly` for non-mutated fields |
 | `LY053` | `prefer-self-closing-tree` | Destack | AST | ✓ | Always | Safe | Prefer self-closing tree elements when possible |
 | `LY079` | `prefer-set-over-empty-map` | Destack | DIR | ✓ | No | None | Suggest `Set<K>` over `Map<K, void>` |
 | `LY055` | `prefer-struct` | Destack | AST | ✓ | Sometimes | Unsafe | Prefer struct for data-only classes |

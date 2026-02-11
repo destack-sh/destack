@@ -4,7 +4,7 @@ use destack_dir::{
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::{expression_type_map, function_return_type, is_string_type};
+use crate::rules::common::{expression_type_or_call_return_type_map, is_string_type};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -112,7 +112,7 @@ impl<'a, 'b> NoUnnecessaryTemplateExpressionVisitor<'a, 'b> {
             return true;
         }
 
-        if expression_type_map(
+        expression_type_or_call_return_type_map(
             &self.ctx.program,
             self.ctx.profile_id,
             self.ctx.module_id(),
@@ -121,31 +121,6 @@ impl<'a, 'b> NoUnnecessaryTemplateExpressionVisitor<'a, 'b> {
             self.ctx.types,
             expression_id,
             |types, type_id| is_string_type(types, type_id, Some(self.string_symbol)),
-        )
-        .unwrap_or(false)
-        {
-            return true;
-        }
-
-        // call results can be string typed through callee return types
-        let expression = self.ctx.tree.get(expression_id);
-        let dir::Expression::Call { left, .. } = expression else {
-            return false;
-        };
-
-        expression_type_map(
-            &self.ctx.program,
-            self.ctx.profile_id,
-            self.ctx.module_id(),
-            self.ctx.tree,
-            self.ctx.symbols,
-            self.ctx.types,
-            *left,
-            |types, type_id| {
-                function_return_type(types, type_id).is_some_and(|return_type_id| {
-                    is_string_type(types, return_type_id, Some(self.string_symbol))
-                })
-            },
         )
         .unwrap_or(false)
     }
@@ -170,31 +145,33 @@ impl<'a, 'b> NoUnnecessaryTemplateExpressionVisitor<'a, 'b> {
             return;
         }
 
-        // build a safe replacement from the interpolated expression
         let span = self.ctx.get_span(expression_id);
-        let value_span = self.ctx.get_span(argument_value);
-        let value_text = self.ctx.get_span_text(value_span).to_string();
-        let edits = self
-            .ctx
-            .edit_builder()
-            .replace(span, value_text)
-            .into_edits();
-        let fix = LintFix::safe("Remove unnecessary template interpolation").with_edits(edits);
+        let mut diagnostic = LintDiagnostic::new(
+            NO_UNNECESSARY_TEMPLATE_EXPRESSION.id,
+            NO_UNNECESSARY_TEMPLATE_EXPRESSION.code,
+            NO_UNNECESSARY_TEMPLATE_EXPRESSION.category,
+            severity,
+            "unnecessary template interpolation",
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label("this template expression can be replaced by the string value directly");
+
+        // build a safe replacement from the interpolated expression
+        if self.ctx.include_fixes {
+            let value_span = self.ctx.get_span(argument_value);
+            let value_text = self.ctx.get_span_text(value_span).to_string();
+            let edits = self
+                .ctx
+                .edit_builder()
+                .replace(span, value_text)
+                .into_edits();
+            let fix = LintFix::safe("Remove unnecessary template interpolation").with_edits(edits);
+            diagnostic = diagnostic.with_fix(fix);
+        }
 
         // report the redundant template interpolation
-        self.ctx.report(
-            LintDiagnostic::new(
-                NO_UNNECESSARY_TEMPLATE_EXPRESSION.id,
-                NO_UNNECESSARY_TEMPLATE_EXPRESSION.code,
-                NO_UNNECESSARY_TEMPLATE_EXPRESSION.category,
-                severity,
-                "unnecessary template interpolation",
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label("this template expression can be replaced by the string value directly")
-            .with_fix(fix),
-        );
+        self.ctx.report(diagnostic);
     }
 }
 

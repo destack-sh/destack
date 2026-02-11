@@ -1,10 +1,12 @@
 mod for_direction;
 mod no_approx_constant;
+mod no_arguments_order_mismatch;
 mod no_array_constructor;
 mod no_array_delete;
 mod no_async_promise_executor;
 mod no_base_to_string;
 mod no_compare_neg_zero;
+mod no_confusing_void_expression;
 mod no_constant_binary_expression;
 mod no_constant_condition;
 mod no_control_regex;
@@ -48,11 +50,13 @@ use crate::{BoxedLintRule, boxed};
 
 pub use for_direction::*;
 pub use no_approx_constant::*;
+pub use no_arguments_order_mismatch::*;
 pub use no_array_constructor::*;
 pub use no_array_delete::*;
 pub use no_async_promise_executor::*;
 pub use no_base_to_string::*;
 pub use no_compare_neg_zero::*;
+pub use no_confusing_void_expression::*;
 pub use no_constant_binary_expression::*;
 pub use no_constant_condition::*;
 pub use no_control_regex::*;
@@ -97,11 +101,13 @@ pub fn rules() -> Vec<BoxedLintRule> {
     vec![
         boxed(ForDirection),
         boxed(NoApproxConstant),
+        boxed(NoArgumentsOrderMismatch),
         boxed(NoArrayConstructor),
         boxed(NoArrayDelete),
         boxed(NoAsyncPromiseExecutor),
         boxed(NoBaseToString),
         boxed(NoCompareNegZero),
+        boxed(NoConfusingVoidExpression),
         boxed(NoConstantBinaryExpression),
         boxed(NoConstantCondition),
         boxed(NoControlRegex),

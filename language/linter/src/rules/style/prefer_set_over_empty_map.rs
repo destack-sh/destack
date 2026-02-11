@@ -5,8 +5,8 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
-    canonical_symbol_for, contains_map_with_empty_value_type, expression_type_map,
-    is_void_or_never_type,
+    contains_map_with_empty_value_type, expression_type_map, is_void_or_never_type,
+    symbol_matches_any_or_canonical, well_known_symbol_candidates,
 };
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -117,39 +117,11 @@ impl LintRule for PreferSetOverEmptyMap {
 
 /// Resolve all concrete `Map` symbols from type and value spaces.
 fn resolve_map_symbols(ctx: &LintModuleDirContext<'_>) -> Vec<dir::GlobalSymbolId> {
-    let Some(builtins) = ctx.program.builtins.as_ref() else {
+    let Some(well_known_symbols) = ctx.get_well_known_symbols() else {
         return Vec::new();
     };
-    let profile = ctx.program.profile(ctx.profile_id);
-    let map_name = ctx
-        .program
-        .strings
-        .intern(WellKnownSymbol::Map.export_name());
 
-    let mut symbols = Vec::new();
-
-    // collect explicit type and value entries first
-    for order in [
-        dir::SymbolSpaceOrder::TypeOnly,
-        dir::SymbolSpaceOrder::ValueOnly,
-        dir::SymbolSpaceOrder::TypeThenValue,
-        dir::SymbolSpaceOrder::ValueThenType,
-    ] {
-        if let Some(symbol) = builtins.get_declared_lib_symbol_from(&profile.key, map_name, order)
-            && !symbols.contains(&symbol)
-        {
-            symbols.push(symbol);
-        }
-    }
-
-    // include the profile well-known entry as an additional candidate
-    if let Some(symbol) = ctx.get_well_known_symbol(WellKnownSymbol::Map)
-        && !symbols.contains(&symbol)
-    {
-        symbols.push(symbol);
-    }
-
-    symbols
+    well_known_symbol_candidates(&well_known_symbols, WellKnownSymbol::Map)
 }
 
 /// Report one prefer-set-over-empty-map diagnostic.
@@ -262,18 +234,14 @@ fn symbol_is_map(
     symbol_id: dir::GlobalSymbolId,
     map_symbols: &[dir::GlobalSymbolId],
 ) -> bool {
-    if map_symbols.contains(&symbol_id) {
-        return true;
-    }
-
-    canonical_symbol_for(
+    symbol_matches_any_or_canonical(
         &ctx.program,
         ctx.profile_id,
         ctx.module_id(),
         ctx.symbols,
         symbol_id,
+        map_symbols,
     )
-    .is_some_and(|canonical_symbol_id| map_symbols.contains(&canonical_symbol_id))
 }
 
 #[cfg(test)]

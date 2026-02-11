@@ -1,3 +1,4 @@
+mod array_type;
 mod catch_error_name;
 mod comment_casing;
 mod comment_layout;
@@ -57,6 +58,7 @@ mod prefer_precise_numeric;
 mod prefer_promise_reject_errors;
 mod prefer_range_contains;
 mod prefer_range_literal;
+mod prefer_readonly;
 mod prefer_self_closing_tree;
 mod prefer_set_over_empty_map;
 mod prefer_string_replaceall;
@@ -77,6 +79,7 @@ mod yoda;
 
 use crate::{BoxedLintRule, boxed};
 
+pub use array_type::*;
 pub use catch_error_name::*;
 pub use comment_casing::*;
 pub use comment_layout::*;
@@ -136,6 +139,7 @@ pub use prefer_precise_numeric::*;
 pub use prefer_promise_reject_errors::*;
 pub use prefer_range_contains::*;
 pub use prefer_range_literal::*;
+pub use prefer_readonly::*;
 pub use prefer_self_closing_tree::*;
 pub use prefer_set_over_empty_map::*;
 pub use prefer_string_replaceall::*;
@@ -158,6 +162,7 @@ pub use yoda::*;
 pub fn rules() -> Vec<BoxedLintRule> {
     vec![
         boxed(CatchErrorName),
+        boxed(ArrayType),
         boxed(CommentCasing),
         boxed(CommentLayout),
         boxed(CommentPunctuation),
@@ -208,6 +213,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(PreferMatch),
         boxed(PreferPatternOverGuard),
         boxed(PreferPromiseRejectErrors),
+        boxed(PreferReadonly),
         boxed(PreferRangeContains),
         boxed(PreferSelfClosingTree),
         boxed(PreferObjectSpread),

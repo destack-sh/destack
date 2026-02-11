@@ -1,6 +1,6 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
-use destack_workspace::{ProfileId, Program};
+use destack_workspace::{ProfileId, Program, WellKnownSymbols};
 
 /// Symbol type id tied to the module that owns its type table.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -140,6 +140,26 @@ fn push_unique_symbol(symbols: &mut Vec<dir::GlobalSymbolId>, symbol: dir::Globa
     symbols.push(symbol);
 }
 
+/// Return all symbol candidates for one well known symbol id.
+pub fn well_known_symbol_candidates(
+    well_known_symbols: &WellKnownSymbols,
+    symbol: dir::WellKnownSymbol,
+) -> Vec<dir::GlobalSymbolId> {
+    let Some(group) = well_known_symbols.get_group(symbol) else {
+        return Vec::new();
+    };
+
+    let mut symbols = Vec::new();
+    if let Some(type_symbol) = group.ty {
+        push_unique_symbol(&mut symbols, type_symbol);
+    }
+    if let Some(value_symbol) = group.value {
+        push_unique_symbol(&mut symbols, value_symbol);
+    }
+
+    symbols
+}
+
 /// Read one symbol entry from local or remote module tables.
 pub fn symbol_for(
     program: &Program,
@@ -181,6 +201,52 @@ pub fn canonical_symbol_for(
             .or(symbol.target_symbol)
             .unwrap_or(symbol_id),
     )
+}
+
+/// Return true when one symbol matches an expected symbol directly or canonically.
+pub fn symbol_matches_or_canonical(
+    program: &Program,
+    profile_id: ProfileId,
+    local_module_id: ModuleId,
+    local_symbols: &dir::SymbolTable,
+    symbol_id: dir::GlobalSymbolId,
+    expected_symbol: dir::GlobalSymbolId,
+) -> bool {
+    if symbol_id == expected_symbol {
+        return true;
+    }
+
+    canonical_symbol_for(
+        program,
+        profile_id,
+        local_module_id,
+        local_symbols,
+        symbol_id,
+    )
+    .is_some_and(|canonical_symbol_id| canonical_symbol_id == expected_symbol)
+}
+
+/// Return true when one symbol matches any candidate symbol directly or canonically.
+pub fn symbol_matches_any_or_canonical(
+    program: &Program,
+    profile_id: ProfileId,
+    local_module_id: ModuleId,
+    local_symbols: &dir::SymbolTable,
+    symbol_id: dir::GlobalSymbolId,
+    expected_symbols: &[dir::GlobalSymbolId],
+) -> bool {
+    if expected_symbols.contains(&symbol_id) {
+        return true;
+    }
+
+    canonical_symbol_for(
+        program,
+        profile_id,
+        local_module_id,
+        local_symbols,
+        symbol_id,
+    )
+    .is_some_and(|canonical_symbol_id| expected_symbols.contains(&canonical_symbol_id))
 }
 
 /// Read decorators for a symbol after canonicalization.

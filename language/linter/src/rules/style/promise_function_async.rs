@@ -3,8 +3,8 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
-    canonical_symbol_for, expression_target_symbol, expression_type_map, function_return_type,
-    is_promise_type,
+    expression_target_symbol, expression_type_map, function_return_type,
+    is_promise_type_with_candidates, symbol_value_type_map_for, well_known_symbol_candidates,
 };
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -127,36 +127,11 @@ impl LintRule for PromiseFunctionAsync {
 
 /// Resolve all concrete Promise symbols from type and value spaces.
 fn resolve_promise_symbols(ctx: &LintModuleDirContext<'_>) -> Vec<dir::GlobalSymbolId> {
-    let Some(builtins) = ctx.program.builtins.as_ref() else {
+    let Some(well_known_symbols) = ctx.get_well_known_symbols() else {
         return Vec::new();
     };
-    let profile = ctx.program.profile(ctx.profile_id);
-    let promise_name = ctx
-        .program
-        .strings
-        .intern(WellKnownSymbol::Promise.export_name());
 
-    let mut symbols = Vec::new();
-    for order in [
-        dir::SymbolSpaceOrder::TypeOnly,
-        dir::SymbolSpaceOrder::ValueOnly,
-        dir::SymbolSpaceOrder::TypeThenValue,
-        dir::SymbolSpaceOrder::ValueThenType,
-    ] {
-        if let Some(symbol) =
-            builtins.get_declared_lib_symbol_from(&profile.key, promise_name, order)
-            && !symbols.contains(&symbol)
-        {
-            symbols.push(symbol);
-        }
-    }
-    if let Some(symbol) = ctx.get_well_known_symbol(WellKnownSymbol::Promise)
-        && !symbols.contains(&symbol)
-    {
-        symbols.push(symbol);
-    }
-
-    symbols
+    well_known_symbol_candidates(&well_known_symbols, WellKnownSymbol::Promise)
 }
 
 /// Return true when one type resolves to Promise.
@@ -165,10 +140,7 @@ fn type_is_promise_with_symbols(
     type_id: dir::LocalTypeId,
     promise_symbols: &[dir::GlobalSymbolId],
 ) -> bool {
-    promise_symbols
-        .iter()
-        .copied()
-        .any(|symbol| is_promise_type(types, type_id, Some(symbol)))
+    is_promise_type_with_candidates(types, type_id, promise_symbols)
 }
 
 /// Return true when one function symbol returns Promise.
@@ -222,39 +194,16 @@ fn symbol_type_is_promise(
     symbol_id: dir::GlobalSymbolId,
     promise_symbols: &[dir::GlobalSymbolId],
 ) -> bool {
-    let Some(canonical_symbol_id) = canonical_symbol_for(
+    symbol_value_type_map_for(
         &ctx.program,
         ctx.profile_id,
         ctx.module_id(),
         ctx.symbols,
+        ctx.types,
         symbol_id,
-    ) else {
-        return false;
-    };
-
-    if canonical_symbol_id.module_id == ctx.module_id() {
-        let Some(type_id) = ctx
-            .types
-            .get_type_id_for_symbol(ctx.symbols, canonical_symbol_id)
-        else {
-            return false;
-        };
-
-        return type_is_promise_with_symbols(ctx.types, type_id, promise_symbols);
-    }
-
-    let module_ref = ctx.program.modules.get(canonical_symbol_id.module_id);
-    let module = module_ref.read();
-    let Some(module_dir) = module.dir_maybe(ctx.profile_id) else {
-        return false;
-    };
-    let symbols = module_dir.symbols.read();
-    let types = module_dir.types.read();
-    let Some(type_id) = types.get_type_id_for_symbol(&symbols, canonical_symbol_id) else {
-        return false;
-    };
-
-    type_is_promise_with_symbols(&types, type_id, promise_symbols)
+        |types, type_id| type_is_promise_with_symbols(types, type_id, promise_symbols),
+    )
+    .unwrap_or(false)
 }
 
 /// Report one Promise-function-async diagnostic.
