@@ -194,3 +194,76 @@ import Foo = bar();
 ```
 
 - contains: import aliases must target a qualified identifier path
+
+## CommonJS interop
+
+### default imports read module exports assignments
+
+> Default imports read top level `module.exports` assignments from CommonJS modules.
+
+```ts:globals.d.ts
+export {};
+
+declare global {
+    var module: { exports: unknown };
+}
+```
+
+```js:cjs.js
+function buildValue() {
+  return 1;
+}
+
+module.exports = buildValue;
+```
+
+```ts:main.ts
+import "./globals.d.ts";
+import buildValue from "./cjs";
+
+buildValue();
+```
+
+### default imports from commonjs do not require ambient module declarations
+
+> CommonJS runtime names resolve in CommonJS modules without explicit `declare global` scaffolding.
+
+```js:cjs.js
+function buildValue() {
+  return 1;
+}
+
+module.exports = buildValue;
+```
+
+```ts:main.ts
+import buildValue from "./cjs";
+
+buildValue();
+```
+
+### default imports read the latest module exports assignment
+
+> The latest top level `module.exports` assignment becomes the default import target.
+
+```ts:globals.d.ts
+export {};
+
+declare global {
+    var module: { exports: unknown };
+}
+```
+
+```js:cjs.js
+function second() {}
+
+module.exports = 1;
+module.exports = second;
+```
+
+```ts:main.ts
+import "./globals.d.ts";
+import selected from "./cjs";
+
+selected();
+```

@@ -8,7 +8,7 @@ use destack_dir::{
     SymbolSpace, SymbolSpaceOrder, SymbolTable,
 };
 use destack_source::ModuleId;
-use destack_workspace::{Module, ModuleDir, ProfileId};
+use destack_workspace::{ImportEdgeKind, Module, ModuleDir, ProfileId};
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -66,6 +66,32 @@ impl ReexportVisitStack {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Select import edge semantics from dependency source and source module kind.
+    fn import_edge_kind_for_dependency(
+        source: DependencySource,
+        is_typescript_commonjs: bool,
+    ) -> ImportEdgeKind {
+        // preserve require style edges from source syntax
+        match source {
+            DependencySource::ImportEquals | DependencySource::RequireCall => {
+                ImportEdgeKind::Require
+            }
+
+            // lower static ts commonjs imports through require conditions
+            DependencySource::ImportStatement | DependencySource::ExportStatement
+                if is_typescript_commonjs =>
+            {
+                ImportEdgeKind::Require
+            }
+
+            // keep esm edges and runtime imports as import conditions
+            DependencySource::ImportStatement
+            | DependencySource::ExportStatement
+            | DependencySource::ImportCall
+            | DependencySource::ValueExpression => ImportEdgeKind::Import,
+        }
+    }
+
     /// Select an origin module for module binding cache entries.
     fn cache_origin_module_id(
         &self,
@@ -1077,12 +1103,21 @@ impl Compiler {
         target_str.starts_with("./") || target_str.starts_with("../")
     }
 
+    /// Return import edge semantics for one dependency source.
+    fn import_edge_kind(&self, module: &Module, source: DependencySource) -> ImportEdgeKind {
+        let is_typescript_commonjs =
+            module.module_format.is_commonjs() && module.language_type.is_typescript();
+
+        Self::import_edge_kind_for_dependency(source, is_typescript_commonjs)
+    }
+
     /// Load resolved module targets for an import specifier from the module dir cache.
     pub(crate) fn imported_module_resolution_for_specifier(
         &self,
         module: &Module,
         profile: ProfileId,
         target: StringId,
+        edge_kind: ImportEdgeKind,
         loader_override: Option<destack_workspace::Loader>,
     ) -> Option<ModuleResolution> {
         let relative_module = if self.is_import_relative(target) {
@@ -1091,7 +1126,7 @@ impl Compiler {
             None
         };
         let dir = module.dir(profile);
-        let cache_key = (relative_module, target, loader_override);
+        let cache_key = (relative_module, target, edge_kind, loader_override);
         dir.imported_modules.read().get(&cache_key).copied()
     }
 
@@ -1160,11 +1195,11 @@ impl Compiler {
         dir: &ModuleDir,
         profile: ProfileId,
         node: GlobalNodeIdAny,
-        _source: DependencySource,
+        source: DependencySource,
         target: StringId,
         kind: DependencyKind,
     ) -> ResolveResult<ModuleTarget> {
-        self.resolve_import_with_loader(module, dir, profile, node, _source, target, kind, None)
+        self.resolve_import_with_loader(module, dir, profile, node, source, target, kind, None)
     }
 
     /// Try to resolve an import with an optional loader override.
@@ -1174,7 +1209,7 @@ impl Compiler {
         dir: &ModuleDir,
         profile: ProfileId,
         node: GlobalNodeIdAny,
-        _source: DependencySource,
+        source: DependencySource,
         target: StringId,
         kind: DependencyKind,
         loader_override: Option<destack_workspace::Loader>,
@@ -1182,9 +1217,10 @@ impl Compiler {
         // derive the relative module context
         let is_relative = self.is_import_relative(target);
         let relative_module = if is_relative { Some(module.id) } else { None };
+        let edge_kind = self.import_edge_kind(module, source);
 
         // cache key includes loader to distinguish different import modes
-        let cache_key = (relative_module, target, loader_override);
+        let cache_key = (relative_module, target, edge_kind, loader_override);
 
         // check if already resolved locally
         if let Some(targets) = dir.imported_modules.read().get(&cache_key)
@@ -1202,7 +1238,7 @@ impl Compiler {
             )?;
             let global_module = self.program.modules.get(self.program.root_module_id);
             let global_module = global_module.read();
-            let global_key = (None, target, loader_override);
+            let global_key = (None, target, edge_kind, loader_override);
             if let Some(targets) = global_module
                 .dir(profile)
                 .imported_modules
@@ -1237,7 +1273,7 @@ impl Compiler {
                     .dir(profile)
                     .imported_modules
                     .write()
-                    .insert((None, target, None), binding_targets);
+                    .insert((None, target, edge_kind, None), binding_targets);
             }
             dir.imported_modules
                 .write()
@@ -1259,7 +1295,12 @@ impl Compiler {
             relative_module
         };
         let resolved_targets = self
-            .resolve_specifier_to_module_resolution(target, source_module, loader_override)
+            .resolve_specifier_to_module_resolution(
+                target,
+                source_module,
+                edge_kind,
+                loader_override,
+            )
             .map_err(|_| ResolveError::UnresolvedModule {
                 node: node.into_anchored(Some(profile)),
                 target,
@@ -1809,9 +1850,12 @@ impl Compiler {
                     }
 
                     // resolve the specifier to a module target
-                    if let Ok(targets) =
-                        self.resolve_specifier_to_module_resolution(*target, Some(module_id), None)
-                        && let Some(target_module) = targets.for_kind(*kind)
+                    if let Ok(targets) = self.resolve_specifier_to_module_resolution(
+                        *target,
+                        Some(module_id),
+                        ImportEdgeKind::Require,
+                        None,
+                    ) && let Some(target_module) = targets.for_kind(*kind)
                     {
                         redirects_by_scope
                             .entry(item_scope_id)
@@ -1887,9 +1931,12 @@ impl Compiler {
                     }
 
                     // resolve the specifier to a module target
-                    if let Ok(targets) =
-                        self.resolve_specifier_to_module_resolution(*target, Some(module_id), None)
-                    {
+                    if let Ok(targets) = self.resolve_specifier_to_module_resolution(
+                        *target,
+                        Some(module_id),
+                        ImportEdgeKind::Require,
+                        None,
+                    ) {
                         return Ok(targets.for_kind(*kind));
                     }
                     return Ok(None);
@@ -2046,7 +2093,13 @@ impl Compiler {
                     remote_target
                 };
                 let target_module = self
-                    .imported_module_resolution_for_specifier(module, profile, *target, None)
+                    .imported_module_resolution_for_specifier(
+                        module,
+                        profile,
+                        *target,
+                        self.import_edge_kind(module, *source),
+                        None,
+                    )
                     .unwrap_or_else(|| ModuleResolution::from_target(remote_target));
 
                 // resolve target symbol based on mode
@@ -2421,6 +2474,27 @@ impl Compiler {
             return Ok(symbol_id);
         }
 
+        // resolve default imports from export assignments and CommonJS assignments
+        if kind == DependencyKind::Value && key == StaticKey::Name(default_name) {
+            if let Some(symbol) =
+                self.resolve_export_assignment_symbol(module.id, remote_target, profile)?
+            {
+                return Ok(ResolvedExportSymbol {
+                    symbol,
+                    export_space: SymbolSpace::Value,
+                });
+            }
+
+            if let Some(symbol) =
+                self.resolve_commonjs_default_export_symbol(module.id, remote_target, profile)?
+            {
+                return Ok(ResolvedExportSymbol {
+                    symbol,
+                    export_space: SymbolSpace::Value,
+                });
+            }
+        }
+
         // fall back to export assignment target (e.g., `export = X`)
         // handles both module redirects and local namespace lookups
         if let Some(target) = self.resolve_export_assignment_target(
@@ -2712,5 +2786,31 @@ impl Compiler {
                 name,
             });
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use destack_dir::DependencySource;
+    use destack_workspace::ImportEdgeKind;
+
+    use crate::Compiler;
+
+    /// Use require conditions for static imports in TypeScript CommonJS modules.
+    #[test]
+    fn test_import_edge_kind_for_typescript_commonjs_static_import() {
+        let edge_kind =
+            Compiler::import_edge_kind_for_dependency(DependencySource::ImportStatement, true);
+
+        assert_eq!(edge_kind, ImportEdgeKind::Require);
+    }
+
+    /// Keep import-call dependencies on import conditions in TypeScript CommonJS modules.
+    #[test]
+    fn test_import_edge_kind_for_typescript_commonjs_import_call() {
+        let edge_kind =
+            Compiler::import_edge_kind_for_dependency(DependencySource::ImportCall, true);
+
+        assert_eq!(edge_kind, ImportEdgeKind::Import);
     }
 }

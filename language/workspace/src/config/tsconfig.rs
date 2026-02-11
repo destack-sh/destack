@@ -433,6 +433,13 @@ impl TsConfigRegistry {
             .clone()
     }
 
+    /// Get a tsconfig by id when present.
+    pub fn get_maybe(&self, id: TsConfigId) -> Option<Arc<RwLock<TsConfig>>> {
+        self.tsconfigs_by_id
+            .get(&id)
+            .map(|entry| entry.value().clone())
+    }
+
     /// Get a tsconfig id by its URI.
     pub fn get_id_by_uri(&self, uri: &Uri) -> Option<TsConfigId> {
         self.tsconfigs_by_uri.get(uri).map(|r| *r.value())

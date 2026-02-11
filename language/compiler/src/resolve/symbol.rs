@@ -12,6 +12,98 @@ use crate::{Compiler, ResolveError, ResolveResult};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Resolve CommonJS runtime paths (`module` and `exports`) for CommonJS modules.
+    fn resolve_commonjs_runtime_path(
+        &self,
+        module: &Module,
+        profile_id: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        path: &Path,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        space_order: SymbolSpaceOrder,
+        tree: &mut NodeTree,
+    ) -> Option<Expression> {
+        // only value space lookups can resolve runtime commonjs names
+        if !space_order.spaces().contains(&SymbolSpace::Value) {
+            return None;
+        }
+
+        // only commonjs modules expose these runtime bindings by default
+        if !module.module_format.is_commonjs() {
+            return None;
+        }
+
+        // only handle top-level `module` and `exports` roots
+        let first_segment = path.first_segment()?;
+        let first_segment_str = self.program.strings.get(first_segment);
+        let is_module_root = first_segment_str.as_str() == "module";
+        let is_exports_root = first_segment_str.as_str() == "exports";
+        if !is_module_root && !is_exports_root {
+            return None;
+        }
+
+        // resolve both roots against the current module namespace symbol
+        let namespace_symbol = module
+            .dir(profile_id)
+            .namespace_symbol
+            .into_global(module.id);
+
+        // map `module` directly to the runtime module object
+        if is_module_root {
+            let root_path = Path {
+                segments: vec![first_segment].into(),
+            };
+            let root_expression = Expression::GlobalReference {
+                path: root_path,
+                static_arguments: None,
+                target_symbol: namespace_symbol,
+            };
+
+            if path.segments.len() == 1 {
+                return Some(Expression::GlobalReference {
+                    path: path.clone(),
+                    static_arguments,
+                    target_symbol: namespace_symbol,
+                });
+            }
+
+            return Some(self.build_member_chain(
+                expression_id,
+                root_expression,
+                &path.slice(1..),
+                static_arguments,
+                tree,
+            ));
+        }
+
+        // map `exports` to the commonjs runtime alias binding
+        let exports_name = self.program.strings.intern("exports");
+        let exports_path = Path {
+            segments: vec![exports_name].into(),
+        };
+        let exports_expression = Expression::GlobalReference {
+            path: exports_path.clone(),
+            static_arguments: None,
+            target_symbol: namespace_symbol,
+        };
+
+        if path.segments.len() == 1 {
+            return Some(Expression::GlobalReference {
+                path: exports_path,
+                static_arguments,
+                target_symbol: namespace_symbol,
+            });
+        }
+
+        Some(self.build_member_chain(
+            expression_id,
+            exports_expression,
+            &path.slice(1..),
+            static_arguments,
+            tree,
+        ))
+    }
+
     /// Resolve an inherited associated type name from an enclosing declaration heritage.
     fn resolve_heritage_associated_type_symbol(
         &self,
@@ -1135,6 +1227,19 @@ impl Compiler {
                 tree,
                 Some(cache.scope_indices()),
             );
+        }
+
+        // resolve commonjs runtime paths when local resolution failed
+        if let Some(expression) = self.resolve_commonjs_runtime_path(
+            module,
+            profile,
+            expression_id,
+            path,
+            static_arguments.clone(),
+            space_order,
+            tree,
+        ) {
+            return Ok(expression);
         }
 
         // resolve inherited associated type names from enclosing declaration heritage

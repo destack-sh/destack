@@ -5,7 +5,8 @@ use destack_builtin::LanguageSymbol;
 use destack_dir::WellKnownSymbol;
 use destack_source::{EditBuilder, File, ModuleId, Span};
 use destack_workspace::{
-    LintSeverity, LinterOptions, Loader, Module, ProfileId, Program, WellKnownSymbols,
+    ImportEdgeKind, LintSeverity, LinterOptions, Loader, Module, ProfileId, Program,
+    WellKnownSymbols,
 };
 use indexmap::IndexMap;
 use {destack_ast as ast, destack_dir as dir};
@@ -62,9 +63,11 @@ pub struct LintModuleDirContext<'a> {
     pub default_symbol: dir::LocalSymbolId,
     /// Namespace exports: modules whose exports are re-exported via `export * from "..."`.
     pub namespace_exports: Vec<dir::ModuleTarget>,
-    /// Resolved import specifiers to module ids (keyed by (relative_module, specifier, loader)).
-    pub imported_modules:
-        IndexMap<(Option<ModuleId>, StringId, Option<Loader>), dir::ModuleResolution>,
+    /// Resolved import specifiers to module ids (keyed by (relative_module, specifier, edge, loader)).
+    pub imported_modules: IndexMap<
+        (Option<ModuleId>, StringId, ImportEdgeKind, Option<Loader>),
+        dir::ModuleResolution,
+    >,
     /// Exported symbols by key (space, name).
     pub exported_symbols: IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>,
 
@@ -107,7 +110,7 @@ impl<'a> LintModuleDirContext<'a> {
         default_symbol: dir::LocalSymbolId,
         namespace_exports: Vec<dir::ModuleTarget>,
         imported_modules: IndexMap<
-            (Option<ModuleId>, StringId, Option<Loader>),
+            (Option<ModuleId>, StringId, ImportEdgeKind, Option<Loader>),
             dir::ModuleResolution,
         >,
         exported_symbols: IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>,

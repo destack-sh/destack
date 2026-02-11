@@ -5,7 +5,7 @@ use indexmap::IndexMap;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
-use crate::{ImportMeta, Loader, ProfileId};
+use crate::{ImportEdgeKind, ImportMeta, Loader, ProfileId};
 
 /// DIR-level module data.
 /// The base DIR uses `profile_id: None`.
@@ -52,10 +52,14 @@ pub struct ModuleDir {
     pub module_bindings: RwLock<Vec<dir::ModuleBinding>>,
     /// Export tables for module bindings.
     pub module_binding_exports: RwLock<IndexMap<dir::LocalNodeIdAny, dir::ModuleBindingExports>>,
-    /// Resolved import specifiers to module ids (keyed by (relative_module, specifier, loader)).
-    /// The loader component distinguishes imports with non-default loaders.
-    pub imported_modules:
-        RwLock<IndexMap<(Option<ModuleId>, StringId, Option<Loader>), dir::ModuleResolution>>,
+    /// Resolved import specifiers to module ids (keyed by (relative_module, specifier, edge, loader)).
+    /// The edge and loader components distinguish require-style imports and non-default loaders.
+    pub imported_modules: RwLock<
+        IndexMap<
+            (Option<ModuleId>, StringId, ImportEdgeKind, Option<Loader>),
+            dir::ModuleResolution,
+        >,
+    >,
     /// Exported symbols by key (space, name).
     pub exported_symbols: RwLock<IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>>,
 }
@@ -104,10 +108,12 @@ pub struct ModuleDirData {
     pub module_bindings: Vec<dir::ModuleBinding>,
     /// Export tables for module bindings.
     pub module_binding_exports: IndexMap<dir::LocalNodeIdAny, dir::ModuleBindingExports>,
-    /// Resolved import specifiers to module ids (keyed by (relative_module, specifier, loader)).
-    /// The loader component distinguishes imports with non-default loaders.
-    pub imported_modules:
-        IndexMap<(Option<ModuleId>, StringId, Option<Loader>), dir::ModuleResolution>,
+    /// Resolved import specifiers to module ids (keyed by (relative_module, specifier, edge, loader)).
+    /// The edge and loader components distinguish require-style imports and non-default loaders.
+    pub imported_modules: IndexMap<
+        (Option<ModuleId>, StringId, ImportEdgeKind, Option<Loader>),
+        dir::ModuleResolution,
+    >,
     /// Exported symbols by key (space, name).
     pub exported_symbols: IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>,
 }

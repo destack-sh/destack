@@ -146,6 +146,8 @@ pub struct ModuleBindingReference {
 pub struct ModuleBindingTable {
     /// Versions for modules included in the index.
     pub module_versions: IndexMap<ModuleId, ModuleVersion>,
+    /// Versions for modules that contribute package declared module bindings.
+    pub registry_module_versions: IndexMap<ModuleId, ModuleVersion>,
     /// Module bindings by specifier.
     pub bindings_by_specifier: IndexMap<StringId, Vec<ModuleBindingReference>>,
 }
@@ -186,6 +188,7 @@ impl ModuleBindingTable {
     pub fn new() -> Self {
         Self {
             module_versions: IndexMap::new(),
+            registry_module_versions: IndexMap::new(),
             bindings_by_specifier: IndexMap::new(),
         }
     }

@@ -1,6 +1,7 @@
 use destack_dir::DependencyKind;
 use destack_resolver::ResolveOptions;
 use destack_source::LanguageType;
+use destack_workspace::ImportEdgeKind;
 use indexmap::IndexMap;
 
 /// Extension alias order for TypeScript source imports.
@@ -18,14 +19,16 @@ const DEFAULT_IMPORT_EXTENSIONS: &[&str] = &[
 
 /// Context used when materializing import resolve options.
 #[derive(Debug, Clone, Copy)]
-pub struct ImportResolveRequest {
+pub struct ImportResolveContext {
     /// Dependency kind for the import edge.
     pub dependency_kind: DependencyKind,
     /// Source language of the importing module.
     pub source_language_type: Option<LanguageType>,
+    /// Edge semantics for this dependency.
+    pub edge_kind: ImportEdgeKind,
 }
 
-impl ImportResolveRequest {
+impl ImportResolveContext {
     /// Return true when this request resolves a type dependency.
     pub fn is_type_dependency(self) -> bool {
         self.dependency_kind == DependencyKind::Type
@@ -36,12 +39,17 @@ impl ImportResolveRequest {
         self.source_language_type
             .is_some_and(|language_type| language_type.is_typescript())
     }
+
+    /// Return true when this request resolves a require-like edge.
+    pub fn is_require_edge(self) -> bool {
+        self.edge_kind == ImportEdgeKind::Require
+    }
 }
 
 /// Materialize compiler import resolve options for one import request.
 pub fn materialize_import_resolve_options(
     base: &ResolveOptions,
-    request: ImportResolveRequest,
+    context: ImportResolveContext,
 ) -> ResolveOptions {
     let mut options = base.clone();
 
@@ -49,10 +57,10 @@ pub fn materialize_import_resolve_options(
     apply_import_extension_policy(&mut options.extensions);
 
     // normalize condition behavior for value and type dependencies
-    apply_import_condition_policy(&mut options.conditions, request);
+    apply_import_condition_policy(&mut options.conditions, context);
 
     // apply typescript extension aliases for typescript sources
-    apply_import_extension_alias_policy(&mut options.extension_alias, request);
+    apply_import_extension_alias_policy(&mut options.extension_alias, context);
 
     options
 }
@@ -87,12 +95,12 @@ fn insert_extension_after_if_present(extensions: &mut Vec<String>, after: &str, 
 }
 
 /// Apply condition policy for import resolution.
-fn apply_import_condition_policy(conditions: &mut Vec<String>, request: ImportResolveRequest) {
+fn apply_import_condition_policy(conditions: &mut Vec<String>, context: ImportResolveContext) {
     let mut normalized = Vec::new();
 
-    // preserve existing conditions except types and duplicates
+    // preserve existing conditions except edge and type conditions and duplicates
     for condition in conditions.iter() {
-        if condition == "types" {
+        if condition == "types" || condition == "import" || condition == "require" {
             continue;
         }
         if normalized.iter().any(|existing| existing == condition) {
@@ -102,13 +110,21 @@ fn apply_import_condition_policy(conditions: &mut Vec<String>, request: ImportRe
     }
 
     // force types first for type dependencies
-    if request.is_type_dependency() {
+    if context.is_type_dependency() {
         normalized.insert(0, "types".to_string());
     }
 
-    // ensure import condition for compiler import resolution
-    if !normalized.iter().any(|condition| condition == "import") {
-        normalized.push("import".to_string());
+    // ensure edge condition for compiler import resolution
+    let exports_condition = if context.is_require_edge() {
+        "require"
+    } else {
+        "import"
+    };
+    if !normalized
+        .iter()
+        .any(|condition| condition == exports_condition)
+    {
+        normalized.push(exports_condition.to_string());
     }
 
     *conditions = normalized;
@@ -117,10 +133,10 @@ fn apply_import_condition_policy(conditions: &mut Vec<String>, request: ImportRe
 /// Apply extension alias policy for import resolution.
 fn apply_import_extension_alias_policy(
     extension_alias: &mut IndexMap<String, Vec<String>>,
-    request: ImportResolveRequest,
+    context: ImportResolveContext,
 ) {
     // skip extension alias expansion for non typescript source files
-    if !request.is_typescript_source() {
+    if !context.is_typescript_source() {
         return;
     }
 
@@ -141,19 +157,21 @@ fn apply_import_extension_alias_policy(
 
 #[cfg(test)]
 mod tests {
-    use super::{ImportResolveRequest, materialize_import_resolve_options};
+    use super::{ImportResolveContext, materialize_import_resolve_options};
     use destack_dir::DependencyKind;
     use destack_resolver::ResolveOptions;
     use destack_source::LanguageType;
+    use destack_workspace::ImportEdgeKind;
 
     /// Build default import options for value dependencies.
     #[test]
     fn test_materialize_import_options_value_dependency_defaults() {
-        let request = ImportResolveRequest {
+        let context = ImportResolveContext {
             dependency_kind: DependencyKind::Value,
             source_language_type: None,
+            edge_kind: ImportEdgeKind::Import,
         };
-        let options = materialize_import_resolve_options(&ResolveOptions::blank(), request);
+        let options = materialize_import_resolve_options(&ResolveOptions::blank(), context);
 
         assert_eq!(
             options.extensions,
@@ -169,11 +187,12 @@ mod tests {
     /// Build import options for TypeScript type dependencies.
     #[test]
     fn test_materialize_import_options_typescript_type_dependency() {
-        let request = ImportResolveRequest {
+        let context = ImportResolveContext {
             dependency_kind: DependencyKind::Type,
             source_language_type: Some(LanguageType::TypeScript),
+            edge_kind: ImportEdgeKind::Import,
         };
-        let options = materialize_import_resolve_options(&ResolveOptions::blank(), request);
+        let options = materialize_import_resolve_options(&ResolveOptions::blank(), context);
 
         assert_eq!(options.conditions, vec!["types", "import"]);
 
@@ -189,12 +208,13 @@ mod tests {
     fn test_materialize_import_options_preserve_explicit_extensions() {
         let mut base = ResolveOptions::blank();
         base.extensions = vec![".js".to_string()];
-        let request = ImportResolveRequest {
+        let context = ImportResolveContext {
             dependency_kind: DependencyKind::Value,
             source_language_type: None,
+            edge_kind: ImportEdgeKind::Import,
         };
 
-        let options = materialize_import_resolve_options(&base, request);
+        let options = materialize_import_resolve_options(&base, context);
 
         assert_eq!(options.extensions, vec![".js"]);
     }
@@ -204,16 +224,49 @@ mod tests {
     fn test_materialize_import_options_add_companion_declaration_extensions() {
         let mut base = ResolveOptions::blank();
         base.extensions = vec![".ts".to_string(), ".js".to_string(), ".ds".to_string()];
-        let request = ImportResolveRequest {
+        let context = ImportResolveContext {
             dependency_kind: DependencyKind::Value,
             source_language_type: None,
+            edge_kind: ImportEdgeKind::Import,
         };
 
-        let options = materialize_import_resolve_options(&base, request);
+        let options = materialize_import_resolve_options(&base, context);
 
         assert_eq!(
             options.extensions,
             vec![".ts", ".d.ts", ".js", ".ds", ".d.ds"]
         );
+    }
+
+    /// Build import options for require style dependencies.
+    #[test]
+    fn test_materialize_import_options_require_dependency_conditions() {
+        let mut base = ResolveOptions::blank();
+        base.conditions = vec!["import".to_string(), "node".to_string()];
+        let context = ImportResolveContext {
+            dependency_kind: DependencyKind::Value,
+            source_language_type: Some(LanguageType::JavaScript),
+            edge_kind: ImportEdgeKind::Require,
+        };
+
+        let options = materialize_import_resolve_options(&base, context);
+
+        assert_eq!(options.conditions, vec!["node", "require"]);
+    }
+
+    /// Replace require conditions with import conditions for import edges.
+    #[test]
+    fn test_materialize_import_options_replace_require_with_import_condition() {
+        let mut base = ResolveOptions::blank();
+        base.conditions = vec!["require".to_string(), "node".to_string()];
+        let context = ImportResolveContext {
+            dependency_kind: DependencyKind::Value,
+            source_language_type: Some(LanguageType::JavaScript),
+            edge_kind: ImportEdgeKind::Import,
+        };
+
+        let options = materialize_import_resolve_options(&base, context);
+
+        assert_eq!(options.conditions, vec!["node", "import"]);
     }
 }
