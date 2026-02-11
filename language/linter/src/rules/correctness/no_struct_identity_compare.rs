@@ -181,7 +181,7 @@ mod tests {
         let result = test.lint_dir(
             "no_struct_identity_compare/test_flags_struct_strict_equality.ds",
             r#"
-struct Point { x: int32, y: int32 }
+struct Point { x: int32; y: int32 }
 let a = Point { x: 1, y: 2 };
 let b = Point { x: 1, y: 2 };
 let equal = a === b;
@@ -198,7 +198,7 @@ let equal = a === b;
         let result = test.lint_dir(
             "no_struct_identity_compare/test_flags_struct_strict_not_equal.ds",
             r#"
-struct Point { x: int32, y: int32 }
+struct Point { x: int32; y: int32 }
 let a = Point { x: 1, y: 2 };
 let b = Point { x: 3, y: 4 };
 let notEqual = a !== b;
@@ -215,7 +215,7 @@ let notEqual = a !== b;
         let result = test.lint_dir(
             "no_struct_identity_compare/test_allows_struct_value_equality.ds",
             r#"
-struct Point { x: int32, y: int32 }
+struct Point { x: int32; y: int32 }
 let a = Point { x: 1, y: 2 };
 let b = Point { x: 1, y: 2 };
 let equal = a == b;

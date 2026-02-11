@@ -4,10 +4,7 @@ use destack_dir::{
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::{
-    expression_declared_or_inferred_type_id, function_return_type, is_string_type,
-    symbol_value_type_id_for,
-};
+use crate::rules::common::{expression_type_map, function_return_type, is_string_type};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -115,50 +112,18 @@ impl<'a, 'b> NoUnnecessaryTemplateExpressionVisitor<'a, 'b> {
             return true;
         }
 
-        // check local inferred and declared expression types first
-        let type_id = self.ctx.expression_type_id(expression_id).or_else(|| {
-            expression_declared_or_inferred_type_id(
-                self.ctx.module_id(),
-                self.ctx.tree,
-                self.ctx.types,
-                expression_id,
-            )
-        });
-        let Some(type_id) = type_id else {
-            // then check resolved symbol value types, including cross module symbols
-            let expression = self.ctx.tree.get(expression_id);
-            let Some(symbol_id) = expression.target_symbol() else {
-                return false;
-            };
-            let Some(symbol_type) = symbol_value_type_id_for(
-                &self.ctx.program,
-                self.ctx.profile_id,
-                self.ctx.module_id(),
-                self.ctx.symbols,
-                self.ctx.types,
-                symbol_id,
-            ) else {
-                return false;
-            };
-
-            if symbol_type.module_id == self.ctx.module_id() {
-                return is_string_type(
-                    self.ctx.types,
-                    symbol_type.type_id,
-                    Some(self.string_symbol),
-                );
-            }
-
-            let module_ref = self.ctx.program.modules.get(symbol_type.module_id);
-            let module = module_ref.read();
-            let Some(module_dir) = module.dir_maybe(self.ctx.profile_id) else {
-                return false;
-            };
-            let types = module_dir.types.read();
-            return is_string_type(&types, symbol_type.type_id, Some(self.string_symbol));
-        };
-
-        if is_string_type(self.ctx.types, type_id, Some(self.string_symbol)) {
+        if expression_type_map(
+            &self.ctx.program,
+            self.ctx.profile_id,
+            self.ctx.module_id(),
+            self.ctx.tree,
+            self.ctx.symbols,
+            self.ctx.types,
+            expression_id,
+            |types, type_id| is_string_type(types, type_id, Some(self.string_symbol)),
+        )
+        .unwrap_or(false)
+        {
             return true;
         }
 
@@ -167,51 +132,22 @@ impl<'a, 'b> NoUnnecessaryTemplateExpressionVisitor<'a, 'b> {
         let dir::Expression::Call { left, .. } = expression else {
             return false;
         };
-        if let Some(callee_type_id) = expression_declared_or_inferred_type_id(
-            self.ctx.module_id(),
-            self.ctx.tree,
-            self.ctx.types,
-            *left,
-        ) {
-            return function_return_type(self.ctx.types, callee_type_id).is_some_and(
-                |return_type_id| {
-                    is_string_type(self.ctx.types, return_type_id, Some(self.string_symbol))
-                },
-            );
-        }
 
-        let callee_expression = self.ctx.tree.get(*left);
-        let Some(symbol_id) = callee_expression.target_symbol() else {
-            return false;
-        };
-        let Some(symbol_type) = symbol_value_type_id_for(
+        expression_type_map(
             &self.ctx.program,
             self.ctx.profile_id,
             self.ctx.module_id(),
+            self.ctx.tree,
             self.ctx.symbols,
             self.ctx.types,
-            symbol_id,
-        ) else {
-            return false;
-        };
-
-        if symbol_type.module_id == self.ctx.module_id() {
-            return function_return_type(self.ctx.types, symbol_type.type_id).is_some_and(
-                |return_type_id| {
-                    is_string_type(self.ctx.types, return_type_id, Some(self.string_symbol))
-                },
-            );
-        }
-
-        let module_ref = self.ctx.program.modules.get(symbol_type.module_id);
-        let module = module_ref.read();
-        let Some(module_dir) = module.dir_maybe(self.ctx.profile_id) else {
-            return false;
-        };
-        let types = module_dir.types.read();
-        function_return_type(&types, symbol_type.type_id).is_some_and(|return_type_id| {
-            is_string_type(&types, return_type_id, Some(self.string_symbol))
-        })
+            *left,
+            |types, type_id| {
+                function_return_type(types, type_id).is_some_and(|return_type_id| {
+                    is_string_type(types, return_type_id, Some(self.string_symbol))
+                })
+            },
+        )
+        .unwrap_or(false)
     }
 
     /// Check one template expression node.

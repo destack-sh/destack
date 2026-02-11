@@ -127,10 +127,10 @@ mod tests {
             "max_type_fields/test_detects_too_many_struct_fields.ds",
             r#"
 struct TooMany {
-    a: int32,
-    b: int32,
-    c: int32,
-    d: int32,
+    a: int32;
+    b: int32;
+    c: int32;
+    d: int32;
 }
 "#,
         );
@@ -181,8 +181,8 @@ interface TooMany {
             "max_type_fields/test_allows_few_fields.ds",
             r#"
 struct Point {
-    x: int32,
-    y: int32,
+    x: int32;
+    y: int32;
 }
 "#,
         );
@@ -197,9 +197,9 @@ struct Point {
             "max_type_fields/test_allows_exactly_at_limit.ds",
             r#"
 struct AtLimit {
-    a: int32,
-    b: int32,
-    c: int32,
+    a: int32;
+    b: int32;
+    c: int32;
 }
 "#,
         );
@@ -214,8 +214,8 @@ struct AtLimit {
             "max_type_fields/test_ignores_methods.ds",
             r#"
 struct WithMethods {
-    a: int32,
-    b: int32,
+    a: int32;
+    b: int32;
 
     method1(): void {}
     method2(): void {}

@@ -71,8 +71,8 @@ mod tests {
             "no_struct/test_detects_struct.ds",
             r#"
 struct Point {
-    x: int32,
-    y: int32,
+    x: int32;
+    y: int32;
 }
 "#,
         );
@@ -86,8 +86,8 @@ struct Point {
             "no_struct/test_detects_exported_struct.ds",
             r#"
 export struct Point {
-    x: int32,
-    y: int32,
+    x: int32;
+    y: int32;
 }
 "#,
         );
