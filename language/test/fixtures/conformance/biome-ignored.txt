@@ -8,11 +8,6 @@
 #
 #   another-test # inline comment also works
 
-# legacy type assertions: <T>expr (not supported)
-ok/ts_type_assertion.ts
-ok/ts_type_assertion_expression.ts
-ok/type_assertion_primary_expression.ts
-
 # decorators are more permissive than TS in Destack
 error/decorator_async_function_export_default_declaration_clause.ts
 error/decorator_class_declaration.js
@@ -41,9 +36,6 @@ ok/metavar.tsx
 
 # empty type parameter lists are invalid in TS
 ok/ts_type_parameters.ts
-
-# legacy <T> type assertions are not supported
-ok/ts_as_assignment.ts
 
 # export specifiers do not allow string literal names
 ok/export_named_clause.js

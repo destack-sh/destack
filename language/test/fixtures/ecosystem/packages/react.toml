@@ -7,5 +7,5 @@ language = "js"
 tags = ["frontend", "jsx", "library"]
 
 [discovery]
-include = ["packages/**/*.js", "packages/**/*.jsx", "packages/**/*.ts", "packages/**/*.tsx"]
+include = ["packages/**/*.ts", "packages/**/*.tsx"]
 exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/fixtures/**", "**/dist/**", "**/node_modules/**"]

@@ -646,6 +646,26 @@ fn format_readme_summary_rows(
     let total_cases = total_passed + total_failed + total_ignored;
     let total_rate = format_rate(total_passed, total_failed);
     let total_inclusive_rate = format_inclusive_rate(total_passed, total_cases);
+    let total_phase_cells = phases
+        .iter()
+        .map(|phase| {
+            let mut phase_passed = 0usize;
+            let mut phase_failed = 0usize;
+            for row in rows.values() {
+                let status = row.get(phase).copied().unwrap_or_default();
+                match status {
+                    ReadmeCellStatus::Pass => {
+                        phase_passed += 1;
+                    }
+                    ReadmeCellStatus::Fail => {
+                        phase_failed += 1;
+                    }
+                    ReadmeCellStatus::Ignored | ReadmeCellStatus::Unknown => {}
+                }
+            }
+            format_phase_total_cell(phase_passed, phase_failed)
+        })
+        .collect::<Vec<_>>();
 
     let mut footer_separator = String::from("|---------");
     for _ in phases {
@@ -655,8 +675,8 @@ fn format_readme_summary_rows(
     lines.push(footer_separator);
 
     let mut total_line = format!("| {:<7} ", "total");
-    for _ in phases {
-        total_line.push_str(&format!("| {:^8} ", "-"));
+    for phase_cell in total_phase_cells {
+        total_line.push_str(&format!("| {:^8} ", phase_cell));
     }
     total_line.push_str(&format!(
         "| {:>5}  | {:>5}  | {:>7}  | {:>5} | {:>7} | {:>9} |",
@@ -679,6 +699,15 @@ fn format_rate(passed: usize, failed: usize) -> String {
 
     let rate = passed as f64 / total as f64 * 100.0;
     format!("{rate:.2}%")
+}
+
+fn format_phase_total_cell(passed: usize, failed: usize) -> String {
+    let run_total = passed + failed;
+    if run_total == 0 {
+        return "---".to_string();
+    }
+
+    format!("{passed}/{run_total}")
 }
 
 fn format_inclusive_rate(passed: usize, total: usize) -> String {
@@ -1992,11 +2021,12 @@ pub fn fetch_all_packages(options: FetchOptions) -> ExitCode {
 #[cfg(test)]
 mod tests {
     use super::{
-        ReadmeCellStatus, language_type_for_parse, parse_readme_summary_rows,
-        path_is_supported_source, replace_readme_section,
+        ReadmeCellStatus, format_readme_summary_rows, language_type_for_parse,
+        parse_readme_summary_rows, path_is_supported_source, replace_readme_section,
     };
     use crate::ecosystem::manifest::{CompilerOptionsConfig, EcosystemPhase};
     use destack_source::{FileType, LanguageType};
+    use std::collections::BTreeMap;
     use std::path::Path;
 
     #[test]
@@ -2029,6 +2059,35 @@ mod tests {
             row.get(&EcosystemPhase::Lower).copied(),
             Some(ReadmeCellStatus::Ignored)
         );
+    }
+
+    #[test]
+    fn test_format_readme_summary_rows_total_phase_cells_show_run_counts() {
+        let mut rows = BTreeMap::new();
+
+        let mut astro = BTreeMap::new();
+        astro.insert(EcosystemPhase::Parse, ReadmeCellStatus::Fail);
+        astro.insert(EcosystemPhase::Resolve, ReadmeCellStatus::Ignored);
+        astro.insert(EcosystemPhase::Analyze, ReadmeCellStatus::Ignored);
+        astro.insert(EcosystemPhase::Lower, ReadmeCellStatus::Ignored);
+        rows.insert("astro".to_string(), astro);
+
+        let mut semver = BTreeMap::new();
+        semver.insert(EcosystemPhase::Parse, ReadmeCellStatus::Pass);
+        semver.insert(EcosystemPhase::Resolve, ReadmeCellStatus::Pass);
+        semver.insert(EcosystemPhase::Analyze, ReadmeCellStatus::Ignored);
+        semver.insert(EcosystemPhase::Lower, ReadmeCellStatus::Ignored);
+        rows.insert("semver".to_string(), semver);
+
+        let table = format_readme_summary_rows(&rows);
+        let total_line = table
+            .lines()
+            .find(|line| line.trim_start().starts_with("| total"))
+            .unwrap();
+
+        assert!(total_line.contains("|   1/2    "));
+        assert!(total_line.contains("|   1/1    "));
+        assert!(total_line.contains("|   ---    "));
     }
 
     #[test]

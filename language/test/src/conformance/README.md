@@ -7,7 +7,7 @@ Conformance tests check that the Destack parser conforms both to the ECMAScript 
 The point of testing conformance is to ensure that modern TS-first libraries can just work straight in Destack without major - or ideally _any_ - changes.
 However, we do not expect or need to reach 100% _general_ conformance across all suites because:
 
-- **Modern (TS) ESM**: We target strict module semantics and do not support script mode or certain legacy JS/TS syntax.
+- **Modern (TS) ESM**: We target strict module semantics and do not support script mode and some legacy or otherwise unsupported JS/TS syntax.
 - **Annex B**: Legacy Annex B syntax is out of scope.
 - **JS-only in JS**: `.js` and `.jsx` reject TS-only syntax and decorators, and JSX is only enabled in `.jsx`.
 - **TypeScript++**: `.ds` files override obscure TypeScript patterns like the comma operator in favor of tuple syntax.
@@ -29,14 +29,14 @@ If auto-fetch cannot satisfy a suite, the run fails with an explicit error inste
 <!-- begin:summary-results -->
 | Suite    | Passed | Failed | Ignored | Total |  Rate   | Incl. Rate |
 |:---------|-------:|-------:|--------:|------:|--------:|-----------:|
-| babel    |   691  |     0  |    24  |   691 | 100.00% |  96.64% |
-| biome    |   610  |     0  |    27  |   610 | 100.00% |  95.76% |
-| swc      |   525  |     0  |    13  |   525 | 100.00% |  97.58% |
+| babel    |   703  |     0  |    12  |   703 | 100.00% |  98.32% |
+| biome    |   614  |     0  |    23  |   614 | 100.00% |  96.39% |
+| swc      |   536  |     0  |     2  |   536 | 100.00% |  99.63% |
 | test262  |  5174  |     0  |   189  |  5174 | 100.00% |  96.48% |
 |----------|--------|--------|---------|-------|---------|------------|
-| total    |  7000  |     0  |    253  |  7000 | 100.00% |     96.51% |
+| total    |  7027  |     0  |    226  |  7027 | 100.00% |     96.88% |
 
-Total Blended Pass Rate: **100.00%** (96.51% incl. ignored)
+Total Blended Pass Rate: **100.00%** (96.88% incl. ignored)
 <!-- end:summary-results -->
 
 ### babel
@@ -49,7 +49,7 @@ Total Blended Pass Rate: **100.00%** (96.51% incl. ignored)
 | async-call           |     1  |     0  |       -  |     1 | 100.00% |    100.00% |
 | basic                |    37  |     0  |       -  |    37 | 100.00% |    100.00% |
 | binary-expression    |     2  |     0  |       -  |     2 | 100.00% |    100.00% |
-| cast                 |    31  |     0  |      11  |    31 | 100.00% |     73.81% |
+| cast                 |    42  |     0  |       -  |    42 | 100.00% |    100.00% |
 | catch-clause         |     1  |     0  |       -  |     1 | 100.00% |    100.00% |
 | class                |    97  |     0  |       -  |    97 | 100.00% |    100.00% |
 | const                |     4  |     0  |       -  |     4 | 100.00% |    100.00% |
@@ -75,13 +75,13 @@ Total Blended Pass Rate: **100.00%** (96.51% incl. ignored)
 | tsx                  |     8  |     0  |       -  |     8 | 100.00% |    100.00% |
 | type-alias           |     7  |     0  |       -  |     7 | 100.00% |    100.00% |
 | type-arguments       |    33  |     0  |       -  |    33 | 100.00% |    100.00% |
-| type-arguments-bit-shift-left-like |     8  |     0  |       1  |     8 | 100.00% |     88.89% |
+| type-arguments-bit-shift-left-like |     9  |     0  |       -  |     9 | 100.00% |    100.00% |
 | type-only-import-export-specifiers |    24  |     0  |       -  |    24 | 100.00% |    100.00% |
 | types                |    89  |     0  |       6  |    89 | 100.00% |     93.68% |
 | types-arrow-function |     3  |     0  |       -  |     3 | 100.00% |    100.00% |
 | variable-declarator  |     3  |     0  |       -  |     3 | 100.00% |    100.00% |
 |----------------------|--------|--------|---------|-------|---------|------------|
-| total                |   691  |     0  |      24  |   691 | 100.00% |     96.64% |
+| total                |   703  |     0  |      12  |   703 | 100.00% |     98.32% |
 <!-- end:babel-results -->
 
 ### biome
@@ -89,9 +89,9 @@ Total Blended Pass Rate: **100.00%** (96.51% incl. ignored)
 | Category             | Passed | Failed | Ignored | Total |  Rate   | Incl. Rate |
 |:---------------------|-------:|-------:|--------:|------:|--------:|-----------:|
 | error                |   285  |     0  |      17  |   285 | 100.00% |     94.37% |
-| ok                   |   325  |     0  |      10  |   325 | 100.00% |     97.01% |
+| ok                   |   329  |     0  |       6  |   329 | 100.00% |     98.21% |
 |----------------------|--------|--------|---------|-------|---------|------------|
-| total                |   610  |     0  |      27  |   610 | 100.00% |     95.76% |
+| total                |   614  |     0  |      23  |   614 | 100.00% |     96.39% |
 <!-- end:biome-results -->
 
 ### swc
@@ -102,13 +102,13 @@ Total Blended Pass Rate: **100.00%** (96.51% incl. ignored)
 | arrow-function       |    15  |     0  |       -  |    15 | 100.00% |    100.00% |
 | basic                |    63  |     0  |       -  |    63 | 100.00% |    100.00% |
 | case1                |     1  |     0  |       -  |     1 | 100.00% |    100.00% |
-| cast                 |    11  |     0  |       5  |    11 | 100.00% |     68.75% |
+| cast                 |    16  |     0  |       -  |    16 | 100.00% |    100.00% |
 | class                |    39  |     0  |       -  |    39 | 100.00% |    100.00% |
 | const                |     1  |     0  |       -  |     1 | 100.00% |    100.00% |
-| custom               |    52  |     0  |       4  |    52 | 100.00% |     92.86% |
+| custom               |    56  |     0  |       -  |    56 | 100.00% |    100.00% |
 | declare              |     5  |     0  |       -  |     5 | 100.00% |    100.00% |
 | decorators           |     2  |     0  |       -  |     2 | 100.00% |    100.00% |
-| deno                 |     6  |     0  |       1  |     6 | 100.00% |     85.71% |
+| deno                 |     7  |     0  |       -  |     7 | 100.00% |    100.00% |
 | enum                 |    11  |     0  |       -  |    11 | 100.00% |    100.00% |
 | eof-issue            |     1  |     0  |       -  |     1 | 100.00% |    100.00% |
 | errors               |    25  |     0  |       -  |    25 | 100.00% |    100.00% |
@@ -121,7 +121,7 @@ Total Blended Pass Rate: **100.00%** (96.51% incl. ignored)
 | import-assertions    |     7  |     0  |       -  |     7 | 100.00% |    100.00% |
 | instantiation-expr   |     8  |     0  |       -  |     8 | 100.00% |    100.00% |
 | interface            |    16  |     0  |       -  |    16 | 100.00% |    100.00% |
-| issue                |   135  |     0  |       1  |   135 | 100.00% |     99.26% |
+| issue                |   136  |     0  |       -  |   136 | 100.00% |    100.00% |
 | meta-property        |     3  |     0  |       -  |     3 | 100.00% |    100.00% |
 | module-namespace     |     9  |     0  |       -  |     9 | 100.00% |    100.00% |
 | next                 |     2  |     0  |       -  |     2 | 100.00% |    100.00% |
@@ -144,7 +144,7 @@ Total Blended Pass Rate: **100.00%** (96.51% incl. ignored)
 | variance-annotations |     0  |     0  |       2  |     0 | 100.00% |      0.00% |
 | vercel               |     1  |     0  |       -  |     1 | 100.00% |    100.00% |
 |----------------------|--------|--------|---------|-------|---------|------------|
-| total                |   525  |     0  |      13  |   525 | 100.00% |     97.58% |
+| total                |   536  |     0  |       2  |   536 | 100.00% |     99.63% |
 <!-- end:swc-results -->
 
 ### test262
