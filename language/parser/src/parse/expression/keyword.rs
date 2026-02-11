@@ -6,7 +6,7 @@ use destack_ast::{
     FunctionKind, Keyword, LocalNodeId, NodeType, PostfixPosition, TokenType, TypeKind,
 };
 
-use super::common::is_type_relation_keyword;
+use super::common::{DECLARATION_START_TOKENS, is_type_relation_keyword};
 
 impl Parser {
     /// Return true when a token can start a function signature head.
@@ -20,6 +20,36 @@ impl Parser {
                 | TokenType::At
                 | TokenType::Multiply
         )
+    }
+
+    /// Return true when `async` can plausibly start a function form.
+    #[inline]
+    fn can_start_async_function_signature(&mut self, next_token_type: TokenType) -> bool {
+        // non identifier starts are always signature candidates
+        if matches!(
+            next_token_type,
+            TokenType::OpenParenthesis | TokenType::LessThan | TokenType::At | TokenType::Multiply
+        ) {
+            return true;
+        }
+
+        // async function ...
+        if next_token_type == TokenType::Identifier
+            && self.keyword_for_index(self.index_for_next()) == Some(Keyword::Function)
+        {
+            return true;
+        }
+
+        // async x => ...
+        if next_token_type == TokenType::Identifier {
+            let next_index = self.index_for_next();
+            let after_next_index = self.next_non_newline_index_from(next_index + 1);
+            let after_next_token_type = self.token_type_at(after_next_index);
+            return after_next_token_type == TokenType::Arrow
+                || after_next_token_type == TokenType::ArrowWide;
+        }
+
+        false
     }
 
     /// Wrap a declaration node in an expression with the current span.
@@ -123,6 +153,76 @@ impl Parser {
         let await_index = self.pos_index();
         let using_index = self.next_non_newline_index_from(await_index + 1);
         self.keyword_for_index(using_index) == Some(Keyword::Using)
+    }
+
+    /// Try to parse a statement keyword directly before the generic identifier path.
+    pub(crate) fn try_eat_statement_keyword_expression_fast(
+        &mut self,
+        start: &ParserMark,
+    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+        // only fast path in plain statement position without split tokens
+        if !self.options.in_statement_position
+            || self.options.in_decorator
+            || self.options.in_match_case
+            || self.has_active_split()
+            || !self.peek_is(TokenType::Identifier)
+        {
+            return Ok(None);
+        }
+
+        // only route commonly statement led keywords through the direct parser
+        let Some(keyword) = self.keyword_for_index(self.pos_index()) else {
+            return Ok(None);
+        };
+        let can_fast_path = matches!(
+            keyword,
+            Keyword::If
+                | Keyword::While
+                | Keyword::Do
+                | Keyword::For
+                | Keyword::Loop
+                | Keyword::Try
+                | Keyword::Switch
+                | Keyword::Match
+                | Keyword::Break
+                | Keyword::Continue
+                | Keyword::Throw
+                | Keyword::Return
+                | Keyword::Debugger
+                | Keyword::Yield
+                | Keyword::Let
+                | Keyword::Var
+                | Keyword::Const
+                | Keyword::Using
+                | Keyword::Await
+                | Keyword::Import
+                | Keyword::Function
+                | Keyword::Class
+                | Keyword::Struct
+                | Keyword::Enum
+                | Keyword::Interface
+                | Keyword::Type
+                | Keyword::Readonly
+                | Keyword::Newtype
+                | Keyword::Namespace
+                | Keyword::Extension
+                | Keyword::Comptime
+        );
+        if !can_fast_path {
+            return Ok(None);
+        }
+
+        // parse through the existing keyword machinery with a neutral descriptor
+        let descriptor = DeclarationDescriptor::default();
+        let next_token_type = self.peek_next_token_type();
+        let is_declaration_start = DECLARATION_START_TOKENS.contains(&next_token_type);
+        self.eat_keyword_expression(
+            start,
+            descriptor,
+            keyword,
+            next_token_type,
+            is_declaration_start,
+        )
     }
 
     /// Eat a keyword-led expression when possible.
@@ -266,7 +366,7 @@ impl Parser {
                 }
 
                 // require a valid function signature start
-                let can_start_signature = Self::can_start_function_signature(next_token_type);
+                let can_start_signature = self.can_start_async_function_signature(next_token_type);
                 if !can_start_signature {
                     return Ok(None);
                 }

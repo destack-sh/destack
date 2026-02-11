@@ -11,8 +11,6 @@ pub(super) struct ParenthesizedGroupShape {
     pub has_arrow_follow: bool,
     /// Whether a colon follows the closing parenthesis.
     pub has_colon_follow: bool,
-    /// Whether top-level `|` or `&` appears inside the group.
-    pub has_top_level_type_union_or_intersection: bool,
     /// Whether a top-level parameter colon appears inside the group.
     pub has_top_level_parameter_colon: bool,
     /// Whether the group is empty aside from newlines.
@@ -40,6 +38,8 @@ impl Parser {
     fn lookahead_parenthesized_group_shape_inner(
         &mut self,
     ) -> ParseResult<ParenthesizedGroupShape> {
+        let tracks_tuple_commas = self.language.is_destack();
+
         // locate the closing parenthesis and follow token
         let open_pos = self.pos();
         let close_pos = self.find_matching_close(
@@ -48,19 +48,45 @@ impl Parser {
             TokenType::CloseParenthesis,
         )?;
         let close_pos_for_follow = self.skip_newlines(close_pos)?;
-
-        // compute top-level separators and operators inside the group
-        let mut group_shape = self.scan_parenthesized_group_shape(open_pos, close_pos);
-
-        // compute follow token shape
         let follow_token_type = self
             .token_ref_at(close_pos_for_follow as usize + 1)
             .map(|token| token.token.ty);
-        group_shape.has_arrow_follow = matches!(
+        let has_arrow_follow = matches!(
             follow_token_type,
             Some(TokenType::Arrow | TokenType::ArrowWide)
         );
-        group_shape.has_colon_follow = matches!(follow_token_type, Some(TokenType::Colon));
+        let has_colon_follow = matches!(follow_token_type, Some(TokenType::Colon));
+
+        // most js and ts parenthesized expressions are not lambda heads
+        // skip deep shape scanning when no follow token can start a lambda form
+        if !tracks_tuple_commas && !has_arrow_follow && !has_colon_follow {
+            return Ok(ParenthesizedGroupShape {
+                has_top_level_comma: false,
+                has_arrow_follow,
+                has_colon_follow,
+                has_top_level_parameter_colon: false,
+                is_empty: false,
+            });
+        }
+
+        // lambda heads with `=>` in value contexts do not need interior shape scanning
+        if has_arrow_follow && !self.options.in_arrow_return_type {
+            return Ok(ParenthesizedGroupShape {
+                has_top_level_comma: false,
+                has_arrow_follow,
+                has_colon_follow,
+                has_top_level_parameter_colon: false,
+                is_empty: false,
+            });
+        }
+
+        // compute top-level separators and operators inside the group
+        let mut group_shape =
+            self.scan_parenthesized_group_shape(open_pos, close_pos, tracks_tuple_commas);
+
+        // compute follow token shape
+        group_shape.has_arrow_follow = has_arrow_follow;
+        group_shape.has_colon_follow = has_colon_follow;
 
         Ok(group_shape)
     }
@@ -70,18 +96,15 @@ impl Parser {
         &mut self,
         open_pos: u32,
         close_pos: u32,
+        tracks_tuple_commas: bool,
     ) -> ParenthesizedGroupShape {
         let mut shape = ParenthesizedGroupShape {
             has_top_level_comma: false,
             has_arrow_follow: false,
             has_colon_follow: false,
-            has_top_level_type_union_or_intersection: false,
             has_top_level_parameter_colon: false,
             is_empty: true,
         };
-        let mut paren_depth = 0u32;
-        let mut brace_depth = 0u32;
-        let mut bracket_depth = 0u32;
         let mut angle_depth = 0u32;
         let mut token_index = open_pos as usize + 1;
         let close_index = close_pos as usize;
@@ -98,33 +121,42 @@ impl Parser {
                 shape.is_empty = false;
             }
 
-            // track nested delimiters
+            let is_top_level = angle_depth == 0;
+
+            // skip nested delimiters using cached pair indexes
+            if is_top_level
+                && matches!(
+                    token_type,
+                    TokenType::OpenParenthesis | TokenType::OpenBrace | TokenType::OpenBracket
+                )
+                && let Some(close_index_for_token) = self.token_stream.matching_pair(token_index)
+                && close_index_for_token > token_index
+                && close_index_for_token < close_index
+            {
+                token_index = close_index_for_token + 1;
+                continue;
+            }
+
+            if is_top_level {
+                if tracks_tuple_commas && token_type == TokenType::Comma {
+                    shape.has_top_level_comma = true;
+                } else if token_type == TokenType::Colon {
+                    shape.has_top_level_parameter_colon = true;
+                }
+            }
+
+            // track top level angle depth for type parameter forms
             match token_type {
-                TokenType::OpenParenthesis => paren_depth += 1,
-                TokenType::CloseParenthesis => paren_depth = paren_depth.saturating_sub(1),
-                TokenType::OpenBrace => brace_depth += 1,
-                TokenType::CloseBrace => brace_depth = brace_depth.saturating_sub(1),
-                TokenType::OpenBracket => bracket_depth += 1,
-                TokenType::CloseBracket => bracket_depth = bracket_depth.saturating_sub(1),
                 TokenType::LessThan => angle_depth += 1,
                 TokenType::GreaterThan => angle_depth = angle_depth.saturating_sub(1),
                 TokenType::ShiftLeft | TokenType::SaturatingShiftLeft => angle_depth += 2,
                 _ => {}
             }
 
-            let is_top_level =
-                paren_depth == 0 && brace_depth == 0 && bracket_depth == 0 && angle_depth == 0;
-            if is_top_level {
-                if self.language.is_destack() && token_type == TokenType::Comma {
-                    shape.has_top_level_comma = true;
-                } else if token_type == TokenType::Colon {
-                    shape.has_top_level_parameter_colon = true;
-                } else if matches!(
-                    token_type,
-                    TokenType::ElementwiseOr | TokenType::ElementwiseAnd
-                ) {
-                    shape.has_top_level_type_union_or_intersection = true;
-                }
+            // in JS/TS typed lambda heads, once we see a top level parameter colon
+            // and know the group is non empty, the remaining scan cannot change lambda gating
+            if !tracks_tuple_commas && shape.has_top_level_parameter_colon && !shape.is_empty {
+                break;
             }
 
             token_index += 1;

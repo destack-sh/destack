@@ -95,12 +95,41 @@ impl Parser {
         false
     }
 
+    /// Return true when tokens can plausibly start a using declarator.
+    fn can_start_using_declarator(&mut self, asynchrony: Asynchrony) -> bool {
+        // resolve the using keyword index from the current position
+        let using_index = if asynchrony == Asynchrony::Async {
+            self.next_non_newline_index_from(self.pos_index() + 1)
+        } else {
+            self.pos_index()
+        };
+        if self.keyword_for_index(using_index) != Some(Keyword::Using) {
+            return false;
+        }
+
+        // using declarators start with a pattern like identifier, tuple, object, array
+        let declarator_index = self.next_non_newline_index_from(using_index + 1);
+        let declarator_token_type = self.token_type_at(declarator_index);
+        matches!(
+            declarator_token_type,
+            TokenType::Identifier
+                | TokenType::OpenParenthesis
+                | TokenType::OpenBrace
+                | TokenType::OpenBracket
+        )
+    }
+
     /// Check whether a using declaration can be parsed at the current position.
     pub(super) fn can_parse_using_declaration(
         &mut self,
         descriptor: &DeclarationDescriptor,
         asynchrony: Asynchrony,
     ) -> bool {
+        // reject impossible using starts without speculative parsing
+        if !self.can_start_using_declarator(asynchrony) {
+            return false;
+        }
+
         // speculatively parse a using declaration
         let speculative_start = self.mark();
         let speculative_start_idx = self.tree.next_id();

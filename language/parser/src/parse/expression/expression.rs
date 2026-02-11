@@ -189,6 +189,13 @@ impl Parser {
             }
         }
 
+        // fast path keyword led statements before descriptor parsing
+        if let Some(statement_keyword_expression_id) =
+            self.try_eat_statement_keyword_expression_fast(&start)?
+        {
+            return self.eat_expression_continuation(&start, statement_keyword_expression_id);
+        }
+
         //
         // ------------------------------------------------------------
         // Modifiers
@@ -224,21 +231,22 @@ impl Parser {
                     let is_declaration_start = DECLARATION_START_TOKENS.contains(&next_token_type);
                     let module_identifier_matches = !self.options.in_decorator
                         && !self.options.in_type
+                        && is_declaration_start
                         && self.language.supports_module_declaration()
                         && !self.has_active_split()
                         && self.identifier_equals_at(self.pos_index(), "module");
-                    let next_keyword = if next_token_type == TokenType::Identifier {
-                        self.keyword_for_index(self.index_for_next())
+                    let is_module_declaration_start = if module_identifier_matches {
+                        let is_module_name_start =
+                            matches!(next_token_type, TokenType::Identifier | TokenType::Literal);
+                        let next_keyword = if next_token_type == TokenType::Identifier {
+                            self.keyword_for_index(self.index_for_next())
+                        } else {
+                            None
+                        };
+                        is_module_name_start && !is_type_relation_keyword(next_keyword)
                     } else {
-                        None
+                        false
                     };
-                    let is_module_name_start =
-                        matches!(next_token_type, TokenType::Identifier | TokenType::Literal);
-                    let is_module_type_operator = is_type_relation_keyword(next_keyword);
-                    let is_module_declaration_start = module_identifier_matches
-                        && is_declaration_start
-                        && is_module_name_start
-                        && !is_module_type_operator;
                     let mut primary_expression_id = None;
 
                     // shorthand lambda function value
@@ -475,8 +483,6 @@ impl Parser {
                             has_top_level_comma,
                             has_arrow_follow,
                             has_colon_follow,
-                            has_top_level_type_union_or_intersection:
-                                _has_top_level_type_union_or_intersection,
                             has_top_level_parameter_colon,
                             is_empty: is_empty_parenthesized_group,
                         } = group_shape;
