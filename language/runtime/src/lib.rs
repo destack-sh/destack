@@ -9,6 +9,8 @@ pub mod diagnostic;
 #[cfg(not(feature = "generate_bindings"))]
 pub mod engine;
 #[cfg(not(feature = "generate_bindings"))]
+pub mod gc;
+#[cfg(not(feature = "generate_bindings"))]
 pub mod memory;
 #[cfg(not(feature = "generate_bindings"))]
 pub mod platform;

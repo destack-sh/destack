@@ -15,8 +15,9 @@ use crate::runtime::{RuntimeCallStringStore, RuntimeCallValueStore};
 use crate::scheduler::{MicrotaskId, Scheduler, TaskId};
 use crate::time::Clock;
 use destack_workspace::{
-    ExecutionMode as WorkspaceExecutionMode, PlatformOptions, PlatformWindowsOptions, RandomMode,
-    RandomOptions, ReplayLogOptions, ReplayPayloadMode, RuntimeOptions, TimeMode, TimeOptions,
+    ExecutionMode as WorkspaceExecutionMode, GcOptions, PlatformOptions, PlatformWindowsOptions,
+    RandomMode, RandomOptions, ReplayLogOptions, ReplayPayloadMode, RuntimeOptions, TimeMode,
+    TimeOptions,
 };
 
 /// Number of bytes in a megabyte for replay chunk sizing.
@@ -44,6 +45,8 @@ pub struct RuntimeState {
     pub time: Clock,
     /// Deterministic randomness streams.
     pub random: Random,
+    /// Runtime GC options for heap policy.
+    pub gc_options: GcOptions,
     /// External resource table and finalizers.
     pub resources: ResourceTable,
     /// Replay log and record/replay state.
@@ -187,6 +190,7 @@ impl RuntimeContext {
                 platform_options: options.platform.clone(),
                 time,
                 random,
+                gc_options: options.gc.clone(),
                 resources: ResourceTable::default(),
                 replay: ReplayController::new(execution_mode, replay_payload, header),
                 errors: RuntimeErrorStore::default(),
@@ -217,6 +221,11 @@ impl RuntimeContext {
     /// Return the runtime random source.
     pub fn random(&self) -> &Random {
         &self.state.random
+    }
+
+    /// Return the runtime GC options.
+    pub fn gc_options(&self) -> &GcOptions {
+        &self.state.gc_options
     }
 
     /// Return the resource table.
