@@ -252,13 +252,15 @@ impl RuntimeArgs {
         };
 
         Some(DsConfigRuntimeOptionsJson {
-            execution_mode: self.execution_mode.map(Into::into),
+            execution: self.execution_mode.map(Into::into),
+            world: None,
+            access: None,
+            rules: None,
             replay_log,
             time,
             random,
             scheduler,
             gc,
-            capabilities: None,
             platform: None,
         })
     }
