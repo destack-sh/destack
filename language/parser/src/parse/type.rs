@@ -1211,9 +1211,9 @@ impl Parser {
 mod tests {
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
     use destack_ast::{
-        Argument, BinaryOperator, BindingKind, BindingModifier, Declaration, Expression,
-        FunctionAbstraction, FunctionKind, FunctionMode, IntType, IntrinsicType, Key, Mutability,
-        Name, Parameter, Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral,
+        Argument, BinaryOperator, BindingKind, BindingModifier, BindingOperator, Declaration,
+        Expression, FunctionAbstraction, FunctionKind, FunctionMode, IntType, IntrinsicType, Key,
+        Mutability, Name, Parameter, Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral,
         TypeMappedModifiers, TypeModifier, TypePredicateSubject, TypeUnaryOperator, UnaryOperator,
     };
     use destack_source::LanguageType;
@@ -1320,6 +1320,36 @@ mod tests {
                 });
                 assert!(static_parameters.is_some());
                 assert_eq!(static_parameters.as_ref().unwrap().len(), 1);
+            });
+        });
+    }
+
+    /// Parse parenthesized multiline unions with a leading separator and comments.
+    #[test]
+    fn test_parse_type_alias_parenthesized_multiline_union_with_comment() {
+        let mut test = TestParser::new_with_options(
+            r#"type Schema = (
+  | // leading separator comment
+  {
+      anyOf: readonly string[]
+    }
+  | {
+      oneOf: readonly string[]
+    }
+)"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Type { descriptor, value, .. } => {
+                assert_string!(parser, descriptor.name.unwrap().string(), "Schema");
+                assert_node!(parser.tree, *value, Expression::Parenthesized { expression } => {
+                    assert_node!(parser.tree, *expression, Expression::Binary { operator, .. } => {
+                        assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                    });
+                });
             });
         });
     }
@@ -3518,6 +3548,98 @@ mod tests {
                         assert_eq!(signature.mode, Some(FunctionMode::Call));
                         assert_node!(parser.tree, signature.return_type.unwrap(), Expression::Path { path, .. } => {
                             assert_path!(parser, *path, "MyType");
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse generic call signatures with a const type parameter and conditional mapped bound.
+    #[test]
+    fn test_parse_type_literal_call_signature_with_const_parameter_conditional_bound() {
+        let mut test = TestParser::new_with_options(
+            r#"type T = {
+  <
+    Self extends Field<any> | Field.ValueAny,
+    const Mapping extends (Self extends Field<infer S> ? { readonly [K in keyof S]?: (variant: S[K]) => Field.ValueAny } : { readonly [K in Variants[number]]?: (variant: Self) => Field.ValueAny })
+  >(f: Mapping): Self
+}"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::ObjectExpression { properties, .. } => {
+                    assert_eq!(properties.len(), 1);
+                    assert_node!(parser.tree, properties[0], Property::Method { key, signature, body, .. } => {
+                        assert!(key.is_none());
+                        assert!(body.is_none());
+                        assert_eq!(signature.mode, Some(FunctionMode::Call));
+
+                        let generics = signature.generics.as_ref().expect("expected generics");
+                        let static_parameters = generics.static_parameters.as_ref().expect("expected static parameters");
+                        assert_eq!(static_parameters.len(), 2);
+
+                        // Self extends Field<any> | Field.ValueAny
+                        assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, ty: Some(ty), .. } => {
+                            assert_string!(parser, *name, "Self");
+                            assert_node!(parser.tree, *ty, Expression::Binary { operator, .. } => {
+                                assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                            });
+                        });
+
+                        // const Mapping extends (...)
+                        assert_node!(parser.tree, static_parameters[1], Parameter::Named { modifiers: Some(modifiers), name, ty: Some(ty), .. } => {
+                            assert_string!(parser, *name, "Mapping");
+                            assert_eq!(modifiers.operator, Some(BindingOperator::AsConst));
+                            assert_node!(parser.tree, *ty, Expression::Parenthesized { expression } => {
+                                assert_node!(parser.tree, *expression, Expression::TypeConditional { .. });
+                            });
+                        });
+
+                        // (f: Mapping): Self
+                        assert_eq!(signature.dynamic_parameters.len(), 1);
+                        assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty: Some(ty), .. } => {
+                            assert_string!(parser, *name, "f");
+                            assert_expression_path!(parser, parser.tree.get(*ty), "Mapping");
+                        });
+                        assert_expression_path!(parser, parser.tree.get(signature.return_type.expect("expected return type")), "Self");
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse const type parameters when `extends` starts on the next line.
+    #[test]
+    fn test_parse_type_literal_call_signature_const_parameter_newline_extends() {
+        let mut test = TestParser::new_with_options(
+            r#"type T = {
+  <
+    const Mapping
+      extends string
+  >(value: Mapping): Mapping
+}"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::ObjectExpression { properties, .. } => {
+                    assert_eq!(properties.len(), 1);
+                    assert_node!(parser.tree, properties[0], Property::Method { signature, .. } => {
+                        let generics = signature.generics.as_ref().expect("expected generics");
+                        let static_parameters = generics.static_parameters.as_ref().expect("expected static parameters");
+                        assert_eq!(static_parameters.len(), 1);
+                        assert_node!(parser.tree, static_parameters[0], Parameter::Named { modifiers: Some(modifiers), name, ty: Some(ty), .. } => {
+                            assert_string!(parser, *name, "Mapping");
+                            assert_eq!(modifiers.operator, Some(BindingOperator::AsConst));
+                            assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::String));
                         });
                     });
                 });

@@ -121,6 +121,7 @@ impl Parser {
         let _timing = self.timing_scope(tags::PARSE_LET);
         // kind and mutability
         let (kind, mutability) = self.eat_let_kind()?;
+        self.eat_newlines_maybe()?;
 
         // parse declarators (comma-separated list)
         let mut declarators = Vec::new();
@@ -345,6 +346,7 @@ impl Parser {
     /// Return true when the current token can terminate a declaration statement.
     fn declarator_has_statement_boundary(&mut self) -> bool {
         self.is_statement_stop()
+            || self.has_line_terminator_before_current_token()
             || self.peek_is(TokenType::CloseBrace)
             || self.peek_is(TokenType::CloseParenthesis)
     }
@@ -376,8 +378,8 @@ impl Parser {
 mod tests {
     use destack_ast::{
         Argument, Asynchrony, BinaryOperator, Declaration, DeclarationDescriptor, Declarator,
-        Expression, FunctionKind, IntType, Key, Mutability, Name, Parameter, Pattern, PatternField,
-        Property, ScalarLiteral, TypeLiteral,
+        Expression, FunctionKind, IntType, Key, LetKind, Mutability, Name, Parameter, Pattern,
+        PatternField, Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral,
     };
     use destack_source::LanguageType;
 
@@ -840,6 +842,71 @@ const registry: Map<
                 });
                 assert!(ty.is_some());
                 assert!(value.is_some());
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_const_declarators_with_newline_after_keyword_javascript() {
+        let mut test = TestParser::new_with_options(
+            r#"const
+  first = 1,
+  second = 2"#,
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+        let start = parser.mark();
+        let let_id = parser
+            .eat_let(&start, DeclarationDescriptor::default())
+            .unwrap();
+
+        // parse two declarators split across newlines after const
+        assert_node!(parser.tree, let_id, Expression::Let { kind, mutability, declarators, .. } => {
+            assert_eq!(*kind, LetKind::Const);
+            assert_eq!(*mutability, Mutability::Immutable);
+            assert_eq!(declarators.len(), 2);
+
+            // first declarator name
+            assert_node!(parser.tree, declarators[0], Declarator { pattern, .. } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                    assert_string!(parser, *name, "first");
+                });
+            });
+
+            // second declarator name
+            assert_node!(parser.tree, declarators[1], Declarator { pattern, .. } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                    assert_string!(parser, *name, "second");
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_const_declarator_boundary_with_line_terminator_trivia_typescript() {
+        let mut test = TestParser::new_with_options(
+            r#"const result = CreateRecord(IntegerKey, value) /*
+*/ return result as never"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let start = parser.mark();
+        let let_id = parser
+            .eat_let(&start, DeclarationDescriptor::default())
+            .unwrap();
+
+        // const declarator stops before return after line terminator trivia
+        assert_node!(parser.tree, let_id, Expression::Let { kind, declarators, .. } => {
+            assert_eq!(*kind, LetKind::Const);
+            assert_eq!(declarators.len(), 1);
+        });
+
+        // return expression is parsed separately as a cast
+        let return_id = parser.eat_return().unwrap();
+        assert_node!(parser.tree, return_id, Expression::Return { value } => {
+            let value = value.expect("expected return value");
+            assert_node!(parser.tree, value, Expression::TypeBinary { operator, .. } => {
+                assert_eq!(*operator, TypeBinaryOperator::Cast);
             });
         });
     }

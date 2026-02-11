@@ -32,9 +32,10 @@ impl Parser {
         }
 
         // otherwise, eat a single statement and wrap it in a block
-        let expression_id = self.with_options(self.options.in_statement_position(), |parser| {
-            parser.eat_expression()
-        })?;
+        let expression_id = self
+            .with_options(self.options.nested().in_statement_position(), |parser| {
+                parser.eat_expression()
+            })?;
 
         // reject declaration statements in single statement contexts
         if !self.language.is_destack() && self.is_single_statement_declaration(expression_id) {
@@ -214,7 +215,7 @@ impl Parser {
         &mut self,
     ) -> ParseResult<(LocalNodeId<Expression>, bool)> {
         let start = self.mark();
-        match self.with_options(self.options.in_statement_position(), |parser| {
+        match self.with_options(self.options.nested().in_statement_position(), |parser| {
             parser.eat_expression()
         }) {
             Ok(expression_id) => {
@@ -532,7 +533,7 @@ impl Parser {
     }
 
     /// Return true when trivia before the current token contains a line terminator.
-    fn has_line_terminator_before_current_token(&mut self) -> bool {
+    pub(crate) fn has_line_terminator_before_current_token(&mut self) -> bool {
         // find neighboring semantic tokens around the current parse position
         let current_index = self.pos_index();
         if current_index == 0 {
@@ -607,8 +608,13 @@ impl Parser {
     pub fn eat_return(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Return)?;
+
         // value
-        let value_id = if self.peek().is_ok() && !self.is_statement_stop() {
+        let value_id = if self.peek().is_ok()
+            && !self.is_statement_stop()
+            && !self.has_line_terminator_before_current_token()
+            && !self.peek_is(TokenType::CloseBrace)
+        {
             let value_id = self
                 .with_options(self.options.not_in_position(), |parser| {
                     parser.eat_expression()
@@ -629,7 +635,9 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{Expression, ScalarLiteral, TokenType, YieldCardinality};
+    use destack_ast::{
+        Expression, IfKind, LetKind, ScalarLiteral, TokenType, TypeBinaryOperator, YieldCardinality,
+    };
     use destack_source::LanguageType;
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
@@ -1084,5 +1092,76 @@ mod tests {
             assert!(value.is_some());
             assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(42)));
         });
+    }
+
+    #[test]
+    fn test_parse_block_const_then_return_cast_typescript() {
+        let mut test = TestParser::new_with_options(
+            "{\n  const result = CreateRecord(IntegerKey, value)\n  return result as never\n}",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let block_id = parser.eat_block().unwrap();
+        let block = parser.tree.get(block_id);
+        assert_eq!(block.expressions.len(), 2);
+
+        let let_expression_id = match parser.tree.get(block.expressions[0]) {
+            Expression::Statement(expression_id) => *expression_id,
+            _ => block.expressions[0],
+        };
+        assert_node!(parser.tree, let_expression_id, Expression::Let { kind, declarators, .. } => {
+            assert_eq!(*kind, LetKind::Const);
+            assert_eq!(declarators.len(), 1);
+        });
+
+        assert_node!(parser.tree, block.expressions[1], Expression::Return { value } => {
+            let value = value.expect("expected return value");
+            assert_node!(parser.tree, value, Expression::TypeBinary { operator, .. } => {
+                assert_eq!(*operator, TypeBinaryOperator::Cast);
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_return_ternary_with_newline_before_question() {
+        let mut test = TestParser::new_with_options(
+            "return Result.IsExtendsTrueLike(check)\n  ? TryInferResults(tail, right, [...result, head])\n  : undefined",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let return_id = parser.eat_return().unwrap();
+
+        assert_node!(parser.tree, return_id, Expression::Return { value } => {
+            let value = value.expect("expected return value");
+            assert_node!(parser.tree, value, Expression::If { kind, .. } => {
+                assert_eq!(*kind, IfKind::Ternary);
+            });
+        });
+    }
+
+    #[test]
+    fn test_return_no_value_before_close_brace() {
+        let mut test = TestParser::new("return }");
+        let mut parser = test.prepare();
+        let return_id = parser.eat_return().unwrap();
+
+        assert_node!(parser.tree, return_id, Expression::Return { value } => {
+            assert!(value.is_none());
+        });
+        assert!(parser.peek_is(TokenType::CloseBrace));
+    }
+
+    /// `return/*\n*/value` should omit the operand due to line terminator trivia.
+    #[test]
+    fn test_return_asi_with_block_comment_newline_js_mode() {
+        let mut test = TestParser::new_with_options("return/*\n*/value", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let return_id = parser.eat_return().unwrap();
+
+        assert_node!(parser.tree, return_id, Expression::Return { value } => {
+            assert!(value.is_none());
+        });
+        let value_id = parser.eat_expression().unwrap();
+        assert_expression_path!(parser, parser.tree.get(value_id), "value");
     }
 }

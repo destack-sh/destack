@@ -170,10 +170,15 @@ impl Parser {
         // dynamic parameters
         let dynamic_parameters = {
             // regular `(...) => ...` function/lambda
-            if kind == FunctionKind::Function
+            let has_parenthesized_parameters = kind == FunctionKind::Function
                 || self.options.in_type
                 || self.peek_is(TokenType::OpenParenthesis)
-            {
+                || self
+                    .peek_token_after_newlines(self.pos(), TokenType::OpenParenthesis)
+                    .is_ok();
+            if has_parenthesized_parameters {
+                // allow line breaks before the parameter list
+                self.eat_newlines_maybe()?;
                 self.eat_token(TokenType::OpenParenthesis)?;
                 self.eat_newlines_maybe()?;
 
@@ -245,12 +250,22 @@ impl Parser {
             // regular function with return type or lambda type
             else if kind == FunctionKind::Function || self.options.in_type {
                 // return type
-                let (return_type, return_type_span) = if self.peek_arrow().is_ok()
+                let has_return_type_marker = self.peek_arrow().is_ok()
                     || self.peek_colon().is_ok()
-                {
+                    || self.peek_is(TokenType::Newline)
+                        && (self
+                            .peek_token_after_newlines(self.pos(), TokenType::Arrow)
+                            .is_ok()
+                            || self
+                                .peek_token_after_newlines(self.pos(), TokenType::Colon)
+                                .is_ok());
+                let (return_type, return_type_span) = if has_return_type_marker {
                     let type_start = self.mark();
+                    self.eat_newlines_maybe()?;
                     self.bump(); // eat arrow or colon
                     self.eat_newlines_maybe()?;
+
+                    // return type
                     let mut return_type_options = self.options.nested().in_type().in_before_block();
                     if self.options.in_type_conditional_right {
                         return_type_options = return_type_options.in_type_conditional_right();
@@ -419,12 +434,10 @@ impl Parser {
         }
 
         self.peek_arrow().is_ok()
-            || self
-                .peek_token_after_newlines(self.pos(), TokenType::Arrow)
-                .is_ok()
-            || self
-                .peek_token_after_newlines(self.pos(), TokenType::ArrowWide)
-                .is_ok()
+            || self.peek_is(TokenType::Newline)
+                && self
+                    .peek_token_after_newlines(self.pos(), TokenType::Arrow)
+                    .is_ok()
     }
 }
 
@@ -730,6 +743,87 @@ function compute<Validate: boolean, Precision: uint8>(data: uint8[]) {
     }
 
     #[test]
+    fn test_parse_function_with_newline_between_generics_and_parameters() {
+        let mut test = TestParser::new(
+            r"
+function h<T>
+    (tag: T): T;
+            ",
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let start = parser.mark();
+        let function_id = parser
+            .eat_function(&start, DeclarationDescriptor::default(), false, false)
+            .unwrap();
+        assert_node!(parser.tree, function_id, Declaration::Function { descriptor, signature, body } => {
+            // function name
+            assert_string!(parser, descriptor.name.unwrap().string(), "h");
+
+            // static parameter T
+            let static_parameters = signature
+                .generics
+                .as_ref()
+                .and_then(|generics| generics.static_parameters.as_ref())
+                .expect("expected static parameters");
+            assert_eq!(static_parameters.len(), 1);
+            assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, ty, .. } => {
+                assert_string!(parser, *name, "T");
+                assert!(ty.is_none());
+            });
+
+            // dynamic parameter tag: T
+            assert_eq!(signature.dynamic_parameters.len(), 1);
+            assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+                assert_string!(parser, *name, "tag");
+                assert_node!(parser.tree, ty.unwrap(), Expression::Path { path, static_arguments: None } => {
+                    assert_path!(parser, *path, "T");
+                });
+            });
+
+            // return type T
+            assert_node!(parser.tree, signature.return_type.unwrap(), Expression::Path { path, static_arguments: None } => {
+                assert_path!(parser, *path, "T");
+            });
+
+            // declaration signature has no body
+            assert!(body.is_none());
+        });
+    }
+
+    #[test]
+    fn test_parse_function_with_newline_before_return_type_colon_typescript() {
+        let mut test = TestParser::new_with_options(
+            r#"function f<T>(value: T)
+  : T {
+  return value as never
+}"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let start = parser.mark();
+        let function_id = parser
+            .eat_function(&start, DeclarationDescriptor::default(), false, false)
+            .unwrap();
+
+        assert_node!(parser.tree, function_id, Declaration::Function { signature, body, .. } => {
+            let return_type = signature.return_type.expect("expected return type");
+            assert_expression_path!(parser, parser.tree.get(return_type), "T");
+
+            let body_id = body.expect("expected function body");
+            assert_node!(parser.tree, body_id, Expression::Block(block_id) => {
+                let block = parser.tree.get(*block_id);
+                assert_eq!(block.expressions.len(), 1);
+                assert_node!(parser.tree, block.expressions[0], Expression::Return { value } => {
+                    let value = value.expect("expected return value");
+                    assert_node!(parser.tree, value, Expression::TypeBinary { .. });
+                });
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_function_with_variance_parameters() {
         let mut test = TestParser::new(
             r"
@@ -856,7 +950,7 @@ function invariant<in out T>(value: T): T {
     fn test_parse_function_with_async_generator() {
         let mut test = TestParser::new(
             r#"
-async function* foo() => int32 { 
+async function* foo() => int32 {
     yield 1
     yield 2
     yield 3
@@ -1138,6 +1232,49 @@ function onResolve(
             });
             // void
             assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Void));
+        });
+    }
+
+    #[test]
+    fn test_parse_lambda_return_type_with_optional_parameter_function_type() {
+        let mut test = TestParser::new_with_options(
+            "(runtime, effect, options: Runtime.RunCallbackOptions<any, any> = {}): (fiberId?: FiberId.FiberId, options?: Runtime.RunCallbackOptions<any, any> | undefined) => void => 0",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body: Some(body), .. } => {
+                assert_eq!(signature.kind, FunctionKind::Lambda);
+                assert_eq!(signature.dynamic_parameters.len(), 3);
+
+                // (fiberId?: FiberId.FiberId, options?: Runtime.RunCallbackOptions<any, any> | undefined) => void
+                assert_node!(parser.tree, signature.return_type.unwrap(), Expression::Declaration(return_declaration_id) => {
+                    assert_node!(parser.tree, *return_declaration_id, Declaration::Function { signature, body: None, .. } => {
+                        assert_eq!(signature.kind, FunctionKind::Lambda);
+                        assert_eq!(signature.dynamic_parameters.len(), 2);
+
+                        // fiberId?: FiberId.FiberId
+                        assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+                            assert_string!(parser, *name, "fiberId");
+                            assert_expression_path!(parser, parser.tree.get(ty.unwrap()), "FiberId.FiberId");
+                        });
+
+                        // options?: Runtime.RunCallbackOptions<any, any> | undefined
+                        assert_node!(parser.tree, signature.dynamic_parameters[1], Parameter::Named { name, ty, .. } => {
+                            assert_string!(parser, *name, "options");
+                            assert_node!(parser.tree, ty.unwrap(), Expression::Binary { operator, .. } => {
+                                assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                            });
+                        });
+
+                        assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Void));
+                    });
+                });
+
+                assert_node!(parser.tree, *body, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+            });
         });
     }
 

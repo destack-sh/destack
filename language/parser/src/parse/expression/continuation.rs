@@ -770,10 +770,9 @@ impl Parser {
         left_expression_id: LocalNodeId<Expression>,
         has_indirect_static: bool,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+        // speculative boundary for optional chaining style static arguments
         let speculative_start = self.mark();
         let speculative_start_idx = self.tree.next_id();
-        let speculative_error_count = self.errors.len();
-        let speculative_diagnostic_count = self.diagnostics.len();
 
         let position = if has_indirect_static {
             self.bump(); // eat .
@@ -782,18 +781,15 @@ impl Parser {
             PostfixPosition::Direct
         };
 
-        let static_arguments = match self.eat_static_arguments() {
-            Ok(static_arguments) => static_arguments,
-            Err(_) => {
-                self.restore_speculative_expression_parse(
-                    speculative_start,
-                    speculative_start_idx,
-                    speculative_error_count,
-                    speculative_diagnostic_count,
-                );
-                return Ok(None);
-            }
-        };
+        // parse `<...>` with regular speculative follow validation
+        let static_arguments =
+            match self.eat_static_arguments_with_follow_maybe(false, false, false) {
+                Some(static_arguments) => static_arguments,
+                None => {
+                    self.restore(speculative_start, speculative_start_idx);
+                    return Ok(None);
+                }
+            };
 
         // call with static arguments
         if self.peek_is(TokenType::OpenParenthesis) {
@@ -814,25 +810,8 @@ impl Parser {
             return Ok(Some(expression_id));
         }
 
-        self.restore_speculative_expression_parse(
-            speculative_start,
-            speculative_start_idx,
-            speculative_error_count,
-            speculative_diagnostic_count,
-        );
-        Ok(None)
-    }
-
-    /// Restore parser and diagnostics after speculative postfix static parsing.
-    fn restore_speculative_expression_parse(
-        &mut self,
-        speculative_start: ParserMark,
-        speculative_start_idx: u32,
-        speculative_error_count: usize,
-        speculative_diagnostic_count: usize,
-    ) {
+        // rollback when follow token cannot continue an expression
         self.restore(speculative_start, speculative_start_idx);
-        self.errors.truncate(speculative_error_count);
-        self.diagnostics.truncate(speculative_diagnostic_count);
+        Ok(None)
     }
 }
