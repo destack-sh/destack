@@ -8,7 +8,7 @@ use destack_ast::{
 
 impl Parser {
     /// Parse expression continuation operators after a primary expression.
-    pub(super) fn eat_expression_continuation(
+    pub(crate) fn eat_expression_continuation(
         &mut self,
         start: &ParserMark,
         mut left_expression_id: LocalNodeId<Expression>,

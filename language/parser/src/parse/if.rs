@@ -25,7 +25,7 @@ impl Parser {
         }
 
         let expression_id = self.with_options(self.options.in_before_block(), |parser| {
-            parser.eat_expression()
+            parser.eat_statement_expression_in_current_options()
         })?;
 
         // reject declaration statements in single statement contexts

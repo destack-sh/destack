@@ -7,6 +7,21 @@ use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser};
 
 impl Parser {
+    /// Eat one statement expression in the current parser options.
+    pub(crate) fn eat_statement_expression_in_current_options(
+        &mut self,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        let start = self.mark_span();
+
+        // fast path: parse keyword led statements without generic expression dispatch
+        if let Some(expression_id) = self.try_eat_statement_keyword_expression_fast(&start)? {
+            return self.eat_expression_continuation(&start, expression_id);
+        }
+
+        // fallback: parse through the full expression parser
+        self.eat_expression()
+    }
+
     /// Eat a block or a single statement wrapped in a block.
     pub fn eat_block_or_statement(&mut self) -> ParseResult<LocalNodeId<Block>> {
         self.eat_newlines_maybe()?;
@@ -32,10 +47,10 @@ impl Parser {
         }
 
         // otherwise, eat a single statement and wrap it in a block
-        let expression_id = self
-            .with_options(self.options.nested().in_statement_position(), |parser| {
-                parser.eat_expression()
-            })?;
+        let expression_id = self.with_options(
+            self.options.nested().in_statement_position(),
+            |parser| parser.eat_statement_expression_in_current_options(),
+        )?;
 
         // reject declaration statements in single statement contexts
         if !self.language.is_destack() && self.is_single_statement_declaration(expression_id) {
@@ -147,63 +162,70 @@ impl Parser {
     ) -> ParseResult<Vec<LocalNodeId<Expression>>> {
         let _timing = self.timing_scope(tags::PARSE_BLOCK_BODY);
 
-        // parse expressions into statements with one item lookahead
-        let mut statements: Vec<LocalNodeId<Expression>> = Vec::new();
-        let mut pending_expression: Option<(LocalNodeId<Expression>, bool)> = None;
-        while self.has_more_tokens() {
-            let next_token = self.peek_token_type();
-            // stop at block terminators
-            // NOTE #Cleanup: recover block parse more explicitly?
-            if next_token == TokenType::End
-                || (next_token == TokenType::CloseBrace && format != BlockFormat::Implicit)
-            {
-                break;
-            }
-            // consume any expression stops (semicolon or newline)
-            else if next_token == TokenType::Newline || next_token == TokenType::Semicolon {
-                self.bump(); // eat semicolon or newline
-                self.eat_newlines_maybe()?;
-            }
-            // consume decorator prefixes
-            else if next_token == TokenType::At {
-                self.eat_decorators_prefix_maybe()?;
-                continue;
-            }
-            // eat expressions
-            else {
-                let (expression_id, is_statement) = self
-                    .try_eat_statement_expression_with_flag()
+        // keep statement options for the whole body to avoid per statement option churn
+        self.with_options(self.options.nested().in_statement_position(), |parser| {
+            // parse expressions into statements with one item lookahead
+            let mut statements: Vec<LocalNodeId<Expression>> = Vec::new();
+            let mut pending_expression: Option<(LocalNodeId<Expression>, bool)> = None;
+            while parser.has_more_tokens() {
+                let next_token = parser.peek_token_type();
+
+                // stop at block terminators
+                // NOTE #Cleanup: recover block parse more explicitly?
+                if next_token == TokenType::End
+                    || (next_token == TokenType::CloseBrace && format != BlockFormat::Implicit)
+                {
+                    break;
+                }
+
+                // consume any expression stops: semicolon or newline
+                if next_token == TokenType::Newline || next_token == TokenType::Semicolon {
+                    parser.bump(); // eat semicolon or newline
+                    parser.eat_newlines_maybe()?;
+                    continue;
+                }
+
+                // consume decorator prefixes
+                if next_token == TokenType::At {
+                    parser.eat_decorators_prefix_maybe()?;
+                    continue;
+                }
+
+                // parse the next expression
+                let (expression_id, is_statement) = parser
+                    .try_eat_statement_expression_with_flag_in_statement_position()
                     .for_node_type(NodeType::Expression)?;
                 if let Some((pending_id, pending_is_statement)) = pending_expression {
                     if pending_is_statement {
                         statements.push(pending_id);
                     } else {
-                        let statement_id = self.tree.insert(
+                        let statement_id = parser.tree.insert(
                             Expression::Statement(pending_id),
-                            self.tree.get_span(pending_id),
+                            parser.tree.get_span(pending_id),
                         );
                         statements.push(statement_id);
                     }
                 }
                 pending_expression = Some((expression_id, is_statement));
             }
-        }
 
-        // finalize the last pending expression
-        if let Some((expression_id, is_statement)) = pending_expression {
-            if is_statement {
-                statements.push(expression_id);
-            } else if format == BlockFormat::Implicit {
-                let statement_id = self.tree.insert(
-                    Expression::Statement(expression_id),
-                    self.tree.get_span(expression_id),
-                );
-                statements.push(statement_id);
-            } else {
-                statements.push(expression_id);
+            // finalize the last pending expression
+            if let Some((expression_id, is_statement)) = pending_expression {
+                if is_statement {
+                    statements.push(expression_id);
+                } else if format == BlockFormat::Implicit {
+                    let statement_id = parser.tree.insert(
+                        Expression::Statement(expression_id),
+                        parser.tree.get_span(expression_id),
+                    );
+                    statements.push(statement_id);
+                } else {
+                    statements.push(expression_id);
+                }
             }
-        }
-        Ok(statements)
+
+            Ok(statements)
+        })
     }
 
     /// Try to eat a statement expression (return Expression::Error if error and recovery is possible).
@@ -211,36 +233,21 @@ impl Parser {
     pub fn try_eat_statement_expression_with_flag(
         &mut self,
     ) -> ParseResult<(LocalNodeId<Expression>, bool)> {
-        let start = self.mark_span();
-        match self.with_options(self.options.nested().in_statement_position(), |parser| {
-            parser.eat_expression()
-        }) {
-            Ok(expression_id) => {
-                if self.peek_token_type() == TokenType::Semicolon {
-                    self.bump(); // eat semicolon
-                    let expression_id = self.tree.insert(
-                        Expression::Statement(expression_id),
-                        self.get_span_from(&start),
-                    );
-                    Ok((expression_id, true))
-                } else {
-                    let expression = self.tree.get(expression_id);
-                    let is_statement = matches!(expression, Expression::Statement(_))
-                        || expression.is_top_level_statement();
-                    let has_separator = matches!(
-                        self.peek_token_type(),
-                        TokenType::Newline
-                            | TokenType::Semicolon
-                            | TokenType::CloseBrace
-                            | TokenType::End
-                    ) || self.has_line_terminator_before_current_token();
+        self.with_options(self.options.nested().in_statement_position(), |parser| {
+            parser.try_eat_statement_expression_with_flag_in_statement_position()
+        })
+    }
 
-                    // require statement separators after expressions to avoid token glue
-                    if !is_statement && !has_separator {
-                        return Err(ParseError::unexpected(self.peek()?.span));
-                    }
-                    Ok((expression_id, is_statement))
-                }
+    /// Try to eat a statement expression while already in statement position.
+    /// Returns whether the expression should be treated as a statement.
+    fn try_eat_statement_expression_with_flag_in_statement_position(
+        &mut self,
+    ) -> ParseResult<(LocalNodeId<Expression>, bool)> {
+        let start = self.mark_span();
+
+        match self.eat_statement_expression_in_current_options() {
+            Ok(expression_id) => {
+                self.finalize_statement_expression_with_flag(&start, expression_id)
             }
             Err(err) => {
                 let err = err.for_node_type(NodeType::Expression);
@@ -253,6 +260,39 @@ impl Parser {
                 Ok((error_id, true))
             }
         }
+    }
+
+    /// Finalize statement parsing with separator checks and statement coercion.
+    fn finalize_statement_expression_with_flag(
+        &mut self,
+        start: &ParserMark,
+        expression_id: LocalNodeId<Expression>,
+    ) -> ParseResult<(LocalNodeId<Expression>, bool)> {
+        // semicolon terminated expressions always become statement expressions
+        if self.peek_token_type() == TokenType::Semicolon {
+            self.bump(); // eat semicolon
+            let expression_id = self.tree.insert(
+                Expression::Statement(expression_id),
+                self.get_span_from(start),
+            );
+            return Ok((expression_id, true));
+        }
+
+        // detect expression kinds that are already statements
+        let expression = self.tree.get(expression_id);
+        let is_statement =
+            matches!(expression, Expression::Statement(_)) || expression.is_top_level_statement();
+        let has_separator = matches!(
+            self.peek_token_type(),
+            TokenType::Newline | TokenType::Semicolon | TokenType::CloseBrace | TokenType::End
+        ) || self.has_line_terminator_before_current_token();
+
+        // require statement separators after expressions to avoid token glue
+        if !is_statement && !has_separator {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
+
+        Ok((expression_id, is_statement))
     }
 
     /// Try to eat a statement expression (return Expression::Error if error and recovery is possible).

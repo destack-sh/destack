@@ -1,6 +1,7 @@
+use std::str::FromStr;
 use std::sync::Arc;
 
-use destack_ast::{TokenSpan, TokenType};
+use destack_ast::{Keyword, TokenSpan, TokenType};
 use destack_source::{File, LanguageType, Span};
 
 use super::lex::is_semantic;
@@ -42,6 +43,8 @@ pub struct TokenStream {
     next_non_newline: Vec<u32>,
     /// The cached matching pair indexes for delimiters.
     matching_pairs: Vec<u32>,
+    /// Cached keyword values for identifier tokens.
+    token_keywords: Vec<Option<Keyword>>,
     /// Cached line terminator presence before semantic token indexes.
     line_terminators_before: Vec<bool>,
     /// The first token index that still needs a next non newline update.
@@ -78,6 +81,7 @@ impl TokenStream {
             side_tokens,
             next_non_newline: Vec::new(),
             matching_pairs: Vec::new(),
+            token_keywords: Vec::new(),
             line_terminators_before: Vec::new(),
             pending_non_newline_start: 0,
             paren_stack: Vec::new(),
@@ -184,6 +188,7 @@ impl TokenStream {
 
         self.tokens.truncate(tokens_len);
         self.lexer.tokens.truncate(tokens_len);
+        self.token_keywords.truncate(tokens_len);
         self.line_terminators_before.truncate(tokens_len);
 
         // restore next non newline cache and mutable tail cursor
@@ -272,6 +277,7 @@ impl TokenStream {
         // reset caches and stacks for any follow-up access
         self.next_non_newline.clear();
         self.matching_pairs.clear();
+        self.token_keywords.clear();
         self.line_terminators_before.clear();
         self.pending_non_newline_start = 0;
         self.paren_stack.clear();
@@ -290,6 +296,13 @@ impl TokenStream {
             .get(index)
             .copied()
             .unwrap_or(false)
+    }
+
+    /// Return the keyword for a semantic token index.
+    #[inline]
+    pub fn keyword_at(&mut self, index: usize) -> Option<Keyword> {
+        self.ensure_token(index);
+        self.token_keywords.get(index).copied().flatten()
     }
 
     /// Look up the next non-newline token index from a start index.
@@ -376,6 +389,11 @@ impl TokenStream {
     /// Push a semantic token and update indexes.
     fn push_semantic_token(&mut self, token_span: TokenSpan) {
         let has_line_terminator_before = self.pending_line_terminator_before_next;
+        let keyword = if token_span.token.ty == TokenType::Identifier {
+            Keyword::from_str(self.lexer.get_span_str(token_span.span)).ok()
+        } else {
+            None
+        };
 
         // add token and cache slots
         let token_index = self.tokens.len();
@@ -383,6 +401,7 @@ impl TokenStream {
         self.lexer.tokens.push(token_span);
         self.next_non_newline.push(u32::MAX);
         self.matching_pairs.push(u32::MAX);
+        self.token_keywords.push(keyword);
         self.line_terminators_before
             .push(has_line_terminator_before);
         self.pending_line_terminator_before_next = false;

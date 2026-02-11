@@ -1,7 +1,6 @@
 use core::fmt;
 use std::fmt::Debug;
 use std::rc::Rc;
-use std::str::FromStr;
 use std::sync::Arc;
 
 use crate::{TokenStream, TokenStreamMark, is_semantic};
@@ -567,10 +566,6 @@ pub struct Parser {
     pub(crate) annotation_line_indices: Vec<u32>,
     /// Optional parser timing collector.
     pub(crate) timings: Option<Rc<ParserTimings>>,
-    /// Cached keyword lookup for identifier tokens.
-    pub(crate) token_keywords: Vec<Option<Keyword>>,
-    /// Cached-state bits for keyword lookup entries.
-    pub(crate) token_keywords_cached: Vec<bool>,
     /// Cached identifier lookup for identifier tokens.
     pub(crate) token_identifiers: Vec<Option<StringId>>,
     /// Cached-state bits for identifier lookup entries.
@@ -629,8 +624,6 @@ impl Parser {
             annotation_tokens: Vec::with_capacity(token_capacity),
             annotation_line_indices: Vec::with_capacity(token_capacity),
             timings: timings_enabled_from_env().then(|| Rc::new(ParserTimings::default())),
-            token_keywords: Vec::with_capacity(estimated_tokens),
-            token_keywords_cached: Vec::with_capacity(estimated_tokens),
             token_identifiers: Vec::with_capacity(estimated_tokens),
             token_identifiers_cached: Vec::with_capacity(estimated_tokens),
             global_identifier,
@@ -795,8 +788,6 @@ impl Parser {
     /// Truncate token caches to match the current token count.
     fn truncate_token_caches(&mut self) {
         let len = self.tokens().len();
-        self.token_keywords.truncate(len);
-        self.token_keywords_cached.truncate(len);
         self.token_identifiers.truncate(len);
         self.token_identifiers_cached.truncate(len);
     }
@@ -816,26 +807,7 @@ impl Parser {
     /// Look up a keyword at a token index.
     #[inline]
     pub(crate) fn keyword_for_index(&mut self, index: usize) -> Option<Keyword> {
-        self.token_stream.ensure_token(index);
-
-        if self.token_keywords.len() <= index {
-            self.token_keywords.resize(index + 1, None);
-            self.token_keywords_cached.resize(index + 1, false);
-        }
-
-        if self.token_keywords_cached[index] {
-            return self.token_keywords[index];
-        }
-
-        let token = self.tokens().get(index)?;
-        let keyword = if token.token.ty == TokenType::Identifier {
-            Keyword::from_str(self.get_span_str(token.span)).ok()
-        } else {
-            None
-        };
-        self.token_keywords[index] = keyword;
-        self.token_keywords_cached[index] = true;
-        keyword
+        self.token_stream.keyword_at(index)
     }
 
     /// Look up a pre-interned identifier at a token index.
@@ -1056,11 +1028,15 @@ impl Parser {
     /// Gets a mark of the current position.
     #[inline]
     pub fn mark(&self) -> ParserMark {
+        // only snapshot token stream internals when tree literal lexing can affect lookahead
+        let should_snapshot_token_stream =
+            self.token_stream.allow_tree_literals() && !self.options.in_type;
+        let token_stream_mark = should_snapshot_token_stream.then(|| self.token_stream.mark());
         ParserMark::new(
             self.pos,
             self.split_token,
             self.split_token_consumed,
-            self.token_stream.mark(),
+            token_stream_mark,
             self.errors.len(),
             self.diagnostics.len(),
         )
@@ -1824,7 +1800,7 @@ impl ParserMark {
         pos: usize,
         split_token: Option<TokenSpan>,
         split_token_consumed: bool,
-        token_stream_mark: TokenStreamMark,
+        token_stream_mark: Option<TokenStreamMark>,
         error_count: usize,
         diagnostic_count: usize,
     ) -> Self {
@@ -1832,7 +1808,7 @@ impl ParserMark {
             pos,
             split_token,
             split_token_consumed,
-            token_stream_mark: Some(token_stream_mark),
+            token_stream_mark,
             error_count: Some(error_count),
             diagnostic_count: Some(diagnostic_count),
             span_override: None,
