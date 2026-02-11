@@ -5,7 +5,7 @@ mod declaration;
 mod expression;
 mod identifier;
 mod keyword;
-mod lookahead;
+pub(crate) mod lookahead;
 mod member;
 mod operator;
 mod tree;
