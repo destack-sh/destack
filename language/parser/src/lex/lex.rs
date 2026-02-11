@@ -1552,17 +1552,14 @@ impl Lexer {
                 self.eat();
                 true
             }
-            // \0 through \7 are legacy octal in JS/TS
+            // legacy octal escapes are invalid without a following digit
             '0'..='7' => {
                 self.eat();
-                if self.language.is_javascript() || self.language.is_typescript() {
-                    if escaped != '0' {
-                        return true;
-                    }
-
-                    if self.peek().is_ascii_digit() {
-                        return true;
-                    }
+                if escaped != '0' {
+                    return true;
+                }
+                if self.peek().is_ascii_digit() {
+                    return true;
                 }
                 false
             }

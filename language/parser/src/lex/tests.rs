@@ -34,6 +34,43 @@ fn lex_source_tokens(input: &str, language: LanguageType) -> (Vec<Token>, Vec<To
     (semantic_tokens, side_tokens)
 }
 
+fn assert_single_string_literal_token(
+    input: &str,
+    language: LanguageType,
+    has_invalid_escape: bool,
+) {
+    let (semantic_tokens, side_tokens) = lex_source_tokens(input, language);
+
+    assert_eq!(
+        semantic_tokens,
+        vec![
+            Token::new(
+                TokenType::Literal,
+                input.len() as u32,
+                Some(LiteralType::String {
+                    is_terminated: true,
+                    has_invalid_escape,
+                }),
+            ),
+            Token::end(),
+        ],
+    );
+
+    assert_eq!(side_tokens, vec![]);
+}
+
+fn assert_legacy_string_escape_is_invalid_across_languages(input: &str) {
+    for language in [
+        LanguageType::default(),
+        LanguageType::TypeScript,
+        LanguageType::TypeScriptXml,
+        LanguageType::JavaScript,
+        LanguageType::JavaScriptXml,
+    ] {
+        assert_single_string_literal_token(input, language, true);
+    }
+}
+
 fn lex_source_with_tree_literals(
     input: &str,
     language: LanguageType,
@@ -2230,7 +2267,7 @@ fn test_lex_unterminated_single_quote_octal_escape() {
                 4,
                 Some(LiteralType::String {
                     is_terminated: false,
-                    has_invalid_escape: false,
+                    has_invalid_escape: true,
                 }),
             ),
             Token::end(),
@@ -2301,27 +2338,13 @@ fn test_lex_double_quote_with_newline_is_unterminated() {
 /// Legacy escaped digits in strings are invalid across language modes.
 #[test]
 fn test_lex_string_with_legacy_escaped_digit_is_invalid_across_languages() {
-    let expected_tokens = vec![
-        Token::new(
-            TokenType::Literal,
-            16,
-            Some(LiteralType::String {
-                is_terminated: true,
-                has_invalid_escape: true,
-            }),
-        ),
-        Token::end(),
-    ];
+    assert_legacy_string_escape_is_invalid_across_languages("\"+4\\9 99 999 99\"");
+}
 
-    for language in [
-        LanguageType::default(),
-        LanguageType::TypeScript,
-        LanguageType::JavaScript,
-    ] {
-        let (semantic_tokens, side_tokens) = lex_source_tokens("\"+4\\9 99 999 99\"", language);
-        assert_eq!(side_tokens, vec![]);
-        assert_eq!(semantic_tokens, expected_tokens);
-    }
+/// Legacy octal escapes in strings are invalid across language modes.
+#[test]
+fn test_lex_string_with_legacy_octal_escape_is_invalid_across_languages() {
+    assert_legacy_string_escape_is_invalid_across_languages("\"+5\\5 (99) 99999-9999\"");
 }
 
 /// Unterminated single quote in parentheses should not hang.
