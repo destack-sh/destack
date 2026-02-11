@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use destack_compiler::{Compiler, LowerTask, OptimizeTask};
-use destack_heap::GcOptions as HeapGcOptions;
 use destack_runtime::engine::VmEntry;
 use destack_runtime::platform::{
     BindingPolicy, ExecutionMode as RuntimeExecutionMode, PlatformContext,
@@ -10,8 +9,8 @@ use destack_runtime::runtime::{Runtime, RuntimeContext};
 use destack_source::ModuleId;
 use destack_vm::{ExecutionMode, Isolate, IsolateOptions, TrustPolicy as VmTrustPolicy, Value};
 use destack_workspace::{
-    DebugMode, DsConfigRuntimeOptionsJson, ExecutionMode as TargetExecutionMode, Program,
-    RuntimeOptions, Target, TargetId, TrustPolicy,
+    DebugMode, DsConfigRuntimeOptionsJson, GcOptions, Program, RuntimeOptions, Target, TargetId,
+    TrustPolicy,
 };
 use serde::{Deserialize, Serialize};
 
@@ -228,8 +227,8 @@ fn run_entry_module(
     let platform = PlatformContext::new(process_args);
     let runtime_context = RuntimeContext::new(platform);
     let mut runtime = Runtime::new(runtime_context);
-    let (gc_enabled, gc_options) = gc_options_for_runtime(&target.runtime_options);
-    runtime.heap.configure_gc(gc_enabled, gc_options);
+    let gc_options = gc_options_for_runtime(&target.runtime_options);
+    runtime.heap.configure_gc(gc_options);
     runtime
         .bindings
         .set_policy(binding_policy_for_target(&target));
@@ -269,22 +268,8 @@ fn process_args_for_source(source: &CommandInput, args: &[String]) -> Vec<String
 }
 
 /// Derive heap GC options from runtime configuration.
-fn gc_options_for_runtime(options: &RuntimeOptions) -> (bool, HeapGcOptions) {
-    let gc = &options.gc;
-    let mut heap_options = HeapGcOptions::default();
-
-    // apply pacing overrides
-    heap_options.heap_growth_percent = gc.heap_growth_percent as u64;
-
-    // apply memory limit overrides
-    if let Some(max_bytes) = gc.heap_soft_limit_bytes {
-        heap_options.max_heap_bytes = Some(max_bytes);
-    }
-    if let Some(min_bytes) = gc.heap_initial_bytes {
-        heap_options.min_heap_bytes = min_bytes;
-    }
-
-    (gc.enabled, heap_options)
+fn gc_options_for_runtime(options: &RuntimeOptions) -> GcOptions {
+    options.gc.clone()
 }
 
 /// Get a display name for the entry source.
@@ -421,12 +406,7 @@ fn isolate_options_for_target(target: &Target) -> IsolateOptions {
 
 /// Create binding policy from target configuration.
 fn binding_policy_for_target(target: &Target) -> BindingPolicy {
-    let mode = match target.runtime_options.execution_mode {
-        TargetExecutionMode::Fast => RuntimeExecutionMode::Fast,
-        TargetExecutionMode::Deterministic => RuntimeExecutionMode::Deterministic,
-        TargetExecutionMode::Record => RuntimeExecutionMode::Record,
-        TargetExecutionMode::Replay => RuntimeExecutionMode::Replay,
-    };
+    let mode: RuntimeExecutionMode = target.runtime_options.execution.into();
 
     BindingPolicy::new(mode)
 }

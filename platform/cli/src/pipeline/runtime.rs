@@ -1,9 +1,7 @@
 use destack_runtime::platform::{BindingPolicy, ExecutionMode as RuntimeExecutionMode};
 use destack_source::ModuleId;
 use destack_vm::{ExecutionMode, Isolate, IsolateOptions, TrustPolicy as VmTrustPolicy, Value};
-use destack_workspace::{
-    DebugMode, ExecutionMode as TargetExecutionMode, Program, Target, TargetId, TrustPolicy,
-};
+use destack_workspace::{DebugMode, Program, Target, TargetId, TrustPolicy};
 
 use crate::common::InputSource;
 use crate::error::{CliError, CliResult};
@@ -36,12 +34,7 @@ pub fn isolate_options_for_target(target: &Target) -> IsolateOptions {
 /// Create binding policy from target configuration.
 pub fn binding_policy_for_target(target: &Target) -> BindingPolicy {
     // map execution mode into runtime binding settings
-    let mode = match target.runtime_options.execution_mode {
-        TargetExecutionMode::Fast => RuntimeExecutionMode::Fast,
-        TargetExecutionMode::Deterministic => RuntimeExecutionMode::Deterministic,
-        TargetExecutionMode::Record => RuntimeExecutionMode::Record,
-        TargetExecutionMode::Replay => RuntimeExecutionMode::Replay,
-    };
+    let mode: RuntimeExecutionMode = target.runtime_options.execution.into();
 
     // build the policy object
     BindingPolicy::new(mode)
