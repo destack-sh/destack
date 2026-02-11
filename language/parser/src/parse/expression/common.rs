@@ -5,32 +5,6 @@ use destack_ast::{
     LocalNodeId, TokenType,
 };
 
-pub static DECLARATION_KEYWORDS: [Keyword; 23] = [
-    Keyword::Declare,
-    Keyword::Abstract,
-    Keyword::Namespace,
-    Keyword::Struct,
-    Keyword::Class,
-    Keyword::Enum,
-    Keyword::Union,
-    Keyword::Function,
-    Keyword::Extension,
-    Keyword::Interface,
-    Keyword::Type,
-    Keyword::Newtype,
-    Keyword::Const,
-    Keyword::Readonly,
-    Keyword::Let,
-    Keyword::Var,
-    Keyword::Using,
-    Keyword::Override,
-    Keyword::Readonly,
-    Keyword::Public,
-    Keyword::Protected,
-    Keyword::Private,
-    Keyword::Async,
-];
-
 pub static DECLARATION_START_TOKENS: [TokenType; 6] = [
     TokenType::Literal,
     TokenType::Identifier,
@@ -105,6 +79,36 @@ pub(super) fn is_type_relation_keyword(keyword: Option<Keyword>) -> bool {
                 | Keyword::InstanceOf
                 | Keyword::Is
         )
+    )
+}
+
+/// Return true when a keyword starts a declaration.
+#[inline]
+pub(super) fn is_declaration_keyword(keyword: Keyword) -> bool {
+    matches!(
+        keyword,
+        Keyword::Declare
+            | Keyword::Abstract
+            | Keyword::Namespace
+            | Keyword::Struct
+            | Keyword::Class
+            | Keyword::Enum
+            | Keyword::Union
+            | Keyword::Function
+            | Keyword::Extension
+            | Keyword::Interface
+            | Keyword::Type
+            | Keyword::Newtype
+            | Keyword::Const
+            | Keyword::Readonly
+            | Keyword::Let
+            | Keyword::Var
+            | Keyword::Using
+            | Keyword::Override
+            | Keyword::Public
+            | Keyword::Protected
+            | Keyword::Private
+            | Keyword::Async
     )
 }
 

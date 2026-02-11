@@ -25,6 +25,8 @@ pub struct TokenStreamMark {
     pub(super) brace_stack: Vec<usize>,
     /// The open bracket stack at mark time.
     pub(super) bracket_stack: Vec<usize>,
+    /// Whether side trivia since the last semantic token had a line terminator.
+    pub(super) pending_line_terminator_before_next: bool,
 }
 
 /// Lazy token stream that drives the lexer on demand.
@@ -40,6 +42,8 @@ pub struct TokenStream {
     next_non_newline: Vec<u32>,
     /// The cached matching pair indexes for delimiters.
     matching_pairs: Vec<u32>,
+    /// Cached line terminator presence before semantic token indexes.
+    line_terminators_before: Vec<bool>,
     /// The first token index that still needs a next non newline update.
     pending_non_newline_start: usize,
     /// The stack of open parenthesis token indexes.
@@ -48,6 +52,8 @@ pub struct TokenStream {
     brace_stack: Vec<usize>,
     /// The stack of open bracket token indexes.
     bracket_stack: Vec<usize>,
+    /// Whether side trivia since the previous semantic token had a line terminator.
+    pending_line_terminator_before_next: bool,
     /// Whether EOF has been reached.
     is_finished: bool,
     /// The cached EOF token, when available.
@@ -72,10 +78,12 @@ impl TokenStream {
             side_tokens,
             next_non_newline: Vec::new(),
             matching_pairs: Vec::new(),
+            line_terminators_before: Vec::new(),
             pending_non_newline_start: 0,
             paren_stack: Vec::new(),
             brace_stack: Vec::new(),
             bracket_stack: Vec::new(),
+            pending_line_terminator_before_next: false,
             is_finished: false,
             eof_token: None,
         }
@@ -141,6 +149,7 @@ impl TokenStream {
             paren_stack: self.paren_stack.clone(),
             brace_stack: self.brace_stack.clone(),
             bracket_stack: self.bracket_stack.clone(),
+            pending_line_terminator_before_next: self.pending_line_terminator_before_next,
         }
     }
 
@@ -155,6 +164,7 @@ impl TokenStream {
             paren_stack,
             brace_stack,
             bracket_stack,
+            pending_line_terminator_before_next,
         } = mark;
 
         // restore lexer state and truncate token buffers
@@ -165,6 +175,7 @@ impl TokenStream {
             self.side_tokens.truncate(side_tokens_len);
             self.lexer.side_tokens.truncate(side_tokens_len);
         }
+        self.pending_line_terminator_before_next = pending_line_terminator_before_next;
 
         // fast path: no semantic token changes, caches are still valid
         if !semantic_tokens_changed {
@@ -173,6 +184,7 @@ impl TokenStream {
 
         self.tokens.truncate(tokens_len);
         self.lexer.tokens.truncate(tokens_len);
+        self.line_terminators_before.truncate(tokens_len);
 
         // restore next non newline cache and mutable tail cursor
         self.next_non_newline.truncate(tokens_len);
@@ -260,12 +272,24 @@ impl TokenStream {
         // reset caches and stacks for any follow-up access
         self.next_non_newline.clear();
         self.matching_pairs.clear();
+        self.line_terminators_before.clear();
         self.pending_non_newline_start = 0;
         self.paren_stack.clear();
         self.brace_stack.clear();
         self.bracket_stack.clear();
+        self.pending_line_terminator_before_next = false;
 
         (tokens, side_tokens)
+    }
+
+    /// Return whether trivia before a semantic token index had a line terminator.
+    #[inline]
+    pub fn line_terminator_before(&mut self, index: usize) -> bool {
+        self.ensure_token(index);
+        self.line_terminators_before
+            .get(index)
+            .copied()
+            .unwrap_or(false)
     }
 
     /// Look up the next non-newline token index from a start index.
@@ -337,6 +361,9 @@ impl TokenStream {
         } else {
             self.side_tokens.push(token_span);
             self.lexer.side_tokens.push(token_span);
+            if self.side_token_has_line_terminator(token_span) {
+                self.pending_line_terminator_before_next = true;
+            }
         }
 
         // track EOF state
@@ -348,12 +375,17 @@ impl TokenStream {
 
     /// Push a semantic token and update indexes.
     fn push_semantic_token(&mut self, token_span: TokenSpan) {
+        let has_line_terminator_before = self.pending_line_terminator_before_next;
+
         // add token and cache slots
         let token_index = self.tokens.len();
         self.tokens.push(token_span);
         self.lexer.tokens.push(token_span);
         self.next_non_newline.push(u32::MAX);
         self.matching_pairs.push(u32::MAX);
+        self.line_terminators_before
+            .push(has_line_terminator_before);
+        self.pending_line_terminator_before_next = false;
 
         // update lexer context for regex and tree rules
         self.lexer.track_semantic_token(token_span);
@@ -394,4 +426,42 @@ impl TokenStream {
             self.next_non_newline[token_index] = (token_index + 1) as u32;
         }
     }
+
+    /// Return whether a side token contributes a line terminator.
+    #[inline]
+    fn side_token_has_line_terminator(&self, token_span: TokenSpan) -> bool {
+        match token_span.token.ty {
+            TokenType::Newline => true,
+            TokenType::Whitespace
+            | TokenType::LineComment
+            | TokenType::BlockComment
+            | TokenType::DocLineComment
+            | TokenType::DocBlockComment => {
+                let token_str = self.lexer.get_span_str(token_span.span);
+                trivia_has_line_terminator(token_str)
+            }
+            _ => false,
+        }
+    }
+}
+
+/// Return whether a trivia slice contains a line terminator.
+#[inline]
+fn trivia_has_line_terminator(trivia: &str) -> bool {
+    let bytes = trivia.as_bytes();
+    let mut index = 0usize;
+    while index < bytes.len() {
+        let current = bytes[index];
+        if current == b'\n' || current == b'\r' {
+            return true;
+        }
+        if current == 0xE2 && index + 2 < bytes.len() && bytes[index + 1] == 0x80 {
+            let third = bytes[index + 2];
+            if third == 0xA8 || third == 0xA9 {
+                return true;
+            }
+        }
+        index += 1;
+    }
+    false
 }

@@ -10,7 +10,7 @@ mod member;
 mod operator;
 mod tree;
 
-pub use common::{DECLARATION_KEYWORDS, DECLARATION_START_TOKENS, PATTERN_START_TOKENS};
+pub use common::{DECLARATION_START_TOKENS, PATTERN_START_TOKENS};
 
 #[cfg(test)]
 mod tests;

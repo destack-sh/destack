@@ -8,11 +8,22 @@ use destack_ast::{
     TokenType, TypeUnaryOperator, UnaryOperator,
 };
 
+/// The recursion interval for stack growth checks in expression parsing.
+const STACK_GROW_CHECK_INTERVAL: u32 = 16;
+
 impl Parser {
     pub fn eat_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let _timing = self.timing_scope(tags::PARSE_EXPRESSION);
-
-        destack_base::ensure_sufficient_stack(|| self.eat_expression_inner())
+        let depth = self.expression_stack_depth;
+        self.expression_stack_depth = depth.saturating_add(1);
+        let should_check_stack = depth % STACK_GROW_CHECK_INTERVAL == 0;
+        let result = if should_check_stack {
+            destack_base::ensure_sufficient_stack(|| self.eat_expression_inner())
+        } else {
+            self.eat_expression_inner()
+        };
+        self.expression_stack_depth = depth;
+        result
     }
 
     /// Try to eat an expression and recover to an error node.
@@ -214,6 +225,7 @@ impl Parser {
                     let module_identifier_matches = !self.options.in_decorator
                         && !self.options.in_type
                         && self.language.supports_module_declaration()
+                        && !self.has_active_split()
                         && self.identifier_equals_at(self.pos_index(), "module");
                     let next_keyword = if next_token_type == TokenType::Identifier {
                         self.keyword_for_index(self.index_for_next())
@@ -256,153 +268,14 @@ impl Parser {
                     let is_type_unary_keyword =
                         matches!(keyword, Some(Keyword::Typeof | Keyword::Keyof));
 
-                    // fast path for non-keyword identifiers
+                    // fast path for plain identifiers
                     if primary_expression_id.is_none()
                         && keyword.is_none()
                         && !has_active_split
                         && !self.options.in_decorator
+                        && !is_module_declaration_start
                     {
-                        // prefer module declarations when the identifier matches the module root
-                        if is_module_declaration_start {
-                            let namespace_id = self.eat_namespace(&start, descriptor.clone())?;
-                            primary_expression_id = Some(self.tree.insert(
-                                Expression::Declaration(namespace_id),
-                                self.get_span_from(&start),
-                            ));
-                        } else {
-                            // prefer contextual type literals when in type or static positions
-                            let should_try_type_literal = self.should_try_contextual_type_literal();
-                            if should_try_type_literal
-                                && let Ok(type_literal) = self.peek_type_literal()
-                            {
-                                let _literal_timing =
-                                    self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_LITERAL);
-                                let type_literal = self.eat_type_literal(Some(type_literal))?;
-                                primary_expression_id = Some(self.tree.insert(
-                                    Expression::TypeLiteral(type_literal),
-                                    self.get_span_from(&start),
-                                ));
-                            } else {
-                                // fall back to an identifier path
-                                primary_expression_id =
-                                    Some(self.eat_identifier_expression_path(&start)?);
-                            }
-                        }
-                    }
-
-                    // unary prefix operations
-                    if primary_expression_id.is_none() && is_unary_keyword && !self.options.in_type
-                    {
-                        let operator = match keyword {
-                            Some(Keyword::Typeof) => UnaryOperator::Typeof,
-                            Some(Keyword::Void) => UnaryOperator::Void,
-                            _ => unreachable!(),
-                        };
-                        let operator_start = self.mark_span();
-                        self.bump(); // eat unary operator (always because right associative)
-                        let operator_span = self.get_span_from(&operator_start);
-                        let mut right_options = self
-                            .options
-                            .not_in_position()
-                            .in_left_precedence(operator.precedence());
-                        if self.options.in_type_conditional_right {
-                            right_options = right_options.in_type_conditional_right();
-                        }
-                        let right =
-                            self.with_options(right_options, |parser| parser.eat_expression())?;
-
-                        // unparenthesized arrow functions are not unary operands
-                        if self.is_unparenthesized_lambda_expression(right) {
-                            return Err(ParseError::unexpected(self.tree.get_span(right)));
-                        }
-
-                        let expression = Expression::Unary { operator, right };
-                        let expression_id =
-                            self.tree.insert(expression, self.get_span_from(&start));
-                        self.tree.set_main_span(expression_id, operator_span);
-                        primary_expression_id = Some(expression_id);
-                    }
-
-                    // type unary operations
-                    if primary_expression_id.is_none() && is_type_unary_keyword {
-                        let operator = match keyword {
-                            Some(Keyword::Typeof) => TypeUnaryOperator::Typeof,
-                            Some(Keyword::Keyof) => TypeUnaryOperator::Keyof,
-                            _ => unreachable!(),
-                        };
-                        let operator_start = self.mark_span();
-                        self.bump(); // eat type unary operator (always because right associative)
-                        let operator_span = self.get_span_from(&operator_start);
-                        let mut right_options = self
-                            .options
-                            .not_in_position()
-                            .in_type()
-                            .in_left_precedence(operator.precedence());
-
-                        // parse typeof targets with contextual keyword tolerance
-                        if operator == TypeUnaryOperator::Typeof {
-                            right_options = right_options.in_typeof_query();
-                        }
-
-                        if self.options.in_type_conditional_right {
-                            right_options = right_options.in_type_conditional_right();
-                        }
-                        let right =
-                            self.with_options(right_options, |parser| parser.eat_expression())?;
-                        let expression = Expression::TypeUnary { operator, right };
-                        let expression_id =
-                            self.tree.insert(expression, self.get_span_from(&start));
-                        self.tree.set_main_span(expression_id, operator_span);
-                        primary_expression_id = Some(expression_id);
-                    }
-
-                    // do block expression or do-while block
-                    if primary_expression_id.is_none() && keyword == Some(Keyword::Do) {
-                        if self.is_do_while_statement(next_token_type) {
-                            primary_expression_id = Some(self.eat_while()?);
-                        } else if next_token_type == TokenType::OpenBrace {
-                            let block_id = self.eat_block()?;
-                            primary_expression_id =
-                                Some(self.tree.insert(
-                                    Expression::Block(block_id),
-                                    self.get_span_from(&start),
-                                ));
-                        }
-                    }
-
-                    // keyword or contextual module declaration
-                    if primary_expression_id.is_none()
-                        && keyword.is_none()
-                        && is_module_declaration_start
-                    {
-                        // parse contextual module declarations after other identifier paths
-                        let namespace_id = self.eat_namespace(&start, descriptor.clone())?;
-                        primary_expression_id = Some(self.tree.insert(
-                            Expression::Declaration(namespace_id),
-                            self.get_span_from(&start),
-                        ));
-                    }
-
-                    if primary_expression_id.is_none()
-                        && let Some(keyword) = keyword
-                    {
-                        // parse keyword expressions and declaration starters
-                        let _keyword_timing =
-                            self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_KEYWORD);
-                        if let Some(keyword_expression_id) = self.eat_keyword_expression(
-                            &start,
-                            descriptor.clone(),
-                            keyword,
-                            next_token_type,
-                            is_declaration_start,
-                        )? {
-                            primary_expression_id = Some(keyword_expression_id);
-                        }
-                    }
-
-                    // type literal
-                    if primary_expression_id.is_none() {
-                        // late fallback for contextual type literals
+                        // prefer contextual type literals when in type or static positions
                         let should_try_type_literal = self.should_try_contextual_type_literal();
                         if should_try_type_literal
                             && let Ok(type_literal) = self.peek_type_literal()
@@ -414,6 +287,138 @@ impl Parser {
                                 Expression::TypeLiteral(type_literal),
                                 self.get_span_from(&start),
                             ));
+                        } else {
+                            // fall back to an identifier path
+                            primary_expression_id =
+                                Some(self.eat_identifier_expression_path(&start)?);
+                        }
+                    }
+
+                    // keyword-specific expression parsing
+                    if primary_expression_id.is_none() {
+                        // unary prefix operations
+                        if is_unary_keyword && !self.options.in_type {
+                            let operator = match keyword {
+                                Some(Keyword::Typeof) => UnaryOperator::Typeof,
+                                Some(Keyword::Void) => UnaryOperator::Void,
+                                _ => unreachable!(),
+                            };
+                            let operator_start = self.mark_span();
+                            self.bump(); // eat unary operator (always because right associative)
+                            let operator_span = self.get_span_from(&operator_start);
+                            let mut right_options = self
+                                .options
+                                .not_in_position()
+                                .in_left_precedence(operator.precedence());
+                            if self.options.in_type_conditional_right {
+                                right_options = right_options.in_type_conditional_right();
+                            }
+                            let right =
+                                self.with_options(right_options, |parser| parser.eat_expression())?;
+
+                            // unparenthesized arrow functions are not unary operands
+                            if self.is_unparenthesized_lambda_expression(right) {
+                                return Err(ParseError::unexpected(self.tree.get_span(right)));
+                            }
+
+                            let expression = Expression::Unary { operator, right };
+                            let expression_id =
+                                self.tree.insert(expression, self.get_span_from(&start));
+                            self.tree.set_main_span(expression_id, operator_span);
+                            primary_expression_id = Some(expression_id);
+                        }
+
+                        // type unary operations
+                        if primary_expression_id.is_none() && is_type_unary_keyword {
+                            let operator = match keyword {
+                                Some(Keyword::Typeof) => TypeUnaryOperator::Typeof,
+                                Some(Keyword::Keyof) => TypeUnaryOperator::Keyof,
+                                _ => unreachable!(),
+                            };
+                            let operator_start = self.mark_span();
+                            self.bump(); // eat type unary operator (always because right associative)
+                            let operator_span = self.get_span_from(&operator_start);
+                            let mut right_options = self
+                                .options
+                                .not_in_position()
+                                .in_type()
+                                .in_left_precedence(operator.precedence());
+
+                            // parse typeof targets with contextual keyword tolerance
+                            if operator == TypeUnaryOperator::Typeof {
+                                right_options = right_options.in_typeof_query();
+                            }
+
+                            if self.options.in_type_conditional_right {
+                                right_options = right_options.in_type_conditional_right();
+                            }
+                            let right =
+                                self.with_options(right_options, |parser| parser.eat_expression())?;
+                            let expression = Expression::TypeUnary { operator, right };
+                            let expression_id =
+                                self.tree.insert(expression, self.get_span_from(&start));
+                            self.tree.set_main_span(expression_id, operator_span);
+                            primary_expression_id = Some(expression_id);
+                        }
+
+                        // do block expression or do-while block
+                        if primary_expression_id.is_none() && keyword == Some(Keyword::Do) {
+                            if self.is_do_while_statement(next_token_type) {
+                                primary_expression_id = Some(self.eat_while()?);
+                            } else if next_token_type == TokenType::OpenBrace {
+                                let block_id = self.eat_block()?;
+                                primary_expression_id = Some(self.tree.insert(
+                                    Expression::Block(block_id),
+                                    self.get_span_from(&start),
+                                ));
+                            }
+                        }
+
+                        // keyword or contextual module declaration
+                        if primary_expression_id.is_none()
+                            && keyword.is_none()
+                            && is_module_declaration_start
+                        {
+                            // parse contextual module declarations after other identifier paths
+                            let namespace_id = self.eat_namespace(&start, descriptor.clone())?;
+                            primary_expression_id = Some(self.tree.insert(
+                                Expression::Declaration(namespace_id),
+                                self.get_span_from(&start),
+                            ));
+                        }
+
+                        if primary_expression_id.is_none()
+                            && let Some(keyword) = keyword
+                        {
+                            // parse keyword expressions and declaration starters
+                            let _keyword_timing =
+                                self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_KEYWORD);
+                            if let Some(keyword_expression_id) = self.eat_keyword_expression(
+                                &start,
+                                descriptor.clone(),
+                                keyword,
+                                next_token_type,
+                                is_declaration_start,
+                            )? {
+                                primary_expression_id = Some(keyword_expression_id);
+                            }
+                        }
+
+                        // type literal
+                        if primary_expression_id.is_none() {
+                            // late fallback for contextual type literals
+                            let should_try_type_literal = self.should_try_contextual_type_literal();
+                            if should_try_type_literal
+                                && let Ok(type_literal) = self.peek_type_literal()
+                            {
+                                let _literal_timing =
+                                    self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_LITERAL);
+                                let type_literal = self.eat_type_literal(Some(type_literal))?;
+                                primary_expression_id = Some(self.tree.insert(
+                                    Expression::TypeLiteral(type_literal),
+                                    self.get_span_from(&start),
+                                ));
+                            }
                         }
                     }
 
