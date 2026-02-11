@@ -1,7 +1,9 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::ExpressionDuplicateTracker;
+use crate::rules::common::{
+    ExpressionDuplicateTracker, match_case_selector, match_selector_expression_id,
+};
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -46,22 +48,8 @@ impl LintRule for NoDuplicateCase {
             let mut seen = ExpressionDuplicateTracker::new();
             for case_id in cases {
                 let case = ctx.tree.get(*case_id);
-                let selector = match case {
-                    ast::MatchCase::Expression { selector, .. } => selector,
-                    ast::MatchCase::Block { selector, .. } => selector,
-                };
-
-                // skip default cases
-                let ast::MatchSelector::Pattern {
-                    pattern: pattern_id,
-                    ..
-                } = selector
-                else {
-                    continue;
-                };
-
-                let pattern = ctx.tree.get(*pattern_id);
-                let Some(expr_id) = pattern_to_expression(pattern) else {
+                let selector = match_case_selector(case);
+                let Some(expr_id) = match_selector_expression_id(ctx, selector) else {
                     continue;
                 };
 
@@ -93,14 +81,6 @@ impl LintRule for NoDuplicateCase {
                 }
             }
         }
-    }
-}
-
-/// Extract the expression from a pattern if it's an expression pattern.
-fn pattern_to_expression(pattern: &ast::Pattern) -> Option<ast::LocalNodeId<ast::Expression>> {
-    match pattern {
-        ast::Pattern::Expression { value } => Some(*value),
-        _ => None,
     }
 }
 

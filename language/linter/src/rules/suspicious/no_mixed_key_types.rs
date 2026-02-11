@@ -2,8 +2,8 @@ use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    expression_declared_or_inferred_type_id, is_numeric_property_key_type,
-    is_string_like_property_key_type, is_symbol_like_property_key_type,
+    expression_type_map, is_numeric_property_key_type, is_string_like_property_key_type,
+    is_symbol_like_property_key_type,
 };
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -183,20 +183,47 @@ fn key_expression_kind(
     }
 
     // symbol-like primitive key types
-    let type_id = expression_declared_or_inferred_type_id(
+    // resolve and classify the expression type through shared DIR lookup
+    if expression_type_map(
+        &ctx.program,
+        ctx.profile_id,
         ctx.module_id(),
         ctx.tree,
+        ctx.symbols,
         ctx.types,
         expression_id,
+        is_symbol_like_property_key_type,
     )
-    .or_else(|| ctx.expression_type_id(expression_id))?;
-    if is_symbol_like_property_key_type(ctx.types, type_id) {
+    .unwrap_or(false)
+    {
         return Some(ObjectKeyKind::SymbolLike);
     }
-    if is_numeric_property_key_type(ctx.types, type_id) {
+    if expression_type_map(
+        &ctx.program,
+        ctx.profile_id,
+        ctx.module_id(),
+        ctx.tree,
+        ctx.symbols,
+        ctx.types,
+        expression_id,
+        is_numeric_property_key_type,
+    )
+    .unwrap_or(false)
+    {
         return Some(ObjectKeyKind::Numeric);
     }
-    if is_string_like_property_key_type(ctx.types, type_id) {
+    if expression_type_map(
+        &ctx.program,
+        ctx.profile_id,
+        ctx.module_id(),
+        ctx.tree,
+        ctx.symbols,
+        ctx.types,
+        expression_id,
+        is_string_like_property_key_type,
+    )
+    .unwrap_or(false)
+    {
         return Some(ObjectKeyKind::StringLike);
     }
 

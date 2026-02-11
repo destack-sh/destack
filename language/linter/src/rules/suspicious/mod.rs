@@ -19,6 +19,7 @@ mod no_identical_branches;
 mod no_incomplete_range;
 mod no_inner_declarations;
 mod no_large_try_block;
+mod no_loop_func;
 mod no_misleading_character_class;
 mod no_mixed_key_types;
 mod no_negation_in_equality_check;
@@ -67,6 +68,7 @@ pub use no_identical_branches::*;
 pub use no_incomplete_range::*;
 pub use no_inner_declarations::*;
 pub use no_large_try_block::*;
+pub use no_loop_func::*;
 pub use no_misleading_character_class::*;
 pub use no_mixed_key_types::*;
 pub use no_negation_in_equality_check::*;
@@ -116,6 +118,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoIncompleteRange),
         boxed(NoInnerDeclarations),
         boxed(NoLargeTryBlock),
+        boxed(NoLoopFunc),
         boxed(NoMisleadingCharacterClass),
         boxed(NoMixedKeyTypes),
         boxed(NoNegationInEqualityCheck),

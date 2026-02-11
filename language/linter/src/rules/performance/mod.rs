@@ -7,6 +7,7 @@ mod no_json_clone;
 mod no_nested_array_includes;
 mod no_object_spread_in_reduce;
 mod no_regex_in_loop;
+mod no_sequential_independent_await;
 mod no_string_concat_in_loop;
 mod no_super_linear_regex;
 mod prefer_array_every;
@@ -28,6 +29,7 @@ pub use no_json_clone::*;
 pub use no_nested_array_includes::*;
 pub use no_object_spread_in_reduce::*;
 pub use no_regex_in_loop::*;
+pub use no_sequential_independent_await::*;
 pub use no_string_concat_in_loop::*;
 pub use no_super_linear_regex::*;
 pub use prefer_array_every::*;
@@ -50,6 +52,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoNestedArrayIncludes),
         boxed(NoObjectSpreadInReduce),
         boxed(NoRegexInLoop),
+        boxed(NoSequentialIndependentAwait),
         boxed(NoStringConcatInLoop),
         boxed(NoSuperLinearRegex),
         boxed(PreferArrayEvery),

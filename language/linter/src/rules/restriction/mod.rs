@@ -15,6 +15,7 @@ mod no_exceptions;
 mod no_explicit_any;
 mod no_implicit_return;
 mod no_labels;
+mod no_layer_violation;
 mod no_magic_numbers;
 mod no_namespace;
 mod no_non_null_assertion;
@@ -50,6 +51,7 @@ pub use no_exceptions::*;
 pub use no_explicit_any::*;
 pub use no_implicit_return::*;
 pub use no_labels::*;
+pub use no_layer_violation::*;
 pub use no_magic_numbers::*;
 pub use no_namespace::*;
 pub use no_non_null_assertion::*;
@@ -88,6 +90,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         Box::new(NoExceptions),
         Box::new(NoImplicitReturn),
         Box::new(NoLabels),
+        Box::new(NoLayerViolation),
         Box::new(NoMagicNumbers),
         Box::new(NoNamespace),
         Box::new(NoNonNullAssertion),

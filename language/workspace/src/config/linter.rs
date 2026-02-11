@@ -1,6 +1,8 @@
 use indexmap::IndexMap;
 use serde::Deserialize;
 
+use crate::{DiagnosticPolicy, DiagnosticPolicyJson};
+
 /// Lint rule categories.
 ///
 /// Each category has a letter code used in lint identifiers (e.g., `LC002` for Correctness).
@@ -184,6 +186,61 @@ pub enum FilenameCase {
     Pascal,
 }
 
+/// Module boundary lint options for module boundary aware rules.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LintModuleBoundariesOptions {
+    /// Policy for modules that do not match any configured component.
+    pub unknown_component_policy: DiagnosticPolicy,
+    /// Declared components and their path match patterns.
+    pub components: Vec<LintModuleComponent>,
+    /// Allowed component to component dependency rules.
+    pub dependency_rules: Vec<LintModuleDependencyRule>,
+    /// Explicit dependency exceptions.
+    pub exceptions: Vec<LintModuleDependencyException>,
+}
+
+impl Default for LintModuleBoundariesOptions {
+    fn default() -> Self {
+        Self {
+            unknown_component_policy: DiagnosticPolicy::Allow,
+            components: Vec::new(),
+            dependency_rules: Vec::new(),
+            exceptions: Vec::new(),
+        }
+    }
+}
+
+/// One module component declaration.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LintModuleComponent {
+    /// The unique component name.
+    pub name: String,
+    /// Glob patterns used to match module paths into this component.
+    pub path_patterns: Vec<String>,
+}
+
+/// One allowed dependency rule between module components.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LintModuleDependencyRule {
+    /// The source component name.
+    pub from: String,
+    /// Destination components this source component may import.
+    pub allow: Vec<String>,
+}
+
+/// One module dependency exception for specific module path patterns.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LintModuleDependencyException {
+    /// The source component name for this exception.
+    pub from: String,
+    /// The destination component name for this exception.
+    pub to: String,
+    /// Module path patterns where this exception is allowed.
+    pub path_patterns: Vec<String>,
+    /// Optional human-readable reason for this exception.
+    pub reason: Option<String>,
+}
+
 /// Linter options.
 ///
 /// Rule severity resolution order (highest precedence first):
@@ -281,6 +338,8 @@ pub struct LinterOptions {
     pub restricted_imports: Vec<String>,
     /// Comment terms to warn on.
     pub warning_comment_terms: Vec<String>,
+    /// Module boundary constraints for module boundary aware lints.
+    pub module_boundaries: LintModuleBoundariesOptions,
 }
 
 impl Default for LinterOptions {
@@ -343,6 +402,7 @@ impl Default for LinterOptions {
                 "FIXME".to_string(),
                 "HACK".to_string(),
             ],
+            module_boundaries: LintModuleBoundariesOptions::default(),
         }
     }
 }
@@ -591,6 +651,9 @@ pub struct DsConfigLinterJson {
     pub restricted_imports: Option<Vec<String>>,
     /// Comment terms to warn on.
     pub warning_comment_terms: Option<Vec<String>>,
+    /// Module boundary constraints for module boundary aware lint rules.
+    #[serde(alias = "architecture")]
+    pub module_boundaries: Option<DsConfigLinterModuleBoundariesJson>,
 }
 
 impl DsConfigLinterJson {
@@ -677,6 +740,116 @@ impl DsConfigLinterJson {
         }
         if let Some(ref warning_comment_terms) = self.warning_comment_terms {
             options.warning_comment_terms = warning_comment_terms.clone();
+        }
+
+        // module boundary options
+        if let Some(ref module_boundaries) = self.module_boundaries {
+            module_boundaries.apply(&mut options.module_boundaries);
+        }
+    }
+}
+
+/// Module boundary options for linter configuration JSON.
+#[derive(Debug, Default, Deserialize, Clone)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct DsConfigLinterModuleBoundariesJson {
+    /// Policy for modules that do not match any configured component.
+    pub unknown_component_policy: Option<DiagnosticPolicyJson>,
+    /// Declared module components.
+    pub components: Option<Vec<DsConfigLinterModuleComponentJson>>,
+    /// Allowed component to component dependency rules.
+    pub rules: Option<Vec<DsConfigLinterModuleDependencyRuleJson>>,
+    /// Explicit dependency exceptions.
+    pub exceptions: Option<Vec<DsConfigLinterModuleDependencyExceptionJson>>,
+}
+
+impl DsConfigLinterModuleBoundariesJson {
+    /// Apply module boundary options to one linter module boundary options struct.
+    pub fn apply(&self, options: &mut LintModuleBoundariesOptions) {
+        if let Some(unknown_component_policy) = self.unknown_component_policy {
+            options.unknown_component_policy = unknown_component_policy.into();
+        }
+        if let Some(ref components) = self.components {
+            options.components = components.iter().map(LintModuleComponent::from).collect();
+        }
+        if let Some(ref rules) = self.rules {
+            options.dependency_rules = rules.iter().map(LintModuleDependencyRule::from).collect();
+        }
+        if let Some(ref exceptions) = self.exceptions {
+            options.exceptions = exceptions
+                .iter()
+                .map(LintModuleDependencyException::from)
+                .collect();
+        }
+    }
+}
+
+/// One module component declaration in linter JSON.
+#[derive(Debug, Default, Deserialize, Clone)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct DsConfigLinterModuleComponentJson {
+    /// The unique component name.
+    pub name: String,
+    /// Glob patterns used to map modules into this component.
+    #[serde(default, rename = "match")]
+    pub path_patterns: Vec<String>,
+}
+
+impl From<&DsConfigLinterModuleComponentJson> for LintModuleComponent {
+    fn from(value: &DsConfigLinterModuleComponentJson) -> Self {
+        Self {
+            name: value.name.clone(),
+            path_patterns: value.path_patterns.clone(),
+        }
+    }
+}
+
+/// One module dependency rule in linter JSON.
+#[derive(Debug, Default, Deserialize, Clone)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct DsConfigLinterModuleDependencyRuleJson {
+    /// The source component name.
+    pub from: String,
+    /// The list of allowed destination component names.
+    #[serde(default)]
+    pub allow: Vec<String>,
+}
+
+impl From<&DsConfigLinterModuleDependencyRuleJson> for LintModuleDependencyRule {
+    fn from(value: &DsConfigLinterModuleDependencyRuleJson) -> Self {
+        Self {
+            from: value.from.clone(),
+            allow: value.allow.clone(),
+        }
+    }
+}
+
+/// One module dependency exception in linter JSON.
+#[derive(Debug, Default, Deserialize, Clone)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct DsConfigLinterModuleDependencyExceptionJson {
+    /// The source component name.
+    pub from: String,
+    /// The destination component name.
+    pub to: String,
+    /// Module path patterns where this exception is allowed.
+    #[serde(default, rename = "match")]
+    pub path_patterns: Vec<String>,
+    /// Optional human-readable reason for the exception.
+    pub reason: Option<String>,
+}
+
+impl From<&DsConfigLinterModuleDependencyExceptionJson> for LintModuleDependencyException {
+    fn from(value: &DsConfigLinterModuleDependencyExceptionJson) -> Self {
+        Self {
+            from: value.from.clone(),
+            to: value.to.clone(),
+            path_patterns: value.path_patterns.clone(),
+            reason: value.reason.clone(),
         }
     }
 }
