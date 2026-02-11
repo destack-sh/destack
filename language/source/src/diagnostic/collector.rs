@@ -193,6 +193,11 @@ impl DiagnosticCollector {
         self.collection.lock().diagnostics.len()
     }
 
+    /// Truncate diagnostics to the specified length.
+    pub fn truncate(&self, len: usize) {
+        self.collection.lock().diagnostics.truncate(len);
+    }
+
     /// Whether the collector is empty.
     pub fn is_empty(&self) -> bool {
         self.collection.lock().diagnostics.is_empty()

@@ -1030,6 +1030,8 @@ impl Parser {
             self.split_token,
             self.split_token_consumed,
             self.token_stream.mark(),
+            self.errors.len(),
+            self.diagnostics.len(),
         )
     }
 
@@ -1059,6 +1061,12 @@ impl Parser {
         self.split_token = mark.split_token;
         self.split_token_consumed = mark.split_token_consumed;
         self.tree.reset_to(idx);
+        if let Some(error_count) = mark.error_count {
+            self.errors.truncate(error_count);
+        }
+        if let Some(diagnostic_count) = mark.diagnostic_count {
+            self.diagnostics.truncate(diagnostic_count);
+        }
         if let Some(token_stream_mark) = mark.token_stream_mark {
             self.token_stream.restore(token_stream_mark);
             self.reset_token_caches_after_rewind();
@@ -1756,6 +1764,10 @@ pub struct ParserMark {
     split_token_consumed: bool,
     /// The token stream mark for speculative parsing.
     token_stream_mark: Option<TokenStreamMark>,
+    /// The parser error count at mark time.
+    error_count: Option<usize>,
+    /// The parser diagnostic count at mark time.
+    diagnostic_count: Option<usize>,
     /// Optional override span for synthetic marks.
     span_override: Option<Span>,
 }
@@ -1768,12 +1780,16 @@ impl ParserMark {
         split_token: Option<TokenSpan>,
         split_token_consumed: bool,
         token_stream_mark: TokenStreamMark,
+        error_count: usize,
+        diagnostic_count: usize,
     ) -> Self {
         Self {
             pos,
             split_token,
             split_token_consumed,
             token_stream_mark: Some(token_stream_mark),
+            error_count: Some(error_count),
+            diagnostic_count: Some(diagnostic_count),
             span_override: None,
         }
     }
@@ -1786,6 +1802,8 @@ impl ParserMark {
             split_token: None,
             split_token_consumed: false,
             token_stream_mark: None,
+            error_count: None,
+            diagnostic_count: None,
             span_override: Some(span),
         }
     }
