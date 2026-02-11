@@ -29,8 +29,8 @@ Go to type definition should navigate from a variable to its struct type.
 ```ds
 struct Point {
 //     ^^^^^ def:Point
-    x: float32,
-    y: float32,
+    x: float32
+    y: float32
 }
 
 const p: Point = Point { x: 1.0, y: 2.0 };

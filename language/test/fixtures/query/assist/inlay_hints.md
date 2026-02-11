@@ -193,8 +193,8 @@ Destructured binding patterns should not receive inlay type hints.
 
 ```ds
 struct Point {
-    x: int32,
-    y: int32,
+    x: int32
+    y: int32
 }
 
 const { x, y } = Point { x: 1, y: 2 };
@@ -237,7 +237,7 @@ Parameter hints should not appear for member access expressions.
 
 ```ds
 struct Config {
-    timeout: int32,
+    timeout: int32
 }
 
 function useTimeout(timeout: int32): void {}

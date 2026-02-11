@@ -101,10 +101,10 @@ enum MeetupLanguage {
 
 class Registration {
     /// The meetup to register for.
-    meetup: Meetup,
+    meetup: Meetup
 //          ^^^^^^ ref
     /// The language preference.
-    language: MeetupLanguage,
+    language: MeetupLanguage
 }
 ```
 
@@ -125,9 +125,9 @@ enum MeetupLanguage {
 
 class Registration {
     /// The meetup to register for.
-    meetup: Event,
+    meetup: Event
     /// The language preference.
-    language: MeetupLanguage,
+    language: MeetupLanguage
 }
 ```
 
@@ -431,9 +431,9 @@ Renaming a struct field should update the definition and field accesses.
 
 ```ds
 struct Point {
-    x: int32,
+    x: int32
 //  ^ target
-    y: int32,
+    y: int32
 }
 
 function length(p: Point): int32 {
@@ -448,8 +448,8 @@ Renaming `x` to `z` should update all field accesses.
 
 ```expected:main
 struct Point {
-    z: int32,
-    y: int32,
+    z: int32
+    y: int32
 }
 
 function length(p: Point): int32 {
@@ -836,11 +836,11 @@ Renaming an interface type parameter should update references in the interface b
 ```ds
 interface Store<T> {
 //              ^ target:interface-param
-    function get(): T;
+    get(): T;
 }
 
 class Cache implements Store<int32> {
-    function get(): int32 {
+    get(): int32 {
         return 1;
     }
 }
@@ -851,11 +851,11 @@ class Cache implements Store<int32> {
 
 ```expected:main
 interface Store<U> {
-    function get(): U;
+    get(): U;
 }
 
 class Cache implements Store<int32> {
-    function get(): int32 {
+    get(): int32 {
         return 1;
     }
 }

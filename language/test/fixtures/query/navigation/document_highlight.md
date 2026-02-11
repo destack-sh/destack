@@ -72,9 +72,9 @@ Document highlight should include the field definition and all field accesses.
 
 ```ds
 struct Point {
-    x: int32,
+    x: int32
 //  ^ def:field_x
-    y: int32,
+    y: int32
 }
 
 function main(p: Point) {

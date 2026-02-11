@@ -8,8 +8,8 @@ Document symbols should return all top-level declarations in a file for the outl
 
 ```ds
 struct Point {
-    x: float32,
-    y: float32,
+    x: float32
+    y: float32
 }
 
 function add(a: int32, b: int32): int32 {
@@ -41,8 +41,8 @@ Struct members should appear as children of the struct.
 
 ```ds
 struct Rectangle {
-    width: float32,
-    height: float32,
+    width: float32
+    height: float32
 
     area(): float32 {
         return this.width * this.height;
@@ -154,8 +154,8 @@ Document symbols should snapshot structs with fields and methods.
 
 ```ds
 struct Pair {
-    left: int32,
-    right: int32,
+    left: int32
+    right: int32
 
     swap(): Pair {
         return Pair { left: this.right, right: this.left };

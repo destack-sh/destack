@@ -63,8 +63,8 @@ Prepare rename should resolve struct field accesses.
 
 ```ds
 struct Point {
-    x: int32,
-    y: int32,
+    x: int32
+    y: int32
 }
 
 function main() {
@@ -86,7 +86,7 @@ Prepare rename should resolve method calls.
 
 ```ds
 class Counter {
-    value: int32,
+    value: int32
     inc(): int32 {
         return this.value + 1;
     }

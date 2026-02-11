@@ -58,8 +58,8 @@ Hovering over a struct type reference should display its kind.
 ```ds
 struct Point {
 //     ^^^^^ def:Point
-    x: float32,
-    y: float32,
+    x: float32
+    y: float32
 }
 
 const p: Point = Point { x: 1, y: 2 };
@@ -151,9 +151,9 @@ Hovering over a struct field should show its type.
 
 ```ds
 struct Vector2 {
-    x: float32,
+    x: float32
 //  ^ def:x
-    y: float32,
+    y: float32
 //  ^ def:y
 }
 ```
@@ -170,8 +170,8 @@ Hovering over a struct field access should show the same field signature.
 
 ```ds
 struct Point {
-    x: int32,
-    y: int32,
+    x: int32
+    y: int32
 }
 
 function main() {
@@ -304,8 +304,8 @@ Hovering over the `export` keyword of an exported struct should show the struct.
 export struct ExportedPoint {
 //^^^^ hover:export_struct
 //            ^^^^^^^^^^^^^ def:ExportedPoint
-    x: float32,
-    y: float32,
+    x: float32
+    y: float32
 }
 ```
 
@@ -477,8 +477,8 @@ Hovering over a local variable should show its type.
 
 ```ds
 struct Point {
-    x: int32,
-    y: int32,
+    x: int32
+    y: int32
 }
 
 function main() {
