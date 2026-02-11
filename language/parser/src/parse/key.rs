@@ -256,16 +256,17 @@ impl Parser {
         }
 
         loop {
-            // snack kebab-case or namespace segments
-            let is_kebab = if self.peek_is(TokenType::Subtract) {
-                self.bump();
-                true
-            } else if self.peek_is(TokenType::Colon) {
-                self.bump();
-                false
-            } else {
-                break;
-            };
+            // scan kebab-case or namespace separators
+            let is_kebab =
+                if self.peek_is(TokenType::Subtract) || self.peek_is(TokenType::Decrement) {
+                    self.bump();
+                    true
+                } else if self.peek_is(TokenType::Colon) {
+                    self.bump();
+                    false
+                } else {
+                    break;
+                };
 
             // kebab segments allow numeric suffixes, like panose-1
             let token = if is_kebab && self.peek_numeric_literal().is_ok() {
@@ -540,7 +541,10 @@ impl Parser {
             // expression
             else {
                 let key = self.with_options(
-                    self.options.not_in_position().not_in_sequence_expression(),
+                    self.options
+                        .not_in_position()
+                        .not_in_left_precedence()
+                        .not_in_sequence_expression(),
                     |parser| parser.eat_expression(),
                 )?;
                 self.eat_token(TokenType::CloseBracket)?;
@@ -606,7 +610,10 @@ impl Parser {
             // expression
             else {
                 let key = self.with_options(
-                    self.options.not_in_position().not_in_sequence_expression(),
+                    self.options
+                        .not_in_position()
+                        .not_in_left_precedence()
+                        .not_in_sequence_expression(),
                     |parser| parser.eat_expression(),
                 )?;
                 self.eat_token(TokenType::CloseBracket)?;
@@ -651,11 +658,11 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{Expression, Key};
+    use destack_ast::{Expression, IfCondition, IfKind, Key, ScalarLiteral};
     use destack_source::LanguageType;
 
     use crate::tests::TestParser;
-    use crate::{assert_node, assert_string};
+    use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_key_named_expression_with_multiline_type() {
@@ -697,5 +704,33 @@ mod tests {
 
         // 021
         assert_eq!(parser.get_span_str(error.leaf_span()), "021");
+    }
+
+    /// Parse computed keys with ternaries even when outer left precedence is set.
+    #[test]
+    fn test_parse_key_computed_ternary_with_outer_left_precedence() {
+        let mut test = TestParser::new_with_options(
+            "[hasCjsFormat ? 'module' : 'import']",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        parser.options = parser.options.in_left_precedence(1);
+
+        let (key, _span) = parser.eat_key_with_span().unwrap();
+
+        assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
+        assert!(matches!(key, Key::Expression(_)));
+        assert_node!(parser.tree, match key { Key::Expression(key) => key, _ => unreachable!() }, Expression::If { kind, condition, then_expression, else_expression } => {
+            assert_eq!(*kind, IfKind::Ternary);
+            assert_node!(condition, IfCondition::Expression { condition } => {
+                assert_expression_path!(parser, parser.tree.get(*condition), "hasCjsFormat");
+            });
+            assert_node!(parser.tree, *then_expression, Expression::ScalarLiteral(ScalarLiteral::String(string)) => {
+                assert_string!(parser, *string, "module");
+            });
+            assert_node!(parser.tree, else_expression.expect("expected else"), Expression::ScalarLiteral(ScalarLiteral::String(string)) => {
+                assert_string!(parser, *string, "import");
+            });
+        });
     }
 }

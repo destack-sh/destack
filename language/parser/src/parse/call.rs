@@ -91,9 +91,10 @@ impl Parser {
         self.eat_keyword(Keyword::New)?;
 
         // receiver
-        let left = self.with_options(self.options.in_new_receiver(), |parser| {
-            parser.eat_expression()
-        })?;
+        let left = self
+            .with_options(self.options.not_in_position().in_new_receiver(), |parser| {
+                parser.eat_expression()
+            })?;
 
         // hoist static arguments parsed on the receiver
         let mut static_arguments = None;

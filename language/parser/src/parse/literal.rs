@@ -758,10 +758,16 @@ impl Parser {
             if self.peek_token_type() == close_token {
                 break;
             }
-            // consume separator (comma)
-            else if self.peek_comma().is_ok() {
+            // consume comma separators, including newline then comma
+            let has_comma_separator = self.peek_comma().is_ok()
+                || self.peek_is(TokenType::Newline)
+                    && self
+                        .peek_token_after_newlines(self.pos(), TokenType::Comma)
+                        .is_ok();
+            if has_comma_separator {
                 let start = self.mark();
-                // leading hole: if we expected an element but got comma instead
+
+                // leading hole: if we expected an element but got separator instead
                 if expect_element {
                     let stub = self
                         .tree
@@ -775,10 +781,22 @@ impl Parser {
                     );
                     elements.push(hole);
                 }
+
+                // consume optional newlines before comma and then the comma itself
+                self.eat_newlines_maybe()?;
                 self.eat_item_stop_with_newlines()?;
                 expect_element = true;
                 continue;
             }
+
+            // consume newline separators
+            if self.peek_is(TokenType::Newline) {
+                self.bump(); // eat newline
+                self.eat_newlines_maybe()?;
+                expect_element = true;
+                continue;
+            }
+
             // keep eating elements (positional/spread only)
             let element = self
                 .eat_positional_argument()
@@ -1162,6 +1180,7 @@ impl Parser {
 
         // header (arguments separated by `=`)
         let arguments: Option<Vec<LocalNodeId<Argument>>> = {
+            self.skip_tree_whitespace()?;
             // fragment without arguments
             if self.peek_is(TokenType::Divide) || self.peek_is(TokenType::GreaterThan) {
                 None
@@ -1169,7 +1188,11 @@ impl Parser {
             // fragment with arguments
             else {
                 let mut arguments: Vec<LocalNodeId<Argument>> = vec![];
-                while !self.peek_is(TokenType::Divide) && !self.peek_is(TokenType::GreaterThan) {
+                while self.has_more_tokens() {
+                    self.skip_tree_whitespace()?;
+                    if self.peek_is(TokenType::Divide) || self.peek_is(TokenType::GreaterThan) {
+                        break;
+                    }
                     let argument = self.with_options(
                         self.options.not_in_position().in_tree_literal(),
                         |parser| parser.eat_tree_literal_argument(),
@@ -1871,6 +1894,33 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_array_literal_with_newline_prefixed_comma_separator() {
+        let mut test = TestParser::new("[1\n, 2]");
+        let mut parser = test.prepare();
+
+        let elements = parser.eat_array_literal().unwrap();
+        assert_eq!(elements.len(), 2);
+
+        // 1
+        assert_node!(
+            parser.tree,
+            elements[0],
+            Argument::Positional { modifiers: _, value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            }
+        );
+
+        // 2
+        assert_node!(
+            parser.tree,
+            elements[1],
+            Argument::Positional { modifiers: _, value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+            }
+        );
+    }
+
+    #[test]
     fn test_parse_tree_fragment() {
         let mut test = TestParser::new("<A/>");
         let mut parser = test.prepare();
@@ -2314,6 +2364,43 @@ mod tests {
         });
     }
 
+    /// Parse legacy escaped digit strings in tsx attributes.
+    #[test]
+    fn test_parse_tree_with_legacy_escaped_digit_attribute_string() {
+        let mut test = TestParser::new_with_options(
+            r#"<ReactInputMask mask="+4\9 99 999 99" inputRef={(node) => { ref = node; }} />"#,
+            LanguageType::TypeScriptXml,
+        );
+        let mut parser = test.prepare();
+        let expression = parser.eat_tree_literal().unwrap();
+        assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
+
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "ReactInputMask");
+            assert!(elements.is_none());
+
+            let arguments = arguments.as_ref().expect("expected attributes");
+            assert_eq!(arguments.len(), 2);
+
+            assert_node!(parser.tree, arguments[0], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
+                assert_string!(parser, *name, "mask");
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+                    assert_string!(parser, *string_id, "+4\\9 99 999 99");
+                });
+            });
+
+            assert_node!(parser.tree, arguments[1], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
+                assert_string!(parser, *name, "inputRef");
+                assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
+                    assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body: Some(body), .. } => {
+                        assert_eq!(signature.dynamic_parameters.len(), 1);
+                        assert_node!(parser.tree, *body, Expression::Block(_));
+                    });
+                });
+            });
+        });
+    }
+
     /// Tree fragment containing a callback that returns nested tree literals.
     #[test]
     fn test_parse_tree_fragment_with_nested_callback() {
@@ -2444,6 +2531,115 @@ mod tests {
                 });
             });
             assert!(elements.is_none());
+        });
+    }
+
+    /// Parse multiline tsx attribute expression containers before a tag close.
+    #[test]
+    fn test_parse_multiline_tsx_attribute_expression_before_tag_close() {
+        let mut test = TestParser::new_with_options(
+            r#"<PopoverProvider
+  popover={
+    <TooltipContent>
+      <Picker />
+    </TooltipContent>
+  }
+>
+  <PopoverTrigger />
+</PopoverProvider>"#,
+            LanguageType::TypeScriptXml,
+        );
+        let mut parser = test.prepare();
+        let expression = parser.eat_tree_literal().unwrap();
+
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "PopoverProvider");
+
+            let arguments = arguments.as_ref().expect("expected arguments");
+            assert_eq!(arguments.len(), 1);
+            assert_node!(parser.tree, arguments[0], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
+                assert_string!(parser, *name, "popover");
+                assert_node!(parser.tree, *value, Expression::TreeExpression { left: Some(left), elements, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "TooltipContent");
+                    let elements = elements.as_ref().expect("expected tooltip children");
+                    assert_eq!(elements.len(), 1);
+                    assert_node!(parser.tree, elements[0], Argument::Positional { modifiers: _, value } => {
+                        assert_node!(parser.tree, *value, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+                            assert_expression_path!(parser, parser.tree.get(*left), "Picker");
+                            assert!(arguments.is_none());
+                            assert!(elements.is_none());
+                        });
+                    });
+                });
+            });
+
+            let elements = elements.as_ref().expect("expected provider children");
+            assert_eq!(elements.len(), 1);
+            assert_node!(parser.tree, elements[0], Argument::Positional { modifiers: _, value } => {
+                assert_node!(parser.tree, *value, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "PopoverTrigger");
+                    assert!(arguments.is_none());
+                    assert!(elements.is_none());
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_tsx_attribute_tree_with_nested_map_before_tag_close() {
+        let mut test = TestParser::new_with_options(
+            r#"<PopoverProvider
+  popover={
+    <TooltipContent>
+      {presets.length > 0 && (
+        <Swatches>
+          {presets.map((preset, index: number) => (
+            <SwatchColor
+              key={`${preset?.value || index}-${index}`}
+              onClick={() => preset && updateValue(preset.value || '')}
+            />
+          ))}
+        </Swatches>
+      )}
+    </TooltipContent>
+  }
+>
+  <PopoverTrigger style={{ margin: 4 }} />
+</PopoverProvider>"#,
+            LanguageType::TypeScriptXml,
+        );
+        let mut parser = test.prepare();
+        let expression = parser.eat_tree_literal().unwrap();
+
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "PopoverProvider");
+
+            let arguments = arguments.as_ref().expect("expected provider arguments");
+            assert_eq!(arguments.len(), 1);
+            assert_node!(parser.tree, arguments[0], Argument::Named { name: Name::Identifier(name), value, .. } => {
+                assert_string!(parser, *name, "popover");
+                assert_node!(parser.tree, *value, Expression::TreeExpression { left: Some(left), .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "TooltipContent");
+                });
+            });
+
+            let elements = elements.as_ref().expect("expected provider children");
+            assert_eq!(elements.len(), 1);
+            assert_node!(parser.tree, elements[0], Argument::Positional { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TreeExpression { left: Some(left), arguments, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "PopoverTrigger");
+                    let arguments = arguments.as_ref().expect("expected trigger arguments");
+                    let has_style_argument = arguments.iter().any(|argument| {
+                        matches!(
+                            parser.tree.get(*argument),
+                            Argument::Named { name: Name::Identifier(name), value, .. }
+                                if parser.strings.get(*name) == "style"
+                                    && matches!(parser.tree.get(*value), Expression::ObjectExpression { .. })
+                        )
+                    });
+                    assert!(has_style_argument);
+                });
+            });
         });
     }
 

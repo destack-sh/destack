@@ -74,18 +74,20 @@ impl Parser {
         };
 
         let in_parenthesis = self.peek_is(TokenType::OpenParenthesis);
+        let has_top_level_semicolon = if in_parenthesis {
+            let open_pos = self.pos();
+            let close_pos = self.find_matching_close_in_expression(
+                open_pos,
+                TokenType::OpenParenthesis,
+                TokenType::CloseParenthesis,
+            )?;
+            self.has_token_before_matching_close(open_pos, close_pos, TokenType::Semicolon, false)?
+        } else {
+            false
+        };
 
         // for condition loop
-        if asynchrony == Asynchrony::Sync
-            && in_parenthesis
-            && self
-                .find_before_matching_close(
-                    TokenType::OpenParenthesis,
-                    TokenType::CloseParenthesis,
-                    TokenType::Semicolon,
-                )
-                .is_ok()
-        {
+        if asynchrony == Asynchrony::Sync && in_parenthesis && has_top_level_semicolon {
             // C style for clauses always allow comma operator expressions
             let mut clause_options = self.options.nested();
             clause_options.allow_sequence_expression = true;
@@ -355,9 +357,9 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Asynchrony, BinaryOperator, Block, Declarator, Expression, ForEachBinding,
-        ForEachDeclarationKind, ForEachKind, Mutability, Pattern, PatternField, ScalarLiteral,
-        UnaryOperator, WhileKind,
+        Argument, Asynchrony, BinaryOperator, Block, Declarator, Expression, ForEachBinding,
+        ForEachDeclarationKind, ForEachKind, Keyword, Mutability, Name, Pattern, PatternField,
+        ScalarLiteral, TokenType, TypeLiteral, UnaryOperator, WhileKind,
     };
     use destack_source::LanguageType;
 
@@ -468,7 +470,6 @@ for await (const item of items) {
             r###"
 for (
   const {
-    tsKey: selectedRelationTsKey,
     relation,
   }
   of selectedRelations
@@ -485,20 +486,12 @@ for (
             assert_eq!(*asynchrony, Asynchrony::Sync);
             assert_eq!(*kind, ForEachKind::Of);
 
-            // const { tsKey: selectedRelationTsKey, relation }
+            // const { relation }
             assert_node!(binding, ForEachBinding::Pattern { pattern, declaration_kind } => {
                 assert_eq!(*declaration_kind, Some(ForEachDeclarationKind::Const));
                 assert_node!(parser.tree, *pattern, Pattern::Object { fields } => {
-                    assert_eq!(fields.len(), 2);
-
-                    // tsKey: selectedRelationTsKey
-                    assert_node!(parser.tree, fields[0], PatternField::Alias { name, alias, default: None, .. } => {
-                        assert_name!(parser, *name, "tsKey");
-                        assert_string!(parser, *alias, "selectedRelationTsKey");
-                    });
-
-                    // relation
-                    assert_node!(parser.tree, fields[1], PatternField::Named { name, pattern: None, default: None, .. } => {
+                    assert_eq!(fields.len(), 1);
+                    assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: None, default: None, .. } => {
                         assert_name!(parser, *name, "relation");
                     });
                 });
@@ -510,6 +503,89 @@ for (
                 assert!(expressions.is_empty());
             });
         });
+    }
+
+    #[test]
+    fn test_parse_for_of_await_generic_call_with_object_type_argument() {
+        let mut test = TestParser::new_with_options(
+            r###"
+for (const { item } of await fetchList<{ item: string }>(values)) {}
+"###,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let for_id = parser.eat_for().unwrap();
+        assert_node!(parser.tree, for_id, Expression::ForEach { asynchrony, kind, binding, iterator, body } => {
+            assert_eq!(*asynchrony, Asynchrony::Sync);
+            assert_eq!(*kind, ForEachKind::Of);
+
+            // const { item }
+            assert_node!(binding, ForEachBinding::Pattern { pattern, declaration_kind } => {
+                assert_eq!(*declaration_kind, Some(ForEachDeclarationKind::Const));
+                assert_node!(parser.tree, *pattern, Pattern::Object { fields } => {
+                    assert_eq!(fields.len(), 1);
+                    assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: None, default: None, .. } => {
+                        assert_name!(parser, *name, "item");
+                    });
+                });
+            });
+
+            // await fetchList<{ item: string }>(values)
+            assert_node!(parser.tree, *iterator, Expression::Await { expression } => {
+                assert_node!(parser.tree, *expression, Expression::Call { left, static_arguments, dynamic_arguments, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "fetchList");
+                    assert_eq!(dynamic_arguments.len(), 1);
+                    assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                        assert_expression_path!(parser, parser.tree.get(*value), "values");
+                    });
+
+                    let static_arguments = static_arguments.as_ref().expect("expected static arguments");
+                    assert_eq!(static_arguments.len(), 1);
+
+                    assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
+                        assert_node!(parser.tree, *value, Expression::ObjectExpression { ty: None, properties } => {
+                            assert_eq!(properties.len(), 1);
+                            assert_node!(parser.tree, properties[0], destack_ast::Property::Field { key: Some(destack_ast::Key::Name(Name::Identifier(name))), value: Some(value), .. } => {
+                                assert_string!(parser, *name, "item");
+                                assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::String));
+                            });
+                        });
+                    });
+                });
+            });
+
+            assert_node!(parser.tree, *body, Block { expressions, .. } => {
+                assert!(expressions.is_empty());
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_for_each_binding_const_object_stops_before_of() {
+        let mut test = TestParser::new_with_options(
+            r###"
+for (const { item } of fetchList<{ item: string }>(values)) {}
+"###,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        parser.eat_keyword(Keyword::For).unwrap();
+        parser.eat_token(TokenType::OpenParenthesis).unwrap();
+        parser.eat_newlines_maybe().unwrap();
+
+        let binding = parser.eat_for_each_binding().unwrap();
+        assert_node!(binding, ForEachBinding::Pattern { pattern, declaration_kind } => {
+            assert_eq!(declaration_kind, Some(ForEachDeclarationKind::Const));
+            assert_node!(parser.tree, pattern, Pattern::Object { fields } => {
+                assert_eq!(fields.len(), 1);
+            });
+        });
+
+        assert!(parser.peek_keyword(Keyword::Of).is_ok());
     }
 
     #[test]

@@ -267,7 +267,18 @@ impl Parser {
                 {
                     break;
                 }
-                let expression_id = self.try_eat_statement_expression()?;
+                let statement_start = self.mark();
+                let expression_id = self
+                    .with_recovery(
+                        &statement_start,
+                        |parser| parser.try_eat_statement_expression().map(Some),
+                        None,
+                        TokenType::Newline,
+                    )
+                    .unwrap_or_else(|| {
+                        self.tree
+                            .insert(Expression::Error, self.get_span_from(&statement_start))
+                    });
                 let expression_id =
                     if let Expression::Statement(statement_id) = self.tree.get(expression_id) {
                         *statement_id
@@ -343,6 +354,7 @@ mod tests {
     use destack_ast::{
         Block, Expression, MatchCase, MatchKind, MatchSelector, Pattern, ScalarLiteral,
     };
+    use destack_source::LanguageType;
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 
@@ -643,6 +655,68 @@ switch (tag.injectTo) {
                     // second statement: break
                     assert_node!(parser.tree, expressions[1], Expression::Break { .. });
                 });
+            });
+        });
+    }
+
+    /// Parse a switch case with an if block, following assignments, then fallthrough case.
+    #[test]
+    fn test_parse_switch_case_if_block_then_assignments_then_fallthrough_case() {
+        let mut test = TestParser::new_with_options(
+            r###"
+switch (tag) {
+  case dataViewTag:
+    if ((object.byteLength != other.byteLength) ||
+        (object.byteOffset != other.byteOffset)) {
+      return false;
+    }
+    object = object.buffer;
+    other = other.buffer;
+
+  case arrayBufferTag:
+    return true;
+}
+"###,
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let switch_id = parser.eat_match().unwrap();
+        assert_node!(parser.tree, switch_id, Expression::Match { kind: MatchKind::Switch, cases, .. } => {
+            assert_eq!(cases.len(), 2);
+
+            // first case body
+            assert_node!(parser.tree, cases[0], MatchCase::Block { selector, body } => {
+                match selector {
+                    MatchSelector::Pattern { pattern, guard } => {
+                        assert!(guard.is_none());
+                        assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
+                            assert_expression_path!(parser, parser.tree.get(*value), "dataViewTag");
+                        });
+                    }
+                    _ => panic!("expected pattern selector"),
+                };
+                assert_node!(parser.tree, *body, Block { expressions, .. } => {
+                    assert_eq!(expressions.len(), 3);
+                    assert_node!(parser.tree, expressions[0], Expression::If { .. });
+                    assert_node!(parser.tree, expressions[1], Expression::Assign { .. });
+                    assert_node!(parser.tree, expressions[2], Expression::Assign { .. });
+                });
+            });
+
+            // second case body
+            assert_node!(parser.tree, cases[1], MatchCase::Expression { selector, body } => {
+                match selector {
+                    MatchSelector::Pattern { pattern, guard } => {
+                        assert!(guard.is_none());
+                        assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
+                            assert_expression_path!(parser, parser.tree.get(*value), "arrayBufferTag");
+                        });
+                    }
+                    _ => panic!("expected pattern selector"),
+                };
+                assert_node!(parser.tree, *body, Expression::Return { .. });
             });
         });
     }

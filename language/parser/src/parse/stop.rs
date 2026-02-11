@@ -352,11 +352,8 @@ impl Parser {
         }
 
         // scan until we reach the matching close token
-        loop {
-            let ty = match self.token_ref_at(pos) {
-                Some(token) => token.token.ty,
-                None => break,
-            };
+        while let Some(token) = self.token_ref_at(pos) {
+            let ty = token.token.ty;
             let can_start_expression = self.is_expression_start_after_tokens(
                 last_non_whitespace_index,
                 last_semantic_index,
