@@ -354,17 +354,20 @@ impl Parser {
         // scan until we reach the matching close token
         while let Some(token) = self.token_ref_at(pos) {
             let ty = token.token.ty;
-            let can_start_expression = self.is_expression_start_after_tokens(
-                last_non_whitespace_index,
-                last_semantic_index,
-                prev_semantic_index,
-            );
 
             // enter tree literal mode when a JSX literal starts at an expression boundary
-            if ty == TokenType::LessThan && tree_literals_allowed && can_start_expression {
-                let can_start_tree = self.with_pos(pos, |parser| parser.can_start_tree_literal());
-                if can_start_tree {
-                    self.token_stream.enter_tree_opening_tag();
+            if ty == TokenType::LessThan && tree_literals_allowed {
+                let can_start_expression = self.is_expression_start_after_tokens(
+                    last_non_whitespace_index,
+                    last_semantic_index,
+                    prev_semantic_index,
+                );
+                if can_start_expression {
+                    let can_start_tree =
+                        self.with_pos(pos, |parser| parser.can_start_tree_literal());
+                    if can_start_tree {
+                        self.token_stream.enter_tree_opening_tag();
+                    }
                 }
             }
 
@@ -453,17 +456,20 @@ impl Parser {
                 Some(token) => token.token.ty,
                 None => break,
             };
-            let can_start_expression = self.is_expression_start_after_tokens(
-                last_non_whitespace_index,
-                last_semantic_index,
-                prev_semantic_index,
-            );
 
             // enter tree literal mode when a JSX literal starts at an expression boundary
-            if ty == TokenType::LessThan && tree_literals_allowed && can_start_expression {
-                let can_start_tree = self.with_pos(pos, |parser| parser.can_start_tree_literal());
-                if can_start_tree {
-                    self.token_stream.enter_tree_opening_tag();
+            if ty == TokenType::LessThan && tree_literals_allowed {
+                let can_start_expression = self.is_expression_start_after_tokens(
+                    last_non_whitespace_index,
+                    last_semantic_index,
+                    prev_semantic_index,
+                );
+                if can_start_expression {
+                    let can_start_tree =
+                        self.with_pos(pos, |parser| parser.can_start_tree_literal());
+                    if can_start_tree {
+                        self.token_stream.enter_tree_opening_tag();
+                    }
                 }
             }
 

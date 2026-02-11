@@ -75,7 +75,7 @@ impl Parser {
     ) -> ParseResult<LocalNodeId<Declaration>> {
         let _timing = self.timing_scope(tags::PARSE_FUNCTION);
         // abstraction
-        if self.peek_keyword(Keyword::Abstract).is_ok()
+        if self.is_keyword(Keyword::Abstract)
             && descriptor.abstraction == DeclarationAbstraction::Concrete
         {
             self.bump(); // eat abstract keyword
@@ -83,7 +83,7 @@ impl Parser {
         }
 
         // async
-        let is_async = if self.peek_keyword(Keyword::Async).is_ok() {
+        let is_async = if self.is_keyword(Keyword::Async) {
             let next_token_type = self.peek_next_token_type();
             let treats_async_as_parameter =
                 matches!(next_token_type, TokenType::Arrow | TokenType::ArrowWide);
@@ -98,7 +98,7 @@ impl Parser {
         };
 
         // new
-        let mode = if self.peek_keyword(Keyword::New).is_ok()
+        let mode = if self.is_keyword(Keyword::New)
             && (self.peek_next_is(TokenType::LessThan)
                 || self.peek_next_is(TokenType::OpenParenthesis))
         {
@@ -112,7 +112,7 @@ impl Parser {
         let is_generator = self.eat_token_maybe(TokenType::Multiply)?;
         let (kind, is_generator) = {
             // regular `function` style
-            if self.peek_keyword(Keyword::Function).is_ok() {
+            if self.is_keyword(Keyword::Function) {
                 self.bump(); // eat function keyword
                 let is_generator = is_generator || self.eat_token_maybe(TokenType::Multiply)?;
                 (FunctionKind::Function, is_generator)
@@ -199,7 +199,7 @@ impl Parser {
             }
             // simple no-parentheses `x => y` lambda value
             else {
-                if is_generator && self.peek_keyword(Keyword::Yield).is_ok() {
+                if is_generator && self.is_keyword(Keyword::Yield) {
                     return Err(ParseError::unexpected(self.peek()?.span));
                 }
                 let parameter_name = self.eat_identifier()?;
@@ -222,7 +222,7 @@ impl Parser {
         let (return_type, return_type_span, where_clauses) = {
             // lambda with explicit return type
             if kind == FunctionKind::Lambda && self.has_lambda_return_type_marker() {
-                let type_start = self.mark();
+                let type_start = self.mark_span();
                 self.eat_newlines_maybe()?;
                 self.bump(); // eat colon or arrow
                 self.eat_newlines_maybe()?;
@@ -260,7 +260,7 @@ impl Parser {
                                 .peek_token_after_newlines(self.pos(), TokenType::Colon)
                                 .is_ok());
                 let (return_type, return_type_span) = if has_return_type_marker {
-                    let type_start = self.mark();
+                    let type_start = self.mark_span();
                     self.eat_newlines_maybe()?;
                     self.bump(); // eat arrow or colon
                     self.eat_newlines_maybe()?;
@@ -310,7 +310,7 @@ impl Parser {
                     .not_in_decorator()
                     .with_generator(is_generator);
                 options.allow_sequence_expression = true;
-                let body_start = self.mark();
+                let body_start = self.mark_span();
                 let body = self.with_options(options, |parser| {
                     let block_id = parser.eat_block()?;
                     Ok(parser.tree.insert(
@@ -327,7 +327,7 @@ impl Parser {
             {
                 self.eat_arrow()?;
                 self.eat_newlines_maybe()?;
-                let body_start = self.mark();
+                let body_start = self.mark_span();
                 let body = if self.peek_block().is_ok() {
                     let mut options = self
                         .options

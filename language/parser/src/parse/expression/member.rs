@@ -242,7 +242,7 @@ impl Parser {
     /// Check whether `asserts` starts a type predicate.
     #[inline]
     pub(super) fn can_start_type_predicate_asserts(&mut self) -> bool {
-        if self.peek_keyword(Keyword::Asserts).is_err() {
+        if !self.is_keyword(Keyword::Asserts) {
             return false;
         }
 

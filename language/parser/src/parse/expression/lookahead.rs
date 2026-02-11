@@ -30,10 +30,9 @@ impl Parser {
         self.rewind(lookahead_mark);
 
         // lookahead disambiguation should never surface parse errors directly
-        if let Ok(group_shape) = lookahead_result {
-            Ok(group_shape)
-        } else {
-            Ok(ParenthesizedGroupShape::default())
+        match lookahead_result {
+            Ok(group_shape) => Ok(group_shape),
+            Err(_) => Ok(ParenthesizedGroupShape::default()),
         }
     }
 
@@ -51,71 +50,86 @@ impl Parser {
         let close_pos_for_follow = self.skip_newlines(close_pos)?;
 
         // compute top-level separators and operators inside the group
-        let has_top_level_comma = self.language.is_destack()
-            && self.has_top_level_token_in_parenthesized(open_pos, close_pos, TokenType::Comma)?;
-        let has_top_level_or = self.has_top_level_token_in_parenthesized(
-            open_pos,
-            close_pos,
-            TokenType::ElementwiseOr,
-        )?;
-        let has_top_level_and = self.has_top_level_token_in_parenthesized(
-            open_pos,
-            close_pos,
-            TokenType::ElementwiseAnd,
-        )?;
-        let has_top_level_parameter_colon =
-            self.has_top_level_token_in_parenthesized(open_pos, close_pos, TokenType::Colon)?;
+        let mut group_shape = self.scan_parenthesized_group_shape(open_pos, close_pos);
 
         // compute follow token shape
         let follow_token_type = self
             .token_ref_at(close_pos_for_follow as usize + 1)
             .map(|token| token.token.ty);
-        let has_arrow_follow = matches!(
+        group_shape.has_arrow_follow = matches!(
             follow_token_type,
             Some(TokenType::Arrow | TokenType::ArrowWide)
         );
-        let has_colon_follow = matches!(follow_token_type, Some(TokenType::Colon));
+        group_shape.has_colon_follow = matches!(follow_token_type, Some(TokenType::Colon));
 
-        // compute whether the group contains only newlines
-        let is_empty = self.is_parenthesized_group_empty(open_pos, close_pos);
-
-        Ok(ParenthesizedGroupShape {
-            has_top_level_comma,
-            has_arrow_follow,
-            has_colon_follow,
-            has_top_level_type_union_or_intersection: has_top_level_or || has_top_level_and,
-            has_top_level_parameter_colon,
-            is_empty,
-        })
+        Ok(group_shape)
     }
 
-    /// Check whether a token appears at top-level inside the given parenthesized range.
-    fn has_top_level_token_in_parenthesized(
+    /// Scan parenthesized contents once and collect top-level shape metadata.
+    fn scan_parenthesized_group_shape(
         &mut self,
         open_pos: u32,
         close_pos: u32,
-        token_type: TokenType,
-    ) -> ParseResult<bool> {
-        self.with_options(self.options.in_type(), |parser| {
-            parser.has_token_before_matching_close(open_pos, close_pos, token_type, true)
-        })
-    }
-
-    /// Return true when the parenthesized range contains only newline trivia.
-    fn is_parenthesized_group_empty(&mut self, open_pos: u32, close_pos: u32) -> bool {
-        // scan all tokens between `(` and `)`
+    ) -> ParenthesizedGroupShape {
+        let mut shape = ParenthesizedGroupShape {
+            has_top_level_comma: false,
+            has_arrow_follow: false,
+            has_colon_follow: false,
+            has_top_level_type_union_or_intersection: false,
+            has_top_level_parameter_colon: false,
+            is_empty: true,
+        };
+        let mut paren_depth = 0u32;
+        let mut brace_depth = 0u32;
+        let mut bracket_depth = 0u32;
+        let mut angle_depth = 0u32;
         let mut token_index = open_pos as usize + 1;
-        while token_index < close_pos as usize {
+        let close_index = close_pos as usize;
+
+        while token_index < close_index {
             self.token_stream.ensure_token(token_index);
             let Some(token) = self.tokens().get(token_index) else {
                 break;
             };
-            if token.token.ty != TokenType::Newline {
-                return false;
+            let token_type = token.token.ty;
+
+            // detect non-empty content
+            if token_type != TokenType::Newline {
+                shape.is_empty = false;
             }
+
+            // track nested delimiters
+            match token_type {
+                TokenType::OpenParenthesis => paren_depth += 1,
+                TokenType::CloseParenthesis => paren_depth = paren_depth.saturating_sub(1),
+                TokenType::OpenBrace => brace_depth += 1,
+                TokenType::CloseBrace => brace_depth = brace_depth.saturating_sub(1),
+                TokenType::OpenBracket => bracket_depth += 1,
+                TokenType::CloseBracket => bracket_depth = bracket_depth.saturating_sub(1),
+                TokenType::LessThan => angle_depth += 1,
+                TokenType::GreaterThan => angle_depth = angle_depth.saturating_sub(1),
+                TokenType::ShiftLeft | TokenType::SaturatingShiftLeft => angle_depth += 2,
+                _ => {}
+            }
+
+            let is_top_level =
+                paren_depth == 0 && brace_depth == 0 && bracket_depth == 0 && angle_depth == 0;
+            if is_top_level {
+                if self.language.is_destack() && token_type == TokenType::Comma {
+                    shape.has_top_level_comma = true;
+                } else if token_type == TokenType::Colon {
+                    shape.has_top_level_parameter_colon = true;
+                } else if matches!(
+                    token_type,
+                    TokenType::ElementwiseOr | TokenType::ElementwiseAnd
+                ) {
+                    shape.has_top_level_type_union_or_intersection = true;
+                }
+            }
+
             token_index += 1;
         }
 
-        true
+        shape
     }
 }

@@ -66,7 +66,7 @@ impl Parser {
         self.eat_keyword(Keyword::For)?;
 
         // asynchrony
-        let asynchrony = if self.peek_keyword(Keyword::Await).is_ok() {
+        let asynchrony = if self.is_keyword(Keyword::Await) {
             self.bump(); // eat await keyword
             Asynchrony::Async
         } else {
@@ -203,16 +203,15 @@ impl Parser {
 
     /// Eat a for each binding (pattern or using).
     fn eat_for_each_binding(&mut self) -> ParseResult<ForEachBinding> {
-        let using_asynchrony = if self.peek_keyword(Keyword::Await).is_ok()
-            && self.peek_next_keyword(Keyword::Using).is_ok()
-        {
-            self.bump(); // eat await
-            Asynchrony::Async
-        } else {
-            Asynchrony::Sync
-        };
+        let using_asynchrony =
+            if self.is_keyword(Keyword::Await) && self.is_next_keyword(Keyword::Using) {
+                self.bump(); // eat await
+                Asynchrony::Async
+            } else {
+                Asynchrony::Sync
+            };
 
-        if self.peek_keyword(Keyword::Using).is_ok() {
+        if self.is_keyword(Keyword::Using) {
             self.bump(); // eat using
             let pattern = self.with_options(
                 self.options
@@ -298,7 +297,7 @@ impl Parser {
         let start = self.mark();
 
         // do-while loop
-        if self.peek_keyword(Keyword::Do).is_ok() {
+        if self.is_keyword(Keyword::Do) {
             // do keyword
             self.bump(); // eat do keyword
 

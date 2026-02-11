@@ -117,6 +117,14 @@ impl Parser {
         }
     }
 
+    /// Return true when `await` may begin an `await using` declaration.
+    #[inline]
+    fn can_start_await_using(&mut self) -> bool {
+        let await_index = self.pos_index();
+        let using_index = self.next_non_newline_index_from(await_index + 1);
+        self.keyword_for_index(using_index) == Some(Keyword::Using)
+    }
+
     /// Eat a keyword-led expression when possible.
     pub(super) fn eat_keyword_expression(
         &mut self,
@@ -595,7 +603,9 @@ impl Parser {
                 }
 
                 // parse await using when allowed
-                if self.can_parse_using_declaration(&descriptor, Asynchrony::Async) {
+                if self.can_start_await_using()
+                    && self.can_parse_using_declaration(&descriptor, Asynchrony::Async)
+                {
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
                     Ok(Some(self.eat_using(
                         start,

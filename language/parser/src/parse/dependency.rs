@@ -104,9 +104,7 @@ impl Parser {
         self.eat_keyword(Keyword::Import)?;
 
         // skip newlines before a type modifier
-        if self.peek_is(TokenType::Newline)
-            && self.peek_keyword_after_newlines(Keyword::Type).is_ok()
-        {
+        if self.peek_is(TokenType::Newline) && self.is_keyword_after_newlines(Keyword::Type) {
             self.eat_newlines_maybe()?;
         }
 
@@ -207,7 +205,7 @@ impl Parser {
 
     /// Decide whether `type` after `import` is a type-only modifier.
     fn should_parse_import_type_modifier(&mut self) -> bool {
-        if self.peek_keyword(Keyword::Type).is_err() {
+        if !self.is_keyword(Keyword::Type) {
             return false;
         }
 
@@ -294,7 +292,7 @@ impl Parser {
         self.eat_newlines_maybe()?;
 
         // kind
-        let kind = if self.peek_keyword(Keyword::Type).is_ok() {
+        let kind = if self.is_keyword(Keyword::Type) {
             self.bump(); // eat type
             self.eat_newlines_maybe()?;
             Some(DependencyKind::Type)
@@ -381,11 +379,11 @@ impl Parser {
         self.eat_keyword(Keyword::Export)?;
 
         // export default <expression>
-        if self.peek_keyword(Keyword::Default).is_ok() {
+        if self.is_keyword(Keyword::Default) {
             self.bump(); // eat default
 
             // reject export default enum declarations
-            if self.peek_keyword(Keyword::Enum).is_ok() {
+            if self.is_keyword(Keyword::Enum) {
                 return Err(ParseError::unexpected(self.peek()?.span));
             }
 
@@ -415,9 +413,7 @@ impl Parser {
             return Ok(export);
         }
         // export as namespace Foo
-        else if self.peek_keyword(Keyword::As).is_ok()
-            && self.peek_next_keyword(Keyword::Namespace).is_ok()
-        {
+        else if self.is_keyword(Keyword::As) && self.is_next_keyword(Keyword::Namespace) {
             self.bump(); // eat as
             self.bump(); // eat namespace
             let (name, name_span) = self.eat_identifier_with_span()?;
@@ -458,7 +454,7 @@ impl Parser {
         }
 
         // kind
-        let kind = if self.peek_keyword(Keyword::Type).is_ok() {
+        let kind = if self.is_keyword(Keyword::Type) {
             self.bump(); // eat type
             Some(DependencyKind::Type)
         } else {
@@ -466,7 +462,7 @@ impl Parser {
         };
 
         // export * from
-        if self.peek_is(TokenType::Multiply) && self.peek_next_keyword(Keyword::From).is_ok() {
+        if self.peek_is(TokenType::Multiply) && self.is_next_keyword(Keyword::From) {
             self.bump(); // eat *
             self.bump(); // eat from
             let (target, target_span) = self.eat_dependency_target_with_span()?;
@@ -503,7 +499,7 @@ impl Parser {
         // binding
         let allow_type_modifier = kind != Some(DependencyKind::Type);
         let items = self.eat_dependency_items_block(allow_type_modifier, true)?;
-        let (target, target_span) = if self.peek_keyword(Keyword::From).is_ok() {
+        let (target, target_span) = if self.is_keyword(Keyword::From) {
             self.bump(); // eat from
             let (target, span) = self.eat_dependency_target_with_span()?;
             (Some(target), Some(span))
@@ -556,7 +552,7 @@ impl Parser {
     fn eat_dependency_arguments_maybe(
         &mut self,
     ) -> ParseResult<Option<Vec<LocalNodeId<Argument>>>> {
-        if self.peek_keyword(Keyword::With).is_ok() || self.peek_keyword(Keyword::Assert).is_ok() {
+        if self.is_keyword(Keyword::With) || self.is_keyword(Keyword::Assert) {
             self.bump(); // eat with or assert
             self.eat_newlines_maybe()?;
             self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)?;
@@ -575,8 +571,7 @@ impl Parser {
         if self.peek_is(TokenType::OpenBrace)
             || self.peek_is(TokenType::Multiply)
             || (self.peek_is(TokenType::Identifier)
-                && (self.peek_next_is(TokenType::Comma)
-                    || self.peek_next_keyword(Keyword::From).is_ok()))
+                && (self.peek_next_is(TokenType::Comma) || self.is_next_keyword(Keyword::From)))
         {
             Ok(())
         } else {
@@ -630,8 +625,7 @@ impl Parser {
 
         // `Default,` or `foo from`
         if self.peek_is(TokenType::Identifier)
-            && (self.peek_next_is(TokenType::Comma)
-                || self.peek_next_keyword(Keyword::From).is_ok())
+            && (self.peek_next_is(TokenType::Comma) || self.is_next_keyword(Keyword::From))
         {
             let start = self.mark();
             let (alias, alias_span) = self.eat_identifier_with_span()?;
@@ -651,7 +645,7 @@ impl Parser {
         }
 
         // `* as foo` (can follow a default import)
-        if self.peek_is(TokenType::Multiply) && self.peek_next_keyword(Keyword::As).is_ok() {
+        if self.peek_is(TokenType::Multiply) && self.is_next_keyword(Keyword::As) {
             let start = self.mark();
             self.bump(); // eat *
             self.bump(); // eat as
@@ -725,12 +719,12 @@ impl Parser {
         };
 
         // default
-        if self.peek_keyword(Keyword::Default).is_ok() {
+        if self.is_keyword(Keyword::Default) {
             self.bump(); // eat default
 
             // alias
             let (alias, alias_span) =
-                if self.peek_keyword(Keyword::As).is_ok() || self.peek_is(TokenType::Colon) {
+                if self.is_keyword(Keyword::As) || self.peek_is(TokenType::Colon) {
                     self.bump(); // eat `as` or `:`
                     let (alias, alias_span) =
                         self.eat_dependency_item_alias_with_span(allow_literal_alias)?;
@@ -762,7 +756,7 @@ impl Parser {
 
             // alias
             let (alias, alias_span) =
-                if self.peek_keyword(Keyword::As).is_ok() || self.peek_is(TokenType::Colon) {
+                if self.is_keyword(Keyword::As) || self.peek_is(TokenType::Colon) {
                     self.bump(); // eat `as` or `:`
                     let (alias, alias_span) =
                         self.eat_dependency_item_alias_with_span(allow_literal_alias)?;
@@ -792,7 +786,7 @@ impl Parser {
     /// Decide whether `type` should be parsed as a dependency item modifier.
     fn should_parse_dependency_type_modifier(&mut self) -> bool {
         // require `type` keyword
-        if self.peek_keyword(Keyword::Type).is_err() {
+        if !self.is_keyword(Keyword::Type) {
             return false;
         }
 
@@ -802,7 +796,7 @@ impl Parser {
         }
 
         // handle `type as` disambiguation
-        if self.peek_next_keyword(Keyword::As).is_ok() {
+        if self.is_next_keyword(Keyword::As) {
             if self.peek_next_next_token(TokenType::Identifier).is_err() {
                 return true;
             }

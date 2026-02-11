@@ -83,16 +83,19 @@ impl Parser {
             return true;
         }
 
-        self.identifier_for_index(self.pos_index())
-            .is_some_and(|id| {
-                let ids = &self.type_literal_identifiers;
-                id == ids.undefined
-                    || id == ids.unknown
-                    || id == ids.object
-                    || id == ids.null_
-                    || id == ids.any
-                    || id == ids.never
-            })
+        let pos = self.pos_index();
+        self.token_stream.ensure_token(pos);
+        let Some(token) = self.tokens().get(pos) else {
+            return false;
+        };
+        if token.token.ty != TokenType::Identifier {
+            return false;
+        }
+
+        matches!(
+            self.get_span_str(token.span),
+            "undefined" | "unknown" | "object" | "null" | "any" | "never"
+        )
     }
 
     /// Eat an expression body without stack growth.
@@ -102,7 +105,7 @@ impl Parser {
             self.eat_decorators_prefix_maybe()?;
         }
 
-        let start = self.mark();
+        let start = self.mark_span();
 
         // labelled statement or expression (like `label: while(...)` or `label: loop {}`)
         // decorators treat keywords as identifiers, so skip label parsing there
@@ -148,7 +151,7 @@ impl Parser {
                 self.eat_newlines_maybe()?;
                 // allow empty statement bodies in labelled statements
                 let body = if self.peek_is(TokenType::Semicolon) {
-                    let body_start = self.mark();
+                    let body_start = self.mark_span();
                     self.bump(); // eat semicolon
                     let block_id = self.tree.insert(
                         Block {
@@ -211,9 +214,7 @@ impl Parser {
                     let module_identifier_matches = !self.options.in_decorator
                         && !self.options.in_type
                         && self.language.supports_module_declaration()
-                        && self.module_identifier.is_some_and(|id| {
-                            self.identifier_for_index(self.pos_index()) == Some(id)
-                        });
+                        && self.identifier_equals_at(self.pos_index(), "module");
                     let next_keyword = if next_token_type == TokenType::Identifier {
                         self.keyword_for_index(self.index_for_next())
                     } else {
@@ -297,7 +298,7 @@ impl Parser {
                             Some(Keyword::Void) => UnaryOperator::Void,
                             _ => unreachable!(),
                         };
-                        let operator_start = self.mark();
+                        let operator_start = self.mark_span();
                         self.bump(); // eat unary operator (always because right associative)
                         let operator_span = self.get_span_from(&operator_start);
                         let mut right_options = self
@@ -329,7 +330,7 @@ impl Parser {
                             Some(Keyword::Keyof) => TypeUnaryOperator::Keyof,
                             _ => unreachable!(),
                         };
-                        let operator_start = self.mark();
+                        let operator_start = self.mark_span();
                         self.bump(); // eat type unary operator (always because right associative)
                         let operator_span = self.get_span_from(&operator_start);
                         let mut right_options = self
@@ -637,7 +638,7 @@ impl Parser {
                     }
                     // unary prefix operations
                     else if let Ok(operator) = self.peek_unary_prefix_operator() {
-                        let operator_start = self.mark();
+                        let operator_start = self.mark_span();
                         self.bump(); // eat unary operator (always because right associative)
                         let operator_span = self.get_span_from(&operator_start);
                         let mut right_options = self
@@ -657,7 +658,7 @@ impl Parser {
                     }
                     // type unary operations
                     else if let Ok(operator) = self.peek_type_unary_prefix_operator() {
-                        let operator_start = self.mark();
+                        let operator_start = self.mark_span();
                         self.bump(); // eat type unary operator (always because right associative)
                         let operator_span = self.get_span_from(&operator_start);
                         let mut right_options = self

@@ -53,8 +53,8 @@ impl Parser {
         let is_class = keyword == Keyword::Class;
 
         // optional name / key
-        let has_heritage_keyword = self.peek_keyword(Keyword::Extends).is_ok()
-            || self.peek_keyword(Keyword::Implements).is_ok();
+        let has_heritage_keyword =
+            self.is_keyword(Keyword::Extends) || self.is_keyword(Keyword::Implements);
 
         // require a name for class and struct declarations
         let allow_anonymous = is_class && allow_anonymous_class;

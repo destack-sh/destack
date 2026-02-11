@@ -92,7 +92,7 @@ impl Parser {
                 // reject duplicate default selectors in switch blocks
                 if kind == MatchKind::Switch
                     && has_default_case
-                    && self.peek_keyword(Keyword::Default).is_ok()
+                    && self.is_keyword(Keyword::Default)
                 {
                     return Err(ParseError::unexpected(self.peek()?.span));
                 }
@@ -139,7 +139,7 @@ impl Parser {
         let selector = match kind {
             MatchKind::Switch => {
                 // default case
-                if self.peek_keyword(Keyword::Default).is_ok() {
+                if self.is_keyword(Keyword::Default) {
                     self.bump();
                     self.eat_colon()?;
                     self.eat_newlines_maybe()?;
@@ -168,7 +168,7 @@ impl Parser {
                         )
                     };
                     // guard
-                    let guard = if self.peek_keyword(Keyword::If).is_ok() {
+                    let guard = if self.is_keyword(Keyword::If) {
                         self.eat_keyword(Keyword::If)?;
                         let guard = self.with_options(
                             ParserOptions {
@@ -195,7 +195,7 @@ impl Parser {
                     self.with_options(self.options.in_match_case(), |parser| parser.eat_pattern())?;
 
                 // guard
-                let guard = if self.peek_keyword(Keyword::If).is_ok() {
+                let guard = if self.is_keyword(Keyword::If) {
                     self.eat_keyword(Keyword::If)?;
                     let guard = self.with_options(
                         ParserOptions {
@@ -222,12 +222,12 @@ impl Parser {
             // eat expressions until we hit a break (inclusive) or case / default (exclusive)
             self.eat_newlines_maybe()?;
             // empty case body before the next case, default, or closing brace
-            let is_empty_case = self.peek_keyword(Keyword::Case).is_ok()
-                || self.peek_keyword(Keyword::Default).is_ok()
+            let is_empty_case = self.is_keyword(Keyword::Case)
+                || self.is_keyword(Keyword::Default)
                 || self.peek_is(TokenType::CloseBrace)
                 || self.peek_is(TokenType::Newline)
-                    && (self.peek_keyword_after_newlines(Keyword::Case).is_ok()
-                        || self.peek_keyword_after_newlines(Keyword::Default).is_ok()
+                    && (self.is_keyword_after_newlines(Keyword::Case)
+                        || self.is_keyword_after_newlines(Keyword::Default)
                         || self
                             .peek_token_after_newlines(self.pos(), TokenType::CloseBrace)
                             .is_ok());
@@ -261,8 +261,8 @@ impl Parser {
                 }
 
                 // stop at the next case boundary
-                if self.peek_keyword(Keyword::Case).is_ok()
-                    || self.peek_keyword(Keyword::Default).is_ok()
+                if self.is_keyword(Keyword::Case)
+                    || self.is_keyword(Keyword::Default)
                     || self.peek_is(TokenType::CloseBrace)
                 {
                     break;

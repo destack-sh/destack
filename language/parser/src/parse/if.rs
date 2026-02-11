@@ -118,7 +118,7 @@ impl Parser {
         }
 
         // if / else if / else node
-        let else_expression_id = if self.peek_keyword_after_newlines(Keyword::Else).is_ok() {
+        let else_expression_id = if self.is_keyword_after_newlines(Keyword::Else) {
             self.eat_newlines_maybe()?;
             self.eat_keyword(Keyword::Else)?;
             self.eat_newlines_maybe()?;
