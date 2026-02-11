@@ -3,11 +3,10 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    resolution_target_symbols, symbol_primary_declaration_for, symbol_value_type_id_for,
+    has_this_parameter_type, resolution_target_symbols, symbol_primary_declaration_for,
+    symbol_value_type_id_for,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
-
-const DEFAULT_RELATION_CACHE_KEY: u64 = 0;
 
 declare_lint! {
     /// Disallow unbound instance methods.
@@ -362,7 +361,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
         };
 
         if symbol_type_id.module_id == self.ctx.module_id() {
-            return type_has_this_parameter(self.ctx.types, symbol_type_id.type_id);
+            return has_this_parameter_type(self.ctx.types, symbol_type_id.type_id);
         }
 
         let module_ref = self.ctx.program.modules.get(symbol_type_id.module_id);
@@ -371,7 +370,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
             return false;
         };
         let types = module_dir.types.read();
-        type_has_this_parameter(&types, symbol_type_id.type_id)
+        has_this_parameter_type(&types, symbol_type_id.type_id)
     }
 }
 
@@ -453,57 +452,6 @@ impl NodeVisitor for UnboundMethodVisitor<'_, '_> {
         }
 
         walk_expression(self, tree, id, expression);
-    }
-}
-
-/// Return true when a type declares a `this` parameter.
-fn type_has_this_parameter(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
-    let normalized_type_id = types
-        .normalized_type(
-            dir::NormalizationMode::Flow,
-            DEFAULT_RELATION_CACHE_KEY,
-            type_id,
-        )
-        .map(|entry| entry.normalized_type)
-        .unwrap_or(type_id);
-
-    let mut visited = Vec::new();
-    type_has_this_parameter_inner(types, normalized_type_id, &mut visited)
-}
-
-/// Return true when a type declares a `this` parameter with cycle protection.
-fn type_has_this_parameter_inner(
-    types: &dir::TypeTable,
-    type_id: dir::LocalTypeId,
-    visited: &mut Vec<dir::LocalTypeId>,
-) -> bool {
-    if visited.contains(&type_id) {
-        return false;
-    }
-    visited.push(type_id);
-
-    match types.get_type(type_id) {
-        dir::Type::Function { this_parameter, .. } => this_parameter.is_some(),
-        dir::Type::Value { value } => type_has_this_parameter_inner(types, *value, visited),
-        dir::Type::ValueOf { right, .. }
-        | dir::Type::ReferenceOf { right, .. }
-        | dir::Type::PointerOf { right, .. } => {
-            type_has_this_parameter_inner(types, *right, visited)
-        }
-        dir::Type::Union { elements } | dir::Type::Intersection { elements } => elements
-            .iter()
-            .any(|element| type_has_this_parameter_inner(types, *element, visited)),
-        dir::Type::Reference { symbol, .. } => {
-            if let Some(instance_type_id) = types.get_instance_type_id(*symbol) {
-                return type_has_this_parameter_inner(types, instance_type_id, visited);
-            }
-            if let Some(value_type_id) = types.get_value_type_id(*symbol) {
-                return type_has_this_parameter_inner(types, value_type_id, visited);
-            }
-
-            false
-        }
-        _ => false,
     }
 }
 

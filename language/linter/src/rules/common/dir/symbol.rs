@@ -268,3 +268,33 @@ pub fn symbol_value_type_id_for(
         type_id,
     })
 }
+
+/// Map one symbol value type from local or remote type tables.
+pub fn symbol_value_type_map_for<T>(
+    program: &Program,
+    profile_id: ProfileId,
+    local_module_id: ModuleId,
+    local_symbols: &dir::SymbolTable,
+    local_types: &dir::TypeTable,
+    symbol_id: dir::GlobalSymbolId,
+    map: impl FnOnce(&dir::TypeTable, dir::LocalTypeId) -> T,
+) -> Option<T> {
+    let symbol_type_id = symbol_value_type_id_for(
+        program,
+        profile_id,
+        local_module_id,
+        local_symbols,
+        local_types,
+        symbol_id,
+    )?;
+
+    if symbol_type_id.module_id == local_module_id {
+        return Some(map(local_types, symbol_type_id.type_id));
+    }
+
+    let module_ref = program.modules.get(symbol_type_id.module_id);
+    let module = module_ref.read();
+    let dir = module.dir_maybe(profile_id)?;
+    let types = dir.types.read();
+    Some(map(&types, symbol_type_id.type_id))
+}

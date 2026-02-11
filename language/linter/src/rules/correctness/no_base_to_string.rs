@@ -2,7 +2,7 @@ use destack_ast::StringId;
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_method_call;
+use crate::rules::common::{expression_method_call, has_useful_to_string_type};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -80,58 +80,6 @@ impl<'a, 'b> BaseToStringVisitor<'a, 'b> {
         }
     }
 
-    /// Check if a type has a useful toString representation.
-    fn has_useful_to_string(&self, type_id: dir::LocalTypeId) -> bool {
-        let ty = self.ctx.types.get_type(type_id);
-
-        match ty {
-            // primitives have useful toString
-            dir::Type::TypeLiteral { value } => matches!(
-                value,
-                dir::TypeLiteral::Primitive(dir::PrimitiveType::String)
-                    | dir::TypeLiteral::Primitive(dir::PrimitiveType::Number)
-                    | dir::TypeLiteral::Primitive(dir::PrimitiveType::Boolean)
-                    | dir::TypeLiteral::Primitive(dir::PrimitiveType::Int(_))
-                    | dir::TypeLiteral::Primitive(dir::PrimitiveType::Float(_))
-                    | dir::TypeLiteral::Primitive(dir::PrimitiveType::Bigint)
-                    | dir::TypeLiteral::ScalarLiteral(_)
-            ),
-            // arrays and tuples have useful toString
-            dir::Type::Array { .. } | dir::Type::ArraySized { .. } | dir::Type::Tuple { .. } => {
-                true
-            }
-            // follow type wrappers
-            dir::Type::Value { value } => self.has_useful_to_string(*value),
-            dir::Type::ValueOf { right, .. }
-            | dir::Type::ReferenceOf { right, .. }
-            | dir::Type::PointerOf { right, .. } => self.has_useful_to_string(*right),
-            // unions are safe if all elements have useful toString
-            dir::Type::Union { elements } => elements.iter().all(|e| self.has_useful_to_string(*e)),
-            // intersections are safe if any element has useful toString
-            dir::Type::Intersection { elements } => {
-                elements.iter().any(|e| self.has_useful_to_string(*e))
-            }
-            // references need to check if they're strings or numbers
-            dir::Type::Reference { symbol, .. } => {
-                // check if it's a well-known type with useful toString
-                self.is_known_to_string_type(*symbol)
-            }
-            // plain objects don't have useful toString
-            dir::Type::Object { .. } => false,
-            // functions have useful toString (shows source code)
-            dir::Type::Function { .. } => true,
-            // other types are assumed to not have useful toString
-            _ => false,
-        }
-    }
-
-    /// Check if a symbol is known to have useful toString.
-    fn is_known_to_string_type(&self, symbol: dir::GlobalSymbolId) -> bool {
-        // classes and built-in types typically have useful toString implementations
-        // only plain objects (SymbolType::Void for anonymous objects) are problematic
-        !matches!(symbol.ty(), dir::SymbolType::Void)
-    }
-
     /// Check a method call for base toString usage.
     fn check_to_string(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) {
         // match method call pattern
@@ -150,7 +98,7 @@ impl<'a, 'b> BaseToStringVisitor<'a, 'b> {
         };
 
         // check if the receiver has useful toString
-        if self.has_useful_to_string(type_id) {
+        if has_useful_to_string_type(self.ctx.types, type_id) {
             return;
         }
 

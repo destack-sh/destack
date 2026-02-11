@@ -627,6 +627,28 @@ impl TypeTable {
             .then_some(entry)
     }
 
+    /// Return the normalized type id when a valid cache entry exists.
+    pub fn try_normalized_type_id(
+        &self,
+        mode: NormalizationMode,
+        relation_key: u64,
+        type_id: LocalTypeId,
+    ) -> Option<LocalTypeId> {
+        self.normalized_type(mode, relation_key, type_id)
+            .map(|entry| entry.normalized_type)
+    }
+
+    /// Return a normalized type id, or the original type id when uncached.
+    pub fn normalized_type_id_or(
+        &self,
+        mode: NormalizationMode,
+        relation_key: u64,
+        type_id: LocalTypeId,
+    ) -> LocalTypeId {
+        self.try_normalized_type_id(mode, relation_key, type_id)
+            .unwrap_or(type_id)
+    }
+
     /// Cache a normalized type for the chosen mode.
     pub fn set_normalized_type(
         &mut self,

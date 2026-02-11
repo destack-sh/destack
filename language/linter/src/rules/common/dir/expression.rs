@@ -1,10 +1,14 @@
 use destack_base::{StringId, StringPool};
 use destack_dir as dir;
 use destack_source::ModuleId;
+use destack_workspace::{ProfileId, Program};
 
 use crate::ConstValue;
 
-use super::{function_return_type, is_any_type, is_async_function_type, is_promise_type};
+use super::{
+    function_return_type, is_any_type, is_async_function_type, is_promise_type,
+    symbol_value_type_map_for,
+};
 
 /// The base of a reference path.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -158,6 +162,88 @@ pub fn expression_declared_or_inferred_type_id(
     types
         .get_declared_type_id(global_expression_id)
         .or_else(|| types.get_inferred_type_id(global_expression_id))
+}
+
+/// Map one expression type from local inference or symbol value types.
+pub fn expression_type_map<T>(
+    program: &Program,
+    profile_id: ProfileId,
+    module_id: ModuleId,
+    tree: &dir::NodeTree,
+    symbols: &dir::SymbolTable,
+    types: &dir::TypeTable,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    map: impl FnOnce(&dir::TypeTable, dir::LocalTypeId) -> T,
+) -> Option<T> {
+    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
+
+    if let Some(type_id) =
+        expression_declared_or_inferred_type_id(module_id, tree, types, expression_id)
+    {
+        return Some(map(types, type_id));
+    }
+
+    let expression = tree.get(expression_id);
+    let symbol_id = expression.target_symbol()?;
+    symbol_value_type_map_for(
+        program, profile_id, module_id, symbols, types, symbol_id, map,
+    )
+}
+
+/// Map one expression type from local inference, symbol value types, or call returns.
+pub fn expression_type_or_call_return_type_map<T>(
+    program: &Program,
+    profile_id: ProfileId,
+    module_id: ModuleId,
+    tree: &dir::NodeTree,
+    symbols: &dir::SymbolTable,
+    types: &dir::TypeTable,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    mut map: impl FnMut(&dir::TypeTable, dir::LocalTypeId) -> T,
+) -> Option<T> {
+    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
+
+    // resolve direct expression types first
+    if let Some(type_id) =
+        expression_declared_or_inferred_type_id(module_id, tree, types, expression_id)
+    {
+        return Some(map(types, type_id));
+    }
+
+    let expression = tree.get(expression_id);
+
+    // resolve symbol backed value types
+    if let Some(symbol_id) = expression.target_symbol()
+        && let Some(mapped_value) = symbol_value_type_map_for(
+            program,
+            profile_id,
+            module_id,
+            symbols,
+            types,
+            symbol_id,
+            |types, type_id| map(types, type_id),
+        )
+    {
+        return Some(mapped_value);
+    }
+
+    // resolve return types for call like expressions
+    let callee_id = match expression {
+        dir::Expression::Call { left, .. } | dir::Expression::New { left, .. } => *left,
+        _ => return None,
+    };
+    let return_type_id = expression_type_map(
+        program,
+        profile_id,
+        module_id,
+        tree,
+        symbols,
+        types,
+        callee_id,
+        function_return_type,
+    )??;
+
+    Some(map(types, return_type_id))
 }
 
 /// Return true when an expression evaluates to a Promise like value.

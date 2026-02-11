@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::is_any_type;
+use crate::rules::common::{is_any_type, is_infer_var_type};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -173,8 +173,7 @@ fn should_report_parameter(
     let Some(type_id) = ctx.types.get_value_type_id(symbol_id) else {
         return true;
     };
-    let ty = ctx.types.get_type(type_id);
-    if matches!(ty, dir::Type::InferVar { .. }) {
+    if is_infer_var_type(ctx.types, type_id) {
         return true;
     }
 
