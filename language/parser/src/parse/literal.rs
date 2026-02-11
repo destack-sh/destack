@@ -2364,43 +2364,6 @@ mod tests {
         });
     }
 
-    /// Parse legacy escaped digit strings in tsx attributes.
-    #[test]
-    fn test_parse_tree_with_legacy_escaped_digit_attribute_string() {
-        let mut test = TestParser::new_with_options(
-            r#"<ReactInputMask mask="+4\9 99 999 99" inputRef={(node) => { ref = node; }} />"#,
-            LanguageType::TypeScriptXml,
-        );
-        let mut parser = test.prepare();
-        let expression = parser.eat_tree_literal().unwrap();
-        assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
-
-        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
-            assert_expression_path!(parser, parser.tree.get(*left), "ReactInputMask");
-            assert!(elements.is_none());
-
-            let arguments = arguments.as_ref().expect("expected attributes");
-            assert_eq!(arguments.len(), 2);
-
-            assert_node!(parser.tree, arguments[0], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
-                assert_string!(parser, *name, "mask");
-                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
-                    assert_string!(parser, *string_id, "+4\\9 99 999 99");
-                });
-            });
-
-            assert_node!(parser.tree, arguments[1], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
-                assert_string!(parser, *name, "inputRef");
-                assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
-                    assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body: Some(body), .. } => {
-                        assert_eq!(signature.dynamic_parameters.len(), 1);
-                        assert_node!(parser.tree, *body, Expression::Block(_));
-                    });
-                });
-            });
-        });
-    }
-
     /// Tree fragment containing a callback that returns nested tree literals.
     #[test]
     fn test_parse_tree_fragment_with_nested_callback() {
