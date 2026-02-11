@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    expression_declared_or_inferred_type_id, expression_is_any_typed, expression_target_symbol,
+    expression_is_any_typed, expression_target_symbol, expression_type_map,
     expression_unwrap_parenthesized, is_any_type, symbol_value_type_id_for, unwrap_value_type_id,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
@@ -249,13 +249,16 @@ fn assertion_operand_type_id(
     ctx: &LintModuleDirContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::LocalTypeId> {
-    let type_id = expression_declared_or_inferred_type_id(
+    let type_id = expression_type_map(
+        &ctx.program,
+        ctx.profile_id,
         ctx.module_id(),
         ctx.tree,
+        ctx.symbols,
         ctx.types,
         expression_id,
-    )
-    .or_else(|| ctx.expression_type_id(expression_id))?;
+        |_, type_id| type_id,
+    )?;
 
     Some(unwrap_value_type_id(ctx.types, type_id))
 }

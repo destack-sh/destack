@@ -14,6 +14,7 @@ mod grouped_accessor_pairs;
 mod no_boolean_literal_compare;
 mod no_collapsible_if;
 mod no_duplicate_string;
+mod no_duplicate_type_constituents;
 mod no_else_return;
 mod no_empty_interface;
 mod no_extra_boolean_cast;
@@ -23,6 +24,7 @@ mod no_negated_condition;
 mod no_nested_template_literal;
 mod no_nested_ternary;
 mod no_object_constructor;
+mod no_redundant_type_constituents;
 mod no_unnecessary_lambda;
 mod no_unnecessary_template_expression;
 mod no_unneeded_ternary;
@@ -91,6 +93,7 @@ pub use grouped_accessor_pairs::*;
 pub use no_boolean_literal_compare::*;
 pub use no_collapsible_if::*;
 pub use no_duplicate_string::*;
+pub use no_duplicate_type_constituents::*;
 pub use no_else_return::*;
 pub use no_empty_interface::*;
 pub use no_extra_boolean_cast::*;
@@ -100,6 +103,7 @@ pub use no_negated_condition::*;
 pub use no_nested_template_literal::*;
 pub use no_nested_ternary::*;
 pub use no_object_constructor::*;
+pub use no_redundant_type_constituents::*;
 pub use no_unnecessary_lambda::*;
 pub use no_unnecessary_template_expression::*;
 pub use no_unneeded_ternary::*;
@@ -169,6 +173,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoBooleanLiteralCompare),
         boxed(NoCollapsibleIf),
         boxed(NoDuplicateString),
+        boxed(NoDuplicateTypeConstituents),
         boxed(NoElseReturn),
         boxed(NoEmptyInterface),
         boxed(NoExtraBooleanCast),
@@ -178,6 +183,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoNestedTemplateLiteral),
         boxed(NoNestedTernary),
         boxed(NoObjectConstructor),
+        boxed(NoRedundantTypeConstituents),
         boxed(NoUnnecessaryLambda),
         boxed(NoUnnecessaryTemplateExpression),
         boxed(NoUnneededTernary),

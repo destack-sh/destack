@@ -58,7 +58,7 @@ impl LintRule for PreferSetOverEmptyMap {
             let Some(alias_target_type_id) = ctx.types.get_alias_target_type_id(type_symbol) else {
                 continue;
             };
-            if !type_contains_map_with_empty_value(ctx, alias_target_type_id, &map_symbols) {
+            if !contains_map_with_empty_value_type(ctx.types, alias_target_type_id, &map_symbols) {
                 continue;
             }
             if !reported_expression_ids.insert(value.id) {
@@ -72,7 +72,7 @@ impl LintRule for PreferSetOverEmptyMap {
             let should_report = match expression {
                 // type annotations are lowered as type values
                 dir::Expression::Type { value } => {
-                    type_contains_map_with_empty_value(ctx, *value, &map_symbols)
+                    contains_map_with_empty_value_type(ctx.types, *value, &map_symbols)
                 }
                 // type references can carry map static arguments directly
                 dir::Expression::LocalReference {
@@ -203,15 +203,6 @@ fn new_map_has_empty_value_argument(
     let value_argument = ctx.tree.get(static_arguments[1]);
     let value_expression_id = value_argument.value();
     expression_is_void_or_never_type(ctx, value_expression_id)
-}
-
-/// Return true when one type tree contains `Map<_, void | never>`.
-fn type_contains_map_with_empty_value(
-    ctx: &LintModuleDirContext<'_>,
-    type_id: dir::LocalTypeId,
-    map_symbols: &[dir::GlobalSymbolId],
-) -> bool {
-    contains_map_with_empty_value_type(ctx.types, type_id, map_symbols)
 }
 
 /// Return true when one map reference has an empty value type argument.

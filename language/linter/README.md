@@ -114,7 +114,7 @@ High-confidence issues that are almost always wrong.
 | `LC021` | `no-iterator-invalidation` | Destack | DIR | ✓ | No | None | Disallow modifying a collection while iterating over it |
 | `LC022` | `no-loop-single-iteration` | SonarQube | AST | ✓ | Sometimes | Unsafe | Disallow loops that execute at most once |
 | `LC023` | `no-misused-promises` | TS-ESLint | DIR | ✓ | No | None | Disallow Promises in places not designed to handle them |
-| `LC048` | `no-overlapping-match-arms` | Destack | DIR |  |  | Safe | Disallow match patterns that subsume later arms |
+| `LC048` | `no-overlapping-match-arms` | Destack | AST | ✓ | Always | Unsafe | Disallow match patterns that subsume later arms |
 | `LC024` | `no-promise-executor-return` | ESLint | DIR | ✓ | Sometimes | Safe | Disallow returning values from Promise executor |
 | `LC025` | `no-self-compare` | ESLint | DIR | ✓ | No | None | Disallow comparisons where both sides are exactly the same |
 | `LC026` | `no-sparse-arrays` | ESLint | AST | ✓ | Always | Safe | Disallow sparse arrays with holes |
@@ -166,7 +166,7 @@ Code that is likely unintentional but may occasionally be intentional.
 | `LU019` | `no-incomplete-range` | Destack | AST | ✓ | Sometimes | Safe | Warn on exclusive ranges that are likely meant to be inclusive |
 | `LU020` | `no-inner-declarations` | ESLint | AST | ✓ | No | None | Disallow variable or function declarations in nested blocks |
 | `LU021` | `no-large-try-block` | DeepSource | AST | ✓ | No | None | Warn when try block contains much more than throwing code |
-| `LU046` | `no-loop-func` | ESLint | DIR |  |  | None | Disallow functions that capture loop variables |
+| `LU046` | `no-loop-func` | ESLint | DIR | ✓ | No | None | Disallow functions that capture loop variables |
 | `LU023` | `no-mixed-key-types` | Destack | DIR | ✓ | No | None | Warn on objects that mix string, symbol, and numeric keys |
 | `LU022` | `no-misleading-character-class` | ESLint | AST | ✓ | No | None | Disallow characters that behave unexpectedly in regex |
 | `LU024` | `no-negation-in-equality-check` | Unicorn | AST | ✓ | Always | Safe | Disallow negation in the left operand of equality tests |
@@ -204,7 +204,6 @@ Patterns that may expose the application to attacks.
 | Code | Rule | Source | Level | Status | Autofix Support | Fixability | Description |
 |------|------|--------|-------|--------|------------------|------------|-------------|
 | `LS001` | `no-blank-target` | Biome | AST | ✓ | Sometimes | Safe | Disallow `target="_blank"` without `rel="noopener"` |
-| `LS018` | `no-command-injection` | Semgrep | DIR |  |  | None | Disallow command execution using untrusted input |
 | `LS016` | `no-ffi-abi-mismatch` | Rust | DIR |  |  | None | Disallow FFI calls with ABI-unsafe layouts |
 | `LS002` | `no-hardcoded-ip` | SonarQube | AST | ✓ | No | None | Disallow hardcoded IP addresses |
 | `LS003` | `no-implied-eval` | ESLint | DIR | ✓ | No | None | Disallow `setTimeout` and `setInterval` with string arguments |
@@ -216,7 +215,6 @@ Patterns that may expose the application to attacks.
 | `LS007` | `no-regex-injection` | Destack | DIR | ✓ | No | None | Disallow tainted values in dynamic regular expression patterns |
 | `LS008` | `no-script-url` | ESLint | AST | ✓ | No | None | Disallow `javascript:` URLs |
 | `LS009` | `no-secrets` | Biome | AST | ✓ | No | None | Disallow hardcoded secrets and credentials |
-| `LS021` | `no-sql-injection` | Semgrep | DIR |  |  | None | Disallow query construction that interpolates untrusted input |
 | `LS022` | `no-ssrf` | Semgrep | DIR |  |  | None | Disallow network requests to attacker controlled destinations |
 | `LS010` | `no-tainted-sink` | Destack | DIR | ✓ | No | None | Disallow passing tainted values into security sinks |
 | `LS023` | `no-template-injection` | Semgrep | DIR |  |  | None | Disallow rendering templates with untrusted template text |
@@ -243,7 +241,7 @@ Correct code that could be faster or use less memory.
 | `LP007` | `no-nested-array-includes` | Destack | DIR | ✓ | No | None | Disallow `includes`/`indexOf` inside loops over another array |
 | `LP008` | `no-object-spread-in-reduce` | Destack | DIR | ✓ | No | None | Disallow object spread in reduce accumulators |
 | `LP009` | `no-regex-in-loop` | Destack | DIR | ✓ | No | None | Disallow `new RegExp()` inside loops |
-| `LP020` | `no-sequential-independent-await` | Destack | DIR |  |  | Safe | Suggest `Promise.all` for independent sequential awaits |
+| `LP020` | `no-sequential-independent-await` | Destack | DIR | ✓ | No | None | Suggest `Promise.all` for independent sequential awaits |
 | `LP010` | `no-string-concat-in-loop` | Destack | DIR | ✓ | No | None | Disallow `+=` and `x = x + y` string concatenation in loops |
 | `LP011` | `no-super-linear-regex` | Destack | AST | ✓ | No | None | Disallow regular expressions with catastrophic backtracking |
 | `LP012` | `prefer-array-every` | Unicorn | DIR | ✓ | Always | Safe | Prefer `.every()` over `.filter().length === .length` |
@@ -282,14 +280,14 @@ Subjective preferences for consistent coding style.
 | `LY014` | `no-boolean-literal-compare` | Unicorn | AST | ✓ | Always | Safe | Disallow comparing boolean expressions to boolean literals |
 | `LY015` | `no-collapsible-if` | Unicorn | AST | ✓ | Always | Safe | Suggest merging nested if statements without else |
 | `LY016` | `no-duplicate-string` | SonarQube | AST | ✓ | No | None | Disallow the same string literal appearing many times |
-| `LY072` | `no-duplicate-type-constituents` | TS-ESLint | AST |  |  | Safe | Disallow duplicate constituents in union/intersection types |
+| `LY072` | `no-duplicate-type-constituents` | TS-ESLint | AST | ✓ | Sometimes | Safe | Disallow duplicate constituents in union/intersection types |
 | `LY017` | `no-else-return` | ESLint | AST | ✓ | Always | Safe | Disallow else blocks after return statements |
 | `LY018` | `no-empty-interface` | TS-ESLint | AST | ✓ | Always | Safe | Disallow empty interfaces |
 | `LY067` | `no-extra-boolean-cast` | ESLint | DIR | ✓ | Always | Safe | Disallow unnecessary boolean casts |
 | `LY073` | `no-implicit-coercion` | ESLint | DIR | ✓ | No | None | Disallow shorthand type conversions |
 | `LY019` | `no-lonely-if` | ESLint | AST | ✓ | Always | Safe | Disallow if statements as the only statement in else blocks |
 | `LY020` | `no-negated-condition` | ESLint | AST | ✓ | Always | Safe | Disallow negated conditions with else branches |
-| `LY074` | `no-redundant-type-constituents` | TS-ESLint | DIR |  |  | Safe | Disallow type constituents made redundant by others |
+| `LY074` | `no-redundant-type-constituents` | TS-ESLint | DIR | ✓ | Sometimes | Safe | Disallow type constituents made redundant by others |
 | `LY021` | `no-nested-template-literal` | SonarQube | AST | ✓ | No | None | Disallow template literals nested inside template literals |
 | `LY022` | `no-nested-ternary` | ESLint | AST | ✓ | Sometimes | Unsafe | Disallow nested ternary expressions |
 | `LY023` | `no-object-constructor` | ESLint | DIR | ✓ | Sometimes | Safe | Disallow `new Object()` |
@@ -403,7 +401,7 @@ Opt-in rules that ban certain patterns by project choice. These rules may confli
 | `LR013` | `no-explicit-any` | TS-ESLint | AST | ✓ | Always | Suggestion | Disallow the `any` type |
 | `LR014` | `no-implicit-return` | Destack | AST | ✓ | Always | Safe | Require explicit `return` statements |
 | `LR015` | `no-labels` | ESLint | AST | ✓ | No | None | Disallow labeled statements |
-| `LR036` | `no-layer-violation` | SonarQube | DIR |  |  | None | Disallow imports that cross architectural layer boundaries |
+| `LR036` | `no-layer-violation` | SonarQube | DIR | ✓ | No | None | Disallow imports that cross configured module component boundaries |
 | `LR016` | `no-magic-numbers` | ESLint | AST | ✓ | No | None | Disallow magic numbers |
 | `LR017` | `no-namespace` | TS-ESLint | AST | ✓ | No | None | Disallow TypeScript namespaces |
 | `LR018` | `no-non-null-assertion` | TS-ESLint | AST | ✓ | Always | Suggestion | Disallow non-null assertions using the `!` postfix |

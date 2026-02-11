@@ -21,6 +21,7 @@ mod no_invalid_regexp;
 mod no_iterator_invalidation;
 mod no_loop_single_iteration;
 mod no_misused_promises;
+mod no_overlapping_match_arms;
 mod no_promise_executor_return;
 mod no_self_compare;
 mod no_sparse_arrays;
@@ -68,6 +69,7 @@ pub use no_invalid_regexp::*;
 pub use no_iterator_invalidation::*;
 pub use no_loop_single_iteration::*;
 pub use no_misused_promises::*;
+pub use no_overlapping_match_arms::*;
 pub use no_promise_executor_return::*;
 pub use no_self_compare::*;
 pub use no_sparse_arrays::*;
@@ -116,6 +118,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoIteratorInvalidation),
         boxed(NoLoopSingleIteration),
         boxed(NoMisusedPromises),
+        boxed(NoOverlappingMatchArms),
         boxed(NoPromiseExecutorReturn),
         boxed(NoSelfCompare),
         boxed(NoSparseArrays),

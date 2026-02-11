@@ -756,6 +756,13 @@
             "null"
           ]
         },
+        "jsAsJsx": {
+          "description": "Parse JavaScript files (.js, .mjs, .cjs) in JSX mode.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "checkJs": {
           "description": "Type-check JavaScript files.",
           "type": [
@@ -3140,6 +3147,17 @@
           "items": {
             "type": "string"
           }
+        },
+        "moduleBoundaries": {
+          "description": "Module boundary constraints for module boundary aware lint rules.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DsConfigLinterModuleBoundariesJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       }
     },
@@ -3256,6 +3274,128 @@
           "type": "string",
           "const": "pascal"
         }
+      ]
+    },
+    "DsConfigLinterModuleBoundariesJson": {
+      "description": "Module boundary options for linter configuration JSON.",
+      "type": "object",
+      "properties": {
+        "unknownComponentPolicy": {
+          "description": "Policy for modules that do not match any configured component.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "components": {
+          "description": "Declared module components.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/DsConfigLinterModuleComponentJson"
+          }
+        },
+        "rules": {
+          "description": "Allowed component to component dependency rules.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/DsConfigLinterModuleDependencyRuleJson"
+          }
+        },
+        "exceptions": {
+          "description": "Explicit dependency exceptions.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/DsConfigLinterModuleDependencyExceptionJson"
+          }
+        }
+      }
+    },
+    "DsConfigLinterModuleComponentJson": {
+      "description": "One module component declaration in linter JSON.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "The unique component name.",
+          "type": "string"
+        },
+        "match": {
+          "description": "Glob patterns used to map modules into this component.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "DsConfigLinterModuleDependencyRuleJson": {
+      "description": "One module dependency rule in linter JSON.",
+      "type": "object",
+      "properties": {
+        "from": {
+          "description": "The source component name.",
+          "type": "string"
+        },
+        "allow": {
+          "description": "The list of allowed destination component names.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      },
+      "required": [
+        "from"
+      ]
+    },
+    "DsConfigLinterModuleDependencyExceptionJson": {
+      "description": "One module dependency exception in linter JSON.",
+      "type": "object",
+      "properties": {
+        "from": {
+          "description": "The source component name.",
+          "type": "string"
+        },
+        "to": {
+          "description": "The destination component name.",
+          "type": "string"
+        },
+        "match": {
+          "description": "Module path patterns where this exception is allowed.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "reason": {
+          "description": "Optional human-readable reason for the exception.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "from",
+        "to"
       ]
     },
     "DsConfigCacheJson": {

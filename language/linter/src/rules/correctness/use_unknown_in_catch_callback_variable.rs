@@ -4,8 +4,8 @@ use destack_workspace::{LintSeverity, Module, ProfileId};
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
-    expression_declared_or_inferred_type_id, function_parameter_types_at, is_explicit_any_type,
-    is_promise_type, symbol_primary_declaration_for,
+    expression_type_map, function_parameter_types_at, is_explicit_any_type, is_promise_type,
+    symbol_primary_declaration_for,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -62,16 +62,18 @@ impl LintRule for UseUnknownInCatchCallbackVariable {
             else {
                 continue;
             };
-            let Some(receiver_type_id) = expression_declared_or_inferred_type_id(
+            let is_promise_receiver = expression_type_map(
+                &ctx.program,
+                ctx.profile_id,
                 ctx.module_id(),
                 ctx.tree,
+                ctx.symbols,
                 ctx.types,
                 catch_receiver,
+                |types, type_id| is_promise_type(types, type_id, Some(promise_symbol)),
             )
-            .or_else(|| ctx.expression_type_id(catch_receiver)) else {
-                continue;
-            };
-            if !is_promise_type(ctx.types, receiver_type_id, Some(promise_symbol)) {
+            .unwrap_or(false);
+            if !is_promise_receiver {
                 continue;
             }
 
@@ -183,13 +185,16 @@ fn callback_type_uses_any_parameter(
     ctx: &LintModuleDirContext<'_>,
     callback_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let Some(callback_type_id) = expression_declared_or_inferred_type_id(
+    let Some(callback_type_id) = expression_type_map(
+        &ctx.program,
+        ctx.profile_id,
         ctx.module_id(),
         ctx.tree,
+        ctx.symbols,
         ctx.types,
         callback_expression_id,
-    )
-    .or_else(|| ctx.expression_type_id(callback_expression_id)) else {
+        |_, type_id| type_id,
+    ) else {
         return false;
     };
 
@@ -588,10 +593,9 @@ Promise.reject("failed").catch((error: any) => {
             .assert_lint("use-unknown-in-catch-callback-variable")
             .assert_safe_fixed(
                 r#"
-Promise.reject("failed")
-    .catch((error: unknown) => {
-        return error;
-    });
+Promise.reject("failed").catch((error: unknown) => {
+    return error;
+});
 "#,
             );
     }
@@ -664,10 +668,9 @@ Promise.reject("failed").catch(function onError(error: any) {
             .assert_lint("use-unknown-in-catch-callback-variable")
             .assert_safe_fixed(
                 r#"
-Promise.reject("failed")
-    .catch(function onError(error: unknown) {
-        return error;
-    });
+Promise.reject("failed").catch(function onError(error: unknown) {
+    return error;
+});
 "#,
             );
     }
