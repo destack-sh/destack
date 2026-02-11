@@ -15,7 +15,7 @@ use destack_formatter::{
     FormatterCacheStatsSnapshot, FormatterCounterEntry, FormatterTimingEntry, statement_list,
 };
 use destack_parser::Parser as DestackParser;
-use destack_source::{File, FileId, FileType, LanguageType, MultiSpan, Uri};
+use destack_source::{File, FileId, FileType, IgnoreSet, LanguageType, MultiSpan, Uri};
 
 const DEFAULT_ROOT: &str = "test/fixtures/ecosystem/checkouts";
 const QUICK_CORPUS_PACKAGES: &[&str] = &[
@@ -101,6 +101,10 @@ struct Args {
     /// Disable run progress output on stderr.
     #[arg(long)]
     no_progress: bool,
+
+    /// Disable path ignore rules when collecting corpus files.
+    #[arg(long)]
+    no_path_ignores: bool,
 
     /// Enable formatter internal timing and cache instrumentation.
     #[arg(long)]
@@ -370,7 +374,8 @@ fn main() -> Result<(), String> {
 
     let root = resolve_root_path(args.root.as_path())?;
     let selection = resolve_corpus_selection(root.as_path(), args.corpus, &args.packages)?;
-    let (files, load_stats) = load_corpus_files(&selection.roots)?;
+    let respect_path_ignores = !args.no_path_ignores;
+    let (files, load_stats) = load_corpus_files(&selection.roots, respect_path_ignores)?;
     if files.is_empty() {
         return Err(format!(
             "no supported source files found under {}",
@@ -395,6 +400,10 @@ fn main() -> Result<(), String> {
             args.runs,
             format_count(args.workers.max(1)),
             if args.timings { "on" } else { "off" }
+        );
+        eprintln!(
+            "bench_stats: path ignores {}",
+            if respect_path_ignores { "on" } else { "off" }
         );
         if !selection.package_names.is_empty() {
             eprintln!(
@@ -1991,7 +2000,10 @@ fn print_json(summary: &BenchSummary) {
 }
 
 /// Load all supported source files under one or more roots.
-fn load_corpus_files(roots: &[PathBuf]) -> Result<(Vec<CorpusFile>, CorpusLoadStats), String> {
+fn load_corpus_files(
+    roots: &[PathBuf],
+    respect_path_ignores: bool,
+) -> Result<(Vec<CorpusFile>, CorpusLoadStats), String> {
     if roots.is_empty() {
         return Err("no corpus roots selected".to_string());
     }
@@ -2002,12 +2014,14 @@ fn load_corpus_files(roots: &[PathBuf]) -> Result<(Vec<CorpusFile>, CorpusLoadSt
             return Err(format!("root path does not exist: {}", root.display()));
         }
 
-        collect_supported_files(root.as_path(), &mut file_paths).map_err(|error| {
-            format!(
-                "failed collecting source files under {}: {error}",
-                root.display()
-            )
-        })?;
+        collect_supported_files(root.as_path(), &mut file_paths, respect_path_ignores).map_err(
+            |error| {
+                format!(
+                    "failed collecting source files under {}: {error}",
+                    root.display()
+                )
+            },
+        )?;
     }
     file_paths.sort();
     file_paths.dedup();
@@ -2045,7 +2059,24 @@ fn load_corpus_files(roots: &[PathBuf]) -> Result<(Vec<CorpusFile>, CorpusLoadSt
 }
 
 /// Recursively collect supported source files.
-fn collect_supported_files(root: &Path, files: &mut Vec<PathBuf>) -> io::Result<()> {
+fn collect_supported_files(
+    root: &Path,
+    files: &mut Vec<PathBuf>,
+    respect_path_ignores: bool,
+) -> io::Result<()> {
+    if respect_path_ignores {
+        let mut ignore_set = IgnoreSet::new();
+        return collect_supported_files_with_ignores(root, root, files, &mut ignore_set);
+    }
+
+    collect_supported_files_without_ignores(root, files)
+}
+
+/// Recursively collect source files without path ignores.
+fn collect_supported_files_without_ignores(
+    root: &Path,
+    files: &mut Vec<PathBuf>,
+) -> io::Result<()> {
     if root.is_file() {
         if path_is_supported_source(root) {
             files.push(root.to_path_buf());
@@ -2057,11 +2088,49 @@ fn collect_supported_files(root: &Path, files: &mut Vec<PathBuf>) -> io::Result<
         let entry = entry?;
         let path = entry.path();
         if path.is_dir() {
-            collect_supported_files(path.as_path(), files)?;
+            collect_supported_files_without_ignores(path.as_path(), files)?;
             continue;
         }
 
         if path_is_supported_source(path.as_path()) {
+            files.push(path);
+        }
+    }
+
+    Ok(())
+}
+
+/// Recursively collect source files while respecting ignore rules.
+fn collect_supported_files_with_ignores(
+    corpus_root: &Path,
+    directory: &Path,
+    files: &mut Vec<PathBuf>,
+    ignore_set: &mut IgnoreSet,
+) -> io::Result<()> {
+    if directory.is_file() {
+        if path_is_supported_source(directory) {
+            files.push(directory.to_path_buf());
+        }
+        return Ok(());
+    }
+
+    ignore_set.load_dir(directory);
+    for entry in fs::read_dir(directory)? {
+        let entry = entry?;
+        let path = entry.path();
+        let file_type = entry.file_type()?;
+        let is_directory = file_type.is_dir();
+
+        if ignore_set.is_ignored(corpus_root, path.as_path(), is_directory) {
+            continue;
+        }
+
+        if is_directory {
+            collect_supported_files_with_ignores(corpus_root, path.as_path(), files, ignore_set)?;
+            continue;
+        }
+
+        if file_type.is_file() && path_is_supported_source(path.as_path()) {
             files.push(path);
         }
     }
