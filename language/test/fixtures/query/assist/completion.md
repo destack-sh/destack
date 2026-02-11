@@ -84,8 +84,8 @@ User-defined types should appear in type position.
 
 ```ds
 struct Point {
-    x: int32,
-    y: int32,
+    x: int32
+    y: int32
 }
 
 function test() {
@@ -142,10 +142,13 @@ In generic brackets, should show types.
 
 ```ds
 struct Container<T> {
-    value: T,
+    value: T
 }
 
-struct Point { x: int32, y: int32 }
+struct Point {
+    x: int32
+    y: int32
+}
 
 function test() {
     const c: Container<$0> = Container { 
@@ -229,7 +232,7 @@ Completion should list exported symbols from the referenced module.
 
 ```ds:types.ds
 export struct Widget {
-    value: int32,
+    value: int32
 }
 
 export function makeWidget(): Widget {
@@ -252,7 +255,7 @@ Completion should not suggest items that are already imported in the same clause
 
 ```ds:types.ds
 export struct Widget {
-    value: int32,
+    value: int32
 }
 
 export function makeWidget(): Widget {
@@ -275,7 +278,7 @@ Type only import clauses should only include type space symbols.
 
 ```ds:types.ds
 export struct Widget {
-    value: int32,
+    value: int32
 }
 
 export function makeWidget(): Widget {
@@ -300,8 +303,8 @@ Member access should include fields and extension methods for nominal types.
 
 ```ds
 struct Point {
-    x: int32,
-    y: int32,
+    x: int32
+    y: int32
 }
 
 extension for Point {
@@ -393,7 +396,7 @@ Type-only imports should only suggest type symbols.
 
 ```ds:types.ds
 export struct Widget {
-    value: int32,
+    value: int32
 }
 
 export function makeWidget(): Widget {
@@ -445,7 +448,7 @@ Default imports should not block named import completions.
 
 ```ds:types.ds
 export struct Widget {
-    value: int32,
+    value: int32
 }
 
 export function makeWidget(): Widget {
@@ -468,7 +471,7 @@ Multiline import clauses should still resolve completions.
 
 ```ds:types.ds
 export struct Widget {
-    value: int32,
+    value: int32
 }
 
 export function makeWidget(): Widget {
@@ -495,8 +498,8 @@ In value position, struct names should be available as completions.
 
 ```ds
 struct Point {
-    x: int32,
-    y: int32,
+    x: int32
+    y: int32
 }
 
 function main() {
@@ -515,8 +518,8 @@ When triggering completion immediately after a dot, show all members.
 
 ```ds
 struct Point2 {
-    x: int32,
-    y: int32,
+    x: int32
+    y: int32
 }
 
 function main2() {
@@ -536,9 +539,9 @@ When typing a partial member name after a dot, show matching members.
 
 ```ds
 struct Point {
-    xa: int32,
-    xb: int32,
-    y: int32,
+    xa: int32
+    xb: int32
+    y: int32
 }
 
 function main() {
@@ -610,7 +613,7 @@ After `new`, suggest constructable types.
 ```ds
 class Engine {}
 struct Wheel {
-    size: int32,
+    size: int32
 }
 function makeWheel(): Wheel {
     return Wheel { size: 32 };
@@ -654,8 +657,8 @@ When inside an empty object literal, suggest all fields.
 
 ```ds
 struct Point {
-    x: int32,
-    y: int32,
+    x: int32
+    y: int32
 }
 
 function main() {
@@ -674,9 +677,9 @@ When inside an object literal with a known type, suggest remaining fields.
 
 ```ds
 struct Config {
-    host: string,
-    port: int32,
-    timeout: int32,
+    host: string
+    port: int32
+    timeout: int32
 }
 
 function main() {
@@ -696,8 +699,8 @@ Expected type fields should not be duplicated by same named locals.
 
 ```ds
 struct Config {
-    host: string,
-    timeout: int32,
+    host: string
+    timeout: int32
 }
 
 function main() {
@@ -735,9 +738,9 @@ When typing a value inside an object literal field, completion should be value-b
 
 ```ds
 struct Config {
-    host: string,
-    port: int32,
-    timeout: int32,
+    host: string
+    port: int32
+    timeout: int32
 }
 
 function main() {
@@ -759,13 +762,13 @@ Nested object literals should suggest fields of the nested type.
 
 ```ds
 struct Address {
-    street: string,
-    city: string,
+    street: string
+    city: string
 }
 
 struct Person {
-    name: string,
-    address: Address,
+    name: string
+    address: Address
 }
 
 function main() {
@@ -1067,8 +1070,8 @@ Generic struct instantiations should complete their fields.
 
 ```ds
 struct Container<T> {
-    value: T,
-    count: int32,
+    value: T
+    count: int32
 }
 
 function main() {

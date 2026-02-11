@@ -76,7 +76,7 @@ Expanding selection should walk from the identifier to the call expression and s
 
 ```ds
 struct User {
-    name: string,
+    name: string
 }
 
 function greet(user: User): void {
@@ -101,8 +101,8 @@ Expanding selection should walk from the identifier to the declaration and modul
 
 ```ds
 struct Point {
-    x: int32,
-    y: int32,
+    x: int32
+    y: int32
 }
 
 const p: $0Point = Point { x: 1, y: 2 };

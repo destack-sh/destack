@@ -38,8 +38,8 @@ Struct declarations should be highlighted as structs.
 
 ```ds
 struct Point {
-    x: float32,
-    y: float32,
+    x: float32
+    y: float32
 }
 ```
 

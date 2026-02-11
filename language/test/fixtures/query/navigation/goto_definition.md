@@ -68,9 +68,9 @@ Goto definition on a field access should jump to the field declaration.
 
 ```ds
 struct Point {
-    x: int32,
+    x: int32
 //  ^ def:point_x
-    y: int32,
+    y: int32
 }
 
 function main() {

@@ -259,7 +259,7 @@ impl QueryTestSession {
             let file_id = session
                 .files
                 .get_id_by_path(&file_path)
-                .unwrap_or(FileId(0));
+                .unwrap_or_else(|| panic!("missing file id for path: {}", file_path.display()));
 
             // update marker spans with correct file_id
             for range in &markers.ranges {
