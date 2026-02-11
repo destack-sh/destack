@@ -77,8 +77,8 @@ function requireNative() {
       try {
         const binding = require('@destack-sh/napi-android-arm64')
         const bindingPackageVersion = require('@destack-sh/napi-android-arm64/package.json').version
-        if (bindingPackageVersion !== '0.48.3' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-          throw new Error(`Native binding package version mismatch, expected 0.48.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+        if (bindingPackageVersion !== '0.54.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+          throw new Error(`Native binding package version mismatch, expected 0.54.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
         }
         return binding
       } catch (e) {
@@ -93,8 +93,8 @@ function requireNative() {
       try {
         const binding = require('@destack-sh/napi-android-arm-eabi')
         const bindingPackageVersion = require('@destack-sh/napi-android-arm-eabi/package.json').version
-        if (bindingPackageVersion !== '0.48.3' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-          throw new Error(`Native binding package version mismatch, expected 0.48.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+        if (bindingPackageVersion !== '0.54.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+          throw new Error(`Native binding package version mismatch, expected 0.54.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
         }
         return binding
       } catch (e) {
@@ -114,8 +114,8 @@ function requireNative() {
       try {
         const binding = require('@destack-sh/napi-win32-x64-gnu')
         const bindingPackageVersion = require('@destack-sh/napi-win32-x64-gnu/package.json').version
-        if (bindingPackageVersion !== '0.48.3' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-          throw new Error(`Native binding package version mismatch, expected 0.48.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+        if (bindingPackageVersion !== '0.54.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+          throw new Error(`Native binding package version mismatch, expected 0.54.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
         }
         return binding
       } catch (e) {
@@ -130,8 +130,8 @@ function requireNative() {
       try {
         const binding = require('@destack-sh/napi-win32-x64-msvc')
         const bindingPackageVersion = require('@destack-sh/napi-win32-x64-msvc/package.json').version
-        if (bindingPackageVersion !== '0.48.3' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-          throw new Error(`Native binding package version mismatch, expected 0.48.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+        if (bindingPackageVersion !== '0.54.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+          throw new Error(`Native binding package version mismatch, expected 0.54.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
         }
         return binding
       } catch (e) {
@@ -147,8 +147,8 @@ function requireNative() {
       try {
         const binding = require('@destack-sh/napi-win32-ia32-msvc')
         const bindingPackageVersion = require('@destack-sh/napi-win32-ia32-msvc/package.json').version
-        if (bindingPackageVersion !== '0.48.3' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-          throw new Error(`Native binding package version mismatch, expected 0.48.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+        if (bindingPackageVersion !== '0.54.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+          throw new Error(`Native binding package version mismatch, expected 0.54.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
         }
         return binding
       } catch (e) {
@@ -163,8 +163,8 @@ function requireNative() {
       try {
         const binding = require('@destack-sh/napi-win32-arm64-msvc')
         const bindingPackageVersion = require('@destack-sh/napi-win32-arm64-msvc/package.json').version
-        if (bindingPackageVersion !== '0.48.3' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-          throw new Error(`Native binding package version mismatch, expected 0.48.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+        if (bindingPackageVersion !== '0.54.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+          throw new Error(`Native binding package version mismatch, expected 0.54.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
         }
         return binding
       } catch (e) {
@@ -182,8 +182,8 @@ function requireNative() {
     try {
       const binding = require('@destack-sh/napi-darwin-universal')
       const bindingPackageVersion = require('@destack-sh/napi-darwin-universal/package.json').version
-      if (bindingPackageVersion !== '0.48.3' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-        throw new Error(`Native binding package version mismatch, expected 0.48.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+      if (bindingPackageVersion !== '0.54.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+        throw new Error(`Native binding package version mismatch, expected 0.54.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
       }
       return binding
     } catch (e) {
@@ -198,8 +198,8 @@ function requireNative() {
       try {
         const binding = require('@destack-sh/napi-darwin-x64')
         const bindingPackageVersion = require('@destack-sh/napi-darwin-x64/package.json').version
-        if (bindingPackageVersion !== '0.48.3' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-          throw new Error(`Native binding package version mismatch, expected 0.48.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+        if (bindingPackageVersion !== '0.54.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+          throw new Error(`Native binding package version mismatch, expected 0.54.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
         }
         return binding
       } catch (e) {
@@ -214,8 +214,8 @@ function requireNative() {
       try {
         const binding = require('@destack-sh/napi-darwin-arm64')
         const bindingPackageVersion = require('@destack-sh/napi-darwin-arm64/package.json').version
-        if (bindingPackageVersion !== '0.48.3' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-          throw new Error(`Native binding package version mismatch, expected 0.48.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+        if (bindingPackageVersion !== '0.54.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+          throw new Error(`Native binding package version mismatch, expected 0.54.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
         }
         return binding
       } catch (e) {
@@ -234,8 +234,8 @@ function requireNative() {
       try {
         const binding = require('@destack-sh/napi-freebsd-x64')
         const bindingPackageVersion = require('@destack-sh/napi-freebsd-x64/package.json').version
-        if (bindingPackageVersion !== '0.48.3' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-          throw new Error(`Native binding package version mismatch, expected 0.48.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+        if (bindingPackageVersion !== '0.54.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+          throw new Error(`Native binding package version mismatch, expected 0.54.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
         }
         return binding
       } catch (e) {
@@ -250,8 +250,8 @@ function requireNative() {
       try {
         const binding = require('@destack-sh/napi-freebsd-arm64')
         const bindingPackageVersion = require('@destack-sh/napi-freebsd-arm64/package.json').version
-        if (bindingPackageVersion !== '0.48.3' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-          throw new Error(`Native binding package version mismatch, expected 0.48.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+        if (bindingPackageVersion !== '0.54.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+          throw new Error(`Native binding package version mismatch, expected 0.54.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
         }
         return binding
       } catch (e) {
@@ -271,8 +271,8 @@ function requireNative() {
         try {
           const binding = require('@destack-sh/napi-linux-x64-musl')
           const bindingPackageVersion = require('@destack-sh/napi-linux-x64-musl/package.json').version
-          if (bindingPackageVersion !== '0.48.3' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-            throw new Error(`Native binding package version mismatch, expected 0.48.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+          if (bindingPackageVersion !== '0.54.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+            throw new Error(`Native binding package version mismatch, expected 0.54.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
           }
           return binding
         } catch (e) {
@@ -287,8 +287,8 @@ function requireNative() {
         try {
           const binding = require('@destack-sh/napi-linux-x64-gnu')
           const bindingPackageVersion = require('@destack-sh/napi-linux-x64-gnu/package.json').version
-          if (bindingPackageVersion !== '0.48.3' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-            throw new Error(`Native binding package version mismatch, expected 0.48.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+          if (bindingPackageVersion !== '0.54.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+            throw new Error(`Native binding package version mismatch, expected 0.54.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
           }
           return binding
         } catch (e) {
@@ -305,8 +305,8 @@ function requireNative() {
         try {
           const binding = require('@destack-sh/napi-linux-arm64-musl')
           const bindingPackageVersion = require('@destack-sh/napi-linux-arm64-musl/package.json').version
-          if (bindingPackageVersion !== '0.48.3' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-            throw new Error(`Native binding package version mismatch, expected 0.48.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+          if (bindingPackageVersion !== '0.54.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+            throw new Error(`Native binding package version mismatch, expected 0.54.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
           }
           return binding
         } catch (e) {
@@ -321,8 +321,8 @@ function requireNative() {
         try {
           const binding = require('@destack-sh/napi-linux-arm64-gnu')
           const bindingPackageVersion = require('@destack-sh/napi-linux-arm64-gnu/package.json').version
-          if (bindingPackageVersion !== '0.48.3' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-            throw new Error(`Native binding package version mismatch, expected 0.48.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+          if (bindingPackageVersion !== '0.54.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+            throw new Error(`Native binding package version mismatch, expected 0.54.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
           }
           return binding
         } catch (e) {
@@ -339,8 +339,8 @@ function requireNative() {
         try {
           const binding = require('@destack-sh/napi-linux-arm-musleabihf')
           const bindingPackageVersion = require('@destack-sh/napi-linux-arm-musleabihf/package.json').version
-          if (bindingPackageVersion !== '0.48.3' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-            throw new Error(`Native binding package version mismatch, expected 0.48.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+          if (bindingPackageVersion !== '0.54.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+            throw new Error(`Native binding package version mismatch, expected 0.54.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
           }
           return binding
         } catch (e) {
@@ -355,8 +355,8 @@ function requireNative() {
         try {
           const binding = require('@destack-sh/napi-linux-arm-gnueabihf')
           const bindingPackageVersion = require('@destack-sh/napi-linux-arm-gnueabihf/package.json').version
-          if (bindingPackageVersion !== '0.48.3' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-            throw new Error(`Native binding package version mismatch, expected 0.48.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+          if (bindingPackageVersion !== '0.54.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+            throw new Error(`Native binding package version mismatch, expected 0.54.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
           }
           return binding
         } catch (e) {
@@ -373,8 +373,8 @@ function requireNative() {
         try {
           const binding = require('@destack-sh/napi-linux-loong64-musl')
           const bindingPackageVersion = require('@destack-sh/napi-linux-loong64-musl/package.json').version
-          if (bindingPackageVersion !== '0.48.3' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-            throw new Error(`Native binding package version mismatch, expected 0.48.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+          if (bindingPackageVersion !== '0.54.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+            throw new Error(`Native binding package version mismatch, expected 0.54.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
           }
           return binding
         } catch (e) {
@@ -389,8 +389,8 @@ function requireNative() {
         try {
           const binding = require('@destack-sh/napi-linux-loong64-gnu')
           const bindingPackageVersion = require('@destack-sh/napi-linux-loong64-gnu/package.json').version
-          if (bindingPackageVersion !== '0.48.3' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-            throw new Error(`Native binding package version mismatch, expected 0.48.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+          if (bindingPackageVersion !== '0.54.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+            throw new Error(`Native binding package version mismatch, expected 0.54.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
           }
           return binding
         } catch (e) {
@@ -407,8 +407,8 @@ function requireNative() {
         try {
           const binding = require('@destack-sh/napi-linux-riscv64-musl')
           const bindingPackageVersion = require('@destack-sh/napi-linux-riscv64-musl/package.json').version
-          if (bindingPackageVersion !== '0.48.3' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-            throw new Error(`Native binding package version mismatch, expected 0.48.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+          if (bindingPackageVersion !== '0.54.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+            throw new Error(`Native binding package version mismatch, expected 0.54.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
           }
           return binding
         } catch (e) {
@@ -423,8 +423,8 @@ function requireNative() {
         try {
           const binding = require('@destack-sh/napi-linux-riscv64-gnu')
           const bindingPackageVersion = require('@destack-sh/napi-linux-riscv64-gnu/package.json').version
-          if (bindingPackageVersion !== '0.48.3' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-            throw new Error(`Native binding package version mismatch, expected 0.48.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+          if (bindingPackageVersion !== '0.54.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+            throw new Error(`Native binding package version mismatch, expected 0.54.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
           }
           return binding
         } catch (e) {
@@ -440,8 +440,8 @@ function requireNative() {
       try {
         const binding = require('@destack-sh/napi-linux-ppc64-gnu')
         const bindingPackageVersion = require('@destack-sh/napi-linux-ppc64-gnu/package.json').version
-        if (bindingPackageVersion !== '0.48.3' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-          throw new Error(`Native binding package version mismatch, expected 0.48.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+        if (bindingPackageVersion !== '0.54.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+          throw new Error(`Native binding package version mismatch, expected 0.54.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
         }
         return binding
       } catch (e) {
@@ -456,8 +456,8 @@ function requireNative() {
       try {
         const binding = require('@destack-sh/napi-linux-s390x-gnu')
         const bindingPackageVersion = require('@destack-sh/napi-linux-s390x-gnu/package.json').version
-        if (bindingPackageVersion !== '0.48.3' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-          throw new Error(`Native binding package version mismatch, expected 0.48.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+        if (bindingPackageVersion !== '0.54.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+          throw new Error(`Native binding package version mismatch, expected 0.54.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
         }
         return binding
       } catch (e) {
@@ -476,8 +476,8 @@ function requireNative() {
       try {
         const binding = require('@destack-sh/napi-openharmony-arm64')
         const bindingPackageVersion = require('@destack-sh/napi-openharmony-arm64/package.json').version
-        if (bindingPackageVersion !== '0.48.3' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-          throw new Error(`Native binding package version mismatch, expected 0.48.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+        if (bindingPackageVersion !== '0.54.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+          throw new Error(`Native binding package version mismatch, expected 0.54.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
         }
         return binding
       } catch (e) {
@@ -492,8 +492,8 @@ function requireNative() {
       try {
         const binding = require('@destack-sh/napi-openharmony-x64')
         const bindingPackageVersion = require('@destack-sh/napi-openharmony-x64/package.json').version
-        if (bindingPackageVersion !== '0.48.3' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-          throw new Error(`Native binding package version mismatch, expected 0.48.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+        if (bindingPackageVersion !== '0.54.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+          throw new Error(`Native binding package version mismatch, expected 0.54.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
         }
         return binding
       } catch (e) {
@@ -508,8 +508,8 @@ function requireNative() {
       try {
         const binding = require('@destack-sh/napi-openharmony-arm')
         const bindingPackageVersion = require('@destack-sh/napi-openharmony-arm/package.json').version
-        if (bindingPackageVersion !== '0.48.3' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-          throw new Error(`Native binding package version mismatch, expected 0.48.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+        if (bindingPackageVersion !== '0.54.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+          throw new Error(`Native binding package version mismatch, expected 0.54.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
         }
         return binding
       } catch (e) {
@@ -573,11 +573,50 @@ if (!nativeBinding) {
 
 module.exports = nativeBinding
 module.exports.Workspace = nativeBinding.Workspace
+module.exports.WorkspaceService = nativeBinding.WorkspaceService
+module.exports.Applicability = nativeBinding.Applicability
+module.exports.checkSync = nativeBinding.checkSync
+module.exports.CompilerResolveMode = nativeBinding.CompilerResolveMode
+module.exports.defaultCheckOptions = nativeBinding.defaultCheckOptions
 module.exports.defaultCompilerOptions = nativeBinding.defaultCompilerOptions
+module.exports.defaultFormatOptions = nativeBinding.defaultFormatOptions
+module.exports.defaultLinterOptions = nativeBinding.defaultLinterOptions
+module.exports.defaultLinterRequestOptions = nativeBinding.defaultLinterRequestOptions
+module.exports.defaultParseOptions = nativeBinding.defaultParseOptions
 module.exports.defaultResolveOptions = nativeBinding.defaultResolveOptions
+module.exports.defaultRunOptions = nativeBinding.defaultRunOptions
+module.exports.defaultTransformOptions = nativeBinding.defaultTransformOptions
 module.exports.defaultWorkspaceOptions = nativeBinding.defaultWorkspaceOptions
+module.exports.defaultWorkspaceServiceOptions = nativeBinding.defaultWorkspaceServiceOptions
+module.exports.DiagnosticSeverity = nativeBinding.DiagnosticSeverity
 module.exports.EnforceExtension = nativeBinding.EnforceExtension
+module.exports.FileType = nativeBinding.FileType
+module.exports.formatSync = nativeBinding.formatSync
 module.exports.IndentStyle = nativeBinding.IndentStyle
 module.exports.LineEnding = nativeBinding.LineEnding
+module.exports.LinterArrayTypeStyle = nativeBinding.LinterArrayTypeStyle
+module.exports.LinterCategory = nativeBinding.LinterCategory
+module.exports.LinterFilenameCase = nativeBinding.LinterFilenameCase
+module.exports.LinterPreset = nativeBinding.LinterPreset
+module.exports.LinterSeverity = nativeBinding.LinterSeverity
+module.exports.LinterTypeDefinitionStyle = nativeBinding.LinterTypeDefinitionStyle
+module.exports.lintSync = nativeBinding.lintSync
+module.exports.ModuleFormat = nativeBinding.ModuleFormat
+module.exports.ModuleType = nativeBinding.ModuleType
+module.exports.parseSync = nativeBinding.parseSync
+module.exports.resolveSync = nativeBinding.resolveSync
+module.exports.RunInputKind = nativeBinding.RunInputKind
+module.exports.RunMode = nativeBinding.RunMode
+module.exports.RunOutputStream = nativeBinding.RunOutputStream
+module.exports.RunPayloadKind = nativeBinding.RunPayloadKind
+module.exports.runSync = nativeBinding.runSync
+module.exports.SuggestionStyle = nativeBinding.SuggestionStyle
+module.exports.transformSync = nativeBinding.transformSync
+module.exports.TransformTarget = nativeBinding.TransformTarget
 module.exports.TypeScriptDiscovery = nativeBinding.TypeScriptDiscovery
 module.exports.TypeScriptReferences = nativeBinding.TypeScriptReferences
+module.exports.WorkspaceInvalidationKind = nativeBinding.WorkspaceInvalidationKind
+module.exports.WorkspaceServiceMessageKind = nativeBinding.WorkspaceServiceMessageKind
+module.exports.WorkspaceServiceRescanReason = nativeBinding.WorkspaceServiceRescanReason
+module.exports.WorkspaceVirtualUpdateKind = nativeBinding.WorkspaceVirtualUpdateKind
+module.exports.WorkspaceWatchEventKind = nativeBinding.WorkspaceWatchEventKind

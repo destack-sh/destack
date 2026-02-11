@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use destack_workspace as workspace;
 use napi_derive::napi;
 
 /// Options for creating a Workspace.
@@ -24,7 +25,7 @@ impl Default for WorkspaceOptions {
 #[napi]
 #[derive(Debug)]
 pub struct Workspace {
-    inner: destack_workspace::Workspace,
+    inner: workspace::Workspace,
 }
 
 #[napi]
@@ -34,11 +35,35 @@ impl Workspace {
     pub fn new(options: WorkspaceOptions) -> Self {
         let cwd = PathBuf::from(options.cwd);
         Self {
-            inner: destack_workspace::Workspace::single_package(cwd),
+            inner: workspace::Workspace::single_package(cwd),
         }
     }
 
+    /// Add a root to the workspace.
+    #[napi]
+    pub fn add_root(&mut self, root: String) {
+        let root = PathBuf::from(root);
+        if self.inner.package_paths.iter().any(|path| path == &root) {
+            return;
+        }
+
+        self.inner.package_paths.push(root);
+    }
+
+    /// Get the current working directory.
+    #[napi(getter)]
+    pub fn cwd(&self) -> String {
+        self.inner.root.to_string_lossy().to_string()
+    }
+
+    /// Get the number of programs in the workspace.
+    #[napi(getter)]
+    pub fn program_count(&self) -> u32 {
+        self.inner.package_paths.len() as u32
+    }
+
     /// Get the workspace root directory.
+    #[napi]
     pub fn root(&self) -> String {
         self.inner.root.to_string_lossy().to_string()
     }

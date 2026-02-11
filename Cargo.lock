@@ -1188,17 +1188,23 @@ dependencies = [
 name = "destack_napi"
 version = "0.54.0"
 dependencies = [
+ "destack_ast",
  "destack_codegen_js",
  "destack_compiler",
  "destack_daemon",
  "destack_dir",
+ "destack_fir",
+ "destack_formatter",
+ "destack_parser",
  "destack_resolver",
  "destack_source",
  "destack_workspace",
+ "destack_workspace_service",
  "indexmap",
  "napi",
  "napi-build",
  "napi-derive",
+ "serde_json",
 ]
 
 [[package]]

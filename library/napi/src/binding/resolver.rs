@@ -1,8 +1,10 @@
 #![allow(clippy::derivable_impls)]
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
+use napi::Error;
 use napi_derive::napi;
+use {destack_resolver as resolver, destack_workspace as workspace};
 
 /// How to enforce file extensions.
 #[napi]
@@ -15,11 +17,11 @@ pub enum EnforceExtension {
     Disabled,
 }
 
-impl From<EnforceExtension> for destack_resolver::EnforceExtension {
+impl From<EnforceExtension> for resolver::EnforceExtension {
     fn from(enforce: EnforceExtension) -> Self {
         match enforce {
-            EnforceExtension::Enabled => destack_resolver::EnforceExtension::Enabled,
-            EnforceExtension::Disabled => destack_resolver::EnforceExtension::Disabled,
+            EnforceExtension::Enabled => resolver::EnforceExtension::Enabled,
+            EnforceExtension::Disabled => resolver::EnforceExtension::Disabled,
         }
     }
 }
@@ -32,11 +34,11 @@ pub struct AliasValue {
     pub path: Option<String>,
 }
 
-impl From<AliasValue> for destack_resolver::AliasValue {
+impl From<AliasValue> for resolver::AliasValue {
     fn from(value: AliasValue) -> Self {
         match value.path {
-            Some(path) => destack_resolver::AliasValue::Path(path),
-            None => destack_resolver::AliasValue::Ignore,
+            Some(path) => resolver::AliasValue::Path(path),
+            None => resolver::AliasValue::Ignore,
         }
     }
 }
@@ -59,6 +61,8 @@ pub enum TypeScriptReferences {
     Disabled,
     /// Auto-discover references from tsconfig.json.
     Automatic,
+    /// Resolve only manually provided references.
+    Manual,
 }
 
 impl Default for TypeScriptReferences {
@@ -93,6 +97,8 @@ pub struct TypeScriptOptions {
     pub config_file: Option<String>,
     /// How to handle references.
     pub references: TypeScriptReferences,
+    /// Paths used for manual references.
+    pub reference_paths: Vec<String>,
 }
 
 impl Default for TypeScriptOptions {
@@ -101,8 +107,19 @@ impl Default for TypeScriptOptions {
             discovery: TypeScriptDiscovery::Automatic,
             config_file: None,
             references: TypeScriptReferences::Automatic,
+            reference_paths: Vec::new(),
         }
     }
+}
+
+/// Extension alias mapping entry.
+#[napi(object)]
+#[derive(Debug, Clone)]
+pub struct ExtensionAliasEntry {
+    /// Extension key (for example ".js").
+    pub extension: String,
+    /// Aliases for this extension.
+    pub aliases: Vec<String>,
 }
 
 // -- Resolve Options --
@@ -135,6 +152,9 @@ pub struct ResolveOptions {
     /// Redirect module requests when normal resolving fails.
     pub fallback: Vec<AliasEntry>,
 
+    /// Extension aliases for resolving import requests.
+    pub extension_alias: Vec<ExtensionAliasEntry>,
+
     /// Main files in description files (e.g., ["index"]).
     pub main_files: Vec<String>,
 
@@ -149,6 +169,9 @@ pub struct ResolveOptions {
 
     /// Prefer to resolve server-relative urls as absolute paths.
     pub prefer_absolute: bool,
+
+    /// Path restrictions for resolved modules.
+    pub restrictions: Vec<String>,
 
     /// A list of directories where requests of server-relative URLs are resolved.
     pub roots: Vec<String>,
@@ -178,11 +201,13 @@ impl Default for ResolveOptions {
             ],
             is_fully_specified: false,
             fallback: vec![],
+            extension_alias: vec![],
             main_files: vec!["index".into()],
             modules: vec!["node_modules".into()],
             resolve_to_context: false,
             prefer_relative: false,
             prefer_absolute: false,
+            restrictions: vec![],
             roots: vec![],
             canonicalize_symlinks: true,
         }
@@ -190,18 +215,18 @@ impl Default for ResolveOptions {
 }
 
 /// Convert alias entries to the internal format.
-fn convert_alias(entries: Vec<AliasEntry>) -> destack_resolver::Alias {
+fn convert_alias(entries: Vec<AliasEntry>) -> resolver::Alias {
     entries
         .into_iter()
         .map(|entry| {
-            let targets: Vec<destack_resolver::AliasValue> =
+            let targets: Vec<resolver::AliasValue> =
                 entry.targets.into_iter().map(|v| v.into()).collect();
             (entry.pattern, targets)
         })
         .collect()
 }
 
-impl From<ResolveOptions> for destack_resolver::ResolveOptions {
+impl From<ResolveOptions> for resolver::ResolveOptions {
     fn from(options: ResolveOptions) -> Self {
         // convert tsconfig options
         let tsconfig = match options.tsconfig.discovery {
@@ -209,14 +234,24 @@ impl From<ResolveOptions> for destack_resolver::ResolveOptions {
                 if let Some(config_file) = options.tsconfig.config_file {
                     let references = match options.tsconfig.references {
                         TypeScriptReferences::Disabled => {
-                            destack_resolver::TypeScriptOptionsReferences::Disabled
+                            resolver::TypeScriptOptionsReferences::Disabled
                         }
                         TypeScriptReferences::Automatic => {
-                            destack_resolver::TypeScriptOptionsReferences::Automatic
+                            resolver::TypeScriptOptionsReferences::Automatic
+                        }
+                        TypeScriptReferences::Manual => {
+                            resolver::TypeScriptOptionsReferences::Paths(
+                                options
+                                    .tsconfig
+                                    .reference_paths
+                                    .into_iter()
+                                    .map(PathBuf::from)
+                                    .collect(),
+                            )
                         }
                     };
-                    Some(destack_resolver::TypeScriptOptionsDiscovery::Manual(
-                        destack_resolver::TypeScriptOptionsLocation {
+                    Some(resolver::TypeScriptOptionsDiscovery::Manual(
+                        resolver::TypeScriptOptionsLocation {
                             config_file: PathBuf::from(config_file),
                             references,
                         },
@@ -225,9 +260,7 @@ impl From<ResolveOptions> for destack_resolver::ResolveOptions {
                     None
                 }
             }
-            TypeScriptDiscovery::Automatic => {
-                Some(destack_resolver::TypeScriptOptionsDiscovery::Automatic)
-            }
+            TypeScriptDiscovery::Automatic => Some(resolver::TypeScriptOptionsDiscovery::Automatic),
         };
 
         Self {
@@ -236,7 +269,11 @@ impl From<ResolveOptions> for destack_resolver::ResolveOptions {
             alias: convert_alias(options.alias),
             conditions: options.conditions,
             enforce_extension: options.enforce_extension.into(),
-            extension_alias: indexmap::IndexMap::new(),
+            extension_alias: options
+                .extension_alias
+                .into_iter()
+                .map(|entry| (entry.extension, entry.aliases))
+                .collect(),
             extensions: options.extensions,
             is_fully_specified: options.is_fully_specified,
             fallback: convert_alias(options.fallback),
@@ -245,8 +282,125 @@ impl From<ResolveOptions> for destack_resolver::ResolveOptions {
             resolve_to_context: options.resolve_to_context,
             prefer_relative: options.prefer_relative,
             prefer_absolute: options.prefer_absolute,
-            restrictions: vec![],
+            restrictions: options
+                .restrictions
+                .into_iter()
+                .map(|path| resolver::Restriction::Path(PathBuf::from(path)))
+                .collect(),
             roots: options.roots.into_iter().map(PathBuf::from).collect(),
+            canonicalize_symlinks: options.canonicalize_symlinks,
+        }
+    }
+}
+
+impl From<resolver::ResolveOptions> for ResolveOptions {
+    fn from(options: resolver::ResolveOptions) -> Self {
+        let tsconfig = match options.tsconfig {
+            None => TypeScriptOptions {
+                discovery: TypeScriptDiscovery::Disabled,
+                config_file: None,
+                references: TypeScriptReferences::Automatic,
+                reference_paths: Vec::new(),
+            },
+            Some(resolver::TypeScriptOptionsDiscovery::Automatic) => TypeScriptOptions {
+                discovery: TypeScriptDiscovery::Automatic,
+                config_file: None,
+                references: TypeScriptReferences::Automatic,
+                reference_paths: Vec::new(),
+            },
+            Some(resolver::TypeScriptOptionsDiscovery::Manual(location)) => {
+                let (references, reference_paths) = match location.references {
+                    resolver::TypeScriptOptionsReferences::Disabled => {
+                        (TypeScriptReferences::Disabled, Vec::new())
+                    }
+                    resolver::TypeScriptOptionsReferences::Automatic => {
+                        (TypeScriptReferences::Automatic, Vec::new())
+                    }
+                    resolver::TypeScriptOptionsReferences::Paths(paths) => (
+                        TypeScriptReferences::Manual,
+                        paths
+                            .into_iter()
+                            .map(|path| path.to_string_lossy().to_string())
+                            .collect(),
+                    ),
+                };
+
+                TypeScriptOptions {
+                    discovery: TypeScriptDiscovery::Disabled,
+                    config_file: Some(location.config_file.to_string_lossy().to_string()),
+                    references,
+                    reference_paths,
+                }
+            }
+        };
+
+        let alias = options
+            .alias
+            .into_iter()
+            .map(|(pattern, targets)| AliasEntry {
+                pattern,
+                targets: targets
+                    .into_iter()
+                    .map(|target| match target {
+                        resolver::AliasValue::Path(path) => AliasValue { path: Some(path) },
+                        resolver::AliasValue::Ignore => AliasValue { path: None },
+                    })
+                    .collect(),
+            })
+            .collect();
+
+        let fallback = options
+            .fallback
+            .into_iter()
+            .map(|(pattern, targets)| AliasEntry {
+                pattern,
+                targets: targets
+                    .into_iter()
+                    .map(|target| match target {
+                        resolver::AliasValue::Path(path) => AliasValue { path: Some(path) },
+                        resolver::AliasValue::Ignore => AliasValue { path: None },
+                    })
+                    .collect(),
+            })
+            .collect();
+
+        let restrictions = options
+            .restrictions
+            .into_iter()
+            .filter_map(|restriction| match restriction {
+                resolver::Restriction::Path(path) => Some(path.to_string_lossy().to_string()),
+                resolver::Restriction::Function(_) => None,
+            })
+            .collect();
+
+        ResolveOptions {
+            cwd: options.cwd.map(|path| path.to_string_lossy().to_string()),
+            tsconfig,
+            alias,
+            conditions: options.conditions,
+            enforce_extension: match options.enforce_extension {
+                resolver::EnforceExtension::Enabled => EnforceExtension::Enabled,
+                resolver::EnforceExtension::Disabled => EnforceExtension::Disabled,
+            },
+            extension_alias: options
+                .extension_alias
+                .into_iter()
+                .map(|(extension, aliases)| ExtensionAliasEntry { extension, aliases })
+                .collect(),
+            extensions: options.extensions,
+            is_fully_specified: options.is_fully_specified,
+            fallback,
+            main_files: options.main_files,
+            modules: options.modules,
+            resolve_to_context: options.resolve_to_context,
+            prefer_relative: options.prefer_relative,
+            prefer_absolute: options.prefer_absolute,
+            restrictions,
+            roots: options
+                .roots
+                .into_iter()
+                .map(|path| path.to_string_lossy().to_string())
+                .collect(),
             canonicalize_symlinks: options.canonicalize_symlinks,
         }
     }
@@ -255,7 +409,7 @@ impl From<ResolveOptions> for destack_resolver::ResolveOptions {
 /// Get the default resolve options.
 #[napi(js_name = "defaultResolveOptions")]
 pub fn default_resolve_options() -> ResolveOptions {
-    ResolveOptions::default()
+    resolver::ResolveOptions::default().into()
 }
 
 // -- Resolution Result --
@@ -272,12 +426,82 @@ pub struct Resolution {
     pub fragment: Option<String>,
 }
 
-impl From<destack_resolver::Resolution> for Resolution {
-    fn from(resolution: destack_resolver::Resolution) -> Self {
+impl From<resolver::Resolution> for Resolution {
+    fn from(resolution: resolver::Resolution) -> Self {
         Self {
             path: resolution.path.to_string_lossy().to_string(),
             query: resolution.query,
             fragment: resolution.fragment,
         }
     }
+}
+
+/// Resolve a module specifier synchronously.
+#[napi(js_name = "resolveSync")]
+pub fn resolve_sync(
+    specifier: String,
+    from: String,
+    options: Option<ResolveOptions>,
+) -> napi::Result<Resolution> {
+    let options = options.unwrap_or_default();
+    let cwd = resolve_cwd_from_options(&options)?;
+    let from_path = resolve_from_path(&from, &cwd);
+    let from_directory = resolve_from_directory(&from_path);
+    let core_options: resolver::ResolveOptions = options.into();
+    let session = workspace::Session::new(cwd);
+    let resolver = resolver::Resolver::from_session(&session, core_options);
+
+    let resolution = resolver
+        .resolve(&from_directory, &specifier)
+        .map_err(|error| napi_error_from_resolve(error, &specifier, &from_directory))?;
+
+    Ok(resolution.into())
+}
+
+fn resolve_cwd_from_options(options: &ResolveOptions) -> napi::Result<PathBuf> {
+    if let Some(cwd) = options.cwd.as_ref() {
+        return Ok(PathBuf::from(cwd));
+    }
+
+    std::env::current_dir().map_err(|error| {
+        Error::from_reason(format!("failed to read current working directory: {error}"))
+    })
+}
+
+fn resolve_from_path(from: &str, cwd: &Path) -> PathBuf {
+    let from_path = PathBuf::from(from);
+    if from_path.is_absolute() {
+        from_path
+    } else {
+        cwd.join(from_path)
+    }
+}
+
+fn resolve_from_directory(from_path: &Path) -> PathBuf {
+    if from_path
+        .metadata()
+        .map(|metadata| metadata.is_file())
+        .unwrap_or(false)
+    {
+        return from_path
+            .parent()
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| from_path.to_path_buf());
+    }
+
+    if from_path.extension().is_some() {
+        return from_path
+            .parent()
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| from_path.to_path_buf());
+    }
+
+    from_path.to_path_buf()
+}
+
+fn napi_error_from_resolve(error: resolver::ResolveError, specifier: &str, from: &Path) -> Error {
+    Error::from_reason(format!(
+        "failed to resolve '{specifier}' from '{}': {error}",
+        from.display()
+    ))
 }
