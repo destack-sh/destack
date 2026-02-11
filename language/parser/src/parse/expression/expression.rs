@@ -13,14 +13,32 @@ const STACK_GROW_CHECK_INTERVAL: u32 = 16;
 
 impl Parser {
     pub fn eat_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+        self.eat_expression_with_statement_keyword_fast(true)
+    }
+
+    /// Eat an expression after statement keyword dispatch already ran in the caller.
+    pub(crate) fn eat_expression_without_statement_keyword_fast(
+        &mut self,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        self.eat_expression_with_statement_keyword_fast(false)
+    }
+
+    /// Eat an expression with optional statement keyword fast dispatch.
+    fn eat_expression_with_statement_keyword_fast(
+        &mut self,
+        allow_statement_keyword_fast: bool,
+    ) -> ParseResult<LocalNodeId<Expression>> {
         let _timing = self.timing_scope(tags::PARSE_EXPRESSION);
         let depth = self.expression_stack_depth;
         self.expression_stack_depth = depth.saturating_add(1);
         let should_check_stack = depth % STACK_GROW_CHECK_INTERVAL == 0;
+        let parse_expression_inner = |parser: &mut Self| {
+            parser.eat_expression_inner_with_statement_keyword_fast(allow_statement_keyword_fast)
+        };
         let result = if should_check_stack {
-            destack_base::ensure_sufficient_stack(|| self.eat_expression_inner())
+            destack_base::ensure_sufficient_stack(|| parse_expression_inner(self))
         } else {
-            self.eat_expression_inner()
+            parse_expression_inner(self)
         };
         self.expression_stack_depth = depth;
         result
@@ -109,8 +127,11 @@ impl Parser {
         )
     }
 
-    /// Eat an expression body without stack growth.
-    fn eat_expression_inner(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    /// Eat an expression body without stack growth with optional statement keyword fast dispatch.
+    fn eat_expression_inner_with_statement_keyword_fast(
+        &mut self,
+        allow_statement_keyword_fast: bool,
+    ) -> ParseResult<LocalNodeId<Expression>> {
         // consume decorator prefixes before parsing the next expression
         if !self.options.in_decorator && self.peek_is(TokenType::At) {
             self.eat_decorators_prefix_maybe()?;
@@ -190,9 +211,17 @@ impl Parser {
         }
 
         // fast path keyword led statements before descriptor parsing
-        if let Some(statement_keyword_expression_id) =
-            self.try_eat_statement_keyword_expression_fast(&start)?
+        if allow_statement_keyword_fast
+            && let Some(statement_keyword_expression_id) =
+                self.try_eat_statement_keyword_expression_fast(&start)?
         {
+            let expression = self.tree.get(statement_keyword_expression_id);
+            let is_terminal_statement = matches!(expression, Expression::Statement(_))
+                || expression.is_top_level_statement();
+            if is_terminal_statement {
+                return Ok(statement_keyword_expression_id);
+            }
+
             return self.eat_expression_continuation(&start, statement_keyword_expression_id);
         }
 

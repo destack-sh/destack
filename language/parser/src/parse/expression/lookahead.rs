@@ -4,7 +4,7 @@ use destack_ast::TokenType;
 
 /// Shape metadata for a parenthesized group lookahead.
 #[derive(Clone, Copy, Debug, Default)]
-pub(super) struct ParenthesizedGroupShape {
+pub(crate) struct ParenthesizedGroupShape {
     /// Whether the group has a top-level comma.
     pub has_top_level_comma: bool,
     /// Whether an arrow follows the closing parenthesis.
@@ -22,16 +22,46 @@ impl Parser {
     pub(super) fn try_lookahead_parenthesized_group_shape(
         &mut self,
     ) -> ParseResult<ParenthesizedGroupShape> {
+        // skip cache when split-token state can change current-token semantics
+        if !self.has_active_split() {
+            let lookahead_index = self.pos_index();
+            self.token_stream.ensure_token(lookahead_index);
+
+            if self
+                .parenthesized_group_shapes_cached
+                .get(lookahead_index)
+                .copied()
+                .unwrap_or(false)
+            {
+                return Ok(self.parenthesized_group_shapes[lookahead_index]);
+            }
+        }
+
         // snapshot parser state before speculative lookahead
         let lookahead_mark = self.mark();
         let lookahead_result = self.lookahead_parenthesized_group_shape_inner();
         self.rewind(lookahead_mark);
 
         // lookahead disambiguation should never surface parse errors directly
-        match lookahead_result {
+        let group_shape = match lookahead_result {
             Ok(group_shape) => Ok(group_shape),
             Err(_) => Ok(ParenthesizedGroupShape::default()),
+        }?;
+
+        // store cache for the current token index when split tokens are inactive
+        if !self.has_active_split() {
+            let lookahead_index = self.pos_index();
+            if self.parenthesized_group_shapes.len() <= lookahead_index {
+                self.parenthesized_group_shapes
+                    .resize(lookahead_index + 1, ParenthesizedGroupShape::default());
+                self.parenthesized_group_shapes_cached
+                    .resize(lookahead_index + 1, false);
+            }
+            self.parenthesized_group_shapes[lookahead_index] = group_shape;
+            self.parenthesized_group_shapes_cached[lookahead_index] = true;
         }
+
+        Ok(group_shape)
     }
 
     /// Compute group-shape metadata for the current `(` lookahead.
@@ -54,21 +84,15 @@ impl Parser {
             Some(TokenType::Arrow | TokenType::ArrowWide)
         );
         let has_colon_follow = matches!(follow_token_type, Some(TokenType::Colon));
+        let needs_parameter_shape_for_arrow_return = self.options.in_arrow_return_type;
+        let needs_parameter_shape_for_typed_colon = self.options.in_type && has_colon_follow;
 
-        // most js and ts parenthesized expressions are not lambda heads
-        // skip deep shape scanning when no follow token can start a lambda form
-        if !tracks_tuple_commas && !has_arrow_follow && !has_colon_follow {
-            return Ok(ParenthesizedGroupShape {
-                has_top_level_comma: false,
-                has_arrow_follow,
-                has_colon_follow,
-                has_top_level_parameter_colon: false,
-                is_empty: false,
-            });
-        }
-
-        // lambda heads with `=>` in value contexts do not need interior shape scanning
-        if has_arrow_follow && !self.options.in_arrow_return_type {
+        // js and ts can usually decide lambda eligibility from the token after ')'
+        // skip deep shape scanning unless parameter shape data is required
+        if !tracks_tuple_commas
+            && !needs_parameter_shape_for_arrow_return
+            && !needs_parameter_shape_for_typed_colon
+        {
             return Ok(ParenthesizedGroupShape {
                 has_top_level_comma: false,
                 has_arrow_follow,

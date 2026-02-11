@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use super::expression::lookahead::ParenthesizedGroupShape;
 use crate::{TokenStream, TokenStreamMark, is_semantic};
 use destack_ast::{
     BlockFormat, Decorator, Expression, Keyword, LocalNodeId, NodeTree, NodeType, StringId, Token,
@@ -570,6 +571,10 @@ pub struct Parser {
     pub(crate) token_identifiers: Vec<Option<StringId>>,
     /// Cached-state bits for identifier lookup entries.
     pub(crate) token_identifiers_cached: Vec<bool>,
+    /// Cached parenthesized-group shape metadata by token index.
+    pub(crate) parenthesized_group_shapes: Vec<ParenthesizedGroupShape>,
+    /// Cached-state bits for parenthesized-group shape entries.
+    pub(crate) parenthesized_group_shapes_cached: Vec<bool>,
     /// Cached string id for `global`.
     pub(crate) global_identifier: Option<StringId>,
     /// Cached string id for `module`.
@@ -626,6 +631,8 @@ impl Parser {
             timings: timings_enabled_from_env().then(|| Rc::new(ParserTimings::default())),
             token_identifiers: Vec::with_capacity(estimated_tokens),
             token_identifiers_cached: Vec::with_capacity(estimated_tokens),
+            parenthesized_group_shapes: Vec::with_capacity(estimated_tokens),
+            parenthesized_group_shapes_cached: Vec::with_capacity(estimated_tokens),
             global_identifier,
             module_identifier,
             underscore_identifier,
@@ -784,6 +791,8 @@ impl Parser {
         let len = self.tokens().len();
         self.token_identifiers.truncate(len);
         self.token_identifiers_cached.truncate(len);
+        self.parenthesized_group_shapes.truncate(len);
+        self.parenthesized_group_shapes_cached.truncate(len);
     }
 
     /// Return true when a split token is active.
@@ -885,6 +894,11 @@ impl Parser {
     /// Parse everything as an implicit namespace without attaching annotations or indexes.
     /// Call `finish` to attach annotations and build the position index.
     pub fn parse_without_finish(&mut self) -> Vec<LocalNodeId<Expression>> {
+        // pre-lex non-tree-literal sources to reduce ensure_token overhead in hot parse loops
+        if !self.token_stream.allow_tree_literals() {
+            self.token_stream.lex_to_end();
+        }
+
         // parse the root block body with recovery
         let start = self.mark_span();
         let mut expressions = self.with_recovery(

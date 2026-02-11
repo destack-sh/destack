@@ -15,11 +15,18 @@ impl Parser {
 
         // fast path: parse keyword led statements without generic expression dispatch
         if let Some(expression_id) = self.try_eat_statement_keyword_expression_fast(&start)? {
+            let expression = self.tree.get(expression_id);
+            let is_terminal_statement = matches!(expression, Expression::Statement(_))
+                || expression.is_top_level_statement();
+            if is_terminal_statement {
+                return Ok(expression_id);
+            }
+
             return self.eat_expression_continuation(&start, expression_id);
         }
 
         // fallback: parse through the full expression parser
-        self.eat_expression()
+        self.eat_expression_without_statement_keyword_fast()
     }
 
     /// Eat a block or a single statement wrapped in a block.

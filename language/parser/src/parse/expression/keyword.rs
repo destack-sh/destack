@@ -170,6 +170,132 @@ impl Parser {
         self.keyword_for_index(using_index) == Some(Keyword::Using)
     }
 
+    /// Try to parse common statement keywords without the full keyword dispatch table.
+    fn try_eat_direct_statement_keyword_expression(
+        &mut self,
+        start: &ParserMark,
+        keyword: Keyword,
+        next_token_type: TokenType,
+    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+        let descriptor = DeclarationDescriptor::default();
+
+        match keyword {
+            Keyword::If => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_if()?))
+            }
+            Keyword::While => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_while()?))
+            }
+            Keyword::Do if self.is_do_while_statement(next_token_type) => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_while()?))
+            }
+            Keyword::For => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_for()?))
+            }
+            Keyword::Loop if self.language.is_destack() && self.peek_next_block().is_ok() => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_loop()?))
+            }
+            Keyword::Try => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_try()?))
+            }
+            Keyword::Switch => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_match()?))
+            }
+            Keyword::Match if self.language.is_destack() => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_match()?))
+            }
+            Keyword::Break => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_break()?))
+            }
+            Keyword::Continue => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_continue()?))
+            }
+            Keyword::Throw => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_throw()?))
+            }
+            Keyword::Return => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_return()?))
+            }
+            Keyword::Debugger => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                self.bump();
+                Ok(Some(
+                    self.tree
+                        .insert(Expression::Debugger, self.get_span_from(start)),
+                ))
+            }
+            Keyword::Yield if self.options.in_generator => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_yield()?))
+            }
+            Keyword::Comptime if self.language.is_destack() => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
+                Ok(Some(self.eat_comptime()?))
+            }
+            Keyword::Let | Keyword::Var => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
+                Ok(Some(self.eat_let(start, descriptor)?))
+            }
+            Keyword::Const => {
+                let next_keyword = if next_token_type == TokenType::Identifier {
+                    self.keyword_for_index(self.index_for_next())
+                } else {
+                    None
+                };
+
+                if next_keyword == Some(Keyword::Enum) {
+                    let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                    self.eat_keyword(Keyword::Const)?;
+                    let enum_id = self.eat_enum(start, EnumKind::Const, descriptor)?;
+                    Ok(Some(self.insert_declaration_expression(start, enum_id)))
+                } else {
+                    let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
+                    Ok(Some(self.eat_let(start, descriptor)?))
+                }
+            }
+            Keyword::Using => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
+                if self.can_parse_using_declaration(&descriptor, Asynchrony::Sync) {
+                    Ok(Some(self.eat_using(start, descriptor, Asynchrony::Sync)?))
+                } else {
+                    Ok(None)
+                }
+            }
+            Keyword::Await => {
+                if self.options.forbid_await {
+                    return Err(ParseError::unexpected(self.peek()?.span));
+                }
+
+                if self.can_start_await_using()
+                    && self.can_parse_using_declaration(&descriptor, Asynchrony::Async)
+                {
+                    let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
+                    Ok(Some(self.eat_using(
+                        start,
+                        descriptor,
+                        Asynchrony::Async,
+                    )?))
+                } else {
+                    let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
+                    Ok(Some(self.eat_await()?))
+                }
+            }
+            _ => Ok(None),
+        }
+    }
+
     /// Try to parse a statement keyword directly before the generic identifier path.
     pub(crate) fn try_eat_statement_keyword_expression_fast(
         &mut self,
@@ -227,9 +353,15 @@ impl Parser {
             return Ok(None);
         }
 
+        let next_token_type = self.peek_next_token_type();
+        if let Some(expression_id) =
+            self.try_eat_direct_statement_keyword_expression(start, keyword, next_token_type)?
+        {
+            return Ok(Some(expression_id));
+        }
+
         // parse through the existing keyword machinery with a neutral descriptor
         let descriptor = DeclarationDescriptor::default();
-        let next_token_type = self.peek_next_token_type();
         let is_declaration_start = DECLARATION_START_TOKENS.contains(&next_token_type);
         self.eat_keyword_expression(
             start,

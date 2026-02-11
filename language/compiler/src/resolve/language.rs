@@ -507,8 +507,14 @@ impl Compiler {
             )?;
         }
 
+        let default_profile_id = self
+            .program
+            .default_profile_id_for_module(self.program.root_module_id);
+        let mut profile_key = self.program.profile(default_profile_id).key.clone();
+        profile_key.lib = lib_names;
+
         self.check_builtin_lib_version_conflicts(&ordered_libs)?;
-        let loaded = self.load_lib_modules_in_order(builtins, &ordered_libs)?;
+        let loaded = self.load_lib_modules_in_order(builtins, &ordered_libs, &profile_key)?;
         Ok(loaded.lib_modules)
     }
 
