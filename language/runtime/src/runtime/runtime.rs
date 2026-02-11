@@ -43,11 +43,13 @@ impl Runtime {
         bindings.set_policy(BindingPolicy::new(context.replay().mode()));
         bindings.set_runtime_handle(&context, scheduler.as_ref());
         bindings.install_native_defaults();
+        let mut heap = Heap::default();
+        heap.configure_gc(context.gc_options().clone());
 
         Self {
             bindings,
             context,
-            heap: Heap::default(),
+            heap,
             scheduler,
             poller: None,
         }

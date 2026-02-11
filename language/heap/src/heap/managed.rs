@@ -16,7 +16,7 @@ pub struct ManagedHeap {
     allocated_cells: usize,
     /// Approximate heap bytes in use.
     allocated_bytes: u64,
-    /// GC state and pacing targets.
+    /// GC phase and cycle state.
     gc_state: GcState,
     /// Pending mark worklist.
     mark_queue: Vec<HeapHandle>,
@@ -73,17 +73,6 @@ impl ManagedHeap {
     /// Check if the heap is empty.
     pub fn is_empty(&self) -> bool {
         self.cell_count() == 0
-    }
-
-    /// Determine whether a GC cycle should start.
-    pub fn should_collect(&mut self) -> bool {
-        // refresh pacing targets based on the current heap size
-        self.gc_state
-            .pacer
-            .update(self.gc_state.options, self.allocated_bytes);
-
-        // decide based on the current trigger threshold
-        self.gc_state.pacer.should_start(self.allocated_bytes)
     }
 
     /// Allocate a new cell and return its handle.
@@ -260,8 +249,8 @@ impl ManagedHeap {
         let before_cells = self.allocated_cells;
         let before_bytes = self.allocated_bytes;
 
-        // begin the GC cycle and update pacing targets
-        self.gc_state.begin_cycle(before_bytes);
+        // begin the GC cycle
+        self.gc_state.begin_cycle();
 
         // reset marks and seed the worklist
         self.prepare_marking(roots);
