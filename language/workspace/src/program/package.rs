@@ -7,6 +7,7 @@ use indexmap::IndexMap;
 use parking_lot::RwLock;
 use serde::Deserialize;
 use serde_json::{Map, Value};
+use std::collections::HashSet;
 
 use crate::{DsConfig, Target, TargetId, TsConfigId};
 
@@ -165,9 +166,81 @@ pub struct PackageJson {
     /// <https://docs.npmjs.com/cli/v11/using-npm/scripts>
     pub scripts: Option<IndexMap<String, String>>,
 
+    /// The "bin" entry point field.
+    /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#bin>
+    pub bin: Option<Value>,
+
     /// The "workspaces" field for npm/yarn/pnpm workspaces.
     /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#workspaces>
     pub workspaces: Option<WorkspacesField>,
+}
+
+impl PackageJson {
+    /// Collect ordered package entry targets from package.json fields.
+    pub fn entry_targets(&self) -> Vec<String> {
+        let mut targets = Vec::new();
+        let mut seen = HashSet::new();
+
+        // collect direct string entry fields
+        Self::collect_string_target(self.main.as_deref(), &mut targets, &mut seen);
+        Self::collect_string_target(self.module.as_deref(), &mut targets, &mut seen);
+        Self::collect_string_target(self.types.as_deref(), &mut targets, &mut seen);
+
+        // collect nested bin and exports entry targets
+        if let Some(bin) = self.bin.as_ref() {
+            Self::collect_target_values(bin, &mut targets, &mut seen);
+        }
+        if let Some(exports) = self.exports.as_ref() {
+            Self::collect_target_values(exports, &mut targets, &mut seen);
+        }
+
+        targets
+    }
+
+    /// Collect one optional string target.
+    fn collect_string_target(
+        value: Option<&str>,
+        targets: &mut Vec<String>,
+        seen: &mut HashSet<String>,
+    ) {
+        let Some(value) = value else {
+            return;
+        };
+
+        let target = value.trim();
+        if target.is_empty() {
+            return;
+        }
+
+        let target = target.to_string();
+        if seen.insert(target.clone()) {
+            targets.push(target);
+        }
+    }
+
+    /// Collect nested string targets from one JSON value.
+    fn collect_target_values(value: &Value, targets: &mut Vec<String>, seen: &mut HashSet<String>) {
+        match value {
+            // collect one direct target
+            Value::String(target) => {
+                Self::collect_string_target(Some(target.as_str()), targets, seen);
+            }
+            // recursively collect array values
+            Value::Array(values) => {
+                for item in values {
+                    Self::collect_target_values(item, targets, seen);
+                }
+            }
+            // recursively collect object values
+            Value::Object(entries) => {
+                for item in entries.values() {
+                    Self::collect_target_values(item, targets, seen);
+                }
+            }
+            // skip unsupported scalar targets
+            _ => {}
+        }
+    }
 }
 
 /// The "workspaces" field in package.json.
@@ -195,6 +268,64 @@ impl WorkspacesField {
                 packages.as_ref().map_or(&[], |p| p.as_slice())
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::PackageJson;
+    use serde_json::json;
+
+    /// Collect package entry targets in stable field order.
+    #[test]
+    fn test_collect_package_json_entry_targets() {
+        let package_json: PackageJson = serde_json::from_value(json!({
+            "name": "test",
+            "main": "./dist/index.js",
+            "module": "./dist/index.mjs",
+            "types": "./dist/index.d.ts",
+            "bin": {
+                "test": "./bin/test.js"
+            },
+            "exports": {
+                ".": {
+                    "import": "./esm/index.js",
+                    "require": "./cjs/index.cjs",
+                    "types": "./types/index.d.ts"
+                }
+            }
+        }))
+        .expect("failed to parse package json");
+
+        assert_eq!(
+            package_json.entry_targets(),
+            vec![
+                "./dist/index.js",
+                "./dist/index.mjs",
+                "./dist/index.d.ts",
+                "./bin/test.js",
+                "./esm/index.js",
+                "./cjs/index.cjs",
+                "./types/index.d.ts"
+            ]
+        );
+    }
+
+    /// Skip duplicate and empty package entry targets.
+    #[test]
+    fn test_collect_package_json_entry_targets_skips_duplicates() {
+        let package_json: PackageJson = serde_json::from_value(json!({
+            "main": "./dist/index.js",
+            "module": "./dist/index.js",
+            "types": "",
+            "exports": ["./dist/index.js", "./dist/other.js"]
+        }))
+        .expect("failed to parse package json");
+
+        assert_eq!(
+            package_json.entry_targets(),
+            vec!["./dist/index.js", "./dist/other.js"]
+        );
     }
 }
 

@@ -1,6 +1,5 @@
 ms-analyze
 ms-lower
-ms-resolve
 valibot-analyze
 valibot-lower
 valibot-resolve

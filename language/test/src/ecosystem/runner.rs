@@ -12,8 +12,9 @@ use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, File, FileRegistry, FileSystem, FileType,
     LanguageType, MemoryFileSystem, ModuleId, PhysicalFileSystem, PrintOptions, Uri, glob,
 };
-use destack_workspace::{FormatterOptions, LinterOptions, Program, Session};
-use serde_json::Value;
+use destack_workspace::{
+    FormatterOptions, LinterOptions, PackageJson, Program, Session, select_manifest_entry_paths,
+};
 
 use crate::harness::print::color;
 use crate::harness::{
@@ -1376,52 +1377,7 @@ fn select_manifest_entrypoints(package_dir: &Path, candidates: &[PathBuf]) -> Ve
     if entry_targets.is_empty() {
         return Vec::new();
     }
-
-    let candidate_infos = build_candidate_infos(package_dir, candidates);
-    if candidate_infos.is_empty() {
-        return Vec::new();
-    }
-
-    let mut selected = Vec::new();
-    let mut selected_keys = HashSet::new();
-
-    for target in entry_targets {
-        if let Some(candidate) =
-            resolve_entry_target_to_candidate(package_dir, &target, &candidate_infos)
-            && selected_keys.insert(candidate.key.clone())
-        {
-            selected.push(candidate.path.clone());
-        }
-    }
-
-    selected
-}
-
-/// Candidate metadata used while resolving package entry targets.
-#[derive(Debug, Clone)]
-struct CandidateInfo {
-    /// Absolute candidate path.
-    path: PathBuf,
-    /// Normalized key relative to package root.
-    key: String,
-    /// Key with supported module suffix removed.
-    stem_key: String,
-}
-
-/// Build normalized candidate metadata.
-fn build_candidate_infos(package_dir: &Path, candidates: &[PathBuf]) -> Vec<CandidateInfo> {
-    candidates
-        .iter()
-        .map(|path| {
-            let key = normalized_relative_key(package_dir, path);
-            let stem_key = strip_supported_module_suffix(key.as_str()).to_string();
-            CandidateInfo {
-                path: path.clone(),
-                key,
-                stem_key,
-            }
-        })
-        .collect()
+    select_manifest_entry_paths(package_dir, candidates, &entry_targets)
 }
 
 /// Load package entry target strings from package.json.
@@ -1430,180 +1386,11 @@ fn load_package_entry_targets(package_dir: &Path) -> Vec<String> {
     let Ok(content) = fs::read_to_string(&package_json_path) else {
         return Vec::new();
     };
-    let Ok(value) = serde_json::from_str::<Value>(&content) else {
+    let Ok(package_json) = serde_json::from_str::<PackageJson>(&content) else {
         return Vec::new();
     };
 
-    let mut targets = Vec::new();
-    let mut seen = HashSet::new();
-
-    collect_manifest_string_target(value.get("main"), &mut targets, &mut seen);
-    collect_manifest_string_target(value.get("module"), &mut targets, &mut seen);
-    collect_manifest_string_target(value.get("types"), &mut targets, &mut seen);
-
-    if let Some(bin) = value.get("bin") {
-        collect_manifest_target_values(bin, &mut targets, &mut seen);
-    }
-
-    if let Some(exports) = value.get("exports") {
-        collect_manifest_target_values(exports, &mut targets, &mut seen);
-    }
-
-    targets
-}
-
-/// Collect one string target from an optional value.
-fn collect_manifest_string_target(
-    value: Option<&Value>,
-    targets: &mut Vec<String>,
-    seen: &mut HashSet<String>,
-) {
-    let Some(Value::String(target)) = value else {
-        return;
-    };
-
-    let target = target.trim();
-    if target.is_empty() {
-        return;
-    }
-
-    let target = target.to_string();
-    if seen.insert(target.clone()) {
-        targets.push(target);
-    }
-}
-
-/// Collect nested target values from exports or bin mappings.
-fn collect_manifest_target_values(
-    value: &Value,
-    targets: &mut Vec<String>,
-    seen: &mut HashSet<String>,
-) {
-    match value {
-        Value::String(target) => {
-            let target = target.trim();
-            if target.is_empty() {
-                return;
-            }
-
-            let target = target.to_string();
-            if seen.insert(target.clone()) {
-                targets.push(target);
-            }
-        }
-        Value::Array(values) => {
-            for item in values {
-                collect_manifest_target_values(item, targets, seen);
-            }
-        }
-        Value::Object(entries) => {
-            for item in entries.values() {
-                collect_manifest_target_values(item, targets, seen);
-            }
-        }
-        _ => {}
-    }
-}
-
-/// Resolve one manifest target to a discovered candidate file.
-fn resolve_entry_target_to_candidate<'a>(
-    package_dir: &Path,
-    target: &str,
-    candidates: &'a [CandidateInfo],
-) -> Option<&'a CandidateInfo> {
-    let normalized_target = normalize_manifest_target_path(package_dir, target)?;
-    let target_key = normalized_relative_key(package_dir, &normalized_target);
-
-    if let Some(candidate) = candidates
-        .iter()
-        .find(|candidate| candidate.key == target_key)
-    {
-        return Some(candidate);
-    }
-
-    let mut target_stems = Vec::new();
-    let target_stem = strip_supported_module_suffix(&target_key).to_string();
-    target_stems.push(target_stem.clone());
-
-    // support directory style targets by trying index
-    let trimmed = target_stem.trim_end_matches('/');
-    if !trimmed.is_empty() {
-        target_stems.push(format!("{trimmed}/index"));
-    }
-
-    candidates
-        .iter()
-        .find(|candidate| target_stems.iter().any(|stem| candidate.stem_key == *stem))
-}
-
-/// Normalize one package entry target into an absolute path candidate.
-fn normalize_manifest_target_path(package_dir: &Path, target: &str) -> Option<PathBuf> {
-    let target = target.trim();
-    if target.is_empty() {
-        return None;
-    }
-
-    // strip query/fragment suffixes
-    let target = target
-        .split_once('?')
-        .map(|(value, _)| value)
-        .unwrap_or(target);
-    let target = target
-        .split_once('#')
-        .map(|(value, _)| value)
-        .unwrap_or(target);
-
-    if target.is_empty() {
-        return None;
-    }
-
-    // skip non-path targets
-    if target.starts_with("node:")
-        || target.starts_with("http://")
-        || target.starts_with("https://")
-        || target.starts_with("file://")
-        || target.contains('*')
-        || target.starts_with('#')
-    {
-        return None;
-    }
-
-    // skip obvious bare package specifiers
-    if !target.starts_with('.')
-        && !target.starts_with('/')
-        && !target.contains('/')
-        && !target.contains('\\')
-        && !target.contains('.')
-    {
-        return None;
-    }
-
-    let relative = target.strip_prefix("./").unwrap_or(target);
-    let relative = relative.strip_prefix('/').unwrap_or(relative);
-    if relative.is_empty() {
-        return None;
-    }
-
-    Some(package_dir.join(relative))
-}
-
-/// Build a normalized relative key for path matching.
-fn normalized_relative_key(package_dir: &Path, path: &Path) -> String {
-    let relative = path.strip_prefix(package_dir).unwrap_or(path);
-    relative.to_string_lossy().replace('\\', "/")
-}
-
-/// Strip common source module suffixes from a key.
-fn strip_supported_module_suffix(value: &str) -> &str {
-    for suffix in [
-        ".d.ts", ".d.mts", ".d.cts", ".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs",
-    ] {
-        if let Some(stripped) = value.strip_suffix(suffix) {
-            return stripped;
-        }
-    }
-
-    value
+    package_json.entry_targets()
 }
 
 /// Parse one source file and fail when parser diagnostics contain errors.

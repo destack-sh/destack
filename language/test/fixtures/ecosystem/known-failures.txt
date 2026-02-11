@@ -77,7 +77,6 @@ lodash-analyze
 lodash-lower
 lodash-resolve
 ms-analyze
-ms-resolve
 mysql2-analyze
 mysql2-lower
 mysql2-resolve
@@ -212,7 +211,6 @@ undici-lower
 undici-resolve
 uuid-analyze
 uuid-lower
-uuid-resolve
 valibot-analyze
 valibot-resolve
 vercel-ai-analyze
