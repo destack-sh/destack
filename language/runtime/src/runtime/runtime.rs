@@ -1,27 +1,13 @@
-use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::diagnostic::RuntimeResult;
 use crate::memory::Heap;
-#[cfg(unix)]
-use crate::platform::UnixPoller;
-#[cfg(windows)]
-use crate::platform::WindowsPoller;
 use crate::platform::bindings::{BindingPolicy, BindingRegistry};
-#[cfg(any(
-    target_os = "macos",
-    target_os = "ios",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd",
-    target_os = "dragonfly"
-))]
-use crate::platform::poller::KqueuePoller;
-#[cfg(target_os = "linux")]
-use crate::platform::poller::{EpollPoller, IoUringPoller};
-use crate::platform::{PlatformContext, PlatformError, PlatformPoller};
+use crate::platform::{PlatformContext, PlatformPoller};
 use crate::scheduler::Scheduler;
 use crate::snapshot::SnapshotStore;
-use destack_workspace::{PollerBackend, RuntimeOptions};
+use destack_workspace::RuntimeOptions;
 
 use super::RuntimeContext;
+use super::poller::poller_for_options;
 
 /// Primary runtime instance for executing Destack programs.
 pub struct Runtime {
@@ -72,12 +58,10 @@ impl Runtime {
         platform: PlatformContext,
         options: &RuntimeOptions,
     ) -> RuntimeResult<Self> {
-        Self::validate_runtime_options(options)?;
-
         let context = RuntimeContext::from_runtime_options(platform, options);
         let mut runtime = Self::new(context);
         runtime.bindings.apply_runtime_options(options);
-        if let Some(poller) = Self::poller_from_options(options)? {
+        if let Some(poller) = poller_for_options(options)? {
             runtime.set_poller(poller);
         }
         Ok(runtime)
@@ -88,11 +72,9 @@ impl Runtime {
         context: RuntimeContext,
         options: &RuntimeOptions,
     ) -> RuntimeResult<Self> {
-        Self::validate_runtime_options(options)?;
-
         let mut runtime = Self::new(context);
         runtime.bindings.apply_runtime_options(options);
-        if let Some(poller) = Self::poller_from_options(options)? {
+        if let Some(poller) = poller_for_options(options)? {
             runtime.set_poller(poller);
         }
         Ok(runtime)
@@ -140,22 +122,6 @@ impl Runtime {
         Ok(progressed)
     }
 
-    fn poller_from_options(
-        options: &RuntimeOptions,
-    ) -> RuntimeResult<Option<Box<dyn PlatformPoller>>> {
-        let backend = options.scheduler.poller_backend;
-        match backend {
-            PollerBackend::Auto => auto_poller().map(Some),
-            PollerBackend::IoUring => poller_iouring().map(Some),
-            PollerBackend::Epoll => poller_epoll().map(Some),
-            PollerBackend::Kqueue => poller_kqueue().map(Some),
-            PollerBackend::Poll => poller_poll().map(Some),
-            PollerBackend::Windows => poller_windows().map(Some),
-        }
-    }
-
-    // VM execution entrypoints live in execute.rs
-
     /// Capture a runtime snapshot and record a checkpoint in the replay log.
     pub fn snapshot(&mut self, store: &SnapshotStore) -> RuntimeResult<()> {
         // allocate a new checkpoint id
@@ -176,127 +142,6 @@ impl Runtime {
             .record_checkpoint(metadata.into_checkpoint_index())?;
 
         Ok(())
-    }
-}
-
-fn poller_not_supported(name: &str) -> RuntimeResult<Box<dyn PlatformPoller>> {
-    Err(RuntimeError::from(PlatformError::not_supported(format!(
-        "poller backend {name} is not supported on this platform"
-    )))
-    .boxed())
-}
-
-#[cfg(target_os = "linux")]
-fn poller_iouring() -> RuntimeResult<Box<dyn PlatformPoller>> {
-    Ok(Box::new(IoUringPoller::new()?))
-}
-
-#[cfg(not(target_os = "linux"))]
-fn poller_iouring() -> RuntimeResult<Box<dyn PlatformPoller>> {
-    poller_not_supported("io_uring")
-}
-
-#[cfg(target_os = "linux")]
-fn poller_epoll() -> RuntimeResult<Box<dyn PlatformPoller>> {
-    Ok(Box::new(EpollPoller::new()?))
-}
-
-#[cfg(not(target_os = "linux"))]
-fn poller_epoll() -> RuntimeResult<Box<dyn PlatformPoller>> {
-    poller_not_supported("epoll")
-}
-
-#[cfg(any(
-    target_os = "macos",
-    target_os = "ios",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd",
-    target_os = "dragonfly"
-))]
-fn poller_kqueue() -> RuntimeResult<Box<dyn PlatformPoller>> {
-    Ok(Box::new(KqueuePoller::new()?))
-}
-
-#[cfg(not(any(
-    target_os = "macos",
-    target_os = "ios",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd",
-    target_os = "dragonfly"
-)))]
-fn poller_kqueue() -> RuntimeResult<Box<dyn PlatformPoller>> {
-    poller_not_supported("kqueue")
-}
-
-#[cfg(unix)]
-fn poller_poll() -> RuntimeResult<Box<dyn PlatformPoller>> {
-    Ok(Box::new(UnixPoller::new()?))
-}
-
-#[cfg(not(unix))]
-fn poller_poll() -> RuntimeResult<Box<dyn PlatformPoller>> {
-    poller_not_supported("poll")
-}
-
-#[cfg(windows)]
-fn poller_windows() -> RuntimeResult<Box<dyn PlatformPoller>> {
-    Ok(Box::new(WindowsPoller::new()?))
-}
-
-#[cfg(not(windows))]
-fn poller_windows() -> RuntimeResult<Box<dyn PlatformPoller>> {
-    poller_not_supported("windows")
-}
-
-fn auto_poller() -> RuntimeResult<Box<dyn PlatformPoller>> {
-    #[cfg(target_os = "linux")]
-    {
-        if let Ok(poller) = IoUringPoller::new() {
-            return Ok(Box::new(poller));
-        }
-
-        if let Ok(poller) = EpollPoller::new() {
-            return Ok(Box::new(poller));
-        }
-
-        poller_poll()
-    }
-
-    #[cfg(any(
-        target_os = "macos",
-        target_os = "ios",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd",
-        target_os = "dragonfly"
-    ))]
-    {
-        if let Ok(poller) = KqueuePoller::new() {
-            return Ok(Box::new(poller));
-        }
-
-        poller_poll()
-    }
-
-    #[cfg(windows)]
-    {
-        poller_windows()
-    }
-
-    #[cfg(not(any(
-        target_os = "linux",
-        target_os = "macos",
-        target_os = "ios",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd",
-        target_os = "dragonfly",
-        windows
-    )))]
-    {
-        poller_not_supported("auto")
     }
 }
 

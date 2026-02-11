@@ -2,16 +2,696 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use super::policy::{ExecutionModeJson, ReplayPayloadModeJson};
-use crate::{
-    ExecutionMode, GcLogging, GcOptions, PlatformOptions, PlatformWindowsOptions, PollerBackend,
-    RandomMode, RandomOptions, ReplayLogOptions, RuntimeAccess, RuntimeFault,
-    RuntimeFaultDistribution, RuntimeOptions, RuntimeRule, RuntimeRuleBlocking, RuntimeRuleEffect,
-    RuntimeRuleEngine, RuntimeRuleFilter, RuntimeRuleScope, RuntimeWorld, SchedulerOptions,
-    SchedulerPolicy, TimeMode, TimeOptions,
-};
+use super::policy::{ExecutionMode, ExecutionModeJson, ReplayPayloadMode, ReplayPayloadModeJson};
 
-/// Derive runtime options from optional JSON overrides.
+/// Policy for runtime task scheduling in thread pools.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub enum SchedulerPolicy {
+    /// First-in, first-out scheduling.
+    #[default]
+    Fifo,
+    /// Fair scheduling with time slicing.
+    Fair,
+    /// Work-stealing scheduling for throughput.
+    WorkStealing,
+}
+
+/// Time source selection for runtime clocks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub enum TimeMode {
+    /// Use the host clock directly.
+    #[default]
+    Host,
+    /// Use a virtualized clock derived from runtime state.
+    Virtual,
+}
+
+/// Randomness source selection for the runtime.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub enum RandomMode {
+    /// Use the host randomness source.
+    #[default]
+    Host,
+    /// Use deterministic runtime-managed randomness.
+    Deterministic,
+}
+
+/// Garbage collector logging verbosity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub enum GcLogging {
+    /// Disable GC logging.
+    #[default]
+    Off,
+    /// Emit summary GC events.
+    Summary,
+    /// Emit verbose GC events.
+    Verbose,
+}
+
+/// Replay log configuration for runtime record/replay.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ReplayLogOptions {
+    /// Base path for replay logs (file or directory).
+    pub path: Option<PathBuf>,
+    /// Template for auto-generated log file names.
+    pub template: Option<String>,
+    /// Chunk size in megabytes for log rotation.
+    pub chunk_size_mb: Option<u64>,
+    /// Replay payload selection for record mode.
+    pub payload: ReplayPayloadMode,
+}
+
+impl Default for ReplayLogOptions {
+    fn default() -> Self {
+        Self {
+            path: None,
+            template: None,
+            chunk_size_mb: None,
+            payload: ReplayPayloadMode::ResultsOnly,
+        }
+    }
+}
+
+/// Runtime clock configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct TimeOptions {
+    /// Clock mode selection.
+    pub mode: TimeMode,
+    /// Epoch in nanoseconds for virtual time.
+    pub epoch_ns: Option<u64>,
+    /// Tick size in nanoseconds for virtual time.
+    pub tick_ns: Option<u64>,
+    /// Time zone identifier or fixed offset string.
+    pub time_zone: Option<String>,
+}
+
+/// Runtime randomness configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct RandomOptions {
+    /// Randomness source selection.
+    pub mode: RandomMode,
+    /// Seed for deterministic randomness streams.
+    pub seed: Option<u64>,
+    /// Whether to use a per-task random stream.
+    pub per_task: bool,
+}
+
+/// Runtime scheduler configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct SchedulerOptions {
+    // event loop
+    /// Event loop tick budget in nanoseconds.
+    pub tick_budget_ns: Option<u64>,
+    /// Maximum number of microtasks per tick.
+    pub microtask_budget: Option<u64>,
+    /// Maximum microtask nesting depth.
+    pub max_microtask_depth: Option<u64>,
+    /// Timer resolution in nanoseconds.
+    pub timer_resolution_ns: Option<u64>,
+    /// Maximum timer coalescing window in nanoseconds.
+    pub max_timer_coalesce_ns: Option<u64>,
+    /// Preemption interval for long-running tasks in nanoseconds.
+    pub preempt_interval_ns: Option<u64>,
+    /// Platform poller backend selection.
+    pub poller_backend: PollerBackend,
+
+    // task pools
+    /// Scheduling policy for task pools.
+    pub policy: SchedulerPolicy,
+    /// Number of worker threads for parallel tasks.
+    pub worker_threads: Option<u64>,
+    /// Number of I/O threads.
+    pub io_threads: Option<u64>,
+    /// Number of blocking worker threads.
+    pub blocking_threads: Option<u64>,
+    /// Maximum number of concurrent tasks.
+    pub max_tasks: Option<u64>,
+}
+
+/// Platform poller backend selection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+pub enum PollerBackend {
+    /// Choose the best available backend for the platform.
+    #[default]
+    Auto,
+    /// Use io_uring (Linux only).
+    IoUring,
+    /// Use epoll (Linux only).
+    Epoll,
+    /// Use kqueue (BSD/macOS only).
+    Kqueue,
+    /// Use poll (portable Unix fallback).
+    Poll,
+    /// Use the Windows IOCP backend.
+    Windows,
+}
+
+impl std::str::FromStr for PollerBackend {
+    type Err = ();
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value.to_lowercase().replace('-', "_").as_str() {
+            "auto" => Ok(Self::Auto),
+            "io_uring" | "uring" => Ok(Self::IoUring),
+            "epoll" => Ok(Self::Epoll),
+            "kqueue" => Ok(Self::Kqueue),
+            "poll" => Ok(Self::Poll),
+            "windows" | "iocp" => Ok(Self::Windows),
+            _ => Err(()),
+        }
+    }
+}
+
+impl PollerBackend {
+    /// Parse a poller backend from a string.
+    pub fn parse(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
+/// Runtime garbage collector configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GcOptions {
+    /// Whether the garbage collector is enabled.
+    pub enabled: bool,
+    /// Heap growth target percentage.
+    pub heap_growth_percent: u32,
+    /// Soft heap limit in bytes.
+    pub heap_soft_limit_bytes: Option<u64>,
+    /// Initial heap size hint in bytes.
+    pub heap_initial_bytes: Option<u64>,
+    /// GC logging verbosity.
+    pub logging: GcLogging,
+}
+
+impl Default for GcOptions {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            heap_growth_percent: 100,
+            heap_soft_limit_bytes: None,
+            heap_initial_bytes: None,
+            logging: GcLogging::Off,
+        }
+    }
+}
+
+/// Runtime world selection for external bindings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub enum RuntimeWorld {
+    /// Use host-backed platform bindings.
+    #[default]
+    Host,
+    /// Use simulated platform bindings.
+    Simulated,
+}
+
+/// Runtime access policy for binding execution.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub enum RuntimeAccess {
+    /// Allow the binding call.
+    #[default]
+    Allow,
+    /// Deny the binding call.
+    Deny,
+}
+
+/// Engine selector for runtime rules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum RuntimeFilterEngine {
+    /// Match VM engine execution.
+    Vm,
+    /// Match native engine execution.
+    Native,
+}
+
+/// Binding scope selector for runtime rules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum RuntimeFilterScope {
+    /// Match OS scope bindings.
+    Os,
+    /// Match runtime scope bindings.
+    Runtime,
+    /// Match hybrid scope bindings.
+    Hybrid,
+}
+
+/// Blocking behavior selector for runtime rules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum RuntimeFilterBlocking {
+    /// Match always-blocking bindings.
+    Always,
+    /// Match never-blocking bindings.
+    Never,
+    /// Match conditionally blocking bindings.
+    Sometimes,
+}
+
+/// Binding effect class selector for runtime rules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum RuntimeFilterEffect {
+    /// Match pure bindings.
+    Pure,
+    /// Match deterministic bindings.
+    Deterministic,
+    /// Match recordable external bindings.
+    ExternalRecordable,
+    /// Match non-recordable external bindings.
+    ExternalNonRecordable,
+}
+
+/// Rule filters for runtime binding policies.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct RuntimeFilter {
+    /// Glob selector for full binding names.
+    pub binding: Option<String>,
+    /// Glob selector for capability names.
+    pub capability: Option<String>,
+    /// Glob selector for component names.
+    pub component: Option<String>,
+    /// Glob selector for module names.
+    pub module: Option<String>,
+    /// Engine selector.
+    pub engine: Option<RuntimeFilterEngine>,
+    /// Execution modes selector.
+    pub execution_modes: Option<Vec<ExecutionMode>>,
+    /// Platform selector.
+    pub platforms: Option<Vec<String>>,
+    /// Binding scope selector.
+    pub scope: Option<RuntimeFilterScope>,
+    /// Binding blocking selector.
+    pub blocking: Option<RuntimeFilterBlocking>,
+    /// Binding effect selector.
+    pub effect: Option<RuntimeFilterEffect>,
+}
+
+impl RuntimeFilter {
+    /// Whether this selector has no filtering clauses.
+    pub fn is_empty(&self) -> bool {
+        self.binding.is_none()
+            && self.capability.is_none()
+            && self.component.is_none()
+            && self.module.is_none()
+            && self.engine.is_none()
+            && self.execution_modes.is_none()
+            && self.platforms.is_none()
+            && self.scope.is_none()
+            && self.blocking.is_none()
+            && self.effect.is_none()
+    }
+}
+
+/// Jitter distribution for runtime delay faults.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum RuntimeJitterDistribution {
+    /// Use a uniform random distribution.
+    Uniform,
+    /// Use a normal random distribution.
+    Normal,
+    /// Use an exponential random distribution.
+    Exponential,
+}
+
+/// Activation behavior for runtime rules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum RuntimeRuleActivation {
+    /// Activate the rule immediately.
+    Immediate,
+    /// Activate once virtual time reaches this timestamp.
+    AtVirtualNs {
+        /// Activation timestamp in virtual nanoseconds.
+        virtual_ns: u64,
+    },
+    /// Activate once this number of matching calls has elapsed.
+    AfterCallCount {
+        /// Matching call count before activation.
+        call_count: u64,
+    },
+}
+
+/// Lifetime behavior for runtime rules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum RuntimeRuleLifetime {
+    /// Keep the rule active until explicitly disabled.
+    UntilDisabled,
+    /// Keep the rule active for this virtual duration.
+    ForDurationNs {
+        /// Active duration in virtual nanoseconds.
+        duration_ns: u64,
+    },
+    /// Keep the rule active for this number of matching calls.
+    ForCallCount {
+        /// Active call budget before expiration.
+        call_count: u64,
+    },
+}
+
+/// Policy effect payload for runtime rules.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(tag = "policy", rename_all = "camelCase")]
+pub enum RuntimePolicyEffect {
+    /// Set the matching binding world.
+    SetWorld {
+        /// The selected world for matching bindings.
+        world: RuntimeWorld,
+    },
+    /// Set the matching binding access mode.
+    SetAccess {
+        /// The selected access mode for matching bindings.
+        access: RuntimeAccess,
+    },
+}
+
+/// Control effect payload for runtime rules.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(tag = "control", rename_all = "camelCase")]
+pub enum RuntimeControlEffect {
+    /// Trigger one immediate GC cycle.
+    GcCycleCollect {},
+    /// Delay one GC cycle.
+    GcCycleDelay {
+        /// Delay duration in nanoseconds.
+        delay_ns: Option<u64>,
+    },
+    /// Apply one temporary heap limit.
+    GcHeapLimit {
+        /// Heap limit in bytes.
+        limit_bytes: u64,
+    },
+}
+
+/// Mock effect payload for runtime rules.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(tag = "mock", rename_all = "camelCase")]
+pub enum RuntimeMockEffect {
+    /// Force one successful no-op response.
+    Success {},
+    /// Force one failure response with a code.
+    Error {
+        /// Error code name for this mocked failure.
+        code: String,
+    },
+}
+
+/// Runtime rule effect payload.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum RuntimeEffect {
+    /// Apply one routing or access policy effect.
+    Policy {
+        /// Policy effect payload.
+        policy: RuntimePolicyEffect,
+    },
+    /// Inject one typed runtime fault.
+    Fault {
+        /// Fault payload to inject for matching bindings.
+        fault: RuntimeFaultEffect,
+    },
+    /// Apply one runtime control effect.
+    Control {
+        /// Control effect payload.
+        control: RuntimeControlEffect,
+    },
+    /// Apply one runtime mock effect.
+    Mock {
+        /// Mock effect payload.
+        mock: RuntimeMockEffect,
+    },
+}
+
+/// Runtime rule trigger controls.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct RuntimeRuleTrigger {
+    /// Trigger probability in parts-per-million.
+    pub probability_ppm: Option<i64>,
+    /// Maximum number of effect firings.
+    pub max_occurrences: Option<u64>,
+    /// Cooldown duration between firings in nanoseconds.
+    pub cooldown_ns: Option<u64>,
+    /// Number of firings per trigger hit.
+    pub burst: Option<u32>,
+}
+
+/// Fault injection payload for one runtime effect.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(tag = "name", rename_all = "camelCase")]
+pub enum RuntimeFaultEffect {
+    /// Inject deterministic runtime delay.
+    #[serde(rename = "runtime.delay")]
+    RuntimeDelay {
+        /// Base delay in nanoseconds.
+        base_ns: u64,
+        /// Jitter delay in nanoseconds.
+        jitter_ns: Option<u64>,
+        /// Delay distribution mode.
+        distribution: Option<RuntimeJitterDistribution>,
+    },
+    /// Inject one binding error.
+    #[serde(rename = "runtime.error")]
+    RuntimeError {
+        /// Error code name for this injected failure.
+        code: String,
+    },
+    /// Inject deterministic timeout behavior.
+    #[serde(rename = "runtime.timeout")]
+    RuntimeTimeout {
+        /// Timeout duration in nanoseconds.
+        timeout_ns: u64,
+        /// Optional timeout error code override.
+        code: Option<String>,
+    },
+    /// Inject connection disconnect on transport edges.
+    #[serde(rename = "net.connection.disconnect")]
+    NetConnectionDisconnect {},
+    /// Inject connection reset behavior.
+    #[serde(rename = "net.connection.reset")]
+    NetConnectionReset {},
+    /// Inject connection timeout behavior.
+    #[serde(rename = "net.connection.timeout")]
+    NetConnectionTimeout {
+        /// Timeout duration in nanoseconds.
+        timeout_ns: u64,
+    },
+    /// Inject packet drop faults.
+    #[serde(rename = "net.packet.drop")]
+    NetPacketDrop {},
+    /// Inject packet duplication faults.
+    #[serde(rename = "net.packet.duplicate")]
+    NetPacketDuplicate {
+        /// Number of duplicates emitted when the fault triggers.
+        copies: Option<u32>,
+    },
+    /// Inject packet reordering faults.
+    #[serde(rename = "net.packet.reorder")]
+    NetPacketReorder {
+        /// Reordering window size.
+        window: Option<u32>,
+    },
+    /// Inject packet corruption faults.
+    #[serde(rename = "net.packet.corrupt")]
+    NetPacketCorrupt {},
+    /// Inject route partition faults.
+    #[serde(rename = "net.route.partition")]
+    NetRoutePartition {
+        /// Direction filter for one-way or two-way partition.
+        direction: Option<RuntimeNetRouteDirection>,
+    },
+    /// Inject route blackhole faults.
+    #[serde(rename = "net.route.blackhole")]
+    NetRouteBlackhole {
+        /// Direction filter for one-way or two-way blackhole.
+        direction: Option<RuntimeNetRouteDirection>,
+    },
+    /// Inject link bandwidth limiting faults.
+    #[serde(rename = "net.bandwidth.limit")]
+    NetBandwidthLimit {
+        /// Maximum throughput in bytes per second.
+        bytes_per_second: u64,
+    },
+    /// Inject DNS timeout faults.
+    #[serde(rename = "net.dns.timeout")]
+    NetDnsTimeout {},
+    /// Inject DNS NXDOMAIN faults.
+    #[serde(rename = "net.dns.nxdomain")]
+    NetDnsNxdomain {},
+    /// Inject DNS SERVFAIL faults.
+    #[serde(rename = "net.dns.servfail")]
+    NetDnsServfail {},
+    /// Inject ENOSPC-like filesystem I/O failures.
+    #[serde(rename = "fs.io.enospc")]
+    FsIoEnospc {},
+    /// Inject low-level filesystem I/O faults.
+    #[serde(rename = "fs.io.eio")]
+    FsIoEio {},
+    /// Inject per-process file descriptor exhaustion.
+    #[serde(rename = "fs.io.emfile")]
+    FsIoEmfile {},
+    /// Inject global file descriptor exhaustion.
+    #[serde(rename = "fs.io.enfile")]
+    FsIoEnfile {},
+    /// Inject filesystem quota exceeded failures.
+    #[serde(rename = "fs.io.quota")]
+    FsIoQuota {},
+    /// Inject short write behavior.
+    #[serde(rename = "fs.write.short")]
+    FsWriteShort {
+        /// Optional maximum bytes written before returning.
+        max_bytes: Option<u64>,
+    },
+    /// Inject successful sync acknowledgements without persistence.
+    #[serde(rename = "fs.sync.lie")]
+    FsSyncLie {},
+    /// Inject process crash lifecycle events.
+    #[serde(rename = "process.lifecycle.crash")]
+    ProcessLifecycleCrash {
+        /// Optional crash signal number.
+        signal: Option<i64>,
+    },
+    /// Inject process signal delivery events.
+    #[serde(rename = "process.signal.deliver")]
+    ProcessSignalDeliver {
+        /// Signal number.
+        signal: i64,
+    },
+    /// Inject process wait timeouts.
+    #[serde(rename = "process.wait.timeout")]
+    ProcessWaitTimeout {
+        /// Timeout duration in nanoseconds.
+        timeout_ns: u64,
+    },
+    /// Inject scheduler timer skew.
+    #[serde(rename = "scheduler.timer.skew")]
+    SchedulerTimerSkew {
+        /// Signed skew in nanoseconds.
+        skew_ns: i64,
+    },
+    /// Inject scheduler queue starvation.
+    #[serde(rename = "scheduler.queue.starve")]
+    SchedulerQueueStarve {
+        /// Queue target selector.
+        target: Option<String>,
+        /// Starvation duration in nanoseconds.
+        duration_ns: Option<u64>,
+    },
+    /// Inject wall or monotonic clock jumps.
+    #[serde(rename = "time.clock.jump")]
+    TimeClockJump {
+        /// Signed jump in nanoseconds.
+        delta_ns: i64,
+    },
+    /// Inject persistent wall or monotonic drift.
+    #[serde(rename = "time.clock.drift")]
+    TimeClockDrift {
+        /// Signed rate offset in parts-per-million.
+        rate_ppm: i64,
+    },
+}
+
+/// Direction selector for route-level network faults.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum RuntimeNetRouteDirection {
+    /// Affect ingress traffic.
+    Ingress,
+    /// Affect egress traffic.
+    Egress,
+    /// Affect both directions.
+    Both,
+}
+
+impl RuntimeFaultEffect {
+    /// Return the canonical fault name.
+    pub const fn name(&self) -> &'static str {
+        match self {
+            RuntimeFaultEffect::RuntimeDelay { .. } => "runtime.delay",
+            RuntimeFaultEffect::RuntimeError { .. } => "runtime.error",
+            RuntimeFaultEffect::RuntimeTimeout { .. } => "runtime.timeout",
+            RuntimeFaultEffect::NetConnectionDisconnect { .. } => "net.connection.disconnect",
+            RuntimeFaultEffect::NetConnectionReset { .. } => "net.connection.reset",
+            RuntimeFaultEffect::NetConnectionTimeout { .. } => "net.connection.timeout",
+            RuntimeFaultEffect::NetPacketDrop { .. } => "net.packet.drop",
+            RuntimeFaultEffect::NetPacketDuplicate { .. } => "net.packet.duplicate",
+            RuntimeFaultEffect::NetPacketReorder { .. } => "net.packet.reorder",
+            RuntimeFaultEffect::NetPacketCorrupt { .. } => "net.packet.corrupt",
+            RuntimeFaultEffect::NetRoutePartition { .. } => "net.route.partition",
+            RuntimeFaultEffect::NetRouteBlackhole { .. } => "net.route.blackhole",
+            RuntimeFaultEffect::NetBandwidthLimit { .. } => "net.bandwidth.limit",
+            RuntimeFaultEffect::NetDnsTimeout { .. } => "net.dns.timeout",
+            RuntimeFaultEffect::NetDnsNxdomain { .. } => "net.dns.nxdomain",
+            RuntimeFaultEffect::NetDnsServfail { .. } => "net.dns.servfail",
+            RuntimeFaultEffect::FsIoEnospc { .. } => "fs.io.enospc",
+            RuntimeFaultEffect::FsIoEio { .. } => "fs.io.eio",
+            RuntimeFaultEffect::FsIoEmfile { .. } => "fs.io.emfile",
+            RuntimeFaultEffect::FsIoEnfile { .. } => "fs.io.enfile",
+            RuntimeFaultEffect::FsIoQuota { .. } => "fs.io.quota",
+            RuntimeFaultEffect::FsWriteShort { .. } => "fs.write.short",
+            RuntimeFaultEffect::FsSyncLie { .. } => "fs.sync.lie",
+            RuntimeFaultEffect::ProcessLifecycleCrash { .. } => "process.lifecycle.crash",
+            RuntimeFaultEffect::ProcessSignalDeliver { .. } => "process.signal.deliver",
+            RuntimeFaultEffect::ProcessWaitTimeout { .. } => "process.wait.timeout",
+            RuntimeFaultEffect::SchedulerTimerSkew { .. } => "scheduler.timer.skew",
+            RuntimeFaultEffect::SchedulerQueueStarve { .. } => "scheduler.queue.starve",
+            RuntimeFaultEffect::TimeClockJump { .. } => "time.clock.jump",
+            RuntimeFaultEffect::TimeClockDrift { .. } => "time.clock.drift",
+        }
+    }
+}
+
+/// One runtime rule for world, access, or fault effects.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct RuntimeRule {
+    /// Optional stable rule identifier.
+    pub id: Option<String>,
+    /// Rule filter clause.
+    pub when: RuntimeFilter,
+    /// Effect payload for this rule.
+    pub effect: RuntimeEffect,
+    /// Trigger controls for this rule.
+    pub trigger: RuntimeRuleTrigger,
+    /// Activation window for this rule.
+    pub activation: Option<RuntimeRuleActivation>,
+    /// Lifetime window for this rule.
+    pub lifetime: Option<RuntimeRuleLifetime>,
+}
+
+/// Runtime execution options for scheduler, time, randomness, and GC.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct RuntimeOptions {
+    /// Execution mode for runtime scheduling and replay.
+    pub execution: ExecutionMode,
+    /// Default world for bindings without a matching route.
+    pub world: RuntimeWorld,
+    /// Default access policy for bindings without a matching access rule.
+    pub access: RuntimeAccess,
+    /// Ordered runtime rules for world, access, and fault policy.
+    pub rules: Vec<RuntimeRule>,
+    /// Replay log configuration.
+    pub replay_log: ReplayLogOptions,
+    /// Runtime clock configuration.
+    pub time: TimeOptions,
+    /// Runtime randomness configuration.
+    pub random: RandomOptions,
+    /// Runtime scheduler configuration.
+    pub scheduler: SchedulerOptions,
+    /// Runtime garbage collector configuration.
+    pub gc: GcOptions,
+    /// Platform-specific runtime configuration.
+    pub platform: PlatformOptions,
+}
+
+/// Platform-specific runtime configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct PlatformOptions {
+    /// Windows runtime configuration.
+    pub windows: PlatformWindowsOptions,
+}
+
+/// Windows runtime configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct PlatformWindowsOptions {
+    /// Optional POSIX domain SID for uid/gid mapping.
+    pub posix_domain_sid: Option<String>,
+}
 pub(super) fn runtime_options_from_json(
     json: Option<&DsConfigRuntimeOptionsJson>,
 ) -> RuntimeOptions {
@@ -161,42 +841,45 @@ impl From<RuntimeAccessJson> for RuntimeAccess {
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct RuntimeRuleFilterJson {
+pub struct RuntimeFilterJson {
     /// Glob selector for full binding names.
     pub binding: Option<String>,
     /// Glob selector for capability names.
     pub capability: Option<String>,
+    /// Glob selector for component names.
+    pub component: Option<String>,
     /// Glob selector for module names.
     pub module: Option<String>,
     /// Engine selector.
-    pub engine: Option<RuntimeRuleEngineJson>,
+    pub engine: Option<RuntimeFilterEngineJson>,
     /// Execution mode selector.
     pub execution: Option<Vec<ExecutionModeJson>>,
     /// Platform selector.
     pub platforms: Option<Vec<String>>,
     /// Binding scope selector.
-    pub scope: Option<RuntimeRuleScopeJson>,
+    pub scope: Option<RuntimeFilterScopeJson>,
     /// Binding blocking selector.
-    pub blocking: Option<RuntimeRuleBlockingJson>,
+    pub blocking: Option<RuntimeFilterBlockingJson>,
     /// Binding effect selector.
-    pub effect: Option<RuntimeRuleEffectJson>,
+    pub effect: Option<RuntimeFilterEffectJson>,
 }
 
-impl From<&RuntimeRuleFilterJson> for RuntimeRuleFilter {
-    fn from(value: &RuntimeRuleFilterJson) -> Self {
+impl From<&RuntimeFilterJson> for RuntimeFilter {
+    fn from(value: &RuntimeFilterJson) -> Self {
         Self {
             binding: value.binding.clone(),
             capability: value.capability.clone(),
+            component: value.component.clone(),
             module: value.module.clone(),
-            engine: value.engine.map(RuntimeRuleEngine::from),
+            engine: value.engine.map(RuntimeFilterEngine::from),
             execution_modes: value
                 .execution
                 .as_ref()
                 .map(|modes| modes.iter().copied().map(ExecutionMode::from).collect()),
             platforms: value.platforms.clone(),
-            scope: value.scope.map(RuntimeRuleScope::from),
-            blocking: value.blocking.map(RuntimeRuleBlocking::from),
-            effect: value.effect.map(RuntimeRuleEffect::from),
+            scope: value.scope.map(RuntimeFilterScope::from),
+            blocking: value.blocking.map(RuntimeFilterBlocking::from),
+            effect: value.effect.map(RuntimeFilterEffect::from),
         }
     }
 }
@@ -205,18 +888,18 @@ impl From<&RuntimeRuleFilterJson> for RuntimeRuleFilter {
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
-pub enum RuntimeRuleEngineJson {
+pub enum RuntimeFilterEngineJson {
     /// Match VM engine execution.
     Vm,
     /// Match native engine execution.
     Native,
 }
 
-impl From<RuntimeRuleEngineJson> for RuntimeRuleEngine {
-    fn from(value: RuntimeRuleEngineJson) -> Self {
+impl From<RuntimeFilterEngineJson> for RuntimeFilterEngine {
+    fn from(value: RuntimeFilterEngineJson) -> Self {
         match value {
-            RuntimeRuleEngineJson::Vm => RuntimeRuleEngine::Vm,
-            RuntimeRuleEngineJson::Native => RuntimeRuleEngine::Native,
+            RuntimeFilterEngineJson::Vm => RuntimeFilterEngine::Vm,
+            RuntimeFilterEngineJson::Native => RuntimeFilterEngine::Native,
         }
     }
 }
@@ -225,7 +908,7 @@ impl From<RuntimeRuleEngineJson> for RuntimeRuleEngine {
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
-pub enum RuntimeRuleScopeJson {
+pub enum RuntimeFilterScopeJson {
     /// Match OS scope bindings.
     Os,
     /// Match runtime scope bindings.
@@ -234,12 +917,12 @@ pub enum RuntimeRuleScopeJson {
     Hybrid,
 }
 
-impl From<RuntimeRuleScopeJson> for RuntimeRuleScope {
-    fn from(value: RuntimeRuleScopeJson) -> Self {
+impl From<RuntimeFilterScopeJson> for RuntimeFilterScope {
+    fn from(value: RuntimeFilterScopeJson) -> Self {
         match value {
-            RuntimeRuleScopeJson::Os => RuntimeRuleScope::Os,
-            RuntimeRuleScopeJson::Runtime => RuntimeRuleScope::Runtime,
-            RuntimeRuleScopeJson::Hybrid => RuntimeRuleScope::Hybrid,
+            RuntimeFilterScopeJson::Os => RuntimeFilterScope::Os,
+            RuntimeFilterScopeJson::Runtime => RuntimeFilterScope::Runtime,
+            RuntimeFilterScopeJson::Hybrid => RuntimeFilterScope::Hybrid,
         }
     }
 }
@@ -248,7 +931,7 @@ impl From<RuntimeRuleScopeJson> for RuntimeRuleScope {
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
-pub enum RuntimeRuleBlockingJson {
+pub enum RuntimeFilterBlockingJson {
     /// Match always-blocking bindings.
     Always,
     /// Match never-blocking bindings.
@@ -257,21 +940,21 @@ pub enum RuntimeRuleBlockingJson {
     Sometimes,
 }
 
-impl From<RuntimeRuleBlockingJson> for RuntimeRuleBlocking {
-    fn from(value: RuntimeRuleBlockingJson) -> Self {
+impl From<RuntimeFilterBlockingJson> for RuntimeFilterBlocking {
+    fn from(value: RuntimeFilterBlockingJson) -> Self {
         match value {
-            RuntimeRuleBlockingJson::Always => RuntimeRuleBlocking::Always,
-            RuntimeRuleBlockingJson::Never => RuntimeRuleBlocking::Never,
-            RuntimeRuleBlockingJson::Sometimes => RuntimeRuleBlocking::Sometimes,
+            RuntimeFilterBlockingJson::Always => RuntimeFilterBlocking::Always,
+            RuntimeFilterBlockingJson::Never => RuntimeFilterBlocking::Never,
+            RuntimeFilterBlockingJson::Sometimes => RuntimeFilterBlocking::Sometimes,
         }
     }
 }
 
-/// Runtime rule effect selector for JSON deserialization.
+/// Runtime rule binding effect selector for JSON deserialization.
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
-pub enum RuntimeRuleEffectJson {
+pub enum RuntimeFilterEffectJson {
     /// Match pure bindings.
     Pure,
     /// Match deterministic bindings.
@@ -282,24 +965,90 @@ pub enum RuntimeRuleEffectJson {
     ExternalNonRecordable,
 }
 
-impl From<RuntimeRuleEffectJson> for RuntimeRuleEffect {
-    fn from(value: RuntimeRuleEffectJson) -> Self {
+impl From<RuntimeFilterEffectJson> for RuntimeFilterEffect {
+    fn from(value: RuntimeFilterEffectJson) -> Self {
         match value {
-            RuntimeRuleEffectJson::Pure => RuntimeRuleEffect::Pure,
-            RuntimeRuleEffectJson::Deterministic => RuntimeRuleEffect::Deterministic,
-            RuntimeRuleEffectJson::ExternalRecordable => RuntimeRuleEffect::ExternalRecordable,
-            RuntimeRuleEffectJson::ExternalNonRecordable => {
-                RuntimeRuleEffect::ExternalNonRecordable
+            RuntimeFilterEffectJson::Pure => RuntimeFilterEffect::Pure,
+            RuntimeFilterEffectJson::Deterministic => RuntimeFilterEffect::Deterministic,
+            RuntimeFilterEffectJson::ExternalRecordable => RuntimeFilterEffect::ExternalRecordable,
+            RuntimeFilterEffectJson::ExternalNonRecordable => {
+                RuntimeFilterEffect::ExternalNonRecordable
             }
         }
     }
 }
 
-/// Jitter distribution for delay faults in JSON.
+/// Runtime rule activation behavior for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(tag = "mode", rename_all = "camelCase")]
+pub enum RuntimeRuleActivationJson {
+    /// Activate immediately.
+    Immediate,
+    /// Activate once virtual time reaches this timestamp.
+    AtVirtualNs {
+        /// Activation timestamp in virtual nanoseconds.
+        virtual_ns: u64,
+    },
+    /// Activate once this matching call count has elapsed.
+    AfterCallCount {
+        /// Matching call count before activation.
+        call_count: u64,
+    },
+}
+
+impl From<RuntimeRuleActivationJson> for RuntimeRuleActivation {
+    fn from(value: RuntimeRuleActivationJson) -> Self {
+        match value {
+            RuntimeRuleActivationJson::Immediate => RuntimeRuleActivation::Immediate,
+            RuntimeRuleActivationJson::AtVirtualNs { virtual_ns } => {
+                RuntimeRuleActivation::AtVirtualNs { virtual_ns }
+            }
+            RuntimeRuleActivationJson::AfterCallCount { call_count } => {
+                RuntimeRuleActivation::AfterCallCount { call_count }
+            }
+        }
+    }
+}
+
+/// Runtime rule lifetime behavior for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(tag = "mode", rename_all = "camelCase")]
+pub enum RuntimeRuleLifetimeJson {
+    /// Keep active until explicitly disabled.
+    UntilDisabled,
+    /// Keep active for this virtual duration.
+    ForDurationNs {
+        /// Active duration in virtual nanoseconds.
+        duration_ns: u64,
+    },
+    /// Keep active for this matching call budget.
+    ForCallCount {
+        /// Active call count before expiration.
+        call_count: u64,
+    },
+}
+
+impl From<RuntimeRuleLifetimeJson> for RuntimeRuleLifetime {
+    fn from(value: RuntimeRuleLifetimeJson) -> Self {
+        match value {
+            RuntimeRuleLifetimeJson::UntilDisabled => RuntimeRuleLifetime::UntilDisabled,
+            RuntimeRuleLifetimeJson::ForDurationNs { duration_ns } => {
+                RuntimeRuleLifetime::ForDurationNs { duration_ns }
+            }
+            RuntimeRuleLifetimeJson::ForCallCount { call_count } => {
+                RuntimeRuleLifetime::ForCallCount { call_count }
+            }
+        }
+    }
+}
+
+/// Jitter distribution for runtime delay faults in JSON.
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
-pub enum RuntimeFaultDistributionJson {
+pub enum RuntimeJitterDistributionJson {
     /// Use a uniform random distribution.
     Uniform,
     /// Use a normal random distribution.
@@ -308,155 +1057,507 @@ pub enum RuntimeFaultDistributionJson {
     Exponential,
 }
 
-impl From<RuntimeFaultDistributionJson> for RuntimeFaultDistribution {
-    fn from(value: RuntimeFaultDistributionJson) -> Self {
+impl From<RuntimeJitterDistributionJson> for RuntimeJitterDistribution {
+    fn from(value: RuntimeJitterDistributionJson) -> Self {
         match value {
-            RuntimeFaultDistributionJson::Uniform => RuntimeFaultDistribution::Uniform,
-            RuntimeFaultDistributionJson::Normal => RuntimeFaultDistribution::Normal,
-            RuntimeFaultDistributionJson::Exponential => RuntimeFaultDistribution::Exponential,
+            RuntimeJitterDistributionJson::Uniform => RuntimeJitterDistribution::Uniform,
+            RuntimeJitterDistributionJson::Normal => RuntimeJitterDistribution::Normal,
+            RuntimeJitterDistributionJson::Exponential => RuntimeJitterDistribution::Exponential,
+        }
+    }
+}
+
+/// Direction selector for route-level network faults in JSON.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub enum RuntimeNetRouteDirectionJson {
+    /// Affect ingress traffic.
+    Ingress,
+    /// Affect egress traffic.
+    Egress,
+    /// Affect both directions.
+    Both,
+}
+
+impl From<RuntimeNetRouteDirectionJson> for RuntimeNetRouteDirection {
+    fn from(value: RuntimeNetRouteDirectionJson) -> Self {
+        match value {
+            RuntimeNetRouteDirectionJson::Ingress => RuntimeNetRouteDirection::Ingress,
+            RuntimeNetRouteDirectionJson::Egress => RuntimeNetRouteDirection::Egress,
+            RuntimeNetRouteDirectionJson::Both => RuntimeNetRouteDirection::Both,
+        }
+    }
+}
+
+/// Runtime policy effect payload for JSON deserialization.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(tag = "policy", rename_all = "camelCase")]
+pub enum RuntimePolicyEffectJson {
+    /// Set the matching binding world.
+    SetWorld {
+        /// The selected world for matching bindings.
+        world: RuntimeWorldJson,
+    },
+    /// Set the matching binding access mode.
+    SetAccess {
+        /// The selected access mode for matching bindings.
+        access: RuntimeAccessJson,
+    },
+}
+
+impl From<&RuntimePolicyEffectJson> for RuntimePolicyEffect {
+    fn from(value: &RuntimePolicyEffectJson) -> Self {
+        match value {
+            RuntimePolicyEffectJson::SetWorld { world } => RuntimePolicyEffect::SetWorld {
+                world: RuntimeWorld::from(*world),
+            },
+            RuntimePolicyEffectJson::SetAccess { access } => RuntimePolicyEffect::SetAccess {
+                access: RuntimeAccess::from(*access),
+            },
+        }
+    }
+}
+
+/// Runtime control effect payload for JSON deserialization.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(tag = "control", rename_all = "camelCase")]
+pub enum RuntimeControlEffectJson {
+    /// Trigger one immediate GC cycle.
+    GcCycleCollect {},
+    /// Delay one GC cycle.
+    GcCycleDelay {
+        /// Delay duration in nanoseconds.
+        delay_ns: Option<u64>,
+    },
+    /// Apply one temporary heap limit.
+    GcHeapLimit {
+        /// Heap limit in bytes.
+        limit_bytes: u64,
+    },
+}
+
+impl From<&RuntimeControlEffectJson> for RuntimeControlEffect {
+    fn from(value: &RuntimeControlEffectJson) -> Self {
+        match value {
+            RuntimeControlEffectJson::GcCycleCollect {} => RuntimeControlEffect::GcCycleCollect {},
+            RuntimeControlEffectJson::GcCycleDelay { delay_ns } => {
+                RuntimeControlEffect::GcCycleDelay {
+                    delay_ns: *delay_ns,
+                }
+            }
+            RuntimeControlEffectJson::GcHeapLimit { limit_bytes } => {
+                RuntimeControlEffect::GcHeapLimit {
+                    limit_bytes: *limit_bytes,
+                }
+            }
+        }
+    }
+}
+
+/// Runtime mock effect payload for JSON deserialization.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(tag = "mock", rename_all = "camelCase")]
+pub enum RuntimeMockEffectJson {
+    /// Force one successful no-op response.
+    Success {},
+    /// Force one failure response with a code.
+    Error {
+        /// Error code name for this mocked failure.
+        code: String,
+    },
+}
+
+impl From<&RuntimeMockEffectJson> for RuntimeMockEffect {
+    fn from(value: &RuntimeMockEffectJson) -> Self {
+        match value {
+            RuntimeMockEffectJson::Success {} => RuntimeMockEffect::Success {},
+            RuntimeMockEffectJson::Error { code } => {
+                RuntimeMockEffect::Error { code: code.clone() }
+            }
+        }
+    }
+}
+
+/// Runtime rule effect payload for JSON deserialization.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum RuntimeEffectJson {
+    /// Apply one routing or access policy effect.
+    Policy {
+        /// Policy effect payload.
+        policy: RuntimePolicyEffectJson,
+    },
+    /// Inject one typed runtime fault.
+    Fault {
+        /// Fault payload to inject for matching bindings.
+        fault: RuntimeFaultEffectJson,
+    },
+    /// Apply one runtime control effect.
+    Control {
+        /// Control effect payload.
+        control: RuntimeControlEffectJson,
+    },
+    /// Apply one runtime mock effect.
+    Mock {
+        /// Mock effect payload.
+        mock: RuntimeMockEffectJson,
+    },
+}
+
+impl From<&RuntimeEffectJson> for RuntimeEffect {
+    fn from(value: &RuntimeEffectJson) -> Self {
+        match value {
+            RuntimeEffectJson::Policy { policy } => RuntimeEffect::Policy {
+                policy: RuntimePolicyEffect::from(policy),
+            },
+            RuntimeEffectJson::Fault { fault } => RuntimeEffect::Fault {
+                fault: RuntimeFaultEffect::from(fault),
+            },
+            RuntimeEffectJson::Control { control } => RuntimeEffect::Control {
+                control: RuntimeControlEffect::from(control),
+            },
+            RuntimeEffectJson::Mock { mock } => RuntimeEffect::Mock {
+                mock: RuntimeMockEffect::from(mock),
+            },
+        }
+    }
+}
+
+/// Runtime rule trigger controls for JSON deserialization.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeRuleTriggerJson {
+    /// Trigger probability in the range 0.0 to 1.0.
+    pub probability: Option<f64>,
+    /// Maximum number of effect firings.
+    pub max_occurrences: Option<u64>,
+    /// Cooldown duration between firings in nanoseconds.
+    pub cooldown_ns: Option<u64>,
+    /// Number of firings per trigger hit.
+    pub burst: Option<u32>,
+}
+
+impl From<&RuntimeRuleTriggerJson> for RuntimeRuleTrigger {
+    fn from(value: &RuntimeRuleTriggerJson) -> Self {
+        Self {
+            probability_ppm: probability_to_ppm(value.probability),
+            max_occurrences: value.max_occurrences,
+            cooldown_ns: value.cooldown_ns,
+            burst: value.burst,
         }
     }
 }
 
 /// Runtime fault payload for JSON deserialization.
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(tag = "kind", rename_all = "camelCase")]
-pub enum RuntimeFaultJson {
-    /// Inject a binding error.
-    Error {
-        /// Error code name for error injection.
-        code: String,
-        /// Probability in parts-per-million.
-        probability_ppm: Option<u32>,
-    },
-    /// Inject base delay and optional jitter before returning.
-    Delay {
+#[serde(tag = "name", rename_all = "camelCase")]
+pub enum RuntimeFaultEffectJson {
+    /// Inject deterministic runtime delay.
+    #[serde(rename = "runtime.delay")]
+    RuntimeDelay {
         /// Base delay in nanoseconds.
         base_ns: u64,
-        /// Jitter range in nanoseconds.
+        /// Jitter delay in nanoseconds.
         jitter_ns: Option<u64>,
-        /// Jitter distribution selector.
-        distribution: Option<RuntimeFaultDistributionJson>,
-        /// Probability in parts-per-million.
-        probability_ppm: Option<u32>,
+        /// Delay distribution mode.
+        distribution: Option<RuntimeJitterDistributionJson>,
     },
-    /// Drop the call result.
-    Drop {
-        /// Probability in parts-per-million.
-        probability_ppm: Option<u32>,
+    /// Inject one binding error.
+    #[serde(rename = "runtime.error")]
+    RuntimeError {
+        /// Error code name for this injected failure.
+        code: String,
     },
-    /// Duplicate delivery of a result.
-    Duplicate {
-        /// Number of result copies to emit.
-        copies: u32,
-        /// Probability in parts-per-million.
-        probability_ppm: Option<u32>,
-    },
-    /// Reorder result delivery within a bounded window.
-    Reorder {
-        /// Reorder window size.
-        window: u32,
-        /// Probability in parts-per-million.
-        probability_ppm: Option<u32>,
-    },
-    /// Force timeout behavior for the call.
-    Timeout {
+    /// Inject deterministic timeout behavior.
+    #[serde(rename = "runtime.timeout")]
+    RuntimeTimeout {
         /// Timeout duration in nanoseconds.
         timeout_ns: u64,
         /// Optional timeout error code override.
         code: Option<String>,
-        /// Probability in parts-per-million.
-        probability_ppm: Option<u32>,
     },
-    /// Simulate a connection or handle disconnect.
-    Disconnect {
-        /// Probability in parts-per-million.
-        probability_ppm: Option<u32>,
+    /// Inject connection disconnect on transport edges.
+    #[serde(rename = "net.connection.disconnect")]
+    NetConnectionDisconnect {},
+    /// Inject connection reset behavior.
+    #[serde(rename = "net.connection.reset")]
+    NetConnectionReset {},
+    /// Inject connection timeout behavior.
+    #[serde(rename = "net.connection.timeout")]
+    NetConnectionTimeout {
+        /// Timeout duration in nanoseconds.
+        timeout_ns: u64,
+    },
+    /// Inject packet drop faults.
+    #[serde(rename = "net.packet.drop")]
+    NetPacketDrop {},
+    /// Inject packet duplication faults.
+    #[serde(rename = "net.packet.duplicate")]
+    NetPacketDuplicate {
+        /// Number of duplicates emitted when the fault triggers.
+        copies: Option<u32>,
+    },
+    /// Inject packet reordering faults.
+    #[serde(rename = "net.packet.reorder")]
+    NetPacketReorder {
+        /// Reordering window size.
+        window: Option<u32>,
+    },
+    /// Inject packet corruption faults.
+    #[serde(rename = "net.packet.corrupt")]
+    NetPacketCorrupt {},
+    /// Inject route partition faults.
+    #[serde(rename = "net.route.partition")]
+    NetRoutePartition {
+        /// Direction filter for one-way or two-way partition.
+        direction: Option<RuntimeNetRouteDirectionJson>,
+    },
+    /// Inject route blackhole faults.
+    #[serde(rename = "net.route.blackhole")]
+    NetRouteBlackhole {
+        /// Direction filter for one-way or two-way blackhole.
+        direction: Option<RuntimeNetRouteDirectionJson>,
+    },
+    /// Inject link bandwidth limiting faults.
+    #[serde(rename = "net.bandwidth.limit")]
+    NetBandwidthLimit {
+        /// Maximum throughput in bytes per second.
+        bytes_per_second: u64,
+    },
+    /// Inject DNS timeout faults.
+    #[serde(rename = "net.dns.timeout")]
+    NetDnsTimeout {},
+    /// Inject DNS NXDOMAIN faults.
+    #[serde(rename = "net.dns.nxdomain")]
+    NetDnsNxdomain {},
+    /// Inject DNS SERVFAIL faults.
+    #[serde(rename = "net.dns.servfail")]
+    NetDnsServfail {},
+    /// Inject ENOSPC-like filesystem I/O failures.
+    #[serde(rename = "fs.io.enospc")]
+    FsIoEnospc {},
+    /// Inject low-level filesystem I/O faults.
+    #[serde(rename = "fs.io.eio")]
+    FsIoEio {},
+    /// Inject per-process file descriptor exhaustion.
+    #[serde(rename = "fs.io.emfile")]
+    FsIoEmfile {},
+    /// Inject global file descriptor exhaustion.
+    #[serde(rename = "fs.io.enfile")]
+    FsIoEnfile {},
+    /// Inject filesystem quota exceeded failures.
+    #[serde(rename = "fs.io.quota")]
+    FsIoQuota {},
+    /// Inject short write behavior.
+    #[serde(rename = "fs.write.short")]
+    FsWriteShort {
+        /// Optional maximum bytes written before returning.
+        max_bytes: Option<u64>,
+    },
+    /// Inject successful sync acknowledgements without persistence.
+    #[serde(rename = "fs.sync.lie")]
+    FsSyncLie {},
+    /// Inject process crash lifecycle events.
+    #[serde(rename = "process.lifecycle.crash")]
+    ProcessLifecycleCrash {
+        /// Optional crash signal number.
+        signal: Option<i64>,
+    },
+    /// Inject process signal delivery events.
+    #[serde(rename = "process.signal.deliver")]
+    ProcessSignalDeliver {
+        /// Signal number.
+        signal: i64,
+    },
+    /// Inject process wait timeouts.
+    #[serde(rename = "process.wait.timeout")]
+    ProcessWaitTimeout {
+        /// Timeout duration in nanoseconds.
+        timeout_ns: u64,
+    },
+    /// Inject scheduler timer skew.
+    #[serde(rename = "scheduler.timer.skew")]
+    SchedulerTimerSkew {
+        /// Signed skew in nanoseconds.
+        skew_ns: i64,
+    },
+    /// Inject scheduler queue starvation.
+    #[serde(rename = "scheduler.queue.starve")]
+    SchedulerQueueStarve {
+        /// Queue target selector.
+        target: Option<String>,
+        /// Starvation duration in nanoseconds.
+        duration_ns: Option<u64>,
+    },
+    /// Inject wall or monotonic clock jumps.
+    #[serde(rename = "time.clock.jump")]
+    TimeClockJump {
+        /// Signed jump in nanoseconds.
+        delta_ns: i64,
+    },
+    /// Inject persistent wall or monotonic drift.
+    #[serde(rename = "time.clock.drift")]
+    TimeClockDrift {
+        /// Signed rate offset in parts-per-million.
+        rate_ppm: i64,
     },
 }
 
-impl From<&RuntimeFaultJson> for RuntimeFault {
-    fn from(value: &RuntimeFaultJson) -> Self {
+fn probability_to_ppm(probability: Option<f64>) -> Option<i64> {
+    let probability = probability?;
+
+    // propagate non-finite values to validator as an invalid sentinel
+    if !probability.is_finite() {
+        return Some(i64::MIN);
+    }
+
+    let scaled_probability = probability * 1_000_000.0;
+    Some(scaled_probability.round() as i64)
+}
+
+impl From<&RuntimeFaultEffectJson> for RuntimeFaultEffect {
+    fn from(value: &RuntimeFaultEffectJson) -> Self {
         match value {
-            RuntimeFaultJson::Error {
-                code,
-                probability_ppm,
-            } => RuntimeFault::Error {
-                code: code.clone(),
-                probability_ppm: *probability_ppm,
-            },
-            RuntimeFaultJson::Delay {
+            RuntimeFaultEffectJson::RuntimeDelay {
                 base_ns,
                 jitter_ns,
                 distribution,
-                probability_ppm,
-            } => RuntimeFault::Delay {
+            } => RuntimeFaultEffect::RuntimeDelay {
                 base_ns: *base_ns,
                 jitter_ns: *jitter_ns,
-                distribution: distribution
-                    .as_ref()
-                    .map(|mode| RuntimeFaultDistribution::from(*mode)),
-                probability_ppm: *probability_ppm,
+                distribution: distribution.map(RuntimeJitterDistribution::from),
             },
-            RuntimeFaultJson::Drop { probability_ppm } => RuntimeFault::Drop {
-                probability_ppm: *probability_ppm,
+            RuntimeFaultEffectJson::RuntimeError { code } => {
+                RuntimeFaultEffect::RuntimeError { code: code.clone() }
+            }
+            RuntimeFaultEffectJson::RuntimeTimeout { timeout_ns, code } => {
+                RuntimeFaultEffect::RuntimeTimeout {
+                    timeout_ns: *timeout_ns,
+                    code: code.clone(),
+                }
+            }
+            RuntimeFaultEffectJson::NetConnectionDisconnect {} => {
+                RuntimeFaultEffect::NetConnectionDisconnect {}
+            }
+            RuntimeFaultEffectJson::NetConnectionReset {} => {
+                RuntimeFaultEffect::NetConnectionReset {}
+            }
+            RuntimeFaultEffectJson::NetConnectionTimeout { timeout_ns } => {
+                RuntimeFaultEffect::NetConnectionTimeout {
+                    timeout_ns: *timeout_ns,
+                }
+            }
+            RuntimeFaultEffectJson::NetPacketDrop {} => RuntimeFaultEffect::NetPacketDrop {},
+            RuntimeFaultEffectJson::NetPacketDuplicate { copies } => {
+                RuntimeFaultEffect::NetPacketDuplicate { copies: *copies }
+            }
+            RuntimeFaultEffectJson::NetPacketReorder { window } => {
+                RuntimeFaultEffect::NetPacketReorder { window: *window }
+            }
+            RuntimeFaultEffectJson::NetPacketCorrupt {} => RuntimeFaultEffect::NetPacketCorrupt {},
+            RuntimeFaultEffectJson::NetRoutePartition { direction } => {
+                RuntimeFaultEffect::NetRoutePartition {
+                    direction: direction.map(RuntimeNetRouteDirection::from),
+                }
+            }
+            RuntimeFaultEffectJson::NetRouteBlackhole { direction } => {
+                RuntimeFaultEffect::NetRouteBlackhole {
+                    direction: direction.map(RuntimeNetRouteDirection::from),
+                }
+            }
+            RuntimeFaultEffectJson::NetBandwidthLimit { bytes_per_second } => {
+                RuntimeFaultEffect::NetBandwidthLimit {
+                    bytes_per_second: *bytes_per_second,
+                }
+            }
+            RuntimeFaultEffectJson::NetDnsTimeout {} => RuntimeFaultEffect::NetDnsTimeout {},
+            RuntimeFaultEffectJson::NetDnsNxdomain {} => RuntimeFaultEffect::NetDnsNxdomain {},
+            RuntimeFaultEffectJson::NetDnsServfail {} => RuntimeFaultEffect::NetDnsServfail {},
+            RuntimeFaultEffectJson::FsIoEnospc {} => RuntimeFaultEffect::FsIoEnospc {},
+            RuntimeFaultEffectJson::FsIoEio {} => RuntimeFaultEffect::FsIoEio {},
+            RuntimeFaultEffectJson::FsIoEmfile {} => RuntimeFaultEffect::FsIoEmfile {},
+            RuntimeFaultEffectJson::FsIoEnfile {} => RuntimeFaultEffect::FsIoEnfile {},
+            RuntimeFaultEffectJson::FsIoQuota {} => RuntimeFaultEffect::FsIoQuota {},
+            RuntimeFaultEffectJson::FsWriteShort { max_bytes } => {
+                RuntimeFaultEffect::FsWriteShort {
+                    max_bytes: *max_bytes,
+                }
+            }
+            RuntimeFaultEffectJson::FsSyncLie {} => RuntimeFaultEffect::FsSyncLie {},
+            RuntimeFaultEffectJson::ProcessLifecycleCrash { signal } => {
+                RuntimeFaultEffect::ProcessLifecycleCrash { signal: *signal }
+            }
+            RuntimeFaultEffectJson::ProcessSignalDeliver { signal } => {
+                RuntimeFaultEffect::ProcessSignalDeliver { signal: *signal }
+            }
+            RuntimeFaultEffectJson::ProcessWaitTimeout { timeout_ns } => {
+                RuntimeFaultEffect::ProcessWaitTimeout {
+                    timeout_ns: *timeout_ns,
+                }
+            }
+            RuntimeFaultEffectJson::SchedulerTimerSkew { skew_ns } => {
+                RuntimeFaultEffect::SchedulerTimerSkew { skew_ns: *skew_ns }
+            }
+            RuntimeFaultEffectJson::SchedulerQueueStarve {
+                target,
+                duration_ns,
+            } => RuntimeFaultEffect::SchedulerQueueStarve {
+                target: target.clone(),
+                duration_ns: *duration_ns,
             },
-            RuntimeFaultJson::Duplicate {
-                copies,
-                probability_ppm,
-            } => RuntimeFault::Duplicate {
-                copies: *copies,
-                probability_ppm: *probability_ppm,
-            },
-            RuntimeFaultJson::Reorder {
-                window,
-                probability_ppm,
-            } => RuntimeFault::Reorder {
-                window: *window,
-                probability_ppm: *probability_ppm,
-            },
-            RuntimeFaultJson::Timeout {
-                timeout_ns,
-                code,
-                probability_ppm,
-            } => RuntimeFault::Timeout {
-                timeout_ns: *timeout_ns,
-                code: code.clone(),
-                probability_ppm: *probability_ppm,
-            },
-            RuntimeFaultJson::Disconnect { probability_ppm } => RuntimeFault::Disconnect {
-                probability_ppm: *probability_ppm,
-            },
+            RuntimeFaultEffectJson::TimeClockJump { delta_ns } => {
+                RuntimeFaultEffect::TimeClockJump {
+                    delta_ns: *delta_ns,
+                }
+            }
+            RuntimeFaultEffectJson::TimeClockDrift { rate_ppm } => {
+                RuntimeFaultEffect::TimeClockDrift {
+                    rate_ppm: *rate_ppm,
+                }
+            }
         }
     }
 }
 
 /// Runtime rule for JSON deserialization.
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeRuleJson {
     /// Optional stable rule identifier.
     pub id: Option<String>,
     /// Rule filter clause.
-    pub when: RuntimeRuleFilterJson,
-    /// World action for this rule.
-    pub world: Option<RuntimeWorldJson>,
-    /// Access action for this rule.
-    pub access: Option<RuntimeAccessJson>,
-    /// Fault action for this rule.
-    pub fault: Option<RuntimeFaultJson>,
+    pub when: RuntimeFilterJson,
+    /// Rule effect payload.
+    pub effect: RuntimeEffectJson,
+    /// Rule trigger controls.
+    pub trigger: Option<RuntimeRuleTriggerJson>,
+    /// Activation window for this rule.
+    pub activation: Option<RuntimeRuleActivationJson>,
+    /// Lifetime window for this rule.
+    pub lifetime: Option<RuntimeRuleLifetimeJson>,
 }
 
 impl From<&RuntimeRuleJson> for RuntimeRule {
     fn from(value: &RuntimeRuleJson) -> Self {
         Self {
             id: value.id.clone(),
-            when: RuntimeRuleFilter::from(&value.when),
-            world: value.world.map(RuntimeWorld::from),
-            access: value.access.map(RuntimeAccess::from),
-            fault: value.fault.as_ref().map(RuntimeFault::from),
+            when: RuntimeFilter::from(&value.when),
+            effect: RuntimeEffect::from(&value.effect),
+            trigger: value
+                .trigger
+                .as_ref()
+                .map(RuntimeRuleTrigger::from)
+                .unwrap_or_default(),
+            activation: value.activation.map(RuntimeRuleActivation::from),
+            lifetime: value.lifetime.map(RuntimeRuleLifetime::from),
         }
     }
 }
