@@ -5,7 +5,7 @@ use destack_ast::{
     DependencyMode, Expression, Keyword, LiteralType, TokenType,
 };
 
-use super::common::{DECLARATION_KEYWORDS, DescriptorHead};
+use super::common::{DescriptorHead, is_declaration_keyword};
 
 impl Parser {
     /// Check whether a `{` in statement position should be parsed as an object literal.
@@ -130,27 +130,44 @@ impl Parser {
 
         // check for a modifier keyword or a global or module identifier
         let pos = self.pos_index();
-        let keyword = if self.has_active_split() {
-            self.peek_any_keyword().ok()
-        } else {
-            self.keyword_for_index(pos)
-        };
-        let is_modifier_keyword = matches!(
-            keyword,
-            Some(Keyword::Export | Keyword::Declare | Keyword::Abstract | Keyword::Static)
-        );
         let next_token_type = self.peek_next_token_type();
         let can_start_global_or_module_declaration = matches!(
             next_token_type,
             TokenType::OpenBrace | TokenType::Identifier | TokenType::Literal | TokenType::Newline
         );
-        let is_global_identifier = !is_modifier_keyword
-            && can_start_global_or_module_declaration
-            && self.identifier_equals_at(pos, "global");
-        let is_module_identifier = !is_modifier_keyword
-            && can_start_global_or_module_declaration
-            && self.language.supports_module_declaration()
-            && self.identifier_equals_at(pos, "module");
+        let is_modifier_keyword;
+        let is_global_identifier;
+        let is_module_identifier;
+
+        // fast path: read raw identifier text once and avoid keyword parsing for regular names
+        if !self.has_active_split() {
+            let token = self
+                .token_ref_at(pos)
+                .copied()
+                .ok_or(ParseError::unexpected(self.eof_span()))?;
+            let identifier = self.get_span_str(token.span);
+            is_modifier_keyword =
+                matches!(identifier, "export" | "declare" | "abstract" | "static");
+            is_global_identifier = !is_modifier_keyword
+                && can_start_global_or_module_declaration
+                && identifier == "global";
+            is_module_identifier = !is_modifier_keyword
+                && can_start_global_or_module_declaration
+                && self.language.supports_module_declaration()
+                && identifier == "module";
+        }
+        // split-aware fallback, kept for correctness around compound tokens
+        else {
+            let keyword = self.peek_any_keyword().ok();
+            let split_modifier_keyword = matches!(
+                keyword,
+                Some(Keyword::Export | Keyword::Declare | Keyword::Abstract | Keyword::Static)
+            );
+            is_modifier_keyword = split_modifier_keyword;
+            is_global_identifier = false;
+            is_module_identifier = false;
+        }
+
         if !is_modifier_keyword && !is_global_identifier && !is_module_identifier {
             return Ok(DescriptorHead::Descriptor(descriptor));
         }
@@ -180,9 +197,9 @@ impl Parser {
             // export dependencies handled by export statement parsing
             let next_keyword = self.peek_any_keyword().ok();
             let has_module_identifier_declaration = self.language.supports_module_declaration()
-                && self.peek_identifier_str("module").is_ok();
-            let has_declaration_keyword = next_keyword
-                .is_some_and(|kw| DECLARATION_KEYWORDS.contains(&kw))
+                && !self.has_active_split()
+                && self.identifier_equals_at(self.pos_index(), "module");
+            let has_declaration_keyword = next_keyword.is_some_and(is_declaration_keyword)
                 || has_module_identifier_declaration;
 
             // reject export default enum declarations
@@ -298,7 +315,7 @@ impl Parser {
             && !self.peek_next_is(TokenType::Newline)
             && self
                 .peek_next_any_keyword()
-                .is_ok_and(|kw| DECLARATION_KEYWORDS.contains(&kw))
+                .is_ok_and(is_declaration_keyword)
         {
             self.bump(); // eat abstract
             DeclarationAbstraction::Abstract
@@ -318,7 +335,8 @@ impl Parser {
         if (descriptor.kind == DeclarationKind::Declaration
             || self.language.is_declaration()
             || self.options.in_declare_context)
-            && self.peek_identifier_str("global").is_ok()
+            && !self.has_active_split()
+            && self.identifier_equals_at(self.pos_index(), "global")
             && self
                 .peek_token_after_newlines(self.pos(), TokenType::OpenBrace)
                 .is_ok()
@@ -342,7 +360,7 @@ impl Parser {
     /// Check whether a token index starts a declare target keyword.
     pub(super) fn is_declare_keyword_target_at(&mut self, index: usize) -> bool {
         let keyword = self.keyword_for_index(index);
-        keyword.is_some_and(|kw| kw != Keyword::Declare && DECLARATION_KEYWORDS.contains(&kw))
+        keyword.is_some_and(|kw| kw != Keyword::Declare && is_declaration_keyword(kw))
     }
 
     /// Check whether a token index starts a declare identifier target.

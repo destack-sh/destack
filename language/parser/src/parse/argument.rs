@@ -100,6 +100,42 @@ impl Parser {
 
         // eat modifiers in any order
         loop {
+            // fast path: modifiers only start on identifiers and known modifier keywords
+            if !self.peek_is(TokenType::Identifier) {
+                break;
+            }
+            let position_index = self.pos_index();
+            let has_active_split = self.has_active_split();
+            let current_keyword = if has_active_split {
+                self.peek_any_keyword().ok()
+            } else {
+                self.keyword_for_index(position_index)
+            };
+            let is_out_variance_modifier = allow_variance_modifier
+                && !has_active_split
+                && self.identifier_equals_at(position_index, "out")
+                && (self.peek_next_is(TokenType::Identifier) || self.is_next_keyword(Keyword::In));
+            let can_start_modifier = current_keyword.is_some_and(|keyword| {
+                matches!(
+                    keyword,
+                    Keyword::In
+                        | Keyword::Public
+                        | Keyword::Protected
+                        | Keyword::Private
+                        | Keyword::Declare
+                        | Keyword::Static
+                        | Keyword::Abstract
+                        | Keyword::Override
+                        | Keyword::Readonly
+                        | Keyword::Const
+                        | Keyword::Accessor
+                        | Keyword::Comptime
+                )
+            }) || is_out_variance_modifier;
+            if !can_start_modifier {
+                break;
+            }
+
             let mut progress = false;
 
             // modifier disambiguation for abstraction keywords
@@ -108,7 +144,7 @@ impl Parser {
             // variance for static parameters
             if allow_variance_modifier {
                 // handle 'in' variance modifier
-                if self.is_keyword(Keyword::In) {
+                if current_keyword == Some(Keyword::In) {
                     let span = self.peek()?.span;
                     self.bump(); // eat in
                     if validate_modifier_order && seen_variance_in {
@@ -127,10 +163,7 @@ impl Parser {
                     progress = true;
                 }
                 // handle 'out' variance modifier
-                else if self.peek_identifier_str("out").is_ok()
-                    && (self.peek_next_is(TokenType::Identifier)
-                        || self.is_next_keyword(Keyword::In))
-                {
+                else if is_out_variance_modifier {
                     let span = self.peek()?.span;
                     self.bump(); // eat out
                     if validate_modifier_order && seen_variance_out {

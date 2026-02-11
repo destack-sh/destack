@@ -146,7 +146,6 @@ impl Parser {
         format: BlockFormat,
     ) -> ParseResult<Vec<LocalNodeId<Expression>>> {
         let _timing = self.timing_scope(tags::PARSE_BLOCK_BODY);
-        let nested_options = self.options.nested();
 
         // parse expressions into statements with one item lookahead
         let mut statements: Vec<LocalNodeId<Expression>> = Vec::new();
@@ -173,9 +172,7 @@ impl Parser {
             // eat expressions
             else {
                 let (expression_id, is_statement) = self
-                    .with_options(nested_options, |parser| {
-                        parser.try_eat_statement_expression_with_flag()
-                    })
+                    .try_eat_statement_expression_with_flag()
                     .for_node_type(NodeType::Expression)?;
                 if let Some((pending_id, pending_is_statement)) = pending_expression {
                     if pending_is_statement {
@@ -534,32 +531,8 @@ impl Parser {
 
     /// Return true when trivia before the current token contains a line terminator.
     pub(crate) fn has_line_terminator_before_current_token(&mut self) -> bool {
-        // find neighboring semantic tokens around the current parse position
         let current_index = self.pos_index();
-        if current_index == 0 {
-            return false;
-        }
-
-        // stop when either side is missing
-        let Some(previous) = self.token_at(current_index.saturating_sub(1)) else {
-            return false;
-        };
-        let Some(current) = self.token_at(current_index) else {
-            return false;
-        };
-
-        // trivia only exists when there is a real gap between token spans
-        if current.span.start <= previous.span.end {
-            return false;
-        }
-
-        // scan the trivia slice for line terminator code points
-        let trivia_span =
-            destack_source::Span::new(self.file_id, previous.span.end, current.span.start);
-        let trivia = self.get_span_str(trivia_span);
-        trivia
-            .chars()
-            .any(|character| matches!(character, '\n' | '\r' | '\u{2028}' | '\u{2029}'))
+        self.line_terminator_before_index(current_index)
     }
 
     /// Eat a throw expression.

@@ -543,6 +543,8 @@ pub struct Parser {
     split_token_consumed: bool,
     /// Whether the parser is finished.
     is_finished: bool,
+    /// Expression recursion depth for periodic stack growth checks.
+    pub(crate) expression_stack_depth: u32,
     /// Whether the position index is built.
     pub(crate) positions_built: bool,
     /// The parser options.
@@ -616,6 +618,7 @@ impl Parser {
             split_token: None,
             split_token_consumed: false,
             is_finished: false,
+            expression_stack_depth: 0,
             positions_built: false,
             options: ParserOptions::default(),
             language,
@@ -683,6 +686,7 @@ impl Parser {
         debug_assert!(!self.is_finished, "parser is already finished");
         self.pos = 0;
         self.split_token = None;
+        self.expression_stack_depth = 0;
         self.options = ParserOptions {
             disallow_ambiguous_tree_literal: self.language.supports_jsx()
                 && self.language.is_typescript(),
@@ -865,8 +869,14 @@ impl Parser {
     pub(crate) fn identifier_equals_at(&mut self, index: usize, expected: &str) -> bool {
         self.token_stream.ensure_token(index);
         self.tokens().get(index).is_some_and(|token| {
-            token.token.ty == TokenType::Identifier && self.get_span_str(token.span) == expected
+            token.token.ty == TokenType::Identifier && self.file.span_str(token.span) == expected
         })
+    }
+
+    /// Return whether trivia before the token at index contains a line terminator.
+    #[inline]
+    pub(crate) fn line_terminator_before_index(&mut self, index: usize) -> bool {
+        self.token_stream.line_terminator_before(index)
     }
 
     /// Get the token index used by peek_next.
