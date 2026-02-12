@@ -64,6 +64,8 @@ impl EcosystemRunOptions {
 pub struct FetchOptions {
     /// Whether to re-clone packages even if they already exist.
     pub refresh: bool,
+    /// Whether to install package dependencies after fetch.
+    pub install: bool,
 }
 
 /// A suite implementation that runs ecosystem phase tests.
@@ -1608,6 +1610,105 @@ fn run_git(args: &[&str], current_dir: &Path, context: &str) -> Result<(), Strin
     ))
 }
 
+/// Package manager used for fixture dependency installation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EcosystemPackageManager {
+    /// Use pnpm for dependency installation.
+    Pnpm,
+    /// Use yarn for dependency installation.
+    Yarn,
+    /// Use npm for dependency installation.
+    Npm,
+    /// Use bun for dependency installation.
+    Bun,
+}
+
+/// Install dependencies for one fetched ecosystem package checkout.
+fn ensure_package_dependencies_installed(package_dir: &Path) -> Result<(), String> {
+    // skip non-node packages
+    if !package_dir.join("package.json").is_file() {
+        return Ok(());
+    }
+
+    // skip already installed dependencies
+    if package_dependencies_are_installed(package_dir) {
+        return Ok(());
+    }
+
+    // choose package manager from lockfiles and workspace metadata
+    let package_manager = detect_package_manager(package_dir);
+    let (command, args): (&str, &[&str]) = match package_manager {
+        EcosystemPackageManager::Pnpm => (
+            "pnpm",
+            &["install", "--ignore-scripts", "--frozen-lockfile"],
+        ),
+        EcosystemPackageManager::Yarn => ("yarn", &["install", "--ignore-scripts"]),
+        EcosystemPackageManager::Npm => {
+            if package_dir.join("package-lock.json").is_file()
+                || package_dir.join("npm-shrinkwrap.json").is_file()
+            {
+                ("npm", &["ci", "--ignore-scripts"])
+            } else {
+                ("npm", &["install", "--ignore-scripts"])
+            }
+        }
+        EcosystemPackageManager::Bun => ("bun", &["install", "--ignore-scripts"]),
+    };
+
+    // run install with deterministic ci environment
+    let status = Command::new(command)
+        .args(args)
+        .current_dir(package_dir)
+        .env("CI", "1")
+        .status()
+        .map_err(|error| {
+            format!(
+                "{command} install failed to start in {}: {error}",
+                package_dir.display()
+            )
+        })?;
+
+    if status.success() {
+        return Ok(());
+    }
+
+    Err(format!(
+        "{command} install failed in {} with args: {:?}",
+        package_dir.display(),
+        args,
+    ))
+}
+
+/// Return whether one package checkout already has installed dependencies.
+fn package_dependencies_are_installed(package_dir: &Path) -> bool {
+    package_dir.join("node_modules").is_dir()
+        || package_dir.join(".pnp.cjs").is_file()
+        || package_dir.join(".pnp.js").is_file()
+        || package_dir.join(".pnp.loader.mjs").is_file()
+}
+
+/// Detect package manager from lockfiles and workspace metadata.
+fn detect_package_manager(package_dir: &Path) -> EcosystemPackageManager {
+    // choose pnpm for pnpm lockfiles
+    if package_dir.join("pnpm-lock.yaml").is_file()
+        || package_dir.join("pnpm-workspace.yaml").is_file()
+    {
+        return EcosystemPackageManager::Pnpm;
+    }
+
+    // choose yarn for yarn lockfiles and config
+    if package_dir.join("yarn.lock").is_file() || package_dir.join(".yarnrc.yml").is_file() {
+        return EcosystemPackageManager::Yarn;
+    }
+
+    // choose bun for bun lockfiles
+    if package_dir.join("bun.lock").is_file() || package_dir.join("bun.lockb").is_file() {
+        return EcosystemPackageManager::Bun;
+    }
+
+    // default to npm
+    EcosystemPackageManager::Npm
+}
 /// Auto fetch missing package checkouts before running tests.
 fn auto_fetch_missing_checkouts(
     manifests: &[EcosystemManifest],
@@ -1620,6 +1721,9 @@ fn auto_fetch_missing_checkouts(
     if is_list_mode {
         return HashMap::new();
     }
+
+    // install dependencies when selected phases need module resolution
+    let should_install_dependencies = phases.iter().any(|phase| *phase != EcosystemPhase::Parse);
 
     let mut missing = Vec::new();
     for manifest in manifests {
@@ -1649,13 +1753,30 @@ fn auto_fetch_missing_checkouts(
             "  {}@{} ... ",
             manifest.package.name, manifest.package.git_ref
         );
-        let fetch_result = fetch_package(manifest, checkouts_dir, FetchOptions { refresh: false });
+        let fetch_result = fetch_package(
+            manifest,
+            checkouts_dir,
+            FetchOptions {
+                refresh: false,
+                install: false,
+            },
+        );
         match fetch_result {
             Ok(package_dir) => {
                 let package_patches_dir = patches_dir.join(&manifest.package.name);
                 match ensure_patches_applied(&package_patches_dir, &package_dir) {
                     Ok(()) => {
-                        println!("ok");
+                        if should_install_dependencies {
+                            match ensure_package_dependencies_installed(&package_dir) {
+                                Ok(()) => println!("ok"),
+                                Err(error) => {
+                                    println!("FAILED: install failed: {error}");
+                                    failures.insert(manifest.package.name.clone(), error);
+                                }
+                            }
+                        } else {
+                            println!("ok");
+                        }
                     }
                     Err(error) => {
                         println!("FAILED: patch apply failed: {error}");
@@ -1673,7 +1794,6 @@ fn auto_fetch_missing_checkouts(
     println!();
     failures
 }
-
 /// Return whether one manifest can produce a selected case for the current filter.
 fn manifest_matches_filter(
     manifest: &EcosystemManifest,
@@ -1778,7 +1898,19 @@ pub fn fetch_all_packages(options: FetchOptions) -> ExitCode {
                     Ok(package_dir) => {
                         let package_patches_dir = patches_dir.join(&manifest.package.name);
                         match ensure_patches_applied(&package_patches_dir, &package_dir) {
-                            Ok(()) => println!("ok"),
+                            Ok(()) => {
+                                if options.install {
+                                    match ensure_package_dependencies_installed(&package_dir) {
+                                        Ok(()) => println!("ok"),
+                                        Err(error) => {
+                                            println!("FAILED: install failed: {error}");
+                                            any_failed = true;
+                                        }
+                                    }
+                                } else {
+                                    println!("ok");
+                                }
+                            }
                             Err(error) => {
                                 println!("FAILED: patch apply failed: {error}");
                                 any_failed = true;
