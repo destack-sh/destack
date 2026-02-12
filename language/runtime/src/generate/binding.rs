@@ -757,7 +757,7 @@ pub(crate) fn render_native_stub(domain: &str, bindings: &BindingCatalogEntry) -
 
 /// Render stub host bindings for a runtime domain.
 pub(crate) fn render_host_stub(domain: &str, bindings: &BindingCatalogEntry) -> String {
-    render_native_like_stub(domain, bindings, "pub")
+    render_native_like_stub(domain, bindings, "pub(crate)")
 }
 
 /// Render stub host-like bindings for a runtime domain.
@@ -782,6 +782,8 @@ fn render_native_like_stub(
     // render the stub file content
     let mut output = String::new();
     output.push_str(GENERATED_STUB_MARKER);
+    output.push_str("#![allow(dead_code)]\n");
+    output.push_str("#![allow(unused_imports)]\n");
     output.push_str("#![allow(clippy::missing_safety_doc)]\n");
     output.push_str("use crate::diagnostic::{RuntimeError, RuntimeResult};\n");
     output.push_str(&format!(
@@ -898,6 +900,8 @@ pub(crate) fn render_vm_stub(domain: &str, bindings: &BindingCatalogEntry) -> St
     // render the stub file content
     let mut output = String::new();
     output.push_str(GENERATED_STUB_MARKER);
+    output.push_str("#![allow(dead_code)]\n");
+    output.push_str("#![allow(unused_imports)]\n");
     output.push_str("use destack_vm as vm;\n");
     output.push_str("use crate::diagnostic::{RuntimeError, RuntimeResult};\n");
     output.push_str("use crate::platform::PlatformError;\n");
@@ -1504,9 +1508,6 @@ impl<'a> DomainWriter<'a> {
         }
         if usage.uses_random_replay_kind {
             self.output.push_str("use crate::random::RandomStreamId;\n");
-        }
-        if usage.uses_binding_replay {
-            self.output.push_str("#[cfg(feature = \"replay\")]\n");
         }
         self.output.push_str("use crate::vm_binding_set;\n");
         if usage.needs_decode

@@ -1,1 +1,1 @@
-pub use crate::platform::memory::host::*;
+pub(crate) use crate::platform::memory::host::*;

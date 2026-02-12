@@ -5,9 +5,50 @@
 #![allow(unreachable_pub)]
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{VmValueCodec, io as platform_io, resource, resource as platform_resource};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
+
+/// ABI newtype for DescriptorControlCommand.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct DescriptorControlCommand(
+    /// Inner value.
+    pub u32,
+);
+
+pub type DescriptorControlCommandVm = DescriptorControlCommand;
+
+impl VmValueCodec for DescriptorControlCommand {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for DescriptorControlFlags.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct DescriptorControlFlags(
+    /// Inner value.
+    pub u32,
+);
+
+pub type DescriptorControlFlagsVm = DescriptorControlFlags;
+
+impl VmValueCodec for DescriptorControlFlags {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
 
 /// ABI newtype for EventToken.
 #[repr(transparent)]
@@ -147,6 +188,76 @@ pub struct CompletionOperation {
 
 pub type CompletionOperationVm = CompletionOperation;
 
+/// ABI struct for DescriptorRequest.
+#[repr(C)]
+pub struct DescriptorRequestAbi<A: BindingAbi> {
+    /// The code field.
+    pub code: u64,
+    /// The input field.
+    pub input: A::Slice<u8>,
+    /// The output_size field.
+    pub output_size: u32,
+    /// The flags field.
+    pub flags: u32,
+}
+
+pub type DescriptorRequest = DescriptorRequestAbi<NativeAbi>;
+pub type DescriptorRequestVm = DescriptorRequestAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for DescriptorRequestAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("DescriptorRequestAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for DescriptorRequestAbi<NativeAbi> {}
+impl Clone for DescriptorRequestAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for DescriptorRequestAbi<VmAbi> {}
+impl Clone for DescriptorRequestAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+/// ABI struct for DescriptorResult.
+#[repr(C)]
+pub struct DescriptorResultAbi<A: BindingAbi> {
+    /// The return_value field.
+    pub return_value: i64,
+    /// The output field.
+    pub output: A::Slice<u8>,
+}
+
+pub type DescriptorResult = DescriptorResultAbi<NativeAbi>;
+pub type DescriptorResultVm = DescriptorResultAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for DescriptorResultAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("DescriptorResultAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for DescriptorResultAbi<NativeAbi> {}
+impl Clone for DescriptorResultAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for DescriptorResultAbi<VmAbi> {}
+impl Clone for DescriptorResultAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
 /// ABI struct for PollEvent.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -192,3 +303,25 @@ pub struct UringParameters {
 }
 
 pub type UringParametersVm = UringParameters;
+
+/// Replay struct for DescriptorRequest.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DescriptorRequestReplayRecord {
+    /// The code field.
+    pub code: u64,
+    /// The input field.
+    pub input: Vec<u8>,
+    /// The output_size field.
+    pub output_size: u32,
+    /// The flags field.
+    pub flags: u32,
+}
+
+/// Replay struct for DescriptorResult.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DescriptorResultReplayRecord {
+    /// The return_value field.
+    pub return_value: i64,
+    /// The output field.
+    pub output: Vec<u8>,
+}

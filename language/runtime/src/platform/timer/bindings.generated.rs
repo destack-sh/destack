@@ -14,7 +14,6 @@ use crate::platform::timer::{
     TimerFlags, TimerOptions, TimerOptionsVm,
 };
 use crate::platform::{PlatformError, RuntimeStatus, abi as platform_abi};
-#[cfg(feature = "replay")]
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;

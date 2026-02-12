@@ -13,7 +13,6 @@ use crate::platform::device::{DeviceControlOperation, DeviceControlOperationVm};
 use crate::platform::{
     NativeSlice, PlatformError, RuntimeStatus, VmArray, VmSlice, abi as platform_abi,
 };
-#[cfg(feature = "replay")]
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;

@@ -51,6 +51,21 @@ export newtype LibraryHandle = ResourceId;
 /// Handle for a foreign function symbol.
 export newtype SymbolHandle = ResourceId;
 
+/// Handle for one cryptographic key store.
+export newtype CryptoStoreHandle = ResourceId;
+
+/// Handle for one cryptographic key object.
+export newtype CryptoKeyHandle = ResourceId;
+
+/// Handle for one cryptographic certificate object.
+export newtype CryptoCertificateHandle = ResourceId;
+
+/// Handle for one TLS context.
+export newtype TlsContextHandle = ResourceId;
+
+/// Handle for one TLS session.
+export newtype TlsSessionHandle = ResourceId;
+
 /// Handle for a device endpoint.
 export newtype DeviceHandle = ResourceId;
 

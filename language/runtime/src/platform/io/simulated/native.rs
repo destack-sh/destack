@@ -9,7 +9,8 @@ use crate::platform::{NativeArray, NativeSlice, PlatformError};
 use crate::runtime::RuntimeCallContext;
 
 use crate::platform::io::{
-    CompletionEvent, CompletionOperation, EventToken, PollBackend, PollEvent, PollInterest,
+    CompletionEvent, CompletionOperation, DescriptorControlCommand, DescriptorControlFlags,
+    DescriptorRequest, DescriptorResult, EventToken, PollBackend, PollEvent, PollInterest,
     UringFeatures, UringParameters,
 };
 use crate::platform::resource;
@@ -225,6 +226,66 @@ pub(crate) unsafe fn destack_io_completion_wait(
     let _ = (out, handle, timeoutns, maxevents);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.completion.wait")).boxed())
+}
+
+/// Execute one fcntl-style descriptor command.
+///
+/// Forward one descriptor control command to the host kernel for the target resource.
+/// Command semantics and valid arguments follow the active host ABI.
+///
+/// # Platform
+/// Unix and Windows, with operation-level `notSupported` when host mapping is unavailable.
+/// Uses fcntl(2) style controls on Unix and host descriptor control adapters on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `io.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_io_control_fcntl(
+    context: &RuntimeCallContext,
+    out: *mut i64,
+    handle: resource::ResourceId,
+    command: DescriptorControlCommand,
+    argument: u64,
+    flags: DescriptorControlFlags,
+) -> RuntimeResult<()> {
+    let _ = context;
+    let _ = (out, handle, command, argument, flags);
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.io.control.fcntl")).boxed())
+}
+
+/// Execute one ioctl-style descriptor request.
+///
+/// Forward one ioctl request with opaque payload bytes to the host kernel for the target resource.
+/// Request code semantics and payload layout follow the active host ABI.
+///
+/// # Platform
+/// Unix and Windows, with operation-level `notSupported` when host mapping is unavailable.
+/// Uses ioctl(2) style controls on Unix and DeviceIoControl or ioctlsocket adapters on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `io.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_io_control_ioctl(
+    context: &RuntimeCallContext,
+    out: *mut DescriptorResult,
+    handle: resource::ResourceId,
+    request: DescriptorRequest,
+) -> RuntimeResult<()> {
+    let _ = context;
+    let _ = (out, handle, request);
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.io.control.ioctl")).boxed())
 }
 
 /// Attach an event token to a poll target key.

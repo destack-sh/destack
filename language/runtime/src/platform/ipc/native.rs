@@ -1,1 +1,1 @@
-pub use crate::platform::ipc::host::*;
+pub(crate) use crate::platform::ipc::host::*;
