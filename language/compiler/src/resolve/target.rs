@@ -674,6 +674,61 @@ randomUUID();
         test.check_no_diagnostic_code("ER200");
     }
 
+    /// Resolve parent-directory imports that target an index module.
+    #[test]
+    fn test_resolve_parent_directory_index_import() {
+        let test = TestProgram::memory_sequential();
+        test.add_module(
+            "lib/compile/index.ts",
+            r#"
+export const SchemaEnv = 1;
+
+export function getCompilingSchema() {
+    return SchemaEnv;
+}
+"#,
+        );
+        let main_module_id = test.add_module(
+            "lib/compile/jtd/parse.ts",
+            r#"
+import { SchemaEnv, getCompilingSchema } from "..";
+
+SchemaEnv;
+getCompilingSchema();
+"#,
+        );
+
+        test.resolve_module(main_module_id);
+        test.compile_with_timeout(Duration::from_secs(30));
+        test.check_no_diagnostic_code("ER101");
+        test.check_no_diagnostic_code("ER200");
+    }
+
+    /// Resolve current-directory imports that target an index module.
+    #[test]
+    fn test_resolve_current_directory_index_import() {
+        let test = TestProgram::memory_sequential();
+        test.add_module(
+            "lib/compile/jtd/index.ts",
+            r#"
+export const SchemaEnv = 1;
+"#,
+        );
+        let main_module_id = test.add_module(
+            "lib/compile/jtd/parse.ts",
+            r#"
+import { SchemaEnv } from ".";
+
+SchemaEnv;
+"#,
+        );
+
+        test.resolve_module(main_module_id);
+        test.compile_with_timeout(Duration::from_secs(30));
+        test.check_no_diagnostic_code("ER101");
+        test.check_no_diagnostic_code("ER200");
+    }
+
     /// Resolve default imports from CommonJS `module.exports` assignments.
     #[test]
     fn test_resolve_default_import_from_commonjs_module_exports() {
@@ -784,6 +839,31 @@ holder.value = module.exports = buildValue;
 import selected from "./cjs.js";
 
 selected();
+"#,
+        );
+
+        test.resolve_module(main_module_id);
+        test.compile_with_timeout(Duration::from_secs(30));
+        test.check_no_diagnostic_code("ER101");
+        test.check_no_diagnostic_code("ER200");
+    }
+
+    /// Resolve default imports from CommonJS modules without explicit export assignments.
+    #[test]
+    fn test_resolve_default_import_from_commonjs_named_exports_only() {
+        let test = TestProgram::memory_sequential_with_prelude();
+        test.add_module(
+            "cjs.js",
+            r#"
+exports.answer = 1;
+"#,
+        );
+        let main_module_id = test.add_module(
+            "main.mjs",
+            r#"
+import cjs from "./cjs.js";
+
+cjs.answer;
 "#,
         );
 

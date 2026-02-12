@@ -3,7 +3,8 @@ use std::collections::{HashMap, HashSet};
 use destack_dir::{
     BindingCategory, Declaration, DependencyItem, DependencyKind, EnumKind, Expression,
     GlobalNodeIdAny, LocalScopeId, LocalSymbolId, MatchCase, MatchKind, Member, NodeTree, NodeType,
-    Property, StaticKey, Symbol, SymbolBinding, SymbolKind, SymbolSpace, SymbolTable, SymbolType,
+    Pattern, Property, StaticKey, Symbol, SymbolBinding, SymbolKind, SymbolSpace, SymbolTable,
+    SymbolType,
 };
 use destack_workspace::{DiagnosticPolicy, Module};
 
@@ -82,6 +83,12 @@ impl Compiler {
                         self.is_strict_local_conflict(symbol, other_symbol);
                     let is_policy_controlled_conflict =
                         is_local_pair && !is_parameter_pair && !is_strict_local_conflict;
+
+                    // JS/TS allow duplicate runtime var declarations
+                    if self.allow_runtime_var_redeclaration(module, symbol, other_symbol) {
+                        continue;
+                    }
+
                     if is_policy_controlled_conflict && !no_redeclare_locals {
                         continue;
                     }
@@ -157,6 +164,30 @@ impl Compiler {
     fn is_strict_local_conflict(&self, left: &Symbol, right: &Symbol) -> bool {
         matches!(left.ty, SymbolType::TypeAlias | SymbolType::Newtype)
             || matches!(right.ty, SymbolType::TypeAlias | SymbolType::Newtype)
+    }
+
+    /// Return true when duplicate runtime `var` declarations are allowed.
+    fn allow_runtime_var_redeclaration(
+        &self,
+        module: &Module,
+        left: &Symbol,
+        right: &Symbol,
+    ) -> bool {
+        // only JS/TS allow duplicate runtime var declarations
+        if !(module.language_type.is_javascript() || module.language_type.is_typescript()) {
+            return false;
+        }
+
+        self.symbol_is_runtime_var_redeclaration_candidate(left)
+            && self.symbol_is_runtime_var_redeclaration_candidate(right)
+    }
+
+    /// Return true when a symbol is a runtime var-style declaration candidate.
+    fn symbol_is_runtime_var_redeclaration_candidate(&self, symbol: &Symbol) -> bool {
+        symbol.kind == SymbolKind::Local
+            && symbol.binding == SymbolBinding::Runtime
+            && symbol.binding_category == BindingCategory::FunctionScoped
+            && symbol.ty == SymbolType::Void
     }
 
     /// Check whether two symbols can merge using declaration order.
@@ -427,13 +458,12 @@ impl Compiler {
                         let ancestor_symbol = symbols.get_symbol(ancestor_symbol_id);
                         let ancestor_binding_category =
                             self.symbol_binding_category(ancestor_symbol);
-                        let should_conflict = matches!(
-                            (binding_category, ancestor_binding_category),
-                            (
-                                BindingCategory::FunctionScoped,
-                                BindingCategory::BlockScoped
-                            ) | (BindingCategory::FunctionScoped, BindingCategory::Parameter)
-                                | (BindingCategory::BlockScoped, BindingCategory::Parameter)
+                        let should_conflict = self.ancestor_binding_categories_conflict(
+                            &tree,
+                            symbol,
+                            ancestor_symbol,
+                            binding_category,
+                            ancestor_binding_category,
                         );
                         if !should_conflict {
                             continue;
@@ -493,6 +523,92 @@ impl Compiler {
                 | BindingCategory::BlockScoped
                 | BindingCategory::Parameter
         )
+    }
+
+    /// Return true when two ancestor-chain categories form a redeclaration conflict.
+    fn ancestor_binding_categories_conflict(
+        &self,
+        tree: &NodeTree,
+        current_symbol: &Symbol,
+        ancestor_symbol: &Symbol,
+        current: BindingCategory,
+        ancestor: BindingCategory,
+    ) -> bool {
+        let current_is_parameter = current == BindingCategory::Parameter;
+        let ancestor_is_parameter = ancestor == BindingCategory::Parameter;
+
+        // skip non-parameter ancestor checks for non-local declaration pairs
+        let is_local_pair =
+            current_symbol.kind == SymbolKind::Local && ancestor_symbol.kind == SymbolKind::Local;
+        if !is_local_pair && !current_is_parameter && !ancestor_is_parameter {
+            return false;
+        }
+
+        // catch parameters conflict with hoisted bindings in their body scopes
+        if current == BindingCategory::Parameter
+            && ancestor == BindingCategory::FunctionScoped
+            && self.symbol_is_catch_parameter(tree, current_symbol)
+        {
+            return true;
+        }
+
+        // runtime function and catch parameters conflict with body declarations
+        if ancestor == BindingCategory::Parameter
+            && (self.symbol_is_runtime_function_parameter(ancestor_symbol)
+                || self.symbol_is_catch_parameter(tree, ancestor_symbol))
+            && matches!(
+                current,
+                BindingCategory::BlockScoped | BindingCategory::FunctionScoped
+            )
+        {
+            return true;
+        }
+
+        matches!(
+            (current, ancestor),
+            (
+                BindingCategory::FunctionScoped,
+                BindingCategory::BlockScoped
+            ) | (
+                BindingCategory::BlockScoped,
+                BindingCategory::FunctionScoped
+            )
+        )
+    }
+
+    /// Return true when a symbol is a runtime function parameter.
+    fn symbol_is_runtime_function_parameter(&self, symbol: &Symbol) -> bool {
+        symbol.binding_category == BindingCategory::Parameter
+            && symbol.binding == SymbolBinding::Runtime
+    }
+
+    /// Return true when a symbol is the catch parameter of a try expression.
+    fn symbol_is_catch_parameter(&self, tree: &NodeTree, symbol: &Symbol) -> bool {
+        let Some(primary_declaration) = symbol.primary_declaration else {
+            return false;
+        };
+        if primary_declaration.local_id.ty != NodeType::Pattern {
+            return false;
+        }
+
+        let pattern_id = primary_declaration.local_id.into_typed::<Pattern>();
+        let Some(parent_id) = tree.get_parent(pattern_id.id) else {
+            return false;
+        };
+        if parent_id.ty != NodeType::Expression {
+            return false;
+        }
+
+        let parent_expression = tree.get(parent_id.into_typed::<Expression>());
+        let Expression::Try {
+            catch_pattern: Some(catch_pattern),
+            ..
+        } = parent_expression
+        else {
+            return false;
+        };
+
+        *catch_pattern == pattern_id
     }
 
     /// Return the binding category used for redeclaration checks.
@@ -712,6 +828,24 @@ mod tests {
         assert_import_conflicting_binding("try {} catch(a) { let a; }");
     }
 
+    /// JavaScript function parameter destructuring conflicts with lexical declarations.
+    #[test]
+    fn test_javascript_parameter_destructuring_conflicts_with_body_let() {
+        assert_import_conflicting_binding_in("test.js", "function a({b}){ let b; }");
+    }
+
+    /// JavaScript method parameter destructuring conflicts with lexical declarations.
+    #[test]
+    fn test_javascript_method_parameter_destructuring_conflicts_with_body_let() {
+        assert_import_conflicting_binding_in("test.js", "!{ a({b}){ let b; } };");
+    }
+
+    /// JavaScript arrow parameter destructuring conflicts with lexical declarations.
+    #[test]
+    fn test_javascript_arrow_parameter_destructuring_conflicts_with_body_const() {
+        assert_import_conflicting_binding_in("test.js", "({a}) => { const a = 1; }");
+    }
+
     /// Catch parameters conflict with var declarations in catch bodies.
     #[test]
     fn test_catch_parameter_conflicts_with_for_each_var_binding() {
@@ -722,6 +856,34 @@ mod tests {
     #[test]
     fn test_for_each_lexical_binding_conflicts_with_body_var() {
         assert_import_conflicting_binding("for(let a in 1) { var a; }");
+    }
+
+    /// Class method lexical declarations conflict with var declarations in the same body.
+    #[test]
+    fn test_class_method_lexical_binding_conflicts_with_body_var_javascript() {
+        assert_import_conflicting_binding_in("test.js", "class a { static b(){ let c; var c; } }");
+    }
+
+    /// Allow parameter names to shadow outer function-scoped bindings.
+    #[test]
+    fn test_allow_parameter_shadowing_outer_var_in_declaration_file() {
+        assert_import_no_conflicting_binding_in(
+            "test.d.ts",
+            "declare var module: unknown;\n\
+             type Loader = (module: string) => void;",
+        );
+    }
+
+    /// JavaScript allows duplicate runtime var declarations in one scope.
+    #[test]
+    fn test_javascript_duplicate_runtime_var_declarations_are_allowed() {
+        assert_import_no_conflicting_binding_in("test.js", "function f() { var a; var a; }");
+    }
+
+    /// TypeScript allows duplicate runtime var declarations in one scope.
+    #[test]
+    fn test_typescript_duplicate_runtime_var_declarations_are_allowed() {
+        assert_import_no_conflicting_binding("function f() { var a; var a; }");
     }
 
     /// Switch case function and lexical declarations conflict in strict modules.
@@ -787,5 +949,14 @@ mod tests {
     #[test]
     fn test_allow_ambient_namespace_with_runtime_value() {
         assert_import_no_conflicting_binding("declare namespace Runtime {} var Runtime = 1;");
+    }
+
+    /// Allow var declarations with named function expressions that reuse the same identifier.
+    #[test]
+    fn test_allow_var_and_named_function_expression_same_identifier_javascript() {
+        assert_import_no_conflicting_binding_in(
+            "test.js",
+            "var runInContext = (function runInContext(context) { return context; });",
+        );
     }
 }

@@ -1,6 +1,6 @@
 # codegen/js
 
-JavaScript and TypeScript code generation.
+JS/TS code generation.
 Takes elaborated DIR and produces `.js` or `.ts` source files.
 
 ## Pipeline

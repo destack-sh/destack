@@ -1,7 +1,8 @@
 use destack_dir::{
-    Argument, Declaration, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeId,
-    LocalScopeMark, LocalSymbolId, Name, NodeTree, NodeType, Path, Scope, ScopeKind, StaticKey,
-    StringId, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType,
+    Argument, BindingCategory, Declaration, Expression, GlobalNodeIdAny, GlobalSymbolId,
+    LocalNodeId, LocalScopeId, LocalScopeMark, LocalSymbolId, Name, NodeTree, NodeType, Path,
+    Scope, ScopeKind, StaticKey, StringId, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
+    SymbolType,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -12,6 +13,22 @@ use crate::{Compiler, ResolveError, ResolveResult};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Return true when unresolved namespace members should fall back to runtime member chains.
+    fn allow_runtime_namespace_member_fallback(
+        &self,
+        module: &Module,
+        space_order: SymbolSpaceOrder,
+    ) -> bool {
+        if !(module.language_type.is_javascript() || module.language_type.is_typescript()) {
+            return false;
+        }
+
+        matches!(
+            space_order,
+            SymbolSpaceOrder::ValueOnly | SymbolSpaceOrder::ValueThenType
+        )
+    }
+
     /// Resolve CommonJS runtime paths (`module` and `exports`) for CommonJS modules.
     fn resolve_commonjs_runtime_path(
         &self,
@@ -33,12 +50,14 @@ impl Compiler {
             return None;
         }
 
-        // only handle top-level `module` and `exports` roots
+        // only handle top-level runtime roots
         let first_segment = path.first_segment()?;
         let first_segment_str = self.program.strings.get(first_segment);
         let is_module_root = first_segment_str.as_str() == "module";
         let is_exports_root = first_segment_str.as_str() == "exports";
-        if !is_module_root && !is_exports_root {
+        let is_self_root = first_segment_str.as_str() == "self";
+        let is_define_root = first_segment_str.as_str() == "define";
+        if !is_module_root && !is_exports_root && !is_self_root && !is_define_root {
             return None;
         }
 
@@ -62,6 +81,34 @@ impl Compiler {
             if path.segments.len() == 1 {
                 return Some(Expression::GlobalReference {
                     path: path.clone(),
+                    static_arguments,
+                    target_symbol: namespace_symbol,
+                });
+            }
+
+            return Some(self.build_member_chain(
+                expression_id,
+                root_expression,
+                &path.slice(1..),
+                static_arguments,
+                tree,
+            ));
+        }
+
+        // map `self` and `define` to unresolved runtime globals in commonjs wrappers
+        if is_self_root || is_define_root {
+            let root_path = Path {
+                segments: vec![first_segment].into(),
+            };
+            let root_expression = Expression::GlobalReference {
+                path: root_path.clone(),
+                static_arguments: None,
+                target_symbol: namespace_symbol,
+            };
+
+            if path.segments.len() == 1 {
+                return Some(Expression::GlobalReference {
+                    path: root_path,
                     static_arguments,
                     target_symbol: namespace_symbol,
                 });
@@ -385,6 +432,89 @@ impl Compiler {
         self.find_symbol_in_scope(scope, key, space_order, symbols, Some(limit))
     }
 
+    /// Return true when a symbol participates in runtime hoisting lookup.
+    fn symbol_is_runtime_hoisted(&self, symbol_id: LocalSymbolId, symbols: &SymbolTable) -> bool {
+        let symbol = symbols.get_symbol(symbol_id);
+        if !symbol.is_active() {
+            return false;
+        }
+
+        symbol.binding_category == BindingCategory::FunctionScoped
+            || symbol.ty == SymbolType::Function
+    }
+
+    /// Find a hoisted value symbol that appears after the current scope mark.
+    ///
+    /// This models JS/TS hoisting for `var` and function declarations.
+    fn find_hoisted_symbol_in_scope(
+        &self,
+        module: &Module,
+        scope: &Scope,
+        key: StaticKey,
+        space_order: SymbolSpaceOrder,
+        symbols: &SymbolTable,
+        mark: LocalScopeMark,
+    ) -> Option<LocalSymbolId> {
+        // hoisting only applies to value lookups
+        if !space_order.spaces().contains(&SymbolSpace::Value) {
+            return None;
+        }
+
+        // js/ts allow var and function references before declaration during binding lookup
+        if !(module.language_type.is_javascript() || module.language_type.is_typescript()) {
+            return None;
+        }
+
+        let limit = (mark.0 as usize).min(scope.named_symbols.len());
+        if limit == scope.named_symbols.len() {
+            return None;
+        }
+
+        let mut value_symbol = None;
+        let mut type_value_symbol = None;
+        for (candidate_key, symbol_id) in scope.named_symbols[limit..].iter().rev() {
+            if *candidate_key != key {
+                continue;
+            }
+
+            if !self.symbol_is_runtime_hoisted(*symbol_id, symbols) {
+                continue;
+            }
+
+            let symbol = symbols.get_symbol(*symbol_id);
+            match symbol.space {
+                SymbolSpace::Value => {
+                    if value_symbol.is_none() {
+                        value_symbol = Some(*symbol_id);
+                    }
+                }
+                SymbolSpace::TypeValue => {
+                    if type_value_symbol.is_none() {
+                        type_value_symbol = Some(*symbol_id);
+                    }
+                }
+                SymbolSpace::Type | SymbolSpace::Label => {}
+            }
+        }
+
+        // choose by space preference, similar to regular lookup
+        space_order.spaces().iter().find_map(|space| match space {
+            SymbolSpace::Value => value_symbol.or(type_value_symbol),
+            SymbolSpace::TypeValue => type_value_symbol,
+            SymbolSpace::Type | SymbolSpace::Label => None,
+        })
+    }
+
+    /// Return true when unresolved same-scope references should consider forward bindings.
+    fn allow_forward_binding_lookup(&self, module: &Module, space_order: SymbolSpaceOrder) -> bool {
+        // JS/TS bind lexical names for the whole scope, with TDZ at runtime
+        if !(module.language_type.is_javascript() || module.language_type.is_typescript()) {
+            return false;
+        }
+
+        !space_order.spaces().is_empty()
+    }
+
     /// Resolve an absolute symbol key within local scopes only.
     /// Walks up the scope chain looking for the symbol.
     /// Does NOT check prelude - use resolve_absolute_path for that.
@@ -424,6 +554,27 @@ impl Compiler {
             // remember the nearest fallback symbol
             if fallback.is_none() {
                 fallback = scope_fallback;
+            }
+
+            // resolve JS/TS hoisted value bindings
+            if let Some(hoisted_symbol) = self.find_hoisted_symbol_in_scope(
+                module,
+                scope.1,
+                key,
+                space_order,
+                symbols,
+                scope.2,
+            ) {
+                return Ok(hoisted_symbol);
+            }
+
+            // allow same-scope forward references for JS/TS bindings
+            if self.allow_forward_binding_lookup(module, space_order) {
+                let (forward_preferred, _) =
+                    self.find_symbol_in_scope(scope.1, key, space_order, symbols, None);
+                if let Some(forward_symbol) = forward_preferred {
+                    return Ok(forward_symbol);
+                }
             }
 
             // move to the parent scope when available
@@ -1082,6 +1233,12 @@ impl Compiler {
                 }
             }
 
+            // fall back to runtime member access in JS/TS value paths
+            if self.allow_runtime_namespace_member_fallback(module, space_order) {
+                let remaining = path.slice(i..);
+                return Ok((current_symbol_id, Some(remaining)));
+            }
+
             // report a missing symbol in the namespace scope
             return Err(ResolveError::MissingSymbol {
                 node: node.into_anchored(Some(profile_id)),
@@ -1711,7 +1868,7 @@ impl Compiler {
 mod tests {
     use crate::{TestProgram, assert_node, assert_string};
     use destack_builtin::LanguageSymbol;
-    use destack_dir::{Expression, Pattern, ScalarLiteral, SymbolSpace};
+    use destack_dir::{Declarator, Expression, Pattern, ScalarLiteral, StaticKey, SymbolSpace};
 
     /// Resolve labeled break to outer loop.
     #[test]
@@ -2632,6 +2789,493 @@ let b = obj.y;
                 assert_string!(test.program, *name, "y");
             });
         });
+    }
+
+    /// Resolve second declarators against earlier declarators in one var statement.
+    #[test]
+    fn test_resolve_var_declarator_references_previous_declarator_javascript() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.js",
+            r#"
+var base = 1, mirror = base;
+"#,
+        );
+        test.resolve_module(module_id);
+        test.compile_check_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let tree = dir.tree.read();
+
+        // resolve the base symbol for the target assertion
+        let base_symbol = test.resolve_to_symbol("test.js", "base").unwrap();
+
+        // locate the second declarator through the mirror pattern node
+        let (_, mirror_node) = test
+            .resolve_to_node::<Pattern>("test.js", "mirror")
+            .unwrap();
+        let mirror_declarator = tree
+            .get_parent(mirror_node.id)
+            .unwrap()
+            .into_typed::<Declarator>();
+
+        // assert that mirror resolves to the first declarator symbol
+        assert_node!(tree, mirror_declarator, Declarator { value: Some(value), .. } => {
+            let value_expression = tree.get(*value);
+            let target_symbol = match value_expression {
+                Expression::LocalReference { target_symbol, .. } => *target_symbol,
+                Expression::ModuleReference { target_symbol, .. } => *target_symbol,
+                other => panic!("expected local or module reference, got {other:?}"),
+            };
+
+            assert_eq!(target_symbol, base_symbol);
+        });
+    }
+
+    /// Resolve runtime arguments inside JavaScript function bodies.
+    #[test]
+    fn test_resolve_arguments_inside_javascript_function_body() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.js",
+            r#"
+function pickFirst() {
+    let first = arguments[0];
+    return first;
+}
+"#,
+        );
+        test.resolve_module(module_id);
+        test.compile_check_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let tree = dir.tree.read();
+        let symbols = dir.symbols.read();
+        let arguments_name = test.program.strings.intern("arguments");
+
+        // scan resolved references and require one that targets the synthetic arguments binding
+        let found_arguments_reference = tree.iter_nodes_of_type::<Expression>().any(|(_, expr)| {
+            let target_symbol = match expr {
+                Expression::LocalReference { target_symbol, .. } => Some(*target_symbol),
+                Expression::ModuleReference { target_symbol, .. } => Some(*target_symbol),
+                _ => None,
+            };
+            let Some(target_symbol) = target_symbol else {
+                return false;
+            };
+
+            let symbol = symbols.get_symbol(target_symbol.into_local());
+            symbol.key == Some(StaticKey::Name(arguments_name))
+        });
+
+        assert!(
+            found_arguments_reference,
+            "expected a resolved reference to function arguments"
+        );
+    }
+
+    /// Resolve a declarator initializer closure reference to the declared binding.
+    #[test]
+    fn test_resolve_const_arrow_initializer_self_reference_javascript() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.js",
+            r#"
+const builder = (...arguments_) => arguments_.length === 1 ? builder : arguments_[0];
+"#,
+        );
+        test.resolve_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("ER101");
+    }
+
+    /// Resolve forward references to same-scope lexical bindings in JavaScript.
+    #[test]
+    fn test_resolve_forward_same_scope_lexical_reference_javascript() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.js",
+            r#"
+const make = () => value;
+const value = 1;
+"#,
+        );
+        test.resolve_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("ER101");
+    }
+
+    /// Allow unresolved identifiers as direct runtime `typeof` operands.
+    #[test]
+    fn test_resolve_allow_unresolved_identifier_in_runtime_typeof() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.js",
+            r#"
+typeof self === "object";
+typeof define === "function";
+"#,
+        );
+        test.resolve_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("ER101");
+    }
+
+    /// Allow unresolved identifiers as runtime `typeof` operands in strict scripts.
+    #[test]
+    fn test_resolve_allow_unresolved_identifier_in_runtime_typeof_strict_script() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.js",
+            r#"
+"use strict";
+typeof missing === "undefined";
+"#,
+        );
+        test.resolve_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("ER101");
+    }
+
+    /// Allow unresolved identifiers as runtime `typeof` operands in ESM modules.
+    #[test]
+    fn test_resolve_allow_unresolved_identifier_in_runtime_typeof_module() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.mjs",
+            r#"
+export const ok = typeof missing === "undefined";
+"#,
+        );
+        test.resolve_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("ER101");
+    }
+
+    /// Allow unresolved identifiers through parenthesized runtime `typeof` operands.
+    #[test]
+    fn test_resolve_allow_unresolved_identifier_in_parenthesized_runtime_typeof() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.js",
+            r#"
+typeof (missing) === "undefined";
+"#,
+        );
+        test.resolve_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("ER101");
+    }
+
+    /// Allow unresolved identifiers as direct runtime `typeof` operands in Destack.
+    #[test]
+    fn test_resolve_allow_unresolved_identifier_in_runtime_typeof_destack() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+typeof missing == "undefined";
+"#,
+        );
+        test.resolve_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("ER101");
+    }
+
+    /// Keep unresolved member roots as errors under runtime `typeof`.
+    #[test]
+    fn test_resolve_reject_unresolved_member_root_in_runtime_typeof() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module("test.js", "typeof missing.member;");
+        test.resolve_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("ER101");
+    }
+
+    /// Resolve commonjs wrapper globals and runtime namespace member probes in JavaScript.
+    #[test]
+    fn test_resolve_commonjs_wrapper_runtime_globals_javascript() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.js",
+            r#"
+var freeSelf = typeof self == "object" && self;
+
+if (typeof define == "function" && define.amd) {
+    define(function () {});
+}
+"#,
+        );
+        test.resolve_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("ER101");
+    }
+
+    /// Allow unresolved namespace members to fall back to runtime member access in value paths.
+    #[test]
+    fn test_resolve_runtime_namespace_member_fallback_value_paths() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ts",
+            r#"
+namespace Box {
+    export const ok = 1;
+}
+
+Box.missing;
+"#,
+        );
+        test.resolve_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("ER101");
+    }
+
+    /// Resolve function-scoped var bindings outside nested blocks in JavaScript.
+    #[test]
+    fn test_resolve_var_hoists_out_of_nested_block_javascript() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.js",
+            r#"
+function readAfterBlock() {
+    if (true) {
+        var separator = 1;
+    }
+
+    return separator;
+}
+"#,
+        );
+        test.resolve_module(module_id);
+        test.compile_check_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let tree = dir.tree.read();
+        let symbols = dir.symbols.read();
+        let separator_name = test.program.strings.intern("separator");
+
+        // locate a return expression that resolves to the hoisted separator symbol
+        let found_hoisted_separator_reference =
+            tree.iter_nodes_of_type::<Expression>().any(|(_, expr)| {
+                let Expression::Return { value: Some(value) } = expr else {
+                    return false;
+                };
+
+                let target_symbol = match tree.get(*value) {
+                    Expression::LocalReference { target_symbol, .. } => Some(*target_symbol),
+                    Expression::ModuleReference { target_symbol, .. } => Some(*target_symbol),
+                    _ => None,
+                };
+                let Some(target_symbol) = target_symbol else {
+                    return false;
+                };
+
+                let symbol = symbols.get_symbol(target_symbol.into_local());
+                symbol.key == Some(StaticKey::Name(separator_name))
+            });
+
+        assert!(
+            found_hoisted_separator_reference,
+            "expected return value to resolve to hoisted var separator"
+        );
+    }
+
+    /// Resolve function declarations before textual declaration in JavaScript function bodies.
+    #[test]
+    fn test_resolve_function_declaration_hoists_in_javascript() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.js",
+            r#"
+function callBeforeDeclaration() {
+    return verb();
+
+    function verb() {
+        return 1;
+    }
+}
+"#,
+        );
+        test.resolve_module(module_id);
+        test.compile_check_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let tree = dir.tree.read();
+        let symbols = dir.symbols.read();
+        let verb_name = test.program.strings.intern("verb");
+
+        // locate a call expression whose callee resolves to the hoisted declaration symbol
+        let found_hoisted_verb_reference =
+            tree.iter_nodes_of_type::<Expression>().any(|(_, expr)| {
+                let Expression::Call { left, .. } = expr else {
+                    return false;
+                };
+
+                let target_symbol = match tree.get(*left) {
+                    Expression::LocalReference { target_symbol, .. } => Some(*target_symbol),
+                    Expression::ModuleReference { target_symbol, .. } => Some(*target_symbol),
+                    _ => None,
+                };
+                let Some(target_symbol) = target_symbol else {
+                    return false;
+                };
+
+                let symbol = symbols.get_symbol(target_symbol.into_local());
+                symbol.key == Some(StaticKey::Name(verb_name))
+            });
+
+        assert!(
+            found_hoisted_verb_reference,
+            "expected call target to resolve to hoisted function declaration"
+        );
+    }
+
+    /// Keep named function expression bindings local to the function expression scope.
+    #[test]
+    fn test_resolve_named_function_expression_name_scope_javascript() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.js",
+            r#"
+var runInContext = (function runInContext(context) {
+    return runInContext;
+});
+runInContext({});
+"#,
+        );
+        test.resolve_module(module_id);
+        test.compile_check_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let tree = dir.tree.read();
+
+        // collect the inner and outer runInContext references
+        let mut inner_symbol = None;
+        let mut outer_symbol = None;
+        for (_, expression) in tree.iter_nodes_of_type::<Expression>() {
+            // capture the named function expression self reference
+            if let Expression::Return { value: Some(value) } = expression {
+                let target_symbol = match tree.get(*value) {
+                    Expression::LocalReference { target_symbol, .. } => Some(*target_symbol),
+                    Expression::ModuleReference { target_symbol, .. } => Some(*target_symbol),
+                    _ => None,
+                };
+                if let Some(target_symbol) = target_symbol {
+                    inner_symbol = Some(target_symbol);
+                }
+            }
+
+            // capture the outer call reference
+            if let Expression::Call { left, .. } = expression {
+                let target_symbol = match tree.get(*left) {
+                    Expression::LocalReference { target_symbol, .. } => Some(*target_symbol),
+                    Expression::ModuleReference { target_symbol, .. } => Some(*target_symbol),
+                    _ => None,
+                };
+                if let Some(target_symbol) = target_symbol {
+                    outer_symbol = Some(target_symbol);
+                }
+            }
+        }
+
+        // inner self name and outer variable must resolve to different symbols
+        let inner_symbol =
+            inner_symbol.expect("expected inner named function expression reference");
+        let outer_symbol = outer_symbol.expect("expected outer runInContext call reference");
+        assert_ne!(
+            inner_symbol, outer_symbol,
+            "expected inner named function reference to differ from outer var binding"
+        );
+    }
+
+    /// Keep named function expression self names local in Destack.
+    #[test]
+    fn test_resolve_named_function_expression_name_scope_destack() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+let create = (function inner() {
+    return inner;
+});
+
+inner();
+"#,
+        );
+        test.resolve_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("ER101");
+    }
+
+    /// Resolve function-scoped var bindings captured inside nested functions.
+    #[test]
+    fn test_resolve_var_from_nested_block_inside_nested_function_javascript() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.js",
+            r#"
+function outer() {
+    if (true) {
+        var wrapper = 1;
+    }
+
+    return function inner() {
+        return wrapper;
+    };
+}
+"#,
+        );
+        test.resolve_module(module_id);
+        test.compile_check_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let tree = dir.tree.read();
+        let symbols = dir.symbols.read();
+        let wrapper_name = test.program.strings.intern("wrapper");
+
+        // require a nested return that resolves to the hoisted wrapper binding
+        let has_wrapper_capture = tree
+            .iter_nodes_of_type::<Expression>()
+            .any(|(_, expression)| {
+                let Expression::Return { value: Some(value) } = expression else {
+                    return false;
+                };
+
+                let target_symbol = match tree.get(*value) {
+                    Expression::LocalReference { target_symbol, .. } => Some(*target_symbol),
+                    Expression::ModuleReference { target_symbol, .. } => Some(*target_symbol),
+                    _ => None,
+                };
+                let Some(target_symbol) = target_symbol else {
+                    return false;
+                };
+
+                let symbol = symbols.get_symbol(target_symbol.into_local());
+                symbol.key == Some(StaticKey::Name(wrapper_name))
+            });
+
+        assert!(
+            has_wrapper_capture,
+            "expected nested function to resolve wrapper from outer function scope"
+        );
     }
 
     /// Resolve chained member access like obj.inner.value.

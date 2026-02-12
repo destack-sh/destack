@@ -6,7 +6,8 @@ use destack_dir::{DependencyKind, ModuleResolution, ModuleTarget};
 use destack_resolver::{CachePolicy, Resolver};
 use destack_source::{File, FileType, LanguageType, ModuleId, PackageId, PackageVersion, Uri};
 use destack_workspace::{
-    ImportEdgeKind, Loader, Module, ModuleSource, Package, PackageKind, ProfileId, Runtime,
+    ImportEdgeKind, Loader, Module, ModuleSource, Package, PackageKind, ProfileId, ProfileKey,
+    Runtime,
 };
 
 use crate::import::{ImportResolveContext, materialize_import_resolve_options};
@@ -16,6 +17,21 @@ use crate::{Compiler, ImportError, ImportResult};
 const BUILTIN_EXTENSIONS: &[&str] = &[
     ".d.ts", ".d.ds", ".ds", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".json", ".node",
 ];
+
+/// Node protocol alias modules supported for native Destack imports.
+const NODE_ALIAS_MODULES: &[&str] = &[
+    "assert", "buffer", "console", "crypto", "fs", "net", "os", "path", "process", "stream",
+    "timers", "url", "util", "vm",
+];
+
+/// Bun protocol alias modules supported for native Destack imports.
+const BUN_ALIAS_MODULES: &[&str] = &[
+    "assert", "buffer", "console", "crypto", "fs", "net", "os", "path", "process", "stream", "sys",
+    "timers", "url", "util", "vm",
+];
+
+/// Deno protocol alias modules supported for native Destack imports.
+const DENO_ALIAS_MODULES: &[&str] = &[];
 
 impl Compiler {
     /// Resolve a specifier to a ModuleId, registering a blank module if needed.
@@ -185,7 +201,7 @@ impl Compiler {
         &self,
         specifier: &str,
         source_module: ModuleId,
-        profile_key: &destack_workspace::ProfileKey,
+        profile_key: &ProfileKey,
     ) -> Option<ModuleId> {
         // get source module URI
         let source = self.program.modules.get(source_module);
@@ -198,7 +214,7 @@ impl Compiler {
         }
 
         // resolve builtin libs by name for builtin modules
-        if !specifier.starts_with("./") && !specifier.starts_with("../") {
+        if !Self::specifier_is_relative(specifier) {
             let builtins = self.program.builtins.as_ref()?;
 
             // map specifier to builtin lib name
@@ -239,7 +255,7 @@ impl Compiler {
                 self.program.modules.clone(),
                 profile_key,
             )?;
-            let module_id = entry_module_id(&self.program.modules, &module_ids);
+            let module_id = Self::entry_module_id(&self.program.modules, &module_ids);
             return Some(module_id);
         }
 
@@ -248,7 +264,7 @@ impl Compiler {
         //  - specifier: ./reflection/type.ds
         //  - target: builtin://core/reflection/type.ds
         let source_dir = source_str.rsplit_once('/').map(|(dir, _)| dir)?;
-        let target_uri_str = resolve_relative_uri(source_dir, specifier);
+        let target_uri_str = Self::resolve_relative_uri(source_dir, specifier);
         let target_uri = Uri::from_string(&target_uri_str);
 
         // look up target module by exact URI
@@ -302,7 +318,7 @@ impl Compiler {
                 return None;
             }
             // NOTE #Architecture: decide whether node:/bun:/deno: are aliases or separate libs (?)
-            if !protocol_alias_allowed(protocol, path) {
+            if !Self::protocol_alias_allowed(protocol, path) {
                 return None;
             }
         }
@@ -637,67 +653,66 @@ impl Compiler {
             .unwrap_or("synthetic");
         format!("<{name}>")
     }
-}
 
-fn protocol_alias_allowed(protocol: &str, path: &str) -> bool {
-    let module = path.split('/').next().unwrap_or("");
-    match protocol {
-        "node" => NODE_ALIAS_MODULES.contains(&module),
-        "bun" => BUN_ALIAS_MODULES.contains(&module),
-        "deno" => DENO_ALIAS_MODULES.contains(&module),
-        _ => false,
-    }
-}
-
-const NODE_ALIAS_MODULES: &[&str] = &[
-    "assert", "buffer", "console", "crypto", "fs", "net", "os", "path", "process", "stream",
-    "timers", "url", "util", "vm",
-];
-
-const BUN_ALIAS_MODULES: &[&str] = &[
-    "assert", "buffer", "console", "crypto", "fs", "net", "os", "path", "process", "stream", "sys",
-    "timers", "url", "util", "vm",
-];
-
-const DENO_ALIAS_MODULES: &[&str] = &[];
-
-fn entry_module_id(
-    modules: &destack_workspace::ModuleRegistry,
-    module_ids: &[ModuleId],
-) -> ModuleId {
-    let mut fallback = None;
-    for module_id in module_ids {
-        let module = modules.get(*module_id);
-        let module = module.read();
-        let uri = module.uri.as_ref();
-        if uri.ends_with("/index.d.ts")
-            || uri.ends_with("/index.d.ds")
-            || uri.ends_with("/index.ds")
-        {
-            return *module_id;
+    /// Return true when protocol alias imports are allowed for this module path.
+    fn protocol_alias_allowed(protocol: &str, path: &str) -> bool {
+        let module = path.split('/').next().unwrap_or("");
+        match protocol {
+            "node" => NODE_ALIAS_MODULES.contains(&module),
+            "bun" => BUN_ALIAS_MODULES.contains(&module),
+            "deno" => DENO_ALIAS_MODULES.contains(&module),
+            _ => false,
         }
-        fallback.get_or_insert(*module_id);
     }
-    fallback.unwrap_or_else(|| {
-        panic!("builtin lib returned no modules for entry resolution");
-    })
-}
 
-/// Resolve a relative specifier against a base URI directory.
-/// e.g., resolve_relative_uri("builtin://core", "./reflection/type.ds")
-///       -> "builtin://core/reflection/type.ds"
-fn resolve_relative_uri(base_dir: &str, specifier: &str) -> String {
-    let mut parts: Vec<&str> = base_dir.split('/').collect();
+    /// Return true when a specifier is a relative path import.
+    fn specifier_is_relative(specifier: &str) -> bool {
+        specifier == "."
+            || specifier == ".."
+            || specifier.starts_with("./")
+            || specifier.starts_with("../")
+    }
 
-    for segment in specifier.split('/') {
-        match segment {
-            "." | "" => continue,
-            ".." => {
-                parts.pop();
+    /// Return the entry module id for a loaded builtin lib module set.
+    fn entry_module_id(
+        modules: &destack_workspace::ModuleRegistry,
+        module_ids: &[ModuleId],
+    ) -> ModuleId {
+        let mut fallback = None;
+        for module_id in module_ids {
+            let module = modules.get(*module_id);
+            let module = module.read();
+            let uri = module.uri.as_ref();
+            if uri.ends_with("/index.d.ts")
+                || uri.ends_with("/index.d.ds")
+                || uri.ends_with("/index.ds")
+            {
+                return *module_id;
             }
-            other => parts.push(other),
+            fallback.get_or_insert(*module_id);
         }
+
+        fallback.unwrap_or_else(|| {
+            panic!("builtin lib returned no modules for entry resolution");
+        })
     }
 
-    parts.join("/")
+    /// Resolve a relative specifier against a base URI directory.
+    /// e.g., resolve_relative_uri("builtin://core", "./reflection/type.ds")
+    ///       -> "builtin://core/reflection/type.ds"
+    fn resolve_relative_uri(base_dir: &str, specifier: &str) -> String {
+        let mut parts: Vec<&str> = base_dir.split('/').collect();
+
+        for segment in specifier.split('/') {
+            match segment {
+                "." | "" => continue,
+                ".." => {
+                    parts.pop();
+                }
+                other => parts.push(other),
+            }
+        }
+
+        parts.join("/")
+    }
 }

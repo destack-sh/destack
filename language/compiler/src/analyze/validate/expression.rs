@@ -3431,6 +3431,38 @@ function a() {
         test.check_has_diagnostic("EA214");
     }
 
+    /// Reject strict named function expressions that use reserved binding names.
+    #[test]
+    fn test_reject_strict_named_function_expression_reserved_name() {
+        let test = TestProgram::memory_sequential();
+
+        // source: function expression named with strict reserved identifier
+        let module_id = test.add_module("test.js", r#""use strict"; !function eval(){};"#);
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA214");
+    }
+
+    /// Reject strict named class expressions that use reserved binding names.
+    #[test]
+    fn test_reject_strict_named_class_expression_reserved_name() {
+        let test = TestProgram::memory_sequential();
+
+        // source: class expression named with strict reserved identifier
+        let module_id = test.add_module("test.js", r#""use strict"; !(class arguments {});"#);
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA214");
+    }
+
     /// Reject update expressions on non-assignable literals.
     #[test]
     fn test_reject_update_on_literal_target() {
