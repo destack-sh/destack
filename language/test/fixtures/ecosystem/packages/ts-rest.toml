@@ -1,0 +1,11 @@
+[package]
+name = "ts-rest"
+description = "Type safe REST contracts for TypeScript"
+repo = "https://github.com/ts-rest/ts-rest"
+ref = "dd7239bc950d1e254d9c9cd6df7dbccc529c33cb"
+language = "ts"
+tags = ["typescript", "api", "library"]
+
+[discovery]
+include = ["src/**/*.ts", "src/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx", "**/*.d.ts", "**/*.mts", "**/*.cts"]
+exclude = ["**/dist/**", "**/build/**", "**/coverage/**", "**/node_modules/**"]

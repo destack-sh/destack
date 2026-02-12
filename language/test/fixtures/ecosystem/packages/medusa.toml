@@ -1,0 +1,11 @@
+[package]
+name = "medusa"
+description = "Medusa commerce platform"
+repo = "https://github.com/medusajs/medusa"
+ref = "7a306d1e3fd0d49754203e46e4d6353669db13e3"
+language = "ts"
+tags = ["application", "commerce", "typescript"]
+
+[discovery]
+include = ["src/**/*.ts", "src/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx", "apps/**/*.ts", "apps/**/*.tsx", "**/*.d.ts", "**/*.mts", "**/*.cts"]
+exclude = ["**/node_modules/**", "**/dist/**", "**/build/**", "**/out/**", "**/coverage/**", "**/vendor/**", "**/third_party/**"]

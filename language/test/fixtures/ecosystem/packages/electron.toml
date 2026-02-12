@@ -1,0 +1,14 @@
+[package]
+name = "electron"
+description = "Electron desktop application framework"
+repo = "https://github.com/electron/electron"
+ref = "e9faa14cc0c57aad3e446cf32a6ae3599f94b9df"
+language = "ts"
+tags = ["application", "desktop", "typescript"]
+
+[discovery]
+include = ["**/*.ts", "**/*.tsx", "**/*.d.ts", "**/*.mts", "**/*.cts"]
+exclude = ["**/node_modules/**", "**/dist/**", "**/build/**", "**/out/**", "**/vendor/**", "**/third_party/**"]
+
+[workloads.parse]
+max_files = 1500

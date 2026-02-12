@@ -1,0 +1,11 @@
+[package]
+name = "sentry-javascript"
+description = "Sentry JavaScript SDK and tooling"
+repo = "https://github.com/getsentry/sentry-javascript"
+ref = "e5b19a643b980ded9312f5a0cd4b8c33cce247fb"
+language = "ts"
+tags = ["application", "monitoring", "typescript"]
+
+[discovery]
+include = ["src/**/*.ts", "src/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx", "apps/**/*.ts", "apps/**/*.tsx", "**/*.d.ts", "**/*.mts", "**/*.cts"]
+exclude = ["**/node_modules/**", "**/dist/**", "**/build/**", "**/out/**", "**/coverage/**", "**/vendor/**", "**/third_party/**"]

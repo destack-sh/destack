@@ -1,0 +1,11 @@
+[package]
+name = "tldraw"
+description = "tldraw collaborative drawing app"
+repo = "https://github.com/tldraw/tldraw"
+ref = "5c85f9625ee06cfd2263ae4b8e46913bd82f45d3"
+language = "ts"
+tags = ["application", "editor", "typescript"]
+
+[discovery]
+include = ["src/**/*.ts", "src/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx", "apps/**/*.ts", "apps/**/*.tsx", "**/*.d.ts", "**/*.mts", "**/*.cts"]
+exclude = ["**/node_modules/**", "**/dist/**", "**/build/**", "**/out/**", "**/coverage/**", "**/vendor/**", "**/third_party/**"]
