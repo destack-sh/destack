@@ -1,0 +1,11 @@
+[package]
+name = "vitepress"
+description = "Vite and Vue powered static site generator"
+repo = "https://github.com/vuejs/vitepress"
+ref = "b28667b6b03d50c4be0d509ec5e7d780f29f8042"
+language = "ts"
+tags = ["application", "docs", "typescript"]
+
+[discovery]
+include = ["src/**/*.ts", "src/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx", "apps/**/*.ts", "apps/**/*.tsx", "**/*.d.ts", "**/*.mts", "**/*.cts"]
+exclude = ["**/node_modules/**", "**/dist/**", "**/build/**", "**/out/**", "**/coverage/**", "**/vendor/**", "**/third_party/**"]

@@ -1,0 +1,11 @@
+[package]
+name = "hoppscotch"
+description = "Hoppscotch API platform"
+repo = "https://github.com/hoppscotch/hoppscotch"
+ref = "ff906b7c969c84dd42f913fed594fbd96d16463d"
+language = "ts"
+tags = ["application", "api", "typescript"]
+
+[discovery]
+include = ["src/**/*.ts", "src/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx", "apps/**/*.ts", "apps/**/*.tsx", "**/*.d.ts", "**/*.mts", "**/*.cts"]
+exclude = ["**/node_modules/**", "**/dist/**", "**/build/**", "**/out/**", "**/coverage/**", "**/vendor/**", "**/third_party/**"]

@@ -1,0 +1,11 @@
+[package]
+name = "payload"
+description = "Payload TypeScript CMS"
+repo = "https://github.com/payloadcms/payload"
+ref = "d57bc222a6df736d43a73ed0cd27d0cc6a22497b"
+language = "ts"
+tags = ["application", "cms", "typescript"]
+
+[discovery]
+include = ["src/**/*.ts", "src/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx", "apps/**/*.ts", "apps/**/*.tsx", "**/*.d.ts", "**/*.mts", "**/*.cts"]
+exclude = ["**/node_modules/**", "**/dist/**", "**/build/**", "**/out/**", "**/coverage/**", "**/vendor/**", "**/third_party/**"]

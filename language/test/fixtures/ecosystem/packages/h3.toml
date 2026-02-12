@@ -1,0 +1,11 @@
+[package]
+name = "h3"
+description = "TypeScript HTTP framework core"
+repo = "https://github.com/h3js/h3"
+ref = "153f268de7aa983fe68825bfd4cfb81ea12740c5"
+language = "ts"
+tags = ["server", "http", "typescript"]
+
+[discovery]
+include = ["src/**/*.ts", "src/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx", "**/*.d.ts", "**/*.mts", "**/*.cts"]
+exclude = ["**/dist/**", "**/build/**", "**/coverage/**", "**/node_modules/**"]

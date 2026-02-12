@@ -22,7 +22,9 @@ use crate::harness::{
     load_expected_failures, save_expected_failures,
 };
 
-use super::manifest::{CompilerOptionsConfig, EcosystemManifest, EcosystemPhase};
+use super::manifest::{
+    CompilerOptionsConfig, EcosystemManifest, EcosystemPhase, EcosystemSupportTier,
+};
 
 const DEFAULT_INCLUDE_PATTERNS: &[&str] = &["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"];
 const DEFAULT_EXCLUDE_PATTERNS: &[&str] = &["**/node_modules/**", "**/dist/**", "**/build/**"];
@@ -369,7 +371,13 @@ impl Suite for EcosystemSuite {
         if should_update_readme {
             let is_partial = context.options.filter.is_some()
                 || self.phases.len() != EcosystemPhase::all().len();
-            update_ecosystem_readme(&self.manifests, &self.phases, &package_rows, is_partial);
+            update_ecosystem_readme(
+                &self.manifests,
+                &self.phases,
+                &package_rows,
+                &self.patches_dir,
+                is_partial,
+            );
         }
 
         if !regressions.is_empty() || !fixed.is_empty() {
@@ -482,7 +490,7 @@ impl ReadmeCellStatus {
     }
 
     fn parse(value: &str) -> Self {
-        let value = value.trim().to_ascii_lowercase();
+        let value = value.trim().trim_end_matches('*').to_ascii_lowercase();
         match value.as_str() {
             "✓" | "✓✓" | "[✓]" | "v" | "pass" | "ok" | "green" => Self::Pass,
             "x" | "xx" | "[x]" | "fail" | "failed" | "red" => Self::Fail,
@@ -490,6 +498,208 @@ impl ReadmeCellStatus {
             _ => Self::Unknown,
         }
     }
+}
+
+/// Patch marker shown next to one package name in README rows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+enum ReadmePatchMarker {
+    #[default]
+    None,
+    Local,
+    Dependency,
+}
+
+impl ReadmePatchMarker {
+    fn as_str(&self) -> &'static str {
+        match self {
+            Self::None => "",
+            Self::Local => "*",
+            Self::Dependency => "**",
+        }
+    }
+
+    fn from_flags(has_local_patch: bool, has_dependency_replacement: bool) -> Self {
+        if has_dependency_replacement {
+            return Self::Dependency;
+        }
+
+        if has_local_patch {
+            return Self::Local;
+        }
+
+        Self::None
+    }
+}
+
+/// Metadata used when rendering one package row in README output.
+#[derive(Debug, Clone, Copy, Default)]
+struct ReadmePackageMetadata {
+    patch_marker: ReadmePatchMarker,
+    target_tier: Option<EcosystemSupportTier>,
+}
+
+/// Support tier derived from one package phase status row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+enum ReadmeSupportTier {
+    T0,
+    T1,
+    T2,
+    T3,
+    T4,
+    T5,
+    #[default]
+    None,
+}
+
+impl ReadmeSupportTier {
+    fn as_str(&self) -> &'static str {
+        match self {
+            Self::T0 => "T0",
+            Self::T1 => "T1",
+            Self::T2 => "T2",
+            Self::T3 => "T3",
+            Self::T4 => "T4",
+            Self::T5 => "T5",
+            Self::None => "---",
+        }
+    }
+
+    fn from_target_tier(tier: EcosystemSupportTier) -> Self {
+        match tier {
+            EcosystemSupportTier::T0 => Self::T0,
+            EcosystemSupportTier::T1 => Self::T1,
+            EcosystemSupportTier::T2 => Self::T2,
+            EcosystemSupportTier::T3 => Self::T3,
+            EcosystemSupportTier::T4 => Self::T4,
+            EcosystemSupportTier::T5 => Self::T5,
+        }
+    }
+
+    fn rank(&self) -> Option<u8> {
+        match self {
+            Self::T0 => Some(0),
+            Self::T1 => Some(1),
+            Self::T2 => Some(2),
+            Self::T3 => Some(3),
+            Self::T4 => Some(4),
+            Self::T5 => Some(5),
+            Self::None => None,
+        }
+    }
+
+    fn meets_target(&self, target_tier: Option<EcosystemSupportTier>) -> Option<bool> {
+        let target_tier = target_tier?;
+
+        let current_rank = self.rank()?;
+        let target_rank = Self::from_target_tier(target_tier).rank()?;
+
+        Some(current_rank >= target_rank)
+    }
+}
+
+/// Derive one support tier from ordered phase statuses.
+fn readme_support_tier_from_statuses(statuses: &[ReadmeCellStatus]) -> ReadmeSupportTier {
+    let phase_passes = |index: usize| statuses.get(index).copied() == Some(ReadmeCellStatus::Pass);
+
+    // parse must pass before any higher support tier can apply
+    if !phase_passes(0) {
+        return ReadmeSupportTier::None;
+    }
+
+    // parse passes, resolve does not
+    if !phase_passes(1) {
+        return ReadmeSupportTier::T0;
+    }
+
+    // parse and resolve pass, analyze does not
+    if !phase_passes(2) {
+        return ReadmeSupportTier::T1;
+    }
+
+    // parse, resolve, and analyze pass, lower does not
+    if !phase_passes(3) {
+        return ReadmeSupportTier::T2;
+    }
+
+    // parse through lower pass, run does not
+    if !phase_passes(4) {
+        return ReadmeSupportTier::T3;
+    }
+
+    // parse through run pass, tests do not
+    if !phase_passes(5) {
+        return ReadmeSupportTier::T4;
+    }
+
+    ReadmeSupportTier::T5
+}
+
+/// Render one package label with patch markers.
+fn format_readme_package_label(
+    package_name: &str,
+    package_metadata: Option<ReadmePackageMetadata>,
+) -> String {
+    let marker = package_metadata
+        .map(|metadata| metadata.patch_marker.as_str())
+        .unwrap_or_default();
+
+    format!("{package_name}{marker}")
+}
+
+/// Build README package metadata from manifests and patch directories.
+fn collect_readme_package_metadata(
+    manifests: &[EcosystemManifest],
+    patches_dir: &Path,
+) -> BTreeMap<String, ReadmePackageMetadata> {
+    let mut package_metadata = BTreeMap::new();
+    for manifest in manifests {
+        let package_patches_dir = patches_dir.join(&manifest.package.name);
+        let has_local_patch = patch_directory_has_files(&package_patches_dir);
+        let has_dependency_replacement = manifest.patch.dependency_replacement();
+
+        let patch_marker =
+            ReadmePatchMarker::from_flags(has_local_patch, has_dependency_replacement);
+        let target_tier = manifest.package.target_tier;
+
+        package_metadata.insert(
+            manifest.package.name.clone(),
+            ReadmePackageMetadata {
+                patch_marker,
+                target_tier,
+            },
+        );
+    }
+
+    package_metadata
+}
+
+/// Return whether one patch directory tree contains files.
+fn patch_directory_has_files(dir: &Path) -> bool {
+    if !dir.exists() {
+        return false;
+    }
+
+    let Ok(entries) = fs::read_dir(dir) else {
+        return false;
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_file() {
+            return true;
+        }
+
+        if path.is_dir() && patch_directory_has_files(&path) {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Normalize README package names by removing patch markers.
+fn normalize_readme_package_name(package_name: &str) -> String {
+    package_name.trim_end_matches('*').to_string()
 }
 
 fn readme_cell_from_result(result: &TestResult) -> ReadmeCellStatus {
@@ -505,6 +715,7 @@ fn update_ecosystem_readme(
     manifests: &[EcosystemManifest],
     phases: &[EcosystemPhase],
     package_rows: &BTreeMap<String, BTreeMap<EcosystemPhase, ReadmeCellStatus>>,
+    patches_dir: &Path,
     is_partial: bool,
 ) {
     let readme_path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -541,7 +752,15 @@ fn update_ecosystem_readme(
         }
     }
 
-    let summary_section = format_readme_summary_rows(&merged_rows);
+    // keep readme rows aligned to current manifests
+    let manifest_names = manifests
+        .iter()
+        .map(|manifest| manifest.package.name.as_str())
+        .collect::<HashSet<_>>();
+    merged_rows.retain(|package_name, _| manifest_names.contains(package_name.as_str()));
+
+    let package_metadata = collect_readme_package_metadata(manifests, patches_dir);
+    let summary_section = format_readme_summary_rows(&merged_rows, &package_metadata);
     let Some(new_content) =
         replace_readme_section(&content, README_SECTION_SUMMARY_RESULTS, &summary_section)
     else {
@@ -587,6 +806,7 @@ fn empty_readme_phase_row() -> BTreeMap<EcosystemPhase, ReadmeCellStatus> {
 
 fn format_readme_summary_rows(
     rows: &BTreeMap<String, BTreeMap<EcosystemPhase, ReadmeCellStatus>>,
+    package_metadata: &BTreeMap<String, ReadmePackageMetadata>,
 ) -> String {
     let phases = EcosystemPhase::all();
 
@@ -594,13 +814,13 @@ fn format_readme_summary_rows(
     for phase in phases {
         header.push_str(&format!("| {} ", phase.name()));
     }
-    header.push_str("| Passed | Failed | Ignored | Total |  Rate   | Incl. Rate |");
+    header.push_str("| Current | Target | Met | Total |  Rate   | Incl. Rate |");
 
     let mut separator = String::from("|:--------");
     for _ in phases {
         separator.push_str("|:--------:");
     }
-    separator.push_str("|-------:|-------:|--------:|------:|--------:|-----------:|");
+    separator.push_str("|:-------:|:------:|:---:|------:|--------:|-----------:|");
 
     let mut lines = Vec::new();
     lines.push(header);
@@ -636,13 +856,26 @@ fn format_readme_summary_rows(
         total_failed += failed;
         total_ignored += ignored;
 
-        let mut row_line = format!("| {package_name:<7} ");
+        let package_label =
+            format_readme_package_label(package_name, package_metadata.get(package_name).copied());
+        let support_tier = readme_support_tier_from_statuses(&statuses);
+        let target_tier = package_metadata
+            .get(package_name)
+            .and_then(|metadata| metadata.target_tier);
+
+        let target_label = target_tier.map_or("---", |tier| tier.as_str());
+        let met_label = support_tier
+            .meets_target(target_tier)
+            .map_or("---", |is_met| if is_met { "✓" } else { "x" });
+
+        let mut row_line = format!("| {package_label:<7} ");
         for status in &statuses {
             row_line.push_str(&format!("| {:^8} ", status.as_str()));
         }
-        row_line.push_str(&format!(
-            "| {passed:>5}  | {failed:>5}  | {ignored:>7}  | {total:>5} | {rate:>7} | {inclusive_rate:>9} |"
-        ));
+        row_line.push_str(&format!("| {:^7} ", support_tier.as_str()));
+        row_line.push_str(&format!("| {:^6} ", target_label));
+        row_line.push_str(&format!("| {:^3} ", met_label));
+        row_line.push_str(&format!("| {total:>5} | {rate:>7} | {inclusive_rate:>9} |"));
         lines.push(row_line);
     }
 
@@ -674,16 +907,19 @@ fn format_readme_summary_rows(
     for _ in phases {
         footer_separator.push_str("|----------");
     }
-    footer_separator.push_str("|--------|--------|---------|-------|---------|------------|");
+    footer_separator.push_str("|---------|--------|-----|-------|---------|------------|");
     lines.push(footer_separator);
 
     let mut total_line = format!("| {:<7} ", "total");
     for phase_cell in total_phase_cells {
         total_line.push_str(&format!("| {:^8} ", phase_cell));
     }
+    total_line.push_str(&format!("| {:^7} ", "---"));
+    total_line.push_str(&format!("| {:^6} ", "---"));
+    total_line.push_str(&format!("| {:^3} ", "---"));
     total_line.push_str(&format!(
-        "| {:>5}  | {:>5}  | {:>7}  | {:>5} | {:>7} | {:>9} |",
-        total_passed, total_failed, total_ignored, total_cases, total_rate, total_inclusive_rate
+        "| {:>5} | {:>7} | {:>9} |",
+        total_cases, total_rate, total_inclusive_rate
     ));
     lines.push(total_line);
     lines.push(String::new());
@@ -739,7 +975,7 @@ fn parse_readme_summary_rows(
             continue;
         }
 
-        if cells.len() < phases.len() + 9 {
+        if cells.len() < phases.len() + 3 {
             continue;
         }
 
@@ -753,9 +989,13 @@ fn parse_readme_summary_rows(
 
         let mut row = empty_readme_phase_row();
         for (index, phase) in phases.iter().enumerate() {
-            row.insert(*phase, ReadmeCellStatus::parse(cells[2 + index]));
+            let Some(cell_value) = cells.get(2 + index) else {
+                continue;
+            };
+            row.insert(*phase, ReadmeCellStatus::parse(cell_value));
         }
-        rows.insert(package_name.to_string(), row);
+        let package_name = normalize_readme_package_name(package_name);
+        rows.insert(package_name, row);
     }
 
     Some(rows)
@@ -1876,6 +2116,61 @@ pub fn fetch_package(
     Ok(package_dir)
 }
 
+/// Remove checkout directories without one matching manifest.
+fn prune_stale_checkouts(
+    manifests: &[EcosystemManifest],
+    checkouts_dir: &Path,
+) -> Result<Vec<String>, String> {
+    if !checkouts_dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    // build the expected checkout names from loaded manifests
+    let expected_names: HashSet<&str> = manifests
+        .iter()
+        .map(|manifest| manifest.package.name.as_str())
+        .collect();
+    let entries = fs::read_dir(checkouts_dir).map_err(|error| {
+        format!(
+            "failed to read checkouts dir {}: {error}",
+            checkouts_dir.display()
+        )
+    })?;
+    let mut removed = Vec::new();
+    for entry in entries {
+        let entry = entry.map_err(|error| {
+            format!(
+                "failed to read checkouts dir entry in {}: {error}",
+                checkouts_dir.display()
+            )
+        })?;
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+
+        let Some(directory_name) = path.file_name() else {
+            continue;
+        };
+        let directory_name = directory_name.to_string_lossy().to_string();
+        if expected_names.contains(directory_name.as_str()) {
+            continue;
+        }
+
+        fs::remove_dir_all(&path).map_err(|error| {
+            format!(
+                "failed to remove stale checkout {}: {error}",
+                path.display()
+            )
+        })?;
+        removed.push(directory_name);
+    }
+
+    removed.sort();
+
+    Ok(removed)
+}
+
 /// Fetch all package checkouts declared by ecosystem manifests.
 pub fn fetch_all_packages(options: FetchOptions) -> ExitCode {
     let ecosystem_dir = fixtures_dir().join("ecosystem");
@@ -1886,45 +2181,64 @@ pub fn fetch_all_packages(options: FetchOptions) -> ExitCode {
     let manifest_paths = EcosystemManifest::discover_all(&packages_dir);
     println!("fetching {} packages...", manifest_paths.len());
 
+    // load all manifests first: this allows stale checkout pruning
+    let mut manifests = Vec::new();
     let mut any_failed = false;
     for path in manifest_paths {
         match EcosystemManifest::load(&path) {
             Ok(manifest) => {
-                print!(
-                    "  {}@{} ... ",
-                    manifest.package.name, manifest.package.git_ref
-                );
-                match fetch_package(&manifest, &checkouts_dir, options) {
-                    Ok(package_dir) => {
-                        let package_patches_dir = patches_dir.join(&manifest.package.name);
-                        match ensure_patches_applied(&package_patches_dir, &package_dir) {
-                            Ok(()) => {
-                                if options.install {
-                                    match ensure_package_dependencies_installed(&package_dir) {
-                                        Ok(()) => println!("ok"),
-                                        Err(error) => {
-                                            println!("FAILED: install failed: {error}");
-                                            any_failed = true;
-                                        }
-                                    }
-                                } else {
-                                    println!("ok");
+                manifests.push(manifest);
+            }
+            Err(error) => {
+                eprintln!("  error loading {}: {error}", path.display());
+                any_failed = true;
+            }
+        }
+    }
+
+    // prune stale checkouts so deleted manifests do not accumulate old clones
+    match prune_stale_checkouts(&manifests, &checkouts_dir) {
+        Ok(removed) => {
+            if !removed.is_empty() {
+                println!("pruned {} stale checkouts", removed.len());
+            }
+        }
+        Err(error) => {
+            eprintln!("FAILED: stale checkout prune failed: {error}");
+            any_failed = true;
+        }
+    }
+
+    for manifest in manifests {
+        print!(
+            "  {}@{} ... ",
+            manifest.package.name, manifest.package.git_ref
+        );
+        match fetch_package(&manifest, &checkouts_dir, options) {
+            Ok(package_dir) => {
+                let package_patches_dir = patches_dir.join(&manifest.package.name);
+                match ensure_patches_applied(&package_patches_dir, &package_dir) {
+                    Ok(()) => {
+                        if options.install {
+                            match ensure_package_dependencies_installed(&package_dir) {
+                                Ok(()) => println!("ok"),
+                                Err(error) => {
+                                    println!("FAILED: install failed: {error}");
+                                    any_failed = true;
                                 }
                             }
-                            Err(error) => {
-                                println!("FAILED: patch apply failed: {error}");
-                                any_failed = true;
-                            }
+                        } else {
+                            println!("ok");
                         }
                     }
                     Err(error) => {
-                        println!("FAILED: {error}");
+                        println!("FAILED: patch apply failed: {error}");
                         any_failed = true;
                     }
                 }
             }
             Err(error) => {
-                eprintln!("  error loading {}: {error}", path.display());
+                println!("FAILED: {error}");
                 any_failed = true;
             }
         }
@@ -1940,22 +2254,72 @@ pub fn fetch_all_packages(options: FetchOptions) -> ExitCode {
 #[cfg(test)]
 mod tests {
     use super::{
-        ReadmeCellStatus, format_readme_summary_rows, language_type_for_parse,
-        parse_readme_summary_rows, path_is_supported_source, replace_readme_section,
+        ReadmeCellStatus, ReadmePackageMetadata, ReadmePatchMarker, ReadmeSupportTier,
+        format_readme_summary_rows, language_type_for_parse, parse_readme_summary_rows,
+        path_is_supported_source, readme_support_tier_from_statuses, replace_readme_section,
     };
-    use crate::ecosystem::manifest::{CompilerOptionsConfig, EcosystemPhase};
+    use crate::ecosystem::manifest::{CompilerOptionsConfig, EcosystemPhase, EcosystemSupportTier};
     use destack_source::{FileType, LanguageType};
     use std::collections::BTreeMap;
     use std::path::Path;
+
+    #[test]
+    fn test_readme_support_tier_stops_at_t3_without_run_and_test_phases() {
+        // the current table has parse, resolve, analyze, and lower only
+        let statuses = vec![
+            ReadmeCellStatus::Pass,
+            ReadmeCellStatus::Pass,
+            ReadmeCellStatus::Pass,
+            ReadmeCellStatus::Pass,
+        ];
+
+        // the highest available tier is T3 when run and test phases are absent
+        let tier = readme_support_tier_from_statuses(&statuses);
+        assert_eq!(tier, ReadmeSupportTier::T3);
+    }
+
+    #[test]
+    fn test_readme_support_tier_returns_t4_when_run_passes_without_tests() {
+        // include a run phase pass and a tests phase failure
+        let statuses = vec![
+            ReadmeCellStatus::Pass,
+            ReadmeCellStatus::Pass,
+            ReadmeCellStatus::Pass,
+            ReadmeCellStatus::Pass,
+            ReadmeCellStatus::Pass,
+            ReadmeCellStatus::Fail,
+        ];
+
+        // run passing but tests failing maps to T4
+        let tier = readme_support_tier_from_statuses(&statuses);
+        assert_eq!(tier, ReadmeSupportTier::T4);
+    }
+
+    #[test]
+    fn test_readme_support_tier_returns_t5_when_run_and_tests_pass() {
+        // include all six contiguous phase passes
+        let statuses = vec![
+            ReadmeCellStatus::Pass,
+            ReadmeCellStatus::Pass,
+            ReadmeCellStatus::Pass,
+            ReadmeCellStatus::Pass,
+            ReadmeCellStatus::Pass,
+            ReadmeCellStatus::Pass,
+        ];
+
+        // run and tests passing maps to T5
+        let tier = readme_support_tier_from_statuses(&statuses);
+        assert_eq!(tier, ReadmeSupportTier::T5);
+    }
 
     #[test]
     fn test_parse_readme_summary_rows_keeps_ignored_cells() {
         // include ignored cells in package rows and ensure we still parse them
         let content = r#"
 <!-- begin:summary-results -->
-| Package | parse | resolve | analyze | lower | Passed | Failed | Ignored | Total |  Rate   | Incl. Rate |
-|:--------|:--------:|:--------:|:--------:|:--------:|-------:|-------:|--------:|------:|--------:|-----------:|
-| astro |   ---    |    x     |    ✓     |   ---    |     1  |     1  |       2  |     4 |  50.00% |    25.00% |
+| Package | parse | resolve | analyze | lower | Current | Target | Met | Total |  Rate   | Incl. Rate |
+|:--------|:--------:|:--------:|:--------:|:--------:|:-------:|:------:|:---:|------:|--------:|-----------:|
+| astro |   ---    |    x     |    ✓     |   ---    |   ---   |   ---  | --- |     4 |  50.00% |    25.00% |
 <!-- end:summary-results -->
 "#;
 
@@ -1998,7 +2362,7 @@ mod tests {
         semver.insert(EcosystemPhase::Lower, ReadmeCellStatus::Ignored);
         rows.insert("semver".to_string(), semver);
 
-        let table = format_readme_summary_rows(&rows);
+        let table = format_readme_summary_rows(&rows, &BTreeMap::new());
         let total_line = table
             .lines()
             .find(|line| line.trim_start().starts_with("| total"))
@@ -2009,6 +2373,56 @@ mod tests {
         assert!(total_line.contains("|   ---    "));
     }
 
+    #[test]
+    fn test_parse_readme_summary_rows_normalizes_starred_package_names() {
+        // include one dependency patched row and parse it back to plain package key
+        let content = r#"
+<!-- begin:summary-results -->
+| Package | parse | resolve | analyze | lower | Current | Target | Met | Total |  Rate   | Incl. Rate |
+|:--------|:--------:|:--------:|:--------:|:--------:|:-------:|:------:|:---:|------:|--------:|-----------:|
+| astro** |   ✓**   |    x     |   ---    |   ---    |   T0    |   T1   |  x  |     4 |  50.00% |    25.00% |
+<!-- end:summary-results -->
+"#;
+
+        // parse the row and assert the package key and phase cells are normalized
+        let rows = parse_readme_summary_rows(content).unwrap();
+        let row = rows.get("astro").unwrap();
+        assert_eq!(
+            row.get(&EcosystemPhase::Parse).copied(),
+            Some(ReadmeCellStatus::Pass)
+        );
+        assert_eq!(
+            row.get(&EcosystemPhase::Resolve).copied(),
+            Some(ReadmeCellStatus::Fail)
+        );
+    }
+
+    #[test]
+    fn test_format_readme_summary_rows_writes_tier_and_patch_marker() {
+        // build one package row that reaches resolve so the support tier is T1
+        let mut rows = BTreeMap::new();
+        let mut astro = BTreeMap::new();
+        astro.insert(EcosystemPhase::Parse, ReadmeCellStatus::Pass);
+        astro.insert(EcosystemPhase::Resolve, ReadmeCellStatus::Pass);
+        astro.insert(EcosystemPhase::Analyze, ReadmeCellStatus::Ignored);
+        astro.insert(EcosystemPhase::Lower, ReadmeCellStatus::Ignored);
+        rows.insert("astro".to_string(), astro);
+
+        // mark the package as dependency patched and render the table
+        let mut metadata = BTreeMap::new();
+        metadata.insert(
+            "astro".to_string(),
+            ReadmePackageMetadata {
+                patch_marker: ReadmePatchMarker::Dependency,
+                target_tier: Some(EcosystemSupportTier::T1),
+            },
+        );
+        let table = format_readme_summary_rows(&rows, &metadata);
+
+        // assert the package label, support tier, and target match marker are shown in the rendered row
+        assert!(table.contains("astro**"));
+        assert!(table.contains("|   T1   |   T1   |  ✓  |"));
+    }
     #[test]
     fn test_replace_readme_section_uses_end_marker_after_begin() {
         // ensure replacement uses the matching end marker after the section begin marker

@@ -1,0 +1,11 @@
+[package]
+name = "ts-pattern"
+description = "Exhaustive pattern matching for TypeScript"
+repo = "https://github.com/gvergnaud/ts-pattern"
+ref = "2ece6ba54edcbc0d4f4fce67becf89143f9d07bc"
+language = "ts"
+tags = ["library", "typescript", "pattern-matching"]
+
+[discovery]
+include = ["src/**/*.ts", "src/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx", "**/*.d.ts", "**/*.mts", "**/*.cts"]
+exclude = ["**/dist/**", "**/build/**", "**/coverage/**", "**/node_modules/**"]

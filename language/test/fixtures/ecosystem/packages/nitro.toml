@@ -1,0 +1,11 @@
+[package]
+name = "nitro"
+description = "Nitro server runtime toolkit"
+repo = "https://github.com/nitrojs/nitro"
+ref = "09d6aa6d2effd1ee8cec362ebbf57373a99c75c8"
+language = "ts"
+tags = ["server", "runtime", "typescript"]
+
+[discovery]
+include = ["src/**/*.ts", "src/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx", "apps/**/*.ts", "apps/**/*.tsx", "**/*.d.ts", "**/*.mts", "**/*.cts"]
+exclude = ["**/node_modules/**", "**/dist/**", "**/build/**", "**/out/**", "**/coverage/**", "**/vendor/**", "**/third_party/**"]

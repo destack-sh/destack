@@ -1,0 +1,11 @@
+[package]
+name = "pglite"
+description = "TypeScript Postgres runtime in process"
+repo = "https://github.com/electric-sql/pglite"
+ref = "5a7b076f76d0f5d53d042f27c7e78f3cf476886f"
+language = "ts"
+tags = ["database", "postgres", "typescript"]
+
+[discovery]
+include = ["src/**/*.ts", "src/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx", "**/*.d.ts", "**/*.mts", "**/*.cts"]
+exclude = ["**/dist/**", "**/build/**", "**/coverage/**", "**/node_modules/**"]

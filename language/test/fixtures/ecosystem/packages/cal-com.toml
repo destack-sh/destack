@@ -1,0 +1,11 @@
+[package]
+name = "cal-com"
+description = "Cal.com scheduling platform"
+repo = "https://github.com/calcom/cal.com"
+ref = "f8abce44cbe40820fbb5ba7ad4d819a9cfa097c0"
+language = "ts"
+tags = ["application", "scheduling", "typescript"]
+
+[discovery]
+include = ["src/**/*.ts", "src/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx", "apps/**/*.ts", "apps/**/*.tsx", "**/*.d.ts", "**/*.mts", "**/*.cts"]
+exclude = ["**/node_modules/**", "**/dist/**", "**/build/**", "**/out/**", "**/coverage/**", "**/vendor/**", "**/third_party/**"]

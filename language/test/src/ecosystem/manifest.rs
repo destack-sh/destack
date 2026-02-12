@@ -44,6 +44,43 @@ impl EcosystemPhase {
     }
 }
 
+/// A support tier target for one ecosystem package.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+pub enum EcosystemSupportTier {
+    /// Parse support.
+    #[serde(rename = "T0", alias = "t0")]
+    T0,
+    /// Resolve support.
+    #[serde(rename = "T1", alias = "t1")]
+    T1,
+    /// Analyze support.
+    #[serde(rename = "T2", alias = "t2")]
+    T2,
+    /// Lower support.
+    #[serde(rename = "T3", alias = "t3")]
+    T3,
+    /// Run support.
+    #[serde(rename = "T4", alias = "t4")]
+    T4,
+    /// Test support.
+    #[serde(rename = "T5", alias = "t5")]
+    T5,
+}
+
+impl EcosystemSupportTier {
+    /// Return the stable uppercase support tier label.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::T0 => "T0",
+            Self::T1 => "T1",
+            Self::T2 => "T2",
+            Self::T3 => "T3",
+            Self::T4 => "T4",
+            Self::T5 => "T5",
+        }
+    }
+}
+
 /// A single ecosystem package manifest parsed from TOML.
 #[derive(Debug, Clone, Deserialize)]
 pub struct EcosystemManifest {
@@ -58,6 +95,9 @@ pub struct EcosystemManifest {
     /// Per-phase workload settings for discovery and caps.
     #[serde(default)]
     pub workloads: WorkloadConfig,
+    /// Patch metadata for support markers.
+    #[serde(default)]
+    pub patch: PatchConfig,
 }
 
 /// Package metadata used for fetching and display.
@@ -78,6 +118,8 @@ pub struct PackageInfo {
     /// Optional category labels for filtering and reporting.
     #[serde(default)]
     pub tags: Vec<String>,
+    /// Intended ecosystem support tier target.
+    pub target_tier: Option<EcosystemSupportTier>,
 }
 
 /// Primary source language for one ecosystem package.
@@ -117,6 +159,20 @@ impl CompilerOptionsConfig {
     /// Return whether plain js files should parse in jsx mode.
     pub fn js_as_jsx(&self) -> bool {
         self.js_as_jsx.unwrap_or(false)
+    }
+}
+
+/// Patch metadata for ecosystem compatibility markers.
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct PatchConfig {
+    /// Mark packages that need dependency patching or replacement.
+    pub dependency_replacement: Option<bool>,
+}
+
+impl PatchConfig {
+    /// Return whether this package needs dependency patching or replacement.
+    pub fn dependency_replacement(&self) -> bool {
+        self.dependency_replacement.unwrap_or(false)
     }
 }
 
@@ -189,7 +245,7 @@ impl EcosystemManifest {
 
 #[cfg(test)]
 mod tests {
-    use super::EcosystemManifest;
+    use super::{EcosystemManifest, EcosystemSupportTier};
 
     fn parse_manifest(content: &str) -> EcosystemManifest {
         toml::from_str(content).unwrap()
@@ -226,5 +282,69 @@ language = "ts"
         );
 
         assert!(!manifest.compiler_options.js_as_jsx());
+    }
+
+    #[test]
+    fn test_parse_patch_dependency_replacement() {
+        let manifest = parse_manifest(
+            r#"
+[package]
+name = "demo"
+repo = "https://example.com/repo.git"
+ref = "main"
+language = "ts"
+
+[patch]
+dependency_replacement = true
+"#,
+        );
+
+        assert!(manifest.patch.dependency_replacement());
+    }
+
+    #[test]
+    fn test_parse_patch_dependency_replacement_default_false() {
+        let manifest = parse_manifest(
+            r#"
+[package]
+name = "demo"
+repo = "https://example.com/repo.git"
+ref = "main"
+language = "ts"
+"#,
+        );
+
+        assert!(!manifest.patch.dependency_replacement());
+    }
+
+    #[test]
+    fn test_parse_package_target_tier() {
+        let manifest = parse_manifest(
+            r#"
+[package]
+name = "demo"
+repo = "https://example.com/repo.git"
+ref = "main"
+language = "ts"
+target_tier = "T3"
+"#,
+        );
+
+        assert_eq!(manifest.package.target_tier, Some(EcosystemSupportTier::T3));
+    }
+
+    #[test]
+    fn test_parse_package_target_tier_default_none() {
+        let manifest = parse_manifest(
+            r#"
+[package]
+name = "demo"
+repo = "https://example.com/repo.git"
+ref = "main"
+language = "ts"
+"#,
+        );
+
+        assert_eq!(manifest.package.target_tier, None);
     }
 }
