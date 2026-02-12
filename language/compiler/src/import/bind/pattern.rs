@@ -2,13 +2,45 @@ use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
     BindingCategory, DependencyMode, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
-    LocalSymbolId, Mutability, NodeTree, NodeType, Pattern, PatternField, StaticKey, SymbolBinding,
-    SymbolSpace, SymbolSpaceOrder, SymbolTable, TypeTable,
+    LocalSymbolId, Mutability, NodeTree, NodeType, Pattern, PatternField, ScopeKind, StaticKey,
+    SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType, TypeTable,
 };
 use destack_workspace::{Module, ModuleAst};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Find the nearest function or root scope for function-scoped bindings.
+    fn function_scoped_binding_scope_id(
+        &self,
+        start_scope_id: LocalScopeId,
+        symbols: &SymbolTable,
+    ) -> LocalScopeId {
+        let mut scope_id = start_scope_id;
+
+        loop {
+            let scope = symbols.get_scope_by_id(scope_id);
+
+            // function-scoped bindings live on the owning function scope
+            let is_function_scope = scope.owner_id.is_some_and(|owner_symbol_id| {
+                let owner_symbol = symbols.get_symbol(owner_symbol_id);
+                owner_symbol.ty == SymbolType::Function
+                    || (scope.kind == ScopeKind::Namespace
+                        && owner_symbol.kind == SymbolKind::Item
+                        && owner_symbol.ty == SymbolType::Void
+                        && owner_symbol.binding == SymbolBinding::Runtime)
+            });
+            if is_function_scope {
+                return scope_id;
+            }
+
+            // module roots also host function-scoped bindings
+            let Some((parent_scope_id, _)) = scope.parent else {
+                return scope_id;
+            };
+            scope_id = parent_scope_id;
+        }
+    }
+
     /// Return the default mutability for bindings without explicit mutability.
     pub(super) fn default_binding_mutability(&self, _module: &Module) -> Mutability {
         Mutability::Mutable
@@ -24,6 +56,33 @@ impl Compiler {
         pattern_mutability
             .or(binding_mutability)
             .unwrap_or_else(|| self.default_binding_mutability(module))
+    }
+
+    /// Select the scope where a binding should be introduced for the binding category.
+    ///
+    /// Function-scoped declarations (`var`) bind in the nearest owning scope
+    /// (typically function scope, or module root when no function owner exists).
+    fn binding_scope_for_category(
+        &self,
+        scope: (LocalScopeId, LocalScopeMark),
+        binding: SymbolBinding,
+        binding_category: Option<BindingCategory>,
+        symbols: &SymbolTable,
+    ) -> (LocalScopeId, LocalScopeMark) {
+        // keep ambient and declaration bindings in their lexical scopes
+        if binding != SymbolBinding::Runtime {
+            return scope;
+        }
+
+        if binding_category != Some(BindingCategory::FunctionScoped) {
+            return scope;
+        }
+
+        // route function-scoped bindings to their owning function or module scope
+        let scope_id = self.function_scoped_binding_scope_id(scope.0, symbols);
+
+        // keep visibility consistent across the full target scope
+        (scope_id, LocalScopeMark::end())
     }
 
     /// Record binding mutability for a symbol when provided.
@@ -71,6 +130,8 @@ impl Compiler {
         let ast_pattern = ast.tree.get(ast_pattern_id);
         let pattern_id =
             tree.reserve_from_source(NodeType::Pattern, ast_pattern_id.id, scope, parent_id);
+        let binding_scope =
+            self.binding_scope_for_category(scope, binding, binding_category, symbols);
         let pattern = match ast_pattern {
             ast::Pattern::Wildcard => Pattern::Wildcard,
             ast::Pattern::Must(ast_pattern_id) => Pattern::Must(self.bind_pattern(
@@ -158,7 +219,7 @@ impl Compiler {
                     SymbolSpace::Value,
                     StaticKey::Name(name),
                     binding,
-                    scope,
+                    binding_scope,
                     export,
                     symbols,
                 );
@@ -423,6 +484,8 @@ impl Compiler {
             scope,
             parent_id,
         );
+        let binding_scope =
+            self.binding_scope_for_category(scope, binding, binding_category, symbols);
         let pattern_field = match ast_pattern_field {
             ast::PatternField::Named {
                 mutability,
@@ -470,7 +533,7 @@ impl Compiler {
                     SymbolSpace::Value,
                     StaticKey::Name(name),
                     binding,
-                    scope,
+                    binding_scope,
                     export,
                     symbols,
                 );
@@ -573,7 +636,7 @@ impl Compiler {
                     SymbolSpace::Value,
                     StaticKey::Name(alias),
                     binding,
-                    scope,
+                    binding_scope,
                     export,
                     symbols,
                 );

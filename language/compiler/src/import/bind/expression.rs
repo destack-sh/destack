@@ -54,6 +54,58 @@ impl Compiler {
         }
     }
 
+    /// Return true when a node type hosts declaration expressions in operand position.
+    fn node_type_is_declaration_expression_container(&self, node_type: ast::NodeType) -> bool {
+        matches!(
+            node_type,
+            ast::NodeType::Declarator
+                | ast::NodeType::Argument
+                | ast::NodeType::Property
+                | ast::NodeType::Parameter
+                | ast::NodeType::Pattern
+                | ast::NodeType::PatternField
+                | ast::NodeType::Member
+                | ast::NodeType::WhereClause
+        )
+    }
+
+    /// Return true when a declaration expression occurs in statement position.
+    fn declaration_expression_is_statement_position(
+        &self,
+        ast: &ModuleAst,
+        ast_expression_id: ast::LocalNodeId<ast::Expression>,
+    ) -> bool {
+        // root expressions default to statement declarations
+        let Some(parent_id) = ast.parents.get(ast_expression_id) else {
+            return true;
+        };
+
+        let parent_type = ast.tree.get_node_type(parent_id);
+
+        // expression parents use explicit statement wrappers
+        if parent_type == ast::NodeType::Expression {
+            let parent_expression = ast
+                .tree
+                .get(ast::LocalNodeId::<ast::Expression>::new(parent_id));
+
+            // explicit statement wrappers stay statement declarations
+            if matches!(parent_expression, ast::Expression::Statement(_)) {
+                return true;
+            }
+
+            // all other expression parents are expression declarations
+            return false;
+        }
+
+        // operand containers always produce expression declarations
+        if self.node_type_is_declaration_expression_container(parent_type) {
+            return false;
+        }
+
+        // declarations under non-operand parents stay statement scoped
+        true
+    }
+
     destack_base::ensure_sufficient_stack! {
         /// Bind an expression to a DIR expression with a symbol space order.
         pub(super) fn bind_expression(
@@ -92,13 +144,20 @@ impl Compiler {
                 Expression::Block { block: block_id }
             }
             ast::Expression::Declaration(declaration_id) => {
-                // declarations can bind to entire containing scope
-                let scope = (scope.0, LocalScopeMark::end());
+                // statement declarations bind to scope end
+                let is_statement_declaration =
+                    self.declaration_expression_is_statement_position(ast, ast_expression_id);
+                let declaration_scope = if is_statement_declaration {
+                    (scope.0, LocalScopeMark::end())
+                } else {
+                    scope
+                };
                 let declaration_id = self.bind_declaration(
                     module,
                     ast,
-                    scope,
+                    declaration_scope,
                     *declaration_id,
+                    is_statement_declaration,
                     Some(expression_id),
                     tree,
                     symbols,
@@ -339,13 +398,14 @@ impl Compiler {
                     DeclarationKind::Definition => SymbolBinding::Runtime,
                 };
                 let mutability = self.bind_mutability(*mutability);
+                let mut declarator_scope = scope;
                 let declarators: Vec<LocalNodeId<Declarator>> = ast_declarators
                     .iter()
                     .map(|ast_decl_id| {
-                        self.bind_declarator(
+                        let declarator = self.bind_declarator(
                             module,
                             ast,
-                            scope,
+                            declarator_scope,
                             descriptor.export,
                             binding,
                             Some(mutability),
@@ -355,7 +415,10 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                        )
+                        );
+                        // refresh scope mark so later declarators can reference earlier bindings
+                        declarator_scope = (scope.0, symbols.get_scope_mark(scope.0));
+                        declarator
                     })
                     .collect();
 
@@ -397,13 +460,14 @@ impl Compiler {
                 let asynchrony = self.bind_asynchrony(*asynchrony);
                 let mutability = Mutability::Immutable;
                 let binding_category = BindingCategory::BlockScoped;
+                let mut declarator_scope = scope;
                 let declarators: Vec<LocalNodeId<Declarator>> = ast_declarators
                     .iter()
                     .map(|ast_decl_id| {
-                        self.bind_declarator(
+                        let declarator = self.bind_declarator(
                             module,
                             ast,
-                            scope,
+                            declarator_scope,
                             descriptor.export,
                             binding,
                             Some(mutability),
@@ -413,7 +477,12 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                        )
+                        );
+
+                        // refresh scope mark so later declarators can reference earlier bindings
+                        declarator_scope = (scope.0, symbols.get_scope_mark(scope.0));
+
+                        declarator
                     })
                     .collect();
 
@@ -2270,11 +2339,19 @@ impl Compiler {
                 SymbolSpaceOrder::TypeThenValue,
             )
         });
+
+        // JS/TS initializers can reference the bound declarator name
+        let value_scope =
+            if module.language_type.is_javascript() || module.language_type.is_typescript() {
+                (scope.0, symbols.get_scope_mark(scope.0))
+            } else {
+                scope
+            };
         let value = value.map(|v| {
             self.bind_expression(
                 module,
                 ast,
-                scope,
+                value_scope,
                 v,
                 Some(declarator_id),
                 tree,

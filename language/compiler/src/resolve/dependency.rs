@@ -1098,9 +1098,12 @@ impl Compiler {
 
     /// Whether the target is a relative import.
     pub(super) fn is_import_relative(&self, target: StringId) -> bool {
-        // check relative prefix markers
+        // check relative path specifiers
         let target_str = self.program.strings.get(target);
-        target_str.starts_with("./") || target_str.starts_with("../")
+        target_str == "."
+            || target_str == ".."
+            || target_str.starts_with("./")
+            || target_str.starts_with("../")
     }
 
     /// Return import edge semantics for one dependency source.

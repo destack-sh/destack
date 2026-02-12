@@ -945,7 +945,7 @@ lifetime parameters on every function signature.
 
 ### Dynamic Parameterisation
 
-Functions and methods work exactly like in JavaScript and TypeScript.
+Functions and methods work exactly like in JS/TS.
 Function calls use positional arguments:
 
 ```
@@ -3291,7 +3291,7 @@ These overloads transpile to explicit method calls in the generated TypeScript.
 
 ## Modules
 
-Module syntax matches JavaScript and TypeScript exactly.
+Module syntax matches JS/TS exactly.
 
 ### Imports
 

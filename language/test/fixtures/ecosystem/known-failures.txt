@@ -44,7 +44,6 @@ eslint-lower
 eslint-resolve
 express-analyze
 express-lower
-express-resolve
 fastify-analyze
 fastify-lower
 fastify-resolve
@@ -68,10 +67,8 @@ jotai-lower
 jotai-resolve
 koa-analyze
 koa-lower
-koa-resolve
 lodash-analyze
 lodash-lower
-lodash-resolve
 ms-analyze
 mysql2-analyze
 mysql2-lower
@@ -183,7 +180,6 @@ ts-toolbelt-lower
 ts-toolbelt-resolve
 tslib-analyze
 tslib-lower
-tslib-resolve
 turborepo-analyze
 turborepo-lower
 turborepo-resolve

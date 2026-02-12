@@ -193,7 +193,7 @@ impl Compiler {
             &symbols,
         );
         let Some(value_expression_id) = state.default_value else {
-            return Ok(None);
+            return Ok(Some(dir.default_symbol.into_global(module_id)));
         };
 
         // resolve the assignment value to a symbol when possible

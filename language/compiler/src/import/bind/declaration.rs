@@ -211,6 +211,109 @@ impl Compiler {
         (descriptor, scope_id)
     }
 
+    /// Return true when a declaration expression name should bind only in self scope.
+    fn declaration_expression_name_is_self_scope_only(
+        &self,
+        _module: &Module,
+        descriptor: &ast::DeclarationDescriptor,
+        symbol_type: SymbolType,
+        is_statement_declaration: bool,
+    ) -> bool {
+        // statement declarations publish names in the surrounding scope
+        if is_statement_declaration {
+            return false;
+        }
+
+        // only named class/function expressions keep a local self name
+        if descriptor.name.is_none() {
+            return false;
+        }
+
+        matches!(symbol_type, SymbolType::Class | SymbolType::Function)
+    }
+
+    /// Insert a self binding for named declaration expressions.
+    fn bind_declaration_expression_self_name(
+        &self,
+        scope_id: LocalScopeId,
+        name: Name,
+        symbol_type: SymbolType,
+        symbols: &mut SymbolTable,
+    ) {
+        let key = StaticKey::Name(name.string());
+        let scope = (scope_id, LocalScopeMark::end());
+        let has_binding = symbols
+            .get_scope_by_id(scope_id)
+            .find_up_to(key, scope.1)
+            .is_some();
+
+        // keep one self binding per name
+        if has_binding {
+            return;
+        }
+
+        symbols.insert_symbol(
+            SymbolKind::Local,
+            symbol_type,
+            SymbolSpace::Value,
+            SymbolBinding::Runtime,
+            Some(key),
+            scope,
+            None,
+        );
+    }
+
+    /// Bind a declaration descriptor with expression self-name semantics.
+    fn bind_declaration_expression_descriptor(
+        &self,
+        module: &Module,
+        ast: &ModuleAst,
+        scope: (LocalScopeId, LocalScopeMark),
+        descriptor: &ast::DeclarationDescriptor,
+        symbol_kind: SymbolKind,
+        symbol_type: SymbolType,
+        is_statement_declaration: bool,
+        symbols: &mut SymbolTable,
+    ) -> (DeclarationDescriptor, LocalScopeId) {
+        // named class/function expressions keep their self name inside declaration scope
+        let name_is_self_scope_only = self.declaration_expression_name_is_self_scope_only(
+            module,
+            descriptor,
+            symbol_type,
+            is_statement_declaration,
+        );
+        let expression_name = descriptor.name.map(|name| self.bind_name(ast, name));
+
+        // hide outer name binding when the expression name is self-scope-only
+        let mut descriptor_for_binding = descriptor.clone();
+        if name_is_self_scope_only {
+            descriptor_for_binding.name = None;
+        }
+        let (descriptor, scope_id) = self.bind_declaration_descriptor(
+            module,
+            ast,
+            scope,
+            &descriptor_for_binding,
+            symbol_kind,
+            symbol_type,
+            symbols,
+        );
+        if !name_is_self_scope_only {
+            return (descriptor, scope_id);
+        }
+
+        // insert one local self binding so recursion and self references resolve
+        let Some(name) = expression_name else {
+            return (descriptor, scope_id);
+        };
+        self.bind_declaration_expression_self_name(scope_id, name, symbol_type, symbols);
+
+        let mut descriptor = descriptor;
+        descriptor.name = Some(name);
+
+        (descriptor, scope_id)
+    }
+
     /// Bind AST declaration descriptor for a global augmentation.
     pub(super) fn bind_global_descriptor(
         &self,
@@ -265,6 +368,7 @@ impl Compiler {
         ast: &ModuleAst,
         scope: (LocalScopeId, LocalScopeMark),
         ast_declaration_id: ast::LocalNodeId<ast::Declaration>,
+        is_statement_declaration: bool,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
@@ -614,13 +718,14 @@ impl Compiler {
                 heritage,
                 members,
             } => {
-                let (descriptor, scope_id) = self.bind_declaration_descriptor(
+                let (descriptor, scope_id) = self.bind_declaration_expression_descriptor(
                     module,
                     ast,
                     scope,
                     descriptor,
                     SymbolKind::Item,
                     SymbolType::Class,
+                    is_statement_declaration,
                     symbols,
                 );
                 let generics = self.bind_generics(
@@ -893,13 +998,14 @@ impl Compiler {
                 {
                     descriptor.kind = ast::DeclarationKind::Declaration;
                 }
-                let (descriptor, scope_id) = self.bind_declaration_descriptor(
+                let (descriptor, scope_id) = self.bind_declaration_expression_descriptor(
                     module,
                     ast,
                     scope,
                     &descriptor,
                     SymbolKind::Item,
                     SymbolType::Function,
+                    is_statement_declaration,
                     symbols,
                 );
                 let signature = self.bind_function_signature(

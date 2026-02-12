@@ -5,9 +5,10 @@ use destack_ast::Keyword;
 use destack_base::StringId;
 use destack_dir::{
     Asynchrony, BindingAnchor, BindingOperator, Declaration, DeclarationAbstraction,
-    DeclarationKind, DependencyKind, DependencyMode, DynamicKey, Expression, FunctionCardinality,
-    FunctionKind, FunctionMode, ImportAliasTarget, LocalNodeId, LocalNodeIdAny, Member, Name,
-    NodeTree, NodeType, Parameter, Path, ScalarLiteral, SymbolTable, TypeTable,
+    DeclarationDescriptor, DeclarationKind, DependencyKind, DependencyMode, DynamicKey, Expression,
+    FunctionCardinality, FunctionKind, FunctionMode, ImportAliasTarget, LocalNodeId,
+    LocalNodeIdAny, Member, Name, NodeTree, NodeType, Parameter, Path, ScalarLiteral, SymbolTable,
+    TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -52,7 +53,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         tree: &NodeTree,
-        _symbols: &SymbolTable,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
         id: LocalNodeId<Declaration>,
         declaration: &Declaration,
@@ -123,6 +124,11 @@ impl Compiler {
                 // resolve the function node for diagnostics
                 let node = id.into_global_any(module.id).into_anchored(Some(profile));
                 let is_destack = module.language_type.is_destack();
+
+                // preserve reserved name validation for inner-only expression bindings
+                self.validate_inner_only_declaration_reserved_name(
+                    module, profile, symbols, id, descriptor,
+                );
 
                 // declare functions cannot have a body
                 let is_declare = descriptor.kind == DeclarationKind::Declaration
@@ -243,6 +249,15 @@ impl Compiler {
             } => {
                 // resolve the class node for diagnostics
                 let node = id.into_global_any(module.id).into_anchored(Some(profile));
+
+                // preserve reserved name validation for inner-only expression bindings
+                self.validate_inner_only_declaration_reserved_name(
+                    module,
+                    profile,
+                    symbols,
+                    id,
+                    declaration.descriptor(),
+                );
 
                 // reject typescript only class syntax in javascript modules
                 if module.language_type.is_javascript() {
@@ -405,6 +420,43 @@ impl Compiler {
     fn is_reserved_type_name(&self, name: Name) -> bool {
         let name_str = self.program.strings.get(name.string());
         RESERVED_TYPE_NAMES.contains(&name_str.as_ref())
+    }
+
+    /// Validate reserved identifiers for declarations that do not publish a named symbol.
+    fn validate_inner_only_declaration_reserved_name(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
+        declaration_id: LocalNodeId<Declaration>,
+        descriptor: &DeclarationDescriptor,
+    ) {
+        // only user code can trigger this diagnostic
+        if !module.is_user() {
+            return;
+        }
+
+        // only named declarations can be reserved identifier violations
+        let Some(name) = descriptor.name else {
+            return;
+        };
+
+        // regular declaration symbols are handled by scope-wide binding checks
+        let symbol = symbols.get_symbol(descriptor.symbol);
+        if symbol.name().is_some() {
+            return;
+        }
+
+        // inner-only names still need reserved identifier validation
+        let name = name.string();
+        if !self.is_reserved_binding_name(name) {
+            return;
+        }
+
+        let node = declaration_id
+            .into_global_any(module.id)
+            .into_anchored(Some(profile));
+        self.error(AnalyzeError::ReservedIdentifier { node, name });
     }
 
     /// Validate an import alias target.

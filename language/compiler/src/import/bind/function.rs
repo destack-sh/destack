@@ -2,13 +2,36 @@ use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
     Asynchrony, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
-    FunctionSignature, Generics, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree,
+    FunctionSignature, Generics, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, StaticKey,
     SymbolSpace, SymbolSpaceOrder, SymbolTable, TypeTable,
 };
 use destack_workspace::{Module, ModuleAst};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Return true when a function receives a runtime `arguments` binding.
+    fn function_has_runtime_arguments(&self, module: &Module, kind: FunctionKind) -> bool {
+        if kind != FunctionKind::Function {
+            return false;
+        }
+
+        module.language_type.is_javascript() || module.language_type.is_typescript()
+    }
+
+    /// Return true when the function scope already contains an `arguments` binding.
+    fn function_scope_has_arguments_binding(
+        &self,
+        scope_id: LocalScopeId,
+        symbols: &SymbolTable,
+    ) -> bool {
+        let arguments_name = self.program.strings.intern("arguments");
+        let arguments_key = StaticKey::Name(arguments_name);
+        let scope = symbols.get_scope_by_id(scope_id);
+        scope
+            .find_up_to(arguments_key, LocalScopeMark::end())
+            .is_some()
+    }
+
     /// Bind function kind into a DIR function kind.
     #[inline]
     pub(super) fn bind_function_kind(&self, kind: ast::FunctionKind) -> FunctionKind {
@@ -172,6 +195,22 @@ impl Compiler {
                 )
             })
             .collect();
+
+        // bind JS/TS runtime arguments for non-arrow functions
+        if self.function_has_runtime_arguments(module, kind)
+            && !self.function_scope_has_arguments_binding(scope.0, symbols)
+        {
+            let arguments_name = self.program.strings.intern("arguments");
+            let arguments_key = StaticKey::Name(arguments_name);
+            self.bind_named_local(
+                module,
+                ast,
+                SymbolSpace::Value,
+                arguments_key,
+                scope,
+                symbols,
+            );
+        }
 
         // refresh scope mark so parameters are visible to return types and where clauses
         let scope = (scope.0, symbols.get_scope_mark(scope.0));

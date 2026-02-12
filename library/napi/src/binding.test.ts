@@ -113,9 +113,7 @@ describe("napi", () => {
                 cwd: root,
             });
 
-            expect(realpathSync(result.path)).toBe(
-                realpathSync(dependencyPath),
-            );
+            expect(realpathSync(result.path)).toBe(realpathSync(dependencyPath));
         } finally {
             removeTemporaryWorkspace(root);
         }
@@ -210,19 +208,11 @@ describe("napi", () => {
         const source = "export const value=1\n";
 
         // format once
-        const formatted = formatSync(
-            sourcePath,
-            source,
-            defaultFormatOptions(),
-        );
+        const formatted = formatSync(sourcePath, source, defaultFormatOptions());
         expect(formatted.code.length).toBeGreaterThan(0);
 
         // format the formatted output again
-        const formattedAgain = formatSync(
-            sourcePath,
-            formatted.code,
-            defaultFormatOptions(),
-        );
+        const formattedAgain = formatSync(sourcePath, formatted.code, defaultFormatOptions());
         expect(formattedAgain.code).toBe(formatted.code);
     });
 
@@ -231,9 +221,7 @@ describe("napi", () => {
         const options = defaultRunOptions();
         const input = { kind: RunInputKind.File };
 
-        expect(() => runSync(input, options)).toThrow(
-            "file input requires path",
-        );
+        expect(() => runSync(input, options)).toThrow("file input requires path");
     });
 
     test("test_run_sync_accepts_object_override_payloads", () => {
@@ -245,9 +233,7 @@ describe("napi", () => {
         };
         const input = { kind: RunInputKind.File };
 
-        expect(() => runSync(input, options)).toThrow(
-            "file input requires path",
-        );
+        expect(() => runSync(input, options)).toThrow("file input requires path");
     });
 
     test("test_run_sync_rejects_unserializable_override_payloads", () => {

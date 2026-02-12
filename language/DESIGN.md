@@ -19,7 +19,7 @@ JavaScript runs everywhere, everyone knows it, and it has a massive ecosystem an
 Unlike Python, the TypeScript ecosystem also has a good answer to rich frontends *and* strict modern TypeScript is a much more optimizable language (as evidenced by V8 and JSC coming within touching distance of Go and C# in some scenarios). 
 
 Where Destack looks like TypeScript (e.g., `interface`, `class`, `async`/`await`), it behaves like TypeScript, because it *is* TypeScript(++).
-Unlike with C++, our "C" - both JavaScript and TypeScript -- still work perfectly with Destack (on JS/TS targets), and the `++` features are opt-in and complementary.
+Unlike with C++, our "C" - both JavaScript/TypeScript -- still work with Destack (on JS/TS targets), and the `++` features are opt-in and complementary.
 
 | Feature | Description | Tests |
 |---------|-------------|-------|
