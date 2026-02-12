@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use destack_base::StringId;
 use destack_builtin::builtin_lib;
 use destack_dir::{DependencyKind, ModuleResolution, ModuleTarget};
-use destack_resolver::{CachePolicy, Resolver};
+use destack_resolver::{CachePolicy, ResolveOptions, Resolver};
 use destack_source::{File, FileType, LanguageType, ModuleId, PackageId, PackageVersion, Uri};
 use destack_workspace::{
     ImportEdgeKind, Loader, Module, ModuleSource, Package, PackageKind, ProfileId, ProfileKey,
@@ -521,7 +521,7 @@ impl Compiler {
         kind: DependencyKind,
         source_language_type: Option<LanguageType>,
         edge_kind: ImportEdgeKind,
-    ) -> destack_resolver::ResolveOptions {
+    ) -> ResolveOptions {
         let context = ImportResolveContext {
             dependency_kind: kind,
             source_language_type,
@@ -540,6 +540,7 @@ impl Compiler {
     ) -> Resolver {
         let resolver_options =
             self.resolver_options_for_kind(kind, source_language_type, edge_kind);
+
         Resolver::from_program(&self.program, resolver_options)
     }
 

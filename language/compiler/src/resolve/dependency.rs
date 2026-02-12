@@ -1123,13 +1123,9 @@ impl Compiler {
         edge_kind: ImportEdgeKind,
         loader_override: Option<destack_workspace::Loader>,
     ) -> Option<ModuleResolution> {
-        let relative_module = if self.is_import_relative(target) {
-            Some(module.id)
-        } else {
-            None
-        };
+        let source_module = Some(module.id);
         let dir = module.dir(profile);
-        let cache_key = (relative_module, target, edge_kind, loader_override);
+        let cache_key = (source_module, target, edge_kind, loader_override);
         dir.imported_modules.read().get(&cache_key).copied()
     }
 
@@ -1217,13 +1213,9 @@ impl Compiler {
         kind: DependencyKind,
         loader_override: Option<destack_workspace::Loader>,
     ) -> ResolveResult<ModuleTarget> {
-        // derive the relative module context
-        let is_relative = self.is_import_relative(target);
-        let relative_module = if is_relative { Some(module.id) } else { None };
+        let source_module = Some(module.id);
         let edge_kind = self.import_edge_kind(module, source);
-
-        // cache key includes loader to distinguish different import modes
-        let cache_key = (relative_module, target, edge_kind, loader_override);
+        let cache_key = (source_module, target, edge_kind, loader_override);
 
         // check if already resolved locally
         if let Some(targets) = dir.imported_modules.read().get(&cache_key)
@@ -1232,27 +1224,13 @@ impl Compiler {
             return Ok(remote_target);
         }
 
-        // check if already resolved "globally" (since it's not relative we can avoid re-doing the work)
-        if !is_relative && !module.is_builtin() {
+        // prepare root context for non-relative import resolution
+        if !self.is_import_relative(target) && !module.is_builtin() {
             self.require_resolve_module_prepare_if_needed(
                 module.id,
                 self.program.root_module_id,
                 profile,
             )?;
-            let global_module = self.program.modules.get(self.program.root_module_id);
-            let global_module = global_module.read();
-            let global_key = (None, target, edge_kind, loader_override);
-            if let Some(targets) = global_module
-                .dir(profile)
-                .imported_modules
-                .read()
-                .get(&global_key)
-            {
-                dir.imported_modules.write().insert(cache_key, *targets);
-                if let Some(remote_target) = targets.for_kind(kind) {
-                    return Ok(remote_target);
-                }
-            }
         }
 
         // check for module bindings (i.e. `declare module`)
@@ -1262,22 +1240,6 @@ impl Compiler {
                 self.resolve_module_binding_target(module.id, profile, target)?
         {
             let binding_targets = ModuleResolution::from_target(binding_target);
-
-            // cache globally for non-relative imports (see above)
-            if !is_relative && !module.is_builtin() {
-                self.require_resolve_module_prepare_if_needed(
-                    module.id,
-                    self.program.root_module_id,
-                    profile,
-                )?;
-                let global_module = self.program.modules.get(self.program.root_module_id);
-                let global_module = global_module.read();
-                global_module
-                    .dir(profile)
-                    .imported_modules
-                    .write()
-                    .insert((None, target, edge_kind, None), binding_targets);
-            }
             dir.imported_modules
                 .write()
                 .insert(cache_key, binding_targets);
@@ -1291,12 +1253,6 @@ impl Compiler {
         }
 
         // resolve specifier to module ids (synchronous!)
-        // (for builtin modules, always pass source module to support specifier aliases)
-        let source_module = if module.is_builtin() {
-            Some(module.id)
-        } else {
-            relative_module
-        };
         let resolved_targets = self
             .resolve_specifier_to_module_resolution(
                 target,
