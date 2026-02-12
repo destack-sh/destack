@@ -1,35 +1,35 @@
 #![feature(default_field_values)]
 #![feature(if_let_guard)]
 
-// profile selection
-#[cfg(all(feature = "profile-wasm-core", feature = "profile-wasm-ide"))]
+// preset selection
+#[cfg(all(feature = "core", feature = "ide"))]
 compile_error!(
-    "wasm profile features are mutually exclusive: choose only one profile-wasm-* feature"
+    "wasm preset features are mutually exclusive: choose only one of core, ide, run, or full"
 );
-#[cfg(all(feature = "profile-wasm-core", feature = "profile-wasm-run"))]
+#[cfg(all(feature = "core", feature = "run"))]
 compile_error!(
-    "wasm profile features are mutually exclusive: choose only one profile-wasm-* feature"
+    "wasm preset features are mutually exclusive: choose only one of core, ide, run, or full"
 );
-#[cfg(all(feature = "profile-wasm-core", feature = "profile-wasm-full"))]
+#[cfg(all(feature = "core", feature = "full"))]
 compile_error!(
-    "wasm profile features are mutually exclusive: choose only one profile-wasm-* feature"
+    "wasm preset features are mutually exclusive: choose only one of core, ide, run, or full"
 );
-#[cfg(all(feature = "profile-wasm-ide", feature = "profile-wasm-run"))]
+#[cfg(all(feature = "ide", feature = "run"))]
 compile_error!(
-    "wasm profile features are mutually exclusive: choose only one profile-wasm-* feature"
+    "wasm preset features are mutually exclusive: choose only one of core, ide, run, or full"
 );
-#[cfg(all(feature = "profile-wasm-ide", feature = "profile-wasm-full"))]
+#[cfg(all(feature = "ide", feature = "full"))]
 compile_error!(
-    "wasm profile features are mutually exclusive: choose only one profile-wasm-* feature"
+    "wasm preset features are mutually exclusive: choose only one of core, ide, run, or full"
 );
-#[cfg(all(feature = "profile-wasm-run", feature = "profile-wasm-full"))]
+#[cfg(all(feature = "run", feature = "full"))]
 compile_error!(
-    "wasm profile features are mutually exclusive: choose only one profile-wasm-* feature"
+    "wasm preset features are mutually exclusive: choose only one of core, ide, run, or full"
 );
 
 // feature constraints
-#[cfg(all(feature = "builtin-full", feature = "builtin-wasm-core"))]
-compile_error!("choose only one builtin profile: builtin-full or builtin-wasm-core");
+#[cfg(all(feature = "builtin-full", feature = "builtin-core"))]
+compile_error!("choose only one builtin preset: builtin-full or builtin-core");
 #[cfg(all(feature = "native-codegen", not(feature = "optimize")))]
 compile_error!("native-codegen requires optimize");
 #[cfg(all(feature = "deadlock-detection", not(feature = "parallel")))]

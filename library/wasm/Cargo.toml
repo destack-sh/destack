@@ -13,7 +13,7 @@ path = "src/lib.rs"
 doctest = false
 
 [features]
-default = ["profile-wasm-core"]
+default = ["core"]
 query = ["destack_workspace/query", "destack_workspace_service/query"]
 parallel = ["destack_compiler/parallel", "destack_workspace_service/parallel"]
 native-codegen = [
@@ -33,15 +33,15 @@ builtin-full = [
     "destack_workspace/builtin-full",
     "destack_workspace_service/builtin-full",
 ]
-builtin-wasm-core = [
-    "destack_compiler/builtin-wasm-core",
-    "destack_workspace/builtin-wasm-core",
-    "destack_workspace_service/builtin-wasm-core",
+builtin-core = [
+    "destack_compiler/builtin-core",
+    "destack_workspace/builtin-core",
+    "destack_workspace_service/builtin-core",
 ]
-profile-wasm-core = ["builtin-wasm-core"]
-profile-wasm-ide = ["builtin-wasm-core", "query", "lint", "format-api"]
-profile-wasm-run = ["builtin-wasm-core", "optimize", "transform-api"]
-profile-wasm-full = [
+core = ["builtin-core"]
+ide = ["builtin-core", "query", "lint", "format-api"]
+run = ["builtin-core", "optimize", "transform-api"]
+full = [
     "query",
     "parallel",
     "native-codegen",

@@ -17,25 +17,28 @@ path = "src/schema.rs"
 required-features = ["schema"]
 
 [features]
-default = []
+default = ["full"]
+query = []
+builtin-full = ["destack_builtin/full"]
+builtin-core = ["destack_builtin/core"]
+full = ["query", "builtin-full"]
+core = ["builtin-core"]
 schema = ["schemars"]
 
 [dependencies]
 # language
 destack_ast = { workspace = true }
 destack_base = { workspace = true }
-destack_builtin = { workspace = true }
+destack_builtin = { path = "../builtin", default-features = false }
 destack_dir = { workspace = true }
 destack_mir = { workspace = true }
 destack_source = { workspace = true }
 
 # general
-crossbeam-deque = { workspace = true }
 dashmap = { workspace = true }
 filetime = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 parking_lot = { workspace = true }
-rayon = { workspace = true }
 rustc-hash = { workspace = true }
 schemars = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
@@ -44,7 +47,7 @@ smallvec = { workspace = true }
 tracing = { workspace = true }
 postcard = { workspace = true }
 
-[target.'cfg(not(target_os = "wasi"))'.dependencies]
+[target.'cfg(all(not(target_os = "wasi"), not(target_arch = "wasm32")))'.dependencies]
 fs2 = { workspace = true }
 
 [dev-dependencies]

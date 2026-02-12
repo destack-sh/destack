@@ -199,7 +199,7 @@ pub fn run_bench(options: &BenchOptions) {
 /// Resolve declared lib symbols for all builtin libs.
 pub(crate) fn run_resolve_builtin_lib_symbols(mode: BenchMode) {
     // resolve declared lib symbols for all builtin libs
-    for lib in LIBS {
+    for lib in LIBS.iter() {
         let test = test_program_for_mode(mode).with_profile_libs(&[lib.name]);
         test.resolve_builtins();
         test.resolve_libs();

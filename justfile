@@ -42,6 +42,7 @@ check:
 build:
     just language/build
     just library/napi
+    just library/wasm
     just platform/build
 
 # format all code

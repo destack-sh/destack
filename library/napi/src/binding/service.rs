@@ -263,9 +263,12 @@ impl WorkspaceService {
     /// Create a new WorkspaceService.
     #[napi(constructor)]
     pub fn new(options: WorkspaceServiceOptions) -> napi::Result<Self> {
+        // normalize options
         let cwd = PathBuf::from(&options.cwd);
         let roots = roots_from_options(&options, &cwd);
         let compiler = options.compiler.unwrap_or_default();
+
+        // create backing session and service
         let session = Arc::new(workspace::Session::new(cwd));
         let inner = workspace_service::WorkspaceService::with_options(
             session.clone(),
@@ -274,6 +277,7 @@ impl WorkspaceService {
         )
         .map_err(napi_error_from_workspace_service)?;
 
+        // assemble wrapper
         Ok(Self { session, inner })
     }
 
@@ -362,7 +366,10 @@ impl WorkspaceService {
         path: String,
         update: WorkspaceVirtualUpdate,
     ) -> napi::Result<WorkspaceServiceResult> {
+        // convert binding update payload
         let update = file_update_from_virtual_update(update)?;
+
+        // apply update and map result
         self.inner
             .apply_virtual_update(&PathBuf::from(path), update)
             .map(workspace_service_result_binding)
@@ -375,10 +382,13 @@ impl WorkspaceService {
         &self,
         events: Vec<WorkspaceWatchEvent>,
     ) -> napi::Result<WorkspaceServiceResult> {
+        // map watch events into core payloads
         let events = events
             .into_iter()
             .map(file_watch_event_from_binding)
             .collect();
+
+        // apply events and map result
         self.inner
             .apply_watch_events(events)
             .map(workspace_service_result_binding)
@@ -404,7 +414,10 @@ impl WorkspaceService {
         roots: Vec<String>,
         analyze: bool,
     ) -> napi::Result<WorkspaceServiceResult> {
+        // map root paths
         let roots = roots.into_iter().map(PathBuf::from).collect::<Vec<_>>();
+
+        // execute root rescan
         self.inner
             .rescan_roots(&roots, analyze)
             .map(workspace_service_result_binding)
@@ -431,12 +444,17 @@ impl WorkspaceService {
     /// Execute a query for the workspace that owns a path using a JSON payload.
     #[napi]
     pub fn query_for_path_json(&self, path: String, request_json: String) -> napi::Result<String> {
+        // decode query request
         let request = serde_json::from_str::<workspace::query::QueryRequest>(&request_json)
             .map_err(|error| Error::from_reason(format!("invalid query request json: {error}")))?;
+
+        // execute query
         let response = self
             .inner
             .query_for_path(&PathBuf::from(path), request)
             .map_err(napi_error_from_workspace_service)?;
+
+        // encode response json
         serde_json::to_string(&response).map_err(|error| {
             Error::from_reason(format!("failed to encode query response: {error}"))
         })
@@ -449,15 +467,20 @@ impl WorkspaceService {
         handle: String,
         request_json: String,
     ) -> napi::Result<String> {
+        // parse handle and request
         let handle = handle
             .parse::<u64>()
             .map_err(|error| Error::from_reason(format!("invalid workspace handle: {error}")))?;
         let request = serde_json::from_str::<workspace::query::QueryRequest>(&request_json)
             .map_err(|error| Error::from_reason(format!("invalid query request json: {error}")))?;
+
+        // execute query
         let response = self
             .inner
             .query_for_handle(workspace_service::WorkspaceHandleId(handle), request)
             .map_err(napi_error_from_workspace_service)?;
+
+        // encode response json
         serde_json::to_string(&response).map_err(|error| {
             Error::from_reason(format!("failed to encode query response: {error}"))
         })
@@ -470,6 +493,7 @@ pub fn default_workspace_service_options() -> WorkspaceServiceOptions {
     WorkspaceServiceOptions::default()
 }
 
+/// Build workspace roots for service options.
 fn roots_from_options(options: &WorkspaceServiceOptions, cwd: &std::path::Path) -> Vec<PathBuf> {
     if options.roots.is_empty() {
         vec![cwd.to_path_buf()]
@@ -478,6 +502,7 @@ fn roots_from_options(options: &WorkspaceServiceOptions, cwd: &std::path::Path) 
     }
 }
 
+/// Convert a virtual update payload into a core file update.
 fn file_update_from_virtual_update(
     update: WorkspaceVirtualUpdate,
 ) -> napi::Result<workspace::FileUpdate> {
@@ -499,6 +524,7 @@ fn file_update_from_virtual_update(
     }
 }
 
+/// Convert a watch event payload into a core watch event.
 fn file_watch_event_from_binding(event: WorkspaceWatchEvent) -> source::FileWatchEvent {
     let kind = match event.kind {
         WorkspaceWatchEventKind::Created => source::FileWatchEventKind::Created,
@@ -515,6 +541,7 @@ fn file_watch_event_from_binding(event: WorkspaceWatchEvent) -> source::FileWatc
     }
 }
 
+/// Convert a core workspace service result into a binding payload.
 fn workspace_service_result_binding(
     result: workspace_service::WorkspaceServiceResult,
 ) -> WorkspaceServiceResult {
@@ -536,6 +563,7 @@ fn workspace_service_result_binding(
     }
 }
 
+/// Convert a core workspace update record into a binding payload.
 fn workspace_update_record_binding(
     record: workspace_service::WorkspaceUpdateRecord,
 ) -> WorkspaceUpdateRecord {
@@ -598,6 +626,7 @@ fn workspace_update_record_binding(
     }
 }
 
+/// Convert a core module id into a binding payload.
 fn workspace_module_id_binding(module_id: source::ModuleId) -> WorkspaceModuleId {
     WorkspaceModuleId {
         package_id: module_id.package_id.0.to_string(),
@@ -605,6 +634,7 @@ fn workspace_module_id_binding(module_id: source::ModuleId) -> WorkspaceModuleId
     }
 }
 
+/// Convert analyze outcomes into binding payloads.
 fn workspace_analyze_outcome_binding(
     outcome: workspace_service::AnalyzeOutcome,
 ) -> WorkspaceAnalyzeOutcome {
@@ -614,6 +644,7 @@ fn workspace_analyze_outcome_binding(
     }
 }
 
+/// Convert workspace service errors into NAPI errors.
 fn napi_error_from_workspace_service(error: workspace_service::WorkspaceServiceError) -> Error {
     Error::from_reason(error.to_string())
 }

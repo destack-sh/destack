@@ -5,6 +5,7 @@ mod directive;
 mod error;
 mod event;
 mod format;
+mod parallel;
 mod process;
 mod queue;
 mod stats;

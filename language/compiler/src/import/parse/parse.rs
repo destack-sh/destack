@@ -357,20 +357,7 @@ impl Compiler {
         };
 
         // parse TOML to serde_json::Value
-        let toml_value: toml::Value = toml::from_str(&content).map_err(|e| {
-            // TOML errors provide byte span directly
-            let span = if let Some(range) = e.span() {
-                Span::new(file_id, range.start as u32, range.end as u32)
-            } else {
-                Span::empty(file_id)
-            };
-            ImportError::DataParseError {
-                span,
-                file_type: FileType::Toml,
-                message: e.message().to_string(),
-            }
-        })?;
-        let value = toml_to_json(toml_value);
+        let value = parse_toml_value(file_id, &content)?;
 
         // create base DIR for data module
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
@@ -425,20 +412,7 @@ impl Compiler {
         };
 
         // parse YAML to serde_json::Value
-        let value: serde_json::Value = serde_yaml_ng::from_str(&content).map_err(|e| {
-            // YAML errors provide line/column via location()
-            let span = if let Some(loc) = e.location() {
-                let offset = File::byte_offset_from_position(&content, loc.line(), loc.column());
-                Span::at(file_id, offset, 1)
-            } else {
-                Span::empty(file_id)
-            };
-            ImportError::DataParseError {
-                span,
-                file_type: FileType::Yaml,
-                message: e.to_string(),
-            }
-        })?;
+        let value = parse_yaml_value(file_id, &content)?;
 
         // create base DIR for data module
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
@@ -613,22 +587,97 @@ impl Compiler {
     }
 }
 
+/// Parse TOML content into a JSON value.
+#[cfg(not(target_arch = "wasm32"))]
+fn parse_toml_value(
+    file_id: destack_source::FileId,
+    content: &str,
+) -> ImportResult<serde_json::Value> {
+    let toml_value: toml::Value = toml::from_str(content).map_err(|error| {
+        // toml errors provide byte span directly
+        let span = if let Some(range) = error.span() {
+            Span::new(file_id, range.start as u32, range.end as u32)
+        } else {
+            Span::empty(file_id)
+        };
+
+        ImportError::DataParseError {
+            span,
+            file_type: FileType::Toml,
+            message: error.message().to_string(),
+        }
+    })?;
+
+    Ok(toml_to_json(toml_value))
+}
+
+/// Parse TOML content into a JSON value on wasm.
+#[cfg(target_arch = "wasm32")]
+fn parse_toml_value(
+    file_id: destack_source::FileId,
+    _content: &str,
+) -> ImportResult<serde_json::Value> {
+    Err(ImportError::DataParseError {
+        span: Span::empty(file_id),
+        file_type: FileType::Toml,
+        message: "toml imports are not supported on wasm".to_string(),
+    })
+}
+
+/// Parse YAML content into a JSON value.
+#[cfg(not(target_arch = "wasm32"))]
+fn parse_yaml_value(
+    file_id: destack_source::FileId,
+    content: &str,
+) -> ImportResult<serde_json::Value> {
+    serde_yaml_ng::from_str(content).map_err(|error| {
+        // yaml errors provide line and column
+        let span = if let Some(location) = error.location() {
+            let offset =
+                File::byte_offset_from_position(content, location.line(), location.column());
+            Span::at(file_id, offset, 1)
+        } else {
+            Span::empty(file_id)
+        };
+
+        ImportError::DataParseError {
+            span,
+            file_type: FileType::Yaml,
+            message: error.to_string(),
+        }
+    })
+}
+
+/// Parse YAML content into a JSON value on wasm.
+#[cfg(target_arch = "wasm32")]
+fn parse_yaml_value(
+    file_id: destack_source::FileId,
+    _content: &str,
+) -> ImportResult<serde_json::Value> {
+    Err(ImportError::DataParseError {
+        span: Span::empty(file_id),
+        file_type: FileType::Yaml,
+        message: "yaml imports are not supported on wasm".to_string(),
+    })
+}
+
 /// Convert a TOML value to a JSON value.
+#[cfg(not(target_arch = "wasm32"))]
 fn toml_to_json(toml: toml::Value) -> serde_json::Value {
     match toml {
-        toml::Value::String(s) => serde_json::Value::String(s),
-        toml::Value::Integer(i) => serde_json::Value::Number(i.into()),
-        toml::Value::Float(f) => serde_json::Number::from_f64(f)
+        toml::Value::String(string) => serde_json::Value::String(string),
+        toml::Value::Integer(integer) => serde_json::Value::Number(integer.into()),
+        toml::Value::Float(float) => serde_json::Number::from_f64(float)
             .map_or(serde_json::Value::Null, serde_json::Value::Number),
-        toml::Value::Boolean(b) => serde_json::Value::Bool(b),
-        toml::Value::Datetime(dt) => serde_json::Value::String(dt.to_string()),
-        toml::Value::Array(arr) => {
-            serde_json::Value::Array(arr.into_iter().map(toml_to_json).collect())
+        toml::Value::Boolean(boolean) => serde_json::Value::Bool(boolean),
+        toml::Value::Datetime(datetime) => serde_json::Value::String(datetime.to_string()),
+        toml::Value::Array(array) => {
+            serde_json::Value::Array(array.into_iter().map(toml_to_json).collect())
         }
         toml::Value::Table(table) => serde_json::Value::Object(
             table
                 .into_iter()
-                .map(|(k, v)| (k, toml_to_json(v)))
+                .map(|(key, value)| (key, toml_to_json(value)))
                 .collect(),
         ),
     }

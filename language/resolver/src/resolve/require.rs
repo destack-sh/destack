@@ -1,10 +1,12 @@
-use std::borrow::Cow;
 use std::path::{Component, Path, PathBuf};
 
 use destack_source::{PathExt, SLASH_START};
 use destack_workspace::ModuleSpecifier;
 
 use crate::{ResolveContext, ResolveError, Resolver};
+
+#[cfg(not(target_arch = "wasm32"))]
+use std::borrow::Cow;
 
 #[cfg(not(target_arch = "wasm32"))]
 fn resolve_file_protocol(specifier: &str) -> Result<Cow<'_, str>, ResolveError> {

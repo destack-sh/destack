@@ -1,7 +1,8 @@
 use std::cell::{Cell, RefCell};
 use std::sync::OnceLock;
+#[cfg(feature = "parallel")]
+use std::thread;
 use std::time::{Duration, Instant};
-use std::{env, thread};
 
 use crate::{
     AnalyzeError, Compiler, CompilerEvent, ElaborateError, EmitError, ExecuteError, GenerateError,
@@ -10,20 +11,12 @@ use crate::{
     TaskSkipCheck, TaskStatus,
 };
 
+#[cfg(feature = "parallel")]
+use super::parallel::compiler_stack_bytes;
+use super::parallel::effective_worker_count;
+
 /// Maximum number of yields allowed per task before treating it as an (internal) bug.
 const MAX_TOTAL_YIELD_COUNT: u32 = 100;
-
-const COMPILER_STACK_BYTES_DEFAULT: usize = 64 * 1024 * 1024;
-
-fn compiler_stack_bytes() -> usize {
-    // prefer explicit compiler stack size, then fall back to rust min stack
-    let explicit = env::var("DESTACK_COMPILER_STACK_BYTES").ok();
-    let fallback = env::var("RUST_MIN_STACK").ok();
-    explicit
-        .or(fallback)
-        .and_then(|value| value.parse::<usize>().ok())
-        .unwrap_or(COMPILER_STACK_BYTES_DEFAULT)
-}
 
 thread_local! {
     /// Flag to detect if we're inside a worker loop (to prevent nested run_task calls).
@@ -65,25 +58,31 @@ impl Compiler {
 
     /// Runs the compiler loop until there is nothing left to do.
     pub fn compile(&self) {
+        // resolve worker count for this build mode
+        let worker_count = effective_worker_count(self.options.workers);
+
         // start stats tracking
         self.stats.start();
 
         // emit compilation started event
-        self.emit_event(CompilerEvent::CompilationStarted {
-            worker_count: self.options.workers,
-        });
+        self.emit_event(CompilerEvent::CompilationStarted { worker_count });
 
-        // spawn worker threads
+        // parallel build: spawn worker threads
+        #[cfg(feature = "parallel")]
         thread::scope(|scope| {
             let stack_bytes = compiler_stack_bytes();
-            for i in 0..self.options.workers {
+            for worker_index in 0..worker_count {
                 thread::Builder::new()
-                    .name(format!("compiler-worker-{i}"))
+                    .name(format!("compiler-worker-{worker_index}"))
                     .stack_size(stack_bytes)
                     .spawn_scoped(scope, || self.run_loop())
                     .expect("failed to spawn compiler worker thread");
             }
         });
+
+        // non-parallel build: run a single local worker loop
+        #[cfg(not(feature = "parallel"))]
+        self.run_loop();
 
         // flush remaining diagnostics
         self.flush_diagnostics();

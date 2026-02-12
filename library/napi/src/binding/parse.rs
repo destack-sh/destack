@@ -77,9 +77,11 @@ pub fn parse_sync(
     content: String,
     options: Option<ParseOptions>,
 ) -> napi::Result<ParseResult> {
+    // normalize inputs
     let options = options.unwrap_or_default();
     let path_buf = PathBuf::from(&path);
 
+    // build workspace service
     let cwd = PathBuf::from(&options.cwd);
     let roots = parse_roots_from_options(&options, &cwd);
     let session = Arc::new(workspace::Session::new(cwd));
@@ -87,18 +89,24 @@ pub fn parse_sync(
         workspace_service::WorkspaceService::with_options(session, roots, options.compiler.into())
             .map_err(napi_error_from_parse)?;
 
+    // apply virtual update and gather diagnostics
     let update_result = service
         .update_virtual_file(&path_buf, content)
         .map_err(napi_error_from_parse)?;
 
     let diagnostics = parse_diagnostics_from_result(update_result);
+
+    // extract parsed program payload
     let mut program = service
         .with_program_for_path(&path_buf, |program, compiler| {
             parse_program_for_path(&path_buf, &program, &compiler)
         })
         .map_err(Error::from_reason)?;
 
+    // preserve caller path in the payload
     program.path = path;
+
+    // assemble response
     Ok(ParseResult {
         diagnostic_count: diagnostics.len() as u32,
         has_errors: diagnostics_have_errors(&diagnostics),
@@ -107,6 +115,7 @@ pub fn parse_sync(
     })
 }
 
+/// Build workspace roots for a parse request.
 fn parse_roots_from_options(options: &ParseOptions, cwd: &Path) -> Vec<PathBuf> {
     if options.roots.is_empty() {
         vec![cwd.to_path_buf()]
@@ -115,15 +124,18 @@ fn parse_roots_from_options(options: &ParseOptions, cwd: &Path) -> Vec<PathBuf> 
     }
 }
 
+/// Build a serialized program payload for a path.
 fn parse_program_for_path(
     path: &Path,
     program: &workspace::Program,
     compiler: &compiler::Compiler,
 ) -> Result<Program, String> {
+    // resolve the module for this path
     let module_id = compiler
         .resolve_path_to_module(&path.to_path_buf())
         .map_err(|error| format!("failed to resolve module for '{}': {error}", path.display()))?;
 
+    // select the parsed ast from module content
     let module = program.modules.get(module_id);
     let module = module.read();
     let module_ast = match &module.content {
@@ -142,6 +154,7 @@ fn parse_program_for_path(
         }
     };
 
+    // serialize the ast payload
     let ast_json = serde_json::json!({
         "roots": module_ast.roots,
         "tokens": module_ast.tokens,
@@ -149,6 +162,7 @@ fn parse_program_for_path(
     })
     .to_string();
 
+    // return parse payload metadata
     Ok(Program {
         path: path.to_string_lossy().to_string(),
         ast_json,
@@ -158,6 +172,7 @@ fn parse_program_for_path(
     })
 }
 
+/// Collect diagnostics from workspace update records.
 fn parse_diagnostics_from_result(
     result: workspace_service::WorkspaceServiceResult,
 ) -> Vec<Diagnostic> {
@@ -169,6 +184,7 @@ fn parse_diagnostics_from_result(
         .collect()
 }
 
+/// Convert parse errors into NAPI errors.
 fn napi_error_from_parse(error: impl std::fmt::Display) -> Error {
     Error::from_reason(error.to_string())
 }

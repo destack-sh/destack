@@ -18,12 +18,11 @@ destack_dir = { workspace = true }
 destack_fir = { workspace = true }
 destack_mir = { workspace = true }
 destack_source = { workspace = true }
-destack_workspace = { workspace = true }
+destack_workspace = { path = "../../workspace", default-features = false }
 
 # general
 dashmap = { workspace = true }
 parking_lot = { workspace = true }
-rayon = { workspace = true }
 smallvec = { workspace = true }
 tracing = { workspace = true }
 

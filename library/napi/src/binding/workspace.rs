@@ -42,11 +42,15 @@ impl Workspace {
     /// Add a root to the workspace.
     #[napi]
     pub fn add_root(&mut self, root: String) {
+        // normalize root path
         let root = PathBuf::from(root);
+
+        // skip duplicates
         if self.inner.package_paths.iter().any(|path| path == &root) {
             return;
         }
 
+        // append root path
         self.inner.package_paths.push(root);
     }
 

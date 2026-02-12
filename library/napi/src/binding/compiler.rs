@@ -91,7 +91,10 @@ impl Default for CompilerOptions {
 
 impl From<CompilerOptions> for compiler::CompilerOptions {
     fn from(options: CompilerOptions) -> Self {
+        // start from core defaults
         let mut core = compiler::CompilerOptions::default();
+
+        // map resolve and type options
         core.diagnostic = options.diagnostic.into();
         core.workers = options.workers;
         core.follow_imports = options.follow_imports;
@@ -103,13 +106,19 @@ impl From<CompilerOptions> for compiler::CompilerOptions {
         core.inject_prelude = options.inject_prelude;
         core.load_libs = options.load_libs;
         core.source_map = options.source_map;
+
+        // map elaborate options
         core.elaborate_with_ternary = options.elaborate_with_ternary;
         core.elaborate_split_declarators = options.elaborate_split_declarators;
         core.elaborate_explicit_return = options.elaborate_explicit_return;
         core.elaborate_parenthesize_casts = options.elaborate_parenthesize_casts;
+
+        // map comptime retention
         core.retain_comptime_as_comment = options.retain_comptime_as_comment;
         core.retain_comptime_comment_max_length =
             usize::try_from(options.retain_comptime_comment_max_length).unwrap_or(usize::MAX);
+
+        // map emit and validation options
         core.emit_overwrite = options.emit_overwrite;
         core.emit_create_dirs = options.emit_create_dirs;
         core.emit_dry_run = options.emit_dry_run;
@@ -123,6 +132,7 @@ impl From<CompilerOptions> for compiler::CompilerOptions {
 
 impl From<compiler::CompilerOptions> for CompilerOptions {
     fn from(options: compiler::CompilerOptions) -> Self {
+        // map core compiler options into binding payload
         Self {
             diagnostic: DiagnosticOptions {
                 error_warnings: options.diagnostic.error_warnings,
@@ -164,6 +174,7 @@ impl From<compiler::CompilerOptions> for CompilerOptions {
 /// Get the default compiler options.
 #[napi(js_name = "defaultCompilerOptions")]
 pub fn default_compiler_options() -> CompilerOptions {
+    // read defaults and normalize workers
     let mut options = CompilerOptions::default();
     if options.workers == 0 {
         options.workers = compiler::default_workers();

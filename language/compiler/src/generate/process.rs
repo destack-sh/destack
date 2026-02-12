@@ -97,9 +97,20 @@ impl Compiler {
         // dispatch based on output format
         match target.output {
             OutputFormat::Js | OutputFormat::Ts => self.generate_js(module_id, &target, profile),
+            // native codegen path, enabled by feature
+            #[cfg(feature = "native-codegen")]
             OutputFormat::Native | OutputFormat::Wasm => {
                 self.generate_cranelift(module_id, &target, profile)
             }
+            // native codegen path, disabled by feature
+            #[cfg(not(feature = "native-codegen"))]
+            OutputFormat::Native | OutputFormat::Wasm => Err(GenerateError::Internal {
+                module: module_id,
+                message: format!(
+                    "native codegen is disabled: cannot generate output '{:?}' for target '{}'",
+                    target.output, target.name
+                ),
+            }),
         }
     }
 

@@ -14,13 +14,13 @@ doctest = false
 [dependencies]
 destack_ast = { workspace = true }
 destack_base = { workspace = true }
-destack_builtin = { workspace = true }
+destack_builtin = { path = "../builtin", default-features = false }
 destack_dir = { workspace = true }
 destack_linter_macros = { workspace = true }
 destack_mir = { workspace = true }
 destack_parser = { workspace = true }
 destack_source = { workspace = true }
-destack_workspace = { workspace = true }
+destack_workspace = { path = "../workspace", default-features = false }
 
 # general
 aho-corasick = { workspace = true }

@@ -2,6 +2,7 @@ mod analysis;
 mod error;
 mod file;
 mod lifecycle;
+#[cfg(feature = "query")]
 mod query;
 mod types;
 mod update;
