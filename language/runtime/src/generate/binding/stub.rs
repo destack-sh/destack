@@ -1,0 +1,467 @@
+use super::*;
+
+/// Render documentation comments for one generated stub implementation.
+fn write_stub_docs(
+    output: &mut String,
+    entry: &BindingEntry,
+    extern_name: &str,
+    is_simulated: bool,
+) {
+    if let Some(documentation) = entry.documentation.as_deref() {
+        for line in documentation.lines() {
+            if line.trim().is_empty() {
+                output.push_str("///\n");
+            } else {
+                output.push_str(&format!("/// {line}\n"));
+            }
+        }
+    } else if is_simulated {
+        output.push_str(&format!("/// Simulated binding for `{extern_name}`.\n"));
+    } else {
+        output.push_str(&format!("/// Binding for `{extern_name}`.\n"));
+    }
+}
+
+/// Render stub native bindings for a runtime domain.
+pub(crate) fn render_native_stub(domain: &str, bindings: &BindingCatalogEntry) -> String {
+    render_native_like_stub(domain, bindings, "pub(crate)")
+}
+
+/// Render stub host bindings for a runtime domain.
+pub(crate) fn render_host_stub(domain: &str, bindings: &BindingCatalogEntry) -> String {
+    render_native_like_stub(domain, bindings, "pub(crate)")
+}
+
+/// Render stub host-like bindings for a runtime domain.
+fn render_native_like_stub(
+    domain: &str,
+    bindings: &BindingCatalogEntry,
+    function_visibility: &str,
+) -> String {
+    // build a deterministic list of binding descriptors
+    let consts = build_binding_consts(domain, bindings);
+
+    // collect required imports for the native stub
+    let usage = collect_native_usage(bindings);
+
+    // collect domain-specific named types for imports
+    let mut named_types = collect_native_named_types(domain, bindings);
+    let type_domains = collect_type_domains(domain, bindings);
+    if domain == "error" {
+        named_types.remove("PlatformError");
+    }
+
+    // render the stub file content
+    let mut output = String::new();
+    output.push_str(GENERATED_STUB_MARKER);
+    output.push_str("#![allow(dead_code)]\n");
+    output.push_str("#![allow(unused_imports)]\n");
+    output.push_str("#![allow(clippy::missing_safety_doc)]\n");
+    output.push_str("use crate::diagnostic::{RuntimeError, RuntimeResult};\n");
+    output.push_str(&format!(
+        "use crate::platform::{domain}::bindings_generated as bindings;\n"
+    ));
+    output.push_str("use crate::platform::{\n");
+    output.push_str("    PlatformError,\n");
+    if usage.uses_platform_slice {
+        output.push_str("    NativeSlice,\n");
+    }
+    if usage.uses_platform_array {
+        output.push_str("    NativeArray,\n");
+    }
+    if usage.uses_platform_string_ref {
+        output.push_str("    NativeStringRef,\n");
+    }
+    if usage.uses_platform_string_slice {
+        output.push_str("    NativeStringSlice,\n");
+    }
+    output.push_str("};\n\n");
+    output.push_str("use crate::runtime::RuntimeCallContext;\n");
+    output.push_str("use bindings::*;\n\n");
+    if !type_domains.is_empty() {
+        let imports = type_domains
+            .iter()
+            .map(|domain| domain.as_str())
+            .collect::<Vec<_>>()
+            .join(", ");
+        output.push_str(&format!("use crate::platform::{{{imports}}};\n"));
+    }
+    if !named_types.is_empty() {
+        let names = named_types.iter().cloned().collect::<Vec<_>>().join(", ");
+        output.push_str(&format!("use crate::platform::{domain}::{{{names}}};\n\n"));
+    }
+    if domain == "error" {
+        output.push_str("use crate::platform::error as platform_error;\n\n");
+    }
+    output.push('\n');
+
+    for binding in &consts {
+        let entry = binding.entry;
+        if !entry.return_is_result {
+            panic!(
+                "platform binding {} must return Result",
+                binding.extern_name
+            );
+        }
+
+        let function_name = binding.implementation_fn_name.clone();
+        let mut params = Vec::new();
+        let mut unused = Vec::new();
+
+        if entry.return_binding != BindingType::Void {
+            let out_type = native_type_for_binding(domain, &entry.return_binding);
+            params.push(format!("out: *mut {out_type}"));
+            unused.push("out".to_string());
+        }
+
+        for (index, param) in entry.parameters.iter().enumerate() {
+            let name = sanitize_param_name(&param.name, index);
+            let ty = native_type_for_binding(domain, &param.binding_type);
+            params.push(format!("{name}: {ty}"));
+            unused.push(name);
+        }
+
+        write_stub_docs(&mut output, entry, binding.extern_name, false);
+        output.push_str(&format!(
+            "{function_visibility} unsafe fn {function_name}(context: &RuntimeCallContext{}) -> RuntimeResult<()> {{\n",
+            if params.is_empty() {
+                String::new()
+            } else {
+                format!(", {}", params.join(", "))
+            }
+        ));
+        output.push_str(&format!(
+            "    context.check_policy({})?;\n",
+            binding.const_name
+        ));
+        if entry.return_binding != BindingType::Void {
+            output.push_str("    if out.is_null() {\n");
+            output.push_str(
+                "        return Err(RuntimeError::from(PlatformError::null_pointer(\"out\")).boxed());\n",
+            );
+            output.push_str("    }\n");
+        }
+        if let Some((first, rest)) = unused.split_first() {
+            if rest.is_empty() {
+                output.push_str(&format!("    let _ = {first};\n"));
+            } else {
+                output.push_str("    let _ = (");
+                output.push_str(&unused.join(", "));
+                output.push_str(");\n");
+            }
+        }
+        output.push('\n');
+        output.push_str("    Err(RuntimeError::from(PlatformError::not_supported(\n");
+        output.push_str(&format!("        \"{}\",\n", binding.extern_name));
+        output.push_str("    ))\n");
+        output.push_str("    .boxed())\n");
+        output.push_str("}\n\n");
+    }
+
+    output
+}
+
+/// Render stub VM bindings for a runtime domain.
+pub(crate) fn render_vm_stub(domain: &str, bindings: &BindingCatalogEntry) -> String {
+    // build a deterministic list of binding descriptors
+    let consts = build_binding_consts(domain, bindings);
+    let vm_types = collect_vm_named_types(domain, bindings);
+    let type_domains = collect_type_domains(domain, bindings);
+    let vm_usage = collect_vm_stub_usage(bindings);
+
+    // render the stub file content
+    let mut output = String::new();
+    output.push_str(GENERATED_STUB_MARKER);
+    output.push_str("#![allow(dead_code)]\n");
+    output.push_str("#![allow(unused_imports)]\n");
+    output.push_str("use destack_vm as vm;\n");
+    output.push_str("use crate::diagnostic::{RuntimeError, RuntimeResult};\n");
+    output.push_str("use crate::platform::PlatformError;\n");
+    let mut vm_imports = Vec::new();
+    if vm_usage.uses_vm_slice {
+        vm_imports.push("VmSlice");
+    }
+    if vm_usage.uses_vm_array {
+        vm_imports.push("VmArray");
+    }
+    if !vm_imports.is_empty() {
+        output.push_str(&format!(
+            "use crate::platform::{{{}}};\n",
+            vm_imports.join(", ")
+        ));
+    }
+    if !type_domains.is_empty() {
+        let imports = type_domains
+            .iter()
+            .map(|domain| domain.as_str())
+            .collect::<Vec<_>>()
+            .join(", ");
+        output.push_str(&format!("use crate::platform::{{{imports}}};\n"));
+    }
+    if !vm_types.is_empty() {
+        let names = vm_types.iter().cloned().collect::<Vec<_>>().join(", ");
+        output.push_str(&format!("use crate::platform::{domain}::{{{names}}};\n"));
+    }
+    output.push_str("use crate::runtime::RuntimeCallContext;\n\n");
+
+    for binding in &consts {
+        let entry = binding.entry;
+        let method_name = binding.implementation_fn_name.clone();
+        let return_type = render_return_type(domain, entry);
+        let params = render_params(domain, entry);
+        let mut unused = Vec::new();
+
+        for (index, param) in entry.parameters.iter().enumerate() {
+            unused.push(sanitize_param_name(&param.name, index));
+        }
+
+        write_stub_docs(&mut output, entry, binding.extern_name, false);
+        output.push_str(&format!("pub(crate) fn {method_name}(\n"));
+        output.push_str("    _runtime: &RuntimeCallContext,\n");
+        output.push_str("    _context: &mut vm::ExternalCallContext<'_>,\n");
+        for param in &params {
+            output.push_str(&format!("    {param},\n"));
+        }
+        output.push_str(&format!(") -> RuntimeResult<{return_type}> {{\n"));
+        if let Some((first, rest)) = unused.split_first() {
+            if rest.is_empty() {
+                output.push_str(&format!("    let _ = {first};\n"));
+            } else {
+                output.push_str("    let _ = (");
+                output.push_str(&unused.join(", "));
+                output.push_str(");\n");
+            }
+        }
+        output.push_str("    Err(RuntimeError::from(PlatformError::not_supported(\n");
+        output.push_str(&format!(
+            "        \"{} is not available in the VM yet\",\n",
+            binding.extern_name
+        ));
+        output.push_str("    ))\n");
+        output.push_str("    .boxed())\n");
+        output.push_str("}\n\n");
+    }
+
+    output
+}
+
+/// Render stub simulated native bindings for a runtime domain.
+pub(crate) fn render_simulated_native_stub(domain: &str, bindings: &BindingCatalogEntry) -> String {
+    // build a deterministic list of binding descriptors
+    let consts = build_binding_consts(domain, bindings);
+
+    // collect required imports for the simulated native stub
+    let usage = collect_native_usage(bindings);
+
+    // collect domain-specific named types for imports
+    let named_types = collect_native_stub_named_types(domain, bindings);
+    let type_domains = collect_type_domains(domain, bindings);
+
+    // render the stub file content
+    let mut output = String::new();
+    output.push_str(GENERATED_STUB_MARKER);
+    output.push_str("#![allow(dead_code)]\n");
+    output.push_str("#![allow(unused_imports)]\n");
+    output.push_str("#![allow(clippy::missing_safety_doc)]\n");
+    output.push_str("use crate::diagnostic::{RuntimeError, RuntimeResult};\n");
+    output.push_str("use crate::platform::PlatformError;\n");
+    output.push_str("use crate::platform::{\n");
+    if usage.uses_platform_slice {
+        output.push_str("    NativeSlice,\n");
+    }
+    if usage.uses_platform_array {
+        output.push_str("    NativeArray,\n");
+    }
+    if usage.uses_platform_string_ref {
+        output.push_str("    NativeStringRef,\n");
+    }
+    if usage.uses_platform_string_slice {
+        output.push_str("    NativeStringSlice,\n");
+    }
+    output.push_str("};\n\n");
+    output.push_str("use crate::runtime::RuntimeCallContext;\n\n");
+    if !type_domains.is_empty() {
+        let imports = type_domains
+            .iter()
+            .map(|domain| domain.as_str())
+            .collect::<Vec<_>>()
+            .join(", ");
+        output.push_str(&format!("use crate::platform::{{{imports}}};\n"));
+    }
+    if !named_types.is_empty() {
+        let names = named_types.iter().cloned().collect::<Vec<_>>().join(", ");
+        output.push_str(&format!("use crate::platform::{domain}::{{{names}}};\n\n"));
+    }
+    if domain == "error" {
+        output.push_str("use crate::platform::error as platform_error;\n\n");
+    }
+    output.push('\n');
+
+    for binding in &consts {
+        let entry = binding.entry;
+        if !entry.return_is_result {
+            panic!(
+                "platform binding {} must return Result",
+                binding.extern_name
+            );
+        }
+
+        let function_name = binding.implementation_fn_name.clone();
+        let mut params = Vec::new();
+        let mut unused = Vec::new();
+
+        if entry.return_binding != BindingType::Void {
+            let out_type = native_type_for_binding(domain, &entry.return_binding);
+            params.push(format!("out: *mut {out_type}"));
+            unused.push("out".to_string());
+        }
+
+        for (index, param) in entry.parameters.iter().enumerate() {
+            let name = sanitize_param_name(&param.name, index);
+            let ty = native_type_for_binding(domain, &param.binding_type);
+            params.push(format!("{name}: {ty}"));
+            unused.push(name);
+        }
+
+        write_stub_docs(&mut output, entry, binding.extern_name, true);
+        output.push_str(&format!(
+            "pub(crate) unsafe fn {function_name}(context: &RuntimeCallContext{}) -> RuntimeResult<()> {{\n",
+            if params.is_empty() {
+                String::new()
+            } else {
+                format!(", {}", params.join(", "))
+            }
+        ));
+        output.push_str("    let _ = context;\n");
+        if let Some((first, rest)) = unused.split_first() {
+            if rest.is_empty() {
+                output.push_str(&format!("    let _ = {first};\n"));
+            } else {
+                output.push_str("    let _ = (");
+                output.push_str(&unused.join(", "));
+                output.push_str(");\n");
+            }
+        }
+        output.push('\n');
+        output.push_str("    Err(RuntimeError::from(PlatformError::not_supported(\n");
+        output.push_str(&format!("        \"{}\",\n", binding.extern_name));
+        output.push_str("    ))\n");
+        output.push_str("    .boxed())\n");
+        output.push_str("}\n\n");
+    }
+
+    output
+}
+
+/// Render stub simulated VM bindings for a runtime domain.
+pub(crate) fn render_simulated_vm_stub(domain: &str, bindings: &BindingCatalogEntry) -> String {
+    // build a deterministic list of binding descriptors
+    let consts = build_binding_consts(domain, bindings);
+    let vm_types = collect_vm_stub_named_types(domain, bindings);
+    let type_domains = collect_type_domains(domain, bindings);
+    let vm_usage = collect_vm_stub_usage(bindings);
+
+    // render the stub file content
+    let mut output = String::new();
+    output.push_str(GENERATED_STUB_MARKER);
+    output.push_str("#![allow(dead_code)]\n");
+    output.push_str("#![allow(unused_imports)]\n");
+    output.push_str("use destack_vm as vm;\n");
+    output.push_str("use crate::diagnostic::{RuntimeError, RuntimeResult};\n");
+    output.push_str("use crate::platform::PlatformError;\n");
+    let mut vm_imports = Vec::new();
+    if vm_usage.uses_vm_slice {
+        vm_imports.push("VmSlice");
+    }
+    if vm_usage.uses_vm_array {
+        vm_imports.push("VmArray");
+    }
+    if !vm_imports.is_empty() {
+        output.push_str(&format!(
+            "use crate::platform::{{{}}};\n",
+            vm_imports.join(", ")
+        ));
+    }
+    if !type_domains.is_empty() {
+        let imports = type_domains
+            .iter()
+            .map(|domain| domain.as_str())
+            .collect::<Vec<_>>()
+            .join(", ");
+        output.push_str(&format!("use crate::platform::{{{imports}}};\n"));
+    }
+    if !vm_types.is_empty() {
+        let names = vm_types.iter().cloned().collect::<Vec<_>>().join(", ");
+        output.push_str(&format!("use crate::platform::{domain}::{{{names}}};\n"));
+    }
+    output.push_str("use crate::runtime::RuntimeCallContext;\n\n");
+
+    for binding in &consts {
+        let entry = binding.entry;
+        let method_name = binding.implementation_fn_name.clone();
+        let return_type = render_return_type(domain, entry);
+        let params = render_params(domain, entry);
+        let mut unused = Vec::new();
+
+        for (index, param) in entry.parameters.iter().enumerate() {
+            unused.push(sanitize_param_name(&param.name, index));
+        }
+
+        write_stub_docs(&mut output, entry, binding.extern_name, true);
+        output.push_str(&format!("pub(crate) fn {method_name}(\n"));
+        output.push_str("    _runtime: &RuntimeCallContext,\n");
+        output.push_str("    _context: &mut vm::ExternalCallContext<'_>,\n");
+        for param in &params {
+            output.push_str(&format!("    {param},\n"));
+        }
+        output.push_str(&format!(") -> RuntimeResult<{return_type}> {{\n"));
+        if let Some((first, rest)) = unused.split_first() {
+            if rest.is_empty() {
+                output.push_str(&format!("    let _ = {first};\n"));
+            } else {
+                output.push_str("    let _ = (");
+                output.push_str(&unused.join(", "));
+                output.push_str(");\n");
+            }
+        }
+        output.push_str("    Err(RuntimeError::from(PlatformError::not_supported(\n");
+        output.push_str(&format!("        \"{}\",\n", binding.extern_name));
+        output.push_str("    ))\n");
+        output.push_str("    .boxed())\n");
+        output.push_str("}\n\n");
+    }
+
+    output
+}
+
+/// Render a simulated module re-export stub for a runtime domain.
+pub(crate) fn render_simulated_mod_stub() -> String {
+    let mut output = String::new();
+    output.push_str(GENERATED_STUB_MARKER);
+    output.push_str("pub(crate) mod native;\n");
+    output.push_str("pub(crate) mod vm;\n");
+    output
+}
+
+/// Render a runtime module re-export stub for a runtime domain.
+pub(crate) fn render_runtime_mod_stub() -> String {
+    let mut output = String::new();
+    output.push_str(GENERATED_STUB_MARKER);
+    output.push_str("pub(crate) mod native;\n");
+    output.push_str("pub(crate) mod vm;\n");
+    output
+}
+
+/// Render a runtime native re-export stub for a runtime domain.
+pub(crate) fn render_runtime_native_stub(domain: &str) -> String {
+    format!(
+        "{GENERATED_STUB_MARKER}#[allow(unused_imports)]\npub(crate) use crate::platform::{domain}::native::*;\n"
+    )
+}
+
+/// Render a runtime VM re-export stub for a runtime domain.
+pub(crate) fn render_runtime_vm_stub(domain: &str) -> String {
+    format!(
+        "{GENERATED_STUB_MARKER}#[allow(unused_imports)]\npub(crate) use crate::platform::{domain}::vm::*;\n"
+    )
+}

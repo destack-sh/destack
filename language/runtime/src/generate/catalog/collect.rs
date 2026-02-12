@@ -8,7 +8,7 @@ use destack_dir::{
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, Program};
 
-use crate::format::{
+use super::format::{
     binding_type_symbols, collect_binding_params, collect_binding_return, format_declared_signature,
 };
 use crate::model::{
