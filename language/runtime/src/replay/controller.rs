@@ -157,7 +157,15 @@ impl ReplayController {
 
     /// Resolve the payload policy for a binding descriptor.
     pub fn payload_policy_for(&self, spec: BindingDescriptor) -> RuntimeResult<ReplayPayload> {
-        let requested = self.payload_policy;
+        self.payload_policy_for_requested(spec, self.payload_policy)
+    }
+
+    /// Resolve one requested payload policy for a binding descriptor.
+    pub fn payload_policy_for_requested(
+        &self,
+        spec: BindingDescriptor,
+        requested: ReplayPayload,
+    ) -> RuntimeResult<ReplayPayload> {
         let supported = spec.replay_payload();
 
         if requested == ReplayPayload::ArgumentsAndResults && supported == ReplayPayload::Results {
@@ -347,6 +355,25 @@ impl ReplayController {
         Encode: FnOnce(&RuntimeResult<Value>) -> RuntimeResult<Option<Payload>>,
         Decode: FnOnce(Payload) -> RuntimeResult<Value>,
     {
+        self.run_binding_with_payload_policy(spec, self.payload_policy, call, encode, decode)
+    }
+
+    /// Run a binding with replay handling and one requested payload policy.
+    #[inline]
+    pub fn run_binding_with_payload_policy<Payload, Value, Call, Encode, Decode>(
+        &self,
+        spec: BindingDescriptor,
+        requested_payload: ReplayPayload,
+        call: Call,
+        encode: Encode,
+        decode: Decode,
+    ) -> RuntimeResult<Value>
+    where
+        Payload: Serialize + DeserializeOwned,
+        Call: FnOnce() -> RuntimeResult<Value>,
+        Encode: FnOnce(&RuntimeResult<Value>) -> RuntimeResult<Option<Payload>>,
+        Decode: FnOnce(Payload) -> RuntimeResult<Value>,
+    {
         if spec.replay_kind != BindingReplayKind::Regular {
             return Err(RuntimeError::ReplayMismatch {
                 name: spec.name.to_string(),
@@ -368,7 +395,7 @@ impl ReplayController {
         }
 
         // record path
-        let _ = self.payload_policy_for(spec)?;
+        let _ = self.payload_policy_for_requested(spec, requested_payload)?;
         let result = call();
         if mode == ExecutionMode::Record {
             let payload = encode(&result)?;
@@ -385,6 +412,40 @@ impl ReplayController {
     pub fn run_binding_with_context<Payload, Value, Context, Call, Encode, Decode>(
         &self,
         spec: BindingDescriptor,
+        context: &mut Context,
+        call: Call,
+        encode: Encode,
+        decode: Decode,
+    ) -> RuntimeResult<Value>
+    where
+        Payload: Serialize + DeserializeOwned,
+        Call: FnOnce(&mut Context) -> RuntimeResult<Value>,
+        Encode: FnOnce(&mut Context, &RuntimeResult<Value>) -> RuntimeResult<Option<Payload>>,
+        Decode: FnOnce(&mut Context, Payload) -> RuntimeResult<Value>,
+    {
+        self.run_binding_with_context_and_payload_policy(
+            spec,
+            self.payload_policy,
+            context,
+            call,
+            encode,
+            decode,
+        )
+    }
+
+    /// Run a binding with replay handling, context, and one requested payload policy.
+    #[inline]
+    pub fn run_binding_with_context_and_payload_policy<
+        Payload,
+        Value,
+        Context,
+        Call,
+        Encode,
+        Decode,
+    >(
+        &self,
+        spec: BindingDescriptor,
+        requested_payload: ReplayPayload,
         context: &mut Context,
         call: Call,
         encode: Encode,
@@ -417,7 +478,7 @@ impl ReplayController {
         }
 
         // record path
-        let _ = self.payload_policy_for(spec)?;
+        let _ = self.payload_policy_for_requested(spec, requested_payload)?;
         let result = call(context);
         if mode == ExecutionMode::Record {
             let payload = encode(context, &result)?;

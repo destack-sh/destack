@@ -125,20 +125,8 @@ fn resolve_path_bytes_cstring(path: PathBytes, name: &str) -> RuntimeResult<CStr
 
 /// Resolve a UTF-16 path into a CString by decoding to UTF-8.
 fn resolve_path_utf16_cstring(path: PathUtf16, name: &str) -> RuntimeResult<CString> {
-    let bytes = unsafe { path.0.as_slice()? };
-    if bytes.len() % 2 != 0 {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            name,
-            "path contains odd utf16 byte length",
-        ))
-        .boxed());
-    }
-
-    let utf16_units: Vec<u16> = bytes
-        .chunks_exact(2)
-        .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
-        .collect();
-    let decoded = String::from_utf16(&utf16_units).map_err(|_| {
+    let utf16_units = unsafe { path.0.as_slice()? };
+    let decoded = String::from_utf16(utf16_units).map_err(|_| {
         RuntimeError::from(PlatformError::invalid_argument_value(
             name,
             "path contains invalid utf16",
@@ -320,8 +308,8 @@ fn timespec_from_nanos(nanos: u64) -> libc::timespec {
     }
 }
 
-/// Stub for destack.fs.access.
-/// Stub for destack.fs.accessBytes.
+/// Binding implementation for `destack.fs.access`.
+/// Binding implementation for `destack.fs.accessBytes`.
 pub(crate) unsafe fn destack_fs_access_bytes(
     context: &RuntimeCallContext,
     path: PathBytes,
@@ -344,7 +332,7 @@ pub(crate) unsafe fn destack_fs_access_bytes(
     // report unsupported access checks on non-unix platforms
 }
 
-/// Stub for destack.fs.accessUtf16.
+/// Binding implementation for `destack.fs.accessUtf16`.
 pub(crate) unsafe fn destack_fs_access_utf16(
     context: &RuntimeCallContext,
     path: PathUtf16,
@@ -362,8 +350,8 @@ pub(crate) unsafe fn destack_fs_access_utf16(
     // run the access check on windows platforms
 }
 
-/// Stub for destack.fs.chmod.
-/// Stub for destack.fs.chmodBytes.
+/// Binding implementation for `destack.fs.chmod`.
+/// Binding implementation for `destack.fs.chmodBytes`.
 pub(crate) unsafe fn destack_fs_chmod_bytes(
     context: &RuntimeCallContext,
     path: PathBytes,
@@ -386,7 +374,7 @@ pub(crate) unsafe fn destack_fs_chmod_bytes(
     // report unsupported chmod calls on non-unix platforms
 }
 
-/// Stub for destack.fs.chmodUtf16.
+/// Binding implementation for `destack.fs.chmodUtf16`.
 pub(crate) unsafe fn destack_fs_chmod_utf16(
     context: &RuntimeCallContext,
     path: PathUtf16,
@@ -404,8 +392,8 @@ pub(crate) unsafe fn destack_fs_chmod_utf16(
     // apply permissions on windows platforms
 }
 
-/// Stub for destack.fs.fchmodat.
-/// Stub for destack.fs.fchmodatBytes.
+/// Binding implementation for `destack.fs.fchmodat`.
+/// Binding implementation for `destack.fs.fchmodatBytes`.
 pub(crate) unsafe fn destack_fs_fchmodat_bytes(
     context: &RuntimeCallContext,
     dir: DirectoryHandle,
@@ -435,7 +423,7 @@ pub(crate) unsafe fn destack_fs_fchmodat_bytes(
     // report unsupported fchmodat calls on non-unix platforms
 }
 
-/// Stub for destack.fs.fchmodatUtf16.
+/// Binding implementation for `destack.fs.fchmodatUtf16`.
 pub(crate) unsafe fn destack_fs_fchmodat_utf16(
     context: &RuntimeCallContext,
     dir: DirectoryHandle,
@@ -455,8 +443,8 @@ pub(crate) unsafe fn destack_fs_fchmodat_utf16(
     // apply permissions on windows platforms
 }
 
-/// Stub for destack.fs.chown.
-/// Stub for destack.fs.chownBytes.
+/// Binding implementation for `destack.fs.chown`.
+/// Binding implementation for `destack.fs.chownBytes`.
 pub(crate) unsafe fn destack_fs_chown_bytes(
     context: &RuntimeCallContext,
     path: PathBytes,
@@ -480,7 +468,7 @@ pub(crate) unsafe fn destack_fs_chown_bytes(
     // report unsupported chown calls on non-unix platforms
 }
 
-/// Stub for destack.fs.chownUtf16.
+/// Binding implementation for `destack.fs.chownUtf16`.
 pub(crate) unsafe fn destack_fs_chown_utf16(
     context: &RuntimeCallContext,
     path: PathUtf16,
@@ -499,8 +487,8 @@ pub(crate) unsafe fn destack_fs_chown_utf16(
     // apply ownership on windows platforms
 }
 
-/// Stub for destack.fs.fchownat.
-/// Stub for destack.fs.fchownatBytes.
+/// Binding implementation for `destack.fs.fchownat`.
+/// Binding implementation for `destack.fs.fchownatBytes`.
 pub(crate) unsafe fn destack_fs_fchownat_bytes(
     context: &RuntimeCallContext,
     dir: DirectoryHandle,
@@ -524,7 +512,7 @@ pub(crate) unsafe fn destack_fs_fchownat_bytes(
     // report unsupported fchownat calls on non-unix platforms
 }
 
-/// Stub for destack.fs.fchownatUtf16.
+/// Binding implementation for `destack.fs.fchownatUtf16`.
 pub(crate) unsafe fn destack_fs_fchownat_utf16(
     context: &RuntimeCallContext,
     dir: DirectoryHandle,
@@ -545,7 +533,7 @@ pub(crate) unsafe fn destack_fs_fchownat_utf16(
     // apply ownership on windows platforms
 }
 
-/// Stub for destack.fs.close.
+/// Binding implementation for `destack.fs.close`.
 pub(crate) unsafe fn destack_fs_close(
     context: &RuntimeCallContext,
     handle: FileHandle,
@@ -576,7 +564,7 @@ pub(crate) unsafe fn destack_fs_close(
     Ok(())
 }
 
-/// Stub for destack.fs.closedir.
+/// Binding implementation for `destack.fs.closedir`.
 pub(crate) unsafe fn destack_fs_closedir(
     context: &RuntimeCallContext,
     handle: DirectoryHandle,
@@ -607,8 +595,8 @@ pub(crate) unsafe fn destack_fs_closedir(
     Ok(())
 }
 
-/// Stub for destack.fs.copyfile.
-/// Stub for destack.fs.copyfileBytes.
+/// Binding implementation for `destack.fs.copyfile`.
+/// Binding implementation for `destack.fs.copyfileBytes`.
 pub(crate) unsafe fn destack_fs_copyfile_bytes(
     context: &RuntimeCallContext,
     from: PathBytes,
@@ -739,7 +727,7 @@ pub(crate) unsafe fn destack_fs_copyfile_bytes(
     Ok(())
 }
 
-/// Stub for destack.fs.copyfileUtf16.
+/// Binding implementation for `destack.fs.copyfileUtf16`.
 pub(crate) unsafe fn destack_fs_copyfile_utf16(
     context: &RuntimeCallContext,
     from: PathUtf16,
@@ -767,7 +755,7 @@ pub(crate) unsafe fn destack_fs_copyfile_utf16(
     // perform the file copy on windows platforms
 }
 
-/// Stub for destack.fs.fchmod.
+/// Binding implementation for `destack.fs.fchmod`.
 pub(crate) unsafe fn destack_fs_fchmod(
     context: &RuntimeCallContext,
     handle: FileHandle,
@@ -785,7 +773,7 @@ pub(crate) unsafe fn destack_fs_fchmod(
     }
 }
 
-/// Stub for destack.fs.fchown.
+/// Binding implementation for `destack.fs.fchown`.
 pub(crate) unsafe fn destack_fs_fchown(
     context: &RuntimeCallContext,
     handle: FileHandle,
@@ -804,7 +792,7 @@ pub(crate) unsafe fn destack_fs_fchown(
     }
 }
 
-/// Stub for destack.fs.fdatasync.
+/// Binding implementation for `destack.fs.fdatasync`.
 pub(crate) unsafe fn destack_fs_fdatasync(
     context: &RuntimeCallContext,
     handle: FileHandle,
@@ -821,7 +809,7 @@ pub(crate) unsafe fn destack_fs_fdatasync(
     }
 }
 
-/// Stub for destack.fs.fstat.
+/// Binding implementation for `destack.fs.fstat`.
 pub(crate) unsafe fn destack_fs_fstat(
     context: &RuntimeCallContext,
     out: *mut Stat,
@@ -849,7 +837,7 @@ pub(crate) unsafe fn destack_fs_fstat(
     }
 }
 
-/// Stub for destack.fs.fstatfs.
+/// Binding implementation for `destack.fs.fstatfs`.
 pub(crate) unsafe fn destack_fs_fstatfs(
     context: &RuntimeCallContext,
     out: *mut StatFs,
@@ -871,7 +859,7 @@ pub(crate) unsafe fn destack_fs_fstatfs(
     }
 }
 
-/// Stub for destack.fs.fsync.
+/// Binding implementation for `destack.fs.fsync`.
 pub(crate) unsafe fn destack_fs_fsync(
     context: &RuntimeCallContext,
     handle: FileHandle,
@@ -888,7 +876,7 @@ pub(crate) unsafe fn destack_fs_fsync(
     }
 }
 
-/// Stub for destack.fs.ftruncate.
+/// Binding implementation for `destack.fs.ftruncate`.
 pub(crate) unsafe fn destack_fs_ftruncate(
     context: &RuntimeCallContext,
     handle: FileHandle,
@@ -907,7 +895,7 @@ pub(crate) unsafe fn destack_fs_ftruncate(
     }
 }
 
-/// Stub for destack.fs.seek.
+/// Binding implementation for `destack.fs.seek`.
 pub(crate) unsafe fn destack_fs_seek(
     context: &RuntimeCallContext,
     out: *mut FileOffset,
@@ -942,7 +930,7 @@ pub(crate) unsafe fn destack_fs_seek(
     Ok(())
 }
 
-/// Stub for destack.fs.fadvise.
+/// Binding implementation for `destack.fs.fadvise`.
 pub(crate) unsafe fn destack_fs_fadvise(
     context: &RuntimeCallContext,
     handle: FileHandle,
@@ -1003,7 +991,7 @@ pub(crate) unsafe fn destack_fs_fadvise(
     }
 }
 
-/// Stub for destack.fs.fallocate.
+/// Binding implementation for `destack.fs.fallocate`.
 pub(crate) unsafe fn destack_fs_fallocate(
     context: &RuntimeCallContext,
     handle: FileHandle,
@@ -1073,7 +1061,7 @@ pub(crate) unsafe fn destack_fs_fallocate(
     }
 }
 
-/// Stub for destack.fs.syncFileRange.
+/// Binding implementation for `destack.fs.syncFileRange`.
 pub(crate) unsafe fn destack_fs_sync_file_range(
     context: &RuntimeCallContext,
     handle: FileHandle,
@@ -1106,7 +1094,7 @@ pub(crate) unsafe fn destack_fs_sync_file_range(
     }
 }
 
-/// Stub for destack.fs.dup.
+/// Binding implementation for `destack.fs.dup`.
 pub(crate) unsafe fn destack_fs_dup(
     context: &RuntimeCallContext,
     out: *mut FileHandle,
@@ -1136,7 +1124,7 @@ pub(crate) unsafe fn destack_fs_dup(
     Ok(())
 }
 
-/// Stub for destack.fs.dup2.
+/// Binding implementation for `destack.fs.dup2`.
 pub(crate) unsafe fn destack_fs_dup2(
     context: &RuntimeCallContext,
     out: *mut FileHandle,
@@ -1170,7 +1158,7 @@ pub(crate) unsafe fn destack_fs_dup2(
     Ok(())
 }
 
-/// Stub for destack.fs.dup3.
+/// Binding implementation for `destack.fs.dup3`.
 pub(crate) unsafe fn destack_fs_dup3(
     context: &RuntimeCallContext,
     out: *mut FileHandle,
@@ -1216,7 +1204,7 @@ pub(crate) unsafe fn destack_fs_dup3(
     Ok(())
 }
 
-/// Stub for destack.fs.futimes.
+/// Binding implementation for `destack.fs.futimes`.
 pub(crate) unsafe fn destack_fs_futimes(
     context: &RuntimeCallContext,
     handle: FileHandle,
@@ -1236,8 +1224,8 @@ pub(crate) unsafe fn destack_fs_futimes(
     }
 }
 
-/// Stub for destack.fs.link.
-/// Stub for destack.fs.linkBytes.
+/// Binding implementation for `destack.fs.link`.
+/// Binding implementation for `destack.fs.linkBytes`.
 pub(crate) unsafe fn destack_fs_link_bytes(
     context: &RuntimeCallContext,
     existingpath: PathBytes,
@@ -1259,7 +1247,7 @@ pub(crate) unsafe fn destack_fs_link_bytes(
     }
 }
 
-/// Stub for destack.fs.linkUtf16.
+/// Binding implementation for `destack.fs.linkUtf16`.
 pub(crate) unsafe fn destack_fs_link_utf16(
     context: &RuntimeCallContext,
     existingpath: PathUtf16,
@@ -1277,8 +1265,8 @@ pub(crate) unsafe fn destack_fs_link_utf16(
     // create the link on windows platforms
 }
 
-/// Stub for destack.fs.lstat.
-/// Stub for destack.fs.lstatBytes.
+/// Binding implementation for `destack.fs.lstat`.
+/// Binding implementation for `destack.fs.lstatBytes`.
 pub(crate) unsafe fn destack_fs_lstat_bytes(
     context: &RuntimeCallContext,
     out: *mut Stat,
@@ -1309,7 +1297,7 @@ pub(crate) unsafe fn destack_fs_lstat_bytes(
     }
 }
 
-/// Stub for destack.fs.lstatUtf16.
+/// Binding implementation for `destack.fs.lstatUtf16`.
 pub(crate) unsafe fn destack_fs_lstat_utf16(
     context: &RuntimeCallContext,
     out: *mut Stat,
@@ -1332,8 +1320,8 @@ pub(crate) unsafe fn destack_fs_lstat_utf16(
     // read the stat data on windows platforms
 }
 
-/// Stub for destack.fs.lutimes.
-/// Stub for destack.fs.lutimesBytes.
+/// Binding implementation for `destack.fs.lutimes`.
+/// Binding implementation for `destack.fs.lutimesBytes`.
 pub(crate) unsafe fn destack_fs_lutimes_bytes(
     context: &RuntimeCallContext,
     path: PathBytes,
@@ -1363,7 +1351,7 @@ pub(crate) unsafe fn destack_fs_lutimes_bytes(
     }
 }
 
-/// Stub for destack.fs.lutimesUtf16.
+/// Binding implementation for `destack.fs.lutimesUtf16`.
 pub(crate) unsafe fn destack_fs_lutimes_utf16(
     context: &RuntimeCallContext,
     path: PathUtf16,
@@ -1382,8 +1370,8 @@ pub(crate) unsafe fn destack_fs_lutimes_utf16(
     // apply timestamps on windows platforms
 }
 
-/// Stub for destack.fs.utimensat.
-/// Stub for destack.fs.utimensatBytes.
+/// Binding implementation for `destack.fs.utimensat`.
+/// Binding implementation for `destack.fs.utimensatBytes`.
 pub(crate) unsafe fn destack_fs_utimensat_bytes(
     context: &RuntimeCallContext,
     dir: DirectoryHandle,
@@ -1415,7 +1403,7 @@ pub(crate) unsafe fn destack_fs_utimensat_bytes(
     // report unsupported utimensat calls on non-unix platforms
 }
 
-/// Stub for destack.fs.utimensatUtf16.
+/// Binding implementation for `destack.fs.utimensatUtf16`.
 pub(crate) unsafe fn destack_fs_utimensat_utf16(
     context: &RuntimeCallContext,
     dir: DirectoryHandle,
@@ -1436,9 +1424,9 @@ pub(crate) unsafe fn destack_fs_utimensat_utf16(
     // apply timestamps on windows platforms
 }
 
-/// Stub for destack.fs.mkdir.
-/// Stub for destack.fs.mkdtemp.
-/// Stub for destack.fs.mkdtempBytes.
+/// Binding implementation for `destack.fs.mkdir`.
+/// Binding implementation for `destack.fs.mkdtemp`.
+/// Binding implementation for `destack.fs.mkdtempBytes`.
 pub(crate) unsafe fn destack_fs_mkdtemp_bytes(
     context: &RuntimeCallContext,
     out: *mut PathBytes,
@@ -1476,7 +1464,7 @@ pub(crate) unsafe fn destack_fs_mkdtemp_bytes(
     }
 }
 
-/// Stub for destack.fs.mkdtempUtf16.
+/// Binding implementation for `destack.fs.mkdtempUtf16`.
 #[allow(dead_code)]
 pub(crate) unsafe fn destack_fs_mkdtemp_utf16(
     context: &RuntimeCallContext,
@@ -1497,8 +1485,8 @@ pub(crate) unsafe fn destack_fs_mkdtemp_utf16(
     // create the temporary directory on windows platforms
 }
 
-/// Stub for destack.fs.open.
-/// Stub for destack.fs.openBytes.
+/// Binding implementation for `destack.fs.open`.
+/// Binding implementation for `destack.fs.openBytes`.
 pub(crate) unsafe fn destack_fs_open_bytes(
     context: &RuntimeCallContext,
     out: *mut FileHandle,
@@ -1532,7 +1520,7 @@ pub(crate) unsafe fn destack_fs_open_bytes(
     }
 }
 
-/// Stub for destack.fs.openUtf16.
+/// Binding implementation for `destack.fs.openUtf16`.
 pub(crate) unsafe fn destack_fs_open_utf16(
     context: &RuntimeCallContext,
     out: *mut FileHandle,
@@ -1554,8 +1542,8 @@ pub(crate) unsafe fn destack_fs_open_utf16(
     // open the file on windows platforms
 }
 
-/// Stub for destack.fs.opendir.
-/// Stub for destack.fs.opendirBytes.
+/// Binding implementation for `destack.fs.opendir`.
+/// Binding implementation for `destack.fs.opendirBytes`.
 pub(crate) unsafe fn destack_fs_opendir_bytes(
     context: &RuntimeCallContext,
     out: *mut DirectoryHandle,
@@ -1588,7 +1576,7 @@ pub(crate) unsafe fn destack_fs_opendir_bytes(
     }
 }
 
-/// Stub for destack.fs.opendirUtf16.
+/// Binding implementation for `destack.fs.opendirUtf16`.
 pub(crate) unsafe fn destack_fs_opendir_utf16(
     context: &RuntimeCallContext,
     out: *mut DirectoryHandle,
@@ -1608,7 +1596,7 @@ pub(crate) unsafe fn destack_fs_opendir_utf16(
     // open the directory on windows platforms
 }
 
-/// Stub for destack.fs.read.
+/// Binding implementation for `destack.fs.read`.
 pub(crate) unsafe fn destack_fs_read(
     context: &RuntimeCallContext,
     out: *mut u64,
@@ -1637,7 +1625,7 @@ pub(crate) unsafe fn destack_fs_read(
     Ok(())
 }
 
-/// Stub for destack.fs.pread.
+/// Binding implementation for `destack.fs.pread`.
 pub(crate) unsafe fn destack_fs_pread(
     context: &RuntimeCallContext,
     out: *mut u64,
@@ -1675,7 +1663,7 @@ pub(crate) unsafe fn destack_fs_pread(
     Ok(())
 }
 
-/// Stub for destack.fs.readdir.
+/// Binding implementation for `destack.fs.readdir`.
 pub(crate) unsafe fn destack_fs_readdir(
     context: &RuntimeCallContext,
     out: *mut NativeArray<Dirent>,
@@ -1764,8 +1752,8 @@ pub(crate) unsafe fn destack_fs_readdir(
     }
 }
 
-/// Stub for destack.fs.readlink.
-/// Stub for destack.fs.readlinkBytes.
+/// Binding implementation for `destack.fs.readlink`.
+/// Binding implementation for `destack.fs.readlinkBytes`.
 pub(crate) unsafe fn destack_fs_readlink_bytes(
     context: &RuntimeCallContext,
     out: *mut PathBytes,
@@ -1787,7 +1775,7 @@ pub(crate) unsafe fn destack_fs_readlink_bytes(
     }
 }
 
-/// Stub for destack.fs.readlinkUtf16.
+/// Binding implementation for `destack.fs.readlinkUtf16`.
 #[allow(dead_code)]
 pub(crate) unsafe fn destack_fs_readlink_utf16(
     context: &RuntimeCallContext,
@@ -1808,7 +1796,7 @@ pub(crate) unsafe fn destack_fs_readlink_utf16(
     // read the symlink target on windows platforms
 }
 
-/// Stub for destack.fs.readv.
+/// Binding implementation for `destack.fs.readv`.
 pub(crate) unsafe fn destack_fs_readv(
     context: &RuntimeCallContext,
     out: *mut u64,
@@ -1845,7 +1833,7 @@ pub(crate) unsafe fn destack_fs_readv(
     Ok(())
 }
 
-/// Stub for destack.fs.preadv.
+/// Binding implementation for `destack.fs.preadv`.
 pub(crate) unsafe fn destack_fs_preadv(
     context: &RuntimeCallContext,
     out: *mut u64,
@@ -1884,8 +1872,8 @@ pub(crate) unsafe fn destack_fs_preadv(
     Ok(())
 }
 
-/// Stub for destack.fs.realpath.
-/// Stub for destack.fs.realpathBytes.
+/// Binding implementation for `destack.fs.realpath`.
+/// Binding implementation for `destack.fs.realpathBytes`.
 pub(crate) unsafe fn destack_fs_realpath_bytes(
     context: &RuntimeCallContext,
     out: *mut PathBytes,
@@ -1915,7 +1903,7 @@ pub(crate) unsafe fn destack_fs_realpath_bytes(
     }
 }
 
-/// Stub for destack.fs.realpathUtf16.
+/// Binding implementation for `destack.fs.realpathUtf16`.
 #[allow(dead_code)]
 pub(crate) unsafe fn destack_fs_realpath_utf16(
     context: &RuntimeCallContext,
@@ -1936,8 +1924,8 @@ pub(crate) unsafe fn destack_fs_realpath_utf16(
     // resolve the canonical path on windows platforms
 }
 
-/// Stub for destack.fs.rename.
-/// Stub for destack.fs.renameBytes.
+/// Binding implementation for `destack.fs.rename`.
+/// Binding implementation for `destack.fs.renameBytes`.
 pub(crate) unsafe fn destack_fs_rename_bytes(
     context: &RuntimeCallContext,
     from: PathBytes,
@@ -1959,7 +1947,7 @@ pub(crate) unsafe fn destack_fs_rename_bytes(
     }
 }
 
-/// Stub for destack.fs.renameUtf16.
+/// Binding implementation for `destack.fs.renameUtf16`.
 pub(crate) unsafe fn destack_fs_rename_utf16(
     context: &RuntimeCallContext,
     from: PathUtf16,
@@ -1977,8 +1965,8 @@ pub(crate) unsafe fn destack_fs_rename_utf16(
     // rename the path on windows platforms
 }
 
-/// Stub for destack.fs.rmdir.
-/// Stub for destack.fs.rmdirBytes.
+/// Binding implementation for `destack.fs.rmdir`.
+/// Binding implementation for `destack.fs.rmdirBytes`.
 pub(crate) unsafe fn destack_fs_rmdir_bytes(
     context: &RuntimeCallContext,
     path: PathBytes,
@@ -1998,7 +1986,7 @@ pub(crate) unsafe fn destack_fs_rmdir_bytes(
     }
 }
 
-/// Stub for destack.fs.rmdirUtf16.
+/// Binding implementation for `destack.fs.rmdirUtf16`.
 pub(crate) unsafe fn destack_fs_rmdir_utf16(
     context: &RuntimeCallContext,
     path: PathUtf16,
@@ -2015,8 +2003,8 @@ pub(crate) unsafe fn destack_fs_rmdir_utf16(
     // remove the directory on windows platforms
 }
 
-/// Stub for destack.fs.stat.
-/// Stub for destack.fs.statBytes.
+/// Binding implementation for `destack.fs.stat`.
+/// Binding implementation for `destack.fs.statBytes`.
 pub(crate) unsafe fn destack_fs_stat_bytes(
     context: &RuntimeCallContext,
     out: *mut Stat,
@@ -2047,7 +2035,7 @@ pub(crate) unsafe fn destack_fs_stat_bytes(
     }
 }
 
-/// Stub for destack.fs.statUtf16.
+/// Binding implementation for `destack.fs.statUtf16`.
 pub(crate) unsafe fn destack_fs_stat_utf16(
     context: &RuntimeCallContext,
     out: *mut Stat,
@@ -2070,8 +2058,8 @@ pub(crate) unsafe fn destack_fs_stat_utf16(
     // read the stat data on windows platforms
 }
 
-/// Stub for destack.fs.statfs.
-/// Stub for destack.fs.statfsBytes.
+/// Binding implementation for `destack.fs.statfs`.
+/// Binding implementation for `destack.fs.statfsBytes`.
 pub(crate) unsafe fn destack_fs_statfs_bytes(
     context: &RuntimeCallContext,
     out: *mut StatFs,
@@ -2096,7 +2084,7 @@ pub(crate) unsafe fn destack_fs_statfs_bytes(
     }
 }
 
-/// Stub for destack.fs.statfsUtf16.
+/// Binding implementation for `destack.fs.statfsUtf16`.
 pub(crate) unsafe fn destack_fs_statfs_utf16(
     context: &RuntimeCallContext,
     out: *mut StatFs,
@@ -2119,8 +2107,8 @@ pub(crate) unsafe fn destack_fs_statfs_utf16(
     // read the statfs data on windows platforms
 }
 
-/// Stub for destack.fs.symlink.
-/// Stub for destack.fs.symlinkBytes.
+/// Binding implementation for `destack.fs.symlink`.
+/// Binding implementation for `destack.fs.symlinkBytes`.
 pub(crate) unsafe fn destack_fs_symlink_bytes(
     context: &RuntimeCallContext,
     target: PathBytes,
@@ -2146,7 +2134,7 @@ pub(crate) unsafe fn destack_fs_symlink_bytes(
     }
 }
 
-/// Stub for destack.fs.symlinkUtf16.
+/// Binding implementation for `destack.fs.symlinkUtf16`.
 pub(crate) unsafe fn destack_fs_symlink_utf16(
     context: &RuntimeCallContext,
     target: PathUtf16,
@@ -2168,8 +2156,8 @@ pub(crate) unsafe fn destack_fs_symlink_utf16(
     // create the symlink on windows platforms
 }
 
-/// Stub for destack.fs.truncate.
-/// Stub for destack.fs.truncateBytes.
+/// Binding implementation for `destack.fs.truncate`.
+/// Binding implementation for `destack.fs.truncateBytes`.
 pub(crate) unsafe fn destack_fs_truncate_bytes(
     context: &RuntimeCallContext,
     path: PathBytes,
@@ -2191,7 +2179,7 @@ pub(crate) unsafe fn destack_fs_truncate_bytes(
     }
 }
 
-/// Stub for destack.fs.truncateUtf16.
+/// Binding implementation for `destack.fs.truncateUtf16`.
 pub(crate) unsafe fn destack_fs_truncate_utf16(
     context: &RuntimeCallContext,
     path: PathUtf16,
@@ -2209,8 +2197,8 @@ pub(crate) unsafe fn destack_fs_truncate_utf16(
     // truncate the file on windows platforms
 }
 
-/// Stub for destack.fs.unlink.
-/// Stub for destack.fs.unlinkBytes.
+/// Binding implementation for `destack.fs.unlink`.
+/// Binding implementation for `destack.fs.unlinkBytes`.
 pub(crate) unsafe fn destack_fs_unlink_bytes(
     context: &RuntimeCallContext,
     path: PathBytes,
@@ -2230,7 +2218,7 @@ pub(crate) unsafe fn destack_fs_unlink_bytes(
     }
 }
 
-/// Stub for destack.fs.unlinkUtf16.
+/// Binding implementation for `destack.fs.unlinkUtf16`.
 pub(crate) unsafe fn destack_fs_unlink_utf16(
     context: &RuntimeCallContext,
     path: PathUtf16,
@@ -2247,8 +2235,8 @@ pub(crate) unsafe fn destack_fs_unlink_utf16(
     // unlink the file on windows platforms
 }
 
-/// Stub for destack.fs.utimes.
-/// Stub for destack.fs.utimesBytes.
+/// Binding implementation for `destack.fs.utimes`.
+/// Binding implementation for `destack.fs.utimesBytes`.
 pub(crate) unsafe fn destack_fs_utimes_bytes(
     context: &RuntimeCallContext,
     path: PathBytes,
@@ -2271,7 +2259,7 @@ pub(crate) unsafe fn destack_fs_utimes_bytes(
     }
 }
 
-/// Stub for destack.fs.utimesUtf16.
+/// Binding implementation for `destack.fs.utimesUtf16`.
 pub(crate) unsafe fn destack_fs_utimes_utf16(
     context: &RuntimeCallContext,
     path: PathUtf16,
@@ -2290,7 +2278,7 @@ pub(crate) unsafe fn destack_fs_utimes_utf16(
     // apply timestamps on windows platforms
 }
 
-/// Stub for destack.fs.write.
+/// Binding implementation for `destack.fs.write`.
 pub(crate) unsafe fn destack_fs_write(
     context: &RuntimeCallContext,
     out: *mut u64,
@@ -2319,7 +2307,7 @@ pub(crate) unsafe fn destack_fs_write(
     Ok(())
 }
 
-/// Stub for destack.fs.pwrite.
+/// Binding implementation for `destack.fs.pwrite`.
 pub(crate) unsafe fn destack_fs_pwrite(
     context: &RuntimeCallContext,
     out: *mut u64,
@@ -2357,7 +2345,7 @@ pub(crate) unsafe fn destack_fs_pwrite(
     Ok(())
 }
 
-/// Stub for destack.fs.writev.
+/// Binding implementation for `destack.fs.writev`.
 pub(crate) unsafe fn destack_fs_writev(
     context: &RuntimeCallContext,
     out: *mut u64,
@@ -2394,7 +2382,7 @@ pub(crate) unsafe fn destack_fs_writev(
     Ok(())
 }
 
-/// Stub for destack.fs.pwritev.
+/// Binding implementation for `destack.fs.pwritev`.
 pub(crate) unsafe fn destack_fs_pwritev(
     context: &RuntimeCallContext,
     out: *mut u64,
@@ -2433,8 +2421,8 @@ pub(crate) unsafe fn destack_fs_pwritev(
     Ok(())
 }
 
-/// Stub for destack.fs.openat.
-/// Stub for destack.fs.openatBytes.
+/// Binding implementation for `destack.fs.openat`.
+/// Binding implementation for `destack.fs.openatBytes`.
 pub(crate) unsafe fn destack_fs_openat_bytes(
     context: &RuntimeCallContext,
     out: *mut FileHandle,
@@ -2475,7 +2463,7 @@ pub(crate) unsafe fn destack_fs_openat_bytes(
     }
 }
 
-/// Stub for destack.fs.openatUtf16.
+/// Binding implementation for `destack.fs.openatUtf16`.
 pub(crate) unsafe fn destack_fs_openat_utf16(
     context: &RuntimeCallContext,
     out: *mut FileHandle,
@@ -2498,8 +2486,8 @@ pub(crate) unsafe fn destack_fs_openat_utf16(
     // open the file on windows platforms
 }
 
-/// Stub for destack.fs.openat2.
-/// Stub for destack.fs.openat2Bytes.
+/// Binding implementation for `destack.fs.openat2`.
+/// Binding implementation for `destack.fs.openat2Bytes`.
 pub(crate) unsafe fn destack_fs_openat2_bytes(
     context: &RuntimeCallContext,
     out: *mut FileHandle,
@@ -2555,7 +2543,7 @@ pub(crate) unsafe fn destack_fs_openat2_bytes(
     }
 }
 
-/// Stub for destack.fs.openat2Utf16.
+/// Binding implementation for `destack.fs.openat2Utf16`.
 pub(crate) unsafe fn destack_fs_openat2_utf16(
     context: &RuntimeCallContext,
     out: *mut FileHandle,
@@ -2577,7 +2565,7 @@ pub(crate) unsafe fn destack_fs_openat2_utf16(
     // open the file on windows platforms
 }
 
-/// Stub for destack.fs.mkdirBytes.
+/// Binding implementation for `destack.fs.mkdirBytes`.
 pub(crate) unsafe fn destack_fs_mkdir_bytes(
     context: &RuntimeCallContext,
     path: PathBytes,
@@ -2598,7 +2586,7 @@ pub(crate) unsafe fn destack_fs_mkdir_bytes(
     }
 }
 
-/// Stub for destack.fs.mkdirUtf16.
+/// Binding implementation for `destack.fs.mkdirUtf16`.
 pub(crate) unsafe fn destack_fs_mkdir_utf16(
     context: &RuntimeCallContext,
     path: PathUtf16,
@@ -2616,8 +2604,8 @@ pub(crate) unsafe fn destack_fs_mkdir_utf16(
     // create the directory on windows platforms
 }
 
-/// Stub for destack.fs.mkdirat.
-/// Stub for destack.fs.mkdiratBytes.
+/// Binding implementation for `destack.fs.mkdirat`.
+/// Binding implementation for `destack.fs.mkdiratBytes`.
 pub(crate) unsafe fn destack_fs_mkdirat_bytes(
     context: &RuntimeCallContext,
     dir: DirectoryHandle,
@@ -2636,7 +2624,7 @@ pub(crate) unsafe fn destack_fs_mkdirat_bytes(
     }
 }
 
-/// Stub for destack.fs.mkdiratUtf16.
+/// Binding implementation for `destack.fs.mkdiratUtf16`.
 pub(crate) unsafe fn destack_fs_mkdirat_utf16(
     context: &RuntimeCallContext,
     dir: DirectoryHandle,
@@ -2652,8 +2640,8 @@ pub(crate) unsafe fn destack_fs_mkdirat_utf16(
     // create the directory on windows platforms
 }
 
-/// Stub for destack.fs.renameat.
-/// Stub for destack.fs.renameatBytes.
+/// Binding implementation for `destack.fs.renameat`.
+/// Binding implementation for `destack.fs.renameatBytes`.
 pub(crate) unsafe fn destack_fs_renameat_bytes(
     context: &RuntimeCallContext,
     from_dir: DirectoryHandle,
@@ -2676,7 +2664,7 @@ pub(crate) unsafe fn destack_fs_renameat_bytes(
     }
 }
 
-/// Stub for destack.fs.renameatUtf16.
+/// Binding implementation for `destack.fs.renameatUtf16`.
 pub(crate) unsafe fn destack_fs_renameat_utf16(
     context: &RuntimeCallContext,
     from_dir: DirectoryHandle,
@@ -2693,8 +2681,8 @@ pub(crate) unsafe fn destack_fs_renameat_utf16(
     // rename the path on windows platforms
 }
 
-/// Stub for destack.fs.renameat2.
-/// Stub for destack.fs.renameat2Bytes.
+/// Binding implementation for `destack.fs.renameat2`.
+/// Binding implementation for `destack.fs.renameat2Bytes`.
 pub(crate) unsafe fn destack_fs_renameat2_bytes(
     context: &RuntimeCallContext,
     from_dir: DirectoryHandle,
@@ -2738,7 +2726,7 @@ pub(crate) unsafe fn destack_fs_renameat2_bytes(
     }
 }
 
-/// Stub for destack.fs.renameat2Utf16.
+/// Binding implementation for `destack.fs.renameat2Utf16`.
 pub(crate) unsafe fn destack_fs_renameat2_utf16(
     context: &RuntimeCallContext,
     from_dir: DirectoryHandle,
@@ -2756,8 +2744,8 @@ pub(crate) unsafe fn destack_fs_renameat2_utf16(
     // rename the path on windows platforms
 }
 
-/// Stub for destack.fs.unlinkat.
-/// Stub for destack.fs.unlinkatBytes.
+/// Binding implementation for `destack.fs.unlinkat`.
+/// Binding implementation for `destack.fs.unlinkatBytes`.
 pub(crate) unsafe fn destack_fs_unlinkat_bytes(
     context: &RuntimeCallContext,
     dir: DirectoryHandle,
@@ -2776,7 +2764,7 @@ pub(crate) unsafe fn destack_fs_unlinkat_bytes(
     }
 }
 
-/// Stub for destack.fs.unlinkatUtf16.
+/// Binding implementation for `destack.fs.unlinkatUtf16`.
 pub(crate) unsafe fn destack_fs_unlinkat_utf16(
     context: &RuntimeCallContext,
     dir: DirectoryHandle,
@@ -2792,8 +2780,8 @@ pub(crate) unsafe fn destack_fs_unlinkat_utf16(
     // unlink the path on windows platforms
 }
 
-/// Stub for destack.fs.linkat.
-/// Stub for destack.fs.linkatBytes.
+/// Binding implementation for `destack.fs.linkat`.
+/// Binding implementation for `destack.fs.linkatBytes`.
 pub(crate) unsafe fn destack_fs_linkat_bytes(
     context: &RuntimeCallContext,
     existing_dir: DirectoryHandle,
@@ -2824,7 +2812,7 @@ pub(crate) unsafe fn destack_fs_linkat_bytes(
     }
 }
 
-/// Stub for destack.fs.linkatUtf16.
+/// Binding implementation for `destack.fs.linkatUtf16`.
 pub(crate) unsafe fn destack_fs_linkat_utf16(
     context: &RuntimeCallContext,
     existing_dir: DirectoryHandle,
@@ -2849,8 +2837,8 @@ pub(crate) unsafe fn destack_fs_linkat_utf16(
     // link the paths on windows platforms
 }
 
-/// Stub for destack.fs.symlinkat.
-/// Stub for destack.fs.symlinkatBytes.
+/// Binding implementation for `destack.fs.symlinkat`.
+/// Binding implementation for `destack.fs.symlinkatBytes`.
 pub(crate) unsafe fn destack_fs_symlinkat_bytes(
     context: &RuntimeCallContext,
     target: PathBytes,
@@ -2874,7 +2862,7 @@ pub(crate) unsafe fn destack_fs_symlinkat_bytes(
     }
 }
 
-/// Stub for destack.fs.symlinkatUtf16.
+/// Binding implementation for `destack.fs.symlinkatUtf16`.
 pub(crate) unsafe fn destack_fs_symlinkat_utf16(
     context: &RuntimeCallContext,
     target: PathUtf16,
@@ -2891,8 +2879,8 @@ pub(crate) unsafe fn destack_fs_symlinkat_utf16(
     // create the symlink on windows platforms
 }
 
-/// Stub for destack.fs.readlinkat.
-/// Stub for destack.fs.readlinkatBytes.
+/// Binding implementation for `destack.fs.readlinkat`.
+/// Binding implementation for `destack.fs.readlinkatBytes`.
 pub(crate) unsafe fn destack_fs_readlinkat_bytes(
     context: &RuntimeCallContext,
     out: *mut PathBytes,
@@ -2916,7 +2904,7 @@ pub(crate) unsafe fn destack_fs_readlinkat_bytes(
     }
 }
 
-/// Stub for destack.fs.readlinkatUtf16.
+/// Binding implementation for `destack.fs.readlinkatUtf16`.
 #[allow(dead_code)]
 pub(crate) unsafe fn destack_fs_readlinkat_utf16(
     context: &RuntimeCallContext,
@@ -2938,8 +2926,8 @@ pub(crate) unsafe fn destack_fs_readlinkat_utf16(
     // read the symlink target on windows platforms
 }
 
-/// Stub for destack.fs.statat.
-/// Stub for destack.fs.statatBytes.
+/// Binding implementation for `destack.fs.statat`.
+/// Binding implementation for `destack.fs.statatBytes`.
 pub(crate) unsafe fn destack_fs_statat_bytes(
     context: &RuntimeCallContext,
     out: *mut Stat,
@@ -2976,7 +2964,7 @@ pub(crate) unsafe fn destack_fs_statat_bytes(
     }
 }
 
-/// Stub for destack.fs.statatUtf16.
+/// Binding implementation for `destack.fs.statatUtf16`.
 pub(crate) unsafe fn destack_fs_statat_utf16(
     context: &RuntimeCallContext,
     out: *mut Stat,
@@ -2998,7 +2986,7 @@ pub(crate) unsafe fn destack_fs_statat_utf16(
     // stat the path on windows platforms
 }
 
-/// Stub for destack.fs.lock.
+/// Binding implementation for `destack.fs.lock`.
 pub(crate) unsafe fn destack_fs_lock(
     context: &RuntimeCallContext,
     handle: FileHandle,
@@ -3015,7 +3003,7 @@ pub(crate) unsafe fn destack_fs_lock(
     }
 }
 
-/// Stub for destack.fs.copyFileRange.
+/// Binding implementation for `destack.fs.copyFileRange`.
 pub(crate) unsafe fn destack_fs_copy_file_range(
     context: &RuntimeCallContext,
     out: *mut u64,
@@ -3087,7 +3075,7 @@ pub(crate) unsafe fn destack_fs_copy_file_range(
     Ok(())
 }
 
-/// Stub for destack.fs.sendfile.
+/// Binding implementation for `destack.fs.sendfile`.
 pub(crate) unsafe fn destack_fs_sendfile(
     context: &RuntimeCallContext,
     out: *mut u64,
@@ -3444,7 +3432,7 @@ fn decode_xattr_list(
     Ok(context.store_array(names))
 }
 
-/// Stub for destack.fs.getxattrBytes.
+/// Binding implementation for `destack.fs.getxattrBytes`.
 pub(crate) unsafe fn destack_fs_getxattr_bytes(
     context: &RuntimeCallContext,
     out: *mut NativeArray<u8>,
@@ -3487,7 +3475,7 @@ pub(crate) unsafe fn destack_fs_getxattr_bytes(
     Ok(())
 }
 
-/// Stub for destack.fs.getxattrUtf16.
+/// Binding implementation for `destack.fs.getxattrUtf16`.
 pub(crate) unsafe fn destack_fs_getxattr_utf16(
     context: &RuntimeCallContext,
     out: *mut NativeArray<u8>,
@@ -3518,7 +3506,7 @@ pub(crate) unsafe fn destack_fs_getxattr_utf16(
     Ok(())
 }
 
-/// Stub for destack.fs.lgetxattrBytes.
+/// Binding implementation for `destack.fs.lgetxattrBytes`.
 pub(crate) unsafe fn destack_fs_lgetxattr_bytes(
     context: &RuntimeCallContext,
     out: *mut NativeArray<u8>,
@@ -3552,7 +3540,7 @@ pub(crate) unsafe fn destack_fs_lgetxattr_bytes(
     Ok(())
 }
 
-/// Stub for destack.fs.lgetxattrUtf16.
+/// Binding implementation for `destack.fs.lgetxattrUtf16`.
 pub(crate) unsafe fn destack_fs_lgetxattr_utf16(
     context: &RuntimeCallContext,
     out: *mut NativeArray<u8>,
@@ -3586,7 +3574,7 @@ pub(crate) unsafe fn destack_fs_lgetxattr_utf16(
     Ok(())
 }
 
-/// Stub for destack.fs.fgetxattr.
+/// Binding implementation for `destack.fs.fgetxattr`.
 pub(crate) unsafe fn destack_fs_fgetxattr_handle(
     context: &RuntimeCallContext,
     out: *mut NativeArray<u8>,
@@ -3620,7 +3608,7 @@ pub(crate) unsafe fn destack_fs_fgetxattr_handle(
     Ok(())
 }
 
-/// Stub for destack.fs.setxattrBytes.
+/// Binding implementation for `destack.fs.setxattrBytes`.
 pub(crate) unsafe fn destack_fs_setxattr_bytes(
     context: &RuntimeCallContext,
     path: PathBytes,
@@ -3647,7 +3635,7 @@ pub(crate) unsafe fn destack_fs_setxattr_bytes(
     Ok(())
 }
 
-/// Stub for destack.fs.setxattrUtf16.
+/// Binding implementation for `destack.fs.setxattrUtf16`.
 pub(crate) unsafe fn destack_fs_setxattr_utf16(
     context: &RuntimeCallContext,
     path: PathUtf16,
@@ -3674,7 +3662,7 @@ pub(crate) unsafe fn destack_fs_setxattr_utf16(
     Ok(())
 }
 
-/// Stub for destack.fs.lsetxattrBytes.
+/// Binding implementation for `destack.fs.lsetxattrBytes`.
 pub(crate) unsafe fn destack_fs_lsetxattr_bytes(
     context: &RuntimeCallContext,
     path: PathBytes,
@@ -3701,7 +3689,7 @@ pub(crate) unsafe fn destack_fs_lsetxattr_bytes(
     Ok(())
 }
 
-/// Stub for destack.fs.lsetxattrUtf16.
+/// Binding implementation for `destack.fs.lsetxattrUtf16`.
 pub(crate) unsafe fn destack_fs_lsetxattr_utf16(
     context: &RuntimeCallContext,
     path: PathUtf16,
@@ -3728,7 +3716,7 @@ pub(crate) unsafe fn destack_fs_lsetxattr_utf16(
     Ok(())
 }
 
-/// Stub for destack.fs.fsetxattr.
+/// Binding implementation for `destack.fs.fsetxattr`.
 pub(crate) unsafe fn destack_fs_fsetxattr_handle(
     context: &RuntimeCallContext,
     handle: FileHandle,
@@ -3755,7 +3743,7 @@ pub(crate) unsafe fn destack_fs_fsetxattr_handle(
     Ok(())
 }
 
-/// Stub for destack.fs.listxattrBytes.
+/// Binding implementation for `destack.fs.listxattrBytes`.
 pub(crate) unsafe fn destack_fs_listxattr_bytes(
     context: &RuntimeCallContext,
     out: *mut NativeArray<NativeStringRef>,
@@ -3780,7 +3768,7 @@ pub(crate) unsafe fn destack_fs_listxattr_bytes(
     Ok(())
 }
 
-/// Stub for destack.fs.listxattrUtf16.
+/// Binding implementation for `destack.fs.listxattrUtf16`.
 pub(crate) unsafe fn destack_fs_listxattr_utf16(
     context: &RuntimeCallContext,
     out: *mut NativeArray<NativeStringRef>,
@@ -3805,7 +3793,7 @@ pub(crate) unsafe fn destack_fs_listxattr_utf16(
     Ok(())
 }
 
-/// Stub for destack.fs.llistxattrBytes.
+/// Binding implementation for `destack.fs.llistxattrBytes`.
 pub(crate) unsafe fn destack_fs_llistxattr_bytes(
     context: &RuntimeCallContext,
     out: *mut NativeArray<NativeStringRef>,
@@ -3830,7 +3818,7 @@ pub(crate) unsafe fn destack_fs_llistxattr_bytes(
     Ok(())
 }
 
-/// Stub for destack.fs.llistxattrUtf16.
+/// Binding implementation for `destack.fs.llistxattrUtf16`.
 pub(crate) unsafe fn destack_fs_llistxattr_utf16(
     context: &RuntimeCallContext,
     out: *mut NativeArray<NativeStringRef>,
@@ -3855,7 +3843,7 @@ pub(crate) unsafe fn destack_fs_llistxattr_utf16(
     Ok(())
 }
 
-/// Stub for destack.fs.flistxattr.
+/// Binding implementation for `destack.fs.flistxattr`.
 pub(crate) unsafe fn destack_fs_flistxattr_handle(
     context: &RuntimeCallContext,
     out: *mut NativeArray<NativeStringRef>,
@@ -3880,7 +3868,7 @@ pub(crate) unsafe fn destack_fs_flistxattr_handle(
     Ok(())
 }
 
-/// Stub for destack.fs.removexattrBytes.
+/// Binding implementation for `destack.fs.removexattrBytes`.
 pub(crate) unsafe fn destack_fs_removexattr_bytes(
     context: &RuntimeCallContext,
     path: PathBytes,
@@ -3896,7 +3884,7 @@ pub(crate) unsafe fn destack_fs_removexattr_bytes(
     Ok(())
 }
 
-/// Stub for destack.fs.removexattrUtf16.
+/// Binding implementation for `destack.fs.removexattrUtf16`.
 pub(crate) unsafe fn destack_fs_removexattr_utf16(
     context: &RuntimeCallContext,
     path: PathUtf16,
@@ -3912,7 +3900,7 @@ pub(crate) unsafe fn destack_fs_removexattr_utf16(
     Ok(())
 }
 
-/// Stub for destack.fs.lremovexattrBytes.
+/// Binding implementation for `destack.fs.lremovexattrBytes`.
 pub(crate) unsafe fn destack_fs_lremovexattr_bytes(
     context: &RuntimeCallContext,
     path: PathBytes,
@@ -3928,7 +3916,7 @@ pub(crate) unsafe fn destack_fs_lremovexattr_bytes(
     Ok(())
 }
 
-/// Stub for destack.fs.lremovexattrUtf16.
+/// Binding implementation for `destack.fs.lremovexattrUtf16`.
 pub(crate) unsafe fn destack_fs_lremovexattr_utf16(
     context: &RuntimeCallContext,
     path: PathUtf16,
@@ -3944,7 +3932,7 @@ pub(crate) unsafe fn destack_fs_lremovexattr_utf16(
     Ok(())
 }
 
-/// Stub for destack.fs.fremovexattr.
+/// Binding implementation for `destack.fs.fremovexattr`.
 pub(crate) unsafe fn destack_fs_fremovexattr_handle(
     context: &RuntimeCallContext,
     handle: FileHandle,
@@ -3960,7 +3948,7 @@ pub(crate) unsafe fn destack_fs_fremovexattr_handle(
     Ok(())
 }
 
-/// Stub for destack.fs.mmapFile.
+/// Binding implementation for `destack.fs.mmapFile`.
 pub(crate) unsafe fn destack_fs_mmap_file(
     context: &RuntimeCallContext,
     out: *mut NativeSlice<u8>,
@@ -4030,7 +4018,7 @@ pub(crate) unsafe fn destack_fs_mmap_file(
     Ok(())
 }
 
-/// Stub for destack.fs.mmapAnonymous.
+/// Binding implementation for `destack.fs.mmapAnonymous`.
 pub(crate) unsafe fn destack_fs_mmap_anonymous(
     _context: &RuntimeCallContext,
     out: *mut NativeSlice<u8>,
@@ -4090,7 +4078,7 @@ pub(crate) unsafe fn destack_fs_mmap_anonymous(
     Ok(())
 }
 
-/// Stub for destack.fs.munmap.
+/// Binding implementation for `destack.fs.munmap`.
 pub(crate) unsafe fn destack_fs_munmap(
     _context: &RuntimeCallContext,
     mapping: NativeSlice<u8>,
@@ -4106,7 +4094,7 @@ pub(crate) unsafe fn destack_fs_munmap(
     Ok(())
 }
 
-/// Stub for destack.fs.mprotect.
+/// Binding implementation for `destack.fs.mprotect`.
 pub(crate) unsafe fn destack_fs_mprotect(
     _context: &RuntimeCallContext,
     mapping: NativeSlice<u8>,
@@ -4136,7 +4124,7 @@ pub(crate) unsafe fn destack_fs_mprotect(
     Ok(())
 }
 
-/// Stub for destack.fs.msync.
+/// Binding implementation for `destack.fs.msync`.
 pub(crate) unsafe fn destack_fs_msync(
     _context: &RuntimeCallContext,
     mapping: NativeSlice<u8>,
@@ -4165,7 +4153,7 @@ pub(crate) unsafe fn destack_fs_msync(
     Ok(())
 }
 
-/// Stub for destack.fs.madvise.
+/// Binding implementation for `destack.fs.madvise`.
 pub(crate) unsafe fn destack_fs_madvise(
     _context: &RuntimeCallContext,
     mapping: NativeSlice<u8>,

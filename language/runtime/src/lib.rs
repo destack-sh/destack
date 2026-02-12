@@ -23,6 +23,8 @@ pub mod runtime;
 #[cfg(not(feature = "generate_bindings"))]
 pub mod scheduler;
 #[cfg(not(feature = "generate_bindings"))]
+pub mod simulation;
+#[cfg(not(feature = "generate_bindings"))]
 pub mod snapshot;
 #[cfg(not(feature = "generate_bindings"))]
 pub mod time;

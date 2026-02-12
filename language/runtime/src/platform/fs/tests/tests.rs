@@ -41,8 +41,8 @@ pub(crate) enum FsPathRef {
     Native {
         /// The owned byte buffer, if the path was byte-encoded.
         _bytes: Option<Vec<u8>>,
-        /// The owned utf16 bytes buffer, if the path was utf16-encoded.
-        _utf16: Option<Vec<u8>>,
+        /// The owned utf16 buffer, if the path was utf16-encoded.
+        _utf16: Option<Vec<u16>>,
         /// The native path reference.
         path: OsPath,
     },
@@ -116,7 +116,8 @@ impl<'call> FsHarnessContext<'call> {
                 let array = VmArray::from_bytes(context, &bytes);
                 let path = OsPathVm {
                     encoding: PathEncoding::Bytes,
-                    data: PathBytesAbi(array),
+                    bytes: PathBytesAbi(array),
+                    utf16: PathUtf16Abi(empty_vm_array()),
                 };
                 FsPathRef::Vm { path }
             }
@@ -137,12 +138,12 @@ impl<'call> FsHarnessContext<'call> {
         match self.vm_context_mut() {
             Some(context) => {
                 let units = path_utf16_vec(path);
-                let utf16 = utf16_units_to_le_bytes(&units);
                 let array =
-                    VmArray::from_values(context, &utf16).expect("vm utf16 path should encode");
+                    VmArray::from_values(context, &units).expect("vm utf16 path should encode");
                 let path = OsPathVm {
                     encoding: PathEncoding::Utf16,
-                    data: PathUtf16Abi(array),
+                    bytes: PathBytesAbi(empty_vm_array()),
+                    utf16: PathUtf16Abi(array),
                 };
                 FsPathRef::Vm { path }
             }
@@ -2650,6 +2651,16 @@ pub(crate) fn native_array(buffer: &mut [u8]) -> NativeArray<u8> {
     }
 }
 
+/// Build an empty VM array.
+fn empty_vm_array<T>() -> VmArray<T> {
+    VmArray {
+        data: vm::RawPointer::NULL,
+        len: 0,
+        capacity: 0,
+        _marker: std::marker::PhantomData,
+    }
+}
+
 /// Build a native byte path reference.
 #[cfg(unix)]
 fn path_bytes_native(path: &Path) -> (Vec<u8>, OsPath) {
@@ -2677,40 +2688,47 @@ fn path_bytes_native(_path: &Path) -> (Vec<u8>, OsPath) {
 
 /// Build a native UTF-16 path reference.
 #[cfg(unix)]
-fn path_utf16_native(path: &Path) -> (Vec<u8>, OsPath) {
+fn path_utf16_native(path: &Path) -> (Vec<u16>, OsPath) {
     use std::os::unix::ffi::OsStrExt;
 
     let bytes = path.as_os_str().as_bytes();
     let text = std::str::from_utf8(bytes).expect("path must be utf8 for unix utf16 tests");
-    let units: Vec<u16> = text.encode_utf16().collect();
-    let mut utf16 = utf16_units_to_le_bytes(&units);
-    let path = PathUtf16Abi::<NativeAbi>(native_array(&mut utf16));
+    let mut utf16_units: Vec<u16> = text.encode_utf16().collect();
+    let path = PathUtf16Abi::<NativeAbi>(NativeArray {
+        data: utf16_units.as_mut_ptr(),
+        len: utf16_units.len() as u32,
+        capacity: utf16_units.len() as u32,
+    });
 
-    (utf16, core_fs::path_ref_from_utf16(path))
+    (utf16_units, core_fs::path_ref_from_utf16(path))
 }
 
 /// Build a native UTF-16 path reference.
 #[cfg(windows)]
-fn path_utf16_native(path: &Path) -> (Vec<u8>, OsPath) {
+fn path_utf16_native(path: &Path) -> (Vec<u16>, OsPath) {
     use std::os::windows::ffi::OsStrExt;
 
-    let units: Vec<u16> = path.as_os_str().encode_wide().collect();
-    let mut utf16 = utf16_units_to_le_bytes(&units);
-    let path = PathUtf16Abi::<NativeAbi>(native_array(&mut utf16));
-    (utf16, core_fs::path_ref_from_utf16(path))
+    let mut utf16_units: Vec<u16> = path.as_os_str().encode_wide().collect();
+    let path = PathUtf16Abi::<NativeAbi>(NativeArray {
+        data: utf16_units.as_mut_ptr(),
+        len: utf16_units.len() as u32,
+        capacity: utf16_units.len() as u32,
+    });
+
+    (utf16_units, core_fs::path_ref_from_utf16(path))
 }
 
 /// Build a native UTF-16 path reference.
 #[cfg(not(any(unix, windows)))]
 #[allow(dead_code)]
-fn path_utf16_native(_path: &Path) -> (Vec<u8>, OsPath) {
+fn path_utf16_native(_path: &Path) -> (Vec<u16>, OsPath) {
     unreachable!("unsupported platform for utf16 tests");
 }
 
 /// Read raw bytes from a native path reference.
 fn path_ref_bytes_native(path: OsPath) -> Vec<u8> {
     match path.encoding {
-        PathEncoding::Bytes => unsafe { path.data.0.as_slice() }
+        PathEncoding::Bytes => unsafe { path.bytes.0.as_slice() }
             .expect("path bytes should be valid")
             .to_vec(),
         PathEncoding::Utf16 => panic!("expected byte path"),
@@ -2731,12 +2749,17 @@ fn own_path_ref_native(path: OsPath) -> FsPathRef {
             }
         }
         PathEncoding::Utf16 => {
-            let mut utf16 = path_ref_utf16_native(path);
-            let path = PathUtf16Abi::<NativeAbi>(native_array(&mut utf16));
+            let mut utf16_units = path_ref_utf16_native(path);
+            let path = PathUtf16Abi::<NativeAbi>(NativeArray {
+                data: utf16_units.as_mut_ptr(),
+                len: utf16_units.len() as u32,
+                capacity: utf16_units.len() as u32,
+            });
             let path = core_fs::path_ref_from_utf16(path);
+
             FsPathRef::Native {
                 _bytes: None,
-                _utf16: Some(utf16),
+                _utf16: Some(utf16_units),
                 path,
             }
         }
@@ -2744,9 +2767,9 @@ fn own_path_ref_native(path: OsPath) -> FsPathRef {
 }
 
 /// Read UTF-16 units from a native path reference.
-fn path_ref_utf16_native(path: OsPath) -> Vec<u8> {
+fn path_ref_utf16_native(path: OsPath) -> Vec<u16> {
     match path.encoding {
-        PathEncoding::Utf16 => unsafe { path.data.0.as_slice() }
+        PathEncoding::Utf16 => unsafe { path.utf16.0.as_slice() }
             .expect("path utf16 should be valid")
             .to_vec(),
         PathEncoding::Bytes => panic!("expected utf16 path"),
@@ -2761,8 +2784,7 @@ fn path_ref_string_native(path: OsPath) -> String {
             String::from_utf8_lossy(&bytes).to_string()
         }
         PathEncoding::Utf16 => {
-            let bytes = path_ref_utf16_native(path);
-            let units = utf16_units_from_le_bytes(&bytes).expect("path utf16 bytes should decode");
+            let units = path_ref_utf16_native(path);
             String::from_utf16_lossy(&units)
         }
     }
@@ -2817,40 +2839,13 @@ fn path_utf16_vec(_path: &Path) -> Vec<u16> {
     unreachable!("unsupported platform for utf16 tests");
 }
 
-/// Encode UTF-16 code units as little-endian bytes.
-fn utf16_units_to_le_bytes(units: &[u16]) -> Vec<u8> {
-    let mut bytes = Vec::with_capacity(units.len() * 2);
-    for unit in units {
-        bytes.extend_from_slice(&unit.to_le_bytes());
-    }
-    bytes
-}
-
-/// Decode little-endian bytes into UTF-16 code units.
-fn utf16_units_from_le_bytes(bytes: &[u8]) -> RuntimeResult<Vec<u16>> {
-    if bytes.len() % 2 != 0 {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "path",
-            "utf16 path bytes must have even length",
-        ))
-        .boxed());
-    }
-
-    let units = bytes
-        .chunks_exact(2)
-        .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
-        .collect::<Vec<_>>();
-
-    Ok(units)
-}
-
 /// Decode raw bytes from a VM path reference.
 fn path_ref_bytes_vm(
     context: &vm::ExternalCallContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<Vec<u8>> {
     match path.encoding {
-        PathEncoding::Bytes => path.data.0.read_bytes(context),
+        PathEncoding::Bytes => path.bytes.0.read_bytes(context),
         PathEncoding::Utf16 => Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "path",
             "expected byte path",
@@ -2866,12 +2861,11 @@ fn path_ref_string_vm(
 ) -> RuntimeResult<String> {
     match path.encoding {
         PathEncoding::Bytes => {
-            let bytes = path.data.0.read_bytes(context)?;
+            let bytes = path.bytes.0.read_bytes(context)?;
             Ok(String::from_utf8_lossy(&bytes).to_string())
         }
         PathEncoding::Utf16 => {
-            let bytes = path.data.0.read_values(context)?;
-            let units = utf16_units_from_le_bytes(&bytes)?;
+            let units = path.utf16.0.read_values(context)?;
             Ok(String::from_utf16_lossy(&units))
         }
     }
@@ -2885,10 +2879,10 @@ fn decode_path_ref_vm(
     let slots = context
         .aggregate_slots(value)
         .map_err(|error| RuntimeError::from(error).boxed())?;
-    if slots.len() != 2 {
+    if slots.len() != 3 {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "path",
-            "expected OsPath aggregate with 2 fields",
+            "expected OsPath aggregate with 3 fields",
         ))
         .boxed());
     }
@@ -2913,10 +2907,12 @@ fn decode_path_ref_vm(
         }
     };
 
-    let data = VmArray::from_value(context, slots[1], "path", "PathBytes")?;
+    let bytes = VmArray::from_value(context, slots[1], "path.bytes", "PathBytes")?;
+    let utf16 = VmArray::from_value(context, slots[2], "path.utf16", "PathUtf16")?;
     Ok(OsPathVm {
         encoding,
-        data: PathBytesAbi(data),
+        bytes: PathBytesAbi(bytes),
+        utf16: PathUtf16Abi(utf16),
     })
 }
 

@@ -2,6 +2,7 @@ use super::{Microtask, MicrotaskId, Task, TaskId, Timer, TimerQueue};
 use crate::diagnostic::RuntimeResult;
 use crate::platform::{PlatformEvent, PlatformPoller, ResourceId};
 use crate::scheduler::EventLoop;
+use destack_workspace::SchedulerOptions;
 use parking_lot::Mutex;
 
 /// Runnable item returned by the scheduler.
@@ -23,9 +24,16 @@ pub struct Scheduler {
     // NOTE #Incomplete: use task priorities, queue budgets, and deterministic ordering rules
     /// Event loop queues managed by the scheduler.
     pub event_loop: EventLoop,
+    /// Configured scheduler options.
+    pub options: SchedulerOptions,
 }
 
 impl Scheduler {
+    /// Configure scheduler options.
+    pub fn configure(&mut self, options: SchedulerOptions) {
+        self.options = options;
+    }
+
     /// Borrow the timer queue.
     pub fn timers(&self) -> &Mutex<TimerQueue> {
         self.event_loop.timers()

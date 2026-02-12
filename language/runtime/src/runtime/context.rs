@@ -4,15 +4,16 @@ use std::sync::Arc;
 
 use crate::diagnostic::{RuntimeError, RuntimeErrorStore, RuntimeResult};
 use crate::platform::bindings::{
-    BindingDescriptor, BindingPolicy, ExecutionMode, PolicyEngine, ReplayPayload,
+    BindingDescriptor, BindingPolicy, ExecutionMode, PolicyEngine, ReplayPayload, RuntimeWorld,
 };
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformContext, ResourceTable,
 };
 use crate::random::{Random, RandomStreamId};
 use crate::replay::{ReplayController, ReplayHeader};
-use crate::runtime::{RuntimeCallStringStore, RuntimeCallValueStore};
+use crate::runtime::{RuntimeCallStringStore, RuntimeCallValueStore, RuntimeEffectEngine};
 use crate::scheduler::{MicrotaskId, Scheduler, TaskId};
+use crate::simulation::{SharedSimulationState, SimulationState};
 use crate::time::Clock;
 use destack_workspace::{
     ExecutionMode as WorkspaceExecutionMode, GcOptions, PlatformOptions, PlatformWindowsOptions,
@@ -51,6 +52,10 @@ pub struct RuntimeState {
     pub resources: ResourceTable,
     /// Replay log and record/replay state.
     pub replay: ReplayController,
+    /// Runtime effect engine for fault, control, and mock rules.
+    pub effects: RuntimeEffectEngine,
+    /// Simulation world state shared across simulated bindings.
+    pub simulation: SharedSimulationState,
     /// Runtime error storage for native bindings.
     pub errors: RuntimeErrorStore,
 }
@@ -193,6 +198,8 @@ impl RuntimeContext {
                 gc_options: options.gc.clone(),
                 resources: ResourceTable::default(),
                 replay: ReplayController::new(execution_mode, replay_payload, header),
+                effects: RuntimeEffectEngine::from_runtime_options(options),
+                simulation: SharedSimulationState::new(SimulationState::default()),
                 errors: RuntimeErrorStore::default(),
             }),
         }
@@ -236,6 +243,16 @@ impl RuntimeContext {
     /// Return the replay log.
     pub fn replay(&self) -> &ReplayController {
         &self.state.replay
+    }
+
+    /// Return the runtime effect engine.
+    pub fn effects(&self) -> &RuntimeEffectEngine {
+        &self.state.effects
+    }
+
+    /// Return the shared simulation state.
+    pub fn simulation(&self) -> &SharedSimulationState {
+        &self.state.simulation
     }
 
     /// Return the error store.
@@ -319,7 +336,7 @@ pub struct RuntimeCallContext {
     /// Scheduler for task queues and timers.
     scheduler: *const Scheduler,
     /// Binding policy for external calls.
-    policy: BindingPolicy,
+    policy: Arc<BindingPolicy>,
     /// Engine kind for this binding call.
     engine: PolicyEngine,
     /// Execution metadata for the current call.
@@ -332,7 +349,7 @@ impl RuntimeCallContext {
         Self {
             runtime: Arc::as_ptr(&runtime.state),
             scheduler,
-            policy,
+            policy: Arc::new(policy),
             engine: PolicyEngine::Native,
             execution: current_execution_context(),
         }
@@ -342,7 +359,7 @@ impl RuntimeCallContext {
     pub(crate) fn from_raw(
         runtime: *const RuntimeState,
         scheduler: *const Scheduler,
-        policy: BindingPolicy,
+        policy: Arc<BindingPolicy>,
         engine: PolicyEngine,
     ) -> Self {
         Self {
@@ -378,6 +395,18 @@ impl RuntimeCallContext {
     #[inline]
     pub fn replay(&self) -> &ReplayController {
         &self.runtime().replay
+    }
+
+    /// Borrow the runtime effect engine.
+    #[inline]
+    pub fn effects(&self) -> &RuntimeEffectEngine {
+        &self.runtime().effects
+    }
+
+    /// Borrow the shared simulation state.
+    #[inline]
+    pub fn simulation(&self) -> &SharedSimulationState {
+        &self.runtime().simulation
     }
 
     /// Return the current execution context.
@@ -439,7 +468,32 @@ impl RuntimeCallContext {
     /// Validate the policy against a binding descriptor.
     #[inline]
     pub fn check_policy(&self, spec: BindingDescriptor) -> RuntimeResult<()> {
+        self.effects().before_binding(spec, Some(self.engine))?;
         self.policy.check_for_engine(spec, Some(self.engine))
+    }
+
+    /// Validate policy and resolve the binding world for this call context.
+    #[inline]
+    pub fn check_and_resolve_world(&self, spec: BindingDescriptor) -> RuntimeResult<RuntimeWorld> {
+        self.effects().before_binding(spec, Some(self.engine))?;
+        self.policy
+            .check_and_resolve_world_for_engine(spec, Some(self.engine))
+    }
+
+    /// Resolve the binding world for this call context.
+    #[inline]
+    pub fn resolve_world(&self, spec: BindingDescriptor) -> RuntimeWorld {
+        self.policy
+            .resolve_world_for_engine(spec, Some(self.engine))
+    }
+
+    /// Resolve the replay payload policy for this call context.
+    #[inline]
+    pub fn replay_payload_for(&self, spec: BindingDescriptor) -> RuntimeResult<ReplayPayload> {
+        let requested = self
+            .policy
+            .resolve_replay_payload_for_engine(spec, Some(self.engine));
+        self.replay().payload_policy_for_requested(spec, requested)
     }
 }
 

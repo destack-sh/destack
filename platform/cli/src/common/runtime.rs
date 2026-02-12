@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use clap::{Args, ValueEnum};
 use destack_workspace::{
     DsConfigRuntimeOptionsJson, ExecutionModeJson, GcLoggingJson, GcOptionsJson, RandomModeJson,
-    RandomOptionsJson, ReplayLogOptionsJson, SchedulerOptionsJson, SchedulerPolicyJson,
-    TimeModeJson, TimeOptionsJson,
+    RandomOptionsJson, ReplayLogOptionsJson, RuntimeAccessJson, RuntimeWorldJson,
+    SchedulerOptionsJson, SchedulerPolicyJson, TimeModeJson, TimeOptionsJson,
 };
 
 /// Runtime configuration arguments for run-like commands.
@@ -13,6 +13,14 @@ pub struct RuntimeArgs {
     /// Runtime execution mode.
     #[arg(long = "runtime-execution-mode", value_enum)]
     pub execution_mode: Option<ExecutionModeArg>,
+
+    /// Runtime default world for external bindings.
+    #[arg(long = "runtime-world", value_enum)]
+    pub world: Option<RuntimeWorldArg>,
+
+    /// Runtime default access policy for external bindings.
+    #[arg(long = "runtime-access", value_enum)]
+    pub access: Option<RuntimeAccessArg>,
 
     /// Replay log path (file or directory).
     #[arg(long = "runtime-replay-log")]
@@ -123,6 +131,8 @@ impl RuntimeArgs {
     /// Return true when any runtime override is set.
     pub fn is_empty(&self) -> bool {
         self.execution_mode.is_none()
+            && self.world.is_none()
+            && self.access.is_none()
             && self.replay_log_path.is_none()
             && self.replay_log_template.is_none()
             && self.replay_log_chunk_mb.is_none()
@@ -253,14 +263,14 @@ impl RuntimeArgs {
 
         Some(DsConfigRuntimeOptionsJson {
             execution: self.execution_mode.map(Into::into),
-            world: None,
-            access: None,
-            rules: None,
+            world: self.world.map(Into::into),
+            access: self.access.map(Into::into),
             replay_log,
             time,
             random,
             scheduler,
             gc,
+            rules: None,
             platform: None,
         })
     }
@@ -286,6 +296,42 @@ impl From<ExecutionModeArg> for ExecutionModeJson {
             ExecutionModeArg::Deterministic => ExecutionModeJson::Deterministic,
             ExecutionModeArg::Record => ExecutionModeJson::Record,
             ExecutionModeArg::Replay => ExecutionModeJson::Replay,
+        }
+    }
+}
+
+/// Runtime world for CLI arguments.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum RuntimeWorldArg {
+    /// Use host-backed platform bindings.
+    Host,
+    /// Use simulated platform bindings.
+    Simulated,
+}
+
+impl From<RuntimeWorldArg> for RuntimeWorldJson {
+    fn from(value: RuntimeWorldArg) -> Self {
+        match value {
+            RuntimeWorldArg::Host => RuntimeWorldJson::Host,
+            RuntimeWorldArg::Simulated => RuntimeWorldJson::Simulated,
+        }
+    }
+}
+
+/// Runtime default access policy for CLI arguments.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum RuntimeAccessArg {
+    /// Allow matching binding calls.
+    Allow,
+    /// Deny matching binding calls.
+    Deny,
+}
+
+impl From<RuntimeAccessArg> for RuntimeAccessJson {
+    fn from(value: RuntimeAccessArg) -> Self {
+        match value {
+            RuntimeAccessArg::Allow => RuntimeAccessJson::Allow,
+            RuntimeAccessArg::Deny => RuntimeAccessJson::Deny,
         }
     }
 }

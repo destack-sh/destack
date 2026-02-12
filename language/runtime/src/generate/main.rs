@@ -1,4 +1,5 @@
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -17,11 +18,18 @@ mod replay;
 
 use binding::{
     DomainAbiTypes, collect_domain_abi_types, render_abi_types, render_domain_bindings,
-    render_native_stub, render_platform_bindings_index, render_vm_stub,
+    render_host_stub, render_native_stub, render_platform_bindings_index, render_runtime_mod_stub,
+    render_runtime_native_stub, render_runtime_vm_stub, render_simulated_mod_stub,
+    render_simulated_native_stub, render_simulated_vm_stub, render_vm_stub,
     runtime_domain_abi_types_path, runtime_domain_bindings_path, runtime_domain_native_path,
-    runtime_domain_vm_path, runtime_platform_generated_path, write_domain_bindings,
+    runtime_domain_runtime_mod_path, runtime_domain_runtime_native_path,
+    runtime_domain_runtime_vm_path, runtime_domain_simulated_mod_path,
+    runtime_domain_simulated_native_path, runtime_domain_simulated_vm_path,
+    runtime_domain_unsupported_path, runtime_domain_vm_path, runtime_platform_generated_path,
+    write_domain_bindings,
 };
 use collect::collect_platform_bindings;
+use model::BindingScope;
 
 /// Compiler state used while generating bindings.
 struct GeneratorContext {
@@ -64,12 +72,15 @@ impl GeneratorContext {
 struct GeneratorOptions {
     /// Optional set of platform domains to include.
     domains: Option<BTreeSet<String>>,
+    /// Whether to refresh existing generated stubs.
+    refresh_stubs: bool,
 }
 
 /// Parse CLI options for runtime binding generation.
 fn parse_generator_options() -> GeneratorOptions {
     // parse domain selectors from CLI flags
     let mut domains = BTreeSet::new();
+    let mut refresh_stubs = false;
     let mut arguments = std::env::args().skip(1).peekable();
 
     while let Some(argument) = arguments.next() {
@@ -113,15 +124,25 @@ fn parse_generator_options() -> GeneratorOptions {
             continue;
         }
 
+        // refresh generated stubs in-place when they still match stub patterns
+        if argument == "--refresh-stubs" {
+            refresh_stubs = true;
+            continue;
+        }
+
         panic!("unsupported generate-bindings option {argument}");
     }
 
     if domains.is_empty() {
-        return GeneratorOptions { domains: None };
+        return GeneratorOptions {
+            domains: None,
+            refresh_stubs,
+        };
     }
 
     GeneratorOptions {
         domains: Some(domains),
+        refresh_stubs,
     }
 }
 
@@ -163,6 +184,7 @@ fn main() {
         context.session.strings.as_ref(),
         profile_id,
         &selected_modules,
+        options.refresh_stubs,
     );
 }
 
@@ -544,6 +566,15 @@ fn report_diagnostics(program: &Program) {
     // emit diagnostics and fail fast
     let diagnostics = program.diagnostics.drain();
     for diagnostic in diagnostics {
+        let file = program.files.get(diagnostic.file_id);
+        eprintln!(
+            "{}:{}:{}: {} {}",
+            file.uri,
+            diagnostic.primary_span.span.start,
+            diagnostic.primary_span.span.end,
+            diagnostic.code,
+            diagnostic.message
+        );
         eprintln!("{diagnostic:?}");
     }
     panic!("binding generation failed due to diagnostics");
@@ -555,6 +586,7 @@ fn generate_bindings(
     strings: &destack_base::StringPool,
     profile_id: ProfileId,
     platform_modules: &[destack_source::ModuleId],
+    refresh_stubs: bool,
 ) {
     // collect bindings from the analyzed program
     let catalog = collect_platform_bindings(program, strings, profile_id, platform_modules);
@@ -569,20 +601,54 @@ fn generate_bindings(
 
     for domain in &abi_domains {
         if let Some(bindings) = catalog.get(domain) {
+            let has_world_dispatch = bindings
+                .values()
+                .any(|entry| entry.scope != BindingScope::Runtime);
+            let has_runtime_dispatch = bindings
+                .values()
+                .any(|entry| entry.scope == BindingScope::Runtime);
             let generated = render_domain_bindings(domain, bindings);
             let path = runtime_domain_bindings_path(domain);
             write_domain_bindings(&path, &generated);
 
             let native_path = runtime_domain_native_path(domain);
-            if should_write_stub(&native_path) {
-                let stub = render_native_stub(domain, bindings);
-                write_domain_bindings(&native_path, &stub);
-            }
+            let stub = render_native_stub(domain, bindings);
+            write_stub_file(&native_path, &stub, refresh_stubs);
 
             let vm_path = runtime_domain_vm_path(domain);
-            if should_write_stub(&vm_path) {
-                let stub = render_vm_stub(domain, bindings);
-                write_domain_bindings(&vm_path, &stub);
+            let stub = render_vm_stub(domain, bindings);
+            write_stub_file(&vm_path, &stub, refresh_stubs);
+
+            if has_world_dispatch {
+                let unsupported_path = runtime_domain_unsupported_path(domain);
+                let stub = render_host_stub(domain, bindings);
+                write_stub_file(&unsupported_path, &stub, refresh_stubs);
+
+                let simulated_mod_path = runtime_domain_simulated_mod_path(domain);
+                let stub = render_simulated_mod_stub();
+                write_stub_file(&simulated_mod_path, &stub, refresh_stubs);
+
+                let simulated_native_path = runtime_domain_simulated_native_path(domain);
+                let stub = render_simulated_native_stub(domain, bindings);
+                write_stub_file(&simulated_native_path, &stub, refresh_stubs);
+
+                let simulated_vm_path = runtime_domain_simulated_vm_path(domain);
+                let stub = render_simulated_vm_stub(domain, bindings);
+                write_stub_file(&simulated_vm_path, &stub, refresh_stubs);
+            }
+
+            if has_runtime_dispatch {
+                let runtime_mod_path = runtime_domain_runtime_mod_path(domain);
+                let stub = render_runtime_mod_stub();
+                write_stub_file(&runtime_mod_path, &stub, refresh_stubs);
+
+                let runtime_native_path = runtime_domain_runtime_native_path(domain);
+                let stub = render_runtime_native_stub(domain);
+                write_stub_file(&runtime_native_path, &stub, refresh_stubs);
+
+                let runtime_vm_path = runtime_domain_runtime_vm_path(domain);
+                let stub = render_runtime_vm_stub(domain);
+                write_stub_file(&runtime_vm_path, &stub, refresh_stubs);
             }
         }
 
@@ -597,7 +663,194 @@ fn generate_bindings(
     write_domain_bindings(&platform_path, &platform_generated);
 }
 
-/// Return true if a generated stub should be written to the given path.
-fn should_write_stub(path: &std::path::Path) -> bool {
-    !path.exists()
+/// Write one generated stub file when generation rules allow it.
+fn write_stub_file(path: &std::path::Path, generated: &str, refresh_stubs: bool) {
+    if !path.exists() {
+        write_domain_bindings(path, generated);
+        return;
+    }
+
+    if !refresh_stubs {
+        return;
+    }
+
+    let Ok(existing) = fs::read_to_string(path) else {
+        write_domain_bindings(path, generated);
+        return;
+    };
+
+    // detect function-shape drift so new bindings refresh full stubs
+    let existing_functions = collect_function_names(&existing);
+    let generated_functions = collect_function_names(generated);
+    let has_shape_drift = existing_functions != generated_functions;
+
+    if has_shape_drift && should_refresh_stub(path) {
+        if existing != generated {
+            write_domain_bindings(path, generated);
+        }
+        return;
+    }
+
+    // refresh docs in-place for any adapter file with matching function names
+    if let Some(merged) = merge_function_docs(&existing, generated) {
+        if merged != existing {
+            write_domain_bindings(path, &merged);
+        }
+        return;
+    }
+
+    // fall back to full rewrite only for known generated stubs
+    if should_refresh_stub(path) && existing != generated {
+        write_domain_bindings(path, generated);
+    }
+}
+
+/// Collect function names from one Rust source string.
+fn collect_function_names(source: &str) -> BTreeSet<String> {
+    let mut names = BTreeSet::new();
+
+    for line in source.lines() {
+        let Some(name) = function_name_from_line(line) else {
+            continue;
+        };
+
+        names.insert(name);
+    }
+
+    names
+}
+
+/// Merge generated function docs into an existing stub by function name.
+fn merge_function_docs(existing: &str, generated: &str) -> Option<String> {
+    let generated_docs = collect_function_docs(generated);
+    if generated_docs.is_empty() {
+        return None;
+    }
+
+    let mut existing_lines = existing
+        .lines()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>();
+    let mut replacements = Vec::new();
+
+    for (index, line) in existing_lines.iter().enumerate() {
+        let Some(function_name) = function_name_from_line(line) else {
+            continue;
+        };
+        let Some(new_docs) = generated_docs.get(function_name.as_str()) else {
+            continue;
+        };
+
+        let start = doc_block_start(&existing_lines, index).unwrap_or(index);
+        replacements.push((start, index, new_docs.clone()));
+    }
+
+    if replacements.is_empty() {
+        return None;
+    }
+
+    for (start, end, docs) in replacements.into_iter().rev() {
+        existing_lines.splice(start..end, docs);
+    }
+
+    let mut merged = existing_lines.join("\n");
+    if existing.ends_with('\n') || generated.ends_with('\n') {
+        merged.push('\n');
+    }
+
+    Some(merged)
+}
+
+/// Collect generated function docs indexed by function name.
+fn collect_function_docs(source: &str) -> BTreeMap<String, Vec<String>> {
+    let lines = source.lines().map(ToString::to_string).collect::<Vec<_>>();
+    let mut docs = BTreeMap::new();
+
+    for (index, line) in lines.iter().enumerate() {
+        let Some(function_name) = function_name_from_line(line) else {
+            continue;
+        };
+        let Some(start) = doc_block_start(&lines, index) else {
+            continue;
+        };
+
+        docs.insert(function_name, lines[start..index].to_vec());
+    }
+
+    docs
+}
+
+/// Return the contiguous doc block start that appears immediately before one function line.
+fn doc_block_start(lines: &[String], function_index: usize) -> Option<usize> {
+    if function_index == 0 {
+        return None;
+    }
+
+    let mut index = function_index;
+    while index > 0 {
+        let line = lines[index - 1].trim_start();
+        if line.starts_with("///") {
+            index -= 1;
+            continue;
+        }
+        break;
+    }
+
+    if index == function_index {
+        return None;
+    }
+
+    Some(index)
+}
+
+/// Extract one function name from a Rust function signature line.
+fn function_name_from_line(line: &str) -> Option<String> {
+    let line = line.trim_start();
+    if line.starts_with("//") {
+        return None;
+    }
+
+    let fn_index = line.find("fn ")?;
+    let tail = &line[fn_index + 3..];
+    let name_end = tail
+        .find(|character: char| !(character.is_ascii_alphanumeric() || character == '_'))
+        .unwrap_or(tail.len());
+
+    if name_end == 0 {
+        return None;
+    }
+
+    Some(tail[..name_end].to_string())
+}
+
+/// Return true when an existing file still appears to be a generated stub.
+fn should_refresh_stub(path: &std::path::Path) -> bool {
+    let Ok(contents) = fs::read_to_string(path) else {
+        return false;
+    };
+
+    let has_stub_marker = contents.contains("// generated by generate-bindings: stub, do not edit");
+    let has_stub_body =
+        contents.contains("not_supported(") || contents.contains("not available in the VM yet");
+    let has_module_reexports =
+        contents.contains("pub(crate) mod native;") && contents.contains("pub(crate) mod vm;");
+    let has_runtime_reexport = contents.contains("#[allow(unused_imports)]")
+        && contents.contains("pub(crate) use crate::platform::")
+        && (contents.contains("::native::*;") || contents.contains("::vm::*;"));
+
+    if has_stub_marker {
+        return true;
+    }
+
+    let has_binding_metadata =
+        contents.contains("/// Binding: `destack.") && contents.contains("/// Signature: `");
+    if has_binding_metadata && has_stub_body {
+        return true;
+    }
+
+    if has_module_reexports {
+        return true;
+    }
+
+    has_runtime_reexport
 }

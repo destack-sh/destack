@@ -21,6 +21,8 @@ use crate::model::{
 struct BindingRecord {
     /// Declaration name used by runtime implementation functions.
     implementation_name: String,
+    /// Declaration documentation extracted from builtin sources.
+    documentation: Option<String>,
     /// Fully qualified extern binding name.
     extern_name: String,
     /// Canonical signature string for stability checks.
@@ -159,6 +161,10 @@ pub(crate) fn collect_platform_bindings(
                 continue;
             };
 
+            // resolve declaration documentation comments
+            let documentation =
+                binding_documentation(&tree, expression_id, declaration_id, strings);
+
             // resolve the extern binding name
             let symbol = symbols.get_symbol(declaration.symbol());
             let implementation_name = symbol.name().map(|name| strings.get(name).to_string());
@@ -209,6 +215,7 @@ pub(crate) fn collect_platform_bindings(
             // insert parsed binding metadata into the catalog
             if let Some(entry) = binding_from_node(
                 implementation_name,
+                documentation,
                 extern_name,
                 signature_text,
                 params,
@@ -250,6 +257,7 @@ fn binding_domain(extern_name: &str) -> String {
 /// Build a binding record from parsed metadata.
 fn binding_from_node(
     implementation_name: Option<String>,
+    documentation: Option<String>,
     extern_name: Option<String>,
     signature: String,
     params: Vec<crate::model::BindingParameter>,
@@ -268,6 +276,7 @@ fn binding_from_node(
 
     Some(BindingRecord {
         implementation_name,
+        documentation,
         replay_kind: binding_replay_kind_for_name(&extern_name),
         extern_name,
         signature,
@@ -290,6 +299,7 @@ fn insert_binding(domains: &mut BindingCatalog, record: BindingRecord) {
     // build a canonical entry for comparisons
     let entry = BindingEntry {
         implementation_name: record.implementation_name,
+        documentation: record.documentation,
         signature: record.signature,
         parameters: record.params,
         return_binding: record.return_binding.binding_type,
@@ -305,6 +315,7 @@ fn insert_binding(domains: &mut BindingCatalog, record: BindingRecord) {
     // insert the entry and validate signature stability
     if let Some(existing) = domain_bindings.insert(record.extern_name.clone(), entry.clone())
         && (existing.implementation_name != entry.implementation_name
+            || existing.documentation != entry.documentation
             || existing.signature != entry.signature
             || existing.effect_class != entry.effect_class
             || existing.replay_kind != entry.replay_kind
@@ -318,6 +329,48 @@ fn insert_binding(domains: &mut BindingCatalog, record: BindingRecord) {
             record.extern_name, existing, entry
         );
     }
+}
+
+/// Collect binding documentation comments from DIR annotations.
+fn binding_documentation(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<Expression>,
+    declaration_id: dir::LocalNodeId<Declaration>,
+    strings: &StringPool,
+) -> Option<String> {
+    // prefer docs attached to the declaration node
+    let declaration_docs = annotation_docs(tree, declaration_id.id, strings);
+    if declaration_docs.is_some() {
+        return declaration_docs;
+    }
+
+    // fall back to docs attached to the declaration expression wrapper
+    annotation_docs(tree, expression_id.id, strings)
+}
+
+/// Collect documentation comments from one annotated node.
+fn annotation_docs(tree: &dir::NodeTree, node_id: u32, strings: &StringPool) -> Option<String> {
+    let mut docs = Vec::new();
+    let annotations = tree.get_annotations(node_id);
+
+    for annotation_id in annotations {
+        let annotation = tree.get::<Annotation>(annotation_id);
+        let Annotation::Doc { string, .. } = annotation else {
+            continue;
+        };
+        let text = strings.get(*string);
+        let content = text.trim();
+        if content.is_empty() {
+            continue;
+        }
+        docs.push(content.to_string());
+    }
+
+    if docs.is_empty() {
+        return None;
+    }
+
+    Some(docs.join("\n"))
 }
 
 /// Extract the binding decorator value from a declaration expression.

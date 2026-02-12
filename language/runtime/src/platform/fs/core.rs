@@ -155,7 +155,6 @@ pub(crate) fn empty_path_bytes() -> PathBytes {
 }
 
 /// Build an empty UTF-16 path payload.
-#[cfg(not(unix))]
 pub(crate) fn empty_path_utf16() -> PathUtf16 {
     PathUtf16Abi::<NativeAbi>(NativeArray {
         data: std::ptr::null_mut(),
@@ -168,7 +167,8 @@ pub(crate) fn empty_path_utf16() -> PathUtf16 {
 pub(crate) fn path_ref_from_bytes(bytes: PathBytes) -> OsPath {
     OsPath {
         encoding: PathEncoding::Bytes,
-        data: bytes,
+        bytes,
+        utf16: empty_path_utf16(),
     }
 }
 
@@ -176,7 +176,8 @@ pub(crate) fn path_ref_from_bytes(bytes: PathBytes) -> OsPath {
 pub(crate) fn path_ref_from_utf16(utf16: PathUtf16) -> OsPath {
     OsPath {
         encoding: PathEncoding::Utf16,
-        data: utf16,
+        bytes: empty_path_bytes(),
+        utf16,
     }
 }
 
@@ -192,19 +193,8 @@ fn path_ref_mismatch<T>(label: &str) -> RuntimeResult<T> {
 /// Decode one UTF-16 byte payload into native code units.
 #[cfg(unix)]
 fn decode_utf16_bytes(path: PathUtf16, label: &str) -> RuntimeResult<Vec<u16>> {
-    let bytes = unsafe { path.0.as_slice()? };
-    if bytes.len() % 2 != 0 {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            label,
-            "path contains odd utf16 byte length",
-        ))
-        .boxed());
-    }
-
-    let units = bytes
-        .chunks_exact(2)
-        .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
-        .collect();
+    let units = unsafe { path.0.as_slice()? }.to_vec();
+    let _ = label;
 
     Ok(units)
 }
@@ -319,10 +309,7 @@ fn path_utf16_from_bytes(
         ))
         .boxed()
     })?;
-    let utf16: Vec<u8> = text
-        .encode_utf16()
-        .flat_map(|value| value.to_le_bytes())
-        .collect();
+    let utf16: Vec<u16> = text.encode_utf16().collect();
 
     Ok(PathUtf16Abi::<NativeAbi>(context.store_array(utf16)))
 }
@@ -338,15 +325,15 @@ fn with_path_ref<T>(
     let _ = label;
 
     match path.encoding {
-        PathEncoding::Bytes => on_bytes(path.data),
+        PathEncoding::Bytes => on_bytes(path.bytes),
         PathEncoding::Utf16 => {
             #[cfg(unix)]
             {
-                with_utf16_as_bytes(path.data, label, on_bytes)
+                with_utf16_as_bytes(path.utf16, label, on_bytes)
             }
             #[cfg(not(unix))]
             {
-                _on_utf16(path.data)
+                _on_utf16(path.utf16)
             }
         }
     }
@@ -361,15 +348,15 @@ fn with_path_ref_pair<T>(
     _on_utf16: impl FnOnce(PathUtf16, PathUtf16) -> RuntimeResult<T>,
 ) -> RuntimeResult<T> {
     match (left.encoding, right.encoding) {
-        (PathEncoding::Bytes, PathEncoding::Bytes) => on_bytes(left.data, right.data),
+        (PathEncoding::Bytes, PathEncoding::Bytes) => on_bytes(left.bytes, right.bytes),
         (PathEncoding::Utf16, PathEncoding::Utf16) => {
             #[cfg(unix)]
             {
-                with_utf16_pair_as_bytes(left.data, right.data, label, on_bytes)
+                with_utf16_pair_as_bytes(left.utf16, right.utf16, label, on_bytes)
             }
             #[cfg(not(unix))]
             {
-                _on_utf16(left.data, right.data)
+                _on_utf16(left.utf16, right.utf16)
             }
         }
         _ => path_ref_mismatch(label),
@@ -569,14 +556,14 @@ pub(crate) unsafe fn destack_fs_mkdtemp(
         match template.encoding {
             PathEncoding::Bytes => {
                 let mut inner = empty_path_bytes();
-                unsafe { destack_fs_mkdtemp_bytes(context, &mut inner, template.data) }?;
+                unsafe { destack_fs_mkdtemp_bytes(context, &mut inner, template.bytes) }?;
                 unsafe {
                     *out = path_ref_from_bytes(inner);
                 }
                 Ok(())
             }
             PathEncoding::Utf16 => {
-                let bytes = with_utf16_as_bytes(template.data, "template", |template| {
+                let bytes = with_utf16_as_bytes(template.utf16, "template", |template| {
                     let mut inner = empty_path_bytes();
                     unsafe { destack_fs_mkdtemp_bytes(context, &mut inner, template) }?;
                     Ok(inner)
@@ -859,14 +846,14 @@ pub(crate) unsafe fn destack_fs_readlink(
         match path.encoding {
             PathEncoding::Bytes => {
                 let mut inner = empty_path_bytes();
-                unsafe { destack_fs_readlink_bytes(context, &mut inner, path.data) }?;
+                unsafe { destack_fs_readlink_bytes(context, &mut inner, path.bytes) }?;
                 unsafe {
                     *out = path_ref_from_bytes(inner);
                 }
                 Ok(())
             }
             PathEncoding::Utf16 => {
-                let bytes = with_utf16_as_bytes(path.data, "path", |path| {
+                let bytes = with_utf16_as_bytes(path.utf16, "path", |path| {
                     let mut inner = empty_path_bytes();
                     unsafe { destack_fs_readlink_bytes(context, &mut inner, path) }?;
                     Ok(inner)
@@ -917,14 +904,14 @@ pub(crate) unsafe fn destack_fs_readlinkat(
         match path.encoding {
             PathEncoding::Bytes => {
                 let mut inner = empty_path_bytes();
-                unsafe { destack_fs_readlinkat_bytes(context, &mut inner, dir, path.data) }?;
+                unsafe { destack_fs_readlinkat_bytes(context, &mut inner, dir, path.bytes) }?;
                 unsafe {
                     *out = path_ref_from_bytes(inner);
                 }
                 Ok(())
             }
             PathEncoding::Utf16 => {
-                let bytes = with_utf16_as_bytes(path.data, "path", |path| {
+                let bytes = with_utf16_as_bytes(path.utf16, "path", |path| {
                     let mut inner = empty_path_bytes();
                     unsafe { destack_fs_readlinkat_bytes(context, &mut inner, dir, path) }?;
                     Ok(inner)
@@ -974,14 +961,14 @@ pub(crate) unsafe fn destack_fs_realpath(
         match path.encoding {
             PathEncoding::Bytes => {
                 let mut inner = empty_path_bytes();
-                unsafe { destack_fs_realpath_bytes(context, &mut inner, path.data) }?;
+                unsafe { destack_fs_realpath_bytes(context, &mut inner, path.bytes) }?;
                 unsafe {
                     *out = path_ref_from_bytes(inner);
                 }
                 Ok(())
             }
             PathEncoding::Utf16 => {
-                let bytes = with_utf16_as_bytes(path.data, "path", |path| {
+                let bytes = with_utf16_as_bytes(path.utf16, "path", |path| {
                     let mut inner = empty_path_bytes();
                     unsafe { destack_fs_realpath_bytes(context, &mut inner, path) }?;
                     Ok(inner)
@@ -1883,4 +1870,4 @@ pub(crate) unsafe fn destack_fs_watchat(
 
 /// Core filesystem interface exposed to bindings.
 /// This provides a stable entrypoint that selects the active OS backend.
-pub(crate) use super::os::*;
+pub(crate) use super::host::*;

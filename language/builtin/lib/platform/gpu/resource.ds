@@ -53,9 +53,9 @@ export struct GpuSamplerOptions {
 /// GPU memory map result.
 export struct GpuMappedMemory {
     /// Host-visible pointer address represented as integer.
-    address: uint64,
+    address: uint64;
     /// Mapped byte length.
-    length: uint64,
+    length: uint64;
 }
 
 /// GPU resource bindings.

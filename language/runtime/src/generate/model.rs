@@ -107,6 +107,8 @@ pub(crate) enum EffectClass {
 pub(crate) struct BindingEntry {
     /// Declaration name used by runtime implementation functions.
     pub implementation_name: String,
+    /// Declaration documentation extracted from builtin sources.
+    pub documentation: Option<String>,
     /// Canonical signature string for stability checks.
     pub signature: String,
     /// Parameter metadata for the binding.
